@@ -176,7 +176,6 @@ function AuditReportDisplay({ data }: { data: AuditData }) {
             <div className="opacity-80">High</div>
           </div>
         </div>
-        </div>
       </div>
 
       {/* Search Bar */}
