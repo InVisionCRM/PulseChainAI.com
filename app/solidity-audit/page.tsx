@@ -171,8 +171,11 @@ function AuditReportDisplay({ data }: { data: AuditData }) {
             <div className="font-bold">{safeData.issue_summary.filter(i => i.severity === 'Critical').length}</div>
             <div className="opacity-80">Critical</div>
           </div>
- 
+          <div className="text-center">
+            <div className="font-bold">{safeData.issue_summary.filter(i => i.severity === 'High').length}</div>
+            <div className="opacity-80">High</div>
           </div>
+        </div>
         </div>
       </div>
 
