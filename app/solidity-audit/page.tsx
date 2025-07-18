@@ -332,7 +332,7 @@ function AuditReportDisplay({ data }: { data: AuditData }) {
                   <h5 className="text-blue-300 font-semibold mb-2">⚡ Modifiers Applied:</h5>
                   <div className="flex flex-wrap gap-2">
                     {func.modifiers.map((modifier, mIndex) => (
-                      <span key={mIndex} className="px-2 py-1 purple-5020purple-30rounded text-sm">
+                      <span key={mIndex} className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-sm">
                         {modifier}
                       </span>
                     ))}
