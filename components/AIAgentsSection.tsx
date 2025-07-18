@@ -55,16 +55,9 @@ const agents = [
     color: "from-blue-500 to-cyan-500",
     size: "col-span-1 row-span-1"
   },
+
   {
     id: 3,
-    name: "Solidity Contract Audits",
-    description: "Comprehensive smart contract security analysis",
-    icon: IconShieldCheck,
-    color: "from-green-500 to-emerald-500",
-    size: "col-span-1 row-span-1"
-  },
-  {
-    id: 4,
     name: "HappyPulse",
     description: "Community sentiment and social media analysis",
     icon: IconHeart,
@@ -72,7 +65,7 @@ const agents = [
     size: "col-span-1 row-span-1"
   },
   {
-    id: 5,
+    id: 4,
     name: "What Would Richard Do",
     description: "AI-powered insights based on Richard Heart's philosophy",
     icon: IconBrain,
@@ -80,7 +73,7 @@ const agents = [
     size: "col-span-1 row-span-1"
   },
   {
-    id: 6,
+    id: 5,
     name: "Emailer",
     description: "Automated email composition and management",
     icon: IconMail,
@@ -129,9 +122,7 @@ export default function AIAgentsSection() {
                   window.location.href = "/ai-agent";
                 } else if (agent.name === "HappyPulse") {
                   window.location.href = "/happy-pulse";
-                } else if (agent.name === "Solidity Contract Audits") {
-                  window.location.href = "/solidity-audit";
-                }
+
               }}
             >
               <div className="relative h-full rounded-2xl border border-gray-800 p-2">

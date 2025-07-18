@@ -59,10 +59,7 @@
       "source": "/ai-agent",
       "destination": "/ai-agent"
     },
-    {
-      "source": "/solidity-audit",
-      "destination": "/solidity-audit"
-    },
+
     {
       "source": "/happy-pulse",
       "destination": "/happy-pulse"
