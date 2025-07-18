@@ -122,7 +122,7 @@ export default function AIAgentsSection() {
                   window.location.href = "/ai-agent";
                 } else if (agent.name === "HappyPulse") {
                   window.location.href = "/happy-pulse";
-
+                }
               }}
             >
               <div className="relative h-full rounded-2xl border border-gray-800 p-2">
