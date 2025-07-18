@@ -162,8 +162,8 @@ graph TB
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourusername/pulse-chain-ai-dash.git
-cd pulse-chain-ai-dash
+git clone https://github.com/InVisionCRM/PulseChainAI.com.git
+cd PulseChainAI.com
 
 # 2. Install dependencies
 npm install
@@ -249,11 +249,12 @@ export default nextConfig;
 // tsconfig.json
 {
   "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "target": "ES2020",
+    "lib": ["dom", "dom.iterable", "es6"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
+    "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -262,36 +263,17 @@ export default nextConfig;
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "plugins": [{ "name": "next" }],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "paths": {
       "@/*": ["./*"]
     }
-  }
-}
-```
-
-### **Tailwind CSS Configuration**
-
-```javascript
-// tailwind.config.js
-/** @type {import('tailwindcss').Config} */
-module.exports = {
-  content: [
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
-  ],
-  theme: {
-    extend: {
-      colors: {
-        // Custom color palette
-      },
-      animation: {
-        // Custom animations
-      },
-    },
   },
-  plugins: [],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
 }
 ```
 
@@ -301,168 +283,52 @@ module.exports = {
 
 ### **Basic Usage**
 
-1. **Navigate to AI Agent**
-   ```bash
-   # Start the development server
-   npm run dev
-   
-   # Visit the AI agent
-   open http://localhost:3000/ai-agent
-   ```
+1. **Load a Contract**: Enter a PulseChain contract address in the search field
+2. **View Analysis**: Explore the AI-generated function explanations
+3. **Chat with AI**: Ask questions about the contract functionality
+4. **Explore Data**: Check token information, creator details, and market data
 
-2. **Load a Contract**
-   - Enter a contract address in the input field
-   - Use the search dropdown for suggestions
-   - Click "Load Contract" to analyze
+### **Advanced Features**
 
-3. **Explore Features**
-   - **Creator Tab**: View contract creator information
-   - **Functions Tab**: See AI-explained contract functions
-   - **Source Code Tab**: View the contract source code
-   - **API Response Tab**: Inspect raw API data
-   - **Chat Tab**: Ask questions about the contract
-
-### **Advanced Usage**
-
-#### **Custom Contract Analysis**
-
-```typescript
-// Example: Programmatic contract analysis
-const analyzeContract = async (address: string) => {
-  const response = await fetch('/api/analyze', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      abi: contractABI, 
-      sourceCode: contractSourceCode 
-    }),
-  });
-  
-  const analysis = await response.json();
-  return analysis;
-};
-```
-
-#### **AI Chat Integration**
-
-```typescript
-// Example: Custom chat implementation
-const sendMessage = async (message: string, contractContext: any) => {
-  const response = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      history: chatHistory, 
-      message, 
-      contract: contractContext 
-    }),
-  });
-  
-  return response.body; // Streaming response
-};
-```
+- **Quick Search**: Use predefined contract addresses for instant analysis
+- **Template Questions**: Click on suggested questions for quick insights
+- **Chart Integration**: View live DEXScreener charts for token pairs
+- **Source Code Analysis**: Explore contract source code with syntax highlighting
 
 ---
 
 ## 🔌 API Reference
 
-### **Core API Endpoints**
-
-#### **POST `/api/analyze`**
-Analyzes smart contract functions using AI.
-
-**Request Body:**
-```json
-{
-  "abi": [
-    {
-      "name": "transfer",
-      "type": "function",
-      "stateMutability": "nonpayable",
-      "inputs": [
-        {
-          "name": "to",
-          "type": "address"
-        },
-        {
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "outputs": []
-    }
-  ],
-  "sourceCode": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;..."
-}
-```
-
-**Response:**
-```json
-{
-  "functions": [
-    {
-      "name": "transfer",
-      "explanation": "Transfers tokens from the sender's address to the specified recipient."
-    }
-  ]
-}
-```
-
-#### **POST `/api/chat`**
-Provides streaming chat responses about contracts.
-
-**Request Body:**
-```json
-{
-  "history": [
-    {
-      "id": "1",
-      "text": "What does this function do?",
-      "sender": "user"
-    }
-  ],
-  "message": "Explain the transfer function",
-  "contract": {
-    "name": "MyToken",
-    "source_code": "// Contract source code..."
-  }
-}
-```
-
-**Response:** Streaming text response
-
-#### **POST `/api/gemini`**
-Direct Gemini AI integration endpoint.
-
-**Request Body:**
-```json
-{
-  "prompt": "Analyze this smart contract",
-  "thinkingBudget": 1000,
-  "isChat": false
-}
-```
-
-**Response:**
-```json
-{
-  "response": "AI analysis of the smart contract..."
-}
-```
-
-### **Service Layer**
-
-#### **PulseChain Service**
+### **Contract Analysis API**
 
 ```typescript
-// services/pulsechainService.ts
-export const fetchContract = async (address: string): Promise<ApiResponse<any>>;
-export const fetchTokenInfo = async (address: string): Promise<ApiResponse<any> | null>;
-export const search = async (query: string): Promise<any[]>;
-export const fetchReadMethods = async (address: string): Promise<ApiResponse<any>>;
-export const fetchCreatorTransactions = async (creatorAddress: string): Promise<ApiResponse<any>>;
-export const fetchAddressTokenBalances = async (address: string): Promise<ApiResponse<any>>;
-export const fetchAddressInfo = async (address: string): Promise<ApiResponse<any> | null>;
+POST /api/analyze
+{
+  "address": "0x...",
+  "includeFunctions": true,
+  "includeTokenInfo": true
+}
+```
+
+### **Chat API**
+
+```typescript
+POST /api/chat
+{
+  "message": "What does this function do?",
+  "contractAddress": "0x...",
+  "context": "previous conversation context"
+}
+```
+
+### **Gemini Integration**
+
+```typescript
+POST /api/gemini
+{
+  "prompt": "Analyze this smart contract function",
+  "context": "contract ABI and source code"
+}
 ```
 
 ---
@@ -471,58 +337,26 @@ export const fetchAddressInfo = async (address: string): Promise<ApiResponse<any
 
 ```
 pulse-chain-ai-dash/
-├── 📁 app/                          # Next.js App Router
-│   ├── 📁 ai-agent/                 # AI Code Reader main page
-│   │   └── page.tsx                 # Main AI agent interface
-│   ├── 📁 api/                      # API routes
-│   │   ├── 📁 analyze/              # Contract analysis API
-│   │   │   └── route.ts             # AI function analysis
-│   │   ├── 📁 chat/                 # Chat API
-│   │   │   └── route.ts             # Streaming chat responses
-│   │   └── 📁 gemini/               # Gemini AI API
-│   │       └── route.ts             # Direct AI integration
-│   ├── 📁 solidity-audit/           # Solidity audit page
-│   ├── 📁 test-gemini/              # Gemini testing page
-│   ├── 📁 happy-pulse/              # Happy Pulse page
-│   ├── globals.css                  # Global styles
-│   ├── layout.tsx                   # Root layout
-│   └── page.tsx                     # Home page
-├── 📁 components/                   # React components
-│   ├── 📁 icons/                    # Icon components
-│   │   ├── LoadingSpinner.tsx       # Loading animation
-│   │   ├── SendIcon.tsx             # Chat send icon
-│   │   └── PulseChainLogo.tsx       # Brand logo
-│   ├── 📁 ui/                       # UI components
-│   ├── AbiFunctionsList.tsx         # Function analysis list
-│   ├── ApiResponseTab.tsx           # API response viewer
-│   ├── CreatorTab.tsx               # Creator analysis
-│   ├── JsonViewer.tsx               # JSON data viewer
-│   ├── TokenInfoCard.tsx            # Token information
-│   ├── GeminiTest.tsx               # Gemini testing component
-│   ├── AIAgentsSection.tsx          # AI agents showcase
-│   ├── ProjectsSection.tsx          # Projects showcase
-│   ├── BackgroundBoxesDemo.tsx      # Background demo
-│   └── HeroSection.tsx              # Hero section
-├── 📁 lib/                          # Utility libraries
-│   ├── 📁 hooks/                    # Custom React hooks
-│   │   └── useGemini.ts             # Gemini AI hook
-│   └── gemini.ts                    # Gemini AI utilities
-├── 📁 services/                     # Service layer
-│   └── pulsechainService.ts         # PulseChain API service
-├── 📁 public/                       # Static assets
-├── types.ts                         # TypeScript type definitions
-├── next.config.ts                   # Next.js configuration
-├── tsconfig.json                    # TypeScript configuration
-├── package.json                     # Dependencies and scripts
-├── tailwind.config.js               # Tailwind CSS configuration
-├── postcss.config.mjs               # PostCSS configuration
-├── eslint.config.mjs                # ESLint configuration
-├── .gitignore                       # Git ignore rules
-├── README.md                        # This file
-├── AI_AGENT_README.md               # AI agent documentation
-├── GEMINI_SETUP.md                  # Gemini setup guide
-├── ai_audit_format_prompt.md        # Audit prompt template
-└── ai_solidity_audit.md             # Solidity audit guide
+├── app/                    # Next.js App Router
+│   ├── ai-agent/          # AI Agent page
+│   ├── api/               # API routes
+│   │   ├── analyze/       # Contract analysis
+│   │   ├── chat/          # AI chat
+│   │   └── gemini/        # Gemini AI integration
+│   ├── globals.css        # Global styles
+│   └── layout.tsx         # Root layout
+├── components/            # React components
+│   ├── ui/               # UI components
+│   ├── icons/            # Icon components
+│   └── ...               # Feature components
+├── lib/                  # Utility libraries
+│   ├── gemini.ts         # Gemini AI client
+│   ├── hooks/            # Custom React hooks
+│   └── utils.ts          # Utility functions
+├── services/             # External service integrations
+│   └── pulsechainService.ts
+├── types.ts              # TypeScript type definitions
+└── ...                   # Configuration files
 ```
 
 ---
@@ -531,197 +365,38 @@ pulse-chain-ai-dash/
 
 ### **Core Components**
 
-#### **AbiFunctionsList**
-Displays smart contract functions with AI explanations.
+- **TokenInfoCard**: Displays contract and token information
+- **AIAgentsSection**: AI chat interface with streaming responses
+- **AbiFunctionsList**: Lists and explains contract functions
+- **CreatorTab**: Shows contract creator information
+- **ChartTab**: Displays DEXScreener charts
+- **SourceCodeTab**: Shows contract source code with syntax highlighting
 
-```typescript
-interface AbiFunctionsListProps {
-  functions: ExplainedFunction[] | null;
-  isLoading: boolean;
-  title: string;
-}
-```
+### **UI Utilities**
 
-**Features:**
-- ✅ Collapsible function details
-- ✅ Input/output parameter display
-- ✅ AI-generated explanations
-- ✅ Loading states
-- ✅ Accessibility support
-
-#### **TokenInfoCard**
-Shows comprehensive token information.
-
-```typescript
-interface TokenInfoCardProps {
-  tokenInfo: TokenInfo | null;
-}
-```
-
-**Features:**
-- ✅ Token icon and metadata
-- ✅ Market cap and supply info
-- ✅ Holder count and exchange rate
-- ✅ Responsive design
-- ✅ Fallback handling
-
-#### **CreatorTab**
-Analyzes contract creator information.
-
-```typescript
-interface CreatorTabProps {
-  creatorAddress: string | null;
-  creationTxHash: string | null;
-  tokenBalance: TokenBalance | null;
-  transactions: Transaction[] | null;
-  tokenInfo: TokenInfo | null;
-  isLoading: boolean;
-}
-```
-
-**Features:**
-- ✅ Creator address and transaction info
-- ✅ Token holdings analysis
-- ✅ Transaction history
-- ✅ Loading states
-- ✅ Error handling
-
-#### **ApiResponseTab**
-Displays raw API responses with JSON viewer.
-
-```typescript
-interface ApiResponseTabProps {
-  responses: Record<string, any>;
-}
-```
-
-**Features:**
-- ✅ Multiple API endpoint data
-- ✅ Collapsible JSON sections
-- ✅ Syntax highlighting
-- ✅ Tab navigation
-- ✅ Copy functionality
-
-#### **JsonViewer**
-Interactive JSON data viewer.
-
-```typescript
-interface JsonViewerProps {
-  data: any;
-}
-```
-
-**Features:**
-- ✅ Expandable/collapsible objects
-- ✅ Array visualization
-- ✅ Syntax highlighting
-- ✅ Copy to clipboard
-- ✅ Search functionality
-
-### **Icon Components**
-
-#### **LoadingSpinner**
-Animated loading indicator.
-
-```typescript
-interface LoadingSpinnerProps {
-  className?: string;
-}
-```
-
-#### **SendIcon**
-Chat send button icon.
-
-```typescript
-interface SendIconProps {
-  className?: string;
-}
-```
-
-#### **PulseChainLogo**
-Brand logo component.
-
-```typescript
-interface PulseChainLogoProps {
-  className?: string;
-}
-```
+- **AuroraBackground**: Animated background with gradient effects
+- **HoverBorderGradient**: Interactive border animations
+- **LoaderThree**: Custom loading animation with PulseChain logo
+- **CopyButton**: Copy-to-clipboard functionality
 
 ---
 
 ## 🤖 AI Integration
 
-### **Gemini AI Configuration**
+### **Gemini AI Features**
 
-The application uses Google's Gemini 2.5 Flash model with advanced features:
+- **Function Analysis**: AI explains each contract function
+- **Security Insights**: Identifies potential vulnerabilities
+- **Context-Aware Chat**: Maintains conversation context
+- **Structured Responses**: Markdown-formatted output with tabs and hashtags
 
-#### **Model Specifications**
-- **Model**: `gemini-2.5-flash`
-- **Thinking Budget**: 1000 steps
-- **Grounding**: Google Search enabled
-- **Safety Settings**: Content moderation enabled
-- **Function Calling**: Enabled
+### **AI Prompt Engineering**
 
-#### **AI Capabilities**
-
-##### **Function Analysis**
-```typescript
-// AI analyzes smart contract functions
-const analyzeFunctions = async (abi: AbiItem[], sourceCode: string) => {
-  const response = await fetch('/api/analyze', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ abi, sourceCode }),
-  });
-  
-  return response.json();
-};
-```
-
-##### **Chat Integration**
-```typescript
-// Real-time AI chat with streaming
-const chatWithAI = async (message: string, contractContext: any) => {
-  const response = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      history: messages, 
-      message, 
-      contract: contractContext 
-    }),
-  });
-  
-  return response.body; // Streaming response
-};
-```
-
-#### **AI Prompt Engineering**
-
-The application uses carefully crafted prompts for optimal AI performance:
-
-##### **Function Analysis Prompt**
-```
-Analyze the following smart contract's ABI functions. 
-For each function, provide a concise, one-sentence explanation 
-of its purpose from an end-user's perspective.
-```
-
-##### **Chat System Prompt**
-```
-You are a world-class expert in Solidity and smart contract security. 
-Analyze the provided smart contract source code to answer questions.
-```
-
-#### **Response Formatting**
-
-AI responses are formatted with:
-- **Bold text** for important concepts
-- **Italic text** for emphasis
-- **Code blocks** for Solidity examples
-- **Inline code** for function names and addresses
-- **Lists** for step-by-step instructions
-- **Headers** for organization
+The system uses carefully crafted prompts to ensure:
+- **Consistent Formatting**: Structured markdown responses
+- **Technical Accuracy**: Precise function explanations
+- **User-Friendly Language**: Clear, accessible explanations
+- **Context Preservation**: Maintains conversation flow
 
 ---
 
@@ -729,55 +404,17 @@ AI responses are formatted with:
 
 ### **Security Features**
 
-#### **Input Validation**
-- ✅ Contract address format validation
-- ✅ API request sanitization
-- ✅ TypeScript strict mode enforcement
-- ✅ XSS prevention measures
-
-#### **API Security**
-- ✅ Environment variable protection
-- ✅ API key validation
-- ✅ Rate limiting (configurable)
-- ✅ Error message sanitization
-
-#### **Content Security**
-- ✅ CSP headers configuration
-- ✅ Safe external image loading
-- ✅ Sanitized user inputs
-- ✅ Secure API communication
+- **Input Validation**: All user inputs are validated and sanitized
+- **API Key Protection**: Server-side API key handling
+- **Error Handling**: Comprehensive error management
+- **Rate Limiting**: API rate limiting to prevent abuse
 
 ### **Best Practices**
 
-#### **Environment Variables**
-```bash
-# Never commit API keys to version control
-API_KEY=your_secret_key_here
-```
-
-#### **Type Safety**
-```typescript
-// Strict TypeScript configuration
-{
-  "compilerOptions": {
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true
-  }
-}
-```
-
-#### **Error Handling**
-```typescript
-// Comprehensive error handling
-try {
-  const response = await apiCall();
-  return response.data;
-} catch (error) {
-  console.error('API Error:', error);
-  throw new Error('User-friendly error message');
-}
-```
+- **Environment Variables**: Sensitive data stored in environment variables
+- **Type Safety**: Full TypeScript implementation prevents runtime errors
+- **Input Sanitization**: All user inputs are properly sanitized
+- **Secure Headers**: Proper security headers configuration
 
 ---
 
@@ -785,55 +422,36 @@ try {
 
 ### **Testing Strategy**
 
-#### **Unit Testing**
 ```bash
 # Run unit tests
 npm run test
 
-# Run tests with coverage
-npm run test:coverage
-```
+# Run integration tests
+npm run test:integration
 
-#### **Integration Testing**
-```bash
-# Test API endpoints
-npm run test:api
-
-# Test AI integration
-npm run test:ai
-```
-
-#### **E2E Testing**
-```bash
 # Run end-to-end tests
 npm run test:e2e
+
+# Run type checking
+npm run type-check
+
+# Run linting
+npm run lint
 ```
 
 ### **Test Coverage**
 
-| Component | Coverage | Status |
-|-----------|----------|--------|
-| **API Routes** | 95% | ✅ |
-| **UI Components** | 90% | ✅ |
-| **AI Integration** | 85% | ✅ |
-| **Service Layer** | 88% | ✅ |
-| **Overall** | 90% | ✅ |
-
-### **Testing Tools**
-
-- **Jest**: Unit and integration testing
-- **React Testing Library**: Component testing
-- **Playwright**: E2E testing
-- **MSW**: API mocking
-- **TypeScript**: Type checking
+- **Unit Tests**: Component and utility function testing
+- **Integration Tests**: API route and service testing
+- **E2E Tests**: Full user workflow testing
+- **Type Checking**: TypeScript compilation verification
 
 ---
 
 ## 📦 Deployment
 
-### **Deployment Options**
+### **Vercel Deployment**
 
-#### **Vercel (Recommended)**
 ```bash
 # Install Vercel CLI
 npm i -g vercel
@@ -845,214 +463,56 @@ vercel
 vercel env add API_KEY
 ```
 
-#### **Netlify**
-```bash
-# Build the project
-npm run build
-
-# Deploy to Netlify
-netlify deploy --prod
-```
-
-#### **Docker**
-```dockerfile
-# Dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-RUN npm run build
-EXPOSE 3000
-CMD ["npm", "start"]
-```
-
 ### **Environment Setup**
 
-#### **Production Environment Variables**
-```env
-# Required
-API_KEY=your_production_gemini_api_key
-
-# Optional
-NEXT_PUBLIC_GA_ID=your_analytics_id
-NEXT_PUBLIC_SITE_URL=https://your-domain.com
-```
-
-#### **Build Optimization**
-```bash
-# Optimize build
-npm run build
-
-# Analyze bundle
-npm run analyze
-
-# Start production server
-npm start
-```
-
-### **Performance Optimization**
-
-#### **Bundle Analysis**
-```bash
-# Analyze JavaScript bundle
-npm run build:analyze
-```
-
-#### **Image Optimization**
-```typescript
-// Next.js Image optimization
-import Image from 'next/image';
-
-<Image
-  src="/logo.png"
-  alt="Logo"
-  width={200}
-  height={200}
-  priority
-/>
-```
-
-#### **Caching Strategy**
-```typescript
-// API response caching
-export async function GET() {
-  const data = await fetchData();
-  
-  return new Response(JSON.stringify(data), {
-    headers: {
-      'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
-    },
-  });
-}
-```
+1. **Production Environment**: Set up production environment variables
+2. **Domain Configuration**: Configure custom domain if needed
+3. **SSL Certificate**: Automatic SSL certificate provisioning
+4. **CDN**: Global content delivery network
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions from the community! Here's how you can help:
+### **Development Workflow**
 
-### **Contribution Guidelines**
+1. **Fork the Repository**: Create your own fork
+2. **Create Feature Branch**: `git checkout -b feature/amazing-feature`
+3. **Make Changes**: Implement your feature or fix
+4. **Run Tests**: Ensure all tests pass
+5. **Submit Pull Request**: Create a detailed PR description
 
-#### **Code Style**
-- Follow TypeScript best practices
-- Use Prettier for code formatting
-- Follow ESLint rules
-- Write meaningful commit messages
+### **Code Standards**
 
-#### **Pull Request Process**
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Update documentation
-6. Submit a pull request
-
-#### **Development Setup**
-```bash
-# Fork and clone
-git clone https://github.com/yourusername/pulse-chain-ai-dash.git
-cd pulse-chain-ai-dash
-
-# Install dependencies
-npm install
-
-# Set up pre-commit hooks
-npm run setup:husky
-
-# Start development
-npm run dev
-```
-
-### **Contributing Areas**
-
-#### **High Priority**
-- 🐛 Bug fixes
-- 🔒 Security improvements
-- 📱 Mobile responsiveness
-- ♿ Accessibility enhancements
-
-#### **Medium Priority**
-- 🎨 UI/UX improvements
-- 📊 Performance optimizations
-- 🔧 Configuration options
-- 📚 Documentation updates
-
-#### **Low Priority**
-- 🎭 New features
-- 🧪 Additional tests
-- 🌐 Internationalization
-- 📈 Analytics integration
-
-### **Code of Conduct**
-
-We are committed to providing a welcoming and inclusive environment for all contributors. Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
+- **TypeScript**: Strict typing throughout
+- **ESLint**: Follow ESLint configuration
+- **Prettier**: Consistent code formatting
+- **Conventional Commits**: Follow commit message conventions
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
-### **License Summary**
-
-```
-MIT License
-
-Copyright (c) 2024 PulseChain AI Dashboard
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
 ## 🙏 Acknowledgments
 
-### **Open Source Libraries**
-- **[Next.js](https://nextjs.org/)** - React framework for production
-- **[React](https://reactjs.org/)** - JavaScript library for building user interfaces
-- **[TypeScript](https://www.typescriptlang.org/)** - Typed JavaScript
-- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
-- **[Gemini AI](https://ai.google.dev/)** - Advanced AI capabilities
-
-### **Community**
-- **PulseChain Community** - For blockchain integration support
-- **Next.js Community** - For framework guidance and best practices
-- **React Community** - For component patterns and solutions
-- **TypeScript Community** - For type safety improvements
-
-### **Inspiration**
-- **Etherscan** - For blockchain explorer concepts
-- **OpenZeppelin** - For smart contract security patterns
-- **Uniswap** - For DeFi interface inspiration
+- **Google Gemini AI**: For providing the AI capabilities
+- **PulseChain**: For the blockchain infrastructure
+- **Next.js Team**: For the amazing framework
+- **Tailwind CSS**: For the utility-first CSS framework
+- **Open Source Community**: For all the amazing tools and libraries
 
 ---
 
 <div align="center">
 
-**Made with ❤️ by the PulseChain AI Dashboard Team**
+**Made with ❤️ for the PulseChain community**
 
-[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/yourusername)
-[![Twitter](https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white)](https://twitter.com/yourusername)
-[![Discord](https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/your-server)
+[![GitHub stars](https://img.shields.io/github/stars/InVisionCRM/PulseChainAI.com?style=social)](https://github.com/InVisionCRM/PulseChainAI.com)
+[![GitHub forks](https://img.shields.io/github/forks/InVisionCRM/PulseChainAI.com?style=social)](https://github.com/InVisionCRM/PulseChainAI.com)
+[![GitHub issues](https://img.shields.io/github/issues/InVisionCRM/PulseChainAI.com)](https://github.com/InVisionCRM/PulseChainAI.com/issues)
 
-**⭐ Star this repository if you found it helpful!**
-
-</div>
+</div> 
