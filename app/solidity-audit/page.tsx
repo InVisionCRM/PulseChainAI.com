@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { MultiStepLoader } from "@/components/ui/multi-step-loader";
 import { useGemini } from "@/lib/hooks/useGemini";

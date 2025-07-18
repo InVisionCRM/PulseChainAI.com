@@ -1,7 +1,7 @@
 "use client";
 import { Boxes } from "@/components/ui/background-boxes";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import ColourfulText from "@/components/ui/colourful-text";
 
 export default function HeroSection() {

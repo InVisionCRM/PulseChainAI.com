@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { IconHeart, IconSparkles, IconArrowRight } from "@tabler/icons-react";
 import { useGemini } from "@/lib/hooks/useGemini";
 
