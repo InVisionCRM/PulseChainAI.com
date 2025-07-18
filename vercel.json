@@ -17,17 +17,6 @@
       "dest": "/$1"
     }
   ],
-  "functions": {
-    "app/api/analyze/route.ts": {
-      "maxDuration": 30
-    },
-    "app/api/chat/route.ts": {
-      "maxDuration": 30
-    },
-    "app/api/gemini/route.ts": {
-      "maxDuration": 30
-    }
-  },
   "env": {
     "NODE_ENV": "production"
   },
