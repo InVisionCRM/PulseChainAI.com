@@ -21,14 +21,14 @@ import UnverifiedContractRisksModal from '@/components/UnverifiedContractRisksMo
 
 // Note: API key is handled server-side in API routes
 
-type TabId = 'creator' | 'functions' | 'code' | 'api' | 'chart' | 'chat';
+type TabId = 'creator' | 'code' | 'dependencies' | 'api' | 'chart' | 'chat';
 
 const TabButton: React.FC<{ name: string; tabId: TabId; activeTab: string; onClick: (tabId: TabId) => void; }> = ({ name, tabId, activeTab, onClick }) => {
     const isActive = activeTab === tabId;
     return (
         <button
             onClick={() => onClick(tabId)}
-            className={`px-4 py-2 text-sm font-medium transition-colors focus:outline-none ${isActive ? 'text-white bg-slate-700/50 border-b-2 border-purple-500' : 'text-slate-400 hover:text-white'}`}
+            className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium transition-colors focus:outline-none whitespace-nowrap ${isActive ? 'text-white bg-slate-700/50 border-b-2 border-purple-500' : 'text-slate-400 hover:text-white'}`}
         >
             {name}
         </button>
@@ -37,7 +37,7 @@ const TabButton: React.FC<{ name: string; tabId: TabId; activeTab: string; onCli
 
 // Tabbed Content Component
 const TabbedContent: React.FC<{ tabs: { title: string; content: string }[]; renderMarkdown: (content: string) => React.ReactNode }> = ({ tabs, renderMarkdown }) => {
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTabbedContent, setActiveTabbedContent] = useState(0);
 
   return (
     <div className="my-4">
@@ -45,9 +45,9 @@ const TabbedContent: React.FC<{ tabs: { title: string; content: string }[]; rend
         {tabs.map((tab, index) => (
           <button
             key={index}
-            onClick={() => setActiveTab(index)}
+            onClick={() => setActiveTabbedContent(index)}
             className={`px-3 py-2 text-sm font-medium transition-colors ${
-              activeTab === index 
+              activeTabbedContent === index 
                 ? 'text-white border-b-2 border-purple-500' 
                 : 'text-slate-400 hover:text-white'
             }`}
@@ -57,7 +57,7 @@ const TabbedContent: React.FC<{ tabs: { title: string; content: string }[]; rend
         ))}
       </div>
       <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-600/30">
-        {renderMarkdown(tabs[activeTab].content)}
+        {renderMarkdown(tabs[activeTabbedContent].content)}
       </div>
     </div>
   );
@@ -155,6 +155,7 @@ const App: React.FC = () => {
   const [dexScreenerData, setDexScreenerData] = useState<DexScreenerData | null>(null);
   const [explainedFunctions, setExplainedFunctions] = useState<ExplainedFunction[] | null>(null);
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
+  const [contractDependencies, setContractDependencies] = useState<Array<{name: string, address: string, description: string}>>([]);
   
   // Creator Tab State
   const [creatorTransactions, setCreatorTransactions] = useState<Transaction[] | null>(null);
@@ -192,6 +193,198 @@ const App: React.FC = () => {
   
   // Track if address is set for glow effect
   const [addressSet, setAddressSet] = useState<boolean>(false);
+  
+  // Mobile search visibility state
+  const [isSearchVisible, setIsSearchVisible] = useState<boolean>(true);
+
+  // Function to extract contract dependencies from source code
+  const extractDependencies = (sourceCode: string) => {
+    const dependencies: Array<{name: string, address: string, description: string}> = [];
+    
+    // Common contract patterns and their descriptions
+    const contractPatterns = [
+      {
+        pattern: /IERC20|ERC20/,
+        description: "Standard ERC20 token interface - handles basic token functionality like transfers and balances"
+      },
+      {
+        pattern: /IERC721|ERC721/,
+        description: "NFT standard interface - manages unique digital assets and ownership"
+      },
+      {
+        pattern: /SafeERC20/,
+        description: "Safe ERC20 wrapper - provides safe token transfer methods with error handling"
+      },
+      {
+        pattern: /ReentrancyGuard/,
+        description: "Security contract - prevents reentrancy attacks by blocking recursive calls"
+      },
+      {
+        pattern: /Ownable|Ownership/,
+        description: "Access control contract - manages contract ownership and admin functions"
+      },
+      {
+        pattern: /Pausable/,
+        description: "Pausable functionality - allows contract operations to be paused in emergencies"
+      },
+      {
+        pattern: /AccessControl/,
+        description: "Role-based access control - manages different permission levels for functions"
+      },
+      {
+        pattern: /Math|SafeMath/,
+        description: "Mathematical operations library - provides safe arithmetic operations"
+      },
+      {
+        pattern: /Strings/,
+        description: "String utilities library - provides string manipulation functions"
+      },
+      {
+        pattern: /Address/,
+        description: "Address utilities library - provides address validation and manipulation"
+      },
+      {
+        pattern: /Counters/,
+        description: "Counter library - provides safe increment/decrement operations"
+      },
+      {
+        pattern: /EnumerableSet/,
+        description: "Enumerable set library - provides set data structure with enumeration"
+      },
+      {
+        pattern: /EnumerableMap/,
+        description: "Enumerable map library - provides map data structure with enumeration"
+      },
+      {
+        pattern: /Proxy|UpgradeableProxy/,
+        description: "Proxy contract - enables upgradeable smart contracts with storage delegation"
+      },
+      {
+        pattern: /Initializable/,
+        description: "Initializable contract - provides initialization pattern for upgradeable contracts"
+      },
+      {
+        pattern: /UUPSUpgradeable/,
+        description: "UUPS upgradeable pattern - user upgradeable proxy system"
+      },
+      {
+        pattern: /TimelockController/,
+        description: "Timelock controller - adds time delays to administrative actions for security"
+      },
+      {
+        pattern: /Multisig|MultiSig/,
+        description: "Multi-signature wallet - requires multiple approvals for transactions"
+      },
+      {
+        pattern: /Vesting|TokenVesting/,
+        description: "Token vesting contract - manages gradual token release schedules"
+      },
+      {
+        pattern: /Staking|Stake/,
+        description: "Staking contract - manages token staking and rewards distribution"
+      },
+      {
+        pattern: /Governance|Governor/,
+        description: "Governance contract - manages DAO voting and proposal execution"
+      },
+      {
+        pattern: /Oracle|PriceOracle/,
+        description: "Price oracle - provides external price data for DeFi operations"
+      },
+      {
+        pattern: /Router|SwapRouter/,
+        description: "DEX router - handles token swaps and liquidity operations"
+      },
+      {
+        pattern: /Factory|TokenFactory/,
+        description: "Token factory - creates new token contracts or pairs"
+      },
+      {
+        pattern: /Liquidity|LP/,
+        description: "Liquidity management - handles liquidity pool operations"
+      }
+    ];
+
+    // Extract hardcoded addresses
+    const addressPattern = /0x[a-fA-F0-9]{40}/g;
+    const addresses = sourceCode.match(addressPattern) || [];
+    
+    // Find unique addresses and their context
+    const uniqueAddresses = [...new Set(addresses)];
+    
+    uniqueAddresses.forEach(address => {
+      // Skip the contract's own address
+      if (address.toLowerCase() === contractAddress.toLowerCase()) {
+        return;
+      }
+      
+      // Find context around the address
+      const addressIndex = sourceCode.indexOf(address);
+      const contextStart = Math.max(0, addressIndex - 100);
+      const contextEnd = Math.min(sourceCode.length, addressIndex + 100);
+      const context = sourceCode.substring(contextStart, contextEnd);
+      
+      // Try to find a name or description for this address
+      let name = `Contract at ${address.substring(0, 6)}...${address.substring(38)}`;
+      let description = "External contract dependency";
+      
+      // Check if it's a known address
+      const knownAddresses: {[key: string]: {name: string, description: string}} = {
+        '0xa1077a294dde1b09bb078844df40758a5d0f9a27': {
+          name: 'WPLS Token',
+          description: 'Wrapped PulseChain token - the native token wrapped for ERC20 compatibility'
+        },
+        '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39': {
+          name: 'HEX Token',
+          description: 'HEX cryptocurrency token - the main HEX token contract'
+        },
+        '0x95b303987a60c71504d99aa1b13b4da07b0790ab': {
+          name: 'PLSX Token',
+          description: 'PLSX token - PulseChain exchange token'
+        },
+        '0x2fa878ab3f87cc1c9737fc071108f904c0b0c95d': {
+          name: 'INC Token',
+          description: 'INC token - Incentive token'
+        },
+        '0x000000000000000000000000000000000000dead': {
+          name: 'Dead Address',
+          description: 'Burn address - tokens sent here are permanently removed from circulation'
+        },
+        '0x0000000000000000000000000000000000000000': {
+          name: 'Zero Address',
+          description: 'Zero address - often used for initialization or as a placeholder'
+        }
+      };
+      
+      if (knownAddresses[address.toLowerCase()]) {
+        name = knownAddresses[address.toLowerCase()].name;
+        description = knownAddresses[address.toLowerCase()].description;
+      }
+      
+      dependencies.push({ name, address, description });
+    });
+
+    // Add library dependencies based on patterns
+    contractPatterns.forEach(({ pattern, description }) => {
+      if (pattern.test(sourceCode)) {
+        const match = sourceCode.match(pattern);
+        if (match) {
+          const name = match[0];
+          // Check if we already have this dependency
+          const exists = dependencies.some(dep => dep.name === name);
+          if (!exists) {
+            dependencies.push({
+              name,
+              address: 'Library/Interface',
+              description
+            });
+          }
+        }
+      }
+    });
+
+    return dependencies;
+  };
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -406,7 +599,13 @@ const App: React.FC = () => {
           finalContractData.creation_tx_hash = addressInfoResult.data.creation_tx_hash;
       }
       
-      setContractData(finalContractData);
+              setContractData(finalContractData);
+        
+        // Extract dependencies from source code
+        if (finalContractData.source_code) {
+          const dependencies = extractDependencies(finalContractData.source_code);
+          setContractDependencies(dependencies);
+        }
       setTokenInfo(tokenResult?.data || null);
       setDexScreenerData(dexScreenerResult?.data || null);
 
@@ -426,6 +625,11 @@ const App: React.FC = () => {
       }
     } finally {
       setIsLoadingContract(false);
+      
+      // Collapse search on mobile after loading contract
+      if (window.innerWidth < 768) {
+        setIsSearchVisible(false);
+      }
     }
   }, [contractAddress, analyzeAndExplainAbi]);
 
@@ -698,18 +902,27 @@ const App: React.FC = () => {
           duration: 0.8,
           ease: "easeInOut",
         }}
-        className="relative flex flex-col gap-4 items-center justify-center px-4 w-full"
+        className="relative flex flex-col gap-4 items-center justify-start px-4 w-full min-h-screen pt-4"
       >
-        <div className="container mx-auto p-4 md:p-6 lg:p-8 max-w-7xl w-full">
+        <div className="container mx-auto p-3 md:p-6 lg:p-8 max-w-7xl w-full pb-24 md:pb-8">
           
-          <header className="flex items-center justify-between mb-6 pb-4 border-b border-slate-700">
-            <div className="flex items-center gap-3">
-              <PulseChainLogo className="h-10 w-10" />
+          <header className="flex items-center justify-between mb-4 md:mb-6 pb-3 md:pb-4 border-b border-slate-700">
+            <div className="flex items-center gap-2 md:gap-3">
+              <PulseChainLogo className="h-8 w-8 md:h-10 md:w-10" />
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-white">PulseChain Contract Analyzer</h1>
-                <p className="text-sm text-slate-400">Analyze Solidity contracts with AI</p>
+                <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-white">Code Reader</h1>
+                <p className="text-xs md:text-sm text-slate-400">Analyze Solidity contracts with AI</p>
               </div>
             </div>
+            {/* Mobile Search Toggle Button */}
+            <button
+              onClick={() => setIsSearchVisible(!isSearchVisible)}
+              className="md:hidden text-white hover:text-purple-400 transition-colors duration-200"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
           </header>
 
         {error && (
@@ -720,9 +933,12 @@ const App: React.FC = () => {
         )}
 
 
-        <div className="bg-slate-800/30 backdrop-blur-sm p-4 sm:p-6 rounded-xl shadow-lg border border-slate-700/50 mb-8">
-            <div className="flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row gap-4 items-end">
+
+
+        {/* Search Section - Collapsible on Mobile */}
+        <div className={`bg-slate-800/30 backdrop-blur-sm p-3 md:p-4 lg:p-6 rounded-xl shadow-lg border border-slate-700/50 mb-6 md:mb-8 transition-all duration-300 ${isSearchVisible ? 'block' : 'hidden md:block'}`}>
+            <div className="flex flex-col gap-3 md:gap-4">
+                <div className="flex flex-col gap-3 md:gap-4">
                     <div className="w-full relative" ref={searchContainerRef}>
                         <label htmlFor="contractAddress" className="block text-sm font-medium text-slate-300 mb-2">
                             Contract Address or Name/Ticker
@@ -734,7 +950,7 @@ const App: React.FC = () => {
                             onChange={(e) => setContractAddress(e.target.value)}
                             onFocus={() => setIsSearchDropdownVisible(true)}
                             placeholder="0x... or search for 'Pulse'"
-                            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:outline-none transition"
+                            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 md:px-4 py-2 text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:outline-none transition text-sm md:text-base"
                             disabled={isLoadingContract}
                             autoComplete="off"
                         />
@@ -765,8 +981,8 @@ const App: React.FC = () => {
                         as="button"
                         onClick={handleLoadContract}
                         disabled={isLoadingContract || !contractAddress}
-                        containerClassName="w-full sm:w-auto"
-                        className={`w-full sm:w-auto flex items-center justify-center gap-2 bg-purple-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                        containerClassName="w-full"
+                        className={`w-full flex items-center justify-center gap-2 bg-purple-600 text-white font-semibold px-4 md:px-6 py-2 md:py-3 rounded-lg hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base ${
                             addressSet && contractAddress ? 'shadow-lg shadow-purple-500/25 ring-2 ring-purple-400/50' : ''
                         }`}
                     >
@@ -775,48 +991,49 @@ const App: React.FC = () => {
                 </div>
                 
                 {/* Quick Search Buttons */}
-                <div className="flex flex-wrap gap-2">
-                    <span className="text-sm text-slate-400 mr-2">Quick Search:</span>
-                    {[
-                        { ticker: 'WPLS', address: '0xA1077a294dDE1B09bB078844df40758a5D0f9a27' },
-                        { ticker: 'HEX', address: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39' },
-                        { ticker: 'PLSX', address: '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab' },
-                        { ticker: 'INC', address: '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d' }
-                    ].map(({ ticker, address }) => (
-                        <button
-                            key={ticker}
-                            onClick={() => {
-                                setContractAddress(address);
-                                setIsSearchDropdownVisible(false);
-                                setAddressSet(true);
-                            }}
-                            className="px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600/50 text-white text-sm font-medium rounded-lg border border-slate-600/50 hover:border-slate-500/50 transition-all duration-200 hover:scale-105"
-                        >
-                            {ticker}
-                        </button>
-                    ))}
+                <div className="flex flex-col gap-2">
+                    <div className="grid grid-cols-4 gap-1.5 md:gap-2">
+                        {[
+                            { ticker: 'WPLS', address: '0xA1077a294dDE1B09bB078844df40758a5D0f9a27' },
+                            { ticker: 'HEX', address: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39' },
+                            { ticker: 'PLSX', address: '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab' },
+                            { ticker: 'INC', address: '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d' }
+                        ].map(({ ticker, address }) => (
+                            <button
+                                key={ticker}
+                                onClick={() => {
+                                    setContractAddress(address);
+                                    setIsSearchDropdownVisible(false);
+                                    setAddressSet(true);
+                                }}
+                                className="px-2 py-1.5 md:px-3 md:py-2 bg-slate-700/30 hover:bg-slate-600/40 text-white text-xs md:text-sm font-medium rounded-md md:rounded-lg border border-slate-600/30 hover:border-slate-500/40 transition-all duration-200 hover:scale-105 backdrop-blur-sm"
+                            >
+                                {ticker}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>
         
         {isLoadingContract && (
-            <div className="flex flex-col items-center justify-center text-center p-8 bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/50">
-              <LoadingSpinner className="w-10 h-10 text-purple-400" />
-              <p className="mt-4 text-lg font-semibold">Loading contract data...</p>
-              <p className="text-slate-400">Fetching from PulseChain Scan API.</p>
+            <div className="flex flex-col items-center justify-center text-center p-6 md:p-8 bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/50">
+              <LoadingSpinner className="w-8 h-8 md:w-10 md:h-10 text-purple-400" />
+              <p className="mt-4 text-base md:text-lg font-semibold">Loading contract data...</p>
+              <p className="text-slate-400 text-sm md:text-base">Fetching from PulseChain Scan API.</p>
             </div>
         )}
 
         {contractData && (
-          <main className={`grid grid-cols-1 gap-8 ${activeTab === 'creator' ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
+          <main className={`grid grid-cols-1 gap-6 md:gap-8 ${activeTab === 'creator' ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
             {activeTab === 'creator' && (
-              <div className="lg:col-span-1 space-y-8">
-                 <div className="relative bg-slate-800/30 backdrop-blur-sm p-4 sm:p-6 rounded-xl shadow-lg border border-slate-700/50">
+              <div className="lg:col-span-1 space-y-6 md:space-y-8">
+                 <div className="relative bg-slate-800/30 backdrop-blur-sm p-3 md:p-4 lg:p-6 rounded-xl shadow-lg border border-slate-700/50">
                  <GlowingEffect disabled={false} glow={true} />
-                     <h3 className="text-xl font-bold text-white mb-4">{contractData.name}</h3>
+                     <h3 className="text-lg md:text-xl font-bold text-white mb-3 md:mb-4">{contractData.name}</h3>
                      <div className="space-y-2 text-sm">
                          <div className="flex justify-between items-center"><span className="text-slate-400">Verified</span><span className={`px-2 py-0.5 rounded-full text-xs ${contractData.is_verified ? 'bg-green-800 text-green-200' : 'bg-red-800 text-red-200'}`}>{contractData.is_verified ? 'Yes' : 'No'}</span></div>
-                         <div className="flex justify-between items-center"><span className="text-slate-400">Compiler</span><span className="font-mono">{contractData.compiler_version}</span></div>
+                         <div className="flex justify-between items-center"><span className="text-slate-400">Compiler</span><span className="font-mono text-xs md:text-sm">{contractData.compiler_version}</span></div>
                          <div className="flex justify-between items-center"><span className="text-slate-400">Optimization</span><span className={`px-2 py-0.5 rounded-full text-xs ${contractData.optimization_enabled ? 'bg-green-800 text-green-200' : 'bg-yellow-800 text-yellow-200'}`}>{contractData.optimization_enabled ? 'Enabled' : 'Disabled'}</span></div>
                          <div className="flex justify-between items-center pt-1">
                              <span className="text-slate-400">Owner</span>
@@ -824,10 +1041,10 @@ const App: React.FC = () => {
                                  {isFetchingOwner && <LoadingSpinner className="w-4 h-4" />}
                                  {!isFetchingOwner && (
                                      ownerAddress ?
-                                     <a href={`https://scan.pulsechain.com/address/${ownerAddress}`} target="_blank" rel="noopener noreferrer" title={ownerAddress} className="font-mono text-purple-400 hover:text-purple-300 transition-colors break-all text-right">
+                                     <a href={`https://scan.pulsechain.com/address/${ownerAddress}`} target="_blank" rel="noopener noreferrer" title={ownerAddress} className="font-mono text-purple-400 hover:text-purple-300 transition-colors break-all text-right text-xs md:text-sm">
                                          {`${ownerAddress.substring(0, 6)}...${ownerAddress.substring(ownerAddress.length - 4)}`}
                                      </a>
-                                     : <span className="text-slate-500">Not Found</span>
+                                     : <span className="text-slate-500 text-xs md:text-sm">Not Found</span>
                                  )}
                              </div>
                          </div>
@@ -837,17 +1054,18 @@ const App: React.FC = () => {
               </div>
             )}
 
-            <div className={`flex flex-col h-[75vh] ${activeTab === 'creator' ? 'lg:col-span-2' : 'lg:col-span-1'}`}>
-                <div className="flex border-b border-slate-700" role="tablist" aria-label="Contract Details">
+            <div className={`flex flex-col h-[70vh] md:min-h-[70vh] pb-20 md:pb-0 ${activeTab === 'creator' ? 'lg:col-span-2' : 'lg:col-span-1'}`}>
+                {/* Desktop Tabs */}
+                <div className="hidden md:flex border-b border-slate-700" role="tablist" aria-label="Contract Details">
                     <TabButton name="Creator" tabId="creator" activeTab={activeTab} onClick={setActiveTab} />
-                    <TabButton name="Functions" tabId="functions" activeTab={activeTab} onClick={setActiveTab} />
                     <TabButton name="Source Code" tabId="code" activeTab={activeTab} onClick={setActiveTab} />
+                    <TabButton name="Dependencies" tabId="dependencies" activeTab={activeTab} onClick={setActiveTab} />
                     <TabButton name="API Response" tabId="api" activeTab={activeTab} onClick={setActiveTab} />
                     <TabButton name="Chart" tabId="chart" activeTab={activeTab} onClick={setActiveTab} />
                     <TabButton name="Chat with AI" tabId="chat" activeTab={activeTab} onClick={setActiveTab} />
                 </div>
                 
-                <div className="relative flex-grow bg-slate-800/30 backdrop-blur-sm rounded-b-xl border border-t-0 border-slate-700/50 overflow-hidden">
+                <div className="relative flex-grow bg-slate-800/30 backdrop-blur-sm rounded-b-xl border border-t-0 border-slate-700/50 overflow-hidden h-full">
                   <GlowingEffect disabled={false} glow={true} />
                     <div role="tabpanel" hidden={activeTab !== 'creator'} className="h-full overflow-y-auto">
                         <CreatorTab
@@ -859,32 +1077,83 @@ const App: React.FC = () => {
                             isLoading={isLoadingCreatorInfo}
                         />
                     </div>
-                    <div role="tabpanel" hidden={activeTab !== 'functions'} className="p-4 space-y-6 overflow-y-auto h-full">
-                       <AbiFunctionsList title="Read Functions" functions={readFunctions} isLoading={isAnalyzingAI} />
-                       <AbiFunctionsList title="Write Functions" functions={writeFunctions} isLoading={isAnalyzingAI} />
-                    </div>
+
                     <div role="tabpanel" hidden={activeTab !== 'code'} className="h-full">
-                       <SourceCodeTab sourceCode={contractData.source_code} />
+                       <SourceCodeTab 
+                         sourceCode={contractData.source_code} 
+                         readFunctions={readFunctions}
+                         writeFunctions={writeFunctions}
+                         isAnalyzingAI={isAnalyzingAI}
+                       />
+                    </div>
+                    <div role="tabpanel" hidden={activeTab !== 'dependencies'} className="h-full overflow-y-auto">
+                       <div className="p-4 space-y-4 max-h-[50vh] md:max-h-none">
+                         <div className="flex items-center justify-between">
+                           <h3 className="text-lg font-semibold text-white">Contract Dependencies</h3>
+                           <div className="text-sm text-slate-400">
+                             {contractDependencies.length} dependencies found
+                           </div>
+                         </div>
+                         
+                         {contractDependencies.length > 0 ? (
+                           <div className="space-y-3">
+                             {contractDependencies.map((dependency, index) => (
+                               <div key={index} className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4">
+                                 <div className="flex items-start justify-between mb-2">
+                                   <h4 className="text-white font-medium">{dependency.name}</h4>
+                                   <span className="text-xs text-slate-500 bg-slate-700/50 px-2 py-1 rounded">
+                                     {dependency.address === 'Library/Interface' ? 'Library' : 'Contract'}
+                                   </span>
+                                 </div>
+                                 <p className="text-sm text-slate-300 mb-3">{dependency.description}</p>
+                                 {dependency.address !== 'Library/Interface' && (
+                                   <div className="flex items-center gap-2">
+                                     <span className="text-xs text-slate-400">Address:</span>
+                                     <code className="text-xs font-mono text-purple-400 bg-slate-700/30 px-2 py-1 rounded">
+                                       {dependency.address}
+                                     </code>
+                                     <a 
+                                       href={`https://scan.pulsechain.com/address/${dependency.address}`}
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       className="text-blue-400 hover:text-blue-300 text-xs"
+                                     >
+                                       View →
+                                     </a>
+                                   </div>
+                                 )}
+                               </div>
+                             ))}
+                           </div>
+                         ) : (
+                           <div className="text-center text-slate-400 py-8">
+                             <div className="text-lg mb-2">No dependencies found</div>
+                             <div className="text-sm">This contract appears to be self-contained with no external dependencies.</div>
+                           </div>
+                         )}
+                       </div>
                     </div>
                     <div role="tabpanel" hidden={activeTab !== 'api'} className="h-full">
                        <ApiResponseTab responses={apiResponses} />
                     </div>
                     <div role="tabpanel" hidden={activeTab !== 'chart'} className="h-full overflow-y-auto">
                         {dexScreenerData ? (
-                            <div className="space-y-6 p-4">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-lg font-semibold text-white">Trading Charts</h3>
-                                    <div className="text-sm text-slate-400">
-                                        {dexScreenerData.wplsPairs} WPLS pairs • {dexScreenerData.totalPairs} total pairs
+                            <div className="space-y-4 md:space-y-6 p-3 md:p-4">
+                                {/* Desktop Header - Hidden on Mobile */}
+                                <div className="hidden md:flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-0">
+                                    <h3 className="text-base md:text-lg font-semibold text-white">Top Trading Pair</h3>
+                                    <div className="text-xs md:text-sm text-slate-400">
+                                        {dexScreenerData.wplsPairs > 0 ? 'Showing top pair by liquidity' : 'No pairs found'} • {dexScreenerData.totalPairs} total pairs
                                     </div>
                                 </div>
                                 
                                 {dexScreenerData.pairs.length > 0 ? (
-                                    <div className="space-y-6">
+                                    <div className="space-y-4 md:space-y-6">
                                         {dexScreenerData.pairs.map((pair, index) => (
                                             <div key={index} className="bg-slate-800/50 rounded-lg border border-slate-700/50 overflow-hidden">
-                                                <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
-                                                    <div className="flex items-center gap-3">
+                                                {/* Desktop Pair Header - Hidden on Mobile */}
+                                                <div className="hidden md:flex flex-col md:flex-row md:items-center md:justify-between p-3 md:p-4 border-b border-slate-700/50 gap-2 md:gap-0">
+                                                    <div className="flex items-center gap-2 md:gap-3">
                                                         <div className="text-sm font-medium text-white">
                                                             {pair.baseToken.symbol}/{pair.quoteToken.symbol}
                                                         </div>
@@ -892,7 +1161,7 @@ const App: React.FC = () => {
                                                             {pair.dexId}
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-4 text-sm">
+                                                    <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 text-xs md:text-sm">
                                                         <div className="text-slate-400">
                                                             ${parseFloat(pair.priceUsd || '0').toFixed(6)}
                                                         </div>
@@ -910,7 +1179,7 @@ const App: React.FC = () => {
                                                     </div>
                                                 </div>
                                                 
-                                                <div className="w-full h-[calc(75vh-200px)]">
+                                                <div className="w-full h-[calc(70vh-100px)] md:h-[calc(75vh-200px)]">
                                                     <iframe
                                                         src={`${pair.url}?theme=dark`}
                                                         className="w-full h-full border-0"
@@ -920,8 +1189,9 @@ const App: React.FC = () => {
                                                     />
                                                 </div>
                                                 
-                                                <div className="p-4 bg-slate-900/30">
-                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                                {/* Desktop Stats - Hidden on Mobile */}
+                                                <div className="hidden md:block p-3 md:p-4 bg-slate-900/30">
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 text-xs md:text-sm">
                                                         <div>
                                                             <div className="text-slate-400">Price WPLS</div>
                                                             <div className="text-white font-medium">{parseFloat(pair.priceNative || '0').toFixed(8)}</div>
@@ -944,35 +1214,35 @@ const App: React.FC = () => {
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="text-center text-slate-400 py-8">
-                                        <div className="text-lg mb-2">No WPLS trading pairs found</div>
-                                        <div className="text-sm">This token may not have any active WPLS trading pairs on DEXScreener.</div>
+                                    <div className="text-center text-slate-400 py-6 md:py-8">
+                                        <div className="text-base md:text-lg mb-2">No trading pairs found</div>
+                                        <div className="text-xs md:text-sm">This token may not have any active trading pairs on DEXScreener.</div>
                                     </div>
                                 )}
                             </div>
                         ) : (
-                            <div className="text-center text-slate-400 py-8">
-                                <div className="text-lg mb-2">No chart data available</div>
-                                <div className="text-sm">DEXScreener data will appear here when available.</div>
+                            <div className="text-center text-slate-400 py-6 md:py-8">
+                                <div className="text-base md:text-lg mb-2">No chart data available</div>
+                                <div className="text-xs md:text-sm">DEXScreener data will appear here when available.</div>
                             </div>
                         )}
                     </div>
                     <div role="tabpanel" hidden={activeTab !== 'chat'} className="flex flex-col h-full">
-                        <div ref={chatContainerRef} className="flex-grow p-4 overflow-y-auto space-y-4">
+                        <div ref={chatContainerRef} className="flex-grow p-3 md:p-4 overflow-y-auto space-y-3 md:space-y-4 pb-20 md:pb-0">
                             {messages.length === 0 && (
-                                <div className="text-center text-slate-400 h-full flex flex-col items-center justify-center gap-4">
+                                <div className="text-center text-slate-400 h-full flex flex-col items-center justify-center gap-3 md:gap-4">
                                     {isAnalyzingAI ? (
                                         <>
                                             <LoaderThree />
-                                            <p>Analyzing contract functions with AI...</p>
+                                            <p className="text-sm md:text-base">Analyzing contract functions with AI...</p>
                                         </>
                                     ) : (
-                                        <div className="w-full max-w-md">
-                                            <p className="mb-4">Ask a question about the contract...</p>
+                                        <div className="w-full max-w-md px-3 md:px-0">
+                                            <p className="mb-3 md:mb-4 text-sm md:text-base">Ask a question about the contract...</p>
                                             
                                             {/* Question Templates */}
                                             <div className="space-y-2">
-                                                <p className="text-xs text-slate-500 mb-3">Quick Questions:</p>
+                                                <p className="text-xs text-slate-500 mb-2 md:mb-3">Quick Questions:</p>
                                                 {[
                                                     "What does this contract do? What is its purpose in the context of the overall smart contract?",
                                                     "How much control does owner hold if Owner is not the 0x Dead Address?",
@@ -983,7 +1253,7 @@ const App: React.FC = () => {
                                                     <button
                                                         key={index}
                                                         onClick={() => sendMessage(question)}
-                                                        className="w-full text-left p-3 bg-slate-700/30 hover:bg-slate-600/30 rounded-lg border border-slate-600/30 hover:border-slate-500/30 transition-all duration-200 text-sm text-slate-300 hover:text-white"
+                                                        className="w-full text-left p-2 md:p-3 bg-slate-700/30 hover:bg-slate-600/30 rounded-lg border border-slate-600/30 hover:border-slate-500/30 transition-all duration-200 text-xs md:text-sm text-slate-300 hover:text-white"
                                                     >
                                                         {question}
                                                     </button>
@@ -995,15 +1265,15 @@ const App: React.FC = () => {
                             )}
                             {messages.map((msg) => (
                                 <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-md lg:max-w-2xl rounded-xl px-4 py-3 ${msg.sender === 'user' ? 'bg-purple-700 text-white' : 'bg-slate-700/80 backdrop-blur-sm text-slate-200 border border-slate-600/50'}`}>
+                                    <div className={`max-w-[85%] md:max-w-md lg:max-w-2xl rounded-xl px-3 md:px-4 py-2 md:py-3 ${msg.sender === 'user' ? 'bg-purple-700 text-white' : 'bg-slate-700/80 backdrop-blur-sm text-slate-200 border border-slate-600/50'}`}>
                                         {msg.sender === 'user' ? (
-                                            <div className="text-white">
+                                            <div className="text-white text-sm md:text-base">
                                                 {msg.text}
                                             </div>
                                         ) : (
                                             <div className="space-y-2">
                                                 {msg.text === '...' ? (
-                                                    <LoadingSpinner className="w-5 h-5" />
+                                                    <LoadingSpinner className="w-4 h-4 md:w-5 md:h-5" />
                                                 ) : (
                                                     renderMessageText(msg.text)
                                                 )}
@@ -1014,21 +1284,48 @@ const App: React.FC = () => {
                             ))}
                             {isLoadingChat && messages[messages.length - 1]?.sender === 'user' && (
                                 <div className="flex justify-start">
-                                    <div className="max-w-md lg:max-w-lg rounded-xl px-4 py-2 bg-slate-700 text-slate-200">
-                                        <LoadingSpinner className="w-5 h-5" />
+                                    <div className="max-w-[85%] md:max-w-md lg:max-w-lg rounded-xl px-3 md:px-4 py-2 bg-slate-700 text-slate-200">
+                                        <LoadingSpinner className="w-4 h-4 md:w-5 md:h-5" />
                                     </div>
                                 </div>
                             )}
                         </div>
-                        <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-700/50 flex items-center gap-3 bg-slate-800/30 backdrop-blur-sm">
-                            <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask about the contract..." className="flex-grow bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:outline-none transition" disabled={isLoadingChat} />
-                            <button type="submit" disabled={isLoadingChat || !chatInput.trim()} className="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors"><SendIcon className="w-5 h-5"/></button>
+                        <form onSubmit={handleSendMessage} className="p-3 md:p-4 border-t border-slate-700/50 flex items-center gap-2 md:gap-3 bg-slate-800/30 backdrop-blur-sm flex-shrink-0">
+                            <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask about the contract..." className="flex-grow bg-slate-700 border border-slate-600 rounded-lg px-3 md:px-4 py-2 text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:outline-none transition text-sm md:text-base" disabled={isLoadingChat} />
+                            <button type="submit" disabled={isLoadingChat || !chatInput.trim()} className="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors"><SendIcon className="w-4 h-4 md:w-5 md:h-5"/></button>
                         </form>
                     </div>
                 </div>
             </div>
           </main>
         )}
+
+        {/* Mobile Bottom Navigation */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-sm border-t border-slate-700/50 z-40 pb-safe">
+          <div className="flex justify-around items-center py-2">
+            {[
+              { tabId: 'creator' as TabId, name: 'Creator', icon: '👤' },
+              { tabId: 'code' as TabId, name: 'Code', icon: '📄' },
+              { tabId: 'dependencies' as TabId, name: 'Deps', icon: '🔗' },
+              { tabId: 'api' as TabId, name: 'API', icon: '🔧' },
+              { tabId: 'chart' as TabId, name: 'Chart', icon: '📊' },
+              { tabId: 'chat' as TabId, name: 'Chat', icon: '💬' }
+            ].map(({ tabId, name, icon }) => (
+              <button
+                key={tabId}
+                onClick={() => setActiveTab(tabId)}
+                className={`flex flex-col items-center justify-center py-2 px-1 min-w-0 flex-1 transition-all duration-200 ${
+                  activeTab === tabId
+                    ? 'text-purple-400 bg-purple-500/10 rounded-lg'
+                    : 'text-slate-400 hover:text-slate-300'
+                }`}
+              >
+                <span className="text-lg mb-1">{icon}</span>
+                <span className="text-xs font-medium truncate">{name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
         </div>
       </motion.div>
     </AuroraBackground>

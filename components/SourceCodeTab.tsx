@@ -2,6 +2,9 @@ import React, { useState, useMemo } from 'react';
 
 interface SourceCodeTabProps {
   sourceCode: string;
+  readFunctions?: any[];
+  writeFunctions?: any[];
+  isAnalyzingAI?: boolean;
 }
 
 interface SourceFile {
@@ -17,9 +20,9 @@ interface HardcodedAddress {
   filePath: string;
 }
 
-const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode }) => {
+const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode, readFunctions = [], writeFunctions = [], isAnalyzingAI = false }) => {
   const [activeFileIndex, setActiveFileIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState<'files' | 'addresses'>('files');
+  const [activeTab, setActiveTab] = useState<'files' | 'functions' | 'addresses'>('files');
 
   // Parse source code to extract files
   const sourceFiles = useMemo(() => {
@@ -187,6 +190,16 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode }) => {
           Files
         </button>
         <button
+          onClick={() => setActiveTab('functions')}
+          className={`px-4 py-2 text-sm font-medium transition-colors focus:outline-none ${
+            activeTab === 'functions' 
+              ? 'text-white bg-slate-700/50 border-b-2 border-purple-500' 
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Functions
+        </button>
+        <button
           onClick={() => setActiveTab('addresses')}
           className={`px-4 py-2 text-sm font-medium transition-colors focus:outline-none ${
             activeTab === 'addresses' 
@@ -237,6 +250,54 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode }) => {
             </div>
           </div>
         </>
+      )}
+
+      {activeTab === 'functions' && (
+        <div className="flex-grow overflow-auto p-4 space-y-6">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-white">Read Functions</h3>
+            {readFunctions.length > 0 ? (
+              <div className="space-y-3">
+                {readFunctions.map((func, index) => (
+                  <div key={index} className="bg-transparent border border-slate-600/30 rounded-lg p-4">
+                    <div className="text-white font-mono text-sm">
+                      {func.name}
+                    </div>
+                    {func.explanation && (
+                      <div className="mt-2 text-slate-300 text-sm">
+                        {func.explanation}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-slate-400 text-sm">No read functions found</div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-white">Write Functions</h3>
+            {writeFunctions.length > 0 ? (
+              <div className="space-y-3">
+                {writeFunctions.map((func, index) => (
+                  <div key={index} className="bg-transparent border border-slate-600/30 rounded-lg p-4">
+                    <div className="text-white font-mono text-sm">
+                      {func.name}
+                    </div>
+                    {func.explanation && (
+                      <div className="mt-2 text-slate-300 text-sm">
+                        {func.explanation}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-slate-400 text-sm">No write functions found</div>
+            )}
+          </div>
+        </div>
       )}
 
       {activeTab === 'addresses' && (

@@ -158,17 +158,39 @@ export const fetchDexScreenerData = async (address: string): Promise<{ data: Dex
             throw new Error(`DEXScreener API Error: ${response.statusText}`);
         }
 
-        // Filter for WPLS pairs specifically
-        const wplsPairs = raw.pairs?.filter((pair: any) => 
-            pair.baseToken?.address?.toLowerCase() === address.toLowerCase() && 
-            pair.quoteToken?.symbol === 'WPLS'
-        ) || [];
+        // Check if this is the WPLS contract
+        const isWPLSContract = address.toLowerCase() === '0xa1077a294dde1b09bb078844df40758a5d0f9a27';
+        
+        let targetPairs: any[] = [];
+        
+        if (isWPLSContract) {
+            // For WPLS contract, get the top WPLS/DAI pair
+            targetPairs = raw.pairs?.filter((pair: any) => 
+                pair.baseToken?.address?.toLowerCase() === address.toLowerCase() && 
+                pair.quoteToken?.symbol === 'DAI'
+            ) || [];
+        } else {
+            // For other contracts, get the top WPLS pair
+            targetPairs = raw.pairs?.filter((pair: any) => 
+                pair.baseToken?.address?.toLowerCase() === address.toLowerCase() && 
+                pair.quoteToken?.symbol === 'WPLS'
+            ) || [];
+        }
+
+        // Sort by liquidity and take only the top pair
+        const sortedPairs = targetPairs.sort((a: any, b: any) => {
+            const liquidityA = parseFloat(a.liquidity?.usd || '0');
+            const liquidityB = parseFloat(b.liquidity?.usd || '0');
+            return liquidityB - liquidityA; // Sort by highest liquidity first
+        });
+
+        const topPair = sortedPairs.length > 0 ? [sortedPairs[0]] : [];
 
         return { 
             data: {
-                pairs: wplsPairs,
+                pairs: topPair,
                 totalPairs: raw.pairs?.length || 0,
-                wplsPairs: wplsPairs.length
+                wplsPairs: targetPairs.length
             }, 
             raw 
         };
