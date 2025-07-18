@@ -10,7 +10,7 @@ export default function HappyPulsePage() {
   const [positiveTweet, setPositiveTweet] = useState("");
   
   const { generate, isLoading, error } = useGemini({
-    thinkingBudget: 1000,
+    thinkingBudget: 0,
     isChat: false
   });
 
