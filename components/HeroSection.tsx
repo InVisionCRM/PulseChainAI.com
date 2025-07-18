@@ -2,23 +2,9 @@
 import { Boxes } from "@/components/ui/background-boxes";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
-import ColourfulText from "@/components/ui/colourful-text";
 
 export default function HeroSection() {
-  const titleColors = [
-    "text-pink-500", // P
-    "text-pink-400", // u
-    "text-pink-300", // l
-    "text-purple-500", // s
-    "text-purple-400", // e
-    "text-purple-300", // C
-    "text-blue-500", // h
-    "text-blue-400", // a
-    "text-blue-300", // i
-    "text-red-500", // n
-    "text-red-400", // A
-    "text-red-300", // I
-  ];
+
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -55,9 +41,21 @@ export default function HeroSection() {
         initial="hidden"
         animate="visible"
       >
-        <ColourfulText text="PulseChain" />
         <motion.span 
-          className="text-white"
+          className="bg-gradient-to-r from-[#EC13AC] via-[#364AFF] to-[#EF1091] bg-clip-text text-transparent"
+          variants={letterVariants}
+          whileHover={{
+            scale: 1.02,
+            transition: { duration: 0.2 },
+          }}
+          style={{
+            textShadow: "0 0 20px rgba(236, 19, 172, 0.3), 0 0 40px rgba(54, 74, 255, 0.2), 0 0 60px rgba(239, 16, 145, 0.1)",
+          }}
+        >
+          PulseChain
+        </motion.span>
+        <motion.span 
+          className="text-white ml-4"
           variants={letterVariants}
           whileHover={{
             scale: 1.1,
