@@ -1,0 +1,6 @@
+{
+  "name": "PulseChain Contract Analyzer",
+  "description": "A Next.js application to analyze PulseChain Solidity smart contracts using AI. Input a contract address to view its source code and ask questions about its functionality, security, and logic.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
