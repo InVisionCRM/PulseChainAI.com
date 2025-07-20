@@ -52,7 +52,8 @@ export default function HeroSection() {
             textShadow: "0 0 20px rgba(236, 19, 172, 0.3), 0 0 40px rgba(54, 74, 255, 0.2), 0 0 60px rgba(239, 16, 145, 0.1)",
             fontFamily: "'Inter', 'Roboto', 'Arial', sans-serif",
             fontWeight: 900,
-            letterSpacing: "0.1em"
+            letterSpacing: "0.1em",
+            fontSize: "inherit"
           }}
         >
           <ColourfulText text="PulseChain" />
@@ -66,20 +67,13 @@ export default function HeroSection() {
           }}
           style={{
             textShadow: "0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,255,255,0.6), 0 0 60px rgba(255,255,255,0.4)",
-            filter: "drop-shadow(0 0 10px rgba(255,255,255,0.5))"
+            filter: "drop-shadow(0 0 10px rgba(255,255,255,0.5))",
+            fontSize: "inherit"
           }}
         >
           AI
         </motion.span>
       </motion.h1>
-      <motion.p 
-        className="text-center mt-2 text-neutral-300 relative z-20 text-sm md:text-2xl max-w-2xl mx-auto px-4"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.5, duration: 0.5 }}
-      >
-        Your comprehensive dashboard for blockchain analytics and AI-powered insights
-      </motion.p>
       <motion.p 
         className="text-center mt-2 text-neutral-400 relative z-20 text-xs md:text-base max-w-2xl mx-auto px-4"
         initial={{ opacity: 0, y: 20 }}
