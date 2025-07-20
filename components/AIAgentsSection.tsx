@@ -62,7 +62,7 @@ const agents = [
   {
     id: 2,
     name: "Positive Vibes Only",
-    description: "Community sentiment and social media analysis",
+    description: "Transform negative thoughts into positive, uplifting messages with AI",
     icon: IconHeart,
     color: "from-red-500 to-pink-500",
     size: "col-span-1 row-span-1"
@@ -123,7 +123,7 @@ export default function AIAgentsSection() {
               onClick={() => {
                 if (agent.name === "AI Code Reader/Chat Agent") {
                   window.location.href = "/ai-agent";
-                } else if (agent.name === "HappyPulse") {
+                } else if (agent.name === "Positive Vibes Only") {
                   window.location.href = "/happy-pulse";
                 } else if (agent.name === "AI Therapist") {
                   window.location.href = "/therapist";
