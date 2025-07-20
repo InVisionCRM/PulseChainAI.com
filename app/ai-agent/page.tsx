@@ -892,6 +892,7 @@ const App: React.FC = () => {
                          </div>
                      </div>
                  <TokenInfoCard tokenInfo={tokenInfo} />
+                 </div>
               </div>
             )}
 
