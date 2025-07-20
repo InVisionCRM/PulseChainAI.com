@@ -5,7 +5,7 @@ import type { Message } from '@/types';
 const getApiKey = (): string => {
   const key = process.env.API_KEY;
   if (!key) {
-    throw new Error('API_KEY environment variable not set.');
+    throw new Error('Gemini API key not configured. Please set the API_KEY environment variable or use your own API key.');
   }
   return key;
 };

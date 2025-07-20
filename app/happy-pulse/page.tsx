@@ -37,7 +37,7 @@ const SplashModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpe
                                 <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                             </svg>
                         </div>
-                        <p className="text-slate-300 text-sm">You may need a valid <span className="text-blue-400 font-medium">Gemini API Key</span> to generate responses.</p>
+                        <p className="text-slate-300 text-sm"><span className="text-yellow-400 font-medium">Important:</span> You need a valid <span className="text-blue-400 font-medium">Gemini API Key</span> to generate responses. Add yours in the header!</p>
                     </div>
 
                     <div className="flex items-start gap-3">
@@ -128,7 +128,13 @@ export default function HappyPulsePage() {
     } catch (e) {
       const errorMessage = (e as Error).message;
       setError(errorMessage);
-      setPositiveTweet("I'm sorry, I encountered an error while processing your message. Please try again!");
+      
+      // Check if it's an API key error
+      if (errorMessage.includes('API key') || errorMessage.includes('API_KEY')) {
+        setPositiveTweet("I need a Gemini API key to work! Please add your API key in the header, or ask the site admin to configure one. 🌟");
+      } else {
+        setPositiveTweet("I'm sorry, I encountered an error while processing your message. Please try again!");
+      }
     } finally {
       setIsLoading(false);
       // Keep isProcessing true to maintain vibrant colors
