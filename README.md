@@ -37,6 +37,7 @@
 - [🎨 UI Components](#-ui-components)
 - [👨‍🏫 AI Teachers](#-ai-teachers)
 - [🤖 AI Integration](#-ai-integration)
+- [🤖 AI-Agent (Code Reader)](#-ai-agent-code-reader)
 - [🔒 Security](#-security)
 - [🧪 Testing](#-testing)
 - [📦 Deployment](#-deployment)
@@ -188,6 +189,381 @@ The **AI-Agent (Code Reader)** is the flagship feature of the PulseChain AI Dash
 - **No Server Storage**: API keys never stored on server
 - **Input Validation**: All inputs validated and sanitized
 - **Secure Communication**: HTTPS-only communication
+
+---
+
+## 📁 **AI-Agent File Structure & Components**
+
+### **Core Files**
+
+```
+app/ai-agent/
+├── page.tsx                    # Main AI-Agent page component
+└── loading.tsx                 # Loading state component
+
+app/api/
+├── analyze/route.ts            # Contract analysis API endpoint
+├── chat/route.ts               # AI chat API endpoint
+├── gemini/route.ts             # Gemini AI integration
+└── test-api-key/route.ts       # API key validation endpoint
+
+components/
+├── AbiFunctionsList.tsx        # Contract functions display
+├── ApiResponseTab.tsx          # Raw API data viewer
+├── CreatorTab.tsx              # Contract creator information
+├── SourceCodeTab.tsx           # Source code display
+├── TokenInfoCard.tsx           # Token information card
+├── UnverifiedContractRisksModal.tsx # Risk warning modal
+├── ApiKeyModal.tsx             # API key input modal
+├── GlobalHeader.tsx            # Global navigation header
+├── GlobalFooter.tsx            # Global footer component
+└── JsonViewer.tsx              # JSON data visualization
+
+lib/
+├── gemini.ts                   # Gemini AI client configuration
+├── hooks/
+│   ├── useApiKey.ts            # API key management hook
+│   ├── useGemini.ts            # Gemini AI integration hook
+│   └── usePageLoading.ts       # Page loading state hook
+└── utils.ts                    # Utility functions
+
+services/
+└── pulsechainService.ts        # PulseChain API integration
+```
+
+### **Key Components Breakdown**
+
+#### **Main Page (`app/ai-agent/page.tsx`)**
+- **Contract Address Input**: Search and validation
+- **Loading States**: Multiple loading animations
+- **Tab Navigation**: Creator, Code, API, Charts, Chat
+- **Real-time Chat**: Interactive AI conversations
+- **Responsive Design**: Mobile-optimized layout
+
+#### **API Endpoints**
+- **`/api/analyze`**: Contract analysis and function explanation
+- **`/api/chat`**: AI chat with context preservation
+- **`/api/gemini`**: Direct Gemini AI integration
+- **`/api/test-api-key`**: API key validation
+
+#### **UI Components**
+- **`AbiFunctionsList`**: Displays and explains contract functions
+- **`TokenInfoCard`**: Shows token metadata and market data
+- **`ApiResponseTab`**: Raw API data with collapsible JSON
+- **`CreatorTab`**: Contract creator analysis
+- **`SourceCodeTab`**: Syntax-highlighted source code
+- **`ApiKeyModal`**: Secure API key input with validation
+
+### 🔧 **How It Works**
+
+#### **1. Contract Loading Process**
+```typescript
+// User enters contract address
+const contractAddress = "0x...";
+
+// System validates address format
+if (!isValidAddress(contractAddress)) {
+  throw new Error("Invalid contract address");
+}
+
+// Fetches contract data from PulseChain API
+const contractData = await fetchContractData(contractAddress);
+
+// Analyzes contract ABI and functions
+const analyzedFunctions = await analyzeContractFunctions(contractData);
+```
+
+#### **2. AI Analysis Pipeline**
+```typescript
+// Sends contract data to Gemini AI
+const aiResponse = await gemini.analyze({
+  contractAddress,
+  abi: contractData.abi,
+  sourceCode: contractData.sourceCode,
+  functions: contractData.functions
+});
+
+// Processes and formats AI response
+const explainedFunctions = formatAIResponse(aiResponse);
+```
+
+#### **3. Chat Integration**
+```typescript
+// Maintains conversation context
+const chatHistory = [
+  { role: "user", content: "What does this function do?" },
+  { role: "assistant", content: "This function..." }
+];
+
+// Sends context-aware request
+const response = await gemini.chat({
+  message: userMessage,
+  history: chatHistory,
+  contractContext: contractData
+});
+```
+
+#### **4. Real-time Streaming**
+```typescript
+// Creates streaming response
+const stream = await gemini.streamResponse(prompt);
+
+// Processes chunks in real-time
+for await (const chunk of stream) {
+  setResponseText(prev => prev + chunk.text);
+}
+```
+
+### 🚀 **Features Deep Dive**
+
+#### **Smart Contract Analysis**
+- **ABI Parsing**: Automatic parsing of contract Application Binary Interface
+- **Function Categorization**: Separates read vs. write functions
+- **Security Scanning**: Identifies potential vulnerabilities
+- **Gas Estimation**: Provides gas cost estimates for functions
+
+#### **AI-Powered Explanations**
+- **Natural Language**: Converts complex code to plain English
+- **Context Awareness**: Understands contract purpose and relationships
+- **Security Insights**: Highlights potential risks and best practices
+- **Code Examples**: Provides usage examples for functions
+
+#### **Interactive Chat System**
+- **Context Preservation**: Remembers conversation history
+- **Contract Awareness**: AI understands the specific contract being analyzed
+- **Question Templates**: Pre-written questions for common scenarios
+- **Real-time Responses**: Streaming text for immediate feedback
+
+#### **Data Visualization**
+- **Token Metrics**: Market cap, supply, price, volume
+- **Creator Analysis**: Transaction history and patterns
+- **DEXScreener Integration**: Live trading data and charts
+- **Source Code Highlighting**: Syntax-colored code display
+
+### 🔒 **Security Features**
+
+#### **API Key Management**
+- **Session Storage**: Keys stored only in browser session
+- **No Server Storage**: Keys never saved on server
+- **Automatic Cleanup**: Keys cleared on browser close
+- **Validation**: Real-time API key testing
+
+#### **Input Validation**
+- **Address Format**: Validates Ethereum/PulseChain addresses
+- **Content Sanitization**: Prevents XSS and injection attacks
+- **Rate Limiting**: Prevents API abuse
+- **Error Handling**: Graceful error recovery
+
+### 📱 **Mobile Optimization**
+
+#### **Responsive Design**
+- **Adaptive Layout**: Adjusts to screen size
+- **Touch Targets**: Large, accessible buttons
+- **Mobile Navigation**: Bottom navigation bar
+- **Optimized Loading**: Reduced bundle sizes
+
+#### **Performance**
+- **Lazy Loading**: Components load on demand
+- **Code Splitting**: Efficient bundle distribution
+- **Caching**: Intelligent data caching
+- **Memory Management**: Efficient state handling
+
+### 🔧 **Forking & Customization**
+
+#### **Prerequisites**
+```bash
+# Required dependencies
+Node.js 18.17+
+npm 9.0+ or yarn 1.22+
+Git for version control
+```
+
+#### **Forking Steps**
+```bash
+# 1. Fork the repository
+# Visit: https://github.com/InVisionCRM/PulseChainAI.com
+# Click "Fork" button
+
+# 2. Clone your fork
+git clone https://github.com/YOUR_USERNAME/PulseChainAI.com.git
+cd PulseChainAI.com
+
+# 3. Install dependencies
+npm install
+
+# 4. Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your API keys
+
+# 5. Start development server
+npm run dev
+```
+
+#### **Environment Configuration**
+```env
+# Required: Gemini AI API Key
+API_KEY=your_gemini_api_key_here
+
+# Optional: PulseChain API Configuration
+PULSECHAIN_API_URL=https://api.pulsechain.com
+PULSECHAIN_API_KEY=your_pulsechain_api_key_here
+
+# Optional: Analytics
+NEXT_PUBLIC_GA_ID=your_google_analytics_id
+```
+
+#### **Customization Options**
+
+##### **1. AI Model Configuration**
+```typescript
+// lib/gemini.ts
+export const geminiConfig = {
+  model: 'gemini-2.5-flash',  // Change AI model
+  temperature: 0.7,           // Adjust creativity
+  maxTokens: 2048,            // Set response length
+  topP: 0.9                   // Control randomness
+};
+```
+
+##### **2. UI Customization**
+```typescript
+// components/ui/aurora-background.tsx
+const defaultColors = [
+  '#EC13AC', '#364AFF', '#EF1091',  // Customize colors
+  '#3F41FF', '#D917E9', '#215FFF'
+];
+```
+
+##### **3. API Integration**
+```typescript
+// services/pulsechainService.ts
+export const API_ENDPOINTS = {
+  contract: 'https://your-api.com/contract',  // Custom API
+  token: 'https://your-api.com/token',
+  transaction: 'https://your-api.com/tx'
+};
+```
+
+##### **4. Feature Toggles**
+```typescript
+// lib/config.ts
+export const FEATURES = {
+  enableChat: true,           // Enable/disable chat
+  enableCharts: true,         // Enable/disable charts
+  enableCreatorAnalysis: true, // Enable/disable creator tab
+  enableSourceCode: true      // Enable/disable source code
+};
+```
+
+#### **Deployment Options**
+
+##### **Vercel Deployment**
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel
+
+# Set environment variables
+vercel env add API_KEY
+```
+
+##### **Docker Deployment**
+```dockerfile
+# Dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+##### **Self-Hosted**
+```bash
+# Build for production
+npm run build
+
+# Start production server
+npm start
+
+# Or use PM2
+pm2 start npm --name "pulsechain-ai" -- start
+```
+
+### 🧪 **Testing & Development**
+
+#### **Running Tests**
+```bash
+# Unit tests
+npm run test
+
+# Integration tests
+npm run test:integration
+
+# E2E tests
+npm run test:e2e
+
+# Type checking
+npm run type-check
+
+# Linting
+npm run lint
+```
+
+#### **Development Workflow**
+```bash
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Analyze bundle
+npm run analyze
+
+# Format code
+npm run format
+```
+
+### 📊 **Performance Monitoring**
+
+#### **Key Metrics**
+- **First Contentful Paint**: < 1.5s
+- **Largest Contentful Paint**: < 2.5s
+- **Cumulative Layout Shift**: < 0.1
+- **First Input Delay**: < 100ms
+
+#### **Optimization Techniques**
+- **Code Splitting**: Dynamic imports for components
+- **Image Optimization**: Next.js Image component
+- **Caching**: Strategic caching strategies
+- **Bundle Analysis**: Regular bundle size monitoring
+
+### 🔄 **Updates & Maintenance**
+
+#### **Regular Updates**
+```bash
+# Update dependencies
+npm update
+
+# Check for security vulnerabilities
+npm audit
+
+# Update to latest Next.js
+npm install next@latest
+```
+
+#### **Monitoring**
+- **Error Tracking**: Implement error monitoring
+- **Performance Monitoring**: Track Core Web Vitals
+- **Usage Analytics**: Monitor feature usage
+- **Security Audits**: Regular security reviews
+
+This comprehensive AI-Agent system provides a complete solution for smart contract analysis with advanced AI capabilities, ensuring users can understand and interact with blockchain contracts effectively.
 
 ---
 
