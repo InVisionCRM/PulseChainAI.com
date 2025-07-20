@@ -80,6 +80,14 @@ export default function HeroSection() {
       >
         Your comprehensive dashboard for blockchain analytics and AI-powered insights
       </motion.p>
+      <motion.p 
+        className="text-center mt-2 text-neutral-400 relative z-20 text-sm md:text-base max-w-2xl mx-auto px-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.8, duration: 0.5 }}
+      >
+        Made by <span className="text-blue-400 hover:text-blue-300 transition-colors cursor-pointer" onClick={() => window.open('https://superstake.win', '_blank')}>SuperStake.Win</span>
+      </motion.p>
     </div>
   );
 } 
