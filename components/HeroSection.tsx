@@ -37,7 +37,7 @@ export default function HeroSection() {
       <Boxes />
       
       <motion.h1 
-        className={cn("md:text-8xl text-6xl relative z-20 font-bold flex items-center")}
+        className={cn("text-4xl md:text-6xl lg:text-8xl relative z-20 font-bold flex items-center")}
         variants={containerVariants}
         initial="hidden"
         animate="visible"
