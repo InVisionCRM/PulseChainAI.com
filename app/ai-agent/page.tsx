@@ -380,7 +380,7 @@ const App: React.FC = () => {
       } finally {
           setIsAnalyzingAI(false);
       }
-  }, []);
+  }, [getApiKey]);
 
 
   const handleLoadContract = useCallback(async () => {
