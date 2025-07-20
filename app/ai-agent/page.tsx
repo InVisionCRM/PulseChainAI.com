@@ -713,7 +713,7 @@ const App: React.FC = () => {
   const writeFunctions = explainedFunctions?.filter(f => f.type === 'write') || [];
 
   return (
-    <AuroraBackground className="min-h-screen flex flex-col">
+    <AuroraBackground className="min-h-screen">
       <SplashModal isOpen={showSplash} onClose={() => setShowSplash(false)} />
       <UnverifiedContractRisksModal 
         isOpen={showUnverifiedRisksModal} 
@@ -727,7 +727,7 @@ const App: React.FC = () => {
           duration: 0.8,
           ease: "easeInOut",
         }}
-        className="relative flex flex-col gap-4 items-center justify-start px-4 w-full flex-1 pt-20"
+        className="relative flex flex-col gap-4 items-center justify-start px-4 w-full min-h-screen pt-20"
       >
         <div className="container mx-auto p-3 md:p-6 lg:p-8 max-w-7xl w-full pb-32 md:pb-16">
           
