@@ -4,16 +4,16 @@ import { motion } from "motion/react";
 
 export default function ColourfulText({ text }: { text: string }) {
   const colors = [
-    "#3b82f6",   // blue
-    "#ec4899",   // pink
-    "#ef4444",   // red
-    "#a855f7",   // purple
-    "#06b6d4",   // cyan
-    "#f59e0b",   // amber
-    "#10b981",   // emerald
-    "#8b5cf6",   // violet
-    "#f97316",   // orange
-    "#d946ef",   // fuchsia
+    "rgb(131, 179, 32)",
+    "rgb(47, 195, 106)",
+    "rgb(42, 169, 210)",
+    "rgb(4, 112, 202)",
+    "rgb(107, 10, 255)",
+    "rgb(183, 0, 218)",
+    "rgb(218, 0, 171)",
+    "rgb(230, 64, 92)",
+    "rgb(232, 98, 63)",
+    "rgb(249, 129, 47)",
   ];
 
   const [currentColors, setCurrentColors] = React.useState(colors);
@@ -21,11 +21,10 @@ export default function ColourfulText({ text }: { text: string }) {
 
   React.useEffect(() => {
     const interval = setInterval(() => {
-      // Shuffle colors to make the change more obvious
       const shuffled = [...colors].sort(() => Math.random() - 0.5);
       setCurrentColors(shuffled);
       setCount((prev) => prev + 1);
-    }, 3000); // Faster interval to see changes more quickly
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);
@@ -38,16 +37,25 @@ export default function ColourfulText({ text }: { text: string }) {
       }}
       animate={{
         color: currentColors[index % currentColors.length],
-        y: [0, -3, 0],
-        scale: [1, 1.01, 1],
-        filter: ["blur(0px)", `blur(5px)`, "blur(0px)"],
-        opacity: [1, 0.8, 1],
+        y: [0, -5, 0],
+        scale: [1, 1.1, 1],
+        filter: ["blur(0px)", `blur(8px)`, "blur(0px)"],
+        opacity: [1, 0.9, 1],
+        textShadow: [
+          "0 0 5px currentColor",
+          "0 0 20px currentColor",
+          "0 0 5px currentColor"
+        ],
       }}
       transition={{
         duration: 0.5,
         delay: index * 0.05,
       }}
-      className="inline-block whitespace-pre font-sans tracking-tight"
+      className="inline-block whitespace-pre font-black tracking-wider text-5xl md:text-7xl"
+      style={{
+        fontWeight: 900,
+        textShadow: "2px 2px 0px rgba(0,0,0,0.3), 4px 4px 0px rgba(0,0,0,0.2)"
+      }}
     >
       {char}
     </motion.span>

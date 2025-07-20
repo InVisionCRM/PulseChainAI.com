@@ -38,47 +38,50 @@ const IconMail = () => (
   </svg>
 );
 
+const IconHeartPulse = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+  </svg>
+);
+
+const IconCrown = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+  </svg>
+);
+
 const agents = [
   {
     id: 1,
     name: "AI Code Reader/Chat Agent",
-    description: "Analyze HEX documentation, audits, and smart contract code",
+    description: "PulseChainAI's Most Powerful AI Agent which allows user to interact with Solidity Smart Contract like never before! (Warning: Still in Beta. Use with Caution)",
     icon: IconFileText,
     color: "from-pink-500 to-purple-500",
     size: "col-span-1 md:col-span-2 row-span-1 md:row-span-2"
   },
   {
     id: 2,
-    name: "PulseChain Code",
-    description: "Deep dive into PulseChain blockchain implementation",
-    icon: IconCode,
-    color: "from-blue-500 to-cyan-500",
-    size: "col-span-1 row-span-1"
-  },
-
-  {
-    id: 3,
-    name: "HappyPulse",
+    name: "Positive Vibes Only",
     description: "Community sentiment and social media analysis",
     icon: IconHeart,
     color: "from-red-500 to-pink-500",
     size: "col-span-1 row-span-1"
   },
   {
-    id: 4,
-    name: "What Would Richard Do",
-    description: "AI-powered insights based on Richard Heart's philosophy",
-    icon: IconBrain,
-    color: "from-purple-500 to-indigo-500",
-    size: "col-span-1 row-span-1"
+    id: 3,
+    name: "AI Therapist",
+    description: "Dr. Sarah Chen - Compassionate AI therapy and emotional support",
+    icon: IconHeartPulse,
+    color: "from-pink-500 to-rose-500",
+    size: "col-span-1 md:col-span-2 row-span-1"
   },
   {
-    id: 5,
-    name: "Emailer",
-    description: "Automated email composition and management",
-    icon: IconMail,
-    color: "from-cyan-500 to-blue-500",
-    size: "col-span-1 md:col-span-2 row-span-1"
+    id: 4,
+    name: "Talk to Richard Heart!",
+    description: "AI-powered conversation with the tone, knowledge, wit and persona of crypto founder Richard Heart",
+    icon: IconCrown,
+    color: "from-yellow-500 to-orange-500",
+    size: "col-span-1 row-span-1"
   }
 ];
 
@@ -122,6 +125,10 @@ export default function AIAgentsSection() {
                   window.location.href = "/ai-agent";
                 } else if (agent.name === "HappyPulse") {
                   window.location.href = "/happy-pulse";
+                } else if (agent.name === "AI Therapist") {
+                  window.location.href = "/therapist";
+                } else if (agent.name === "Talk to Richard Heart!") {
+                  window.location.href = "/richard-heart";
                 }
               }}
             >

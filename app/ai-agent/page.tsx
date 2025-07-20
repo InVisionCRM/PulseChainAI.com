@@ -18,10 +18,12 @@ import CreatorTab from '@/components/CreatorTab';
 import ApiResponseTab from '@/components/ApiResponseTab';
 import SourceCodeTab from '@/components/SourceCodeTab';
 import UnverifiedContractRisksModal from '@/components/UnverifiedContractRisksModal';
+import ColourfulText from '@/components/ui/colourful-text';
+import { useApiKey } from '../../lib/hooks/useApiKey';
 
 // Note: API key is handled server-side in API routes
 
-type TabId = 'creator' | 'code' | 'dependencies' | 'api' | 'chart' | 'chat';
+type TabId = 'creator' | 'code' | 'api' | 'chart' | 'chat';
 
 const TabButton: React.FC<{ name: string; tabId: TabId; activeTab: string; onClick: (tabId: TabId) => void; }> = ({ name, tabId, activeTab, onClick }) => {
     const isActive = activeTab === tabId;
@@ -155,7 +157,6 @@ const App: React.FC = () => {
   const [dexScreenerData, setDexScreenerData] = useState<DexScreenerData | null>(null);
   const [explainedFunctions, setExplainedFunctions] = useState<ExplainedFunction[] | null>(null);
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
-  const [contractDependencies, setContractDependencies] = useState<Array<{name: string, address: string, description: string}>>([]);
   
   // Creator Tab State
   const [creatorTransactions, setCreatorTransactions] = useState<Transaction[] | null>(null);
@@ -196,195 +197,11 @@ const App: React.FC = () => {
   
   // Mobile search visibility state
   const [isSearchVisible, setIsSearchVisible] = useState<boolean>(true);
+  
+  // API key management
+  const { getApiKey } = useApiKey();
 
-  // Function to extract contract dependencies from source code
-  const extractDependencies = (sourceCode: string) => {
-    const dependencies: Array<{name: string, address: string, description: string}> = [];
-    
-    // Common contract patterns and their descriptions
-    const contractPatterns = [
-      {
-        pattern: /IERC20|ERC20/,
-        description: "Standard ERC20 token interface - handles basic token functionality like transfers and balances"
-      },
-      {
-        pattern: /IERC721|ERC721/,
-        description: "NFT standard interface - manages unique digital assets and ownership"
-      },
-      {
-        pattern: /SafeERC20/,
-        description: "Safe ERC20 wrapper - provides safe token transfer methods with error handling"
-      },
-      {
-        pattern: /ReentrancyGuard/,
-        description: "Security contract - prevents reentrancy attacks by blocking recursive calls"
-      },
-      {
-        pattern: /Ownable|Ownership/,
-        description: "Access control contract - manages contract ownership and admin functions"
-      },
-      {
-        pattern: /Pausable/,
-        description: "Pausable functionality - allows contract operations to be paused in emergencies"
-      },
-      {
-        pattern: /AccessControl/,
-        description: "Role-based access control - manages different permission levels for functions"
-      },
-      {
-        pattern: /Math|SafeMath/,
-        description: "Mathematical operations library - provides safe arithmetic operations"
-      },
-      {
-        pattern: /Strings/,
-        description: "String utilities library - provides string manipulation functions"
-      },
-      {
-        pattern: /Address/,
-        description: "Address utilities library - provides address validation and manipulation"
-      },
-      {
-        pattern: /Counters/,
-        description: "Counter library - provides safe increment/decrement operations"
-      },
-      {
-        pattern: /EnumerableSet/,
-        description: "Enumerable set library - provides set data structure with enumeration"
-      },
-      {
-        pattern: /EnumerableMap/,
-        description: "Enumerable map library - provides map data structure with enumeration"
-      },
-      {
-        pattern: /Proxy|UpgradeableProxy/,
-        description: "Proxy contract - enables upgradeable smart contracts with storage delegation"
-      },
-      {
-        pattern: /Initializable/,
-        description: "Initializable contract - provides initialization pattern for upgradeable contracts"
-      },
-      {
-        pattern: /UUPSUpgradeable/,
-        description: "UUPS upgradeable pattern - user upgradeable proxy system"
-      },
-      {
-        pattern: /TimelockController/,
-        description: "Timelock controller - adds time delays to administrative actions for security"
-      },
-      {
-        pattern: /Multisig|MultiSig/,
-        description: "Multi-signature wallet - requires multiple approvals for transactions"
-      },
-      {
-        pattern: /Vesting|TokenVesting/,
-        description: "Token vesting contract - manages gradual token release schedules"
-      },
-      {
-        pattern: /Staking|Stake/,
-        description: "Staking contract - manages token staking and rewards distribution"
-      },
-      {
-        pattern: /Governance|Governor/,
-        description: "Governance contract - manages DAO voting and proposal execution"
-      },
-      {
-        pattern: /Oracle|PriceOracle/,
-        description: "Price oracle - provides external price data for DeFi operations"
-      },
-      {
-        pattern: /Router|SwapRouter/,
-        description: "DEX router - handles token swaps and liquidity operations"
-      },
-      {
-        pattern: /Factory|TokenFactory/,
-        description: "Token factory - creates new token contracts or pairs"
-      },
-      {
-        pattern: /Liquidity|LP/,
-        description: "Liquidity management - handles liquidity pool operations"
-      }
-    ];
 
-    // Extract hardcoded addresses
-    const addressPattern = /0x[a-fA-F0-9]{40}/g;
-    const addresses = sourceCode.match(addressPattern) || [];
-    
-    // Find unique addresses and their context
-    const uniqueAddresses = [...new Set(addresses)];
-    
-    uniqueAddresses.forEach(address => {
-      // Skip the contract's own address
-      if (address.toLowerCase() === contractAddress.toLowerCase()) {
-        return;
-      }
-      
-      // Find context around the address
-      const addressIndex = sourceCode.indexOf(address);
-      const contextStart = Math.max(0, addressIndex - 100);
-      const contextEnd = Math.min(sourceCode.length, addressIndex + 100);
-      const context = sourceCode.substring(contextStart, contextEnd);
-      
-      // Try to find a name or description for this address
-      let name = `Contract at ${address.substring(0, 6)}...${address.substring(38)}`;
-      let description = "External contract dependency";
-      
-      // Check if it's a known address
-      const knownAddresses: {[key: string]: {name: string, description: string}} = {
-        '0xa1077a294dde1b09bb078844df40758a5d0f9a27': {
-          name: 'WPLS Token',
-          description: 'Wrapped PulseChain token - the native token wrapped for ERC20 compatibility'
-        },
-        '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39': {
-          name: 'HEX Token',
-          description: 'HEX cryptocurrency token - the main HEX token contract'
-        },
-        '0x95b303987a60c71504d99aa1b13b4da07b0790ab': {
-          name: 'PLSX Token',
-          description: 'PLSX token - PulseChain exchange token'
-        },
-        '0x2fa878ab3f87cc1c9737fc071108f904c0b0c95d': {
-          name: 'INC Token',
-          description: 'INC token - Incentive token'
-        },
-        '0x000000000000000000000000000000000000dead': {
-          name: 'Dead Address',
-          description: 'Burn address - tokens sent here are permanently removed from circulation'
-        },
-        '0x0000000000000000000000000000000000000000': {
-          name: 'Zero Address',
-          description: 'Zero address - often used for initialization or as a placeholder'
-        }
-      };
-      
-      if (knownAddresses[address.toLowerCase()]) {
-        name = knownAddresses[address.toLowerCase()].name;
-        description = knownAddresses[address.toLowerCase()].description;
-      }
-      
-      dependencies.push({ name, address, description });
-    });
-
-    // Add library dependencies based on patterns
-    contractPatterns.forEach(({ pattern, description }) => {
-      if (pattern.test(sourceCode)) {
-        const match = sourceCode.match(pattern);
-        if (match) {
-          const name = match[0];
-          // Check if we already have this dependency
-          const exists = dependencies.some(dep => dep.name === name);
-          if (!exists) {
-            dependencies.push({
-              name,
-              address: 'Library/Interface',
-              description
-            });
-          }
-        }
-      }
-    });
-
-    return dependencies;
-  };
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -514,11 +331,18 @@ const App: React.FC = () => {
       }
 
       try {
+          const userApiKey = getApiKey();
+          const headers: Record<string, string> = {
+              'Content-Type': 'application/json',
+          };
+          
+          if (userApiKey) {
+              headers['x-user-api-key'] = userApiKey;
+          }
+
           const response = await fetch('/api/analyze', {
               method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json',
-              },
+              headers,
               body: JSON.stringify({
                   abi: functionsToExplain,
                   sourceCode: sourceCode
@@ -600,12 +424,6 @@ const App: React.FC = () => {
       }
       
               setContractData(finalContractData);
-        
-        // Extract dependencies from source code
-        if (finalContractData.source_code) {
-          const dependencies = extractDependencies(finalContractData.source_code);
-          setContractDependencies(dependencies);
-        }
       setTokenInfo(tokenResult?.data || null);
       setDexScreenerData(dexScreenerResult?.data || null);
 
@@ -641,11 +459,18 @@ const App: React.FC = () => {
     setIsLoadingChat(true);
 
     try {
+      const userApiKey = getApiKey();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (userApiKey) {
+        headers['x-user-api-key'] = userApiKey;
+      }
+
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           message: messageText,
           history: messages,
@@ -902,22 +727,31 @@ const App: React.FC = () => {
           duration: 0.8,
           ease: "easeInOut",
         }}
-        className="relative flex flex-col gap-4 items-center justify-start px-4 w-full min-h-screen pt-4"
+        className="relative flex flex-col gap-4 items-center justify-start px-4 w-full min-h-screen pt-20"
       >
-        <div className="container mx-auto p-3 md:p-6 lg:p-8 max-w-7xl w-full pb-24 md:pb-8">
+        <div className="container mx-auto p-3 md:p-6 lg:p-8 max-w-7xl w-full pb-32 md:pb-16">
           
           <header className="flex items-center justify-between mb-4 md:mb-6 pb-3 md:pb-4 border-b border-slate-700">
-            <div className="flex items-center gap-2 md:gap-3">
-              <PulseChainLogo className="h-8 w-8 md:h-10 md:w-10" />
-              <div>
-                <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-white">Code Reader</h1>
-                <p className="text-xs md:text-sm text-slate-400">Analyze Solidity contracts with AI</p>
-              </div>
+            {/* Back to Home Button */}
+            <a
+              href="/"
+              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-slate-700/30"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span className="text-sm font-medium">Back to Home</span>
+            </a>
+            
+            {/* Centered Title */}
+            <div className="flex flex-col items-center">
             </div>
+            
             {/* Mobile Search Toggle Button */}
             <button
               onClick={() => setIsSearchVisible(!isSearchVisible)}
               className="md:hidden text-white hover:text-purple-400 transition-colors duration-200"
+              title="Toggle Search"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -977,28 +811,30 @@ const App: React.FC = () => {
                             </div>
                         )}
                     </div>
-                    <HoverBorderGradient
-                        as="button"
+                    <button
                         onClick={handleLoadContract}
                         disabled={isLoadingContract || !contractAddress}
-                        containerClassName="w-full"
-                        className={`w-full flex items-center justify-center gap-2 bg-purple-600 text-white font-semibold px-4 md:px-6 py-2 md:py-3 rounded-lg hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base ${
-                            addressSet && contractAddress ? 'shadow-lg shadow-purple-500/25 ring-2 ring-purple-400/50' : ''
+                        className={`w-full flex items-center justify-center gap-2 bg-transparent border border-white/30 text-white font-semibold px-4 md:px-6 py-2 md:py-3 rounded-lg disabled:bg-slate-600 disabled:cursor-not-allowed transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base hover:border-white/50 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] ${
+                            addressSet && contractAddress ? 'shadow-[0_0_20px_rgba(255,255,255,0.2)] ring-2 ring-white/20' : ''
                         }`}
+                        style={{
+                            textShadow: "0 0 10px rgba(255,255,255,0.5), 0 0 20px rgba(255,255,255,0.3)",
+                            boxShadow: addressSet && contractAddress ? "0 0 20px rgba(255,255,255,0.2), inset 0 0 20px rgba(255,255,255,0.05)" : "inset 0 0 20px rgba(255,255,255,0.05)"
+                        }}
                     >
                         {isLoadingContract ? <LoadingSpinner /> : 'Load Contract'}
-                    </HoverBorderGradient>
+                    </button>
                 </div>
                 
                 {/* Quick Search Buttons */}
                 <div className="flex flex-col gap-2">
                     <div className="grid grid-cols-4 gap-1.5 md:gap-2">
                         {[
-                            { ticker: 'WPLS', address: '0xA1077a294dDE1B09bB078844df40758a5D0f9a27' },
-                            { ticker: 'HEX', address: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39' },
-                            { ticker: 'PLSX', address: '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab' },
-                            { ticker: 'INC', address: '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d' }
-                        ].map(({ ticker, address }) => (
+                            { ticker: 'WPLS', address: '0xA1077a294dDE1B09bB078844df40758a5D0f9a27', color: 'purple' },
+                            { ticker: 'HEX', address: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39', color: 'orange' },
+                            { ticker: 'PLSX', address: '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab', color: 'red' },
+                            { ticker: 'INC', address: '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d', color: 'green' }
+                        ].map(({ ticker, address, color }) => (
                             <button
                                 key={ticker}
                                 onClick={() => {
@@ -1006,7 +842,13 @@ const App: React.FC = () => {
                                     setIsSearchDropdownVisible(false);
                                     setAddressSet(true);
                                 }}
-                                className="px-2 py-1.5 md:px-3 md:py-2 bg-slate-700/30 hover:bg-slate-600/40 text-white text-xs md:text-sm font-medium rounded-md md:rounded-lg border border-slate-600/30 hover:border-slate-500/40 transition-all duration-200 hover:scale-105 backdrop-blur-sm"
+                                className={`px-2 py-1.5 md:px-3 md:py-2 bg-transparent text-${color}-400 text-xs md:text-sm font-medium rounded-md md:rounded-lg border border-${color}-500/50 hover:border-${color}-400/70 transition-all duration-200 hover:scale-105 shadow-[0_0_10px_rgba(var(--${color}-500-rgb),0.3)] hover:shadow-[0_0_15px_rgba(var(--${color}-500-rgb),0.5)]`}
+                                style={{
+                                    '--purple-500-rgb': '168, 85, 247',
+                                    '--orange-500-rgb': '249, 115, 22',
+                                    '--red-500-rgb': '239, 68, 68',
+                                    '--green-500-rgb': '34, 197, 94'
+                                } as React.CSSProperties}
                             >
                                 {ticker}
                             </button>
@@ -1019,7 +861,7 @@ const App: React.FC = () => {
         {isLoadingContract && (
             <div className="flex flex-col items-center justify-center text-center p-6 md:p-8 bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/50">
               <LoadingSpinner className="w-8 h-8 md:w-10 md:h-10 text-purple-400" />
-              <p className="mt-4 text-base md:text-lg font-semibold">Loading contract data...</p>
+              <p className="mt-4 text-base md:text-lg font-semibold text-white">Loading contract data...</p>
               <p className="text-slate-400 text-sm md:text-base">Fetching from PulseChain Scan API.</p>
             </div>
         )}
@@ -1049,7 +891,6 @@ const App: React.FC = () => {
                              </div>
                          </div>
                      </div>
-                 </div>
                  <TokenInfoCard tokenInfo={tokenInfo} />
               </div>
             )}
@@ -1059,7 +900,6 @@ const App: React.FC = () => {
                 <div className="hidden md:flex border-b border-slate-700" role="tablist" aria-label="Contract Details">
                     <TabButton name="Creator" tabId="creator" activeTab={activeTab} onClick={setActiveTab} />
                     <TabButton name="Source Code" tabId="code" activeTab={activeTab} onClick={setActiveTab} />
-                    <TabButton name="Dependencies" tabId="dependencies" activeTab={activeTab} onClick={setActiveTab} />
                     <TabButton name="API Response" tabId="api" activeTab={activeTab} onClick={setActiveTab} />
                     <TabButton name="Chart" tabId="chart" activeTab={activeTab} onClick={setActiveTab} />
                     <TabButton name="Chat with AI" tabId="chat" activeTab={activeTab} onClick={setActiveTab} />
@@ -1086,53 +926,7 @@ const App: React.FC = () => {
                          isAnalyzingAI={isAnalyzingAI}
                        />
                     </div>
-                    <div role="tabpanel" hidden={activeTab !== 'dependencies'} className="h-full overflow-y-auto">
-                       <div className="p-4 space-y-4 max-h-[50vh] md:max-h-none">
-                         <div className="flex items-center justify-between">
-                           <h3 className="text-lg font-semibold text-white">Contract Dependencies</h3>
-                           <div className="text-sm text-slate-400">
-                             {contractDependencies.length} dependencies found
-                           </div>
-                         </div>
-                         
-                         {contractDependencies.length > 0 ? (
-                           <div className="space-y-3">
-                             {contractDependencies.map((dependency, index) => (
-                               <div key={index} className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4">
-                                 <div className="flex items-start justify-between mb-2">
-                                   <h4 className="text-white font-medium">{dependency.name}</h4>
-                                   <span className="text-xs text-slate-500 bg-slate-700/50 px-2 py-1 rounded">
-                                     {dependency.address === 'Library/Interface' ? 'Library' : 'Contract'}
-                                   </span>
-                                 </div>
-                                 <p className="text-sm text-slate-300 mb-3">{dependency.description}</p>
-                                 {dependency.address !== 'Library/Interface' && (
-                                   <div className="flex items-center gap-2">
-                                     <span className="text-xs text-slate-400">Address:</span>
-                                     <code className="text-xs font-mono text-purple-400 bg-slate-700/30 px-2 py-1 rounded">
-                                       {dependency.address}
-                                     </code>
-                                     <a 
-                                       href={`https://scan.pulsechain.com/address/${dependency.address}`}
-                                       target="_blank"
-                                       rel="noopener noreferrer"
-                                       className="text-blue-400 hover:text-blue-300 text-xs"
-                                     >
-                                       View →
-                                     </a>
-                                   </div>
-                                 )}
-                               </div>
-                             ))}
-                           </div>
-                         ) : (
-                           <div className="text-center text-slate-400 py-8">
-                             <div className="text-lg mb-2">No dependencies found</div>
-                             <div className="text-sm">This contract appears to be self-contained with no external dependencies.</div>
-                           </div>
-                         )}
-                       </div>
-                    </div>
+
                     <div role="tabpanel" hidden={activeTab !== 'api'} className="h-full">
                        <ApiResponseTab responses={apiResponses} />
                     </div>
@@ -1249,15 +1043,25 @@ const App: React.FC = () => {
                                                     "Does this contract interact with any proxy contracts?",
                                                     "List all hardcoded addresses with name. List all external contracts this contract interacts with and how it interacts.",
                                                     "Audit this code"
-                                                ].map((question, index) => (
-                                                    <button
-                                                        key={index}
-                                                        onClick={() => sendMessage(question)}
-                                                        className="w-full text-left p-2 md:p-3 bg-slate-700/30 hover:bg-slate-600/30 rounded-lg border border-slate-600/30 hover:border-slate-500/30 transition-all duration-200 text-xs md:text-sm text-slate-300 hover:text-white"
-                                                    >
-                                                        {question}
-                                                    </button>
-                                                ))}
+                                                ].map((question, index) => {
+                                                    const colorClasses = [
+                                                        "bg-pink-900/20 hover:bg-pink-800/30 border-pink-700/30 hover:border-pink-600/40",
+                                                        "bg-purple-900/20 hover:bg-purple-800/30 border-purple-700/30 hover:border-purple-600/40",
+                                                        "bg-blue-900/20 hover:bg-blue-800/30 border-blue-700/30 hover:border-blue-600/40",
+                                                        "bg-cyan-900/20 hover:bg-cyan-800/30 border-cyan-700/30 hover:border-cyan-600/40",
+                                                        "bg-red-900/20 hover:bg-red-800/30 border-red-700/30 hover:border-red-600/40"
+                                                    ];
+                                                    
+                                                    return (
+                                                        <button
+                                                            key={index}
+                                                            onClick={() => sendMessage(question)}
+                                                            className={`w-full text-left p-2 md:p-3 rounded-lg transition-all duration-200 text-xs md:text-sm text-slate-300 hover:text-white ${colorClasses[index]}`}
+                                                        >
+                                                            {question}
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     )}
@@ -1306,7 +1110,6 @@ const App: React.FC = () => {
             {[
               { tabId: 'creator' as TabId, name: 'Creator', icon: '👤' },
               { tabId: 'code' as TabId, name: 'Code', icon: '📄' },
-              { tabId: 'dependencies' as TabId, name: 'Deps', icon: '🔗' },
               { tabId: 'api' as TabId, name: 'API', icon: '🔧' },
               { tabId: 'chart' as TabId, name: 'Chart', icon: '📊' },
               { tabId: 'chat' as TabId, name: 'Chat', icon: '💬' }

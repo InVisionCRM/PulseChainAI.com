@@ -1,6 +1,6 @@
-# 🤖 AI Code Reader/Chat Bot
+# 🤖 PulseChain AI Dashboard
 
-> **Next-Generation Smart Contract Analysis Platform**  
+> **Next-Generation Smart Contract Analysis & AI Learning Platform**  
 > *Powered by Gemini AI & PulseChain Integration*
 
 [![Next.js](https://img.shields.io/badge/Next.js-15.0.3-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
@@ -12,7 +12,7 @@
 
 ![AI Code Reader Demo](https://via.placeholder.com/800x400/1F2937/FFFFFF?text=AI+Code+Reader+Demo)
 
-*A comprehensive AI-powered smart contract analysis tool with real-time chat capabilities*
+*A comprehensive AI-powered smart contract analysis tool with real-time chat capabilities, AI teachers, and interactive learning experiences*
 
 [🚀 **Live Demo**](#live-demo) • [📖 **Documentation**](#documentation) • [🛠 **Installation**](#installation) • [🔧 **Configuration**](#configuration)
 
@@ -35,6 +35,7 @@
 - [🔌 API Reference](#-api-reference)
 - [🏛 Project Structure](#-project-structure)
 - [🎨 UI Components](#-ui-components)
+- [👨‍🏫 AI Teachers](#-ai-teachers)
 - [🤖 AI Integration](#-ai-integration)
 - [🔒 Security](#-security)
 - [🧪 Testing](#-testing)
@@ -49,7 +50,7 @@
 
 ## 🎯 Overview
 
-The **AI Code Reader/Chat Bot** is a cutting-edge smart contract analysis platform that combines the power of Google's Gemini AI with blockchain technology to provide intelligent contract insights, real-time analysis, and interactive chat capabilities.
+The **PulseChain AI Dashboard** is a cutting-edge smart contract analysis and AI learning platform that combines the power of Google's Gemini AI with blockchain technology to provide intelligent contract insights, real-time analysis, interactive chat capabilities, and personalized learning experiences with AI teachers.
 
 ### 🎪 Key Highlights
 
@@ -61,6 +62,8 @@ The **AI Code Reader/Chat Bot** is a cutting-edge smart contract analysis platfo
 - **⚡ Streaming Responses**: Live AI responses with real-time text streaming
 - **🎨 Modern UI**: Beautiful, responsive interface with dark theme
 - **🔒 Type Safety**: Full TypeScript implementation with strict typing
+- **👨‍🏫 AI Teachers**: Interactive learning with specialized AI experts
+- **🎭 Multiple Personalities**: Different AI personas for various learning styles
 
 ---
 
@@ -83,12 +86,15 @@ The **AI Code Reader/Chat Bot** is a cutting-edge smart contract analysis platfo
 - **Dark Theme**: Eye-friendly dark interface with purple accents
 - **Smooth Animations**: Fluid transitions and loading states
 - **Accessibility**: ARIA labels, keyboard navigation, and screen reader support
+- **Interactive Elements**: Hover effects, glowing animations, and visual feedback
 
 ### 🔧 **Developer Experience**
 - **TypeScript**: Strict typing throughout the application
 - **Modular Architecture**: Reusable components and clean separation of concerns
 - **API Integration**: Ready for real PulseChain API integration
 - **Error Handling**: Comprehensive error management and user feedback
+- **Biome Integration**: Advanced code formatting and linting
+- **Component Library**: Extensive UI component library with animations
 
 ---
 
@@ -128,6 +134,8 @@ graph TB
 | **State Management** | React Hooks | Modern state management |
 | **API Integration** | Fetch API | RESTful API communication |
 | **Build Tool** | Next.js Bundler | Optimized production builds |
+| **Code Quality** | Biome | Advanced linting and formatting |
+| **Animations** | Framer Motion | Smooth UI animations |
 
 ---
 
@@ -147,6 +155,9 @@ graph TB
 - **🤖 AI Analysis**: Watch AI explain contract functions in real-time
 - **💬 Interactive Chat**: Ask questions about contract functionality
 - **📊 Data Visualization**: Explore token information and creator data
+- **👨‍🏫 AI Teachers**: Learn from specialized AI experts in various fields
+- **🎭 Multiple AI Personalities**: Experience different teaching styles and approaches
+- **📈 Real-time Charts**: Live DEXScreener integration for market data
 
 ---
 
@@ -294,6 +305,10 @@ export default nextConfig;
 - **Template Questions**: Click on suggested questions for quick insights
 - **Chart Integration**: View live DEXScreener charts for token pairs
 - **Source Code Analysis**: Explore contract source code with syntax highlighting
+- **AI Teacher Sessions**: Interactive learning with specialized AI experts
+- **Multiple AI Personalities**: Different teaching styles for various learning preferences
+- **Real-time Streaming**: Live AI responses with streaming text updates
+- **Mobile Optimization**: Fully responsive design for all devices
 
 ---
 
@@ -331,6 +346,21 @@ POST /api/gemini
 }
 ```
 
+### **AI Teacher APIs**
+
+```typescript
+POST /api/marcus-johnson
+POST /api/alex-rivera
+POST /api/maya-patel
+POST /api/james-wilson
+POST /api/elena-rodriguez
+POST /api/therapist
+{
+  "message": "Your question here",
+  "history": "conversation context"
+}
+```
+
 ---
 
 ## 🏛 Project Structure
@@ -342,12 +372,26 @@ pulse-chain-ai-dash/
 │   ├── api/               # API routes
 │   │   ├── analyze/       # Contract analysis
 │   │   ├── chat/          # AI chat
-│   │   └── gemini/        # Gemini AI integration
+│   │   ├── gemini/        # Gemini AI integration
+│   │   ├── therapist/     # AI therapist
+│   │   ├── marcus-johnson/ # Blockchain philosophy expert
+│   │   ├── alex-rivera/   # Smart contract developer
+│   │   ├── maya-patel/    # Technical analysis specialist
+│   │   ├── james-wilson/  # Community building expert
+│   │   └── elena-rodriguez/ # DeFi strategy advisor
+│   ├── therapist/         # AI therapist page
+│   ├── marcus-johnson/    # Blockchain philosophy page
+│   ├── alex-rivera/       # Smart contract development page
+│   ├── maya-patel/        # Technical analysis page
+│   ├── james-wilson/      # Community building page
+│   ├── elena-rodriguez/   # DeFi strategy page
 │   ├── globals.css        # Global styles
 │   └── layout.tsx         # Root layout
 ├── components/            # React components
 │   ├── ui/               # UI components
 │   ├── icons/            # Icon components
+│   ├── AIAgentsSection.tsx # AI agents showcase
+│   ├── TeachersSection.tsx # AI teachers showcase
 │   └── ...               # Feature components
 ├── lib/                  # Utility libraries
 │   ├── gemini.ts         # Gemini AI client
@@ -367,6 +411,7 @@ pulse-chain-ai-dash/
 
 - **TokenInfoCard**: Displays contract and token information
 - **AIAgentsSection**: AI chat interface with streaming responses
+- **TeachersSection**: AI teachers showcase with interactive cards
 - **AbiFunctionsList**: Lists and explains contract functions
 - **CreatorTab**: Shows contract creator information
 - **ChartTab**: Displays DEXScreener charts
@@ -378,6 +423,40 @@ pulse-chain-ai-dash/
 - **HoverBorderGradient**: Interactive border animations
 - **LoaderThree**: Custom loading animation with PulseChain logo
 - **CopyButton**: Copy-to-clipboard functionality
+- **GlowingEffect**: Dynamic glowing animations
+- **ColourfulText**: Animated text effects
+
+---
+
+## 👨‍🏫 AI Teachers
+
+The platform features a comprehensive AI teacher system with specialized experts in various blockchain and cryptocurrency domains.
+
+### **Available AI Teachers**
+
+| Teacher | Specialty | Expertise Areas |
+|---------|-----------|-----------------|
+| **Dr. Marcus Johnson** | Blockchain Philosophy | Digital ethics, decentralization, economic theory |
+| **Dr. Sarah Chen** | Crypto Psychology | Trading psychology, emotional management, mental wellness |
+| **Alex Rivera** | Smart Contract Development | Solidity, DeFi protocols, security, gas optimization |
+| **Maya Patel** | Technical Analysis | Chart patterns, indicators, risk management, market analysis |
+| **James Wilson** | Community Building | DAO governance, engagement strategies, crisis management |
+| **Elena Rodriguez** | DeFi Strategy | Yield farming, protocol analysis, risk assessment |
+
+### **Teacher Features**
+
+- **🎭 Unique Personalities**: Each teacher has distinct communication styles and expertise
+- **💬 Interactive Chat**: Real-time conversations with specialized knowledge
+- **📚 Question Templates**: Pre-written questions to get started quickly
+- **🎨 Themed Interfaces**: Unique color schemes and styling for each teacher
+- **📱 Mobile Optimized**: Fully responsive design for all devices
+
+### **Learning Experience**
+
+- **Personalized Guidance**: Tailored responses based on teacher expertise
+- **Practical Examples**: Real-world applications and case studies
+- **Progressive Learning**: Structured approach to complex topics
+- **Continuous Support**: Ongoing assistance and clarification
 
 ---
 
@@ -397,6 +476,8 @@ The system uses carefully crafted prompts to ensure:
 - **Technical Accuracy**: Precise function explanations
 - **User-Friendly Language**: Clear, accessible explanations
 - **Context Preservation**: Maintains conversation flow
+- **Personality Consistency**: Each AI teacher maintains their unique character
+- **Expertise Focus**: Responses tailored to specific domains and specialties
 
 ---
 
@@ -485,9 +566,10 @@ vercel env add API_KEY
 ### **Code Standards**
 
 - **TypeScript**: Strict typing throughout
-- **ESLint**: Follow ESLint configuration
-- **Prettier**: Consistent code formatting
+- **Biome**: Advanced linting and formatting with Biome
 - **Conventional Commits**: Follow commit message conventions
+- **Component Architecture**: Modular, reusable component design
+- **Performance Optimization**: Efficient rendering and state management
 
 ---
 
@@ -503,6 +585,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **PulseChain**: For the blockchain infrastructure
 - **Next.js Team**: For the amazing framework
 - **Tailwind CSS**: For the utility-first CSS framework
+- **Framer Motion**: For smooth animations and interactions
+- **Biome**: For advanced code quality and formatting
 - **Open Source Community**: For all the amazing tools and libraries
 
 ---

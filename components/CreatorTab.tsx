@@ -40,9 +40,9 @@ const InfoRow: React.FC<{ label: string; value: string; link: string; }> = ({ la
     <div className="flex justify-between items-center text-sm py-2 border-b border-slate-700/50">
         <span className="text-slate-400">{label}</span>
         <div className="flex items-center">
-            <a href={link} target="_blank" rel="noopener noreferrer" title={value} className="font-mono text-purple-400 hover:text-purple-300 transition-colors break-all text-right">
-                {truncateHash(value)}
-            </a>
+        <a href={link} target="_blank" rel="noopener noreferrer" title={value} className="font-mono text-purple-400 hover:text-purple-300 transition-colors break-all text-right">
+            {truncateHash(value)}
+        </a>
             <CopyButton text={value} />
         </div>
     </div>

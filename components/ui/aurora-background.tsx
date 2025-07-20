@@ -5,14 +5,29 @@ import React, { ReactNode } from "react";
 interface AuroraBackgroundProps extends React.HTMLProps<HTMLDivElement> {
   children: ReactNode;
   showRadialGradient?: boolean;
+  colors?: string[];
 }
 
 export const AuroraBackground = ({
   className,
   children,
   showRadialGradient = true,
+  colors,
   ...props
 }: AuroraBackgroundProps) => {
+  // Default colors if none provided
+  const defaultColors = [
+    "#EC13AC", "#364AFF", "#EF1091", "#3F41FF", "#D917E9", 
+    "#215FFF", "#FE010C", "#0087FF", "#740CFF", "#EF1196"
+  ];
+  
+  const auroraColors = colors || defaultColors;
+  
+  // Create the aurora gradient string
+  const auroraGradient = auroraColors.map((color, index) => 
+    `${color} ${(index + 1) * 5}%`
+  ).join(',');
+
   return (
     <main>
       <div
@@ -26,23 +41,22 @@ export const AuroraBackground = ({
           className="absolute inset-0 overflow-hidden"
           style={
             {
-              "--aurora":
-                "repeating-linear-gradient(100deg,#EC13AC_5%,#364AFF_10%,#EF1091_15%,#3F41FF_20%,#D917E9_25%,#215FFF_30%,#FE010C_35%,#0087FF_40%,#740CFF_45%,#EF1196_50%)",
+              "--aurora": `repeating-linear-gradient(100deg,${auroraGradient})`,
               "--dark-gradient":
                 "repeating-linear-gradient(100deg,#000_0%,#000_7%,transparent_10%,transparent_12%,#000_16%)",
               "--white-gradient":
                 "repeating-linear-gradient(100deg,#fff_0%,#fff_7%,transparent_10%,transparent_12%,#fff_16%)",
 
-              "--color-1": "#EC13AC",
-              "--color-2": "#364AFF",
-              "--color-3": "#EF1091",
-              "--color-4": "#3F41FF",
-              "--color-5": "#D917E9",
-              "--color-6": "#215FFF",
-              "--color-7": "#FE010C",
-              "--color-8": "#0087FF",
-              "--color-9": "#740CFF",
-              "--color-10": "#EF1196",
+              "--color-1": auroraColors[0] || "#EC13AC",
+              "--color-2": auroraColors[1] || "#364AFF",
+              "--color-3": auroraColors[2] || "#EF1091",
+              "--color-4": auroraColors[3] || "#3F41FF",
+              "--color-5": auroraColors[4] || "#D917E9",
+              "--color-6": auroraColors[5] || "#215FFF",
+              "--color-7": auroraColors[6] || "#FE010C",
+              "--color-8": auroraColors[7] || "#0087FF",
+              "--color-9": auroraColors[8] || "#740CFF",
+              "--color-10": auroraColors[9] || "#EF1196",
               "--black": "#000",
               "--white": "#fff",
               "--transparent": "transparent",

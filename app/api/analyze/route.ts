@@ -1,18 +1,11 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { NextResponse } from 'next/server';
 import type { AbiItem } from '@/types';
-
-const getApiKey = (): string => {
-  const key = process.env.API_KEY;
-  if (!key) {
-    throw new Error('API_KEY environment variable not set.');
-  }
-  return key;
-};
+import { getApiKey } from '@/lib/utils';
 
 export async function POST(request: Request) {
   try {
-    const apiKey = getApiKey();
+    const apiKey = getApiKey(request);
     const { abi, sourceCode } = await request.json();
 
     if (!abi || !sourceCode) {

@@ -1,14 +1,7 @@
 import { GoogleGenAI, Content } from '@google/genai';
 import { NextRequest } from 'next/server';
 import type { Message } from '@/types';
-
-const getApiKey = (): string => {
-  const key = process.env.API_KEY;
-  if (!key) {
-    throw new Error('API_KEY environment variable not set.');
-  }
-  return key;
-};
+import { getApiKey } from '@/lib/utils';
 
 const buildGeminiHistory = (messages: Message[]): Content[] => {
     return messages.map(msg => ({
@@ -19,7 +12,7 @@ const buildGeminiHistory = (messages: Message[]): Content[] => {
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = getApiKey();
+    const apiKey = getApiKey(req);
     const { history, message, contract } = await req.json();
 
     if (!message || !contract) {
