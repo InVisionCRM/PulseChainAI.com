@@ -519,7 +519,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoadingChat(false);
     }
-  }, [isLoadingChat, contractData, messages]);
+  }, [isLoadingChat, contractData, messages, getApiKey]);
 
   const handleSendMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
