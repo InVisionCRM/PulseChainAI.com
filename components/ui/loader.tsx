@@ -98,15 +98,15 @@ export const LoaderThree = () => {
   return (
     <motion.svg
       xmlns="http://www.w3.org/2000/svg"
-      width="500"
-      height="500"
+      width="300"
+      height="300"
       viewBox="133 149 433 402"
       fill="none"
       stroke="url(#gradient)"
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="h-[500px] w-[500px]"
+      className="h-[300px] w-[300px]"
     >
       <defs>
         <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">

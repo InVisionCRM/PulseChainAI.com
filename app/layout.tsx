@@ -28,11 +28,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${inter.variable} ${jetbrainsMono.variable} antialiased min-h-screen flex flex-col bg-black`}
       >
         <GlobalHeader />
         <PageLoadingProvider>
-          {children}
+          <main className="flex-1">
+            {children}
+          </main>
         </PageLoadingProvider>
         <GlobalFooter />
       </body>

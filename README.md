@@ -98,6 +98,99 @@ The **PulseChain AI Dashboard** is a cutting-edge smart contract analysis and AI
 
 ---
 
+## 🤖 AI-Agent (Code Reader)
+
+The **AI-Agent (Code Reader)** is the flagship feature of the PulseChain AI Dashboard, providing intelligent smart contract analysis and interactive AI-powered conversations about blockchain code.
+
+### 🎯 **Core Capabilities**
+
+- **📝 Smart Contract Analysis**: Load and analyze any PulseChain contract by address
+- **🤖 AI-Powered Function Explanation**: Get detailed explanations of each contract function
+- **💬 Interactive AI Chat**: Ask questions about contract functionality and get real-time responses
+- **📊 Comprehensive Data Display**: View contract metadata, token information, and creator details
+- **🔍 Function Categorization**: Automatic classification of read vs. write functions
+- **📈 Real-time Charts**: Live DEXScreener integration for market data visualization
+
+### 🚀 **Key Features**
+
+#### **Contract Loading & Analysis**
+- **Address Input**: Enter any PulseChain contract address for instant analysis
+- **Quick Search**: Pre-loaded popular contracts (WPLS, HEX, PLSX, INC) for quick access
+- **Search Suggestions**: Intelligent search with contract name/ticker support
+- **Loading States**: Beautiful loading animations with progress indicators
+
+#### **AI-Powered Insights**
+- **Function Explanations**: AI-generated explanations for each contract function
+- **Security Analysis**: Intelligent security insights and vulnerability detection
+- **Context-Aware Responses**: AI maintains conversation context for meaningful discussions
+- **Structured Output**: Markdown-formatted responses with tabs and hashtags
+
+#### **Interactive Interface**
+- **Tabbed Navigation**: Organized sections for Creator, Source Code, API Response, Charts, and Chat
+- **Responsive Design**: Mobile-optimized interface with adaptive layouts
+- **Real-time Streaming**: Live AI responses with streaming text updates
+- **Question Templates**: Pre-written questions for quick insights
+
+#### **Data Visualization**
+- **Token Information**: Market cap, supply, holders, and exchange rates
+- **Creator Analysis**: Contract creator details and transaction history
+- **DEXScreener Charts**: Live trading pair charts with market data
+- **Source Code Display**: Syntax-highlighted contract source code
+
+### 🎨 **User Interface**
+
+#### **Dark Theme Design**
+- **Consistent Dark Background**: Black backgrounds throughout the application
+- **Purple Accents**: PulseChain-themed purple color scheme
+- **Glowing Effects**: Dynamic animations and visual feedback
+- **Aurora Background**: Animated gradient background effects
+
+#### **Loading Experience**
+- **Optimized Loader**: Reduced hook loader size for better performance
+- **Smooth Transitions**: Fluid animations between states
+- **Progress Indicators**: Clear feedback during data loading
+
+#### **Footer Design**
+- **Bottom Positioning**: Footer positioned at the bottom of pages, not constantly visible
+- **Minimal Footprint**: Thin, unobtrusive footer design
+- **Essential Links**: GitHub repository and disclaimer information
+
+### 🔧 **Technical Implementation**
+
+#### **AI Integration**
+- **Gemini 2.5 Flash**: Advanced AI model for contract analysis
+- **Streaming Responses**: Real-time text streaming for better UX
+- **Context Management**: Maintains conversation history and contract context
+- **Error Handling**: Graceful error handling with user-friendly messages
+
+#### **API Architecture**
+- **RESTful Endpoints**: Clean API design for contract analysis and chat
+- **Rate Limiting**: Built-in rate limiting to prevent abuse
+- **Caching**: Intelligent caching for improved performance
+- **Error Recovery**: Automatic retry mechanisms for failed requests
+
+#### **Performance Optimization**
+- **Lazy Loading**: Components load only when needed
+- **Code Splitting**: Efficient bundle splitting for faster loading
+- **Image Optimization**: Optimized images and icons
+- **Memory Management**: Efficient state management and cleanup
+
+### 📱 **Mobile Experience**
+
+- **Touch-Optimized**: Large touch targets and swipe gestures
+- **Responsive Layout**: Adaptive design for all screen sizes
+- **Mobile Navigation**: Bottom navigation for easy access
+- **Performance**: Optimized for mobile network conditions
+
+### 🔒 **Security & Privacy**
+
+- **Client-Side API Keys**: User API keys stored in session storage
+- **No Server Storage**: API keys never stored on server
+- **Input Validation**: All inputs validated and sanitized
+- **Secure Communication**: HTTPS-only communication
+
+---
+
 ## 🏗 Architecture
 
 ```mermaid

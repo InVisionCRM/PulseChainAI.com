@@ -14,7 +14,7 @@ export default function GlobalFooter() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="fixed bottom-0 left-0 right-0 z-40 bg-black/20 backdrop-blur-sm border-t border-slate-700/30"
+        className="relative z-40 bg-black/20 backdrop-blur-sm border-t border-slate-700/30 mt-auto"
       >
         <div className="container mx-auto px-4 py-3 flex items-center justify-center gap-6">
           <motion.button
