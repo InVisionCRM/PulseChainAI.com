@@ -202,7 +202,7 @@ export default function HappyPulsePage() {
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.2 }}
         onClick={() => window.location.href = '/'}
-        className="absolute top-20 left-6 z-10 bg-slate-900/80 backdrop-blur-sm text-white px-4 py-2 rounded-lg hover:bg-slate-800/80 transition-colors border border-slate-700/50"
+        className="absolute top-4 md:top-20 left-4 md:left-6 z-10 bg-slate-900/80 backdrop-blur-sm text-white px-3 md:px-4 py-2 rounded-lg hover:bg-slate-800/80 transition-colors border border-slate-700/50 text-sm md:text-base"
       >
         ← Back To Home
       </motion.button>
@@ -212,11 +212,11 @@ export default function HappyPulsePage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="absolute top-32 left-1/2 transform -translate-x-1/2 text-center z-10"
+        className="absolute top-20 md:top-32 left-1/2 transform -translate-x-1/2 text-center z-10 px-4 w-full"
       >
-        <h1 className="text-4xl md:text-6xl font-bold tracking-wider">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-wider leading-tight">
           <motion.span 
-            className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]"
+            className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] block sm:inline"
             animate={{
               scale: [1, 1.15, 1],
               opacity: [1, 0.8, 1]
@@ -227,12 +227,12 @@ export default function HappyPulsePage() {
               ease: "easeInOut"
             }}
           >
-            HAPPY
+            POSITIVE
           </motion.span>
-          <span className="ml-2 md:ml-4">
+          <span className="block sm:inline sm:ml-2 md:ml-4 mt-1 sm:mt-0">
             <ColourfulText text="VIBES" />
           </span>
-          <span className="ml-2 md:ml-4 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.9)]">ONLY!!!</span>
+          <span className="block sm:inline sm:ml-2 md:ml-4 mt-1 sm:mt-0 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.9)]">ONLY!!!</span>
         </h1>
       </motion.div>
 
@@ -241,7 +241,7 @@ export default function HappyPulsePage() {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.3 }}
-        className="w-full max-w-md mx-auto mt-44 md:mt-52"
+        className="w-full max-w-md mx-auto mt-32 sm:mt-36 md:mt-44 lg:mt-52"
       >
         <div className="bg-slate-900/40 backdrop-blur-xl rounded-2xl border border-pink-500/50 shadow-[0_0_20px_rgba(236,72,153,0.3)] p-6 md:p-8">
           {/* Header */}
