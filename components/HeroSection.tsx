@@ -73,7 +73,7 @@ export default function HeroSection() {
         </motion.span>
       </motion.h1>
       <motion.p 
-        className="text-center mt-2 text-neutral-300 relative z-20 text-xl md:text-2xl max-w-2xl mx-auto px-4"
+        className="text-center mt-2 text-neutral-300 relative z-20 text-sm md:text-2xl max-w-2xl mx-auto px-4"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.5, duration: 0.5 }}
