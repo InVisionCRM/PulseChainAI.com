@@ -72,7 +72,7 @@ ${contract.source_code}
 ### 9. **Use Horizontal Rules (\`---\`) to Separate Major Sections**
 - Improves visual hierarchy in longer responses
 
-**IMPORTANT**: When listing any contract names or hardcoded addresses, use format: [ContractName](search) - this makes the contract name large and clickable to add to search.
+
 
 **CRITICAL: Keep responses CONCISE and SCANNABLE. Aim for 2-4 sentences max for simple questions, 1-2 paragraphs for complex analysis.**
 

@@ -1042,7 +1042,7 @@ const App: React.FC = () => {
                                                     "What does this contract do? What is its purpose in the context of the overall smart contract?",
                                                     "How much control does owner hold if Owner is not the 0x Dead Address?",
                                                     "Does this contract interact with any proxy contracts?",
-                                                    "List all hardcoded addresses with name. List all external contracts this contract interacts with and how it interacts.",
+                                                    "Is this contract unique?",
                                                     "Audit this code"
                                                 ].map((question, index) => {
                                                     const colorClasses = [
