@@ -11,6 +11,10 @@ export default function Home() {
       <AIAgentsSection />
       <LoaderThreeSection />
       <TeachersSection />
+      
+      {/* ElevenLabs Convai AI Help Agent */}
+      <elevenlabs-convai agent-id="C25KqdgQbXZXGwa1OJcC"></elevenlabs-convai>
+      <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
     </main>
   );
 }
