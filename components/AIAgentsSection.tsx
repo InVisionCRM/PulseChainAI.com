@@ -60,6 +60,14 @@ const agents = [
     size: "col-span-1 md:col-span-2 row-span-1 md:row-span-2"
   },
   {
+    id: 4,
+    name: "Talk to Richard Heart!",
+    description: "AI-powered conversation with the tone, knowledge, wit and persona of crypto founder Richard Heart",
+    icon: IconCrown,
+    color: "from-yellow-500 to-orange-500",
+    size: "col-span-1 row-span-1"
+  },
+  {
     id: 2,
     name: "Positive Vibes Only",
     description: "Transform negative thoughts into positive, uplifting messages with AI",
@@ -74,14 +82,6 @@ const agents = [
     icon: IconHeartPulse,
     color: "from-pink-500 to-rose-500",
     size: "col-span-1 md:col-span-2 row-span-1"
-  },
-  {
-    id: 4,
-    name: "Talk to Richard Heart!",
-    description: "AI-powered conversation with the tone, knowledge, wit and persona of crypto founder Richard Heart",
-    icon: IconCrown,
-    color: "from-yellow-500 to-orange-500",
-    size: "col-span-1 row-span-1"
   }
 ];
 
