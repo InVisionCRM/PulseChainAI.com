@@ -4,6 +4,7 @@ import "./globals.css";
 import PageLoadingProvider from "@/components/PageLoadingProvider";
 import GlobalHeader from "@/components/GlobalHeader";
 import GlobalFooter from "@/components/GlobalFooter";
+import { Analytics } from "@vercel/analytics/next"
 
 const inter = Inter({
   variable: "--font-inter",
