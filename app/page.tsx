@@ -1,16 +1,19 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, Suspense, lazy } from 'react';
 import Image from 'next/image';
 import type { Message, ContractData, TokenInfo, AbiItem, ExplainedFunction, SearchResultItem, Transaction, TokenBalance } from '../types';
 import { fetchContract, fetchTokenInfo, search, fetchReadMethods, fetchCreatorTransactions, fetchAddressTokenBalances, fetchAddressInfo } from '../services/pulsechainService';
 import LoadingSpinner from '../components/icons/LoadingSpinner';
 import SendIcon from '../components/icons/SendIcon';
 import PulseChainLogo from '../components/icons/PulseChainLogo';
-import TokenInfoCard from '../components/TokenInfoCard';
-import AbiFunctionsList from '../components/AbiFunctionsList';
-import CreatorTab from '../components/CreatorTab';
-import ApiResponseTab from '../components/ApiResponseTab';
+import PerformanceMonitor from '../components/PerformanceMonitor';
+
+// Lazy load components for better mobile performance
+const TokenInfoCard = lazy(() => import('../components/TokenInfoCard'));
+const AbiFunctionsList = lazy(() => import('../components/AbiFunctionsList'));
+const CreatorTab = lazy(() => import('../components/CreatorTab'));
+const ApiResponseTab = lazy(() => import('../components/ApiResponseTab'));
 
 
 type TabId = 'creator' | 'functions' | 'code' | 'api' | 'chat';
@@ -73,7 +76,7 @@ const HomePage: React.FC = () => {
     }
   }, [messages]);
 
-  // Debounced search effect
+  // Debounced search effect with mobile optimization
   useEffect(() => {
     const query = contractAddress.trim();
     const isAddress = /^0x[a-fA-F0-9]{40}$/.test(query);
@@ -86,10 +89,16 @@ const HomePage: React.FC = () => {
 
     setIsSearching(true);
     const handler = setTimeout(async () => {
-      const results = await search(query);
-      setSearchResults(results);
-      setIsSearching(false);
-    }, 300); // 300ms debounce
+      try {
+        const results = await search(query);
+        setSearchResults(results);
+      } catch (error) {
+        console.error('Search error:', error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500); // Increased debounce for mobile
 
     return () => {
       clearTimeout(handler);
@@ -350,7 +359,7 @@ const HomePage: React.FC = () => {
     }
   }, [messages, chatInput, isLoadingChat, contractData]);
   
-  const renderMessageText = (text: string) => {
+  const renderMessageText = useCallback((text: string) => {
     try {
       // Safety check for text input
       if (!text || typeof text !== 'string') {
@@ -602,7 +611,7 @@ const HomePage: React.FC = () => {
     console.error('Error in renderMessageText:', error);
     return <span className="text-red-400">Error rendering message. Please try again.</span>;
   }
-  };
+  }, []);
 
   const handleSelectSearchResult = (item: SearchResultItem) => {
     setContractAddress(item.address);
@@ -715,7 +724,9 @@ const HomePage: React.FC = () => {
                        </div>
                    </div>
                </div>
-               <TokenInfoCard tokenInfo={tokenInfo} />
+               <Suspense fallback={<div className="bg-slate-800/50 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-700 h-full flex items-center justify-center"><LoadingSpinner /></div>}>
+                   <TokenInfoCard tokenInfo={tokenInfo} />
+               </Suspense>
             </div>
 
             <div className="lg:col-span-2 flex flex-col h-[75vh]">
@@ -729,24 +740,30 @@ const HomePage: React.FC = () => {
                 
                 <div className="flex-grow bg-slate-800/50 rounded-b-xl border border-t-0 border-slate-700 overflow-hidden">
                     <div role="tabpanel" hidden={activeTab !== 'creator'} className="h-full overflow-y-auto">
-                        <CreatorTab
-                            creatorAddress={contractData.creator_address_hash}
-                            creationTxHash={contractData.creation_tx_hash}
-                            tokenBalance={creatorTokenBalance}
-                            transactions={creatorTransactions}
-                            tokenInfo={tokenInfo}
-                            isLoading={isLoadingCreatorInfo}
-                        />
+                        <Suspense fallback={<div className="flex items-center justify-center h-full"><LoadingSpinner /></div>}>
+                            <CreatorTab
+                                creatorAddress={contractData.creator_address_hash}
+                                creationTxHash={contractData.creation_tx_hash}
+                                tokenBalance={creatorTokenBalance}
+                                transactions={creatorTransactions}
+                                tokenInfo={tokenInfo}
+                                isLoading={isLoadingCreatorInfo}
+                            />
+                        </Suspense>
                     </div>
                     <div role="tabpanel" hidden={activeTab !== 'functions'} className="p-4 space-y-6 overflow-y-auto h-full">
-                       <AbiFunctionsList title="Read Functions" functions={readFunctions} isLoading={isAnalyzingAI} />
-                       <AbiFunctionsList title="Write Functions" functions={writeFunctions} isLoading={isAnalyzingAI} />
+                       <Suspense fallback={<div className="flex items-center justify-center h-full"><LoadingSpinner /></div>}>
+                           <AbiFunctionsList title="Read Functions" functions={readFunctions} isLoading={isAnalyzingAI} />
+                           <AbiFunctionsList title="Write Functions" functions={writeFunctions} isLoading={isAnalyzingAI} />
+                       </Suspense>
                     </div>
                     <div role="tabpanel" hidden={activeTab !== 'code'} className="h-full">
                        <pre className="h-full overflow-auto p-4"><code className="text-sm font-mono text-slate-300 whitespace-pre-wrap break-words">{contractData.source_code}</code></pre>
                     </div>
                     <div role="tabpanel" hidden={activeTab !== 'api'} className="h-full">
-                       <ApiResponseTab responses={apiResponses} />
+                       <Suspense fallback={<div className="flex items-center justify-center h-full"><LoadingSpinner /></div>}>
+                           <ApiResponseTab responses={apiResponses} />
+                       </Suspense>
                     </div>
                     <div role="tabpanel" hidden={activeTab !== 'chat'} className="flex flex-col h-full">
                         <div ref={chatContainerRef} className="flex-grow p-4 overflow-y-auto space-y-4 chat-container">
@@ -778,6 +795,7 @@ const HomePage: React.FC = () => {
           </main>
         )}
       </div>
+      <PerformanceMonitor />
     </div>
   );
 };

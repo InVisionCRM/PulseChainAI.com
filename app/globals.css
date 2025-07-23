@@ -2,12 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mobile Performance Optimizations */
+@layer base {
+  /* Optimize for mobile rendering */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  /* Allow text selection where needed */
+  p, span, div, h1, h2, h3, h4, h5, h6, li, a, button, input, textarea, pre, code {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+  }
+
+  /* Optimize scrolling on mobile */
+  html {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Mobile-specific optimizations */
+  @media (max-width: 768px) {
+    /* Reduce animations on mobile for better performance */
+    .chat-message-animate {
+      animation: none;
+    }
+
+    /* Optimize touch targets */
+    button, input, select, textarea {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    /* Reduce shadow complexity on mobile */
+    .chat-code-block,
+    .chat-message-bubble {
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+  }
+}
+
 /* Enhanced Chat Formatting Styles */
 @layer components {
   /* Code block enhancements */
   .chat-code-block {
     @apply bg-slate-950 border border-slate-700 rounded-lg p-4 my-3 overflow-x-auto;
     position: relative;
+    /* Optimize for mobile scrolling */
+    -webkit-overflow-scrolling: touch;
   }
 
   .chat-code-block::before {
@@ -87,6 +145,9 @@
     @apply max-w-md lg:max-w-lg rounded-xl px-4 py-2;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(148, 163, 184, 0.1);
+    /* Optimize for mobile */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   .chat-message-user {
@@ -122,7 +183,7 @@
     @apply bg-slate-500;
   }
 
-  /* Animation for new messages */
+  /* Animation for new messages - optimized for mobile */
   @keyframes messageSlideIn {
     from {
       opacity: 0;
@@ -136,6 +197,13 @@
 
   .chat-message-animate {
     animation: messageSlideIn 0.3s ease-out;
+  }
+
+  /* Mobile-specific message animation */
+  @media (max-width: 768px) {
+    .chat-message-animate {
+      animation: messageSlideIn 0.2s ease-out;
+    }
   }
 
   /* Code syntax highlighting improvements */
@@ -178,5 +246,60 @@
 
   .code-block-dot-green {
     @apply bg-green-500;
+  }
+
+  /* Mobile-specific optimizations */
+  @media (max-width: 768px) {
+    /* Reduce padding on mobile */
+    .chat-code-block {
+      @apply p-3 my-2;
+    }
+
+    /* Optimize message bubbles for mobile */
+    .chat-message-bubble {
+      @apply max-w-full px-3 py-2;
+    }
+
+    /* Reduce header sizes on mobile */
+    .chat-header-1 {
+      @apply text-xl;
+    }
+
+    .chat-header-2 {
+      @apply text-lg;
+    }
+
+    .chat-header-3 {
+      @apply text-base;
+    }
+
+    /* Optimize list spacing on mobile */
+    .chat-list-item {
+      @apply ml-2;
+    }
+
+    /* Reduce code block font size on mobile */
+    .language-solidity,
+    .language-javascript,
+    .language-typescript {
+      font-size: 0.875rem;
+    }
+  }
+
+  /* Loading state optimizations */
+  .loading-optimized {
+    will-change: opacity;
+    transform: translateZ(0);
+  }
+
+  /* Touch-friendly interactions */
+  @media (hover: none) and (pointer: coarse) {
+    .chat-link:hover {
+      @apply text-purple-400;
+    }
+
+    .chat-message-bubble:hover {
+      transform: none;
+    }
   }
 }
