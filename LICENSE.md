@@ -7,6 +7,12 @@ Copyright (c) 2025 InVisionCRM
 
 This is free software. You can use it, modify it, and distribute it freely, but **any derivative works must also remain open source** under the same GPL-3.0 license.
 
+## 🗽 **About Freedom**
+
+The GNU General Public License is designed to guarantee your freedom to share and change all versions of a program—to make sure it remains free software for all its users. When we speak of free software, we are referring to freedom, not price. Our General Public Licenses are designed to make sure that you have the freedom to distribute copies of free software (and charge for them if you wish), that you receive source code or can get it if you want it, that you can change the software or use pieces of it in new free programs, and that you know you can do these things.
+
+To protect your rights, we need to prevent others from denying you these rights or asking you to surrender the rights. Therefore, you have certain responsibilities if you distribute copies of the software, or if you modify it: responsibilities to respect the freedom of others.
+
 ## ✅ **What You Can Do**
 
 - **Use** the software for any purpose (personal, commercial, etc.)
