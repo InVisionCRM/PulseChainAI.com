@@ -19,6 +19,8 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizeCss: true,
     optimizePackageImports: ['@google/genai'],
+    // Mobile performance optimizations
+    optimizeServerReact: true,
     turbo: {
       rules: {
         '*.svg': {
@@ -47,6 +49,13 @@ const nextConfig: NextConfig = {
             chunks: 'all',
             enforce: true,
           },
+          // Mobile-specific optimizations
+          mobile: {
+            test: /[\\/]components[\\/]/,
+            name: 'mobile-components',
+            chunks: 'all',
+            enforce: true,
+          },
         },
       };
     }
@@ -57,6 +66,12 @@ const nextConfig: NextConfig = {
       'react': 'react',
       'react-dom': 'react-dom',
     };
+
+    // Mobile-specific optimizations
+    if (!isServer) {
+      config.optimization.minimize = true;
+      config.optimization.minimizer = config.optimization.minimizer || [];
+    }
 
     return config;
   },

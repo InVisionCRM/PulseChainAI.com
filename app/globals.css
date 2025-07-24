@@ -12,6 +12,17 @@
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+    /* Improve mobile rendering performance */
+    -webkit-transform: translateZ(0);
+    -moz-transform: translateZ(0);
+    -ms-transform: translateZ(0);
+    -o-transform: translateZ(0);
+    transform: translateZ(0);
+    /* Optimize memory usage */
+    -webkit-backface-visibility: hidden;
+    -moz-backface-visibility: hidden;
+    -ms-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   /* Allow text selection where needed */
@@ -26,6 +37,20 @@
   html {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
+    /* Prevent zoom on input focus */
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    /* Optimize for mobile */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Prevent horizontal scroll */
+    overflow-x: hidden;
+    /* Optimize memory */
+    will-change: auto;
   }
 
   /* Reduce motion for users who prefer it */
@@ -39,22 +64,79 @@
 
   /* Mobile-specific optimizations */
   @media (max-width: 768px) {
-    /* Reduce animations on mobile for better performance */
+    /* Disable animations on mobile for better performance */
     .chat-message-animate {
-      animation: none;
+      animation: none !important;
+      transition: none !important;
     }
 
     /* Optimize touch targets */
     button, input, select, textarea {
       min-height: 44px;
       min-width: 44px;
+      /* Improve touch response */
+      -webkit-tap-highlight-color: rgba(139, 92, 246, 0.2);
     }
 
     /* Reduce shadow complexity on mobile */
     .chat-code-block,
     .chat-message-bubble {
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
+
+    /* Optimize images */
+    img {
+      max-width: 100%;
+      height: auto;
+      /* Prevent layout shifts */
+      aspect-ratio: attr(width) / attr(height);
+    }
+
+    /* Reduce font rendering complexity */
+    * {
+      text-rendering: optimizeSpeed;
+      -webkit-font-feature-settings: "liga" 0;
+      font-feature-settings: "liga" 0;
+    }
+
+    /* Optimize scrolling containers */
+    .chat-container,
+    .overflow-y-auto,
+    .overflow-x-auto {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      /* Reduce memory usage */
+      will-change: scroll-position;
+    }
+
+    /* Disable hover effects on touch devices */
+    @media (hover: none) and (pointer: coarse) {
+      *:hover {
+        transform: none !important;
+        box-shadow: none !important;
+      }
+    }
+  }
+
+  /* Ultra-mobile optimizations */
+  @media (max-width: 480px) {
+    /* Further reduce animations */
+    * {
+      animation-duration: 0ms !important;
+      transition-duration: 0ms !important;
+    }
+
+    /* Optimize text rendering */
+    body {
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    /* Reduce padding and margins */
+    .p-4 { padding: 0.75rem !important; }
+    .p-6 { padding: 1rem !important; }
+    .m-4 { margin: 0.75rem !important; }
+    .m-6 { margin: 1rem !important; }
   }
 }
 
@@ -66,6 +148,8 @@
     position: relative;
     /* Optimize for mobile scrolling */
     -webkit-overflow-scrolling: touch;
+    /* Reduce memory usage */
+    will-change: auto;
   }
 
   .chat-code-block::before {
@@ -98,75 +182,71 @@
 
   /* Enhanced list styling */
   .chat-list {
-    @apply my-2 space-y-1;
+    @apply space-y-1 my-2;
   }
 
   .chat-list-item {
-    @apply ml-4 text-slate-200 mb-1 flex items-start;
+    @apply flex items-start space-x-2 text-slate-200;
   }
 
   .chat-list-bullet {
-    @apply text-purple-400 mr-2 mt-1;
-    font-size: 0.875rem;
+    @apply text-purple-400 font-bold mt-0.5 flex-shrink-0;
   }
 
   /* Link styling */
   .chat-link {
-    @apply text-purple-400 hover:text-purple-300 underline transition-colors;
+    @apply text-blue-400 hover:text-blue-300 underline transition-colors duration-200;
   }
 
   /* Header styling */
   .chat-header-1 {
-    @apply text-2xl font-bold text-white border-b border-slate-600 pb-2 mb-4;
+    @apply text-2xl font-bold text-white mb-4 mt-6;
   }
 
   .chat-header-2 {
-    @apply text-xl font-bold text-white mb-3;
+    @apply text-xl font-bold text-white mb-3 mt-5;
   }
 
   .chat-header-3 {
-    @apply text-lg font-semibold text-white mb-2;
+    @apply text-lg font-semibold text-white mb-2 mt-4;
   }
 
   .chat-header-4 {
-    @apply text-base font-semibold text-slate-200 mb-2;
+    @apply text-base font-semibold text-white mb-2 mt-3;
   }
 
   .chat-header-5 {
-    @apply text-sm font-semibold text-slate-300 mb-1;
+    @apply text-sm font-semibold text-white mb-1 mt-2;
   }
 
   .chat-header-6 {
-    @apply text-xs font-semibold text-slate-400 mb-1;
+    @apply text-xs font-semibold text-white mb-1 mt-2;
   }
 
-  /* Message bubble enhancements */
+  /* Message bubble styling */
   .chat-message-bubble {
-    @apply max-w-md lg:max-w-lg rounded-xl px-4 py-2;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(148, 163, 184, 0.1);
+    @apply bg-slate-800 rounded-lg p-4 mb-4 border border-slate-700;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     /* Optimize for mobile */
     word-wrap: break-word;
     overflow-wrap: break-word;
   }
 
   .chat-message-user {
-    @apply bg-purple-700 text-white;
-    background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+    @apply bg-purple-600/20 border-purple-500/30;
   }
 
   .chat-message-ai {
-    @apply bg-slate-700 text-slate-200;
-    background: linear-gradient(135deg, #334155, #475569);
+    @apply bg-slate-800/80 border-slate-600/50;
   }
 
-  /* Typography enhancements */
   .chat-text {
-    @apply leading-relaxed;
-    font-feature-settings: 'liga' 1, 'kern' 1;
+    @apply text-slate-200 leading-relaxed;
+    /* Optimize text rendering */
+    text-rendering: optimizeLegibility;
   }
 
-  /* Scrollbar styling for chat container */
+  /* Custom scrollbar for chat container */
   .chat-container::-webkit-scrollbar {
     width: 6px;
   }
@@ -183,7 +263,7 @@
     @apply bg-slate-500;
   }
 
-  /* Animation for new messages - optimized for mobile */
+  /* Message animation - disabled on mobile for performance */
   @keyframes messageSlideIn {
     from {
       opacity: 0;
@@ -199,29 +279,50 @@
     animation: messageSlideIn 0.3s ease-out;
   }
 
-  /* Mobile-specific message animation */
+  /* Mobile-specific optimizations */
   @media (max-width: 768px) {
     .chat-message-animate {
-      animation: messageSlideIn 0.2s ease-out;
+      animation: none;
+      transition: none;
+    }
+
+    .chat-code-block {
+      @apply p-3 my-2;
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .chat-message-bubble {
+      @apply p-3 mb-3;
+    }
+
+    .chat-header-1 {
+      @apply text-xl mb-3 mt-4;
+    }
+
+    .chat-header-2 {
+      @apply text-lg mb-2 mt-3;
+    }
+
+    .chat-header-3 {
+      @apply text-base mb-2 mt-2;
+    }
+
+    .chat-list-item {
+      @apply text-sm;
+    }
+
+    .language-solidity,
+    .language-javascript,
+    .language-typescript {
+      font-size: 11px !important;
+      line-height: 1.2 !important;
     }
   }
 
-  /* Code syntax highlighting improvements */
-  .language-solidity {
-    color: #e2e8f0;
-  }
-
-  .language-javascript {
-    color: #e2e8f0;
-  }
-
-  .language-typescript {
-    color: #e2e8f0;
-  }
-
-  /* Terminal-style code block header */
+  /* Code block header styling */
   .code-block-header {
-    @apply flex items-center justify-between mb-2 px-2 py-1 bg-slate-900 rounded-t border-b border-slate-700;
+    @apply flex justify-between items-center mb-2 pb-2 border-b border-slate-600;
   }
 
   .code-block-language {
@@ -233,7 +334,7 @@
   }
 
   .code-block-dot {
-    @apply w-3 h-3 rounded-full;
+    @apply w-2 h-2 rounded-full;
   }
 
   .code-block-dot-red {
@@ -248,58 +349,56 @@
     @apply bg-green-500;
   }
 
-  /* Mobile-specific optimizations */
+  /* Mobile-specific code block optimizations */
   @media (max-width: 768px) {
-    /* Reduce padding on mobile */
     .chat-code-block {
-      @apply p-3 my-2;
+      @apply p-2 my-1;
+      font-size: 11px;
     }
 
-    /* Optimize message bubbles for mobile */
     .chat-message-bubble {
-      @apply max-w-full px-3 py-2;
+      @apply p-2 mb-2;
     }
 
-    /* Reduce header sizes on mobile */
     .chat-header-1 {
-      @apply text-xl;
+      @apply text-lg mb-2 mt-3;
     }
 
     .chat-header-2 {
-      @apply text-lg;
+      @apply text-base mb-2 mt-2;
     }
 
     .chat-header-3 {
-      @apply text-base;
+      @apply text-sm mb-1 mt-2;
     }
 
-    /* Optimize list spacing on mobile */
     .chat-list-item {
-      @apply ml-2;
+      @apply text-xs;
     }
 
-    /* Reduce code block font size on mobile */
     .language-solidity,
     .language-javascript,
     .language-typescript {
-      font-size: 0.875rem;
+      font-size: 10px !important;
+      line-height: 1.1 !important;
     }
   }
 
-  /* Loading state optimizations */
+  /* Loading animation optimizations */
   .loading-optimized {
-    will-change: opacity;
-    transform: translateZ(0);
+    @apply flex items-center justify-center;
+    /* Optimize for mobile */
+    will-change: auto;
   }
 
-  /* Touch-friendly interactions */
+  /* Touch device optimizations */
   @media (hover: none) and (pointer: coarse) {
     .chat-link:hover {
-      @apply text-purple-400;
+      @apply text-blue-400;
     }
 
     .chat-message-bubble:hover {
-      transform: none;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
   }
 }

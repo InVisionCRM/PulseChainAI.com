@@ -7,7 +7,10 @@ const apiCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Request timeout for mobile optimization
-const REQUEST_TIMEOUT = 10000; // 10 seconds
+const REQUEST_TIMEOUT = 8000; // 8 seconds for better mobile performance
+
+// Memory management for cache
+const MAX_CACHE_SIZE = 50; // Limit cache size to prevent memory issues
 
 const isAddressValid = (address: string): boolean => /^0x[a-fA-F0-9]{40}$/.test(address);
 
@@ -34,6 +37,14 @@ const getCachedOrFetch = async (key: string, fetchFn: () => Promise<any>): Promi
   const cached = apiCache.get(key);
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
     return cached.data;
+  }
+
+  // Memory management: clear old entries if cache is too large
+  if (apiCache.size >= MAX_CACHE_SIZE) {
+    const entries = Array.from(apiCache.entries());
+    const sortedEntries = entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+    const entriesToRemove = sortedEntries.slice(0, Math.floor(MAX_CACHE_SIZE / 2));
+    entriesToRemove.forEach(([key]) => apiCache.delete(key));
   }
 
   const data = await fetchFn();

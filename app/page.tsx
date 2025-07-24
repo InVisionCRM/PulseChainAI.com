@@ -8,6 +8,7 @@ import LoadingSpinner from '../components/icons/LoadingSpinner';
 import SendIcon from '../components/icons/SendIcon';
 import PulseChainLogo from '../components/icons/PulseChainLogo';
 import PerformanceMonitor from '../components/PerformanceMonitor';
+import MobilePerformanceMonitor from '../components/MobilePerformanceMonitor';
 
 // Lazy load components for better mobile performance
 const TokenInfoCard = lazy(() => import('../components/TokenInfoCard'));
@@ -88,6 +89,7 @@ const HomePage: React.FC = () => {
     }
 
     setIsSearching(true);
+    // Increased debounce time for mobile optimization
     const handler = setTimeout(async () => {
       try {
         const results = await search(query);
@@ -98,7 +100,7 @@ const HomePage: React.FC = () => {
       } finally {
         setIsSearching(false);
       }
-    }, 500); // Increased debounce for mobile
+    }, 800); // Increased debounce for mobile optimization
 
     return () => {
       clearTimeout(handler);
@@ -796,6 +798,7 @@ const HomePage: React.FC = () => {
         )}
       </div>
       <PerformanceMonitor />
+      <MobilePerformanceMonitor />
     </div>
   );
 };
