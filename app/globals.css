@@ -401,4 +401,25 @@
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
   }
+
+  /* Quick Check specific styles */
+  .quick-check-banner {
+    background: linear-gradient(135deg, #10b981, #059669);
+    box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+  }
+
+  .quick-check-banner-failed {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
+  }
+
+  .quick-check-banner-warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3);
+  }
+
+  .quick-check-banner-critical {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    box-shadow: 0 4px 6px rgba(220, 38, 38, 0.3);
+  }
 }

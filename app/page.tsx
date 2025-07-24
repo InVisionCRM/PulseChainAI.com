@@ -11,13 +11,14 @@ import PerformanceMonitor from '../components/PerformanceMonitor';
 import MobilePerformanceMonitor from '../components/MobilePerformanceMonitor';
 
 // Lazy load components for better mobile performance
+const QuickCheck = lazy(() => import('../components/QuickCheck'));
 const TokenInfoCard = lazy(() => import('../components/TokenInfoCard'));
 const AbiFunctionsList = lazy(() => import('../components/AbiFunctionsList'));
 const CreatorTab = lazy(() => import('../components/CreatorTab'));
 const ApiResponseTab = lazy(() => import('../components/ApiResponseTab'));
 
 
-type TabId = 'creator' | 'functions' | 'code' | 'api' | 'chat';
+type TabId = 'quickcheck' | 'creator' | 'functions' | 'code' | 'api' | 'chat';
 
 const TabButton: React.FC<{ name: string; tabId: TabId; activeTab: string; onClick: (tabId: TabId) => void; }> = ({ name, tabId, activeTab, onClick }) => {
     const isActive = activeTab === tabId;
@@ -66,7 +67,7 @@ const HomePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState<string>('');
   
-  const [activeTab, setActiveTab] = useState<TabId>('functions');
+  const [activeTab, setActiveTab] = useState<TabId>('quickcheck');
   
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -733,14 +734,24 @@ const HomePage: React.FC = () => {
 
             <div className="lg:col-span-2 flex flex-col h-[75vh]">
                 <div className="flex border-b border-slate-700" role="tablist" aria-label="Contract Details">
-                    <TabButton name="Creator" tabId="creator" activeTab={activeTab} onClick={setActiveTab} />
-                    <TabButton name="Functions" tabId="functions" activeTab={activeTab} onClick={setActiveTab} />
-                    <TabButton name="Source Code" tabId="code" activeTab={activeTab} onClick={setActiveTab} />
-                    <TabButton name="API Response" tabId="api" activeTab={activeTab} onClick={setActiveTab} />
-                    <TabButton name="Chat with AI" tabId="chat" activeTab={activeTab} onClick={setActiveTab} />
+                                  <TabButton name="Quick Check" tabId="quickcheck" activeTab={activeTab} onClick={setActiveTab} />
+              <TabButton name="Creator" tabId="creator" activeTab={activeTab} onClick={setActiveTab} />
+              <TabButton name="Functions" tabId="functions" activeTab={activeTab} onClick={setActiveTab} />
+              <TabButton name="Source Code" tabId="code" activeTab={activeTab} onClick={setActiveTab} />
+              <TabButton name="API Response" tabId="api" activeTab={activeTab} onClick={setActiveTab} />
+              <TabButton name="Chat with AI" tabId="chat" activeTab={activeTab} onClick={setActiveTab} />
                 </div>
                 
                 <div className="flex-grow bg-slate-800/50 rounded-b-xl border border-t-0 border-slate-700 overflow-hidden">
+                    <div role="tabpanel" hidden={activeTab !== 'quickcheck'} className="h-full overflow-y-auto">
+                        <Suspense fallback={<div className="flex items-center justify-center h-full"><LoadingSpinner /></div>}>
+                            <QuickCheck
+                                contractData={contractData}
+                                tokenInfo={tokenInfo}
+                                isLoading={isLoadingContract}
+                            />
+                        </Suspense>
+                    </div>
                     <div role="tabpanel" hidden={activeTab !== 'creator'} className="h-full overflow-y-auto">
                         <Suspense fallback={<div className="flex items-center justify-center h-full"><LoadingSpinner /></div>}>
                             <CreatorTab
