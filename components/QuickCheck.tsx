@@ -59,8 +59,7 @@ const QuickCheck: React.FC<QuickCheckProps> = ({ contractData, tokenInfo, isLoad
   };
 
   const analyzeContract = async (contract: ContractData, token: TokenInfo | null): Promise<QuickCheckResult> => {
-    // This would be replaced with actual AI analysis
-    const sourceCode = contract.source_code.toLowerCase();
+    const sourceCode = contract.source_code;
     const abi = contract.abi;
     
     // Basic security checks
@@ -72,51 +71,42 @@ const QuickCheck: React.FC<QuickCheckProps> = ({ contractData, tokenInfo, isLoad
     let riskDescription = 'LOW RISK OF HONEYPOT';
     
     // Check for blacklist functions
-    if (sourceCode.includes('blacklist') || sourceCode.includes('_blacklist')) {
+    if (sourceCode.toLowerCase().includes('blacklist') || sourceCode.toLowerCase().includes('_blacklist')) {
       vulnerabilities.push('Blacklist function detected');
       riskLevel = 'MEDIUM';
       riskDescription = 'MEDIUM RISK - BLACKLIST FUNCTION DETECTED';
     }
     
-    // Check for high taxes
-    const hasHighTaxes = sourceCode.includes('_tax') && sourceCode.includes('0.1') || sourceCode.includes('10');
-    if (hasHighTaxes) {
-      vulnerabilities.push('High tax rates detected');
-      riskLevel = 'HIGH';
-      riskDescription = 'HIGH RISK - HIGH TAX RATES DETECTED';
-    }
-    
     // Check for mint functions
-    if (sourceCode.includes('mint') && sourceCode.includes('onlyowner')) {
+    if (sourceCode.toLowerCase().includes('mint') && sourceCode.toLowerCase().includes('onlyowner')) {
       vulnerabilities.push('Owner mint function detected');
       recommendations.push('Verify mint function access controls');
     }
     
     // Check for pause functions
-    if (sourceCode.includes('pause') || sourceCode.includes('unpause')) {
+    if (sourceCode.toLowerCase().includes('pause') || sourceCode.toLowerCase().includes('unpause')) {
       vulnerabilities.push('Pause functionality detected');
       recommendations.push('Verify pause function access controls');
     }
     
     // Check for proxy patterns
-    if (sourceCode.includes('delegatecall') || sourceCode.includes('proxy')) {
+    if (sourceCode.toLowerCase().includes('delegatecall') || sourceCode.toLowerCase().includes('proxy')) {
       vulnerabilities.push('Proxy pattern detected');
       recommendations.push('Verify proxy implementation security');
     }
     
     // Check for reentrancy vulnerabilities
-    if (sourceCode.includes('call') && sourceCode.includes('transfer')) {
+    if (sourceCode.toLowerCase().includes('call') && sourceCode.toLowerCase().includes('transfer')) {
       vulnerabilities.push('Potential reentrancy vulnerability');
       riskLevel = riskLevel === 'LOW' ? 'MEDIUM' : riskLevel;
     }
     
-    // Generate simulation results
-    const buyTax = hasHighTaxes ? Math.random() * 10 + 5 : 0;
-    const sellTax = hasHighTaxes ? Math.random() * 10 + 5 : 0;
-    const transferTax = 0;
+    // Extract actual tax rates from contract
+    const { buyTax, sellTax, transferTax } = extractTaxRates(sourceCode);
     
-    const buyGas = 150000 + Math.random() * 50000;
-    const sellGas = 140000 + Math.random() * 40000;
+    // Estimate gas costs based on contract complexity
+    const buyGas = estimateGasCost(sourceCode, 'buy');
+    const sellGas = estimateGasCost(sourceCode, 'sell');
     
     const holdersAnalyzed = token ? parseInt(token.holders) : 100 + Math.floor(Math.random() * 200);
     const siphoned = 0;
@@ -147,6 +137,238 @@ const QuickCheck: React.FC<QuickCheckProps> = ({ contractData, tokenInfo, isLoad
       vulnerabilities,
       recommendations
     };
+  };
+
+  // Master Solidity Developer Tax Detection System
+  const extractTaxRates = (sourceCode: string): { buyTax: number; sellTax: number; transferTax: number } => {
+    let buyTax = 0;
+    let sellTax = 0;
+    let transferTax = 0;
+    
+    // Normalize source code for better pattern matching
+    const normalizedCode = sourceCode.replace(/\s+/g, ' ').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    
+    // 1. STATE VARIABLE DECLARATIONS (Most common pattern)
+    const stateVariablePatterns = [
+      // Standard tax variables
+      { pattern: /(?:uint256|uint|uint8|uint16|uint32)\s+(?:public|private|internal|external)?\s*(?:buyTax|_buyTax|buy_tax|buyTaxPercent|buyTaxBps|buyFee|_buyFee|buy_fee)\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /(?:uint256|uint|uint8|uint16|uint32)\s+(?:public|private|internal|external)?\s*(?:sellTax|_sellTax|sell_tax|sellTaxPercent|sellTaxBps|sellFee|_sellFee|sell_fee)\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'sell' },
+      { pattern: /(?:uint256|uint|uint8|uint16|uint32)\s+(?:public|private|internal|external)?\s*(?:transferTax|_transferTax|transfer_tax|transferTaxPercent|transferTaxBps|transferFee|_transferFee|transfer_fee)\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'transfer' },
+      
+      // Marketing/Development/Liquidity taxes (usually part of buy/sell)
+      { pattern: /(?:uint256|uint|uint8|uint16|uint32)\s+(?:public|private|internal|external)?\s*(?:marketingTax|_marketingTax|marketing_tax|marketingFee|_marketingFee|marketing_fee)\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /(?:uint256|uint|uint8|uint16|uint32)\s+(?:public|private|internal|external)?\s*(?:developmentTax|_developmentTax|development_tax|developmentFee|_developmentFee|development_fee)\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /(?:uint256|uint|uint8|uint16|uint32)\s+(?:public|private|internal|external)?\s*(?:liquidityTax|_liquidityTax|liquidity_tax|liquidityFee|_liquidityFee|liquidity_fee)\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /(?:uint256|uint|uint8|uint16|uint32)\s+(?:public|private|internal|external)?\s*(?:reflectionTax|_reflectionTax|reflection_tax|reflectionFee|_reflectionFee|reflection_fee)\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      
+      // Total tax variables
+      { pattern: /(?:uint256|uint|uint8|uint16|uint32)\s+(?:public|private|internal|external)?\s*(?:totalTax|_totalTax|total_tax|totalFee|_totalFee|total_fee)\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      
+      // Basis points (divide by 100)
+      { pattern: /(?:uint256|uint|uint8|uint16|uint32)\s+(?:public|private|internal|external)?\s*(?:buyTaxBps|_buyTaxBps|buy_tax_bps|buyFeeBps|_buyFeeBps|buy_fee_bps)\s*=\s*(\d+)/gi, type: 'buy', divisor: 100 },
+      { pattern: /(?:uint256|uint|uint8|uint16|uint32)\s+(?:public|private|internal|external)?\s*(?:sellTaxBps|_sellTaxBps|sell_tax_bps|sellFeeBps|_sellFeeBps|sell_fee_bps)\s*=\s*(\d+)/gi, type: 'sell', divisor: 100 },
+      { pattern: /(?:uint256|uint|uint8|uint16|uint32)\s+(?:public|private|internal|external)?\s*(?:transferTaxBps|_transferTaxBps|transfer_tax_bps|transferFeeBps|_transferFeeBps|transfer_fee_bps)\s*=\s*(\d+)/gi, type: 'transfer', divisor: 100 },
+    ];
+    
+    // 2. CONSTRUCTOR INITIALIZATION
+    const constructorPatterns = [
+      { pattern: /buyTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /sellTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'sell' },
+      { pattern: /transferTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'transfer' },
+      { pattern: /_buyTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /_sellTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'sell' },
+      { pattern: /_transferTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'transfer' },
+      { pattern: /marketingTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /developmentTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /liquidityTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /totalTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+    ];
+    
+    // 3. FUNCTION CALCULATIONS (Percentage calculations)
+    const functionPatterns = [
+      { pattern: /buyTax\s*=\s*(\d+(?:\.\d+)?)\s*\/\s*100/gi, type: 'buy' },
+      { pattern: /sellTax\s*=\s*(\d+(?:\.\d+)?)\s*\/\s*100/gi, type: 'sell' },
+      { pattern: /transferTax\s*=\s*(\d+(?:\.\d+)?)\s*\/\s*100/gi, type: 'transfer' },
+      { pattern: /buyFee\s*=\s*(\d+(?:\.\d+)?)\s*\/\s*100/gi, type: 'buy' },
+      { pattern: /sellFee\s*=\s*(\d+(?:\.\d+)?)\s*\/\s*100/gi, type: 'sell' },
+      { pattern: /transferFee\s*=\s*(\d+(?:\.\d+)?)\s*\/\s*100/gi, type: 'transfer' },
+      { pattern: /marketingTax\s*=\s*(\d+(?:\.\d+)?)\s*\/\s*100/gi, type: 'buy' },
+      { pattern: /developmentTax\s*=\s*(\d+(?:\.\d+)?)\s*\/\s*100/gi, type: 'buy' },
+      { pattern: /liquidityTax\s*=\s*(\d+(?:\.\d+)?)\s*\/\s*100/gi, type: 'buy' },
+      { pattern: /totalTax\s*=\s*(\d+(?:\.\d+)?)\s*\/\s*100/gi, type: 'buy' },
+    ];
+    
+    // 4. BASIS POINTS CALCULATIONS
+    const bpsPatterns = [
+      { pattern: /buyTaxBps\s*=\s*(\d+)/gi, type: 'buy', divisor: 100 },
+      { pattern: /sellTaxBps\s*=\s*(\d+)/gi, type: 'sell', divisor: 100 },
+      { pattern: /transferTaxBps\s*=\s*(\d+)/gi, type: 'transfer', divisor: 100 },
+      { pattern: /buyFeeBps\s*=\s*(\d+)/gi, type: 'buy', divisor: 100 },
+      { pattern: /sellFeeBps\s*=\s*(\d+)/gi, type: 'sell', divisor: 100 },
+      { pattern: /transferFeeBps\s*=\s*(\d+)/gi, type: 'transfer', divisor: 100 },
+      { pattern: /marketingTaxBps\s*=\s*(\d+)/gi, type: 'buy', divisor: 100 },
+      { pattern: /developmentTaxBps\s*=\s*(\d+)/gi, type: 'buy', divisor: 100 },
+      { pattern: /liquidityTaxBps\s*=\s*(\d+)/gi, type: 'buy', divisor: 100 },
+    ];
+    
+    // 5. HARDCODED VALUES (Common in simple contracts)
+    const hardcodedPatterns = [
+      { pattern: /buyTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /sellTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'sell' },
+      { pattern: /transferTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'transfer' },
+      { pattern: /_buyTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /_sellTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'sell' },
+      { pattern: /_transferTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'transfer' },
+      { pattern: /marketingTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /developmentTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /liquidityTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /totalTax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+    ];
+    
+    // 6. MAPPING PATTERNS (For dynamic tax systems)
+    const mappingPatterns = [
+      { pattern: /mapping\s*\(\s*address\s*=>\s*(?:uint256|uint)\s*\)\s*(?:public|private|internal|external)?\s*(?:buyTax|_buyTax|buy_tax|buyFee|_buyFee|buy_fee)/gi, type: 'buy', isMapping: true },
+      { pattern: /mapping\s*\(\s*address\s*=>\s*(?:uint256|uint)\s*\)\s*(?:public|private|internal|external)?\s*(?:sellTax|_sellTax|sell_tax|sellFee|_sellFee|sell_fee)/gi, type: 'sell', isMapping: true },
+      { pattern: /mapping\s*\(\s*address\s*=>\s*(?:uint256|uint)\s*\)\s*(?:public|private|internal|external)?\s*(?:transferTax|_transferTax|transfer_tax|transferFee|_transferFee|transfer_fee)/gi, type: 'transfer', isMapping: true },
+    ];
+    
+    // 7. CONSTANT PATTERNS
+    const constantPatterns = [
+      { pattern: /constant\s+(?:uint256|uint|uint8|uint16|uint32)\s+(?:buyTax|_buyTax|buy_tax|buyFee|_buyFee|buy_fee)\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      { pattern: /constant\s+(?:uint256|uint|uint8|uint16|uint32)\s+(?:sellTax|_sellTax|sell_tax|sellFee|_sellFee|sell_fee)\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'sell' },
+      { pattern: /constant\s+(?:uint256|uint|uint8|uint16|uint32)\s+(?:transferTax|_transferTax|transfer_tax|transferFee|_transferFee|transfer_fee)\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'transfer' },
+    ];
+    
+    // 8. IMMUTABLE PATTERNS
+    const immutablePatterns = [
+      { pattern: /immutable\s+(?:uint256|uint|uint8|uint16|uint32)\s+(?:buyTax|_buyTax|buy_tax|buyFee|_buyFee|buy_fee)/gi, type: 'buy', isImmutable: true },
+      { pattern: /immutable\s+(?:uint256|uint|uint8|uint16|uint32)\s+(?:sellTax|_sellTax|sell_tax|sellFee|_sellFee|sell_fee)/gi, type: 'sell', isImmutable: true },
+      { pattern: /immutable\s+(?:uint256|uint|uint8|uint16|uint32)\s+(?:transferTax|_transferTax|transfer_tax|transferFee|_transferFee|transfer_fee)/gi, type: 'transfer', isImmutable: true },
+    ];
+    
+    // Process all patterns
+    const allPatterns = [
+      ...stateVariablePatterns,
+      ...constructorPatterns,
+      ...functionPatterns,
+      ...bpsPatterns,
+      ...hardcodedPatterns,
+      ...constantPatterns
+    ];
+    
+    allPatterns.forEach(({ pattern, type, divisor = 1, isMapping = false, isImmutable = false }) => {
+      const matches = normalizedCode.match(pattern);
+      if (matches && matches.length > 0) {
+        matches.forEach(match => {
+          const value = parseFloat(match.replace(/[^\d.]/g, '')) / divisor;
+          if (!isNaN(value)) {
+            switch (type) {
+              case 'buy':
+                buyTax = Math.max(buyTax, value);
+                break;
+              case 'sell':
+                sellTax = Math.max(sellTax, value);
+                break;
+              case 'transfer':
+                transferTax = Math.max(transferTax, value);
+                break;
+            }
+          }
+        });
+      }
+    });
+    
+    // 9. SPECIAL CASES: Look for common tax calculation functions
+    const specialCases = [
+      // _transfer function tax calculations
+      { pattern: /_transfer\s*\([^)]*\)[^{]*\{[^}]*tax\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'transfer' },
+      { pattern: /_transfer\s*\([^)]*\)[^{]*\{[^}]*fee\s*=\s*(\d+(?:\.\d+)?)/gi, type: 'transfer' },
+      
+      // _getTaxRate function
+      { pattern: /_getTaxRate\s*\([^)]*\)[^{]*\{[^}]*return\s+(\d+(?:\.\d+)?)/gi, type: 'buy' },
+      
+      // calculateTax function
+      { pattern: /calculateTax\s*\([^)]*\)[^{]*\{[^}]*return\s+(\d+(?:\.\d+)?)/gi, type: 'buy' },
+    ];
+    
+    specialCases.forEach(({ pattern, type }) => {
+      const matches = normalizedCode.match(pattern);
+      if (matches && matches.length > 0) {
+        matches.forEach(match => {
+          const value = parseFloat(match.replace(/[^\d.]/g, ''));
+          if (!isNaN(value)) {
+            switch (type) {
+              case 'buy':
+                buyTax = Math.max(buyTax, value);
+                break;
+              case 'sell':
+                sellTax = Math.max(sellTax, value);
+                break;
+              case 'transfer':
+                transferTax = Math.max(transferTax, value);
+                break;
+            }
+          }
+        });
+      }
+    });
+    
+    // 10. FALLBACK: If no taxes found, check for any percentage calculations
+    if (buyTax === 0 && sellTax === 0 && transferTax === 0) {
+      const percentagePatterns = [
+        { pattern: /(\d+(?:\.\d+)?)\s*\/\s*100\s*\/\s*100/gi, type: 'buy' }, // Double percentage
+        { pattern: /(\d+(?:\.\d+)?)\s*\/\s*100/gi, type: 'buy' }, // Single percentage
+      ];
+      
+      percentagePatterns.forEach(({ pattern, type }) => {
+        const matches = normalizedCode.match(pattern);
+        if (matches && matches.length > 0) {
+          const value = parseFloat(matches[1]);
+          if (!isNaN(value) && value > 0 && value <= 50) { // Reasonable tax range
+            switch (type) {
+              case 'buy':
+                buyTax = Math.max(buyTax, value);
+                break;
+              case 'sell':
+                sellTax = Math.max(sellTax, value);
+                break;
+              case 'transfer':
+                transferTax = Math.max(transferTax, value);
+                break;
+            }
+          }
+        }
+      });
+    }
+    
+    // Debug logging
+    console.log('Tax Detection Results:', { buyTax, sellTax, transferTax });
+    console.log('Source code snippet:', normalizedCode.substring(0, 500));
+    
+    return { buyTax, sellTax, transferTax };
+  };
+
+  // Function to estimate gas costs based on contract complexity
+  const estimateGasCost = (sourceCode: string, operation: 'buy' | 'sell'): number => {
+    let baseGas = 150000; // Base gas cost
+    
+    // Add gas for different contract features
+    if (sourceCode.toLowerCase().includes('mint')) baseGas += 20000;
+    if (sourceCode.toLowerCase().includes('burn')) baseGas += 15000;
+    if (sourceCode.toLowerCase().includes('transfer')) baseGas += 10000;
+    if (sourceCode.toLowerCase().includes('approve')) baseGas += 5000;
+    if (sourceCode.toLowerCase().includes('blacklist')) baseGas += 10000;
+    if (sourceCode.toLowerCase().includes('whitelist')) baseGas += 10000;
+    if (sourceCode.toLowerCase().includes('pause')) baseGas += 8000;
+    if (sourceCode.toLowerCase().includes('tax') || sourceCode.toLowerCase().includes('fee')) baseGas += 15000;
+    if (sourceCode.toLowerCase().includes('liquidity')) baseGas += 25000;
+    if (sourceCode.toLowerCase().includes('marketing')) baseGas += 12000;
+    if (sourceCode.toLowerCase().includes('development')) baseGas += 12000;
+    
+    // Add some variance
+    const variance = Math.random() * 30000 - 15000;
+    
+    return Math.max(100000, baseGas + variance);
   };
 
   const getRiskColor = (riskLevel: string) => {
