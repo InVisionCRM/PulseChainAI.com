@@ -1,3 +1,59 @@
+# GNU General Public License v3.0 (GPL-3.0)
+
+**PulseChain AI Contract Analyzer**  
+Copyright (c) 2025 InVisionCRM
+
+## 🎯 **Simple Summary**
+
+This is free software. You can use it, modify it, and distribute it freely, but **any derivative works must also remain open source** under the same GPL-3.0 license.
+
+## ✅ **What You Can Do**
+
+- **Use** the software for any purpose (personal, commercial, etc.)
+- **Modify** the code to suit your needs
+- **Distribute** copies to others
+- **Sell** the software if you want
+- **Use** it in your own projects
+
+## 🔒 **What You Must Do**
+
+1. **Keep It Open Source**: If you modify and distribute this software, you must:
+   - Make your modified source code available
+   - License your modifications under GPL-3.0
+   - Include this license text
+
+2. **Give Credit**: Include the original copyright notice and license
+
+3. **No Warranty**: The software comes "as is" without any warranty
+
+## 📋 **Key Requirements**
+
+- **Source Code**: You must provide source code when distributing
+- **License Notice**: Include this license with any distribution
+- **Derivative Works**: Any modifications must also be GPL-3.0
+- **Network Use**: If you run this as a network service, you must provide source code
+
+## 🚀 **Why GPL-3.0?**
+
+We chose GPL-3.0 to ensure that:
+- The software stays free and open source
+- Any improvements benefit the entire community
+- No one can make it proprietary
+- Everyone can contribute and benefit
+
+## 📞 **Questions?**
+
+If you have questions about using this software, feel free to:
+- Open an issue on GitHub
+- Contact us directly
+- Check the [GPL-3.0 FAQ](https://www.gnu.org/licenses/gpl-faq.html)
+
+---
+
+**This is a simplified version. For the complete legal text, see the full GPL-3.0 license below.**
+
+---
+
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
