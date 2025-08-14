@@ -11,15 +11,15 @@ export function usePageLoading() {
   useEffect(() => {
     // Only show loading on initial site load (first visit)
     if (!hasLoadedRef.current) {
-      setIsLoading(true);
+    setIsLoading(true);
       hasLoadedRef.current = true;
-      
+    
       // Show loading for 3 seconds on initial load
-      const timer = setTimeout(() => {
-        setIsLoading(false);
+    const timer = setTimeout(() => {
+      setIsLoading(false);
       }, 3000);
 
-      return () => clearTimeout(timer);
+    return () => clearTimeout(timer);
     }
 
     // Check if this is an AI agent page that hasn't been visited before

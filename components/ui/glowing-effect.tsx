@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { animate } from "motion/react";
+import { useMobileOptimization } from "@/lib/hooks/useMobileOptimization";
 
 interface GlowingEffectProps {
   blur?: number;
@@ -16,7 +17,7 @@ interface GlowingEffectProps {
   movementDuration?: number;
   borderWidth?: number;
 }
-const GlowingEffect = memo(
+const GlowingEffectCore = memo(
   ({
     blur = 1,
     inactiveZone = 0.7,
@@ -184,6 +185,20 @@ const GlowingEffect = memo(
     );
   }
 );
+
+GlowingEffectCore.displayName = "GlowingEffectCore";
+
+// Wrapper component that handles mobile optimization
+const GlowingEffect = memo((props: GlowingEffectProps) => {
+  const mobileConfig = useMobileOptimization();
+  
+  // Don't render anything if disabled or on mobile
+  if (mobileConfig.shouldDisableHeavyAnimations || mobileConfig.isMobile || props.disabled) {
+    return null;
+  }
+  
+  return <GlowingEffectCore {...props} />;
+});
 
 GlowingEffect.displayName = "GlowingEffect";
 

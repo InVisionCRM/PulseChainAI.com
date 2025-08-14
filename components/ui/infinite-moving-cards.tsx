@@ -1,7 +1,8 @@
 "use client";
 
-import { cn } from "/lib/utils";
+import { cn } from "@/lib/utils";
 import React, { useEffect, useState } from "react";
+import { useMobileOptimization } from "@/lib/hooks/useMobileOptimization";
 
 export const InfiniteMovingCards = ({
   items,
@@ -20,12 +21,17 @@ export const InfiniteMovingCards = ({
   pauseOnHover?: boolean;
   className?: string;
 }) => {
+  const mobileConfig = useMobileOptimization();
   const containerRef = React.useRef<HTMLDivElement>(null);
   const scrollerRef = React.useRef<HTMLUListElement>(null);
 
   useEffect(() => {
+    // Disable animations on mobile or when reduced motion is preferred
+    if (mobileConfig.shouldReduceMotion || mobileConfig.isMobile) {
+      return;
+    }
     addAnimation();
-  }, []);
+  }, [mobileConfig.shouldReduceMotion, mobileConfig.isMobile]);
   const [start, setStart] = useState(false);
   function addAnimation() {
     if (containerRef.current && scrollerRef.current) {

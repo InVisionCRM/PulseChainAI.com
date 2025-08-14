@@ -47,7 +47,6 @@ export const fetchTokenInfo = async (address: string): Promise<{ data: TokenInfo
         const raw = await response.json();
         if (!response.ok) {
             if (response.status === 404) {
-                console.log(`No token info found for address ${address}. It might not be a token contract.`);
                 return { data: null, raw } as any; // Return raw response for API tab even on 404
             }
             throw new Error(`Token API Error: ${response.statusText} (Status: ${response.status})`);
@@ -83,11 +82,17 @@ export const fetchReadMethods = async (address: string): Promise<{ data: ReadMet
     try {
         const response = await fetch(`${API_BASE_URL}smart-contracts/${address}/methods-read`);
         const raw = await response.json();
+        
+        
         if (!response.ok) {
             console.error(`Failed to fetch read methods: ${response.statusText}`);
             return { data: [], raw };
         }
-        return { data: raw.items || [], raw };
+        
+        // Check if the response has items or if it's a different structure
+        const data = raw.items || raw.data || raw || [];
+        
+        return { data, raw };
     } catch (error) {
         console.error(`Error fetching read methods: ${(error as Error).message}`);
         return { data: [], raw: { error: (error as Error).message } };
@@ -104,6 +109,8 @@ export const search = async (query: string): Promise<SearchResultItem[]> => {
             throw new Error(`Search API Error: ${response.statusText}`);
         }
         const data: SearchResponse = await response.json();
+        
+        
         return data.items.filter(item => item.address);
     } catch (error) {
         console.error(`Search failed: ${(error as Error).message}`);
@@ -150,47 +157,42 @@ export const fetchDexScreenerData = async (address: string): Promise<{ data: Dex
         return { data: null, raw: { error: 'Invalid address' } };
     }
     try {
-        // DEXScreener API for PulseChain pairs
-        const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${address}`);
-        const raw = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(`DEXScreener API Error: ${response.statusText}`);
+        // Hybrid method: Use both search and direct lookup to get the most comprehensive pair list.
+        const [searchResponse, tokenResponse] = await Promise.all([
+            fetch(`https://api.dexscreener.com/latest/dex/search?q=${address}`),
+            fetch(`https://api.dexscreener.com/latest/dex/tokens/${address}`)
+        ]);
+
+        const searchData = await searchResponse.json();
+        const tokenData = await tokenResponse.json();
+
+        if (!searchResponse.ok && !tokenResponse.ok) {
+            throw new Error(`DEXScreener API Error: Both endpoints failed.`);
         }
 
-        // Check if this is the WPLS contract
-        const isWPLSContract = address.toLowerCase() === '0xa1077a294dde1b09bb078844df40758a5d0f9a27';
-        
-        let targetPairs: any[] = [];
-        
-        if (isWPLSContract) {
-            // For WPLS contract, get the top WPLS/DAI pair
-            targetPairs = raw.pairs?.filter((pair: any) => 
-                pair.baseToken?.address?.toLowerCase() === address.toLowerCase() && 
-                pair.quoteToken?.symbol === 'DAI'
-            ) || [];
-        } else {
-            // For other contracts, get the top WPLS pair
-            targetPairs = raw.pairs?.filter((pair: any) => 
-                pair.baseToken?.address?.toLowerCase() === address.toLowerCase() && 
-                pair.quoteToken?.symbol === 'WPLS'
-            ) || [];
-        }
+        const allPairs = new Map<string, any>();
 
-        // Sort by liquidity and take only the top pair
-        const sortedPairs = targetPairs.sort((a: any, b: any) => {
-            const liquidityA = parseFloat(a.liquidity?.usd || '0');
-            const liquidityB = parseFloat(b.liquidity?.usd || '0');
-            return liquidityB - liquidityA; // Sort by highest liquidity first
+        (searchData.pairs || []).forEach((pair: any) => {
+            allPairs.set(pair.pairAddress, pair);
         });
 
-        const topPair = sortedPairs.length > 0 ? [sortedPairs[0]] : [];
+        (tokenData.pairs || []).forEach((pair: any) => {
+            allPairs.set(pair.pairAddress, pair);
+        });
 
+        const combinedPairs = Array.from(allPairs.values());
+        const raw = { pairs: combinedPairs }; // Create a raw object that mimics the original structure
+
+        // Return the complete response structure
         return { 
             data: {
-                pairs: topPair,
-                totalPairs: raw.pairs?.length || 0,
-                wplsPairs: targetPairs.length
+                pairs: combinedPairs,
+                totalPairs: combinedPairs.length,
+                wplsPairs: combinedPairs.filter((pair: any) => 
+                    pair.quoteToken?.symbol === 'WPLS'
+                ).length || 0,
+                tokenInfo: combinedPairs[0]?.baseToken || null,
+                info: combinedPairs[0]?.info || null
             }, 
             raw 
         };
@@ -199,3 +201,157 @@ export const fetchDexScreenerData = async (address: string): Promise<{ data: Dex
         return { data: null, raw: { error: (error as Error).message } };
     }
 };
+
+// New functions for AIApiOrchestrator
+export const getTokenInfo = async (address: string): Promise<any> => {
+    const result = await fetchTokenInfo(address);
+    return result?.data || { error: 'Token not found' };
+};
+
+export const getTokenHolders = async (address: string): Promise<any> => {
+    if (!isAddressValid(address)) {
+        return { error: 'Invalid address' };
+    }
+    try {
+        const response = await fetch(`${API_BASE_URL}tokens/${address}/holders`);
+        const raw = await response.json();
+        if (!response.ok) {
+            return { error: `API Error: ${response.statusText}` };
+        }
+        return raw;
+    } catch (error) {
+        console.error(`Failed to fetch token holders: ${(error as Error).message}`);
+        return { error: (error as Error).message };
+    }
+};
+
+export const getTokenCounters = async (address: string): Promise<any> => {
+    if (!isAddressValid(address)) {
+        return { error: 'Invalid address' };
+    }
+    try {
+        const response = await fetch(`${API_BASE_URL}tokens/${address}/counters`);
+        const raw = await response.json();
+        if (!response.ok) {
+            return { error: `API Error: ${response.statusText}` };
+        }
+        return raw;
+    } catch (error) {
+        console.error(`Failed to fetch token counters: ${(error as Error).message}`);
+        return { error: (error as Error).message };
+    }
+};
+
+export const getTokenTransfers = async (address: string): Promise<any> => {
+    if (!isAddressValid(address)) {
+        return { error: 'Invalid address' };
+    }
+    try {
+        const response = await fetch(`${API_BASE_URL}tokens/${address}/transfers`);
+        const raw = await response.json();
+        if (!response.ok) {
+            return { error: `API Error: ${response.statusText}` };
+        }
+        return raw;
+    } catch (error) {
+        console.error(`Failed to fetch token transfers: ${(error as Error).message}`);
+        return { error: (error as Error).message };
+    }
+};
+
+export const getAddressInfo = async (address: string): Promise<any> => {
+    const result = await fetchAddressInfo(address);
+    return result?.data || { error: 'Address not found' };
+};
+
+export const getAddressCounters = async (address: string): Promise<any> => {
+    if (!isAddressValid(address)) {
+        return { error: 'Invalid address' };
+    }
+    try {
+        const response = await fetch(`${API_BASE_URL}addresses/${address}/counters`);
+        const raw = await response.json();
+        if (!response.ok) {
+            return { error: `API Error: ${response.statusText}` };
+        }
+        return raw;
+    } catch (error) {
+        console.error(`Failed to fetch address counters: ${(error as Error).message}`);
+        return { error: (error as Error).message };
+    }
+};
+
+export const getAddressTransactions = async (address: string): Promise<any> => {
+    if (!isAddressValid(address)) {
+        return { error: 'Invalid address' };
+    }
+    try {
+        const response = await fetch(`${API_BASE_URL}addresses/${address}/transactions`);
+        const raw = await response.json();
+        if (!response.ok) {
+            return { error: `API Error: ${response.statusText}` };
+        }
+        return raw;
+    } catch (error) {
+        console.error(`Failed to fetch address transactions: ${(error as Error).message}`);
+        return { error: (error as Error).message };
+    }
+};
+
+export const getAddressTokenTransfers = async (address: string): Promise<any> => {
+    if (!isAddressValid(address)) {
+        return { error: 'Invalid address' };
+    }
+    try {
+        const response = await fetch(`${API_BASE_URL}addresses/${address}/token-transfers`);
+        const raw = await response.json();
+        if (!response.ok) {
+            return { error: `API Error: ${response.statusText}` };
+        }
+        return raw;
+    } catch (error) {
+        console.error(`Failed to fetch address token transfers: ${(error as Error).message}`);
+        return { error: (error as Error).message };
+    }
+};
+
+export const getAddressTokenBalances = async (address: string): Promise<any> => {
+    const result = await fetchAddressTokenBalances(address);
+    return result?.data || { error: 'Failed to fetch token balances' };
+};
+
+export const getTokenBalance = async (contractAddress: string, walletAddress: string): Promise<any> => {
+    if (!isAddressValid(contractAddress) || !isAddressValid(walletAddress)) {
+        return { error: 'Invalid address' };
+    }
+    try {
+        // Use the correct API endpoint for token balance (different from v2 API)
+        const response = await fetch(`https://api.scan.pulsechain.com/api?module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${walletAddress}`);
+        const raw = await response.json();
+        if (!response.ok) {
+            return { error: `API Error: ${response.statusText}` };
+        }
+        return raw;
+    } catch (error) {
+        console.error(`Failed to fetch token balance: ${(error as Error).message}`);
+        return { error: (error as Error).message };
+    }
+};
+
+export const getTransactionByHash = async (txHash: string): Promise<any> => {
+    if (!txHash || txHash.length !== 66) {
+        return { error: 'Invalid transaction hash' };
+    }
+    try {
+        const response = await fetch(`${API_BASE_URL}transactions/${txHash}`);
+        const raw = await response.json();
+        if (!response.ok) {
+            return { error: `API Error: ${response.statusText}` };
+        }
+        return raw;
+    } catch (error) {
+        console.error(`Failed to fetch transaction: ${(error as Error).message}`);
+        return { error: (error as Error).message };
+    }
+};
+

@@ -176,4 +176,22 @@ export interface DexScreenerData {
     pairs: DexScreenerPair[];
     totalPairs: number;
     wplsPairs: number;
+    tokenInfo?: {
+        address: string;
+        name: string;
+        symbol: string;
+    } | null;
+    info?: {
+        imageUrl?: string;
+        header?: string;
+        openGraph?: string;
+        websites?: Array<{
+            label: string;
+            url: string;
+        }>;
+        socials?: Array<{
+            type: string;
+            url: string;
+        }>;
+    } | null;
 }

@@ -1,0 +1,251 @@
+api-schema
+model-title__text brace-open property-row star model-box-control property-row 2 star 2 model-box-control 2 property-row 3 star 3 model-box-control 3 property-row 4 star 4 model-box-control 4 property-row 5 star 5 model-box-control 5 property-row 6
+Block { base_fee_per_gas * [...] burnt_fees * [...] burnt_fees_percentage * [...] diﬃculty * [...] extra_data * [...] gas_limit
+TokenTransfer { block_hash * [...] from * [...] log_index * to * [...] token * [...] total
+RawTrace { action * subtraces * [...] traceAddress * [...] type * [...]
+RawTraceCallAction { callType * [...] to * [...] from * [...] input * [...] gas * [...] value
+RawTraceCreateAction { from * [...] gas * [...] init * [...] value * [...]
+RawTraceSelfDestructAction { address * [...] balance * [...] refundAddress * [...]
+RawTraceCallResult { gasUsed * [...] output * [...]
+RawTraceCreateResult { address * [...] code * [...] gasUsed * [...]
+Log { address * data * [...] decoded * index * [...] smart_contract * topics
+InternalTransaction { block_number * [...] created_contract * error * [...] from * gas_limit * [...] index
+Fee { type * [...] value * [...]
+Transaction { timestamp * [...] fee *
+... gas_limit * [...] block_number * [...] status * [...] method
+ExtendedRevertReasonAsMap { raw * [...] code * [...] message * [...]
+ReadMethodWithValue {
+ReadMethodWithoutValue {
+WriteMethod {
+DecodedInput { method_call * [...] method_id * [...] parameters * [...]
+TokenAddressParam { hash * [...] implementation_name * [...] name * [...] is_contract * [...] is_verified * [...] private_tags
+TransactionSummary { success * [...] data *
+TransactionSummaryObj {
+Summary { summary_template * [...] summary_template_variables *
+SummaryTemplateVariables { action_type * amount * token *
+SummaryVariable { type * [...] value * [...]
+SummaryVariableCurrency { type * [...] value * [...]
+SummaryVariableToken { type * [...] value *
+TokenInfoDetailed { address * [...] circulating_market_cap * [...] decimals * [...] exchange_rate * [...] holders * [...] icon_url
+DecodedInputParameter { name * [...] type * [...] value * [...]
+DecodedInputLog { method_call * [...] method_id * [...] parameters * [...]
+DecodedInputLogParameter { name * [...] type * [...] value * [...] indexed * [...]
+AddressParam { hash * [...] implementation_name * [...] name * [...] is_contract * [...] private_tags * [...] watchlist_names
+AddressTag { address_hash * [...] display_name * [...] label * [...]
+WatchlistName { display_name * [...] label * [...]
+Address { hash * [...] block_number_balance_updated_at [...] implementation_name [...] name [...] implementation_address
+AddressWithTxCount { hash * [...] transaction_count * [...] block_number_balance_updated_at [...] implementation_name [...] name [...] implementation_address
+Reward { reward * [...] type * [...]
+TransactionReward { types * emission_reward * [...] block_hash * [...] from * to *
+AddressCounters { transactions_count * [...] token_transfers_count * [...] gas_usage_count * [...] validations_count * [...]
+TokenBalance { value * [...] token_id * [...] token *
+CoinBalanceHistoryEntry { block_number * [...] block_timestamp * [...] delta * [...] value * [...]
+CoinBalanceHistoryByDaysEntry { date * [...] value * [...]
+Token { name * [...] decimals * [...] symbol * [...] address * [...] type * [...] holders
+TotalERC20 { decimals * [...] value * [...]
+TotalERC721 { token_id * [...]
+TotalERC1155 { token_id * [...] decimals * [...] value * [...]
+Holder { address * value * [...]
+NFTInstance { is_unique * [...] id * [...] owner * [...] token *
+AddressNFTInstance { is_unique * [...] id * [...] owner * [...] token * token_type * [...] value
+AddressNFTInstanceCollection { is_unique * [...] id * [...] owner * [...] token_type * [...] value * [...] token
+AddressNFTCollection { token * token_instances * [...]
+SmartContract { file_path [...] compiler_settings [...] is_verified_via_eth_bytecode_db [...] is_self_destructed [...] can_be_visualized_via_sol2uml [...] is_verified_via_sourcify
+ExternalLibrary { name * [...] address_hash * [...]
+ContractSource {
+ConstructorArguments {
+TokenInfo { circulating_market_cap * [...] icon_url * [...] name * [...] decimals * [...] symbol * [...] address
+Argument {
+SearchResultRedirect { parameter * [...] redirect * [...] type * [...]
+SearchResultToken { address * [...] address_url * [...] exchange_rate * [...] icon_url * [...] is_smart_contract_verified * [...] name
+SearchResultAddressOrContract { address * [...] is_smart_contract_verified * [...] name * [...] type * [...] url * [...]
+SearchResultBlock { block_hash * [...] block_number * [...] timestamp * [...] type * [...] url * [...]
+SearchResultTransaction { timestamp * [...] transaction_hash * [...] type * [...] url * [...]
+IndexingStatus { finished_indexing * [...] finished_indexing_blocks * [...] indexed_blocks_ratio * [...] indexed_internal_transactions_ratio * [...]
+StatsResponse { total_blocks * [...] total_addresses * [...] total_transactions * [...] average_block_time * [...] coin_price * [...] total_gas_used
+MarketChartItem { date * [...] closing_price * [...] market_cap * [...]
+TransactionChartItem { date * [...] transaction_count * [...]
+TokenCounters { token_holders_count * [...] transfers_count * [...]
+RecaptchaBody { recaptcha_response * [...]
+ReadMethodQueryBody { args * [...] method_id * [...]
+ReadMethodResponse { is_error * [...] result *
+CodeAndMessage { code * [...] message * [...]
+Error { error * [...]
+OutputAndNames { output * [...] names * [...]
+StateChange { type * [...] is_miner * [...] address * [...]
+ERC20Or1155OrCoinChange
+NFTChangesArray { direction * [...] total *
+... { }
+NFTChange { direction * [...] total *
+SmartContractForList { address * coin_balance * [...] compiler_version * [...] language * [...] has_constructor_args * [...] optimization_enabled
+Withdrawal { index * [...] amount * [...] validator_index * [...]
+TransactionAction { ... { } ... {
+TransactionActionAaveV3LiquidationCall { data * protocol * [...] type * [...]
+TransactionActionAaveV3BSWRF { data * protocol * [...] type * [...]
+TransactionActionAaveV3EnableDisableCollateral { data * protocol * [...] type * [...]
+TransactionActionUniswapV3MintNFT { data * protocol * [...] type * [...]
+TransactionActionUniswapV3BCS { data * protocol * [...] type * [...]
+v1IndexerStatus {
+v1EntryPointIndexerStatus { [...]
+HealthCheckResponseServingStatus Array [ 4 ]
+protobufAny {
+rpcStatus {
+v1CelestiaBlob { [...] [...] [...] data
+v1CelestiaBlobId {
+v1CelestiaL2BatchMetadata { l1TxHash [...] l1TxTimestamp [...] l1ChainId [...] l2BlockscoutUrl
+v1HealthCheckResponse {
+1
+model-box-control 6 property-row 7 model-box-control 7 property-row 8 model-box-control 8 model-box-control 9 model-box-control 10 [...] gas_target_percentage [...] gas_used [...] [...] transaction_hash type [...] [...] [...] [...]
+[...] transaction_hash [...] [...] [...] [...] success [...] timestamp [...] [...] confirmations [...] type [...] [...] [...] public_tags [...] watchlist_names [...] [...]
+[...]
+[...] name [...] symbol [...] [...] [...] public_tags [...] is_verified [...] [...] [...] token [...] coin_balance [...] [...] [...] token [...] coin_balance [...] [...] [...]
+[...] exchange_rate [...] total_supply [...]
+[...] animation_url external_app_url [...] [...] [...] animation_url external_app_url [...] [...] ... animation_url { external_app_url [...] [...] [...] [...] is_changed_bytecode [...] is_partially_verified [...] [...] [...] [...]
+[...] type [...] holders [...] [...] value [...] [...]
+[...] symbol [...] token_type [...] [...] [...] transactions_today [...] gas_used_today [...] [...] [...]
+... balance_after { token_id [...] [...] verified_at [...] [...] [...] timestamp [...] } ... { } ... v07 { [...] past_db_logs_indexing_finished [...] past_rpc_logs_indexing_finished
+[...]
+[...]
+details [...] [...]
+commitment timestamp [...] [...]
+commitment [...] [...]
+[...] l2StartBlock [...] l2EndBlock [...] [...] [...]
+model-box-control 11 model-hint model-title__text 2 model-box-control 12
+[...] [...] https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/AddressParam AddressParam [...]
+https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/AddressParam AddressParam ...
+... { ...
+https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/AddressParam AddressParam ...
+[...] [...] https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/AddressParam AddressParam ...
+{ [...] https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/Fee Fee ...
+https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/TransactionSummaryObj TransactionSummaryObj ...
+https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/SummaryTemplateVariables SummaryTemplateVariables ...
+https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/SummaryVariable SummaryVariable ...
+https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/TokenInfoDetailed TokenInfoDetailed ...
+[...] [...]
+... {
+... { [...]
+... { [...]
+https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/AddressParam AddressParam ...
+... { https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/Token Token ...
+... {
+... {
+https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/AddressParam AddressParam ...
+... { https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/AddressParam AddressParam ...
+... { https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/AddressParam AddressParam ...
+... { https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/AddressParam AddressParam ...
+https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/TokenInfo TokenInfo ...
+... { [...]
+[...]
+[...] [...]
+[...] [...] ...
+...
+... { https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/AddressParam AddressParam ...
+https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/NFTChange NFTChangesArray
+https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/TotalERC721 TotalERC721 ...
+https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/AddressParam AddressParam ...
+... {
+... { https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/TransactionActionAaveV3LiquidationCall TransactionActionAaveV3LiquidationCall }
+...
+...
+...
+...
+...
+... { https://raw.githubusercontent.com/blockscout/blockscout-api-v2-swagger/main/swagger.yaml#/components/schemas/v1EntryPointIndexerStatus v1EntryPointIndexerStatus
+[...]
+2
+model-box-control 13 model-box-control 14 model-box-control 15 property property-row 27 property-row 28 brace-close 2
+[...] [...] [...] example: OrderedMap { "slug": "tag_slug", "name": "Tag name", "tagType": "name", "ordinal": 0, "meta": OrderedMap {} } size state_root }
+{ } example: OrderedMap { "slug": "tag_slug", "name": "Tag name", "tagType": "name", "ordinal": 0, "meta": OrderedMap {} } method timestamp }
+{ } } error result }
+}
+}
+}
+}
+}
+{ } ... block_hash block_number }
+{ } ... }
+}
+{ } ... example: List [ 0, 17479 ] base_fee_per_gas from }
+}
+example: OrderedMap { "inputs": List [], "method_id": "2e64cec1", "name": "retrieve", "outputs": List [ OrderedMap { "internalType": "uint256", "name": "", "type": "uint256", "value": 0 } ], "stateMutability": "view", "type": "function" } }
+example: OrderedMap { "inputs": List [], "method_id": "f851a440", "name": "admin", "outputs": List [ OrderedMap { "internalType": "address", "name": "admin_", "type": "address" } ], "stateMutability": "nonpayable", "type": "function" } }
+example: OrderedMap { "inputs": List [ OrderedMap { "internalType": "uint256", "name": "num", "type": "uint256" } ], "name": "store", "outputs": List [], "stateMutability": "nonpayable", "type": "function" } }
+}
+address }
+{ } }
+summaries }
+{ } }
+{ } ... }
+}
+}
+{ } }
+}
+}
+}
+}
+} example: OrderedMap { "slug": "tag_slug", "name": "Tag name", "tagType": "name", "ordinal": 0, "meta": OrderedMap {} } ens_domain_name metadata }
+}
+}
+[...] [...] } creator_address_hash creation_transaction_hash }
+[...] [...] } creator_address_hash creation_transaction_hash }
+}
+{ } ... example: List [ "reward" ] }
+}
+{ } } token_instance }
+transaction_hash }
+}
+}
+}
+} token_instance }
+} token_instance }
+{ } token_id }
+{ } } example: OrderedMap { "year": 2023, "tags": List [ "poap", "event" ], "name": "Social Listening Committee #2 Attendees", "image_url": "https://assets.poap.xyz/chanel-poap-4c-2023-logo-1675083420470.png", "home_url": holder_address_hash image_url }
+"https://app.poap.xyz/token/6292128", "external_url": "https://api.poap.tech/metadata/99010/6292128", "description": "This is the POAP for attendees of the second Social Listening C
+{ } } example: OrderedMap { "year": 2023, "tags": List [ "poap", "event" ], "name": "Social Listening Committee #2 Attendees", "image_url": "https://assets.poap.xyz/chanel-poap-4c-2023-logo-1675083420470.png", "home_url": holder_address_hash image_url }
+"https://app.poap.xyz/token/6292128", "external_url": "https://api.poap.tech/metadata/99010/6292128", "description": "This is the POAP for attendees of the second Social Listening C
+{ } } example: OrderedMap { "year": 2023, "tags": List [ "poap", "event" ], "name": "Social Listening Committee #2 Attendees", "image_url": "https://assets.poap.xyz/chanel-poap-4c-2023-logo-1675083420470.png", "home_url": "https://app.poap.xyz/token/6292128", "external_url": "https://api.poap.tech/metadata/99010/6292128", "description": "This is the POAP for attendees of the second Social Listening C
+holder_address_hash image_url }
+{ } amount }
+[...] [...] } example: OrderedMap { "compilationTarget": OrderedMap { "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol": "ERC1967Proxy" }, "evmVersion": "london", "libraries": OrderedMap {}, "metadata": OrderedMap { "bytecodeHash": "ipfs" }, "optimizer": OrderedMap { "enabled": true, "runs": 200 }, "remappings": List [] } verified_twin_address_hash is_verified }
+}
+file_path source_code }
+example: List [ "0x2a3885b3f0c98f3e36334d4fa7beda53cb0ae095", OrderedMap { "internalType": "address", "name": "_logic", "type": "address" } ] }
+}
+name type }
+}
+}
+}
+}
+}
+}
+{ } example: OrderedMap { "average": 10, "fast": 10, "slow": 10 } }
+}
+}
+}
+}
+from contract_type }
+{ } }
+}
+}
+}
+{ } } token balance_before }
+example: -10000000
+{ } }
+{ } transaction_count market_cap }
+} receiver block_number }
+... { } }
+{ } example: OrderedMap { "debt_amount": "1.289548595490270429", "debt_symbol": "AAVE", "debt_address": "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", "collateral_amount": "110.824768", "collateral_symbol": "USDC", "collateral_address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "block_number": 1 } }
+{ } example: OrderedMap { "amount": "1.289548595490270429", "symbol": "AAVE", "address": "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", "block_number": 1 } }
+{ } example: OrderedMap { "symbol": "AAVE", "address": "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", "block_number": 1 } }
+{ } example: OrderedMap { "name": "Uniswap V3: Positions NFT", "symbol": "UNI-V3-POS", "address": "0x1F98431c8aD98523631AE4a59f267346ea31F984", "to": "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", "ids": List [ "1", "2" ], "block_number": 1 } }
+{ } example: OrderedMap { "address0": "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", "address1": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "amount0": "1.289548595490270429", "amount1": "110.824768", "symbol0": "AAVE", "symbol1": "USDC" } }
+} finished_past_indexing v06 }
+enabled live }
+default: UNKNOWN
+@type }
+code message }
+height namespace }
+height namespace }
+[...] l2ChainId l2BatchId }
+status }
+3

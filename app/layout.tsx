@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import PageLoadingProvider from "@/components/PageLoadingProvider";
-import GlobalHeader from "@/components/GlobalHeader";
 import GlobalFooter from "@/components/GlobalFooter";
 import { Analytics } from "@vercel/analytics/next"
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+  display: 'swap',
 });
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -36,13 +36,11 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased min-h-screen flex flex-col bg-black`}
       >
-        <GlobalHeader />
-        <PageLoadingProvider>
-          <main className="flex-1">
-            {children}
-          </main>
-        </PageLoadingProvider>
+        <main className="flex-1 flex flex-col">
+          {children}
+        </main>
         <GlobalFooter />
+        <Analytics />
       </body>
     </html>
   );

@@ -25,7 +25,8 @@ const SubTabButton: React.FC<{ name: string; tabId: string; activeTab: string; o
         <button
             onClick={() => onClick(tabId)}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus:outline-none flex-shrink-0 ${isActive ? 'text-white bg-purple-600' : 'text-slate-300 hover:bg-slate-700'}`}
-            aria-selected={isActive}
+            aria-selected={isActive.toString()}
+            aria-controls={`panel-${tabId}`}
             role="tab"
         >
             {name}
@@ -34,7 +35,7 @@ const SubTabButton: React.FC<{ name: string; tabId: string; activeTab: string; o
 };
 
 
-const ApiResponseTab: React.FC<{ responses: Record<string, any> }> = ({ responses }) => {
+const ApiResponseTab: React.FC<{ responses: Record<string, unknown> }> = ({ responses }) => {
     const availableTabs = Object.keys(responses).filter(key => responses[key] !== undefined && responses[key] !== null);
     const [activeTab, setActiveTab] = useState<string | null>(null);
     
@@ -71,7 +72,7 @@ const ApiResponseTab: React.FC<{ responses: Record<string, any> }> = ({ response
             </div>
             <div className="flex-grow overflow-hidden">
                 {availableTabs.map(key => (
-                    <div key={key} role="tabpanel" hidden={activeTab !== key} className="h-full flex flex-col">
+                    <div key={key} role="tabpanel" id={`panel-${key}`} hidden={activeTab !== key} className="h-full flex flex-col">
                          <div className="p-2 bg-slate-900 text-xs text-slate-400 font-mono border-b border-slate-700">
                             GET {API_ENDPOINT_MAP[key] || ''}
                          </div>

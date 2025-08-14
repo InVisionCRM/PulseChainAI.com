@@ -50,6 +50,24 @@ const IconCrown = () => (
   </svg>
 );
 
+const IconChartBar = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+  </svg>
+);
+
+const IconBarChart = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 13h2l3 9h6l3-9h2M9 4v16m6-16v16" />
+  </svg>
+);
+
+const IconHex = () => (
+  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M17.5 3.5L22 12l-4.5 8.5h-11L2 12l4.5-8.5h11zm-1 2h-9L4 12l3.5 6.5h9L20 12 16.5 5.5z" />
+  </svg>
+);
+
 const agents = [
   {
     id: 1,
@@ -57,6 +75,14 @@ const agents = [
     description: "PulseChainAI's Most Powerful AI Agent which allows user to interact with Solidity Smart Contract like never before! (Warning: Still in Beta. Use with Caution)",
     icon: IconFileText,
     color: "from-pink-500 to-purple-500",
+    size: "col-span-1 md:col-span-2 row-span-1 md:row-span-2"
+  },
+  {
+    id: 5,
+    name: "Blockchain Analyzer",
+    description: "Advanced blockchain analysis tool for deep insights into PulseChain transactions, token movements, and network activity",
+    icon: IconChartBar,
+    color: "from-blue-500 to-cyan-500",
     size: "col-span-1 md:col-span-2 row-span-1 md:row-span-2"
   },
   {
@@ -81,6 +107,22 @@ const agents = [
     description: "Dr. Sarah Chen - Compassionate AI therapy and emotional support",
     icon: IconHeartPulse,
     color: "from-pink-500 to-rose-500",
+    size: "col-span-1 md:col-span-2 row-span-1"
+  },
+  {
+    id: 6,
+    name: "Stat Counter Builder",
+    description: "Create custom stat counters for any PulseChain token. Build, preview, and embed real-time statistics",
+    icon: IconBarChart,
+    color: "from-emerald-500 to-teal-500",
+    size: "col-span-1 row-span-1"
+  },
+  {
+    id: 7,
+    name: "HEX Stats",
+    description: "Complete HEX daily statistics dashboard with historical data from Ethereum and PulseChain networks",
+    icon: IconHex,
+    color: "from-orange-500 to-red-500",
     size: "col-span-1 md:col-span-2 row-span-1"
   }
 ];
@@ -123,12 +165,18 @@ export default function AIAgentsSection() {
               onClick={() => {
                 if (agent.name === "AI Code Reader/Chat Agent") {
                   window.location.href = "/ai-agent";
+                } else if (agent.name === "Blockchain Analyzer") {
+                  window.location.href = "/blockchain-analyzer";
                 } else if (agent.name === "Positive Vibes Only") {
                   window.location.href = "/happy-pulse";
                 } else if (agent.name === "AI Therapist") {
                   window.location.href = "/therapist";
                 } else if (agent.name === "Talk to Richard Heart!") {
                   window.location.href = "/richard-heart";
+                } else if (agent.name === "Stat Counter Builder") {
+                  window.location.href = "/stat-counter-builder";
+                } else if (agent.name === "HEX Stats") {
+                  window.location.href = "/hex-dashboard";
                 }
               }}
             >

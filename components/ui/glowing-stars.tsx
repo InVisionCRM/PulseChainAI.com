@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { cn } from "/lib/utils";
+import { cn } from "@/lib/utils";
+import { useMobileOptimization } from "@/lib/hooks/useMobileOptimization";
 
 export const GlowingStarsBackgroundCard = ({
   className,
@@ -63,14 +64,22 @@ export const GlowingStarsTitle = ({
 };
 
 export const Illustration = ({ mouseEnter }: { mouseEnter: boolean }) => {
-  const stars = 108;
-  const columns = 18;
+  const mobileConfig = useMobileOptimization();
+  
+  // Reduce complexity on mobile
+  const stars = mobileConfig.isMobile ? 36 : 108;
+  const columns = mobileConfig.isMobile ? 12 : 18;
 
   const [glowingStars, setGlowingStars] = useState<number[]>([]);
 
   const highlightedStars = useRef<number[]>([]);
 
   useEffect(() => {
+    // Disable animations on mobile or when reduced motion is preferred
+    if (mobileConfig.shouldReduceMotion || mobileConfig.isMobile) {
+      return;
+    }
+    
     const interval = setInterval(() => {
       highlightedStars.current = Array.from({ length: 5 }, () =>
         Math.floor(Math.random() * stars)
@@ -79,7 +88,7 @@ export const Illustration = ({ mouseEnter }: { mouseEnter: boolean }) => {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [mobileConfig.shouldReduceMotion, mobileConfig.isMobile, stars]);
 
   return (
     <div
@@ -115,7 +124,17 @@ export const Illustration = ({ mouseEnter }: { mouseEnter: boolean }) => {
 };
 
 const Star = ({ isGlowing, delay }: { isGlowing: boolean; delay: number }) => {
-  return (
+  const mobileConfig = useMobileOptimization();
+  
+  // Always render the same component structure, but with different content
+  return mobileConfig.shouldReduceMotion || mobileConfig.isMobile ? (
+    <div
+      className={cn(
+        "h-[1px] w-[1px] rounded-full relative z-20",
+        isGlowing ? "bg-white" : "bg-[#666]"
+      )}
+    />
+  ) : (
     <motion.div
       key={delay}
       initial={{
@@ -136,7 +155,12 @@ const Star = ({ isGlowing, delay }: { isGlowing: boolean; delay: number }) => {
 };
 
 const Glow = ({ delay }: { delay: number }) => {
-  return (
+  const mobileConfig = useMobileOptimization();
+  
+  // Always render the same component structure, but with different content
+  return mobileConfig.shouldReduceMotion || mobileConfig.isMobile ? (
+    <div className="absolute left-1/2 -translate-x-1/2 z-10 h-[2px] w-[2px] rounded-full bg-blue-500" />
+  ) : (
     <motion.div
       initial={{
         opacity: 0,

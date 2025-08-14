@@ -1,40 +1,45 @@
 import React, { useState } from 'react';
 
+// Define proper types for JSON data
+type JsonValue = string | number | boolean | null | { [key: string]: any } | any[];
+type JsonObject = { [key: string]: JsonValue };
+type JsonArray = JsonValue[];
+
 // Helper to determine the type of a value
-const getValueType = (value: any) => {
+const getValueType = (value: JsonValue): string => {
     if (value === null) return 'null';
     if (Array.isArray(value)) return 'array';
     return typeof value;
 };
 
 // Forward declarations for recursive components
-let JsonObject: React.FC<{ data: Record<string, any> }>;
-let JsonArray: React.FC<{ data: any[] }>;
+let JsonObjectComponent: React.FC<{ data: JsonObject }>;
+let JsonArrayComponent: React.FC<{ data: JsonArray }>;
 
 // Component to render a single JSON value
-const JsonValue: React.FC<{ value: any }> = ({ value }) => {
+const JsonValue: React.FC<{ value: JsonValue }> = ({ value }) => {
     const type = getValueType(value);
 
     switch (type) {
         case 'string':
-            return <span className="text-green-400">"{value}"</span>;
+            return <span className="text-green-400">&quot;{String(value)}&quot;</span>;
         case 'number':
-            return <span className="text-sky-400">{value}</span>;
+            return <span className="text-sky-400">{String(value)}</span>;
         case 'boolean':
             return <span className="text-yellow-400">{String(value)}</span>;
         case 'null':
             return <span className="text-slate-500">null</span>;
         case 'object':
-            return <JsonObject data={value} />;
+            return <JsonObjectComponent data={value as JsonObject} />;
         case 'array':
-            return <JsonArray data={value} />;
+            return <JsonArrayComponent data={value as JsonArray} />;
         default:
             return <span className="text-red-400">Unsupported Type</span>;
     }
 };
 
 // Component for JSON Objects
-JsonObject = ({ data }) => {
+JsonObjectComponent = ({ data }) => {
     const [isOpen, setIsOpen] = useState(true);
     const keys = Object.keys(data);
 
@@ -56,7 +61,7 @@ JsonObject = ({ data }) => {
             <div className="pl-4 border-l border-slate-700">
                 {keys.map((key, index) => (
                     <div key={key} className="flex">
-                        <span className="text-purple-400 shrink-0">"{key}":&nbsp;</span>
+                        <span className="text-purple-400 shrink-0">&quot;{key}&quot;:&nbsp;</span>
                         <div className="flex-grow">
                             <JsonValue value={data[key]} />
                             {index < keys.length - 1 && <span className="text-slate-200">,</span>}
@@ -69,9 +74,11 @@ JsonObject = ({ data }) => {
     );
 };
 
+// Add display name for JsonObjectComponent
+JsonObjectComponent.displayName = 'JsonObjectComponent';
 
 // Component for JSON Arrays
-JsonArray = ({ data }) => {
+JsonArrayComponent = ({ data }) => {
     const [isOpen, setIsOpen] = useState(true);
 
     if (data.length === 0) {
@@ -104,8 +111,10 @@ JsonArray = ({ data }) => {
     );
 };
 
+// Add display name for JsonArrayComponent
+JsonArrayComponent.displayName = 'JsonArrayComponent';
 
-const JsonViewer: React.FC<{ data: any }> = ({ data }) => {
+const JsonViewer: React.FC<{ data: JsonValue }> = ({ data }) => {
     if (data === undefined || data === null) {
         return <div className="p-4 text-slate-400">No data available for this response.</div>;
     }

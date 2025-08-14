@@ -1,3 +1,6 @@
+⚠️ Note: Not all unverified code is malicious by default. However, in ecosystems like PulseChain, the frequency and scale of malicious unverified contracts is significantly higher, making trust without transparency a major risk factor.
+
+
 # 📉 Risks of Interacting with Unverified Solidity Contracts
 
 ## 🚫 Core Problems with Unverified Contracts

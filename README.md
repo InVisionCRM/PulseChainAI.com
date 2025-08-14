@@ -144,7 +144,7 @@ The **AI-Agent (Code Reader)** is the flagship feature of the PulseChain AI Dash
 - **Consistent Dark Background**: Black backgrounds throughout the application
 - **Purple Accents**: PulseChain-themed purple color scheme
 - **Glowing Effects**: Dynamic animations and visual feedback
-- **Aurora Background**: Animated gradient background effects
+
 
 #### **Loading Experience**
 - **Optimized Loader**: Reduced hook loader size for better performance
@@ -215,7 +215,7 @@ components/
 ├── TokenInfoCard.tsx           # Token information card
 ├── UnverifiedContractRisksModal.tsx # Risk warning modal
 ├── ApiKeyModal.tsx             # API key input modal
-├── GlobalHeader.tsx            # Global navigation header
+# GlobalHeader.tsx removed - functionality moved to GlobalFooter
 ├── GlobalFooter.tsx            # Global footer component
 └── JsonViewer.tsx              # JSON data visualization
 
@@ -427,7 +427,7 @@ export const geminiConfig = {
 
 ##### **2. UI Customization**
 ```typescript
-// components/ui/aurora-background.tsx
+
 const defaultColors = [
   '#EC13AC', '#364AFF', '#EF1091',  // Customize colors
   '#3F41FF', '#D917E9', '#215FFF'
@@ -888,7 +888,7 @@ pulse-chain-ai-dash/
 
 ### **UI Utilities**
 
-- **AuroraBackground**: Animated background with gradient effects
+
 - **HoverBorderGradient**: Interactive border animations
 - **LoaderThree**: Custom loading animation with PulseChain logo
 - **CopyButton**: Copy-to-clipboard functionality

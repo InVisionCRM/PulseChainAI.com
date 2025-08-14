@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { ExplainedFunction, AbiItemInput } from '../types';
+import type { ExplainedFunction, AbiItemInput } from '@/types';
 import LoadingSpinner from './icons/LoadingSpinner';
 
 const FunctionItem: React.FC<{ func: ExplainedFunction }> = ({ func }) => {

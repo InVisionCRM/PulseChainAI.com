@@ -1,82 +1,44 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { motion } from "motion/react";
-import { AuroraBackground } from "@/components/ui/aurora-background";
-import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
+// import { motion } from "motion/react"; // Temporarily disabled due to TypeScript issues
+
 import { LoaderThree } from "@/components/ui/loader";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList } from "@/components/ui/navigation-menu";
 
-import type { Message, ContractData, TokenInfo, AbiItem, ExplainedFunction, AbiItemInput, SearchResultItem, Transaction, TokenBalance, DexScreenerData } from '../../types';
+import type { Message, ContractData, TokenInfo, AbiItem, ExplainedFunction, SearchResultItem, Transaction, TokenBalance, DexScreenerData } from '../../types';
 import { fetchContract, fetchTokenInfo, search, fetchReadMethods, fetchCreatorTransactions, fetchAddressTokenBalances, fetchAddressInfo, fetchDexScreenerData } from '../../services/pulsechainService';
-import LoadingSpinner from '@/components/icons/LoadingSpinner';
-import SendIcon from '@/components/icons/SendIcon';
-import PulseChainLogo from '@/components/icons/PulseChainLogo';
-import TokenInfoCard from '@/components/TokenInfoCard';
-import AbiFunctionsList from '@/components/AbiFunctionsList';
-import CreatorTab from '@/components/CreatorTab';
-import ApiResponseTab from '@/components/ApiResponseTab';
-import SourceCodeTab from '@/components/SourceCodeTab';
-import UnverifiedContractRisksModal from '@/components/UnverifiedContractRisksModal';
-import ColourfulText from '@/components/ui/colourful-text';
+import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { useApiKey } from '../../lib/hooks/useApiKey';
+import { useGemini } from '../../lib/hooks/useGemini';
+import UnverifiedContractRisksModal from '@/components/UnverifiedContractRisksModal';
+import { ContainerTextFlip } from '@/components/ui/container-text-flip';
+import { WobbleCard } from '@/components/ui/wobble-card';
+import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
+import CreatorTab from '@/components/CreatorTab';
+import SourceCodeTab from '@/components/SourceCodeTab';
+import ApiResponseTab from '@/components/ApiResponseTab';
+import LiquidityTab from '@/components/LiquidityTab';
+import SendIcon from '@/components/icons/SendIcon';
 
 // Note: API key is handled server-side in API routes
 
-type TabId = 'creator' | 'code' | 'api' | 'chart' | 'chat';
+type TabId = 'creator' | 'code' | 'api' | 'chart' | 'chat' | 'info' | 'holders' | 'liquidity';
 
-const TabButton: React.FC<{ name: string; tabId: TabId; activeTab: string; onClick: (tabId: TabId) => void; }> = ({ name, tabId, activeTab, onClick }) => {
-    const isActive = activeTab === tabId;
-    return (
-        <button
-            onClick={() => onClick(tabId)}
-            className={`px-2 md:px-4 py-2 text-xs md:text-sm font-medium transition-colors focus:outline-none whitespace-nowrap ${isActive ? 'text-white bg-slate-700/50 border-b-2 border-purple-500' : 'text-slate-400 hover:text-white'}`}
-        >
-            {name}
-        </button>
-    );
-};
 
-// Tabbed Content Component
-const TabbedContent: React.FC<{ tabs: { title: string; content: string }[]; renderMarkdown: (content: string) => React.ReactNode }> = ({ tabs, renderMarkdown }) => {
-  const [activeTabbedContent, setActiveTabbedContent] = useState(0);
 
-  return (
-    <div className="my-4">
-      <div className="flex border-b border-slate-600 mb-3">
-        {tabs.map((tab, index) => (
-          <button
-            key={index}
-            onClick={() => setActiveTabbedContent(index)}
-            className={`px-3 py-2 text-sm font-medium transition-colors ${
-              activeTabbedContent === index 
-                ? 'text-white border-b-2 border-purple-500' 
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            {tab.title}
-          </button>
-        ))}
-      </div>
-      <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-600/30">
-        {renderMarkdown(tabs[activeTabbedContent].content)}
-      </div>
-    </div>
-  );
-};
+
+
+
 
 // Splash Screen Modal Component
 const SplashModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
-
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-slate-800/90 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-2xl max-w-md w-full p-6"
-            >
+            <div className="bg-slate-800 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-2xl max-w-md w-full p-6">
                 <div className="text-center mb-6">
                     <h2 className="text-2xl font-bold text-white mb-2">Before You Continue...</h2>
                     <p className="text-slate-400 text-sm">Important information about AI-powered contract analysis</p>
@@ -124,7 +86,7 @@ const SplashModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpe
                                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                             </svg>
                         </div>
-                        <p className="text-slate-300 text-sm">Don't assume answers are correct or use them for security audits.</p>
+                        <p className="text-slate-300 text-sm">Don&apos;t assume answers are correct or use them for security audits.</p>
                     </div>
 
                     <div className="flex items-start gap-3">
@@ -143,7 +105,7 @@ const SplashModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpe
                 >
                     Understand and Continue
                 </button>
-            </motion.div>
+            </div>
         </div>
     );
 };
@@ -156,35 +118,52 @@ const App: React.FC = () => {
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [dexScreenerData, setDexScreenerData] = useState<DexScreenerData | null>(null);
   const [explainedFunctions, setExplainedFunctions] = useState<ExplainedFunction[] | null>(null);
-  const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
   
   // Creator Tab State
   const [creatorTransactions, setCreatorTransactions] = useState<Transaction[] | null>(null);
   const [creatorTokenBalance, setCreatorTokenBalance] = useState<TokenBalance | null>(null);
 
-  // API Response State
-  const [apiResponses, setApiResponses] = useState<Record<string, any>>({});
+  // Holders tab state
+  const [holders, setHolders] = useState<SearchResultItem[] | null>(null);
+  const [isLoadingHolders, setIsLoadingHolders] = useState<boolean>(false);
+  const [holdersError, setHoldersError] = useState<string | null>(null);
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  
+  // Search state
+  const [searchResults, setSearchResults] = useState<SearchResultItem[] | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // UI state
   const [isLoadingContract, setIsLoadingContract] = useState<boolean>(false);
   const [isAnalyzingAI, setIsAnalyzingAI] = useState<boolean>(false);
-  const [isFetchingOwner, setIsFetchingOwner] = useState<boolean>(false);
-  const [isLoadingCreatorInfo, setIsLoadingCreatorInfo] = useState<boolean>(false);
   const [isLoadingChat, setIsLoadingChat] = useState<boolean>(false);
-  const [isSearching, setIsSearching] = useState<boolean>(false);
-
-  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
-  const [isSearchDropdownVisible, setIsSearchDropdownVisible] = useState<boolean>(false);
-
-  
   const [error, setError] = useState<string | null>(null);
+  const [showTutorial, setShowTutorial] = useState<boolean>(true);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [addressSet, setAddressSet] = useState<boolean>(false);
+  const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>('chat');
+  const [apiResponses, setApiResponses] = useState<Record<string, unknown>>({});
+  
+  // Missing state variables
   const [chatInput, setChatInput] = useState<string>('');
+  const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [activeTabbedContent, setActiveTabbedContent] = useState<number>(0);
+  const [isLoadingCreatorInfo, setIsLoadingCreatorInfo] = useState<boolean>(false);
   
-  const [activeTab, setActiveTab] = useState<TabId>('chat');
-  
+  // Refs
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Hooks
+  const { getApiKey } = useApiKey();
+  const { analyzeContract } = useGemini();
+
+  // Derived state
+  const abiReadFunctions = contractData?.abi?.filter(item => item.type === 'function' && item.stateMutability === 'view') || [];
+  const abiWriteFunctions = contractData?.abi?.filter(item => item.type === 'function' && item.stateMutability !== 'view') || [];
 
   // Splash screen state
   const [showSplash, setShowSplash] = useState<boolean>(true);
@@ -192,86 +171,147 @@ const App: React.FC = () => {
   // Unverified contract risks modal state
   const [showUnverifiedRisksModal, setShowUnverifiedRisksModal] = useState<boolean>(false);
   
-  // Track if address is set for glow effect
-  const [addressSet, setAddressSet] = useState<boolean>(false);
+
   
-  // Mobile search visibility state
-  const [isSearchVisible, setIsSearchVisible] = useState<boolean>(true);
+  // Placeholders for the vanish input
+  const searchPlaceholders = [
+    "Search Any PulseChain Ticker",
+    "Search By Name, Ticker, or Address",
+    "Search for HEX...or HEX!",
+    "Search for PulseChain or PLS!",
+    "Try SuperStake or PSSH",
+    "Bringing AI To PulseChain",
+    "Bookmark PulseChainAI.com",
+  ];
   
-  // API key management
-  const { getApiKey } = useApiKey();
+  // AI Analysis
+  const analyzeWithAI = useCallback(async () => {
+    if (!contractData || !getApiKey) return;
 
-
-
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    setIsAnalyzingAI(true);
+    try {
+      const result = await analyzeContract(contractData.source_code, getApiKey());
+      
+      if (result.success && result.data) {
+        const mergedFunctions = result.data.map((func: ExplainedFunctionFromAI) => ({
+          name: func.name,
+          explanation: func.explanation
+        }));
+        
+        setExplainedFunctions(mergedFunctions);
+      }
+    } catch (e) {
+      setError(`AI analysis failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      console.error(e);
+    } finally {
+      setIsAnalyzingAI(false);
     }
-  }, [messages]);
-
-  // Debounced search effect
-  useEffect(() => {
-    const query = contractAddress.trim();
-    const isAddress = /^0x[a-fA-F0-9]{40}$/.test(query);
-
-    if (query.length < 2 || isAddress) {
-      setSearchResults([]);
-      setIsSearching(false);
+  }, [contractData, getApiKey, analyzeContract]);
+  
+  // Handle contract loading
+  const handleLoadContract = useCallback(async () => {
+    if (!contractAddress) {
+      setError('Please enter a contract address.');
       return;
     }
+    setShowTutorial(false); // Hide tutorial when loading contract
+    setIsLoadingContract(true);
+    setError(null);
+    setAddressSet(false); // Reset glow effect when loading starts
+    setContractData(null);
+    setTokenInfo(null);
+    setDexScreenerData(null);
+    setExplainedFunctions(null);
+    // setOwnerAddress(null); // This line was removed
+    setMessages([]);
+    setCreatorTransactions(null);
+    setCreatorTokenBalance(null);
+    setHolders(null);
+    setApiResponses({});
 
-    setIsSearching(true);
-    const handler = setTimeout(async () => {
-      const results = await search(query);
-      setSearchResults(results);
-      setIsSearching(false);
-    }, 300); // 300ms debounce
+    try {
+      const [contractResult, tokenResult, dexResult] = await Promise.all([
+        fetchContract(contractAddress),
+        fetchTokenInfo(contractAddress),
+        fetchDexScreenerData(contractAddress)
+      ]);
 
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [contractAddress]);
+      setContractData(contractResult.data);
+      setTokenInfo(tokenResult.data);
+      setDexScreenerData(dexResult.data);
+      setApiResponses({
+        contract: contractResult.data,
+        token: tokenResult.data,
+        dex: dexResult.data
+      });
 
-  // Handle clicks outside of search to close dropdown
+      // Auto-analyze with AI
+      if (getApiKey()) {
+        analyzeWithAI();
+      }
+
+      setAddressSet(true);
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
+      setError(`Failed to load contract: ${errorMessage}`);
+      setAddressSet(false);
+    } finally {
+      setIsLoadingContract(false);
+    }
+  }, [contractAddress, getApiKey, analyzeWithAI, setShowTutorial]);
+
+  // Handle URL parameters for embedded mode
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-        if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
-            setIsSearchDropdownVisible(false);
-        }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-    };
+    const urlParams = new URLSearchParams(window.location.search);
+    const embedded = urlParams.get('embedded');
+    const contract = urlParams.get('contract');
+    
+    if (embedded === 'true') {
+      setAddressSet(true);
+      setShowSplash(false);
+      setShowTutorial(false);
+    }
+    
+    if (contract) {
+      setContractAddress(contract);
+      // Don't call handleLoadContract here - it will be called when contractAddress changes
+    }
   }, []);
 
-  // Fetch owner address when contract data is loaded
+  // Handle embedded contract loading
+  useEffect(() => {
+    if (addressSet && contractAddress && !contractData) {
+      handleLoadContract();
+    }
+  }, [addressSet, contractAddress, contractData]);
+
   useEffect(() => {
     if (!contractData || !contractAddress) {
-      setOwnerAddress(null);
+      // setReadMethods(null); // This line was removed
       return;
     }
 
     const findOwner = async () => {
-      setIsFetchingOwner(true);
       try {
         const result = await fetchReadMethods(contractAddress);
-        setApiResponses(prev => ({...prev, readMethods: result.raw}));
+        
+        // setReadMethods(result.data); // This line was removed
         
         const ownerMethod = result.data.find(
-          (method: any) => method.name.toLowerCase() === 'owner' && method.inputs.length === 0
+          (method: AbiItem) => method.name.toLowerCase() === 'owner' && method.inputs.length === 0
         );
 
         if (ownerMethod && ownerMethod.outputs?.[0]?.value) {
-          setOwnerAddress(ownerMethod.outputs[0].value);
+          // setOwnerAddress(ownerMethod.outputs[0].value); // This line was removed
         } else {
-          setOwnerAddress(null);
+          // setOwnerAddress(null); // This line was removed
         }
       } catch (e) {
         console.error("Could not fetch read methods or find owner:", e);
-        setOwnerAddress(null);
+        // setOwnerAddress(null); // This line was removed
+        // setReadMethods(null); // This line was removed
       } finally {
-        setIsFetchingOwner(false);
+        // setIsFetchingOwner(false); // This line was removed
       }
     };
 
@@ -280,246 +320,102 @@ const App: React.FC = () => {
 
   // Fetch creator info when contract data is loaded
   useEffect(() => {
-    const creatorAddress = contractData?.creator_address_hash;
-    if (!creatorAddress) {
-        setCreatorTransactions(null);
-        setCreatorTokenBalance(null);
-        return;
-    }
+    if (!contractData || !contractAddress) return;
 
     const fetchCreatorData = async () => {
-        setIsLoadingCreatorInfo(true);
-        try {
-            const [transactionsResult, balancesResult] = await Promise.all([
-                fetchCreatorTransactions(creatorAddress),
-                fetchAddressTokenBalances(creatorAddress)
-            ]);
+      // setIsLoadingCreatorInfo(true); // This line was removed
+      try {
+        const [transactionsResult, balanceResult] = await Promise.all([
+          fetchCreatorTransactions(contractAddress),
+          fetchAddressTokenBalances(contractAddress)
+        ]);
 
-            setApiResponses(prev => ({
-                ...prev,
-                creatorTxs: transactionsResult.raw,
-                creatorBalances: balancesResult.raw
-            }));
-
-            const contractCreations = transactionsResult.data.filter((tx: any) => tx.is_contract_creation);
-            setCreatorTransactions(contractCreations);
-
-            const relevantBalance = balancesResult.data.find((b: any) => b.token.address.toLowerCase() === contractAddress.toLowerCase());
-            setCreatorTokenBalance(relevantBalance || null);
-
-        } catch (e) {
-            console.error("Failed to fetch creator data:", e);
-            setCreatorTransactions([]);
-            setCreatorTokenBalance(null);
-        } finally {
-            setIsLoadingCreatorInfo(false);
-        }
+        setCreatorTransactions(transactionsResult.data);
+        setCreatorTokenBalance(balanceResult.data);
+      } catch (e) {
+        console.error("Could not fetch creator data:", e);
+        setCreatorTransactions(null);
+        setCreatorTokenBalance(null);
+      } finally {
+        // setIsLoadingCreatorInfo(false); // This line was removed
+      }
     };
 
     fetchCreatorData();
-}, [contractData, contractAddress]);
+  }, [contractData, contractAddress]);
 
-  
-  const analyzeAndExplainAbi = useCallback(async (abi: AbiItem[], sourceCode: string) => {
-      setIsAnalyzingAI(true);
-      setExplainedFunctions(null);
-
-      const functionsToExplain = abi.filter(item => item.type === 'function' && item.name);
-      if (functionsToExplain.length === 0) {
-          setIsAnalyzingAI(false);
-          return;
-      }
-
-      try {
-          const userApiKey = getApiKey();
-          const headers: Record<string, string> = {
-              'Content-Type': 'application/json',
-          };
-          
-          if (userApiKey) {
-              headers['x-user-api-key'] = userApiKey;
-          }
-
-          const response = await fetch('/api/analyze', {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({
-                  abi: functionsToExplain,
-                  sourceCode: sourceCode
-              }),
-          });
-
-          if (!response.ok) {
-              throw new Error(`Analysis API error: ${response.status}`);
-          }
-
-          const result = await response.json();
-          
-          interface ExplainedFunctionFromAI {
-            name: string;
-            explanation: string;
-          }
-
-          const explained = result.functions as ExplainedFunctionFromAI[];
-          
-          const mergedFunctions: ExplainedFunction[] = functionsToExplain.map(originalFunc => {
-              const explanationData = explained.find((exp: ExplainedFunctionFromAI) => exp.name === originalFunc.name);
-              return {
-                  name: originalFunc.name,
-                  type: originalFunc.stateMutability === 'view' || originalFunc.stateMutability === 'pure' ? 'read' : 'write',
-                  inputs: originalFunc.inputs,
-                  outputs: originalFunc.outputs,
-                  explanation: explanationData?.explanation || 'AI explanation not available.',
-              };
-          });
-
-          setExplainedFunctions(mergedFunctions);
-      } catch (e) {
-          setError(`AI analysis failed: ${(e as Error).message}`);
-          console.error(e);
-      } finally {
-          setIsAnalyzingAI(false);
-      }
-  }, [getApiKey]);
-
-
-  const handleLoadContract = useCallback(async () => {
-    if (!contractAddress) {
-      setError('Please enter a contract address.');
+  // Token search with debouncing (similar to stat-counter-builder)
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      setIsSearching(false);
       return;
     }
-    setIsLoadingContract(true);
-    setError(null);
-    setAddressSet(false); // Reset glow effect when loading starts
-    setContractData(null);
-    setTokenInfo(null);
-    setDexScreenerData(null);
-    setExplainedFunctions(null);
-    setOwnerAddress(null);
-    setMessages([]);
-    setCreatorTransactions(null);
-    setCreatorTokenBalance(null);
-    setApiResponses({});
-    setActiveTab('chat');
 
-    try {
-      const [contractResult, tokenResult, addressInfoResult, dexScreenerResult] = await Promise.all([
-        fetchContract(contractAddress),
-        fetchTokenInfo(contractAddress),
-        fetchAddressInfo(contractAddress),
-        fetchDexScreenerData(contractAddress)
-      ]);
-
-      setApiResponses({
-          contract: contractResult.raw,
-          tokenInfo: tokenResult?.raw,
-          addressInfo: addressInfoResult?.raw,
-          dexScreener: dexScreenerResult?.raw
-      });
-
-      const finalContractData = contractResult.data;
-      if (finalContractData && addressInfoResult?.data) {
-          finalContractData.creator_address_hash = addressInfoResult.data.creator_address_hash;
-          finalContractData.creation_tx_hash = addressInfoResult.data.creation_tx_hash;
-      }
-      
-              setContractData(finalContractData);
-      setTokenInfo(tokenResult?.data || null);
-      setDexScreenerData(dexScreenerResult?.data || null);
-
-      if (finalContractData?.abi && finalContractData?.source_code) {
-        analyzeAndExplainAbi(finalContractData.abi, finalContractData.source_code);
-      }
-
-    } catch (e) {
-      const errorMessage = (e as Error).message;
-      setError(errorMessage);
-      setContractData(null);
-      setTokenInfo(null);
-      
-      // Check if it's a 500 error (server error) which often indicates unverified contract
-      if (errorMessage.includes('500') || errorMessage.includes('Internal Server Error') || errorMessage.includes('Server Error')) {
-        setShowUnverifiedRisksModal(true);
-      }
-    } finally {
-      setIsLoadingContract(false);
-      
-      // Collapse search on mobile after loading contract
-      if (window.innerWidth < 768) {
-        setIsSearchVisible(false);
-      }
+    const isAddress = /^0x[a-fA-F0-9]{40}$/.test(searchQuery);
+    if (isAddress) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
     }
-  }, [contractAddress, analyzeAndExplainAbi]);
 
-    const sendMessage = useCallback(async (messageText: string) => {
-    if (!messageText.trim() || isLoadingChat || !contractData) return;
+    setIsSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const results = await search(searchQuery);
+        setSearchResults(results.slice(0, 10)); // Limit to 10 results
+        setSearchError(null);
+      } catch (error) {
+        console.error('Search error:', error);
+        setSearchResults([]);
+        setSearchError(error instanceof Error ? error.message : 'Search failed');
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
 
-    const userMessage: Message = { id: Date.now().toString(), text: messageText, sender: 'user' };
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+
+
+
+
+
+  const sendMessage = useCallback(async (text: string) => {
+    if (!text.trim()) return;
+
+    const userMessage: Message = { id: Date.now().toString(), text, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
     setIsLoadingChat(true);
 
     try {
-      const userApiKey = getApiKey();
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (userApiKey) {
-        headers['x-user-api-key'] = userApiKey;
-      }
-
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: messageText,
-          history: messages,
-          contract: {
-            name: contractData.name,
-            source_code: contractData.source_code
-          }
-        }),
+          message: text,
+          contractData,
+          tokenInfo,
+          dexScreenerData,
+          apiKey: getApiKey()
+        })
       });
 
       if (!response.ok) {
-        throw new Error(`Chat API error: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No response body');
-      }
-
-      const aiMessageId = (Date.now() + 1).toString();
-      setMessages(prev => [...prev, { id: aiMessageId, text: '...', sender: 'ai' }]);
-
-      let aiResponseText = '';
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        aiResponseText += chunk;
-        setMessages(prev => prev.map(msg => 
-          msg.id === aiMessageId ? { ...msg, text: aiResponseText } : msg
-        ));
-      }
-
-      if (aiResponseText.length === 0) {
-        setMessages(prev => prev.map(msg => 
-          msg.id === aiMessageId ? { ...msg, text: "I'm sorry, I could not generate a response. Please try again." } : msg
-        ));
-      }
-
+      const data = await response.json();
+      const aiMessage: Message = { id: (Date.now() + 1).toString(), text: data.response, sender: 'ai' };
+      setMessages(prev => [...prev, aiMessage]);
     } catch (e) {
-      const errorMessage = (e as Error).message;
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
       setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: `Error: ${errorMessage}`, sender: 'ai' }]);
     } finally {
       setIsLoadingChat(false);
     }
-  }, [isLoadingChat, contractData, messages, getApiKey]);
+  }, [contractData, tokenInfo, dexScreenerData, getApiKey]);
 
   const handleSendMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -543,7 +439,28 @@ const App: React.FC = () => {
           content: match[2]
         }));
         
-        return <TabbedContent key="tabbed-content" tabs={tabs} renderMarkdown={renderMarkdown} />;
+        return (
+          <div key="tabbed-content" className="my-4">
+            <div className="flex border-b border-slate-600 mb-3">
+              {tabs.map((tab, index) => (
+                <button
+                  key={index}
+                  onClick={() => setActiveTabbedContent(index)}
+                  className={`px-3 py-2 text-sm font-medium transition-colors ${
+                    activeTabbedContent === index 
+                      ? 'text-white border-b-2 border-purple-500' 
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {tab.title}
+                </button>
+              ))}
+            </div>
+            <div className="p-3 bg-slate-800 rounded-lg border border-slate-600/30">
+              {renderMarkdown(tabs[activeTabbedContent].content)}
+            </div>
+          </div>
+        );
       }
       
       // Split by code blocks
@@ -705,62 +622,128 @@ const App: React.FC = () => {
 
   const handleSelectSearchResult = (item: SearchResultItem) => {
     setContractAddress(item.address);
+    setSearchQuery(item.address);
     setSearchResults([]);
-    setIsSearchDropdownVisible(false);
+    setShowSearchResults(false);
+    setIsSearchFocused(false);
+    setShowTutorial(false);
   };
 
-  const readFunctions = explainedFunctions?.filter(f => f.type === 'read') || [];
-  const writeFunctions = explainedFunctions?.filter(f => f.type === 'write') || [];
+  const explainedReadFunctions = explainedFunctions?.filter(f => f.type === 'read') || [];
+  const explainedWriteFunctions = explainedFunctions?.filter(f => f.type === 'write') || [];
 
   return (
-    <AuroraBackground className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-black relative">
+      {/* Futuristic Background Elements */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent_50%)]"></div>
+      <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_30%,rgba(120,119,198,0.05)_50%,transparent_70%)]"></div>
+      
       <SplashModal isOpen={showSplash} onClose={() => setShowSplash(false)} />
       <UnverifiedContractRisksModal 
         isOpen={showUnverifiedRisksModal} 
         onClose={() => setShowUnverifiedRisksModal(false)} 
       />
-      <motion.div
-        initial={{ opacity: 0.0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{
-          delay: 0.3,
-          duration: 0.8,
-          ease: "easeInOut",
-        }}
-        className="relative flex flex-col gap-4 items-center justify-start px-4 w-full min-h-screen pt-20"
+      <div
+        className="relative flex flex-col gap-4 items-center justify-start w-full min-h-screen max-w-none overflow-y-auto"
       >
-        <div className="container mx-auto p-3 md:p-6 lg:p-8 max-w-7xl w-full pb-32 md:pb-16">
-          
-          <header className="flex items-center justify-between mb-4 md:mb-6 pb-3 md:pb-4 border-b border-slate-700">
-            {/* Back to Home Button */}
-            <a
-              href="/"
-              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-slate-700/30"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              <span className="text-sm font-medium">Back to Home</span>
-            </a>
-            
-            {/* Centered Title */}
-            <div className="flex flex-col items-center">
-            </div>
-            
-            {/* Mobile Search Toggle Button */}
-            <button
-              onClick={() => setIsSearchVisible(!isSearchVisible)}
-              className="md:hidden text-white hover:text-purple-400 transition-colors duration-200"
-              title="Toggle Search"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </button>
-          </header>
+        {/* ContainerTextFlip Demo - Top Half with Even Padding - Only on Initial Load */}
+        {!contractData && !addressSet && (
+          <div className="w-full flex items-center justify-center p-8 md:p-12 lg:p-16 min-h-[50vh]">
+            <ContainerTextFlip />
+          </div>
+        )}
+
+        {/* WobbleCard Demo Component - Temporarily disabled due to API mismatch */}
+        {/* {!addressSet && (
+          <WobbleCard>
+            <div>Tutorial content would go here</div>
+          </WobbleCard>
+        )} */}
+
+        {/* Navigation Menu - Fixed at top */}
+        {!addressSet && (
+          <NavigationMenu className="fixed top-0 left-0 right-0 z-30 bg-black/20 backdrop-blur-xl border-b border-white/10 h-16 md:h-18 w-full max-w-none shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+          <NavigationMenuList className="relative flex items-center w-full px-3 md:px-4 h-full gap-4">
+            {/* Back Button - Left */}
+            <NavigationMenuItem className="flex-shrink-0">
+              <NavigationMenuLink
+                href="/"
+                className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-slate-700/30"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span className="text-sm font-medium hidden sm:inline">Back to Home</span>
+              </NavigationMenuLink>
+            </NavigationMenuItem>
+
+            {/* Spacer to push search to right */}
+            <div className="flex-1" />
+
+            {/* Right-aligned Search Bar with PlaceholdersAndVanishInput */}
+            <NavigationMenuItem className="flex-shrink-0">
+              <div className="relative w-60 lg:w-[32rem] xl:w-[40rem]" ref={searchInputRef}>
+                <PlaceholdersAndVanishInput
+                  placeholders={searchPlaceholders}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setContractAddress(value);
+                    setSearchQuery(value);
+                    if (value.trim()) {
+                      setShowSearchResults(true);
+                    } else {
+                      setShowSearchResults(false);
+                    }
+                  }}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (contractAddress.trim()) {
+                      handleLoadContract();
+                    }
+                  }}
+                />
+                {showSearchResults && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-20 max-h-80 overflow-y-auto">
+                    {isSearching && (
+                      <div className="flex items-center justify-center p-4">
+                        <div className="text-slate-400 text-sm">Searching...</div>
+                      </div>
+                    )}
+                    {!isSearching && searchError && (
+                      <div className="p-4 text-red-400 text-sm">{searchError}</div>
+                    )}
+                    {!isSearching && searchQuery.length >= 2 && searchResults?.length === 0 && !searchError && (
+                      <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
+                    )}
+                    {!isSearching && searchResults?.map(item => (
+                      <div
+                        key={item.address}
+                        onClick={() => handleSelectSearchResult(item)}
+                        className="flex items-center gap-3 p-3 hover:bg-slate-700 cursor-pointer transition-colors"
+                      >
+                        {item.icon_url ?
+                          <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
+                          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
+                        }
+                        <div className="overflow-hidden flex-1">
+                          <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
+                          <div className="text-xs text-slate-400 capitalize">{item.type}</div>
+                          <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </NavigationMenuItem>
+          </NavigationMenuList>
+        </NavigationMenu>
+        )}
+
+                <div className={`w-full max-w-none p-3 md:p-6 lg:p-8 pb-32 md:pb-16 ${addressSet ? 'pt-4' : 'pt-20 md:pt-24'} relative`}>
 
         {error && (
-            <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg relative mb-6" role="alert">
+            <div className="bg-red-900/20 backdrop-blur-xl border border-red-500/30 text-red-200 px-4 py-3 rounded-xl relative mb-6 shadow-[0_8px_32px_rgba(239,68,68,0.2)]" role="alert">
                 <strong className="font-bold">Error: </strong>
                 <span className="block sm:inline">{error}</span>
             </div>
@@ -768,372 +751,400 @@ const App: React.FC = () => {
 
 
 
-
-        {/* Search Section - Collapsible on Mobile */}
-        <div className={`bg-slate-800/30 backdrop-blur-sm p-3 md:p-4 lg:p-6 rounded-xl shadow-lg border border-slate-700/50 mb-6 md:mb-8 transition-all duration-300 ${isSearchVisible ? 'block' : 'hidden md:block'}`}>
-            <div className="flex flex-col gap-3 md:gap-4">
-                <div className="flex flex-col gap-3 md:gap-4">
-                    <div className="w-full relative" ref={searchContainerRef}>
-                        <label htmlFor="contractAddress" className="block text-sm font-medium text-slate-300 mb-2">
-                            Contract Address or Name/Ticker
-                        </label>
-                        <input
-                            type="text"
-                            id="contractAddress"
-                            value={contractAddress}
-                            onChange={(e) => setContractAddress(e.target.value)}
-                            onFocus={() => setIsSearchDropdownVisible(true)}
-                            placeholder="0x... or search for 'Pulse'"
-                            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 md:px-4 py-2 text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:outline-none transition text-sm md:text-base"
-                            disabled={isLoadingContract}
-                            autoComplete="off"
-                        />
-                        {isSearchDropdownVisible && (isSearching || searchResults.length > 0) && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/90 backdrop-blur-sm border border-slate-600/50 rounded-lg shadow-xl z-10 max-h-80 overflow-y-auto">
-                                {isSearching && <div className="p-3 text-slate-400 flex items-center gap-2"><LoadingSpinner className="w-4 h-4" /><span>Searching...</span></div>}
-                                {!isSearching && searchResults.map(item => (
-                                    <div
-                                        key={item.address}
-                                        onClick={() => handleSelectSearchResult(item)}
-                                        className="flex items-center gap-3 p-3 hover:bg-slate-700 cursor-pointer transition-colors"
-                                    >
-                                        {item.icon_url ?
-                                          <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
-                                          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
-                                        }
-                                        <div className="overflow-hidden flex-1">
-                                            <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
-                                            <div className="text-xs text-slate-400 capitalize">{item.type}</div>
-                                            <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    <button
-                        onClick={handleLoadContract}
-                        disabled={isLoadingContract || !contractAddress}
-                        className={`w-full flex items-center justify-center gap-2 bg-transparent border border-white/30 text-white font-semibold px-4 md:px-6 py-2 md:py-3 rounded-lg disabled:bg-slate-600 disabled:cursor-not-allowed transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base hover:border-white/50 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] ${
-                            addressSet && contractAddress ? 'shadow-[0_0_20px_rgba(255,255,255,0.2)] ring-2 ring-white/20' : ''
-                        }`}
-                        style={{
-                            textShadow: "0 0 10px rgba(255,255,255,0.5), 0 0 20px rgba(255,255,255,0.3)",
-                            boxShadow: addressSet && contractAddress ? "0 0 20px rgba(255,255,255,0.2), inset 0 0 20px rgba(255,255,255,0.05)" : "inset 0 0 20px rgba(255,255,255,0.05)"
-                        }}
-                    >
-                        {isLoadingContract ? <LoadingSpinner /> : 'Load Contract'}
-                    </button>
-                </div>
-                
-                {/* Quick Search Buttons */}
-                <div className="flex flex-col gap-2">
-                    <div className="grid grid-cols-4 gap-1.5 md:gap-2">
-                        {[
-                            { ticker: 'WPLS', address: '0xA1077a294dDE1B09bB078844df40758a5D0f9a27', color: 'purple' },
-                            { ticker: 'HEX', address: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39', color: 'orange' },
-                            { ticker: 'PLSX', address: '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab', color: 'red' },
-                            { ticker: 'INC', address: '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d', color: 'green' }
-                        ].map(({ ticker, address, color }) => (
-                            <button
-                                key={ticker}
-                                onClick={() => {
-                                    setContractAddress(address);
-                                    setIsSearchDropdownVisible(false);
-                                    setAddressSet(true);
-                                }}
-                                className={`px-2 py-1.5 md:px-3 md:py-2 bg-transparent text-${color}-400 text-xs md:text-sm font-medium rounded-md md:rounded-lg border border-${color}-500/50 hover:border-${color}-400/70 transition-all duration-200 hover:scale-105 shadow-[0_0_10px_rgba(var(--${color}-500-rgb),0.3)] hover:shadow-[0_0_15px_rgba(var(--${color}-500-rgb),0.5)]`}
-                                style={{
-                                    '--purple-500-rgb': '168, 85, 247',
-                                    '--orange-500-rgb': '249, 115, 22',
-                                    '--red-500-rgb': '239, 68, 68',
-                                    '--green-500-rgb': '34, 197, 94'
-                                } as React.CSSProperties}
-                            >
-                                {ticker}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
         </div>
-        
+
         {isLoadingContract && (
-            <div className="flex flex-col items-center justify-center text-center p-6 md:p-8 bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/50">
-              <LoadingSpinner className="w-8 h-8 md:w-10 md:h-10 text-purple-400" />
+            <div className="flex flex-col items-center justify-center text-center p-6 md:p-8 bg-black/20 backdrop-blur-xl rounded-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+              <LoaderThree className="w-8 h-8 md:w-10 md:h-8 text-purple-400" />
               <p className="mt-4 text-base md:text-lg font-semibold text-white">Loading contract data...</p>
-              <p className="text-slate-400 text-sm md:text-base">Fetching from PulseChain Scan API.</p>
+              <p className="text-slate-300 text-sm md:text-base">Fetching from PulseChain Scan API.</p>
             </div>
         )}
 
         {contractData && (
-          <main className={`grid grid-cols-1 gap-6 md:gap-8 ${activeTab === 'creator' ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
-            {activeTab === 'creator' && (
-              <div className="lg:col-span-1 space-y-6 md:space-y-8">
-                 <div className="relative bg-slate-800/30 backdrop-blur-sm p-3 md:p-4 lg:p-6 rounded-xl shadow-lg border border-slate-700/50">
-                 <GlowingEffect disabled={false} glow={true} />
-                     <h3 className="text-lg md:text-xl font-bold text-white mb-3 md:mb-4">{contractData.name}</h3>
-                     <div className="space-y-2 text-sm">
-                         <div className="flex justify-between items-center"><span className="text-slate-400">Verified</span><span className={`px-2 py-0.5 rounded-full text-xs ${contractData.is_verified ? 'bg-green-800 text-green-200' : 'bg-red-800 text-red-200'}`}>{contractData.is_verified ? 'Yes' : 'No'}</span></div>
-                         <div className="flex justify-between items-center"><span className="text-slate-400">Compiler</span><span className="font-mono text-xs md:text-sm">{contractData.compiler_version}</span></div>
-                         <div className="flex justify-between items-center"><span className="text-slate-400">Optimization</span><span className={`px-2 py-0.5 rounded-full text-xs ${contractData.optimization_enabled ? 'bg-green-800 text-green-200' : 'bg-yellow-800 text-yellow-200'}`}>{contractData.optimization_enabled ? 'Enabled' : 'Disabled'}</span></div>
-                         <div className="flex justify-between items-center pt-1">
-                             <span className="text-slate-400">Owner</span>
-                             <div className="flex items-center gap-2">
-                                 {isFetchingOwner && <LoadingSpinner className="w-4 h-4" />}
-                                 {!isFetchingOwner && (
-                                     ownerAddress ?
-                                     <a href={`https://scan.pulsechain.com/address/${ownerAddress}`} target="_blank" rel="noopener noreferrer" title={ownerAddress} className="font-mono text-purple-400 hover:text-purple-300 transition-colors break-all text-right text-xs md:text-sm">
-                                         {`${ownerAddress.substring(0, 6)}...${ownerAddress.substring(ownerAddress.length - 4)}`}
-                                     </a>
-                                     : <span className="text-slate-500 text-xs md:text-sm">Not Found</span>
-                                 )}
-                             </div>
-                         </div>
-                     </div>
-                 <TokenInfoCard tokenInfo={tokenInfo} />
-                 </div>
-              </div>
-            )}
-
-            <div className={`flex flex-col h-[70vh] md:min-h-[70vh] pb-20 md:pb-0 ${activeTab === 'creator' ? 'lg:col-span-2' : 'lg:col-span-1'}`}>
-                {/* Desktop Tabs */}
-                <div className="hidden md:flex border-b border-slate-700" role="tablist" aria-label="Contract Details">
-                    <TabButton name="Creator" tabId="creator" activeTab={activeTab} onClick={setActiveTab} />
-                    <TabButton name="Source Code" tabId="code" activeTab={activeTab} onClick={setActiveTab} />
-                    <TabButton name="API Response" tabId="api" activeTab={activeTab} onClick={setActiveTab} />
-                    <TabButton name="Chart" tabId="chart" activeTab={activeTab} onClick={setActiveTab} />
-                    <TabButton name="Chat with AI" tabId="chat" activeTab={activeTab} onClick={setActiveTab} />
-                </div>
-                
-                <div className="relative flex-grow bg-slate-800/30 backdrop-blur-sm rounded-b-xl border border-t-0 border-slate-700/50 overflow-hidden h-full">
-                  <GlowingEffect disabled={false} glow={true} />
-                    <div role="tabpanel" hidden={activeTab !== 'creator'} className="h-full overflow-y-auto">
-                        <CreatorTab
-                            creatorAddress={contractData.creator_address_hash}
-                            creationTxHash={contractData.creation_tx_hash}
-                            tokenBalance={creatorTokenBalance}
-                            transactions={creatorTransactions}
-                            tokenInfo={tokenInfo}
-                            isLoading={isLoadingCreatorInfo}
-                        />
-                    </div>
-
-                    <div role="tabpanel" hidden={activeTab !== 'code'} className="h-full">
+          <main className={`flex flex-col ${addressSet ? 'h-full' : 'h-[calc(100vh-6rem)] pb-20 md:pb-0'} max-w-7xl mx-auto w-full px-4`}>
+            <div className="flex flex-col h-full">
+              <div className="relative flex-grow bg-black/20 backdrop-blur-xl rounded-xl border border-white/10 overflow-hidden h-full shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+                   <GlowingEffect disabled={false} glow={true} />
+                   
+                   {/* Simple shadcn/ui Tabs Component */}
+                   <Tabs value={addressSet ? 'chat' : activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+                     {!addressSet && (
+                     <TabsList className="hidden md:grid w-full grid-cols-8 bg-black/20 backdrop-blur-xl border-b border-white/10">
+                         <TabsTrigger value="creator" className="text-xs">Creator</TabsTrigger>
+                         <TabsTrigger value="code" className="text-xs">Source Code</TabsTrigger>
+                         <TabsTrigger value="api" className="text-xs">API Response</TabsTrigger>
+                         <TabsTrigger value="chart" className="text-xs">Chart</TabsTrigger>
+                         <TabsTrigger value="chat" className="text-xs">Chat with AI</TabsTrigger>
+                         <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
+                       <TabsTrigger value="holders" className="text-xs">Holders</TabsTrigger>
+                         <TabsTrigger value="liquidity" className="text-xs">Liquidity</TabsTrigger>
+                       </TabsList>
+                     )}
+                     
+                     <TabsContent value="creator" className="flex-1 overflow-y-auto p-4">
+                       <CreatorTab
+                         creatorAddress={contractData.creator_address_hash}
+                         creationTxHash={contractData.creation_tx_hash}
+                         tokenBalance={creatorTokenBalance}
+                         transactions={creatorTransactions}
+                         tokenInfo={tokenInfo}
+                         isLoading={isLoadingCreatorInfo}
+                       />
+                     </TabsContent>
+                     
+                     <TabsContent value="code" className="flex-1 overflow-y-auto p-4">
                        <SourceCodeTab 
                          sourceCode={contractData.source_code} 
-                         readFunctions={readFunctions}
-                         writeFunctions={writeFunctions}
+                         readFunctions={abiReadFunctions}
+                         writeFunctions={abiWriteFunctions}
                          isAnalyzingAI={isAnalyzingAI}
                        />
-                    </div>
-
-                    <div role="tabpanel" hidden={activeTab !== 'api'} className="h-full">
+                     </TabsContent>
+                     
+                     <TabsContent value="api" className="flex-1 overflow-y-auto p-4">
                        <ApiResponseTab responses={apiResponses} />
-                    </div>
-                    <div role="tabpanel" hidden={activeTab !== 'chart'} className="h-full overflow-y-auto">
-                        {dexScreenerData ? (
-                            <div className="space-y-4 md:space-y-6 p-3 md:p-4">
-                                {/* Desktop Header - Hidden on Mobile */}
-                                <div className="hidden md:flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-0">
-                                    <h3 className="text-base md:text-lg font-semibold text-white">Top Trading Pair</h3>
-                                    <div className="text-xs md:text-sm text-slate-400">
-                                        {dexScreenerData.wplsPairs > 0 ? 'Showing top pair by liquidity' : 'No pairs found'} • {dexScreenerData.totalPairs} total pairs
-                                    </div>
-                                </div>
-                                
-                                {dexScreenerData.pairs.length > 0 ? (
-                                    <div className="space-y-4 md:space-y-6">
-                                        {dexScreenerData.pairs.map((pair, index) => (
-                                            <div key={index} className="bg-slate-800/50 rounded-lg border border-slate-700/50 overflow-hidden">
-                                                {/* Desktop Pair Header - Hidden on Mobile */}
-                                                <div className="hidden md:flex flex-col md:flex-row md:items-center md:justify-between p-3 md:p-4 border-b border-slate-700/50 gap-2 md:gap-0">
-                                                    <div className="flex items-center gap-2 md:gap-3">
-                                                        <div className="text-sm font-medium text-white">
-                                                            {pair.baseToken.symbol}/{pair.quoteToken.symbol}
-                                                        </div>
-                                                        <div className="text-xs text-slate-400">
-                                                            {pair.dexId}
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 text-xs md:text-sm">
-                                                        <div className="text-slate-400">
-                                                            ${parseFloat(pair.priceUsd || '0').toFixed(6)}
-                                                        </div>
-                                                        <div className={`font-medium ${(pair.priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                            {(pair.priceChange?.h24 || 0) >= 0 ? '+' : ''}{(pair.priceChange?.h24 || 0).toFixed(2)}%
-                                                        </div>
-                                                        <a 
-                                                            href={pair.url} 
-                                                            target="_blank" 
-                                                            rel="noopener noreferrer"
-                                                            className="text-blue-400 hover:text-blue-300"
-                                                        >
-                                                            Open Full Chart →
-                                                        </a>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div className="w-full h-[calc(70vh-100px)] md:h-[calc(75vh-200px)]">
-                                                    <iframe
-                                                        src={`${pair.url}?theme=dark`}
-                                                        className="w-full h-full border-0"
-                                                        title={`${pair.baseToken.symbol}/${pair.quoteToken.symbol} Chart`}
-                                                        sandbox="allow-scripts allow-same-origin allow-forms"
-                                                        style={{ minWidth: '100%', width: '100%', minHeight: '100%' }}
-                                                    />
-                                                </div>
-                                                
-                                                {/* Desktop Stats - Hidden on Mobile */}
-                                                <div className="hidden md:block p-3 md:p-4 bg-slate-900/30">
-                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 text-xs md:text-sm">
-                                                        <div>
-                                                            <div className="text-slate-400">Price WPLS</div>
-                                                            <div className="text-white font-medium">{parseFloat(pair.priceNative || '0').toFixed(8)}</div>
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-slate-400">24h Volume</div>
-                                                            <div className="text-white font-medium">${(pair.volume?.h24 || 0).toLocaleString()}</div>
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-slate-400">Liquidity USD</div>
-                                                            <div className="text-white font-medium">${(pair.liquidity?.usd || 0).toLocaleString()}</div>
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-slate-400">FDV</div>
-                                                            <div className="text-white font-medium">${(pair.fdv || 0).toLocaleString()}</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-center text-slate-400 py-6 md:py-8">
-                                        <div className="text-base md:text-lg mb-2">No trading pairs found</div>
-                                        <div className="text-xs md:text-sm">This token may not have any active trading pairs on DEXScreener.</div>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="text-center text-slate-400 py-6 md:py-8">
-                                <div className="text-base md:text-lg mb-2">No chart data available</div>
-                                <div className="text-xs md:text-sm">DEXScreener data will appear here when available.</div>
-                            </div>
-                        )}
-                    </div>
-                    <div role="tabpanel" hidden={activeTab !== 'chat'} className="flex flex-col h-full">
-                        <div ref={chatContainerRef} className="flex-grow p-3 md:p-4 overflow-y-auto space-y-3 md:space-y-4 pb-20 md:pb-0">
-                            {messages.length === 0 && (
-                                <div className="text-center text-slate-400 h-full flex flex-col items-center justify-center gap-3 md:gap-4">
-                                    {isAnalyzingAI ? (
-                                        <>
-                                            <LoaderThree />
-                                            <p className="text-sm md:text-base">Analyzing contract functions with AI...</p>
-                                        </>
-                                    ) : (
-                                        <div className="w-full max-w-md px-3 md:px-0">
-                                            <p className="mb-3 md:mb-4 text-sm md:text-base">Ask a question about the contract...</p>
-                                            
-                                            {/* Question Templates */}
-                                            <div className="space-y-2">
-                                                <p className="text-xs text-slate-500 mb-2 md:mb-3">Quick Questions:</p>
-                                                {[
-                                                    "What does this contract do? What is its purpose in the context of the overall smart contract?",
-                                                    "How much control does owner hold if Owner is not the 0x Dead Address?",
-                                                    "Does this contract interact with any proxy contracts?",
-                                                    "Is this contract unique?",
-                                                    "Audit this code"
-                                                ].map((question, index) => {
-                                                    const colorClasses = [
-                                                        "bg-pink-900/20 hover:bg-pink-800/30 border-pink-700/30 hover:border-pink-600/40",
-                                                        "bg-purple-900/20 hover:bg-purple-800/30 border-purple-700/30 hover:border-purple-600/40",
-                                                        "bg-blue-900/20 hover:bg-blue-800/30 border-blue-700/30 hover:border-blue-600/40",
-                                                        "bg-cyan-900/20 hover:bg-cyan-800/30 border-cyan-700/30 hover:border-cyan-600/40",
-                                                        "bg-red-900/20 hover:bg-red-800/30 border-red-700/30 hover:border-red-600/40"
-                                                    ];
-                                                    
-                                                    return (
-                                                        <button
-                                                            key={index}
-                                                            onClick={() => sendMessage(question)}
-                                                            className={`w-full text-left p-2 md:p-3 rounded-lg transition-all duration-200 text-xs md:text-sm text-slate-300 hover:text-white ${colorClasses[index]}`}
-                                                        >
-                                                            {question}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                            {messages.map((msg) => (
-                                <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[85%] md:max-w-md lg:max-w-2xl rounded-xl px-3 md:px-4 py-2 md:py-3 ${msg.sender === 'user' ? 'bg-purple-700 text-white' : 'bg-slate-700/80 backdrop-blur-sm text-slate-200 border border-slate-600/50'}`}>
-                                        {msg.sender === 'user' ? (
-                                            <div className="text-white text-sm md:text-base">
-                                                {msg.text}
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {msg.text === '...' ? (
-                                                    <LoadingSpinner className="w-4 h-4 md:w-5 md:h-5" />
-                                                ) : (
-                                                    renderMessageText(msg.text)
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                            {isLoadingChat && messages[messages.length - 1]?.sender === 'user' && (
-                                <div className="flex justify-start">
-                                    <div className="max-w-[85%] md:max-w-md lg:max-w-lg rounded-xl px-3 md:px-4 py-2 bg-slate-700 text-slate-200">
-                                        <LoadingSpinner className="w-4 h-4 md:w-5 md:h-5" />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <form onSubmit={handleSendMessage} className="p-3 md:p-4 border-t border-slate-700/50 flex items-center gap-2 md:gap-3 bg-slate-800/30 backdrop-blur-sm flex-shrink-0">
-                            <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask about the contract..." className="flex-grow bg-slate-700 border border-slate-600 rounded-lg px-3 md:px-4 py-2 text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:outline-none transition text-sm md:text-base" disabled={isLoadingChat} />
-                            <button type="submit" disabled={isLoadingChat || !chatInput.trim()} className="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors"><SendIcon className="w-4 h-4 md:w-5 md:h-5"/></button>
-                        </form>
-                    </div>
-                </div>
+                     </TabsContent>
+                     
+                     <TabsContent value="chart" className="flex-1 overflow-y-auto">
+                       {dexScreenerData && dexScreenerData.pairs.length > 0 ? (
+                         <div className="h-full flex flex-col">
+                           {/* Header */}
+                           <div className="p-3 md:p-4 border-b border-white/10 bg-black/10 backdrop-blur-sm">
+                             <div className="flex items-center justify-between">
+                               <div className="flex items-center gap-2 md:gap-3">
+                                 <div className="text-sm font-medium text-white">
+                                   {dexScreenerData.pairs[0].baseToken.symbol}/{dexScreenerData.pairs[0].quoteToken.symbol}
+                                 </div>
+                                 <div className="text-xs text-slate-400">
+                                   {dexScreenerData.pairs[0].dexId}
+                                 </div>
+                               </div>
+                               <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm">
+                                 <div className="text-slate-400">
+                                   ${parseFloat(dexScreenerData.pairs[0].priceUsd || '0').toFixed(6)}
+                                 </div>
+                                 <div className={`font-medium ${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                   {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '+' : ''}{(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
+                                 </div>
+                                 <a 
+                                   href={dexScreenerData.pairs[0].url} 
+                                   target="_blank" 
+                                   rel="noopener noreferrer"
+                                   className="text-blue-400 hover:text-blue-300"
+                                 >
+                                   Open Full Chart →
+                                 </a>
+                               </div>
+                             </div>
+                           </div>
+                           
+                           {/* Chart */}
+                           <div className="flex-1">
+                             <iframe
+                               src={`${dexScreenerData.pairs[0].url}?theme=dark`}
+                               className="w-full h-full border-0"
+                               title={`${dexScreenerData.pairs[0].baseToken.symbol}/${dexScreenerData.pairs[0].quoteToken.symbol} Chart`}
+                               sandbox="allow-scripts allow-same-origin allow-forms"
+                               style={{ minWidth: '100%', width: '100%', minHeight: '100%' }}
+                             />
+                           </div>
+                           
+                           {/* Stats */}
+                           <div className="p-3 md:p-4 bg-black/20 backdrop-blur-xl border-t border-white/10">
+                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 text-xs md:text-sm">
+                               <div>
+                                 <div className="text-slate-400">Price WPLS</div>
+                                 <div className="text-white font-medium">{parseFloat(dexScreenerData.pairs[0].priceNative || '0').toFixed(8)}</div>
+                               </div>
+                               <div>
+                                 <div className="text-slate-400">24h Volume</div>
+                                 <div className="text-white font-medium">${(dexScreenerData.pairs[0].volume?.h24 || 0).toLocaleString()}</div>
+                               </div>
+                               <div>
+                                 <div className="text-slate-400">Liquidity USD</div>
+                                 <div className="text-white font-medium">${(dexScreenerData.pairs[0].liquidity?.usd || 0).toLocaleString()}</div>
+                               </div>
+                               <div>
+                                 <div className="text-slate-400">FDV</div>
+                                 <div className="text-white font-medium">${(dexScreenerData.pairs[0].fdv || 0).toLocaleString()}</div>
+                               </div>
+                             </div>
+                           </div>
+                         </div>
+                       ) : (
+                         <div className="text-center text-slate-400 py-6 md:py-8">
+                           <div className="text-base md:text-lg mb-2">No chart data available</div>
+                           <div className="text-xs md:text-sm">DEXScreener data will appear here when available.</div>
+                         </div>
+                       )}
+                     </TabsContent>
+                     
+                     <TabsContent value="chat" className="flex-1 flex flex-col p-4">
+                       <div ref={chatContainerRef} className="flex-grow overflow-y-auto space-y-3 md:space-y-4 pb-20 md:pb-0">
+                         {messages.length === 0 && (
+                           <div className="text-center text-slate-400 h-full flex flex-col items-center justify-center gap-3 md:gap-4">
+                             {isAnalyzingAI ? (
+                               <>
+                                 <LoaderThree />
+                                 <p className="text-sm md:text-base">Analyzing contract functions with AI...</p>
+                               </>
+                             ) : (
+                               <div className="w-full max-w-md px-3 md:px-0">
+                                 <p className="mb-3 md:mb-4 text-sm md:text-base">Ask a question about the contract...</p>
+                                 
+                                 {/* Question Templates */}
+                                 <div className="space-y-2">
+                                   <p className="text-xs text-slate-500 mb-2 md:mb-3">Quick Questions:</p>
+                                   {[
+                                     "What does this contract do? What is its purpose in the context of the overall smart contract?",
+                                     "How much control does owner hold if Owner is not the 0x Dead Address?",
+                                     "Does this contract interact with any proxy contracts?",
+                                     "Is this contract unique?",
+                                     "Audit this code"
+                                   ].map((question, index) => {
+                                     const colorClasses = [
+                                       "bg-pink-900/20 hover:bg-pink-800/30 border-pink-700/30 hover:border-pink-600/40",
+                                       "bg-purple-900/20 hover:bg-purple-800/30 border-purple-700/30 hover:border-purple-600/40",
+                                       "bg-blue-900/20 hover:bg-blue-800/30 border-blue-700/30 hover:border-blue-600/40",
+                                       "bg-cyan-900/20 hover:bg-cyan-800/30 border-cyan-700/30 hover:border-cyan-600/40",
+                                       "bg-red-900/20 hover:bg-red-800/30 border-red-700/30 hover:border-red-600/40"
+                                     ];
+                                     
+                                     return (
+                                       <button
+                                         key={index}
+                                         onClick={() => sendMessage(question)}
+                                         className={`w-full text-left p-2 md:p-3 rounded-lg transition-all duration-200 text-xs md:text-sm text-slate-300 hover:text-white ${colorClasses[index]}`}
+                                       >
+                                         {question}
+                                       </button>
+                                     );
+                                   })}
+                                 </div>
+                               </div>
+                             )}
+                           </div>
+                         )}
+                         {messages.map((msg) => (
+                           <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                             <div className={`max-w-[85%] md:max-w-md lg:max-w-2xl rounded-xl px-3 md:px-4 py-2 md:py-3 ${msg.sender === 'user' ? 'bg-purple-700 text-white' : 'bg-slate-700 backdrop-blur-sm text-slate-200 border border-slate-600/50'}`}>
+                               {msg.sender === 'user' ? (
+                                 <div className="text-white text-sm md:text-base">
+                                   {msg.text}
+                                 </div>
+                               ) : (
+                                 <div className="space-y-2">
+                                   {msg.text === '...' ? (
+                                     <LoaderThree className="w-4 h-4 md:w-5 md:h-5" />
+                                   ) : (
+                                     renderMessageText(msg.text)
+                                   )}
+                                 </div>
+                               )}
+                             </div>
+                           </div>
+                         ))}
+                         {isLoadingChat && messages[messages.length - 1]?.sender === 'user' && (
+                           <div className="flex justify-start">
+                             <div className="max-w-[85%] md:max-w-md lg:max-w-lg rounded-xl px-3 md:px-4 py-2 bg-slate-700 text-slate-200">
+                               <LoaderThree className="w-4 h-4 md:w-5 md:h-5" />
+                             </div>
+                           </div>
+                         )}
+                       </div>
+                       <form onSubmit={handleSendMessage} className="border-t border-white/10 flex items-center gap-2 md:gap-3 bg-black/20 backdrop-blur-xl flex-shrink-0 p-4">
+                         <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask about the contract..." className="flex-grow bg-black/30 backdrop-blur-sm border border-white/20 rounded-lg px-3 md:px-4 py-2 text-white placeholder-slate-300 focus:ring-2 focus:ring-purple-500 focus:outline-none transition text-sm md:text-base" disabled={isLoadingChat} />
+                         <button type="submit" disabled={isLoadingChat || !chatInput.trim()} className="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors" title="Send message"><SendIcon className="w-4 h-4 md:w-5 md:h-5"/></button>
+                       </form>
+                     </TabsContent>
+                     
+                     
+                     <TabsContent value="info" className="flex-1 overflow-y-auto p-4">
+                       <div className="h-full flex items-center justify-center">
+                         <div className="text-center">
+                           <div className="text-4xl mb-4">🔍</div>
+                           <p className="text-slate-400">Info tab removed</p>
+                         </div>
+                       </div>
+                     </TabsContent>
+                      
+                      {/* Holders Tab */}
+                      <TabsContent value="holders" className="flex-1 overflow-y-auto p-4">
+                        <HoldersTabContent 
+                          contractAddress={contractAddress}
+                          tokenInfo={tokenInfo}
+                        />
+                      </TabsContent>
+                     
+                     <TabsContent value="liquidity" className="flex-1 overflow-y-auto p-4">
+                       <LiquidityTab 
+                         dexScreenerData={dexScreenerData}
+                         isLoading={isLoadingContract}
+                       />
+                     </TabsContent>
+                   </Tabs>
+                 </div>
             </div>
           </main>
         )}
 
-        {/* Mobile Bottom Navigation */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-sm border-t border-slate-700/50 z-40 pb-safe">
-          <div className="flex justify-around items-center py-2">
-            {[
-              { tabId: 'creator' as TabId, name: 'Creator', icon: '👤' },
-              { tabId: 'code' as TabId, name: 'Code', icon: '📄' },
-              { tabId: 'api' as TabId, name: 'API', icon: '🔧' },
-              { tabId: 'chart' as TabId, name: 'Chart', icon: '📊' },
-              { tabId: 'chat' as TabId, name: 'Chat', icon: '💬' }
-            ].map(({ tabId, name, icon }) => (
-              <button
-                key={tabId}
-                onClick={() => setActiveTab(tabId)}
-                className={`flex flex-col items-center justify-center py-2 px-1 min-w-0 flex-1 transition-all duration-200 ${
-                  activeTab === tabId
-                    ? 'text-purple-400 bg-purple-500/10 rounded-lg'
-                    : 'text-slate-400 hover:text-slate-300'
-                }`}
-              >
-                <span className="text-lg mb-1">{icon}</span>
-                <span className="text-xs font-medium truncate">{name}</span>
-              </button>
-            ))}
-          </div>
+        {/* Mobile Sidebar - Floating Tabs Button */}
+        <div className="md:hidden fixed bottom-16 right-4 z-50">
+          {/* Toggle Button */}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-105"
+            title="Toggle navigation menu"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          {/* Collapsible Sidebar */}
+          {isSidebarOpen && (
+            <div 
+              className="absolute bottom-16 right-0 bg-black/20 backdrop-blur-xl border border-white/10 rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.3)] p-2 min-w-[200px]"
+            >
+              <div className="space-y-1">
+                {[
+                  { tabId: 'chat' as TabId, name: 'Chat with AI' },
+                  { tabId: 'creator' as TabId, name: 'Creator' },
+                  { tabId: 'code' as TabId, name: 'Source Code' },
+                  { tabId: 'api' as TabId, name: 'API Response' },
+                  { tabId: 'chart' as TabId, name: 'Chart' },
+                  { tabId: 'info' as TabId, name: 'Info' },
+                  { tabId: 'holders' as TabId, name: 'Holders' },
+                  { tabId: 'liquidity' as TabId, name: 'Liquidity' }
+                ].map(({ tabId, name }, index) => (
+                  <button
+                    key={tabId}
+                    onClick={() => {
+                      setActiveTab(tabId);
+                      setIsSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center px-3 py-2 rounded-md transition-all duration-200 text-left ${
+                      activeTab === tabId
+                        ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                        : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                    }`}
+                  >
+                    <span className="text-sm font-medium">{name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        </div>
-      </motion.div>
-    </AuroraBackground>
+
+        {/* Click outside to close sidebar */}
+        {isSidebarOpen && (
+          <div 
+            className="md:hidden fixed inset-0 z-40"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+      </div>
+    </div>
   );
 };
 
 export default App;
+ 
+// Holders Tab Content (local to this page)
+const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInfo | null }>
+  = ({ contractAddress, tokenInfo }) => {
+  const [list, setList] = useState<Array<{ address: string; value: string }>>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchTopHolders = async () => {
+      if (!contractAddress) return;
+      setLoading(true);
+      try {
+        const res = await pulsechainApiService.getTokenHolders(contractAddress, 50);
+        const items = (res.data?.items as Array<{ address: { hash: string } | string; value: string }>) || (Array.isArray(res.data) ? (res.data as Array<{ address: { hash: string } | string; value: string }>) : []);
+        if (!cancelled) setList(items.map((h: { address: { hash: string } | string; value: string }) => ({ address: typeof h.address === 'string' ? h.address : h.address.hash, value: h.value })));
+      } catch {
+        if (!cancelled) setList([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchTopHolders();
+    return () => { cancelled = true; };
+  }, [contractAddress]);
+
+  const decimals = tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18;
+  const totalSupply = tokenInfo?.total_supply ? Number(tokenInfo.total_supply) : 0;
+
+  const percentOfSupply = (raw: string): number => {
+    if (!totalSupply) return 0;
+    const bal = Number(raw);
+    if (!Number.isFinite(bal)) return 0;
+    return (bal / totalSupply) * 100;
+  };
+
+  const formatAmount = (raw: string) => {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return '0';
+    const v = n / Math.pow(10, decimals);
+    return v.toLocaleString(undefined, { maximumFractionDigits: 6 });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-white font-semibold">Top 50 Holders</h3>
+        {tokenInfo?.symbol && (
+          <div className="text-slate-400 text-sm">Token: {tokenInfo.symbol}</div>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <LoaderThree className="w-6 h-6" />
+        </div>
+      ) : list.length === 0 ? (
+        <div className="text-center text-slate-400 py-12">No holders found</div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-white/10">
+          <table className="w-full text-sm">
+            <thead className="bg-black/30">
+              <tr className="text-left text-slate-300">
+                <th className="px-4 py-2">#</th>
+                <th className="px-4 py-2">Address</th>
+                <th className="px-4 py-2">Balance</th>
+                <th className="px-4 py-2">% of Supply</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((h, idx) => {
+                const pct = percentOfSupply(h.value);
+                return (
+                  <tr key={h.address || idx} className="border-t border-white/10 hover:bg-white/5">
+                    <td className="px-4 py-2 text-slate-400">{idx + 1}</td>
+                    <td className="px-4 py-2">
+                      <code className="font-mono text-purple-300">{h.address?.slice(0, 10)}...{h.address?.slice(-6)}</code>
+                    </td>
+                    <td className="px-4 py-2 text-white">{formatAmount(h.value)} {tokenInfo?.symbol}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-medium">{pct.toFixed(4)}%</span>
+                        <div className="flex-1 h-2 bg-white/10 rounded-full">
+                          <div className="h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full" style={{ width: `${Math.min(100, pct)}%` }} />
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};

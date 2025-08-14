@@ -8,7 +8,8 @@ import {
   useTransform,
 } from "motion/react";
 import { useRef } from "react";
-import { cn } from "/lib/utils";
+import { cn } from "@/lib/utils";
+import { useMobileOptimization } from "@/lib/hooks/useMobileOptimization";
 
 export function Button({
   borderRadius = "1.75rem",
@@ -29,6 +30,8 @@ export function Button({
   className?: string;
   [key: string]: any;
 }) {
+  const mobileConfig = useMobileOptimization();
+  
   return (
     <Component
       className={cn(
@@ -40,19 +43,21 @@ export function Button({
       }}
       {...otherProps}
     >
-      <div
-        className="absolute inset-0"
-        style={{ borderRadius: `calc(${borderRadius} * 0.96)` }}
-      >
-        <MovingBorder duration={duration} rx="30%" ry="30%">
-          <div
-            className={cn(
-              "h-20 w-20 bg-[radial-gradient(#0ea5e9_40%,transparent_60%)] opacity-[0.8]",
-              borderClassName,
-            )}
-          />
-        </MovingBorder>
-      </div>
+      {!mobileConfig.shouldDisableHeavyAnimations && (
+        <div
+          className="absolute inset-0"
+          style={{ borderRadius: `calc(${borderRadius} * 0.96)` }}
+        >
+          <MovingBorder duration={duration} rx="30%" ry="30%">
+            <div
+              className={cn(
+                "h-20 w-20 bg-[radial-gradient(#0ea5e9_40%,transparent_60%)] opacity-[0.8]",
+                borderClassName,
+              )}
+            />
+          </MovingBorder>
+        </div>
+      )}
 
       <div
         className={cn(
@@ -82,10 +87,16 @@ export const MovingBorder = ({
   ry?: string;
   [key: string]: any;
 }) => {
+  const mobileConfig = useMobileOptimization();
   const pathRef = useRef<any>();
   const progress = useMotionValue<number>(0);
 
   useAnimationFrame((time) => {
+    // Only run animation if not disabled
+    if (mobileConfig.shouldDisableHeavyAnimations || mobileConfig.shouldReduceMotion) {
+      return;
+    }
+    
     const length = pathRef.current?.getTotalLength();
     if (length) {
       const pxPerMillisecond = length / duration;
@@ -104,7 +115,12 @@ export const MovingBorder = ({
 
   const transform = useMotionTemplate`translateX(${x}px) translateY(${y}px) translateX(-50%) translateY(-50%)`;
 
-  return (
+  // Always render the same component structure, but with different content
+  return mobileConfig.shouldDisableHeavyAnimations || mobileConfig.shouldReduceMotion ? (
+    <div className="absolute inset-0">
+      {children}
+    </div>
+  ) : (
     <>
       <svg
         xmlns="http://www.w3.org/2000/svg"
