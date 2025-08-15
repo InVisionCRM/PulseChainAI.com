@@ -124,6 +124,14 @@ const agents = [
     icon: IconHex,
     color: "from-orange-500 to-red-500",
     size: "col-span-1 md:col-span-2 row-span-1"
+  },
+  {
+    id: 8,
+    name: "LookIntoRH Clone",
+    description: "Track Richard Heart's treasury movements, monitor PulseChain & PulseX sacrifice wallets, and analyze ETH holdings in real-time",
+    icon: IconBarChart,
+    color: "from-indigo-500 to-blue-500",
+    size: "col-span-1 md:col-span-2 row-span-1"
   }
 ];
 
@@ -177,6 +185,8 @@ export default function AIAgentsSection() {
                   window.location.href = "/stat-counter-builder";
                 } else if (agent.name === "HEX Stats") {
                   window.location.href = "/hex-dashboard";
+                } else if (agent.name === "LookIntoRH Clone") {
+                  window.location.href = "/look-into-rh";
                 }
               }}
             >
