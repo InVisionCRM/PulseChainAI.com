@@ -127,7 +127,7 @@ const agents = [
   },
   {
     id: 8,
-    name: "LookIntoRH Clone",
+    name: "Debank",
     description: "Track Richard Heart's treasury movements and analyze transaction history from sacrifice wallets and alleged ETH purchases",
     icon: IconChartBar,
     color: "from-purple-500 to-indigo-500",
@@ -160,7 +160,7 @@ export default function AIAgentsSection() {
           {agents.map((agent, index) => (
             <motion.div
               key={agent.id}
-              className={`relative group cursor-pointer ${agent.size}`}
+              className={`relative group ${agent.name === "Debank" ? "" : "cursor-pointer"} ${agent.size}`}
               initial={{ opacity: 0, scale: 0.8 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ 
@@ -169,7 +169,7 @@ export default function AIAgentsSection() {
                 ease: "easeOut"
               }}
               viewport={{ once: true }}
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: agent.name === "Debank" ? 1 : 1.02 }}
               onClick={() => {
                 if (agent.name === "AI Code Reader/Chat Agent") {
                   window.location.href = "/ai-agent";
@@ -185,8 +185,9 @@ export default function AIAgentsSection() {
                   window.location.href = "/stat-counter-builder";
                 } else if (agent.name === "HEX Stats") {
                   window.location.href = "/hex-dashboard";
-                } else if (agent.name === "LookIntoRH Clone") {
-                  window.location.href = "/look-into-rh";
+                } else if (agent.name === "Debank") {
+                  // Coming Soon - no navigation
+                  return;
                 }
               }}
             >
@@ -199,7 +200,7 @@ export default function AIAgentsSection() {
                   inactiveZone={0.01}
                 />
                 
-                <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
+                <div className={`relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm ${agent.name === "Debank" ? "blur-sm" : ""}`}>
                   {/* Content */}
                   <div className="relative flex flex-1 flex-col justify-between gap-3">
                     <div className="flex items-center mb-3 md:mb-4">
@@ -217,11 +218,21 @@ export default function AIAgentsSection() {
                     
                     <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-800">
                       <div className="flex items-center text-xs text-gray-500">
-                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                        AI Agent Ready
+                        <div className={`w-2 h-2 rounded-full mr-2 ${agent.name === "Debank" ? "bg-yellow-500" : "bg-green-500"}`}></div>
+                        {agent.name === "Debank" ? "Coming Soon" : "AI Agent Ready"}
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Coming Soon Overlay for Debank */}
+                  {agent.name === "Debank" && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
+                        <div className="text-sm text-gray-300">This feature is under development</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -230,4 +241,4 @@ export default function AIAgentsSection() {
       </div>
     </section>
   );
-} 
+}
