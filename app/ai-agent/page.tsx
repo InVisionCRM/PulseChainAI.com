@@ -10,6 +10,8 @@ import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuL
 
 import type { Message, ContractData, TokenInfo, AbiItem, ExplainedFunction, SearchResultItem, Transaction, TokenBalance, DexScreenerData } from '../../types';
 import { fetchContract, fetchTokenInfo, search, fetchReadMethods, fetchCreatorTransactions, fetchAddressTokenBalances, fetchAddressInfo, fetchDexScreenerData } from '../../services/pulsechainService';
+import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
+import { coingeckoApi } from '../../services/blockchain/coingeckoApi';
 import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { useApiKey } from '../../lib/hooks/useApiKey';
 import { useGemini } from '../../lib/hooks/useGemini';
@@ -117,6 +119,7 @@ const App: React.FC = () => {
   const [contractData, setContractData] = useState<ContractData | null>(null);
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [dexScreenerData, setDexScreenerData] = useState<DexScreenerData | null>(null);
+  const [coinGeckoData, setCoinGeckoData] = useState<any>(null);
   const [explainedFunctions, setExplainedFunctions] = useState<ExplainedFunction[] | null>(null);
   
   // Creator Tab State
@@ -156,6 +159,7 @@ const App: React.FC = () => {
   // Refs
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const headerSearchInputRef = useRef<HTMLInputElement>(null);
 
   // Hooks
   const { getApiKey } = useApiKey();
@@ -221,6 +225,7 @@ const App: React.FC = () => {
     setContractData(null);
     setTokenInfo(null);
     setDexScreenerData(null);
+    setCoinGeckoData(null);
     setExplainedFunctions(null);
     // setOwnerAddress(null); // This line was removed
     setMessages([]);
@@ -230,19 +235,32 @@ const App: React.FC = () => {
     setApiResponses({});
 
     try {
-      const [contractResult, tokenResult, dexResult] = await Promise.all([
+      const [contractResult, tokenResult, dexResult, profileResult, coinGeckoResult] = await Promise.all([
         fetchContract(contractAddress),
         fetchTokenInfo(contractAddress),
-        fetchDexScreenerData(contractAddress)
+        fetchDexScreenerData(contractAddress),
+        dexscreenerApi.getTokenProfile(contractAddress),
+        coingeckoApi.getTokenProfile(contractAddress, 'ethereum') // Try Ethereum first, will search other networks if needed
       ]);
 
       setContractData(contractResult.data);
       setTokenInfo(tokenResult.data);
       setDexScreenerData(dexResult.data);
+      
+      // Use comprehensive profile data if available, fallback to regular DexScreener data
+      const finalDexData = profileResult.success ? profileResult.data : dexResult.data;
+      setDexScreenerData(finalDexData);
+      
+      // Set CoinGecko data for rich token profile information
+      if (coinGeckoResult.success) {
+        setCoinGeckoData(coinGeckoResult.data);
+      }
+      
       setApiResponses({
         contract: contractResult.data,
         token: tokenResult.data,
-        dex: dexResult.data
+        dex: finalDexData,
+        coinGecko: coinGeckoResult.data
       });
 
       // Auto-analyze with AI
@@ -627,6 +645,14 @@ const App: React.FC = () => {
     setIsSearchFocused(false);
     setShowTutorial(false);
     setAddressSet(true); // This triggers the auto-loading useEffect
+    
+    // Clear both search inputs
+    if (searchInputRef.current) {
+      searchInputRef.current.value = '';
+    }
+    if (headerSearchInputRef.current) {
+      headerSearchInputRef.current.value = '';
+    }
   };
 
   const explainedReadFunctions = explainedFunctions?.filter(f => f.type === 'read') || [];
@@ -708,14 +734,69 @@ const App: React.FC = () => {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            <span className="text-sm font-medium">Back to Home</span>
+            <span className="text-sm font-medium hidden md:inline">Back to Home</span>
           </a>
         </div>
 
         {/* ContainerTextFlip Demo - Top Half with Even Padding - Only on Initial Load */}
         {!contractData && !addressSet && (
-          <div className="w-full flex items-center justify-center p-8 md:p-12 lg:p-16 min-h-[50vh]">
+          <div className="w-full flex flex-col items-center justify-center p-8 md:p-12 lg:p-16 min-h-[50vh] gap-8">
             <ContainerTextFlip />
+            
+            {/* Search Bar - Only visible when no token is loaded */}
+            <div className="relative w-80 lg:w-[40rem] xl:w-[50rem]" ref={searchInputRef}>
+              <PlaceholdersAndVanishInput
+                placeholders={searchPlaceholders}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setContractAddress(value);
+                  setSearchQuery(value);
+                  if (value.trim()) {
+                    setShowSearchResults(true);
+                  } else {
+                    setShowSearchResults(false);
+                  }
+                }}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (contractAddress.trim()) {
+                    handleLoadContract();
+                  }
+                }}
+              />
+              {showSearchResults && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-20 max-h-80 overflow-y-auto">
+                  {isSearching && (
+                    <div className="flex items-center justify-center p-4">
+                      <div className="text-slate-400 text-sm">Searching...</div>
+                    </div>
+                  )}
+                  {!isSearching && searchError && (
+                    <div className="p-4 text-red-400 text-sm">{searchError}</div>
+                  )}
+                  {!isSearching && searchQuery.length >= 2 && searchResults?.length === 0 && !searchError && (
+                    <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
+                  )}
+                  {!isSearching && searchResults?.map(item => (
+                    <div
+                      key={item.address}
+                      onClick={() => handleSelectSearchResult(item)}
+                      className="flex items-center gap-3 p-3 hover:bg-slate-700 cursor-pointer transition-colors"
+                    >
+                      {item.icon_url ?
+                        <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
+                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
+                      }
+                      <div className="overflow-hidden flex-1">
+                        <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
+                        <div className="text-xs text-slate-400 capitalize">{item.type}</div>
+                        <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -726,87 +807,74 @@ const App: React.FC = () => {
           </WobbleCard>
         )} */}
 
-        {/* Navigation Menu - Fixed at top */}
-        {!addressSet && (
-          <NavigationMenu className="fixed top-0 left-0 right-0 z-30 bg-black/20 backdrop-blur-xl border-b border-white/10 h-16 md:h-18 w-full max-w-none shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+        {/* Navigation Menu - Fixed at top - Always visible */}
+        <NavigationMenu className="fixed top-0 left-0 right-0 z-30 bg-black/20 backdrop-blur-xl border-b border-white/10 h-16 md:h-18 w-full max-w-none shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
           <NavigationMenuList className="relative flex items-center w-full px-3 md:px-4 h-full gap-4">
-            {/* Back Button - Left */}
-            <NavigationMenuItem className="flex-shrink-0">
-              <NavigationMenuLink
-                href="/"
-                className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-slate-700/30"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                <span className="text-sm font-medium hidden sm:inline">Back to Home</span>
-              </NavigationMenuLink>
-            </NavigationMenuItem>
-
-            {/* Spacer to push search to right */}
+            {/* Spacer to center the navigation */}
             <div className="flex-1" />
-
-            {/* Right-aligned Search Bar with PlaceholdersAndVanishInput */}
-            <NavigationMenuItem className="flex-shrink-0">
-              <div className="relative w-60 lg:w-[32rem] xl:w-[40rem]" ref={searchInputRef}>
-                <PlaceholdersAndVanishInput
-                  placeholders={searchPlaceholders}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setContractAddress(value);
-                    setSearchQuery(value);
-                    if (value.trim()) {
-                      setShowSearchResults(true);
-                    } else {
-                      setShowSearchResults(false);
-                    }
-                  }}
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (contractAddress.trim()) {
-                      handleLoadContract();
-                    }
-                  }}
-                />
-                {showSearchResults && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-20 max-h-80 overflow-y-auto">
-                    {isSearching && (
-                      <div className="flex items-center justify-center p-4">
-                        <div className="text-slate-400 text-sm">Searching...</div>
-                      </div>
-                    )}
-                    {!isSearching && searchError && (
-                      <div className="p-4 text-red-400 text-sm">{searchError}</div>
-                    )}
-                    {!isSearching && searchQuery.length >= 2 && searchResults?.length === 0 && !searchError && (
-                      <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
-                    )}
-                    {!isSearching && searchResults?.map(item => (
-                      <div
-                        key={item.address}
-                        onClick={() => handleSelectSearchResult(item)}
-                        className="flex items-center gap-3 p-3 hover:bg-slate-700 cursor-pointer transition-colors"
-                      >
-                        {item.icon_url ?
-                          <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
-                          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
-                        }
-                        <div className="overflow-hidden flex-1">
-                          <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
-                          <div className="text-xs text-slate-400 capitalize">{item.type}</div>
-                          <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
+            
+            {/* Search Bar - Right-aligned, only visible after token is loaded */}
+            {addressSet && (
+              <NavigationMenuItem className="flex-shrink-0">
+                <div className="relative w-60 lg:w-[32rem] xl:w-[40rem]" ref={headerSearchInputRef}>
+                  <PlaceholdersAndVanishInput
+                    placeholders={searchPlaceholders}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setContractAddress(value);
+                      setSearchQuery(value);
+                      if (value.trim()) {
+                        setShowSearchResults(true);
+                      } else {
+                        setShowSearchResults(false);
+                      }
+                    }}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (contractAddress.trim()) {
+                        handleLoadContract();
+                      }
+                    }}
+                  />
+                  {showSearchResults && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-20 max-h-80 overflow-y-auto">
+                      {isSearching && (
+                        <div className="flex items-center justify-center p-4">
+                          <div className="text-slate-400 text-sm">Searching...</div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </NavigationMenuItem>
+                      )}
+                      {!isSearching && searchError && (
+                        <div className="p-4 text-red-400 text-sm">{searchError}</div>
+                      )}
+                      {!isSearching && searchQuery.length >= 2 && searchResults?.length === 0 && !searchError && (
+                        <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
+                      )}
+                      {!isSearching && searchResults?.map(item => (
+                        <div
+                          key={item.address}
+                          onClick={() => handleSelectSearchResult(item)}
+                          className="flex items-center gap-3 p-3 hover:bg-slate-700 cursor-pointer transition-colors"
+                        >
+                          {item.icon_url ?
+                            <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
+                            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
+                          }
+                          <div className="overflow-hidden flex-1">
+                            <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
+                            <div className="text-xs text-slate-400 capitalize">{item.type}</div>
+                            <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </NavigationMenuItem>
+            )}
           </NavigationMenuList>
         </NavigationMenu>
-        )}
 
-                <div className={`w-full max-w-none p-3 md:p-6 lg:p-8 pb-32 md:pb-16 ${addressSet ? 'pt-4' : 'pt-20 md:pt-24'} relative`}>
+                <div className={`w-full max-w-none p-3 md:p-6 lg:p-8 pb-32 md:pb-16 pt-20 md:pt-24 relative`}>
 
         {error && (
             <div className="bg-red-900/20 backdrop-blur-xl border border-red-500/30 text-red-200 px-4 py-3 rounded-xl relative mb-6 shadow-[0_8px_32px_rgba(239,68,68,0.2)]" role="alert">
@@ -833,10 +901,17 @@ const App: React.FC = () => {
               <div className="relative flex-grow bg-black/20 backdrop-blur-xl rounded-xl border border-white/10 overflow-hidden h-full shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
                    <GlowingEffect disabled={false} glow={true} />
                    
+                   {/* Mobile Navigation Hint */}
+                   <div className="md:hidden p-3 text-center bg-purple-600/20 border-b border-purple-500/30">
+                     <p className="text-xs text-purple-300">
+                       💡 Use the navigation button to switch between tabs
+                     </p>
+                   </div>
+                   
                    {/* Simple shadcn/ui Tabs Component */}
                    <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
                      {contractData && (
-                     <TabsList className="grid w-full grid-cols-8 bg-black/20 backdrop-blur-xl border-b border-white/10">
+                     <TabsList className="hidden md:grid w-full grid-cols-8 bg-black/20 backdrop-blur-xl border-b border-white/10">
                          <TabsTrigger value="creator" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Creator</TabsTrigger>
                          <TabsTrigger value="code" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Source Code</TabsTrigger>
                          <TabsTrigger value="api" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">API Response</TabsTrigger>
@@ -848,7 +923,7 @@ const App: React.FC = () => {
                        </TabsList>
                      )}
                      
-                     <TabsContent value="creator" className="flex-1 overflow-y-auto p-4">
+                     <TabsContent value="creator" className="flex-1 overflow-y-auto p-3 md:p-4">
                        <CreatorTab
                          creatorAddress={contractData.creator_address_hash}
                          creationTxHash={contractData.creation_tx_hash}
@@ -859,7 +934,7 @@ const App: React.FC = () => {
                        />
                      </TabsContent>
                      
-                     <TabsContent value="code" className="flex-1 overflow-y-auto p-4">
+                     <TabsContent value="code" className="flex-1 overflow-y-auto p-3 md:p-4">
                        <SourceCodeTab 
                          sourceCode={contractData.source_code} 
                          readFunctions={abiReadFunctions}
@@ -868,7 +943,7 @@ const App: React.FC = () => {
                        />
                      </TabsContent>
                      
-                     <TabsContent value="api" className="flex-1 overflow-y-auto p-4">
+                     <TabsContent value="api" className="flex-1 overflow-y-auto p-3 md:p-4">
                        <ApiResponseTab responses={apiResponses} />
                      </TabsContent>
                      
@@ -946,7 +1021,7 @@ const App: React.FC = () => {
                        )}
                      </TabsContent>
                      
-                     <TabsContent value="chat" className="flex-1 flex flex-col p-4">
+                     <TabsContent value="chat" className="flex-1 flex flex-col p-3 md:p-4">
                        <div ref={chatContainerRef} className="flex-grow overflow-y-auto space-y-3 md:space-y-4 pb-20 md:pb-0 min-h-[600px]">
                          {messages.length === 0 && (
                            <div className="text-center text-slate-400 h-full flex flex-col items-center justify-center gap-3 md:gap-4">
@@ -1026,24 +1101,407 @@ const App: React.FC = () => {
                      </TabsContent>
                      
                      
-                     <TabsContent value="info" className="flex-1 overflow-y-auto p-4">
-                       <div className="h-full flex items-center justify-center">
-                         <div className="text-center">
-                           <div className="text-4xl mb-4">🔍</div>
-                           <p className="text-slate-400">Info tab removed</p>
+                     <TabsContent value="info" className="flex-1 overflow-y-auto p-3 sm:p-4">
+                       <div className="h-full space-y-4 sm:space-y-6">
+                         {/* Top Header Section */}
+                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 gap-3 sm:gap-0">
+                           {/* Left: Token Info */}
+                           <div className="flex items-center gap-3 sm:gap-4">
+                             {coinGeckoData?.image?.large || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI ? (
+                               <img 
+                                 src={coinGeckoData?.image?.large || dexScreenerData.pairs[0].baseToken.logoURI} 
+                                 alt={`${coinGeckoData?.symbol || dexScreenerData.pairs[0].baseToken.symbol} logo`}
+                                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10"
+                               />
+                             ) : (
+                               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
+                                 <span className="text-xl sm:text-2xl font-bold text-purple-400">
+                                   {coinGeckoData?.symbol?.[0] || dexScreenerData?.pairs?.[0]?.baseToken?.symbol?.[0] || '?'}
+                                 </span>
+                               </div>
+                             )}
+                             <div>
+                               <h2 className="text-xl sm:text-2xl font-bold text-white">
+                                 {coinGeckoData?.symbol || dexScreenerData?.pairs?.[0]?.baseToken?.symbol || 'Unknown'}
+                               </h2>
+                               <p className="text-sm sm:text-base text-slate-400">
+                                 {coinGeckoData?.name || dexScreenerData?.pairs?.[0]?.baseToken?.name || 'Unknown Token'}
+                               </p>
+                               {/* Token Description */}
+                               {coinGeckoData?.description?.en && (
+                                 <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-md">
+                                   {coinGeckoData.description.en}
+                                 </p>
+                               )}
+                             </div>
+                           </div>
+                           
+                           {/* Right: Price Display */}
+                           <div className="text-left sm:text-right">
+                             <div className="text-2xl sm:text-3xl font-bold text-white">
+                               ${parseFloat(dexScreenerData?.pairs?.[0]?.priceUsd || '0').toFixed(8)}
+                             </div>
+                             <div className={`text-base sm:text-lg font-medium ${
+                               (dexScreenerData?.pairs?.[0]?.priceChange?.h24 || 0) >= 0 
+                                 ? 'text-green-400' 
+                                 : 'text-red-400'
+                             }`}>
+                               {(dexScreenerData?.pairs?.[0]?.priceChange?.h24 || 0) >= 0 ? '+' : ''}
+                               {(dexScreenerData?.pairs?.[0]?.priceChange?.h24 || 0).toFixed(2)}%
+                             </div>
+                           </div>
+                         </div>
+
+                                                  {/* Key Metrics Row */}
+                         <div className="grid grid-cols-5 gap-2 sm:gap-4">
+                           <button 
+                             onClick={() => setActiveTab('liquidity')}
+                             className="p-2 sm:p-4 text-center hover:bg-white/5 transition-colors cursor-pointer rounded-lg"
+                             title="Click to view detailed liquidity information"
+                           >
+                               <div className="text-xs sm:text-sm text-slate-400 mb-1">Liquidity</div>
+                               <div className="text-sm sm:text-xl font-bold text-blue-400">
+                                 ${(dexScreenerData?.pairs?.[0]?.liquidity?.usd || 0).toLocaleString()}
+                               </div>
+                             </button>
+                           
+                                                        <div className="p-2 sm:p-4 text-center">
+                               <div className="text-xs sm:text-sm text-slate-400 mb-1">Volume</div>
+                               <div className="text-sm sm:text-xl font-bold text-green-400">
+                                 ${(dexScreenerData?.pairs?.[0]?.volume?.h24 || 0).toLocaleString()}
+                               </div>
+                             </div>
+                           
+                                                        <div className="p-2 sm:p-4 text-center">
+                               <div className="text-xs sm:text-sm text-slate-400 mb-1">Supply</div>
+                               <div className="text-sm sm:text-xl font-bold text-purple-400">
+                                 {(parseFloat(dexScreenerData?.pairs?.[0]?.baseToken?.totalSupply || '0') / Math.pow(10, parseInt(dexScreenerData?.pairs?.[0]?.baseToken?.decimals || '18'))).toLocaleString()}
+                               </div>
+                             </div>
+                           
+                                                        <div className="p-2 sm:p-4 text-center">
+                               <div className="text-xs sm:text-sm text-slate-400 mb-1">Age</div>
+                               <div className="text-sm sm:text-xl font-bold text-yellow-400">
+                                 {contractData?.creation_tx_hash ? 'N/A' : 'N/A'}
+                               </div>
+                             </div>
+                           
+                                                        <div className="p-2 sm:p-4 text-center">
+                               <div className="text-sm text-slate-400 mb-1">Holders</div>
+                               <div className="text-sm sm:text-xl font-bold text-pink-400">
+                                 {tokenInfo?.holders?.toLocaleString() || 'N/A'}
+                               </div>
+                             </div>
+                         </div>
+
+
+
+                         {/* Bottom Information */}
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+                           {/* Smart Contract */}
+                           <div className="p-3 sm:p-4">
+                             <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-3">Smart Contract</h3>
+                             <div className="space-y-2">
+                               <div className="flex items-center gap-2">
+                                 <span className="text-slate-400 text-xs sm:text-sm">Address:</span>
+                                 <div className="flex items-center gap-2">
+                                   <code className="text-xs text-blue-400 font-mono bg-black/30 px-2 py-1 rounded">
+                                     {contractAddress}
+                                   </code>
+                                   <button
+                                     onClick={() => {
+                                       navigator.clipboard.writeText(contractAddress);
+                                       // You could add a toast notification here
+                                     }}
+                                     className="text-blue-400 hover:text-blue-300 transition-colors"
+                                     title="Copy address to clipboard"
+                                   >
+                                     📋
+                                   </button>
+                                 </div>
+                               </div>
+                               <div className="flex items-center gap-2">
+                                 <span className="text-slate-400 text-xs sm:text-sm">Decimals:</span>
+                                 <span className="text-white text-sm">{tokenInfo?.decimals || '18'}</span>
+                               </div>
+                               <div className="flex items-center gap-2">
+                                 <span className="text-slate-400 text-xs sm:text-sm">Creator:</span>
+                                 <code className="text-xs text-purple-400 font-mono bg-black/30 px-2 py-1 rounded">
+                                   {contractData?.creator_address_hash?.slice(0, 10)}...{contractData?.creator_address_hash?.slice(-8)}
+                                 </code>
+                               </div>
+                             </div>
+                           </div>
+
+                           {/* Token Info */}
+                           <div className="p-3 sm:p-4">
+                             <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-3">Token Info</h3>
+                             <div className="space-y-2">
+                               <div className="flex items-center gap-2">
+                                 <span className="text-slate-400 text-xs sm:text-sm">Total Supply:</span>
+                                 <span className="text-white text-sm">
+                                   {(parseFloat(tokenInfo?.total_supply || '0') / Math.pow(10, parseInt(tokenInfo?.decimals || '18'))).toLocaleString()}
+                                 </span>
+                               </div>
+                               <div className="flex items-center gap-2">
+                                 <span className="text-slate-400 text-xs sm:text-sm">Market Cap:</span>
+                                 <span className="text-white text-sm">
+                                   ${(dexScreenerData?.pairs?.[0]?.fdv || 0).toLocaleString()}
+                                 </span>
+                               </div>
+                               <div className="flex items-center gap-2">
+                                 <span className="text-slate-400 text-xs sm:text-sm">Verification:</span>
+                                 <span className={`text-xs sm:text-sm px-2 py-1 rounded ${
+                                   contractData?.is_verified 
+                                     ? 'bg-green-500/20 text-green-400' 
+                                     : 'bg-red-500/20 text-red-400'
+                                 }`}>
+                                   {contractData?.is_verified ? 'Verified' : 'Unverified'}
+                                 </span>
+                               </div>
+                               {coinGeckoData?.categories?.[0] && (
+                                 <div className="flex items-center gap-2">
+                                   <span className="text-slate-400 text-xs sm:text-sm">Category:</span>
+                                   <span className="text-white text-sm">{coinGeckoData.categories[0]}</span>
+                                 </div>
+                               )}
+                               {coinGeckoData?.tags?.[0] && (
+                                 <div className="flex items-center gap-2">
+                                   <span className="text-slate-400 text-xs sm:text-sm">Tags:</span>
+                                   <span className="text-white text-sm">{coinGeckoData.tags.slice(0, 3).join(', ')}</span>
+                                 </div>
+                               )}
+                             </div>
+                           </div>
+
+                           {/* Social Links & Websites */}
+                           <div className="p-3 sm:p-4">
+                             <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-3">Social & Links</h3>
+                             <div className="space-y-3">
+                               {/* Social Links */}
+                               {coinGeckoData?.links && (
+                                 <div className="space-y-2">
+                                   <div className="text-xs text-slate-400 uppercase tracking-wide">Social Media</div>
+                                   <div className="flex flex-wrap gap-2">
+                                     {coinGeckoData?.links?.twitter_screen_name && (
+                                       <a 
+                                         href={`https://twitter.com/${coinGeckoData.links.twitter_screen_name}`}
+                                         target="_blank"
+                                         rel="noopener noreferrer"
+                                         className="inline-flex items-center gap-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs px-2 py-1 rounded transition-colors"
+                                       >
+                                         <span>🐦</span> Twitter
+                                       </a>
+                                     )}
+                                     {coinGeckoData?.links?.telegram_channel_identifier && (
+                                       <a 
+                                         href={`https://t.me/${coinGeckoData.links.telegram_channel_identifier}`}
+                                         target="_blank"
+                                         rel="noopener noreferrer"
+                                         className="inline-flex items-center gap-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs px-2 py-1 rounded transition-colors"
+                                       >
+                                         <span>📱</span> Telegram
+                                       </a>
+                                     )}
+                                     {coinGeckoData?.links?.chat_url?.[0] && (
+                                       <a 
+                                         href={coinGeckoData.links.chat_url[0]}
+                                         target="_blank"
+                                         rel="noopener noreferrer"
+                                         className="inline-flex items-center gap-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs px-2 py-1 rounded transition-colors"
+                                       >
+                                         <span>🎮</span> Discord
+                                       </a>
+                                     )}
+                                     {coinGeckoData?.links?.subreddit_url && (
+                                       <a 
+                                         href={coinGeckoData.links.subreddit_url}
+                                         target="_blank"
+                                         rel="noopener noreferrer"
+                                         className="inline-flex items-center gap-1 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 text-xs px-2 py-1 rounded transition-colors"
+                                       >
+                                         <span>💬</span> Reddit
+                                       </a>
+                                     )}
+                                     {coinGeckoData?.links?.repos_url?.github?.[0] && (
+                                       <a 
+                                         href={coinGeckoData.links.repos_url.github[0]}
+                                         target="_blank"
+                                         rel="noopener noreferrer"
+                                         className="inline-flex items-center gap-1 bg-gray-500/20 hover:bg-gray-500/30 text-gray-400 text-xs px-2 py-1 rounded transition-colors"
+                                       >
+                                         <span>💻</span> GitHub
+                                       </a>
+                                     )}
+                                     {coinGeckoData?.links?.facebook_username && (
+                                       <a 
+                                         href={`https://facebook.com/${coinGeckoData.links.facebook_username}`}
+                                         target="_blank"
+                                         rel="noopener noreferrer"
+                                         className="inline-flex items-center gap-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-500 text-xs px-2 py-1 rounded transition-colors"
+                                       >
+                                         <span>📘</span> Facebook
+                                       </a>
+                                     )}
+                                   </div>
+                                 </div>
+                               
+                               {/* Community Stats */}
+                               {coinGeckoData?.community_data && (
+                                 <div className="space-y-2">
+                                   <div className="text-xs text-slate-400 uppercase tracking-wide">Community Stats</div>
+                                   <div className="grid grid-cols-2 gap-2">
+                                     {coinGeckoData.community_data.reddit_subscribers > 0 && (
+                                       <div className="text-xs text-slate-300">
+                                         Reddit: {coinGeckoData.community_data.reddit_subscribers.toLocaleString()}
+                                       </div>
+                                     )}
+                                     {coinGeckoData.community_data.telegram_channel_user_count && (
+                                       <div className="text-xs text-slate-300">
+                                         Telegram: {coinGeckoData.community_data.telegram_channel_user_count.toLocaleString()}
+                                       </div>
+                                     )}
+                                     {coinGeckoData.community_data.facebook_likes && (
+                                       <div className="text-xs text-slate-300">
+                                         Facebook: {coinGeckoData.community_data.facebook_likes.toLocaleString()}
+                                       </div>
+                                     )}
+                                     {coinGeckoData.watchlist_portfolio_users > 0 && (
+                                       <div className="text-xs text-slate-300">
+                                         Watchlist: {coinGeckoData.watchlist_portfolio_users.toLocaleString()}
+                                       </div>
+                                     )}
+                                   </div>
+                                 </div>
+                               )}
+                               
+                               {/* Categories & Tags */}
+                               {coinGeckoData?.categories && coinGeckoData.categories.length > 0 && (
+                                 <div className="space-y-2">
+                                   <div className="text-xs text-slate-400 uppercase tracking-wide">Categories</div>
+                                   <div className="flex flex-wrap gap-1">
+                                     {coinGeckoData.categories.slice(0, 5).map((category, index) => (
+                                       <span key={index} className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded">
+                                         {category}
+                                       </span>
+                                     ))}
+                                   </div>
+                                 </div>
+                               )}
+                               
+                               {/* Website */}
+                               {coinGeckoData?.links?.homepage?.[0] && (
+                                 <div className="space-y-2">
+                                   <div className="text-xs text-slate-400 uppercase tracking-wide">Website</div>
+                                   <a 
+                                     href={coinGeckoData.links.homepage[0]}
+                                     target="_blank"
+                                     rel="noopener noreferrer"
+                                     className="inline-flex items-center gap-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs px-2 py-1 rounded transition-colors"
+                                   >
+                                     <span>🌐</span> Official Site
+                                   </a>
+                                 </div>
+                               )}
+                               
+                               {/* Additional Links */}
+                               {coinGeckoData?.links?.blockchain_site?.[0] && (
+                                 <div className="space-y-2">
+                                   <div className="text-xs text-slate-400 uppercase tracking-wide">Blockchain Explorer</div>
+                                   <a 
+                                     href={coinGeckoData.links.blockchain_site[0]}
+                                     target="_blank"
+                                     rel="noopener noreferrer"
+                                     className="inline-flex items-center gap-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 text-xs px-2 py-1 rounded transition-colors"
+                                   >
+                                     <span>🔗</span> View on Explorer
+                                   </a>
+                                 </div>
+                               )}
+                               
+                               {/* Network Info */}
+                               <div className="space-y-2 pt-2 border-t border-white/10">
+                                 <div className="flex items-center gap-2">
+                                   <span className="text-slate-400 text-xs sm:text-sm">Network:</span>
+                                   <span className="text-white text-sm">PulseChain</span>
+                                 </div>
+                                 <div className="flex items-center gap-2">
+                                   <span className="text-slate-400 text-xs sm:text-sm">Standard:</span>
+                                   <span className="text-white text-sm">PRC-20</span>
+                                 </div>
+
+                                 {coinGeckoData?.community_data?.reddit_subscribers && (
+                                   <div className="flex items-center gap-2">
+                                     <span className="text-slate-400 text-xs sm:text-sm">Reddit:</span>
+                                     <span className="text-white text-sm">{coinGeckoData.community_data.reddit_subscribers.toLocaleString()} members</span>
+                                   </div>
+                                 )}
+                               </div>
+                             </div>
+                           </div>
+                         </div>
+                         
+                         {/* Chart Section - Moved to bottom */}
+                         <div className="overflow-hidden">
+                           {/* Chart Header */}
+                           <div className="p-3 sm:p-4">
+                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+                               <div className="flex items-center gap-2">
+                                 <span className="text-white font-medium text-sm sm:text-base">
+                                   {dexScreenerData?.pairs?.[0]?.baseToken?.symbol}/{dexScreenerData?.pairs?.[0]?.quoteToken?.symbol}
+                                 </span>
+                                 <span className="text-slate-400 text-xs sm:text-sm">
+                                   on {dexScreenerData?.pairs?.[0]?.dexId}
+                                 </span>
+                               </div>
+                               <div className="flex items-center gap-2">
+                                 <a 
+                                   href={dexScreenerData?.pairs?.[0]?.url} 
+                                   target="_blank" 
+                                   rel="noopener noreferrer"
+                                   className="text-blue-400 hover:text-blue-300 text-xs sm:text-sm"
+                                 >
+                                   View on DexScreener →
+                                 </a>
+                               </div>
+                             </div>
+                           </div>
+                           
+                           {/* Embedded Chart - Reduced size */}
+                           <div className="w-full">
+                             {dexScreenerData?.pairs?.[0]?.pairAddress ? (
+                               <>
+                                 <style>{`#dexscreener-embed{position:relative;width:70%;padding-bottom:50%;margin:0 auto;}@media(min-width:1400px){#dexscreener-embed{padding-bottom:25%;}}#dexscreener-embed iframe{position:absolute;width:100%;height:100%;top:0;left:0;border:0;border-radius:12px;}`}</style>
+                                 <div id="dexscreener-embed" className="rounded-xl overflow-hidden">
+                                   <iframe 
+                                     src={`https://dexscreener.com/pulsechain/${dexScreenerData.pairs[0].pairAddress}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartDefaultOnMobile=1&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=15`}
+                                     title={`${dexScreenerData.pairs[0].baseToken.symbol}/${dexScreenerData.pairs[0].quoteToken.symbol} Chart`}
+                                     sandbox="allow-scripts allow-same-origin allow-forms"
+                                   />
+                                 </div>
+                               </>
+                             ) : (
+                               <div className="h-40 sm:h-48 md:h-60 lg:h-72 flex items-center justify-center text-slate-400">
+                                 <div className="text-center">
+                                   <div className="text-4xl mb-2">📊</div>
+                                   <p>Chart data not available</p>
+                                 </div>
+                               </div>
+                             )}
+                           </div>
                          </div>
                        </div>
                      </TabsContent>
                       
                       {/* Holders Tab */}
-                      <TabsContent value="holders" className="flex-1 overflow-y-auto p-4">
+                      <TabsContent value="holders" className="flex-1 overflow-y-auto p-3 md:p-4">
                         <HoldersTabContent 
                           contractAddress={contractAddress}
                           tokenInfo={tokenInfo}
                         />
                       </TabsContent>
                      
-                     <TabsContent value="liquidity" className="flex-1 overflow-y-auto p-4">
+                     <TabsContent value="liquidity" className="flex-1 overflow-y-auto p-3 md:p-4">
                        <LiquidityTab 
                          dexScreenerData={dexScreenerData}
                          isLoading={isLoadingContract}
@@ -1060,13 +1518,25 @@ const App: React.FC = () => {
           {/* Toggle Button */}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-105"
-            title="Toggle navigation menu"
+            className="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-full shadow-lg transition-all duration-200 hover:scale-105 border-2 border-purple-400/30"
+            title="Navigation Menu"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
+          
+          {/* Active Tab Indicator */}
+          <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+            {activeTab === 'chat' ? 'AI' : 
+             activeTab === 'creator' ? 'Creator' : 
+             activeTab === 'code' ? 'Code' : 
+             activeTab === 'api' ? 'API' : 
+             activeTab === 'chart' ? 'Chart' : 
+             activeTab === 'info' ? 'Info' : 
+             activeTab === 'holders' ? 'Holders' : 
+             activeTab === 'liquidity' ? 'Liquidity' : 'Menu'}
+          </div>
 
           {/* Collapsible Sidebar */}
           {isSidebarOpen && (
