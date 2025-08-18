@@ -62,13 +62,13 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
   };
 
   const sortedStakes = useMemo(() => {
-    if (!historyData || !historyData.stakes) return [];
+    if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return [];
     
     const stakesToSort = activeTab === 'active' 
-      ? historyData.stakes.filter(s => s.isActive)
+      ? historyData.stakes.filter(s => s && s.isActive)
       : activeTab === 'ended'
-      ? historyData.stakes.filter(s => !s.isActive)
-      : historyData.stakes;
+      ? historyData.stakes.filter(s => s && !s.isActive)
+      : historyData.stakes.filter(s => s);
 
     return [...stakesToSort].sort((a, b) => {
       let aValue: number | string, bValue: number | string;
@@ -112,7 +112,8 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
   }, [historyData, activeTab, sortField, sortDirection]);
 
   const getStakeEndData = (stakeId: string): HexStakeEnd | undefined => {
-    return historyData?.stakeEnds?.find(end => end.stakeId === stakeId);
+    if (!historyData?.stakeEnds || !Array.isArray(historyData.stakeEnds)) return undefined;
+    return historyData.stakeEnds.find(end => end && end.stakeId === stakeId);
   };
 
   const getStakeStatusColor = (stake: HexStake) => {
@@ -324,11 +325,12 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                     </div>
                     <div className="text-xl font-bold text-blue-400">
                       {(() => {
-                        if (!historyData || !historyData.stakes) return '0.0%';
+                        if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0.0%';
                         
-                        const endedStakes = historyData.stakes.filter(s => !s.isActive);
+                        const endedStakes = historyData.stakes.filter(s => s && !s.isActive);
                         const service = network === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
                         const apyValues = endedStakes.map(stake => {
+                          if (!stake) return 0;
                           const endData = getStakeEndData(stake.stakeId);
                           if (endData && parseFloat(endData.payout || '0') > 0) {
                             return service.calculateStakeAPY(stake, endData);
@@ -423,7 +425,8 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                       </tr>
                     </thead>
                     <tbody className="bg-transparent divide-y divide-white/10">
-                      {sortedStakes.map((stake) => {
+                      {sortedStakes.filter(stake => stake).map((stake) => {
+                        if (!stake) return null;
                         const endData = getStakeEndData(stake.stakeId);
                         const progress = stake.daysServed && stake.stakedDays 
                           ? (stake.daysServed / parseInt(stake.stakedDays)) * 100 
@@ -431,7 +434,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                         const hasPenalty = endData && parseFloat(endData.penalty || '0') > 0;
                         
                         return (
-                          <tr key={stake.id} className="hover:bg-white/5">
+                          <tr key={stake.id || stake.stakeId} className="hover:bg-white/5">
                             <td className="px-3 py-4 whitespace-nowrap text-sm">
                               <div className={`flex items-center gap-2 ${getStakeStatusColor(stake)}`}>
                                 {getStakeStatusIcon(stake)}
