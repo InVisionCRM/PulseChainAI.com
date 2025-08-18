@@ -63,7 +63,10 @@ export async function POST(req: NextRequest) {
     // Simple response like AIAgentChat expects
     const result = await ai.models.generateContent({
       model: 'gemini-2.5-flash-lite',
-      contents: message,
+      contents: [{
+        role: 'user',
+        parts: [{ text: message }]
+      }],
       config: {
         temperature: 0.7,
         topK: 40,
