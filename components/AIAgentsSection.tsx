@@ -200,7 +200,7 @@ export default function AIAgentsSection() {
                   inactiveZone={0.01}
                 />
                 
-                <div className={`relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm ${agent.name === "Debank" ? "blur-sm" : ""}`}>
+                <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
                   {/* Content */}
                   <div className="relative flex flex-1 flex-col justify-between gap-3">
                     <div className="flex items-center mb-3 md:mb-4">

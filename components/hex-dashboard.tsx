@@ -801,16 +801,7 @@ const HEXDataDashboard = () => {
                 <Brain className="w-4 h-4" />
                 {showGeminiAnalysis ? 'Hide' : 'Show'} AI Analysis
               </button>
-              <button
-                onClick={() => {
-                  setShowDexPairs(true);
-                  void loadDexPairs();
-                }}
-                className="bg-white/10 hover:bg-white/20 text-white font-bold py-2 px-4 rounded-lg border border-white/20"
-                title="View PulseChain HEX liquidity pairs (DexScreener)"
-              >
-                View HEX Pairs (PLS)
-              </button>
+
             </div>
           </div>
 
