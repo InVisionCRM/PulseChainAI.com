@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import NewMultiTokenPreview from './NewMultiTokenPreview';
 import StatBuilderHeader from './StatBuilderHeader';
 import CodeGenerationModal from './CodeGenerationModal';

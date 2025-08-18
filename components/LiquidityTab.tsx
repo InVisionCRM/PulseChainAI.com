@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import type { DexScreenerData } from '@/types';
 
 interface LiquidityTabProps {

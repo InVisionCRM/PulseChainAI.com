@@ -1,5 +1,5 @@
 "use client";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 // Simple SVG icon components
 const IconFileText = () => (
@@ -123,7 +123,15 @@ const agents = [
     description: "Complete HEX daily statistics dashboard with historical data from Ethereum and PulseChain networks",
     icon: IconHex,
     color: "from-orange-500 to-red-500",
-    size: "col-span-1 md:col-span-2 row-span-1"
+    size: "col-span-1 md:col-span-1 row-span-1"
+  },
+  {
+    id: 8,
+    name: "LookIntoRH Clone",
+    description: "Track Richard Heart's treasury movements and analyze transaction history from sacrifice wallets and alleged ETH purchases",
+    icon: IconChartBar,
+    color: "from-purple-500 to-indigo-500",
+    size: "col-span-1 md:col-span-1 row-span-1"
   }
 ];
 
@@ -177,6 +185,8 @@ export default function AIAgentsSection() {
                   window.location.href = "/stat-counter-builder";
                 } else if (agent.name === "HEX Stats") {
                   window.location.href = "/hex-dashboard";
+                } else if (agent.name === "LookIntoRH Clone") {
+                  window.location.href = "/look-into-rh";
                 }
               }}
             >

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
 import { LoaderThree } from "@/components/ui/loader";

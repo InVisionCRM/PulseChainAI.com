@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { TokenData } from './StatCounterBuilder';
 import { pulsechainApi, dexscreenerApi } from '@/services';
 

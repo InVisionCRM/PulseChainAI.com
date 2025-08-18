@@ -3,7 +3,7 @@ import { useState } from "react";
 import TokenSelector from "./TokenSelector";
 import StatSelector from "./StatSelector";
 import { TokenData, StatConfig } from "./StatCounterBuilder";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface AddTokenModalProps {
   open: boolean;

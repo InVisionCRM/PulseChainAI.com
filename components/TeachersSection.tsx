@@ -1,5 +1,5 @@
 "use client";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 // Teacher icon components

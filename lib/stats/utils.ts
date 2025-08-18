@@ -27,7 +27,7 @@ const cache: {
   }
 } = {};
 
-const fetchJson = async (url: string): Promise<any> => {
+export const fetchJson = async (url: string): Promise<any> => {
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();

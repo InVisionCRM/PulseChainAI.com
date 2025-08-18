@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import TokenSelector from './TokenSelector';
 import StatSelector from './StatSelector';
 import CodeGenerator from './CodeGenerator';

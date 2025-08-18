@@ -307,8 +307,8 @@ export default function AdminStatsPage(): JSX.Element {
           holders: Number(tokenCountersRes.data?.token_holders_count ?? tokenInfoRes.data?.holders ?? 0),
           transfersTotal: Number(tokenCountersRes.data?.transfers_count ?? 0),
           verified: !!addressInfoRes.data?.is_verified,
-          creator: addressInfoRes.data?.creator_address_hash,
-          creationTx: addressInfoRes.data?.creation_tx_hash,
+          creator: null, // creator_address_hash not available in current API
+          creationTx: null, // creation_tx_hash not available in current API
         },
         holders: {
           top1Pct,
@@ -703,9 +703,9 @@ export default function AdminStatsPage(): JSX.Element {
         const pairs = dex?.pairs || [];
         if (pairs.length === 0) return { avgBuy: 0, avgSell: 0 };
 
-        const totalVolume = pairs.reduce((sum, p) => sum + Number(p.volume?.h24 || 0), 0);
-        const totalBuys = pairs.reduce((sum, p) => sum + Number(p.txns?.h24?.buys || 0), 0);
-        const totalSells = pairs.reduce((sum, p) => sum + Number(p.txns?.h24?.sells || 0), 0);
+        const totalVolume = pairs.reduce((sum: number, p) => sum + Number(p.volume?.h24 || 0), 0);
+        const totalBuys = pairs.reduce((sum: number, p) => sum + Number(p.txns?.h24?.buys || 0), 0);
+        const totalSells = pairs.reduce((sum: number, p) => sum + Number(p.txns?.h24?.sells || 0), 0);
 
         // Cannot determine buy/sell volume, so we approximate by ratio
         const totalTrades = totalBuys + totalSells;

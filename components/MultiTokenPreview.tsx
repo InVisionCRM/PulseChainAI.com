@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, Reorder } from 'motion/react';
+import { motion, Reorder } from 'framer-motion';
 import { useState } from 'react';
 import { StatCounterConfig, TokenCard } from './StatCounterBuilder';
 import LivePreview from './LivePreview';

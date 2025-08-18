@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { IconSearch, IconPlus, IconX, IconBrain, IconApi, IconCheck } from "@tabler/icons-react";
 import { generateGeminiResponse } from "../lib/gemini";
 import { pulsechainApi } from "../services";

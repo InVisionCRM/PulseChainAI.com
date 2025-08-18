@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-// import { motion } from "motion/react"; // Temporarily disabled due to TypeScript issues
+// import { motion } from "framer-motion"; // Temporarily disabled due to TypeScript issues
 
 import { LoaderThree } from "@/components/ui/loader";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
@@ -397,8 +397,7 @@ const App: React.FC = () => {
           message: text,
           contractData,
           tokenInfo,
-          dexScreenerData,
-          apiKey: getApiKey()
+          dexScreenerData
         })
       });
 
@@ -627,6 +626,7 @@ const App: React.FC = () => {
     setShowSearchResults(false);
     setIsSearchFocused(false);
     setShowTutorial(false);
+    setAddressSet(true); // This triggers the auto-loading useEffect
   };
 
   const explainedReadFunctions = explainedFunctions?.filter(f => f.type === 'read') || [];
@@ -768,17 +768,17 @@ const App: React.FC = () => {
                    <GlowingEffect disabled={false} glow={true} />
                    
                    {/* Simple shadcn/ui Tabs Component */}
-                   <Tabs value={addressSet ? 'chat' : activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-                     {!addressSet && (
-                     <TabsList className="hidden md:grid w-full grid-cols-8 bg-black/20 backdrop-blur-xl border-b border-white/10">
-                         <TabsTrigger value="creator" className="text-xs">Creator</TabsTrigger>
-                         <TabsTrigger value="code" className="text-xs">Source Code</TabsTrigger>
-                         <TabsTrigger value="api" className="text-xs">API Response</TabsTrigger>
-                         <TabsTrigger value="chart" className="text-xs">Chart</TabsTrigger>
-                         <TabsTrigger value="chat" className="text-xs">Chat with AI</TabsTrigger>
-                         <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
-                       <TabsTrigger value="holders" className="text-xs">Holders</TabsTrigger>
-                         <TabsTrigger value="liquidity" className="text-xs">Liquidity</TabsTrigger>
+                   <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+                     {contractData && (
+                     <TabsList className="grid w-full grid-cols-8 bg-black/20 backdrop-blur-xl border-b border-white/10">
+                         <TabsTrigger value="creator" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Creator</TabsTrigger>
+                         <TabsTrigger value="code" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Source Code</TabsTrigger>
+                         <TabsTrigger value="api" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">API Response</TabsTrigger>
+                         <TabsTrigger value="chart" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Chart</TabsTrigger>
+                         <TabsTrigger value="chat" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Chat with AI</TabsTrigger>
+                         <TabsTrigger value="info" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Info</TabsTrigger>
+                       <TabsTrigger value="holders" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Holders</TabsTrigger>
+                         <TabsTrigger value="liquidity" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Liquidity</TabsTrigger>
                        </TabsList>
                      )}
                      
@@ -806,9 +806,9 @@ const App: React.FC = () => {
                        <ApiResponseTab responses={apiResponses} />
                      </TabsContent>
                      
-                     <TabsContent value="chart" className="flex-1 overflow-y-auto">
+                     <TabsContent value="chart" className="flex-1 overflow-y-auto min-h-[800px]">
                        {dexScreenerData && dexScreenerData.pairs.length > 0 ? (
-                         <div className="h-full flex flex-col">
+                         <div className="h-full flex flex-col min-h-[800px]">
                            {/* Header */}
                            <div className="p-3 md:p-4 border-b border-white/10 bg-black/10 backdrop-blur-sm">
                              <div className="flex items-center justify-between">
@@ -840,13 +840,13 @@ const App: React.FC = () => {
                            </div>
                            
                            {/* Chart */}
-                           <div className="flex-1">
+                           <div className="flex-1 min-h-[700px]">
                              <iframe
                                src={`${dexScreenerData.pairs[0].url}?theme=dark`}
                                className="w-full h-full border-0"
                                title={`${dexScreenerData.pairs[0].baseToken.symbol}/${dexScreenerData.pairs[0].quoteToken.symbol} Chart`}
                                sandbox="allow-scripts allow-same-origin allow-forms"
-                               style={{ minWidth: '100%', width: '100%', minHeight: '100%' }}
+                               style={{ minWidth: '100%', width: '100%', minHeight: '700px' }}
                              />
                            </div>
                            
@@ -1064,11 +1064,92 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
       if (!contractAddress) return;
       setLoading(true);
       try {
-        const res = await pulsechainApiService.getTokenHolders(contractAddress, 50);
-        const items = (res.data?.items as Array<{ address: { hash: string } | string; value: string }>) || (Array.isArray(res.data) ? (res.data as Array<{ address: { hash: string } | string; value: string }>) : []);
-        if (!cancelled) setList(items.map((h: { address: { hash: string } | string; value: string }) => ({ address: typeof h.address === 'string' ? h.address : h.address.hash, value: h.value })));
-      } catch {
-        if (!cancelled) setList([]);
+        console.log('Fetching holders for:', contractAddress);
+        
+        // Debug: Show what endpoint we're calling
+        console.log('Calling endpoint:', `/tokens/${contractAddress}/holders`);
+        
+        // Try the standard token holders endpoint first
+        const res = await pulsechainApiService.getTokenHolders(contractAddress, 1, 50);
+        console.log('Holders API response:', res);
+        
+        // Also try a direct fetch to see what's happening
+        try {
+          console.log('Trying direct fetch to debug...');
+          const directResponse = await fetch(`/api/pulsechain-proxy?endpoint=/tokens/${contractAddress}/holders&page=1&limit=50`);
+          console.log('Direct response status:', directResponse.status);
+          if (directResponse.ok) {
+            const directData = await directResponse.json();
+            console.log('Direct response data:', directData);
+          } else {
+            const errorText = await directResponse.text();
+            console.log('Direct response error:', errorText);
+          }
+        } catch (directError) {
+          console.error('Direct fetch error:', directError);
+        }
+        
+        // Check if the response has the expected structure
+        let items: Array<{ address: string; value: string }> = [];
+        
+        if (Array.isArray(res)) {
+          // Direct array response
+          items = res.map((h: any) => ({ 
+            address: h.address?.hash || '', 
+            value: h.value || '0' 
+          })).filter(item => item.address && item.value);
+        } else if (res.data && Array.isArray(res.data)) {
+          // Response with data array
+          items = res.data.map((h: any) => ({ 
+            address: h.address?.hash || '', 
+            value: h.value || '0' 
+          })).filter(item => item.address && item.value);
+        } else if (res.items && Array.isArray(res.items)) {
+          // Response with items array
+          items = res.items.map((h: any) => ({ 
+            address: h.address?.hash || '', 
+            value: h.value || '0' 
+          })).filter(item => item.address && item.value);
+        }
+        
+        console.log('Processed items:', items);
+        console.log('Sample item structure:', items[0]);
+        
+        if (!cancelled) setList(items);
+      } catch (error) {
+        console.error('Error fetching holders:', error);
+        
+        // Log the full error details
+        if (error instanceof Error) {
+          console.error('Error message:', error.message);
+          console.error('Error stack:', error.stack);
+        }
+        
+        // Try alternative approach - get token info first to see if it's a valid token
+        try {
+          console.log('Trying to get token info as fallback...');
+          const tokenInfo = await pulsechainApiService.getTokenInfo(contractAddress);
+          console.log('Token info:', tokenInfo);
+          
+          // Try to get token counters to see holder count
+          try {
+            const counters = await pulsechainApiService.getTokenCounters(contractAddress);
+            console.log('Token counters:', counters);
+          } catch (countersError) {
+            console.error('Could not get token counters:', countersError);
+          }
+          
+          if (tokenInfo.holders > 0) {
+            console.log(`Token has ${tokenInfo.holders} holders, but couldn't fetch individual holder data`);
+            // Set empty list but show the total count
+            if (!cancelled) setList([]);
+          } else {
+            if (!cancelled) setList([]);
+          }
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError);
+          if (!cancelled) setList([]);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -1127,7 +1208,9 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
                   <tr key={h.address || idx} className="border-t border-white/10 hover:bg-white/5">
                     <td className="px-4 py-2 text-slate-400">{idx + 1}</td>
                     <td className="px-4 py-2">
-                      <code className="font-mono text-purple-300">{h.address?.slice(0, 10)}...{h.address?.slice(-6)}</code>
+                      <code className="font-mono text-purple-300">
+                        {h.address ? `${h.address.slice(0, 10)}...${h.address.slice(-6)}` : 'Unknown Address'}
+                      </code>
                     </td>
                     <td className="px-4 py-2 text-white">{formatAmount(h.value)} {tokenInfo?.symbol}</td>
                     <td className="px-4 py-2">

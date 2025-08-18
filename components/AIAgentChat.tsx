@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import type { Message } from '../types';

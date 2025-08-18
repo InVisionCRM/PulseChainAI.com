@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { useMoralis } from '@/lib/hooks/useMoralis';
 import { moralisService } from '@/services/moralisService';
 

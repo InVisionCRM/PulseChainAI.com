@@ -12,26 +12,75 @@ const buildGeminiHistory = (messages: Message[]): Content[] => {
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = getApiKey(req);
-    const { history, message, contract } = await req.json();
+    const body = await req.json();
+    console.log('Chat API received body:', JSON.stringify(body, null, 2));
+    
+    const { message, contractData, tokenInfo, dexScreenerData } = body;
 
-    if (!message || !contract) {
+    console.log('Extracted data:', {
+      hasMessage: !!message,
+      hasContractData: !!contractData,
+      hasTokenInfo: !!tokenInfo,
+      hasDexScreenerData: !!dexScreenerData,
+      contractDataKeys: contractData ? Object.keys(contractData) : 'null',
+      message: message?.substring(0, 100) + '...'
+    });
+
+    if (!message || !contractData) {
+      console.log('Validation failed:', { message: !!message, contractData: !!contractData });
       return new Response(JSON.stringify({ error: 'Missing message or contract data' }), { status: 400, headers: {'Content-Type': 'application/json'} });
+    }
+    
+    // Get API key from environment variable like other APIs
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.log('GEMINI_API_KEY environment variable missing');
+      return new Response(JSON.stringify({ error: 'API key not configured' }), { status: 500, headers: {'Content-Type': 'application/json'} });
     }
     
     const ai = new GoogleGenAI({ apiKey });
     
-    const chatHistory: Content[] = history ? buildGeminiHistory(history as Message[]) : [];
+    // Build contract context from the data
+    const contractContext = {
+      name: contractData.name || 'Unknown Contract',
+      source_code: contractData.source_code || 'No source code available',
+      address: contractData.address_hash || contractData.address || 'Unknown address',
+      creator: contractData.creator_address_hash || 'Unknown creator',
+      token_info: tokenInfo ? {
+        name: tokenInfo.name,
+        symbol: tokenInfo.symbol,
+        decimals: tokenInfo.decimals,
+        total_supply: tokenInfo.total_supply
+      } : null,
+      dex_data: dexScreenerData ? {
+        pairs: dexScreenerData.pairs?.length || 0,
+        price: dexScreenerData.pairs?.[0]?.priceUsd || 'Unknown'
+      } : null
+    };
 
-    const chat = ai.chats.create({
-      model: 'gemini-2.5-flash',
-      history: chatHistory,
+    console.log('Built contract context:', contractContext);
+
+    // Simple response like AIAgentChat expects
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-lite',
+      contents: message,
       config: {
-        systemInstruction: `You are a world-class expert in Solidity and smart contract security. Analyze the provided smart contract source code to answer questions using the AI Smart Contract Response Formatting Guide. The user has loaded the contract named '${contract.name}'.
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 4000,
+        systemInstruction: `You are a world-class expert in Solidity and smart contract security. Analyze the provided smart contract source code to answer questions using the AI Smart Contract Response Formatting Guide. The user has loaded the contract named '${contractContext.name}' at address ${contractContext.address}.
 
 \`\`\`solidity
-${contract.source_code}
+${contractContext.source_code}
 \`\`\`
+
+**Contract Context:**
+- **Name**: ${contractContext.name}
+- **Address**: ${contractContext.address}
+- **Creator**: ${contractContext.creator}
+${contractContext.token_info ? `- **Token**: ${contractContext.token_info.name} (${contractContext.token_info.symbol}) - ${contractContext.token_info.decimals} decimals` : ''}
+${contractContext.dex_data ? `- **DEX Pairs**: ${contractContext.dex_data.pairs} - Current Price: $${contractContext.dex_data.price}` : ''}
 
 **AI Smart Contract Response Formatting Guide:**
 
@@ -72,8 +121,6 @@ ${contract.source_code}
 ### 9. **Use Horizontal Rules (\`---\`) to Separate Major Sections**
 - Improves visual hierarchy in longer responses
 
-
-
 **CRITICAL: Keep responses CONCISE and SCANNABLE. Aim for 2-4 sentences max for simple questions, 1-2 paragraphs for complex analysis.**
 
 **Response Structure:**
@@ -93,24 +140,28 @@ ${contract.source_code}
 Keep responses focused, actionable, and easy to scan.`,
       },
     });
-
-    const geminiStream = await chat.sendMessageStream({ message });
-
-    const readableStream = new ReadableStream({
-        async start(controller) {
-            const encoder = new TextEncoder();
-            for await (const chunk of geminiStream) {
-                const text = chunk.text;
-                if (text) {
-                    controller.enqueue(encoder.encode(text));
-                }
-            }
-            controller.close();
+    
+    console.log('Gemini API result structure:', JSON.stringify(result, null, 2));
+    
+    // Extract response text using the actual Gemini API structure
+    let response = '';
+    if (result.candidates && result.candidates[0] && result.candidates[0].content) {
+      for (const part of result.candidates[0].content.parts) {
+        if (part.text) {
+          response += part.text;
         }
-    });
+      }
+    }
+    
+    if (!response) {
+      console.error('No response text found in result:', result);
+      throw new Error('No response text received from Gemini API');
+    }
+    
+    console.log('Extracted response:', response.substring(0, 200) + '...');
 
-    return new Response(readableStream, {
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    return new Response(JSON.stringify({ response }), {
+      headers: { 'Content-Type': 'application/json' },
     });
 
   } catch (e) {
