@@ -21,23 +21,23 @@ const DEAD_ADDRESS = '0x000000000000000000000000000000000000dead';
 export default function AdminStatsPage(): JSX.Element {
   const [tokenAddress, setTokenAddress] = useState<string>('0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e');
   const [searchInput, setSearchInput] = useState<string>('0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<unknown[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<Record<string, any>>({});
-  const [statResult, setStatResult] = useState<Record<string, any>>({});
+  const [results, setResults] = useState<Record<string, unknown>>({});
+  const [statResult, setStatResult] = useState<Record<string, unknown>>({});
   const [busyStat, setBusyStat] = useState<string | null>(null);
 
   // simple in-memory caches to avoid refetching per-stat
   const [cache, setCache] = useState<{
-    tokenInfo?: any;
-    tokenCounters?: any;
-    addressInfo?: any;
-    addressCounters?: any;
+    tokenInfo?: unknown;
+    tokenCounters?: unknown;
+    addressInfo?: unknown;
+    addressCounters?: unknown;
     holders?: Array<{ hash: string; value: string }>;
     transfers24h?: TransferItem[];
-    dex?: any;
+    dex?: unknown;
   }>({});
 
   // Debounced search effect
@@ -62,14 +62,14 @@ export default function AdminStatsPage(): JSX.Element {
     };
   }, [searchInput]);
 
-  const now = useMemo(() => new Date(), []);
+
   const cutoff24hIso = useMemo(() => {
     const d = new Date();
     d.setHours(d.getHours() - 24);
     return d.toISOString();
   }, []);
 
-  const fetchJson = async (url: string): Promise<any> => {
+  const fetchJson = async (url: string): Promise<unknown> => {
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
@@ -88,7 +88,7 @@ export default function AdminStatsPage(): JSX.Element {
   const getHoldersPaged = useCallback(async (address: string, maxPages = 50): Promise<Array<{ hash: string; value: string }>> => {
     const base = 'https://api.scan.pulsechain.com/api/v2';
     const limit = 50;
-    let pageItems: Array<{ hash: string; value: string }> = [];
+    const pageItems: Array<{ hash: string; value: string }> = [];
     let nextParams: Record<string, string> | undefined = undefined;
 
     for (let i = 0; i < maxPages; i += 1) {
@@ -782,7 +782,7 @@ export default function AdminStatsPage(): JSX.Element {
       { id: 'definitiveTotalLiquidity', label: 'Definitive Total Liquidity', run: async () => {
         // Step 1: Fetch logs from PulseChain Scan API to find all pair creation events.
         const logs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}/logs`);
-        const pairAddresses = (logs?.items || []).map((log: any) => log.address?.hash).filter(Boolean);
+        const pairAddresses = (logs?.items || []).map((log: unknown) => (log as { address?: { hash: string } })?.address?.hash).filter(Boolean);
 
         if (pairAddresses.length === 0) {
           return { totalLiquidity: 0, pairCount: 0, failedPairs: 0 };
@@ -832,7 +832,7 @@ export default function AdminStatsPage(): JSX.Element {
           return slippage;
         };
 
-        const dexGroups = pairs.reduce((acc: any, pair: any) => {
+        const dexGroups = pairs.reduce((acc: Record<string, unknown>, pair: unknown) => {
           const dexId = pair.dexId;
           if (!acc[dexId]) {
             acc[dexId] = { totalLiquidity: 0, pairs: [] };
@@ -842,10 +842,10 @@ export default function AdminStatsPage(): JSX.Element {
           return acc;
         }, {});
 
-        const sortedDexes = Object.entries(dexGroups).sort(([, a]: any, [, b]: any) => b.totalLiquidity - a.totalLiquidity);
+        const sortedDexes = Object.entries(dexGroups).sort(([, a], [, b]) => (b as { totalLiquidity: number }).totalLiquidity - (a as { totalLiquidity: number }).totalLiquidity);
 
-        return sortedDexes.map(([dexId, dexData]: any) => {
-          const virtualReserves = dexData.pairs.reduce((acc: any, p: any) => {
+        return sortedDexes.map(([dexId, dexData]) => {
+          const virtualReserves = (dexData as { pairs: unknown[] }).pairs.reduce((acc: { base: number; quote: number }, p: unknown) => {
             acc.base += Number(p.liquidity?.base || 0);
             acc.quote += Number(p.liquidity?.quote || 0);
             return acc;
@@ -879,7 +879,7 @@ export default function AdminStatsPage(): JSX.Element {
 
         if (pairs.length === 0) return { error: 'No liquidity pools found.' };
 
-        const analysisPromises = pairs.map(async (pair: any) => {
+        const analysisPromises = pairs.map(async (pair: unknown) => {
           const lpAddress = pair.pairAddress;
           const lpTotalSupply = Number(pair.liquidity.base) + Number(pair.liquidity.quote); // A simplification
           const holders = await getHoldersPaged(lpAddress);
@@ -915,7 +915,7 @@ export default function AdminStatsPage(): JSX.Element {
             const tx = await fetchJson(`https://api.scan.pulsechain.com/api/v2/transactions/${txHash}`);
             const creator = tx?.from?.hash;
             const token = tokenInfo?.address;
-            const mintTransfer = tx?.token_transfers?.find((t: any) => t.from.hash === '0x0000000000000000000000000000000000000000' && t.to.hash === creator && t.token.address === token);
+            const mintTransfer = tx?.token_transfers?.find((t: unknown) => (t as { from: { hash: string }; to: { hash: string }; token: { address: string } }).from.hash === '0x0000000000000000000000000000000000000000' && (t as { from: { hash: string }; to: { hash: string }; token: { address: string } }).to.hash === creator && (t as { from: { hash: string }; to: { hash: string }; token: { address: string } }).token.address === token);
 
             if (!mintTransfer) return { error: 'No initial mint transfer found to creator.' };
 
@@ -935,9 +935,9 @@ export default function AdminStatsPage(): JSX.Element {
             if (!creatorAddress) return { error: 'No creator address found' };
 
             const txs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${creatorAddress}/transactions`);
-            const outboundTxs = (txs?.items || []).filter((tx: any) => tx.from.hash.toLowerCase() === creatorAddress.toLowerCase());
+            const outboundTxs = (txs?.items || []).filter((tx: unknown) => (tx as { from: { hash: string } }).from.hash.toLowerCase() === creatorAddress.toLowerCase());
             
-            return outboundTxs.slice(0, 5).map((tx: any) => ({
+            return outboundTxs.slice(0, 5).map((tx: unknown) => ({
               hash: tx.hash,
               to: tx.to?.hash,
               value: formatTokenAmount2(Number(tx.value), 18) + ' PLS',
@@ -950,7 +950,7 @@ export default function AdminStatsPage(): JSX.Element {
             if (!creatorAddress) return { error: 'No creator address found' };
 
             const balanceData = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${creatorAddress}/token-balances?token=${tokenAddress}`);
-            const tokenBalance = (balanceData || []).find((b: any) => b.token.address.toLowerCase() === tokenAddress.toLowerCase());
+            const tokenBalance = (balanceData || []).find((b: unknown) => (b as { token: { address: string } }).token.address.toLowerCase() === tokenAddress.toLowerCase());
 
             return {
               balance: tokenBalance ? formatTokenAmount2(Number(tokenBalance.value), Number(tokenInfo.decimals)) : '0',
@@ -962,7 +962,7 @@ export default function AdminStatsPage(): JSX.Element {
             if (!creatorAddress) return { error: 'No creator address found' };
 
             const txs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${creatorAddress}/transactions`);
-            const renouncedTx = (txs?.items || []).find((tx: any) => tx.method?.toLowerCase() === 'renounceownership');
+            const renouncedTx = (txs?.items || []).find((tx: unknown) => (tx as { method?: string }).method?.toLowerCase() === 'renounceownership');
 
             if (renouncedTx) {
               return { status: 'Renounced', transaction: renouncedTx.hash };
@@ -1056,10 +1056,10 @@ export default function AdminStatsPage(): JSX.Element {
       { id: 'totalLiquidityUsd', label: 'Total Liquidity (USD)', run: async () => {
         const dex = await ensureDex();
         const pairs = dex?.pairs || [];
-        const totalUsd = pairs.reduce((s: number, x: any) => s + Number(x?.liquidity?.usd || 0), 0);
+        const totalUsd = pairs.reduce((s: number, x: unknown) => s + Number((x as { liquidity?: { usd?: string | number } })?.liquidity?.usd || 0), 0);
         
         // Calculate breakdown of both sides
-        const pairDetails = pairs.map((p: any) => {
+        const pairDetails = pairs.map((p: unknown) => {
           const baseUsd = Number(p?.liquidity?.base || 0) * Number(p?.priceUsd || 0);
           const quoteUsd = Number(p?.liquidity?.usd || 0) - baseUsd; // Remaining is quote token USD
           
@@ -1088,9 +1088,9 @@ export default function AdminStatsPage(): JSX.Element {
         const { tokenInfo } = await ensureCoreCaches();
         const decimals = Number(tokenInfo?.decimals ?? 18);
         const pairs = dex?.pairs || [];
-        const totalBase = pairs.reduce((s: number, x: any) => s + Number(x?.liquidity?.base || 0), 0);
-        const totalQuote = pairs.reduce((s: number, x: any) => s + Number(x?.liquidity?.quote || 0), 0);
-        const pairDetails = pairs.map((p: any) => ({
+        const totalBase = pairs.reduce((s: number, x: unknown) => s + Number((x as { liquidity?: { base?: string | number } })?.liquidity?.base || 0), 0);
+        const totalQuote = pairs.reduce((s: number, x: unknown) => s + Number((x as { liquidity?: { quote?: string | number } })?.liquidity?.quote || 0), 0);
+        const pairDetails = pairs.map((p: unknown) => ({
           pair: `${p.baseToken?.symbol}/${p.quoteToken?.symbol}`,
           base: Number(p?.liquidity?.base || 0),
           baseFormatted: formatTokenAmount2(Number(p?.liquidity?.base || 0), decimals),
@@ -1198,7 +1198,7 @@ export default function AdminStatsPage(): JSX.Element {
             const { addressInfo } = await ensureCoreCaches();
             const contract = await fetchJson(`https://api.scan.pulsechain.com/api/v2/smart-contracts/${addressInfo.creator_address_hash}`);
             const abi = contract?.abi || [];
-            return abi.filter((item: any) => item.type === 'function').length;
+            return abi.filter((item: unknown) => (item as { type: string }).type === 'function').length;
           }},
         ]
       }

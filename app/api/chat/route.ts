@@ -1,14 +1,7 @@
-import { GoogleGenAI, Content } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { NextRequest } from 'next/server';
-import type { Message } from '@/types';
-import { getApiKey } from '@/lib/utils';
 
-const buildGeminiHistory = (messages: Message[]): Content[] => {
-    return messages.map(msg => ({
-      role: msg.sender === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.text }],
-    }));
-};
+
 
 export async function POST(req: NextRequest) {
   try {
