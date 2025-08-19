@@ -12,6 +12,10 @@ import { WobbleCard } from '@/components/ui/wobble-card';
 import { pulsechainApi } from '@/services';
 import { fetchDexScreenerData } from '@/services/pulsechainService';
 import type { SearchResultItem } from '@/types';
+import { useMobileOptimization } from '@/lib/hooks/useMobileOptimization';
+import { useApiKey } from '@/lib/hooks/useApiKey';
+import PulseChainLogo from '@/components/icons/PulseChainLogo';
+import SendIcon from '@/components/icons/SendIcon';
 
 interface Message {
   id: string;
