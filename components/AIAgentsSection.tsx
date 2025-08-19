@@ -1,6 +1,5 @@
 "use client";
 import { motion } from "framer-motion";
-import { GlowingEffect } from "@/components/ui/glowing-effect";
 // Simple SVG icon components
 const IconFileText = () => (
   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,6 +131,14 @@ const agents = [
     icon: IconChartBar,
     color: "from-purple-500 to-indigo-500",
     size: "col-span-1 md:col-span-1 row-span-1"
+  },
+  {
+    id: 9,
+    name: "Admin Stats",
+    description: "Comprehensive token analytics and statistics dashboard for advanced PulseChain analysis and monitoring",
+    icon: IconChartBar,
+    color: "from-indigo-500 to-blue-500",
+    size: "col-span-1 md:col-span-1 row-span-1"
   }
 ];
 
@@ -140,47 +147,34 @@ export default function AIAgentsSection() {
     <section className="min-h-screen bg-black py-12 md:py-20 px-4">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
-        <motion.div 
-          className="text-center mb-12 md:mb-16 px-4"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          viewport={{ once: true }}
-        >
+        <div className="text-center mb-12 md:mb-16 px-4">
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 md:mb-6">
             AI Agents
           </h2>
           <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto">
             Powerful AI tools designed to analyze and interact with the PulseChain ecosystem
           </p>
-        </motion.div>
+        </div>
 
         {/* Bento Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 max-w-6xl mx-auto">
           {agents.map((agent, index) => (
-            <motion.div
+            <div
               key={agent.id}
-              className={`relative group ${agent.name === "Debank" ? "" : "cursor-pointer"} ${agent.size}`}
-              initial={{ opacity: 0, scale: 0.8 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ 
-                duration: 0.5, 
-                delay: index * 0.1,
-                ease: "easeOut"
-              }}
-              viewport={{ once: true }}
-              whileHover={{ scale: agent.name === "Debank" ? 1 : 1.02 }}
+              className={`relative group ${agent.name === "Debank" || agent.name === "Talk to Richard Heart!" || agent.name === "Positive Vibes Only" ? "" : "cursor-pointer"} ${agent.size}`}
               onClick={() => {
                 if (agent.name === "AI Code Reader/Chat Agent") {
                   window.location.href = "/ai-agent";
                 } else if (agent.name === "Blockchain Analyzer") {
                   window.location.href = "/blockchain-analyzer";
                 } else if (agent.name === "Positive Vibes Only") {
-                  window.location.href = "/happy-pulse";
+                  // Coming Soon - no navigation
+                  return;
                 } else if (agent.name === "AI Therapist") {
                   window.location.href = "/therapist";
                 } else if (agent.name === "Talk to Richard Heart!") {
-                  window.location.href = "/richard-heart";
+                  // Coming Soon - no navigation
+                  return;
                 } else if (agent.name === "Stat Counter Builder") {
                   window.location.href = "/stat-counter-builder";
                 } else if (agent.name === "HEX Stats") {
@@ -188,18 +182,12 @@ export default function AIAgentsSection() {
                 } else if (agent.name === "Debank") {
                   // Coming Soon - no navigation
                   return;
+                } else if (agent.name === "Admin Stats") {
+                  window.location.href = "/admin-stats";
                 }
               }}
             >
               <div className="relative h-full rounded-2xl border border-gray-800 p-2">
-                <GlowingEffect
-                  spread={40}
-                  glow={true}
-                  disabled={false}
-                  proximity={64}
-                  inactiveZone={0.01}
-                />
-                
                 <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
                   {/* Content */}
                   <div className="relative flex flex-1 flex-col justify-between gap-3">
@@ -218,8 +206,8 @@ export default function AIAgentsSection() {
                     
                     <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-800">
                       <div className="flex items-center text-xs text-gray-500">
-                        <div className={`w-2 h-2 rounded-full mr-2 ${agent.name === "Debank" ? "bg-yellow-500" : "bg-green-500"}`}></div>
-                        {agent.name === "Debank" ? "Coming Soon" : "AI Agent Ready"}
+                        <div className={`w-2 h-2 rounded-full mr-2 ${agent.name === "Debank" || agent.name === "Talk to Richard Heart!" || agent.name === "Positive Vibes Only" ? "bg-yellow-500" : "bg-green-500"}`}></div>
+                        {agent.name === "Debank" || agent.name === "Talk to Richard Heart!" || agent.name === "Positive Vibes Only" ? "Coming Soon" : "AI Agent Ready"}
                       </div>
                     </div>
                   </div>
@@ -233,10 +221,161 @@ export default function AIAgentsSection() {
                       </div>
                     </div>
                   )}
+                  
+                  {/* Coming Soon Overlay for Talk to Richard Heart! */}
+                  {agent.name === "Talk to Richard Heart!" && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
+                        <div className="text-sm text-gray-300">This feature is under development</div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Coming Soon Overlay for Positive Vibes Only */}
+                  {agent.name === "Positive Vibes Only" && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
+                        <div className="text-sm text-gray-300">This feature is under development</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
+        </div>
+      </div>
+      
+      {/* Games Section */}
+      <div className="mt-20 md:mt-32">
+        {/* Section Header */}
+        <div className="text-center mb-12 md:mb-16 px-4">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 md:mb-6">
+            Games
+          </h2>
+          <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto">
+            Interactive gaming experiences built on the PulseChain ecosystem
+          </p>
+        </div>
+
+        {/* Games Bento Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 max-w-6xl mx-auto">
+          {/* HEXtroids Card */}
+          <div
+            className="relative group cursor-pointer col-span-1 md:col-span-2 row-span-1 md:row-span-2"
+            onClick={() => {
+              window.open("https://hextroids.vercel.app", "_blank");
+            }}
+          >
+            <div className="relative h-full rounded-2xl border border-gray-800 p-2">
+              <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
+                {/* Content */}
+                <div className="relative flex flex-1 flex-col justify-between gap-3">
+                  <div className="flex items-center mb-3 md:mb-4">
+                    <div className="p-2 md:p-3 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 mr-3 md:mr-4">
+                      <IconHex className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                    </div>
+                    <h3 className="text-lg md:text-xl font-semibold text-white">
+                      HEXtroids
+                    </h3>
+                  </div>
+                  
+                  <p className="text-gray-400 text-sm leading-relaxed flex-grow">
+                    Classic Asteroids gameplay with HEX-themed levels and boss battles. Experience retro gaming with modern blockchain integration.
+                  </p>
+                  
+                  <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-800">
+                    <div className="flex items-center text-xs text-gray-500">
+                      <div className="w-2 h-2 rounded-full mr-2 bg-green-500"></div>
+                      Play Now
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Coming Soon Game 1 */}
+          <div
+            className="relative group col-span-1 row-span-1"
+          >
+            <div className="relative h-full rounded-2xl border border-gray-800 p-2">
+              <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
+                {/* Content */}
+                <div className="relative flex flex-1 flex-col justify-between gap-3">
+                  <div className="flex items-center mb-3 md:mb-4">
+                    <div className="p-2 md:p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 mr-3 md:mr-4">
+                      <IconChartBar className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                    </div>
+                    <h3 className="text-lg md:text-xl font-semibold text-white">
+                      HEX Runner
+                    </h3>
+                  </div>
+                  
+                  <p className="text-gray-400 text-sm leading-relaxed flex-grow">
+                    Endless runner game featuring HEX characters and PulseChain-themed obstacles and power-ups.
+                  </p>
+                  
+                  <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-800">
+                    <div className="flex items-center text-xs text-gray-500">
+                      <div className="w-2 h-2 rounded-full mr-2 bg-yellow-500"></div>
+                      Coming Soon
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Coming Soon Overlay */}
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
+                    <div className="text-sm text-gray-300">This game is under development</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Coming Soon Game 2 */}
+          <div
+            className="relative group col-span-1 row-span-1"
+          >
+            <div className="relative h-full rounded-2xl border border-gray-800 p-2">
+              <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
+                {/* Content */}
+                <div className="relative flex flex-1 flex-col justify-between gap-3">
+                  <div className="flex items-center mb-3 md:mb-4">
+                    <div className="p-2 md:p-3 rounded-xl bg-gradient-to-br from-blue-500 to-pink-500 mr-3 md:mr-4">
+                      <IconChartBar className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                    </div>
+                    <h3 className="text-lg md:text-xl font-semibold text-white">
+                      Pulse Defender
+                    </h3>
+                  </div>
+                  
+                  <p className="text-gray-400 text-sm leading-relaxed flex-grow">
+                    Tower defense strategy game where you protect PulseChain from various threats using HEX and PLS tokens.
+                  </p>
+                  
+                  <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-800">
+                    <div className="flex items-center text-xs text-gray-500">
+                      <div className="w-2 h-2 rounded-full mr-2 bg-yellow-500"></div>
+                      Coming Soon
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Coming Soon Overlay */}
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
+                    <div className="text-sm text-gray-300">This game is under development</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

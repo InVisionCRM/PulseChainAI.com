@@ -808,68 +808,68 @@ const App: React.FC = () => {
         )} */}
 
         {/* Navigation Menu - Fixed at top - Always visible */}
-        <NavigationMenu className="fixed top-0 left-0 right-0 z-30 bg-black/20 backdrop-blur-xl border-b border-white/10 h-16 md:h-18 w-full max-w-none shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+          <NavigationMenu className="fixed top-0 left-0 right-0 z-30 bg-black/20 backdrop-blur-xl border-b border-white/10 h-16 md:h-18 w-full max-w-none shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
           <NavigationMenuList className="relative flex items-center w-full px-3 md:px-4 h-full gap-4">
             {/* Spacer to center the navigation */}
             <div className="flex-1" />
-            
+
             {/* Search Bar - Right-aligned, only visible after token is loaded */}
             {addressSet && (
-              <NavigationMenuItem className="flex-shrink-0">
+            <NavigationMenuItem className="flex-shrink-0">
                 <div className="relative w-60 lg:w-[32rem] xl:w-[40rem]" ref={headerSearchInputRef}>
-                  <PlaceholdersAndVanishInput
-                    placeholders={searchPlaceholders}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setContractAddress(value);
-                      setSearchQuery(value);
-                      if (value.trim()) {
-                        setShowSearchResults(true);
-                      } else {
-                        setShowSearchResults(false);
-                      }
-                    }}
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (contractAddress.trim()) {
-                        handleLoadContract();
-                      }
-                    }}
-                  />
-                  {showSearchResults && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-20 max-h-80 overflow-y-auto">
-                      {isSearching && (
-                        <div className="flex items-center justify-center p-4">
-                          <div className="text-slate-400 text-sm">Searching...</div>
+                <PlaceholdersAndVanishInput
+                  placeholders={searchPlaceholders}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setContractAddress(value);
+                    setSearchQuery(value);
+                    if (value.trim()) {
+                      setShowSearchResults(true);
+                    } else {
+                      setShowSearchResults(false);
+                    }
+                  }}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (contractAddress.trim()) {
+                      handleLoadContract();
+                    }
+                  }}
+                />
+                {showSearchResults && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-20 max-h-80 overflow-y-auto">
+                    {isSearching && (
+                      <div className="flex items-center justify-center p-4">
+                        <div className="text-slate-400 text-sm">Searching...</div>
+                      </div>
+                    )}
+                    {!isSearching && searchError && (
+                      <div className="p-4 text-red-400 text-sm">{searchError}</div>
+                    )}
+                    {!isSearching && searchQuery.length >= 2 && searchResults?.length === 0 && !searchError && (
+                      <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
+                    )}
+                    {!isSearching && searchResults?.map(item => (
+                      <div
+                        key={item.address}
+                        onClick={() => handleSelectSearchResult(item)}
+                        className="flex items-center gap-3 p-3 hover:bg-slate-700 cursor-pointer transition-colors"
+                      >
+                        {item.icon_url ?
+                          <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
+                          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
+                        }
+                        <div className="overflow-hidden flex-1">
+                          <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
+                          <div className="text-xs text-slate-400 capitalize">{item.type}</div>
+                          <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
                         </div>
-                      )}
-                      {!isSearching && searchError && (
-                        <div className="p-4 text-red-400 text-sm">{searchError}</div>
-                      )}
-                      {!isSearching && searchQuery.length >= 2 && searchResults?.length === 0 && !searchError && (
-                        <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
-                      )}
-                      {!isSearching && searchResults?.map(item => (
-                        <div
-                          key={item.address}
-                          onClick={() => handleSelectSearchResult(item)}
-                          className="flex items-center gap-3 p-3 hover:bg-slate-700 cursor-pointer transition-colors"
-                        >
-                          {item.icon_url ?
-                            <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
-                            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
-                          }
-                          <div className="overflow-hidden flex-1">
-                            <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
-                            <div className="text-xs text-slate-400 capitalize">{item.type}</div>
-                            <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </NavigationMenuItem>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </NavigationMenuItem>
             )}
           </NavigationMenuList>
         </NavigationMenu>
@@ -1345,6 +1345,7 @@ const App: React.FC = () => {
                                      )}
                                    </div>
                                  </div>
+                               )}
                                
                                {/* Community Stats */}
                                {coinGeckoData?.community_data && (
@@ -1482,7 +1483,7 @@ const App: React.FC = () => {
                                </>
                              ) : (
                                <div className="h-40 sm:h-48 md:h-60 lg:h-72 flex items-center justify-center text-slate-400">
-                                 <div className="text-center">
+                         <div className="text-center">
                                    <div className="text-4xl mb-2">📊</div>
                                    <p>Chart data not available</p>
                                  </div>

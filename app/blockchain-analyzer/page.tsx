@@ -1,19 +1,16 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from "framer-motion";
-
-import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
-import { LoaderThree } from "@/components/ui/loader";
-import { GlowingEffect } from "@/components/ui/glowing-effect";
-import { useMobileOptimization } from '@/lib/hooks/useMobileOptimization';
-import { useApiKey } from '@/lib/hooks/useApiKey';
-import LoadingSpinner from '@/components/icons/LoadingSpinner';
-import SendIcon from '@/components/icons/SendIcon';
-import PulseChainLogo from '@/components/icons/PulseChainLogo';
-import ColourfulText from '@/components/ui/colourful-text';
-import { HolderDistributionChart, TransactionFlowDiagram, CorrelationMatrix } from '@/components/charts';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from '@/components/ui/navigation-menu';
+import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
+import { LoaderThree } from '@/components/ui/loader-three';
+import { GlowingEffect } from '@/components/ui/glowing-effect';
+import { ContainerTextFlip } from '@/components/ui/container-text-flip';
+import { WobbleCard } from '@/components/ui/wobble-card';
 import { pulsechainApi } from '@/services';
+import { fetchDexScreenerData } from '@/services/pulsechainService';
 import type { SearchResultItem } from '@/types';
 
 interface Message {
@@ -1261,7 +1258,7 @@ const BlockchainAnalyzer: React.FC = () => {
             
             <div className="flex flex-col items-center">
               <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
-                🔍 <ColourfulText text="PulseChain" /> AI Analyst
+                🔍 <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">PulseChain</span> AI Analyst
               </h1>
               <p className="text-slate-400 text-sm md:text-base">Your comprehensive blockchain analysis assistant</p>
             </div>

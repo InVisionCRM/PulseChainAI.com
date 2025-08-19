@@ -28,6 +28,14 @@ export default function AdminStatsPage(): JSX.Element {
   const [results, setResults] = useState<Record<string, unknown>>({});
   const [statResult, setStatResult] = useState<Record<string, unknown>>({});
   const [busyStat, setBusyStat] = useState<string | null>(null);
+  const [currentRequest, setCurrentRequest] = useState<{
+    statId: string;
+    endpoint: string;
+    params: Record<string, any>;
+    response: any;
+    timestamp: Date;
+    duration: number;
+  } | null>(null);
 
   // simple in-memory caches to avoid refetching per-stat
   const [cache, setCache] = useState<{
@@ -1208,12 +1216,69 @@ export default function AdminStatsPage(): JSX.Element {
   const runOneStat = useCallback(async (id: string) => {
     const item = statCategories.flatMap(c => c.stats).find(s => s.id === id);
     if (!item) return;
+    
     setBusyStat(id);
+    const startTime = Date.now();
+    
     try {
+      // Determine the endpoint type based on the stat ID
+      let endpoint = 'Custom Stat Function';
+      let params = { statId: id, label: item.label };
+      
+      if (id.includes('holders') || id.includes('Holders')) {
+        endpoint = 'PulseChain Scan API - Holders';
+        params = { ...params, endpoint: `/api/v2/tokens/{address}/holders` };
+      } else if (id.includes('transfers') || id.includes('Transfers')) {
+        endpoint = 'PulseChain Scan API - Transfers';
+        params = { ...params, endpoint: `/api/v2/tokens/{address}/transfers` };
+      } else if (id.includes('dex') || id.includes('liquidity') || id.includes('Liquidity')) {
+        endpoint = 'DexScreener API';
+        params = { ...params, endpoint: 'https://api.dexscreener.com/latest/dex/tokens/{address}' };
+      } else if (id.includes('token') || id.includes('Token')) {
+        endpoint = 'PulseChain Scan API - Token Info';
+        params = { ...params, endpoint: `/api/v2/tokens/{address}` };
+      } else if (id.includes('address') || id.includes('Address')) {
+        endpoint = 'PulseChain Scan API - Address Info';
+        params = { ...params, endpoint: `/api/v2/addresses/{address}` };
+      }
+      
+      // Track the request details
+      const requestInfo = {
+        statId: id,
+        endpoint: endpoint,
+        params: params,
+        response: null,
+        timestamp: new Date(),
+        duration: 0
+      };
+      
+      setCurrentRequest(requestInfo);
+      
       const value = await item.run();
+      const duration = Date.now() - startTime;
+      
+      // Update with response and duration
+      setCurrentRequest({
+        ...requestInfo,
+        response: value,
+        duration
+      });
+      
       setStatResult(prev => ({ ...prev, [id]: value }));
     } catch (e) {
-      setStatResult(prev => ({ ...prev, [id]: { error: (e as Error).message } }));
+      const duration = Date.now() - startTime;
+      const errorResponse = { error: (e as Error).message };
+      
+      setCurrentRequest({
+        statId: id,
+        endpoint: 'Custom Stat Function',
+        params: { statId: id, label: item.label, error: (e as Error).message },
+        response: errorResponse,
+        timestamp: new Date(),
+        duration
+      });
+      
+      setStatResult(prev => ({ ...prev, [id]: errorResponse }));
     } finally {
       setBusyStat(null);
     }
@@ -1225,6 +1290,10 @@ export default function AdminStatsPage(): JSX.Element {
       delete newResults[id];
       return newResults;
     });
+  }, []);
+
+  const clearCurrentRequest = useCallback(() => {
+    setCurrentRequest(null);
   }, []);
 
   return (
@@ -1284,6 +1353,74 @@ export default function AdminStatsPage(): JSX.Element {
             <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4">
               <h2 className="font-semibold mb-2">Activity (24h)</h2>
               <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(results.activity24h, null, 2)}</pre>
+            </div>
+          </div>
+        )}
+
+        {/* Request Display Section */}
+        {currentRequest && (
+          <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-lg text-white">Current Request Details</h2>
+              <button
+                onClick={clearCurrentRequest}
+                title="Clear request display"
+                className="text-xs px-3 py-1 bg-red-800 hover:bg-red-700 rounded text-white"
+              >
+                Clear
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Request Info */}
+              <div className="space-y-3">
+                <div>
+                  <div className="text-sm text-slate-400 mb-1">Stat ID</div>
+                  <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded">
+                    {currentRequest.statId}
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="text-sm text-slate-400 mb-1">Endpoint</div>
+                  <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded">
+                    {currentRequest.endpoint}
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="text-sm text-slate-400 mb-1">Parameters</div>
+                  <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded">
+                    <pre className="whitespace-pre-wrap text-xs">
+                      {JSON.stringify(currentRequest.params, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="text-sm text-slate-400 mb-1">Timestamp</div>
+                  <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded">
+                    {currentRequest.timestamp.toLocaleString()}
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="text-sm text-slate-400 mb-1">Duration</div>
+                  <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded">
+                    {currentRequest.duration}ms
+                  </div>
+                </div>
+              </div>
+              
+              {/* Response */}
+              <div>
+                <div className="text-sm text-slate-400 mb-1">Response</div>
+                <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded max-h-64 overflow-y-auto">
+                  <pre className="whitespace-pre-wrap text-xs">
+                    {JSON.stringify(currentRequest.response, null, 2)}
+                  </pre>
+                </div>
+              </div>
             </div>
           </div>
         )}
