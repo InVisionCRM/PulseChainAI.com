@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PULSECHAIN_API_BASE = 'https://eth.blockscout.com/api/v2';
+const PULSECHAIN_API_BASE = 'https://api.scan.pulsechain.com/api/v2';
 
 export async function GET(request: NextRequest) {
   try {

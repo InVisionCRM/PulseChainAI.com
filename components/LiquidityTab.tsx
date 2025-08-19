@@ -30,7 +30,10 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
   const [pairHoldersData, setPairHoldersData] = useState<PairHoldersData>({});
 
   const fetchPairHolders = async (pairAddress: string) => {
+    console.log('Fetching holders for pair:', pairAddress);
+    
     if (pairHoldersData[pairAddress]) {
+      console.log('Already fetched data for:', pairAddress);
       return; // Already fetched or currently fetching
     }
 
@@ -46,16 +49,20 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
     }));
 
     try {
+      console.log('Making API calls for:', pairAddress);
+      
       // Fetch both holders and token info for total supply
       const [holdersResult, tokenInfo] = await Promise.all([
         pulsechainApiService.getTokenHolders(pairAddress, 1, 25), // Get top 25 holders
         pulsechainApiService.getTokenInfo(pairAddress)
       ]);
 
+      console.log('API responses for:', pairAddress, { holdersResult, tokenInfo });
+
       let holders: PairHolder[] = [];
       const totalSupply = tokenInfo?.total_supply || '0';
 
-      // Process holders data
+      // Process holders data - now directly from the service
       if (Array.isArray(holdersResult)) {
         holders = holdersResult.map((h: any) => {
           const value = h.value || '0';
@@ -66,27 +73,9 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
             percentage
           };
         }).filter(h => h.address);
-      } else if (holdersResult?.data && Array.isArray(holdersResult.data)) {
-        holders = holdersResult.data.map((h: any) => {
-          const value = h.value || '0';
-          const percentage = totalSupply !== '0' ? (Number(value) / Number(totalSupply)) * 100 : 0;
-          return {
-            address: h.address?.hash || '',
-            value,
-            percentage
-          };
-        }).filter(h => h.address);
-      } else if (holdersResult?.items && Array.isArray(holdersResult.items)) {
-        holders = holdersResult.items.map((h: any) => {
-          const value = h.value || '0';
-          const percentage = totalSupply !== '0' ? (Number(value) / Number(totalSupply)) * 100 : 0;
-          return {
-            address: h.address?.hash || '',
-            value,
-            percentage
-          };
-        }).filter(h => h.address);
       }
+
+      console.log('Processed holders for:', pairAddress, { holders, totalSupply });
 
       setPairHoldersData(prev => ({
         ...prev,
@@ -98,7 +87,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
         }
       }));
     } catch (error) {
-      console.error('Error fetching pair holders:', error);
+      console.error('Error fetching pair holders for:', pairAddress, error);
       setPairHoldersData(prev => ({
         ...prev,
         [pairAddress]: {
@@ -112,6 +101,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
   };
 
   const togglePairExpansion = async (pairAddress: string) => {
+    console.log('Toggling pair expansion for:', pairAddress);
     const newExpanded = new Set(expandedPairs);
     if (newExpanded.has(pairAddress)) {
       newExpanded.delete(pairAddress);

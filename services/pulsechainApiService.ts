@@ -23,9 +23,30 @@ export interface TokenInfoDetailed extends TokenInfo {
 }
 
 export interface Holder {
-  address: string;
+  address: {
+    hash: string;
+    implementation_name?: string | null;
+    is_contract: boolean;
+    is_verified?: boolean | null;
+    name?: string | null;
+    private_tags?: string[];
+    public_tags?: string[];
+    watchlist_names?: string[];
+  };
   value: string;
-  token_id?: string;
+  token_id?: string | null;
+  token?: {
+    address: string;
+    circulating_market_cap?: string | null;
+    decimals: string;
+    exchange_rate?: string | null;
+    holders: string;
+    icon_url?: string | null;
+    name: string;
+    symbol: string;
+    total_supply: string;
+    type: string;
+  };
 }
 
 export interface AddressInfo {
@@ -286,7 +307,8 @@ class PulseChainApiService {
   }
 
   async getTokenHolders(tokenAddress: string, page: number = 1, limit: number = 2000): Promise<Holder[]> {
-    return this.apiCall<Holder[]>(`/tokens/${tokenAddress}/holders`, { page, limit });
+    const response = await this.apiCall<{ items: Holder[] }>(`/tokens/${tokenAddress}/holders`, { page, limit });
+    return response.items || [];
   }
 
   async getTokenTransfers(tokenAddress: string, page: number = 1, limit: number = 1000): Promise<TokenTransfer[]> {

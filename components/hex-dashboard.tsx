@@ -74,6 +74,8 @@ const HEXDataDashboard = () => {
   const [isLoadingEthereumActiveStakes, setIsLoadingEthereumActiveStakes] = useState<boolean>(false);
   const [ethereumActiveStakesSortField, setEthereumActiveStakesSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft'>('stakedHearts');
   const [ethereumActiveStakesSortDirection, setEthereumActiveStakesSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [ethereumStakeStartsSortField, setEthereumStakeStartsSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp'>('stakeId');
+  const [ethereumStakeStartsSortDirection, setEthereumStakeStartsSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // PulseChain HEX Staking Data
   const [pulsechainStakingData, setPulsechainStakingData] = useState<HexStakingMetrics | null>(null);
@@ -86,6 +88,8 @@ const HEXDataDashboard = () => {
   const [isLoadingPulsechainActiveStakes, setIsLoadingPulsechainActiveStakes] = useState<boolean>(false);
   const [pulsechainActiveStakesSortField, setPulsechainActiveStakesSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft'>('stakedHearts');
   const [pulsechainActiveStakesSortDirection, setPulsechainActiveStakesSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [pulsechainStakeStartsSortField, setPulsechainStakeStartsSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp'>('stakeId');
+  const [pulsechainStakeStartsSortDirection, setPulsechainStakeStartsSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedStakerAddress, setSelectedStakerAddress] = useState<string | null>(null);
   const [isEthereumStakerHistoryModalOpen, setIsEthereumStakerHistoryModalOpen] = useState<boolean>(false);
   const [isPulsechainStakerHistoryModalOpen, setIsPulsechainStakerHistoryModalOpen] = useState<boolean>(false);
@@ -361,6 +365,16 @@ const HEXDataDashboard = () => {
     }
   };
 
+  // Handle Ethereum stake starts sorting
+  const handleEthereumStakeStartsSort = (field: 'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp') => {
+    if (ethereumStakeStartsSortField === field) {
+      setEthereumStakeStartsSortDirection(ethereumStakeStartsSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setEthereumStakeStartsSortField(field);
+      setEthereumStakeStartsSortDirection('desc');
+    }
+  };
+
   // Get sorted Ethereum active stakes
   const getSortedEthereumActiveStakes = () => {
     return [...ethereumActiveStakes].sort((a, b) => {
@@ -395,6 +409,48 @@ const HEXDataDashboard = () => {
     });
   };
 
+  // Get sorted Ethereum stake starts
+  const getSortedEthereumStakeStarts = () => {
+    return [...ethereumAllStakeStarts].sort((a, b) => {
+      let aValue: number, bValue: number;
+      
+      switch (ethereumStakeStartsSortField) {
+        case 'stakeId':
+          aValue = parseInt(a.stakeId);
+          bValue = parseInt(b.stakeId);
+          break;
+        case 'stakedHearts':
+          aValue = parseFloat(a.stakedHearts);
+          bValue = parseFloat(b.stakedHearts);
+          break;
+        case 'stakedDays':
+          aValue = parseInt(a.stakedDays);
+          bValue = parseInt(b.stakedDays);
+          break;
+        case 'startDay':
+          aValue = parseInt(a.startDay);
+          bValue = parseInt(b.startDay);
+          break;
+        case 'endDay':
+          aValue = parseInt(a.endDay);
+          bValue = parseInt(b.endDay);
+          break;
+        case 'stakeTShares':
+          aValue = parseFloat(a.stakeTShares);
+          bValue = parseFloat(b.stakeTShares);
+          break;
+        case 'timestamp':
+          aValue = parseInt(a.timestamp);
+          bValue = parseInt(b.timestamp);
+          break;
+        default:
+          return 0;
+      }
+      
+      return ethereumStakeStartsSortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+    });
+  };
+
   // Handle PulseChain active stakes sorting
   const handlePulsechainActiveStakesSort = (field: 'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft') => {
     if (pulsechainActiveStakesSortField === field) {
@@ -402,6 +458,16 @@ const HEXDataDashboard = () => {
     } else {
       setPulsechainActiveStakesSortField(field);
       setPulsechainActiveStakesSortDirection('desc');
+    }
+  };
+
+  // Handle PulseChain stake starts sorting
+  const handlePulsechainStakeStartsSort = (field: 'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp') => {
+    if (pulsechainStakeStartsSortField === field) {
+      setPulsechainStakeStartsSortDirection(pulsechainStakeStartsSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setPulsechainStakeStartsSortField(field);
+      setPulsechainStakeStartsSortDirection('desc');
     }
   };
 
@@ -414,10 +480,6 @@ const HEXDataDashboard = () => {
         case 'stakeId':
           aValue = parseInt(a.stakeId);
           bValue = parseInt(b.stakeId);
-          break;
-        case 'stakedHearts':
-          aValue = parseFloat(a.stakedHearts);
-          bValue = parseFloat(b.stakedHearts);
           break;
         case 'stakedDays':
           aValue = parseInt(a.stakedDays);
@@ -436,6 +498,48 @@ const HEXDataDashboard = () => {
       }
       
       return pulsechainActiveStakesSortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+    });
+  };
+
+  // Get sorted PulseChain stake starts
+  const getSortedPulsechainStakeStarts = () => {
+    return [...pulsechainAllStakeStarts].sort((a, b) => {
+      let aValue: number, bValue: number;
+      
+      switch (pulsechainStakeStartsSortField) {
+        case 'stakeId':
+          aValue = parseInt(a.stakeId);
+          bValue = parseInt(b.stakeId);
+          break;
+        case 'stakedHearts':
+          aValue = parseFloat(a.stakedHearts);
+          bValue = parseFloat(b.stakedHearts);
+          break;
+        case 'stakedDays':
+          aValue = parseInt(a.stakedDays);
+          bValue = parseInt(b.stakedDays);
+          break;
+        case 'startDay':
+          aValue = parseInt(a.startDay);
+          bValue = parseInt(b.startDay);
+          break;
+        case 'endDay':
+          aValue = parseInt(a.endDay);
+          bValue = parseInt(b.endDay);
+          break;
+        case 'stakeTShares':
+          aValue = parseFloat(a.stakeTShares);
+          bValue = parseFloat(b.stakeTShares);
+          break;
+        case 'timestamp':
+          aValue = parseInt(a.timestamp);
+          bValue = parseInt(b.timestamp);
+          break;
+        default:
+          return 0;
+      }
+      
+      return pulsechainStakeStartsSortDirection === 'asc' ? aValue - bValue : bValue - aValue;
     });
   };
 
@@ -1311,20 +1415,90 @@ const HEXDataDashboard = () => {
                         <table className="min-w-full divide-y divide-white/10">
                           <thead className="bg-slate-900 text-white sticky top-0">
                             <tr>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Stake ID</th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                                onClick={() => handleEthereumStakeStartsSort('stakeId')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  Stake ID
+                                  {ethereumStakeStartsSortField === 'stakeId' ? (
+                                    ethereumStakeStartsSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
                               <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Staker Address</th>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Staked Hearts</th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                                onClick={() => handleEthereumStakeStartsSort('stakedHearts')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  Staked Hearts
+                                  {ethereumStakeStartsSortField === 'stakedHearts' ? (
+                                    ethereumStakeStartsSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
                               <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Stake Shares</th>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Staked Days</th>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Start Day</th>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">End Day</th>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">T-Shares</th>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Timestamp</th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                                onClick={() => handleEthereumStakeStartsSort('stakedDays')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  Staked Days
+                                  {ethereumStakeStartsSortField === 'stakedDays' ? (
+                                    ethereumStakeStartsSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                                onClick={() => handleEthereumStakeStartsSort('startDay')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  Start Day
+                                  {ethereumStakeStartsSortField === 'startDay' ? (
+                                    ethereumStakeStartsSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                                onClick={() => handleEthereumStakeStartsSort('endDay')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  End Day
+                                  {ethereumStakeStartsSortField === 'endDay' ? (
+                                    ethereumStakeStartsSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                                onClick={() => handleEthereumStakeStartsSort('stakeTShares')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  T-Shares
+                                  {ethereumStakeStartsSortField === 'stakeTShares' ? (
+                                    ethereumStakeStartsSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                                onClick={() => handleEthereumStakeStartsSort('timestamp')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  Timestamp
+                                  {ethereumStakeStartsSortField === 'timestamp' ? (
+                                    ethereumStakeStartsSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
                               <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Transaction</th>
                             </tr>
                           </thead>
                           <tbody className="bg-transparent divide-y divide-white/10">
-                            {ethereumAllStakeStarts.slice(0, 500).map((stake, index) => (
+                            {getSortedEthereumStakeStarts().slice(0, 500).map((stake, index) => (
                               <tr key={stake.id} className="hover:bg-white/5">
                                 <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white">
                                   {stake.stakeId}
@@ -1776,20 +1950,90 @@ const HEXDataDashboard = () => {
                         <table className="min-w-full divide-y divide-white/10">
                           <thead className="bg-slate-900 text-white sticky top-0">
                             <tr>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Stake ID</th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                                onClick={() => handlePulsechainStakeStartsSort('stakeId')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  Stake ID
+                                  {pulsechainStakeStartsSortField === 'stakeId' ? (
+                                    pulsechainStakeStartsSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
                               <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Staker Address</th>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Staked Hearts</th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                                onClick={() => handlePulsechainStakeStartsSort('stakedHearts')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  Staked Hearts
+                                  {pulsechainStakeStartsSortField === 'stakedHearts' ? (
+                                    pulsechainStakeStartsSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
                               <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Stake Shares</th>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Staked Days</th>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Start Day</th>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">End Day</th>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">T-Shares</th>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Timestamp</th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                                onClick={() => handlePulsechainStakeStartsSort('stakedDays')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  Staked Days
+                                  {pulsechainStakeStartsSortField === 'stakedDays' ? (
+                                    pulsechainStakeStartsSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                                onClick={() => handlePulsechainStakeStartsSort('startDay')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  Start Day
+                                  {pulsechainStakeStartsSortField === 'startDay' ? (
+                                    pulsechainStakeStartsSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                                onClick={() => handlePulsechainStakeStartsSort('endDay')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  End Day
+                                  {pulsechainStakeStartsSortField === 'endDay' ? (
+                                    pulsechainStakeStartsSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                                onClick={() => handlePulsechainStakeStartsSort('stakeTShares')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  T-Shares
+                                  {pulsechainStakeStartsSortField === 'stakeTShares' ? (
+                                    pulsechainStakeStartsSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                                onClick={() => handlePulsechainStakeStartsSort('timestamp')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  Timestamp
+                                  {pulsechainStakeStartsSortField === 'timestamp' ? (
+                                    pulsechainStakeStartsSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
                               <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Transaction</th>
                             </tr>
                           </thead>
                           <tbody className="bg-transparent divide-y divide-white/10">
-                            {pulsechainAllStakeStarts.slice(0, 500).map((stake, index) => (
+                            {getSortedPulsechainStakeStarts().slice(0, 500).map((stake, index) => (
                               <tr key={stake.id} className="hover:bg-white/5">
                                 <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white">
                                   {stake.stakeId}
