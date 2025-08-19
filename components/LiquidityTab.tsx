@@ -1,23 +1,124 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { DexScreenerData } from '@/types';
+import { pulsechainApiService } from '@/services/pulsechainApiService';
 
 interface LiquidityTabProps {
   dexScreenerData: DexScreenerData | null;
   isLoading: boolean;
 }
 
+interface PairHolder {
+  address: string;
+  value: string;
+  percentage: number;
+}
+
+interface PairHoldersData {
+  [pairAddress: string]: {
+    holders: PairHolder[];
+    isLoading: boolean;
+    error: string | null;
+    totalSupply: string;
+  };
+}
+
 const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading }) => {
   const [expandedPairs, setExpandedPairs] = useState<Set<string>>(new Set());
+  const [pairHoldersData, setPairHoldersData] = useState<PairHoldersData>({});
 
-  const togglePairExpansion = (pairAddress: string) => {
+  const fetchPairHolders = async (pairAddress: string) => {
+    if (pairHoldersData[pairAddress]) {
+      return; // Already fetched or currently fetching
+    }
+
+    // Set loading state
+    setPairHoldersData(prev => ({
+      ...prev,
+      [pairAddress]: {
+        holders: [],
+        isLoading: true,
+        error: null,
+        totalSupply: '0'
+      }
+    }));
+
+    try {
+      // Fetch both holders and token info for total supply
+      const [holdersResult, tokenInfo] = await Promise.all([
+        pulsechainApiService.getTokenHolders(pairAddress, 1, 25), // Get top 25 holders
+        pulsechainApiService.getTokenInfo(pairAddress)
+      ]);
+
+      let holders: PairHolder[] = [];
+      const totalSupply = tokenInfo?.total_supply || '0';
+
+      // Process holders data
+      if (Array.isArray(holdersResult)) {
+        holders = holdersResult.map((h: any) => {
+          const value = h.value || '0';
+          const percentage = totalSupply !== '0' ? (Number(value) / Number(totalSupply)) * 100 : 0;
+          return {
+            address: h.address?.hash || '',
+            value,
+            percentage
+          };
+        }).filter(h => h.address);
+      } else if (holdersResult?.data && Array.isArray(holdersResult.data)) {
+        holders = holdersResult.data.map((h: any) => {
+          const value = h.value || '0';
+          const percentage = totalSupply !== '0' ? (Number(value) / Number(totalSupply)) * 100 : 0;
+          return {
+            address: h.address?.hash || '',
+            value,
+            percentage
+          };
+        }).filter(h => h.address);
+      } else if (holdersResult?.items && Array.isArray(holdersResult.items)) {
+        holders = holdersResult.items.map((h: any) => {
+          const value = h.value || '0';
+          const percentage = totalSupply !== '0' ? (Number(value) / Number(totalSupply)) * 100 : 0;
+          return {
+            address: h.address?.hash || '',
+            value,
+            percentage
+          };
+        }).filter(h => h.address);
+      }
+
+      setPairHoldersData(prev => ({
+        ...prev,
+        [pairAddress]: {
+          holders,
+          isLoading: false,
+          error: null,
+          totalSupply
+        }
+      }));
+    } catch (error) {
+      console.error('Error fetching pair holders:', error);
+      setPairHoldersData(prev => ({
+        ...prev,
+        [pairAddress]: {
+          holders: [],
+          isLoading: false,
+          error: error instanceof Error ? error.message : 'Failed to fetch holders',
+          totalSupply: '0'
+        }
+      }));
+    }
+  };
+
+  const togglePairExpansion = async (pairAddress: string) => {
     const newExpanded = new Set(expandedPairs);
     if (newExpanded.has(pairAddress)) {
       newExpanded.delete(pairAddress);
     } else {
       newExpanded.add(pairAddress);
+      // Fetch holders data when expanding
+      await fetchPairHolders(pairAddress);
     }
     setExpandedPairs(newExpanded);
   };
@@ -59,6 +160,23 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
     const num = typeof value === 'string' ? parseFloat(value) : value;
     if (isNaN(num)) return 'N/A';
     return `${num >= 0 ? '+' : ''}${num.toFixed(2)}%`;
+  };
+
+  const formatHolderBalance = (value: string, decimals: number = 18): string => {
+    const num = Number(value);
+    if (isNaN(num)) return 'N/A';
+    
+    const balance = num / Math.pow(10, decimals);
+    if (balance >= 1e9) return `${(balance / 1e9).toFixed(2)}B`;
+    if (balance >= 1e6) return `${(balance / 1e6).toFixed(2)}M`;
+    if (balance >= 1e3) return `${(balance / 1e3).toFixed(2)}K`;
+    return balance.toFixed(6);
+  };
+
+  const formatHolderPercentage = (percentage: number): string => {
+    if (percentage >= 1) return `${percentage.toFixed(2)}%`;
+    if (percentage >= 0.01) return `${percentage.toFixed(4)}%`;
+    return `<0.01%`;
   };
 
   // Sort pairs by liquidity (highest first)
@@ -289,6 +407,128 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     <div className="text-xs text-cyan-300 mb-1">Market Cap</div>
                     <div className="text-white font-semibold">{formatNumber(pair.marketCap || 0)}</div>
                   </div>
+                </div>
+
+                {/* Liquidity Holders Section */}
+                <div className="mb-4">
+                  <h5 className="text-white font-semibold mb-3 flex items-center gap-2">
+                    <span>🏦</span>
+                    LP Token Holders (Top 25)
+                  </h5>
+                  
+                  {pairHoldersData[pair.pairAddress]?.isLoading && (
+                    <div className="flex items-center justify-center py-6">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+                      <span className="ml-2 text-slate-400 text-sm">Loading holders...</span>
+                    </div>
+                  )}
+                  
+                  {pairHoldersData[pair.pairAddress]?.error && (
+                    <div className="bg-red-900/20 border border-red-500/30 text-red-300 px-3 py-2 rounded text-sm">
+                      Failed to load holders: {pairHoldersData[pair.pairAddress].error}
+                    </div>
+                  )}
+                  
+                  {pairHoldersData[pair.pairAddress]?.holders && pairHoldersData[pair.pairAddress].holders.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-4 gap-2 text-xs text-slate-400 pb-2 border-b border-slate-700/50">
+                        <div>Rank</div>
+                        <div>Address</div>
+                        <div>LP Tokens</div>
+                        <div>% of Pool</div>
+                      </div>
+                      
+                      <div className="max-h-60 overflow-y-auto space-y-1">
+                        {pairHoldersData[pair.pairAddress].holders.map((holder, holderIndex) => (
+                          <div key={holder.address} className="grid grid-cols-4 gap-2 text-xs py-2 hover:bg-slate-700/30 rounded transition-colors">
+                            <div className="text-slate-400">#{holderIndex + 1}</div>
+                            <div className="font-mono text-purple-300">
+                              {holder.address.slice(0, 8)}...{holder.address.slice(-6)}
+                            </div>
+                            <div className="text-white font-medium">
+                              {formatHolderBalance(holder.value)}
+                            </div>
+                            <div className="text-right">
+                              <div className="flex items-center gap-2">
+                                <span className={`font-medium ${
+                                  holder.percentage >= 10 ? 'text-red-400' : 
+                                  holder.percentage >= 5 ? 'text-yellow-400' : 
+                                  'text-green-400'
+                                }`}>
+                                  {formatHolderPercentage(holder.percentage)}
+                                </span>
+                                <div className="w-8 h-1 bg-slate-700 rounded-full overflow-hidden">
+                                  <div 
+                                    className={`h-full transition-all duration-300 ${
+                                      holder.percentage >= 10 ? 'bg-red-500' : 
+                                      holder.percentage >= 5 ? 'bg-yellow-500' : 
+                                      'bg-green-500'
+                                    }`}
+                                    style={{ width: `${Math.min(100, holder.percentage * 2)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Liquidity Lock Analysis */}
+                      {(() => {
+                        const holders = pairHoldersData[pair.pairAddress].holders;
+                        const top5Percentage = holders.slice(0, 5).reduce((sum, h) => sum + h.percentage, 0);
+                        const top10Percentage = holders.slice(0, 10).reduce((sum, h) => sum + h.percentage, 0);
+                        
+                        return (
+                          <div className="mt-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                            <div className="text-xs text-slate-400 mb-2">Liquidity Distribution Analysis</div>
+                            <div className="grid grid-cols-2 gap-4 text-xs">
+                              <div>
+                                <div className="text-slate-300">Top 5 holders control:</div>
+                                <div className={`font-bold ${
+                                  top5Percentage >= 80 ? 'text-red-400' : 
+                                  top5Percentage >= 60 ? 'text-yellow-400' : 
+                                  'text-green-400'
+                                }`}>
+                                  {top5Percentage.toFixed(2)}% of liquidity
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-slate-300">Top 10 holders control:</div>
+                                <div className={`font-bold ${
+                                  top10Percentage >= 90 ? 'text-red-400' : 
+                                  top10Percentage >= 75 ? 'text-yellow-400' : 
+                                  'text-green-400'
+                                }`}>
+                                  {top10Percentage.toFixed(2)}% of liquidity
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="mt-2 text-xs">
+                              <div className={`font-medium ${
+                                top5Percentage >= 80 ? 'text-red-400' : 
+                                top5Percentage >= 60 ? 'text-yellow-400' : 
+                                'text-green-400'
+                              }`}>
+                                Risk Level: {
+                                  top5Percentage >= 80 ? 'HIGH - Highly concentrated liquidity' : 
+                                  top5Percentage >= 60 ? 'MEDIUM - Moderately concentrated' : 
+                                  'LOW - Well distributed liquidity'
+                                }
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  
+                  {pairHoldersData[pair.pairAddress]?.holders && pairHoldersData[pair.pairAddress].holders.length === 0 && !pairHoldersData[pair.pairAddress].isLoading && (
+                    <div className="text-center text-slate-400 py-4 text-sm">
+                      No holders data available for this pair
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}
