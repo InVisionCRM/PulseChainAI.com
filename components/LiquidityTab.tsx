@@ -30,10 +30,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
   const [pairHoldersData, setPairHoldersData] = useState<PairHoldersData>({});
 
   const fetchPairHolders = async (pairAddress: string) => {
-    console.log('Fetching holders for pair:', pairAddress);
-    
     if (pairHoldersData[pairAddress]) {
-      console.log('Already fetched data for:', pairAddress);
       return; // Already fetched or currently fetching
     }
 
@@ -49,15 +46,11 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
     }));
 
     try {
-      console.log('Making API calls for:', pairAddress);
-      
       // Fetch both holders and token info for total supply
       const [holdersResult, tokenInfo] = await Promise.all([
         pulsechainApiService.getTokenHolders(pairAddress, 1, 25), // Get top 25 holders
         pulsechainApiService.getTokenInfo(pairAddress)
       ]);
-
-      console.log('API responses for:', pairAddress, { holdersResult, tokenInfo });
 
       let holders: PairHolder[] = [];
       const totalSupply = tokenInfo?.total_supply || '0';
@@ -75,8 +68,6 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
         }).filter(h => h.address);
       }
 
-      console.log('Processed holders for:', pairAddress, { holders, totalSupply });
-
       setPairHoldersData(prev => ({
         ...prev,
         [pairAddress]: {
@@ -87,7 +78,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
         }
       }));
     } catch (error) {
-      console.error('Error fetching pair holders for:', pairAddress, error);
+      console.error('Error fetching pair holders:', error);
       setPairHoldersData(prev => ({
         ...prev,
         [pairAddress]: {
@@ -101,7 +92,6 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
   };
 
   const togglePairExpansion = async (pairAddress: string) => {
-    console.log('Toggling pair expansion for:', pairAddress);
     const newExpanded = new Set(expandedPairs);
     if (newExpanded.has(pairAddress)) {
       newExpanded.delete(pairAddress);
