@@ -1,5 +1,7 @@
 "use client";
 import { motion } from "framer-motion";
+import { Carousel, Card } from "@/components/ui/apple-cards-carousel";
+
 // Simple SVG icon components
 const IconFileText = () => (
   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,7 +76,9 @@ const agents = [
     description: "PulseChainAI's Most Powerful AI Agent which allows user to interact with Solidity Smart Contract like never before! (Warning: Still in Beta. Use with Caution)",
     icon: IconFileText,
     color: "from-pink-500 to-purple-500",
-    size: "col-span-1 md:col-span-2 row-span-1 md:row-span-2"
+    size: "col-span-1 md:col-span-2 row-span-1 md:row-span-2",
+    src: "/api/placeholder/400/600/pink/purple",
+    category: "AI Agent"
   },
   {
     id: 5,
@@ -82,7 +86,9 @@ const agents = [
     description: "Advanced blockchain analysis tool for deep insights into PulseChain transactions, token movements, and network activity",
     icon: IconChartBar,
     color: "from-blue-500 to-cyan-500",
-    size: "col-span-1 md:col-span-2 row-span-1 md:row-span-2"
+    size: "col-span-1 md:col-span-2 row-span-1 md:row-span-2",
+    src: "/api/placeholder/400/600/blue/cyan",
+    category: "Analysis Tool"
   },
   {
     id: 4,
@@ -90,7 +96,9 @@ const agents = [
     description: "AI-powered conversation with the tone, knowledge, wit and persona of crypto founder Richard Heart",
     icon: IconCrown,
     color: "from-yellow-500 to-orange-500",
-    size: "col-span-1 row-span-1"
+    size: "col-span-1 row-span-1",
+    src: "/api/placeholder/400/600/yellow/orange",
+    category: "AI Chat"
   },
   {
     id: 2,
@@ -98,7 +106,9 @@ const agents = [
     description: "Transform negative thoughts into positive, uplifting messages with AI",
     icon: IconHeart,
     color: "from-red-500 to-pink-500",
-    size: "col-span-1 row-span-1"
+    size: "col-span-1 row-span-1",
+    src: "/api/placeholder/400/600/red/pink",
+    category: "AI Therapy"
   },
   {
     id: 3,
@@ -106,7 +116,9 @@ const agents = [
     description: "Dr. Sarah Chen - Compassionate AI therapy and emotional support",
     icon: IconHeartPulse,
     color: "from-pink-500 to-rose-500",
-    size: "col-span-1 md:col-span-2 row-span-1"
+    size: "col-span-1 md:col-span-2 row-span-1",
+    src: "/api/placeholder/400/600/pink/rose",
+    category: "AI Therapy"
   },
   {
     id: 6,
@@ -114,7 +126,9 @@ const agents = [
     description: "Create custom stat counters for any PulseChain token. Build, preview, and embed real-time statistics",
     icon: IconBarChart,
     color: "from-emerald-500 to-teal-500",
-    size: "col-span-1 row-span-1"
+    size: "col-span-1 row-span-1",
+    src: "/api/placeholder/400/600/emerald/teal",
+    category: "Builder Tool"
   },
   {
     id: 7,
@@ -122,7 +136,9 @@ const agents = [
     description: "Complete HEX daily statistics dashboard with historical data from Ethereum and PulseChain networks",
     icon: IconHex,
     color: "from-orange-500 to-red-500",
-    size: "col-span-1 md:col-span-1 row-span-1"
+    size: "col-span-1 md:col-span-1 row-span-1",
+    src: "/api/placeholder/400/600/orange/red",
+    category: "Dashboard"
   },
   {
     id: 8,
@@ -130,7 +146,9 @@ const agents = [
     description: "Track Richard Heart's treasury movements and analyze transaction history from sacrifice wallets and alleged ETH purchases",
     icon: IconChartBar,
     color: "from-purple-500 to-indigo-500",
-    size: "col-span-1 md:col-span-1 row-span-1"
+    size: "col-span-1 md:col-span-1 row-span-1",
+    src: "/api/placeholder/400/600/purple/indigo",
+    category: "Analysis Tool"
   },
   {
     id: 9,
@@ -138,11 +156,71 @@ const agents = [
     description: "Comprehensive token analytics and statistics dashboard for advanced PulseChain analysis and monitoring",
     icon: IconChartBar,
     color: "from-indigo-500 to-blue-500",
-    size: "col-span-1 md:col-span-1 row-span-1"
+    size: "col-span-1 md:col-span-1 row-span-1",
+    src: "/api/placeholder/400/600/indigo/blue",
+    category: "Admin Tool"
   }
 ];
 
+// Transform agents to carousel format
+const transformAgentsToCarousel = () => {
+  return agents.map((agent) => ({
+    src: agent.src,
+    title: agent.name,
+    category: agent.category,
+    content: (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <div className={`p-3 rounded-xl bg-gradient-to-br ${agent.color}`}>
+            <agent.icon />
+          </div>
+          <div>
+            <h3 className="text-2xl font-bold text-white">{agent.name}</h3>
+            <p className="text-gray-300">{agent.category}</p>
+          </div>
+        </div>
+        
+        <p className="text-gray-300 text-lg leading-relaxed">
+          {agent.description}
+        </p>
+        
+        <div className="pt-4 border-t border-gray-700">
+          <div className="flex items-center text-sm text-gray-400">
+            <div className={`w-3 h-3 rounded-full mr-3 ${agent.name === "Debank" || agent.name === "Talk to Richard Heart!" || agent.name === "Positive Vibes Only" ? "bg-yellow-500" : "bg-green-500"}`}></div>
+            {agent.name === "Debank" || agent.name === "Talk to Richard Heart!" || agent.name === "Positive Vibes Only" ? "Coming Soon" : "AI Agent Ready"}
+          </div>
+        </div>
+        
+        {agent.name !== "Debank" && agent.name !== "Talk to Richard Heart!" && agent.name !== "Positive Vibes Only" && (
+          <button
+            onClick={() => {
+              if (agent.name === "AI Code Reader/Chat Agent") {
+                window.location.href = "/ai-agent";
+              } else if (agent.name === "Blockchain Analyzer") {
+                window.location.href = "/blockchain-analyzer";
+              } else if (agent.name === "AI Therapist") {
+                window.location.href = "/therapist";
+              } else if (agent.name === "Stat Counter Builder") {
+                window.location.href = "/stat-counter-builder";
+              } else if (agent.name === "HEX Stats") {
+                window.location.href = "/hex-dashboard";
+              } else if (agent.name === "Admin Stats") {
+                window.location.href = "/admin-stats";
+              }
+            }}
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-105"
+          >
+            Open {agent.name}
+          </button>
+        )}
+      </div>
+    )
+  }));
+};
+
 export default function AIAgentsSection() {
+  const carouselItems = transformAgentsToCarousel();
+
   return (
     <section className="min-h-screen bg-black py-12 md:py-20 px-4">
       <div className="max-w-7xl mx-auto">
@@ -156,95 +234,11 @@ export default function AIAgentsSection() {
           </p>
         </div>
 
-        {/* Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 max-w-6xl mx-auto">
-          {agents.map((agent, index) => (
-            <div
-              key={agent.id}
-              className={`relative group ${agent.name === "Debank" || agent.name === "Talk to Richard Heart!" || agent.name === "Positive Vibes Only" ? "" : "cursor-pointer"} ${agent.size}`}
-              onClick={() => {
-                if (agent.name === "AI Code Reader/Chat Agent") {
-                  window.location.href = "/ai-agent";
-                } else if (agent.name === "Blockchain Analyzer") {
-                  window.location.href = "/blockchain-analyzer";
-                } else if (agent.name === "Positive Vibes Only") {
-                  // Coming Soon - no navigation
-                  return;
-                } else if (agent.name === "AI Therapist") {
-                  window.location.href = "/therapist";
-                } else if (agent.name === "Talk to Richard Heart!") {
-                  // Coming Soon - no navigation
-                  return;
-                } else if (agent.name === "Stat Counter Builder") {
-                  window.location.href = "/stat-counter-builder";
-                } else if (agent.name === "HEX Stats") {
-                  window.location.href = "/hex-dashboard";
-                } else if (agent.name === "Debank") {
-                  // Coming Soon - no navigation
-                  return;
-                } else if (agent.name === "Admin Stats") {
-                  window.location.href = "/admin-stats";
-                }
-              }}
-            >
-              <div className="relative h-full rounded-2xl border border-gray-800 p-2">
-                <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
-                  {/* Content */}
-                  <div className="relative flex flex-1 flex-col justify-between gap-3">
-                    <div className="flex items-center mb-3 md:mb-4">
-                      <div className={`p-2 md:p-3 rounded-xl bg-gradient-to-br ${agent.color} mr-3 md:mr-4`}>
-                        <agent.icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
-                      </div>
-                      <h3 className="text-lg md:text-xl font-semibold text-white">
-                        {agent.name}
-                      </h3>
-                    </div>
-                    
-                    <p className="text-gray-400 text-sm leading-relaxed flex-grow">
-                      {agent.description}
-                    </p>
-                    
-                    <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-800">
-                      <div className="flex items-center text-xs text-gray-500">
-                        <div className={`w-2 h-2 rounded-full mr-2 ${agent.name === "Debank" || agent.name === "Talk to Richard Heart!" || agent.name === "Positive Vibes Only" ? "bg-yellow-500" : "bg-green-500"}`}></div>
-                        {agent.name === "Debank" || agent.name === "Talk to Richard Heart!" || agent.name === "Positive Vibes Only" ? "Coming Soon" : "AI Agent Ready"}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Coming Soon Overlay for Debank */}
-                  {agent.name === "Debank" && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
-                        <div className="text-sm text-gray-300">This feature is under development</div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Coming Soon Overlay for Talk to Richard Heart! */}
-                  {agent.name === "Talk to Richard Heart!" && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
-                        <div className="text-sm text-gray-300">This feature is under development</div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Coming Soon Overlay for Positive Vibes Only */}
-                  {agent.name === "Positive Vibes Only" && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
-                        <div className="text-sm text-gray-300">This feature is under development</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+        {/* Carousel */}
+        <div className="mb-20">
+          <Carousel items={carouselItems.map((item, index) => (
+            <Card key={index} card={item} index={index} />
+          ))} />
         </div>
       </div>
       

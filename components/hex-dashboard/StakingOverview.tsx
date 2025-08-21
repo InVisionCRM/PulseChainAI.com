@@ -539,12 +539,12 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                 <div className="text-xs sm:text-sm text-slate-400">
                   <span className="hidden sm:inline">Latest Stake ID</span>
                   <span className="sm:hidden">Latest ID</span>
-                </div>
               </div>
+                </div>
               <div className="text-center bg-white/5 backdrop-blur rounded-lg p-3 sm:p-4 border border-white/10">
                 <div className="text-lg sm:text-2xl font-bold text-purple-400">
                   {combinedData.totalActiveStakes.toLocaleString()}
-                </div>
+              </div>
                 <div className="text-xs sm:text-sm text-slate-400">
                   <span className="hidden sm:inline">Total Active Stakes</span>
                   <span className="sm:hidden">Active Stakes</span>

@@ -99,7 +99,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes }) => {
   return (
     <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
       <div className="px-6 py-4 border-b border-white/10 bg-gradient-to-r from-purple-900/20 to-blue-900/20">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-purple-500/20 rounded-lg">
               <TrendingUp className="w-6 h-6 text-purple-400" />
@@ -111,7 +111,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes }) => {
           </div>
           
           {/* Sort Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-slate-400 mr-2">Sort by:</span>
             {[
               { key: 'amount', label: 'Amount' },
