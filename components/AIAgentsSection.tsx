@@ -51,8 +51,8 @@ const IconCrown = () => (
   </svg>
 );
 
-const IconChartBar = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const IconChartBar = ({ className }: { className?: string }) => (
+  <svg className={className || "w-6 h-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
   </svg>
 );
@@ -63,8 +63,8 @@ const IconBarChart = () => (
   </svg>
 );
 
-const IconHex = () => (
-  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+const IconHex = ({ className }: { className?: string }) => (
+  <svg className={className || "w-6 h-6"} fill="currentColor" viewBox="0 0 24 24">
     <path d="M17.5 3.5L22 12l-4.5 8.5h-11L2 12l4.5-8.5h11zm-1 2h-9L4 12l3.5 6.5h9L20 12 16.5 5.5z" />
   </svg>
 );
@@ -168,53 +168,7 @@ const transformAgentsToCarousel = () => {
     src: agent.src,
     title: agent.name,
     category: agent.category,
-    content: (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <div className={`p-3 rounded-xl bg-gradient-to-br ${agent.color}`}>
-            <agent.icon />
-          </div>
-          <div>
-            <h3 className="text-2xl font-bold text-white">{agent.name}</h3>
-            <p className="text-gray-300">{agent.category}</p>
-          </div>
-        </div>
-        
-        <p className="text-gray-300 text-lg leading-relaxed">
-          {agent.description}
-        </p>
-        
-        <div className="pt-4 border-t border-gray-700">
-          <div className="flex items-center text-sm text-gray-400">
-            <div className={`w-3 h-3 rounded-full mr-3 ${agent.name === "Debank" || agent.name === "Talk to Richard Heart!" || agent.name === "Positive Vibes Only" ? "bg-yellow-500" : "bg-green-500"}`}></div>
-            {agent.name === "Debank" || agent.name === "Talk to Richard Heart!" || agent.name === "Positive Vibes Only" ? "Coming Soon" : "AI Agent Ready"}
-          </div>
-        </div>
-        
-        {agent.name !== "Debank" && agent.name !== "Talk to Richard Heart!" && agent.name !== "Positive Vibes Only" && (
-          <button
-            onClick={() => {
-              if (agent.name === "AI Code Reader/Chat Agent") {
-                window.location.href = "/ai-agent";
-              } else if (agent.name === "Blockchain Analyzer") {
-                window.location.href = "/blockchain-analyzer";
-              } else if (agent.name === "AI Therapist") {
-                window.location.href = "/therapist";
-              } else if (agent.name === "Stat Counter Builder") {
-                window.location.href = "/stat-counter-builder";
-              } else if (agent.name === "HEX Stats") {
-                window.location.href = "/hex-dashboard";
-              } else if (agent.name === "Admin Stats") {
-                window.location.href = "/admin-stats";
-              }
-            }}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-105"
-          >
-            Open {agent.name}
-          </button>
-        )}
-      </div>
-    )
+    content: null // Remove popup content
   }));
 };
 

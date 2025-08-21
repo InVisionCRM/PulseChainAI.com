@@ -681,41 +681,8 @@ const App: React.FC = () => {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(30,30,60,0.3),transparent_40%)]"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(20,20,40,0.2),transparent_40%)]"></div>
       
-      {/* Animated Moving Blob */}
-      <div className="absolute inset-0">
-        <div 
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-br from-purple-900/20 to-blue-900/20 rounded-full blur-3xl"
-          style={{
-            animation: 'float 20s ease-in-out infinite',
-            animationDelay: '0s'
-          }}
-        ></div>
-        <div 
-          className="absolute top-3/4 right-1/4 w-80 h-80 bg-gradient-to-br from-indigo-900/15 to-purple-900/15 rounded-full blur-3xl"
-          style={{
-            animation: 'float 25s ease-in-out infinite reverse',
-            animationDelay: '5s'
-          }}
-        ></div>
-        <div 
-          className="absolute top-1/2 left-1/2 w-72 h-72 bg-gradient-to-br from-slate-800/10 to-gray-800/10 rounded-full blur-3xl"
-          style={{
-            animation: 'float 30s ease-in-out infinite',
-            animationDelay: '10s'
-          }}
-        ></div>
-      </div>
-      
       {/* Subtle Grid Pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(30,30,60,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(30,30,60,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-20"></div>
-      
-      {/* Floating Particles */}
-      <div className="absolute inset-0">
-        <div className="absolute top-1/3 left-1/6 w-2 h-2 bg-purple-400/30 rounded-full animate-bounce" style={{ animationDelay: '0s', animationDuration: '3s' }}></div>
-        <div className="absolute top-2/3 right-1/6 w-1.5 h-1.5 bg-blue-400/20 rounded-full animate-bounce" style={{ animationDelay: '1.5s', animationDuration: '4s' }}></div>
-        <div className="absolute top-1/6 right-1/3 w-1 h-1 bg-indigo-400/25 rounded-full animate-bounce" style={{ animationDelay: '3s', animationDuration: '2.5s' }}></div>
-        <div className="absolute top-3/4 left-1/3 w-1.5 h-1.5 bg-slate-400/20 rounded-full animate-bounce" style={{ animationDelay: '2s', animationDuration: '3.5s' }}></div>
-      </div>
       
       <SplashModal isOpen={showSplash} onClose={() => setShowSplash(false)} />
       <UnverifiedContractRisksModal 

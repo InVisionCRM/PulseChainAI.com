@@ -24,6 +24,43 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
   const [sortField, setSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'daysServed'>('timestamp');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
+  // Helper functions for calculations
+  const calculateStakeUSD = (stakedHearts: string): number => {
+    const hearts = parseFloat(stakedHearts);
+    // Use a default price if not available - this should be passed from parent
+    const defaultPrice = 0.01; // Default HEX price
+    return (hearts / 100000000) * defaultPrice;
+  };
+
+  const calculateExpectedEarnings = (stakedHearts: string, stakedDays: string): number => {
+    const hearts = parseFloat(stakedHearts);
+    const days = parseInt(stakedDays);
+    const hexAmount = hearts / 100000000;
+    const baseYield = 0.05; // 5% base yield
+    const dayMultiplier = Math.min(days / 365, 2); // Cap at 2x for very long stakes
+    return hexAmount * baseYield * dayMultiplier;
+  };
+
+  const calculateEarnedSoFar = (stakedHearts: string, daysServed: number, stakedDays: string): number => {
+    const hearts = parseFloat(stakedHearts);
+    const days = parseInt(stakedDays);
+    const hexAmount = hearts / 100000000;
+    if (!daysServed || daysServed <= 0) return 0;
+    const progressRatio = daysServed / days;
+    const expectedEarnings = calculateExpectedEarnings(stakedHearts, stakedDays);
+    return expectedEarnings * progressRatio;
+  };
+
+  const formatUSD = (amount: number): string => {
+    if (amount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(2)}M`;
+    } else if (amount >= 1000) {
+      return `$${(amount / 1000).toFixed(2)}K`;
+    } else {
+      return `$${amount.toFixed(2)}`;
+    }
+  };
+
   useEffect(() => {
     if (isOpen && stakerAddress) {
       fetchStakerHistory();
@@ -263,6 +300,9 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                   <div className="text-xl font-bold text-yellow-400">
                     {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatHexAmount(historyData.totalStakedHearts || '0')}
                   </div>
+                  <div className="text-xs text-yellow-600 mt-1">
+                    {formatUSD(calculateStakeUSD(historyData.totalStakedHearts || '0'))}
+                  </div>
                 </div>
 
                 <div className="bg-gradient-to-br from-pink-500/10 to-rose-500/10 border border-pink-500/20 rounded-xl p-4">
@@ -343,6 +383,110 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                           : 0;
                         
                         return `${avgAPY.toFixed(1)}%`;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Earnings Projections for Active Stakes */}
+              {(historyData.activeStakes || 0) > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="w-5 h-5 text-green-400" />
+                      <span className="text-sm text-slate-400">Active Stakes Earnings</span>
+                    </div>
+                    <div className="text-xl font-bold text-green-400">
+                      {(() => {
+                        if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
+                        
+                        const activeStakes = historyData.stakes.filter(s => s && s.isActive);
+                        const totalEarned = activeStakes.reduce((sum, stake) => {
+                          return sum + calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays);
+                        }, 0);
+                        
+                        return `${(totalEarned * 100000000).toFixed(0)} HEX`;
+                      })()}
+                    </div>
+                    <div className="text-xs text-emerald-400">
+                      {(() => {
+                        if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '$0.00';
+                        
+                        const activeStakes = historyData.stakes.filter(s => s && s.isActive);
+                        const totalEarned = activeStakes.reduce((sum, stake) => {
+                          return sum + calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays);
+                        }, 0);
+                        
+                        return formatUSD(totalEarned);
+                      })()}
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Target className="w-5 h-5 text-blue-400" />
+                      <span className="text-sm text-slate-400">Expected Total</span>
+                    </div>
+                    <div className="text-xl font-bold text-blue-400">
+                      {(() => {
+                        if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
+                        
+                        const activeStakes = historyData.stakes.filter(s => s && s.isActive);
+                        const totalExpected = activeStakes.reduce((sum, stake) => {
+                          return sum + calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays);
+                        }, 0);
+                        
+                        return `${(totalExpected * 100000000).toFixed(0)} HEX`;
+                      })()}
+                    </div>
+                    <div className="text-xs text-blue-400">
+                      {(() => {
+                        if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '$0.00';
+                        
+                        const activeStakes = historyData.stakes.filter(s => s && s.isActive);
+                        const totalExpected = activeStakes.reduce((sum, stake) => {
+                          return sum + calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays);
+                        }, 0);
+                        
+                        return formatUSD(totalExpected);
+                      })()}
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border border-purple-500/20 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="w-5 h-5 text-purple-400" />
+                      <span className="text-sm text-slate-400">Remaining to Earn</span>
+                    </div>
+                    <div className="text-xl font-bold text-purple-400">
+                      {(() => {
+                        if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
+                        
+                        const activeStakes = historyData.stakes.filter(s => s && s.isActive);
+                        const totalEarned = activeStakes.reduce((sum, stake) => {
+                          return sum + calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays);
+                        }, 0);
+                        const totalExpected = activeStakes.reduce((sum, stake) => {
+                          return sum + calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays);
+                        }, 0);
+                        
+                        return `${((totalExpected - totalEarned) * 100000000).toFixed(0)} HEX`;
+                      })()}
+                    </div>
+                    <div className="text-xs text-purple-400">
+                      {(() => {
+                        if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '$0.00';
+                        
+                        const activeStakes = historyData.stakes.filter(s => s && s.isActive);
+                        const totalEarned = activeStakes.reduce((sum, stake) => {
+                          return sum + calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays);
+                        }, 0);
+                        const totalExpected = activeStakes.reduce((sum, stake) => {
+                          return sum + calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays);
+                        }, 0);
+                        
+                        return formatUSD(totalExpected - totalEarned);
                       })()}
                     </div>
                   </div>

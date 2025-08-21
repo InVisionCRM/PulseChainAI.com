@@ -51,6 +51,7 @@ const HEXDataDashboard = () => {
     setShowGeminiAnalysis,
     setShowDexPairs,
     setStakingSubTab,
+    getCurrentHexPrice,
   } = useHexDashboard();
 
   // Calculate sorted and filtered data
@@ -199,6 +200,7 @@ const HEXDataDashboard = () => {
             loadPulsechainActiveStakes={loadPulsechainActiveStakes}
             getSortedPulsechainData={getSortedPulsechainData}
             getPulsechainCacheStatus={getPulsechainCacheStatus}
+            getCurrentHexPrice={getCurrentHexPrice}
           />
         )}
 

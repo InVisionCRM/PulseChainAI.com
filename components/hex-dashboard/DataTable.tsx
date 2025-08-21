@@ -202,7 +202,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       case 'currentDay':
                         return <span className="text-white">{formatNumber(row.currentDay, 0, true)}</span>;
                       case 'priceUV2UV3':
-                        return <span className="text-green-400 font-semibold">{formatPrice(row.priceUV2UV3, 8)}</span>;
+                        return <span className="text-green-600 font-semibold">{formatPrice(row.priceUV2UV3, 8)}</span>;
                       case 'priceChangeUV2UV3':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.priceChangeUV2UV3)}`}>
@@ -213,7 +213,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       case 'marketCap':
                         return <span className="text-white">{formatCurrency(row.marketCap, 0)}</span>;
                       case 'totalValueLocked':
-                        return <span className="text-purple-400 font-semibold">{formatCurrency(row.totalValueLocked, 0)}</span>;
+                        return <span className="text-purple-600 font-semibold">{formatCurrency(row.totalValueLocked, 0)}</span>;
                       case 'totalHEX':
                         return <span className="text-white">{formatHEX(row.totalHEX)}</span>;
                       case 'circulatingHEX':
@@ -226,7 +226,7 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'stakedHEX':
-                        return <span className="text-blue-400">{formatHEX(row.stakedHEX)}</span>;
+                        return <span className="text-blue-600">{formatHEX(row.stakedHEX)}</span>;
                       case 'stakedSupplyChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.stakedSupplyChange)}`}>
@@ -235,9 +235,9 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'stakedHEXPercent':
-                        return <span className="text-blue-300">{formatPercent(row.stakedHEXPercent)}</span>;
+                        return <span className="text-blue-700">{formatPercent(row.stakedHEXPercent)}</span>;
                       case 'totalTshares':
-                        return <span className="text-purple-300">{formatTShares(row.totalTshares)}</span>;
+                        return <span className="text-purple-700">{formatTShares(row.totalTshares)}</span>;
                       case 'totalTsharesChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.totalTsharesChange)}`}>
@@ -246,19 +246,19 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'tshareRateHEX':
-                        return <span className="text-orange-400">{formatNumber(row.tshareRateHEX, 1)} HEX</span>;
+                        return <span className="text-orange-600">{formatNumber(row.tshareRateHEX, 1)} HEX</span>;
                       case 'tshareMarketCap':
-                        return <span className="text-purple-400">{formatCurrency(row.tshareMarketCap, 0)}</span>;
+                        return <span className="text-purple-700">{formatCurrency(row.tshareMarketCap, 0)}</span>;
                       case 'payoutPerTshareHEX':
-                        return <span className="text-yellow-400">{formatNumber(row.payoutPerTshareHEX, 6)} HEX</span>;
+                        return <span className="text-yellow-600">{formatNumber(row.payoutPerTshareHEX, 6)} HEX</span>;
                       case 'dailyPayoutHEX':
-                        return <span className="text-green-300">{formatHEX(row.dailyPayoutHEX)}</span>;
+                        return <span className="text-green-700">{formatHEX(row.dailyPayoutHEX)}</span>;
                       case 'dailyMintedInflationTotal':
-                        return <span className="text-green-400">{formatHEX(row.dailyMintedInflationTotal)}</span>;
+                        return <span className="text-green-600">{formatHEX(row.dailyMintedInflationTotal)}</span>;
                       case 'actualAPYRate':
-                        return <span className="text-yellow-400 font-semibold">{formatPercent(row.actualAPYRate)}</span>;
+                        return <span className="text-yellow-700 font-semibold">{formatPercent(row.actualAPYRate)}</span>;
                       case 'currentStakerCount':
-                        return <span className="text-cyan-400">{formatNumber(row.currentStakerCount, 0, true)}</span>;
+                        return <span className="text-blue-700">{formatNumber(row.currentStakerCount, 0, true)}</span>;
                       case 'currentStakerCountChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.currentStakerCountChange)}`}>
@@ -267,7 +267,7 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'currentHolders':
-                        return <span className="text-cyan-300">{formatNumber(row.currentHolders, 0, true)}</span>;
+                        return <span className="text-orange-700">{formatNumber(row.currentHolders, 0, true)}</span>;
                       case 'currentHoldersChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.currentHoldersChange)}`}>
@@ -276,21 +276,21 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'numberOfHolders':
-                        return <span className="text-cyan-200">{formatNumber(row.numberOfHolders, 0, true)}</span>;
+                        return <span className="text-red-600">{formatNumber(row.numberOfHolders, 0, true)}</span>;
                       case 'averageStakeLength':
-                        return <span className="text-yellow-300">{formatNumber(row.averageStakeLength, 2)} years</span>;
+                        return <span className="text-yellow-700">{formatNumber(row.averageStakeLength, 2)} years</span>;
                       case 'penaltiesHEX':
-                        return <span className="text-red-400">{formatHEX(row.penaltiesHEX)}</span>;
+                        return <span className="text-red-700">{formatHEX(row.penaltiesHEX)}</span>;
                       case 'roiMultiplierFromATL':
-                        return <span className="text-emerald-400 font-semibold">{formatNumber(row.roiMultiplierFromATL, 0)}x</span>;
+                        return <span className="text-emerald-700 font-semibold">{formatNumber(row.roiMultiplierFromATL, 0)}x</span>;
                       case 'priceBTC':
-                        return <span className="text-orange-400">{formatCurrency(row.priceBTC, 2)}</span>;
+                        return <span className="text-orange-700">{formatCurrency(row.priceBTC, 2)}</span>;
                       case 'priceETH':
-                        return <span className="text-blue-400">{formatCurrency(row.priceETH, 2)}</span>;
+                        return <span className="text-blue-700">{formatCurrency(row.priceETH, 2)}</span>;
                       case 'pricePulseX':
-                        return <span className="text-pink-400">{formatPrice(row.pricePulseX, 8)}</span>;
+                        return <span className="text-pink-700">{formatPrice(row.pricePulseX, 8)}</span>;
                       case 'pricePulseX_PLS':
-                        return <span className="text-pink-300">{formatPrice(row.pricePulseX_PLS, 8)}</span>;
+                        return <span className="text-pink-600">{formatPrice(row.pricePulseX_PLS, 8)}</span>;
                       default:
                         return <span className="text-white">{formatNumber(row[column.key])}</span>;
                     }

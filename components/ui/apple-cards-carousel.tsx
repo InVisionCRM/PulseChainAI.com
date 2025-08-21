@@ -186,9 +186,28 @@ export const Card = ({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
-  useOutsideClick(containerRef, () => handleClose());
+  useOutsideClick(containerRef as React.RefObject<HTMLDivElement>, () => handleClose());
 
   const handleOpen = () => {
+    // If no content, navigate directly based on the card title
+    if (!card.content) {
+      if (card.title === "AI Code Reader/Chat Agent") {
+        window.location.href = "/ai-agent";
+      } else if (card.title === "Blockchain Analyzer") {
+        window.location.href = "/blockchain-analyzer";
+      } else if (card.title === "AI Therapist") {
+        window.location.href = "/therapist";
+      } else if (card.title === "Stat Counter Builder") {
+        window.location.href = "/stat-counter-builder";
+      } else if (card.title === "HEX Stats") {
+        window.location.href = "/hex-dashboard";
+      } else if (card.title === "Admin Stats") {
+        window.location.href = "/admin-stats";
+      }
+      return;
+    }
+    
+    // Otherwise, open the popup
     setOpen(true);
   };
 
@@ -200,7 +219,7 @@ export const Card = ({
   return (
     <>
       <AnimatePresence>
-        {open && (
+        {open && card.content && (
           <div className="fixed inset-0 z-50 h-screen overflow-auto">
             <motion.div
               initial={{ opacity: 0 }}
@@ -244,7 +263,7 @@ export const Card = ({
       <motion.button
         layoutId={layout ? `card-${card.title}` : undefined}
         onClick={handleOpen}
-        className="relative z-10 flex h-80 w-56 flex-col items-start justify-start overflow-hidden rounded-3xl bg-gray-100 md:h-[40rem] md:w-96 dark:bg-neutral-900"
+        className="relative z-10 flex h-80 w-56 flex-col items-start justify-start overflow-hidden rounded-3xl bg-gray-100 md:h-[40rem] md:w-96 dark:bg-neutral-900 cursor-pointer hover:scale-105 transition-transform duration-200"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 z-30 h-full bg-gradient-to-b from-black/50 via-transparent to-transparent" />
         <div className="relative z-40 p-8">

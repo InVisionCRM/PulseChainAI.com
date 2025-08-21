@@ -26,6 +26,43 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
   const [sortField, setSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'daysServed'>('stakeId');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
+  // Helper functions for calculations
+  const calculateStakeUSD = (stakedHearts: string): number => {
+    const hearts = parseFloat(stakedHearts);
+    // Use a default price if not available - this should be passed from parent
+    const defaultPrice = 0.01; // Default HEX price
+    return (hearts / 100000000) * defaultPrice;
+  };
+
+  const calculateExpectedEarnings = (stakedHearts: string, stakedDays: string): number => {
+    const hearts = parseFloat(stakedHearts);
+    const days = parseInt(stakedDays);
+    const hexAmount = hearts / 100000000;
+    const baseYield = 0.05; // 5% base yield
+    const dayMultiplier = Math.min(days / 365, 2); // Cap at 2x for very long stakes
+    return hexAmount * baseYield * dayMultiplier;
+  };
+
+  const calculateEarnedSoFar = (stakedHearts: string, daysServed: number, stakedDays: string): number => {
+    const hearts = parseFloat(stakedHearts);
+    const days = parseInt(stakedDays);
+    const hexAmount = hearts / 100000000;
+    if (!daysServed || daysServed <= 0) return 0;
+    const progressRatio = daysServed / days;
+    const expectedEarnings = calculateExpectedEarnings(stakedHearts, stakedDays);
+    return expectedEarnings * progressRatio;
+  };
+
+  const formatUSD = (amount: number): string => {
+    if (amount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(2)}M`;
+    } else if (amount >= 1000) {
+      return `$${(amount / 1000).toFixed(2)}K`;
+    } else {
+      return `$${amount.toFixed(2)}`;
+    }
+  };
+
   useEffect(() => {
     if (isOpen && stake && activeTab === 'history' && !stakerHistory) {
       fetchStakerHistory();
@@ -138,9 +175,9 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
   };
 
   const getRankBadge = (rank: number) => {
-    if (rank === 1) return { icon: <Crown className="w-5 h-5" />, color: 'text-yellow-400 bg-yellow-400/20', label: '1st Place' };
-    if (rank === 2) return { icon: <Crown className="w-5 h-5" />, color: 'text-gray-300 bg-gray-300/20', label: '2nd Place' };
-    if (rank === 3) return { icon: <Crown className="w-5 h-5" />, color: 'text-amber-600 bg-amber-600/20', label: '3rd Place' };
+    if (rank === 1) return { icon: <Crown className="w-5 h-5" />, color: 'text-yellow-700 bg-yellow-400/20', label: '1st Place' };
+    if (rank === 2) return { icon: <Crown className="w-5 h-5" />, color: 'text-blue-700 bg-gray-300/20', label: '2nd Place' };
+    if (rank === 3) return { icon: <Crown className="w-5 h-5" />, color: 'text-amber-700 bg-amber-600/20', label: '3rd Place' };
     return { icon: <Award className="w-5 h-5" />, color: 'text-purple-400 bg-purple-400/20', label: `#${rank}` };
   };
 
@@ -177,12 +214,12 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
 
   const getStakeStatusColor = (stake: MultiNetworkHexStake) => {
     if (stake.isActive) {
-      if (stake.daysLeft && stake.daysLeft < 30) return 'text-yellow-400';
-      return 'text-green-400';
+      if (stake.daysLeft && stake.daysLeft < 30) return 'text-yellow-700';
+      return 'text-green-700';
     }
     const endData = getStakeEndData(stake.stakeId);
-    if (endData && parseFloat(endData.penalty || '0') > 0) return 'text-red-400';
-    return 'text-blue-400';
+    if (endData && parseFloat(endData.penalty || '0') > 0) return 'text-red-700';
+    return 'text-blue-700';
   };
 
   const getStakeStatusIcon = (stake: MultiNetworkHexStake) => {
@@ -220,7 +257,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                   <img src="/HEXagon (1).svg" alt="HEX" className="w-6 h-6" />
                   HEX Stake #{stake.stakeId}
                 </h2>
-                <p className="text-slate-400 text-sm mt-1">Detailed stake information and metrics</p>
+                <p className="text-slate-600 text-sm mt-1">Detailed stake information and metrics</p>
               </div>
             </div>
             <button
@@ -240,8 +277,8 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                 onClick={() => setActiveTab('details')}
                 className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                   activeTab === 'details'
-                    ? 'border-purple-500 text-purple-400'
-                    : 'border-transparent text-slate-400 hover:text-slate-300'
+                    ? 'border-purple-500 text-purple-700'
+                    : 'border-transparent text-slate-400 hover:text-blue-600'
                 }`}
               >
                 <Hash className="w-4 h-4" />
@@ -251,8 +288,8 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                 onClick={() => setActiveTab('history')}
                 className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                   activeTab === 'history'
-                    ? 'border-purple-500 text-purple-400'
-                    : 'border-transparent text-slate-400 hover:text-slate-300'
+                    ? 'border-purple-500 text-purple-700'
+                    : 'border-transparent text-slate-600 hover:text-blue-600'
                 }`}
               >
                 <User className="w-4 h-4" />
@@ -270,10 +307,10 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
           <div className="mb-8">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-purple-400" />
+                <TrendingUp className="w-5 h-5 text-purple-700" />
                 Stake Progress
               </h3>
-              <span className="text-2xl font-bold text-purple-400">{progress.toFixed(1)}%</span>
+              <span className="text-2xl font-bold text-purple-700">{progress.toFixed(1)}%</span>
             </div>
             <div className="relative w-full bg-slate-700/50 rounded-full h-4 overflow-hidden">
               <div 
@@ -289,52 +326,55 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4">
               <div className="flex items-center gap-3 mb-2">
-                <Zap className="w-5 h-5 text-green-400" />
-                                    <span className="text-sm text-slate-400 flex items-center gap-1">
+                <Zap className="w-5 h-5 text-green-700" />
+                                    <span className="text-sm text-slate-600 flex items-center gap-1">
                       <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                       Staked HEX
                     </span>
               </div>
-              <div className="text-xl font-bold text-green-400">
+              <div className="text-xl font-bold text-green-700">
                 {multiNetworkHexStakingService.formatHexAmount(stake.stakedHearts)}
               </div>
-                                <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                                <div className="text-xs text-slate-600 mt-1 flex items-center gap-1">
                     <img src="/HEXagon (1).svg" alt="HEX" className="w-3 h-3" />
                     HEX
                   </div>
+              <div className="text-sm font-semibold text-emerald-600 mt-1">
+                {formatUSD(calculateStakeUSD(stake.stakedHearts))}
+              </div>
             </div>
 
             <div className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border border-purple-500/20 rounded-xl p-4">
               <div className="flex items-center gap-3 mb-2">
-                <Award className="w-5 h-5 text-purple-400" />
-                <span className="text-sm text-slate-400">T-Shares</span>
+                <Award className="w-5 h-5 text-purple-700" />
+                <span className="text-sm text-slate-600">T-Shares</span>
               </div>
-              <div className="text-xl font-bold text-purple-400">
+              <div className="text-xl font-bold text-purple-700">
                 {multiNetworkHexStakingService.formatTShareAmount(stake.stakeTShares || stake.stakeShares)}
               </div>
-              <div className="text-xs text-slate-500 mt-1">Stake Shares</div>
+              <div className="text-xs text-slate-600 mt-1">Stake Shares</div>
             </div>
 
             <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
               <div className="flex items-center gap-3 mb-2">
-                <Clock className="w-5 h-5 text-blue-400" />
-                <span className="text-sm text-slate-400">Days Served</span>
+                <Clock className="w-5 h-5 text-blue-700" />
+                <span className="text-sm text-slate-600">Days Served</span>
               </div>
-              <div className="text-xl font-bold text-blue-400">
+              <div className="text-xl font-bold text-blue-700">
                 {stake.daysServed?.toLocaleString() || 'N/A'}
               </div>
-              <div className="text-xs text-slate-500 mt-1">of {stake.stakedDays} total</div>
+              <div className="text-xs text-slate-600 mt-1">of {stake.stakedDays} total</div>
             </div>
 
             <div className="bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border border-orange-500/20 rounded-xl p-4">
               <div className="flex items-center gap-3 mb-2">
-                <Target className="w-5 h-5 text-orange-400" />
+                <Target className="w-5 h-5 text-orange-700" />
                 <span className="text-sm text-slate-400">Days Remaining</span>
               </div>
-              <div className="text-xl font-bold text-orange-400">
+              <div className="text-xl font-bold text-orange-700">
                 {stake.daysLeft?.toLocaleString() || 'N/A'}
               </div>
-              <div className="text-xs text-slate-500 mt-1">days left</div>
+              <div className="text-xs text-slate-700 mt-1">days left</div>
             </div>
           </div>
 
@@ -344,7 +384,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
             {/* Stake Details */}
             <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl p-6">
               <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Hash className="w-5 h-5 text-cyan-400" />
+                <Hash className="w-5 h-5 text-cyan-700" />
                 Stake Details
               </h4>
               <div className="space-y-4">
@@ -366,7 +406,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Is Auto Stake:</span>
-                  <span className={`${stake.isAutoStake ? 'text-green-400' : 'text-slate-400'}`}>
+                  <span className={`${stake.isAutoStake ? 'text-green-700' : 'text-slate-400'}`}>
                     {stake.isAutoStake ? 'Yes' : 'No'}
                   </span>
                 </div>
@@ -405,7 +445,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                   <div className="flex items-center gap-2">
                     <Globe className="w-4 h-4" />
                     <span className={`font-semibold ${
-                      stake.network === 'ethereum' ? 'text-blue-400' : 'text-purple-400'
+                      stake.network === 'ethereum' ? 'text-blue-700' : 'text-purple-400'
                     }`}>
                       {stake.network === 'ethereum' ? 'Ethereum' : 'PulseChain'}
                     </span>
@@ -422,30 +462,81 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
           {/* Performance Metrics */}
           <div className="mt-8 bg-gradient-to-r from-purple-500/5 to-blue-500/5 border border-purple-500/20 rounded-xl p-6">
             <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-indigo-400" />
+              <Calendar className="w-5 h-5 text-indigo-700" />
               Performance Summary
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-indigo-400">
+                <div className="text-2xl font-bold text-indigo-700">
                   {progress.toFixed(1)}%
                 </div>
                 <div className="text-sm text-slate-400">Completion Rate</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-cyan-400">
+                <div className="text-2xl font-bold text-cyan-700">
                   {stake.daysServed && stake.stakedDays 
                     ? ((stake.daysServed / parseInt(stake.stakedDays)) * 365).toFixed(0)
                     : 'N/A'
                   }
                 </div>
-                <div className="text-sm text-slate-400">Annualized Days</div>
+                <div className="text-sm text-slate-600">Annualized Days</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-emerald-400">
+                <div className="text-2xl font-bold text-emerald-700">
                   {stake.daysLeft && stake.daysLeft > 0 ? 'Active' : 'Completed'}
                 </div>
-                <div className="text-sm text-slate-400">Current Status</div>
+                <div className="text-sm text-slate-600">Current Status</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Earnings Metrics */}
+          <div className="mt-8 bg-gradient-to-r from-green-500/5 to-emerald-500/5 border border-green-500/20 rounded-xl p-6">
+            <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-green-700" />
+              Earnings Projections
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-700">
+                  {multiNetworkHexStakingService.formatHexAmount(
+                    (calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays) * 100000000).toString()
+                  )}
+                </div>
+                <div className="text-sm text-slate-400">HEX Earned So Far</div>
+                <div className="text-xs text-emerald-700">
+                  {formatUSD(calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays))}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-700">
+                  {multiNetworkHexStakingService.formatHexAmount(
+                    (calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays) * 100000000).toString()
+                  )}
+                </div>
+                <div className="text-sm text-slate-700">Expected Total Earnings</div>
+                <div className="text-xs text-blue-700">
+                  {formatUSD(calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays))}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-700">
+                  {stake.daysLeft && stake.daysLeft > 0 
+                    ? multiNetworkHexStakingService.formatHexAmount(
+                        ((calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays) - 
+                          calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays)) * 100000000).toString()
+                      )
+                    : '0'
+                  }
+                </div>
+                <div className="text-sm text-slate-700">Remaining to Earn</div>
+                <div className="text-xs text-purple-700">
+                  {stake.daysLeft && stake.daysLeft > 0 
+                    ? formatUSD(calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays) - 
+                        calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays))
+                    : '$0.00'
+                  }
+                </div>
               </div>
             </div>
           </div>
@@ -486,7 +577,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                   {/* Network Summary */}
                   <div className="mb-6">
                     <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                      <Globe className="w-5 h-5 text-cyan-400" />
+                      <Globe className="w-5 h-5 text-cyan-700" />
                       Multi-Network Summary
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -494,7 +585,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                       <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-3">
                           <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
-                          <span className="font-semibold text-blue-400 flex items-center gap-1">
+                          <span className="font-semibold text-blue-700 flex items-center gap-1">
                     <img src="/ethlogo.svg" alt="Ethereum" className="w-4 h-4" />
                     Ethereum Network
                   </span>
@@ -502,11 +593,11 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div>
                             <div className="text-white font-bold">{stakerHistory.ethereum.totalStakes}</div>
-                            <div className="text-slate-400">Total Stakes</div>
+                            <div className="text-slate-600">Total Stakes</div>
                           </div>
                           <div>
                             <div className="text-white font-bold">{stakerHistory.ethereum.activeStakes}</div>
-                            <div className="text-slate-400">Active</div>
+                            <div className="text-slate-600">Active</div>
                           </div>
                           <div className="col-span-2">
                             <div className="text-blue-400 font-bold">
@@ -524,7 +615,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                       <div className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border border-purple-500/20 rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-3">
                           <div className="w-3 h-3 bg-purple-400 rounded-full"></div>
-                          <span className="font-semibold text-purple-400 flex items-center gap-1">
+                          <span className="font-semibold text-purple-600 flex items-center gap-1">
                     <img src="/LogoVector.svg" alt="PulseChain" className="w-4 h-4" />
                     PulseChain Network
                   </span>
@@ -532,20 +623,20 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div>
                             <div className="text-white font-bold">{stakerHistory.pulsechain.totalStakes}</div>
-                            <div className="text-slate-400">Total Stakes</div>
+                            <div className="text-slate-600">Total Stakes</div>
                           </div>
                           <div>
                             <div className="text-white font-bold">{stakerHistory.pulsechain.activeStakes}</div>
-                            <div className="text-slate-400">Active</div>
+                            <div className="text-slate-600">Active</div>
                           </div>
                           <div className="col-span-2">
-                            <div className="text-purple-400 font-bold">
+                            <div className="text-purple-700 font-bold">
                               <span className="flex items-center gap-1">
                           <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                           {multiNetworkHexStakingService.formatHexAmount(stakerHistory.pulsechain.totalStakedHearts)} HEX
                         </span>
                             </div>
-                            <div className="text-slate-400">Total Staked</div>
+                            <div className="text-slate-600">Total Staked</div>
                           </div>
                         </div>
                       </div>
@@ -556,43 +647,43 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                     <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <Activity className="w-5 h-5 text-blue-400" />
-                        <span className="text-sm text-slate-400">Total Stakes</span>
+                        <Activity className="w-5 h-5 text-blue-700" />
+                        <span className="text-sm text-slate-600">Total Stakes</span>
                       </div>
-                      <div className="text-2xl font-bold text-blue-400">
+                      <div className="text-2xl font-bold text-blue-700">
                         {stakerHistory.totalStakes.toLocaleString()}
                       </div>
                     </div>
 
                     <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="w-5 h-5 text-green-400" />
-                        <span className="text-sm text-slate-400">Active</span>
+                        <TrendingUp className="w-5 h-5 text-green-700" />
+                        <span className="text-sm text-slate-600">Active</span>
                       </div>
-                      <div className="text-2xl font-bold text-green-400">
+                      <div className="text-2xl font-bold text-green-700">
                         {stakerHistory.activeStakes.toLocaleString()}
                       </div>
                     </div>
 
                     <div className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border border-purple-500/20 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle className="w-5 h-5 text-purple-400" />
-                        <span className="text-sm text-slate-400">Ended</span>
+                        <CheckCircle className="w-5 h-5 text-purple-700" />
+                        <span className="text-sm text-slate-600">Ended</span>
                       </div>
-                      <div className="text-2xl font-bold text-purple-400">
+                      <div className="text-2xl font-bold text-purple-700">
                         {stakerHistory.endedStakes.toLocaleString()}
                       </div>
                     </div>
 
                     <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <Zap className="w-5 h-5 text-yellow-400" />
-                        <span className="text-sm text-slate-400 flex items-center gap-1">
+                        <Zap className="w-5 h-5 text-yellow-700" />
+                        <span className="text-sm text-slate-600 flex items-center gap-1">
                     <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                     Total HEX
                   </span>
                       </div>
-                                          <div className="text-xl font-bold text-yellow-400">
+                                          <div className="text-xl font-bold text-yellow-600">
                                               <span className="flex items-center gap-1">
                           <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                           {multiNetworkHexStakingService.formatHexAmount(stakerHistory.totalStakedHearts)}
@@ -602,13 +693,13 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
 
                     <div className="bg-gradient-to-br from-pink-500/10 to-rose-500/10 border border-pink-500/20 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <Award className="w-5 h-5 text-pink-400" />
-                        <span className="text-sm text-slate-400 flex items-center gap-1">
+                        <Award className="w-5 h-5 text-pink-700" />
+                        <span className="text-sm text-slate-600 flex items-center gap-1">
                     <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                     Total T-Shares
                   </span>
                       </div>
-                                          <div className="text-xl font-bold text-pink-400">
+                                          <div className="text-xl font-bold text-pink-600">
                                               <span className="flex items-center gap-1">
                           <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                           {multiNetworkHexStakingService.formatTShareAmount(stakerHistory.totalTShares)}
@@ -618,8 +709,8 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
 
                     <div className="bg-gradient-to-br from-indigo-500/10 to-blue-500/10 border border-indigo-500/20 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <Clock className="w-5 h-5 text-indigo-400" />
-                        <span className="text-sm text-slate-400 flex items-center gap-1">
+                        <Clock className="w-5 h-5 text-indigo-700" />
+                        <span className="text-sm text-slate-600 flex items-center gap-1">
                           <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                           Avg Length
                         </span>
@@ -635,13 +726,13 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-2">
-                          <DollarSign className="w-5 h-5 text-green-400" />
-                          <span className="text-sm text-slate-400 flex items-center gap-1">
+                          <DollarSign className="w-5 h-5 text-green-700" />
+                          <span className="text-sm text-slate-600 flex items-center gap-1">
                             <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                             Total Payouts
                           </span>
                         </div>
-                        <div className="text-xl font-bold text-green-400">
+                        <div className="text-xl font-bold text-green-700">
                           <span className="flex items-center gap-1">
                             <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                             {Math.round(parseFloat(stakerHistory.totalPayouts) / Math.pow(10, 8)).toLocaleString()} HEX
@@ -651,13 +742,13 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
 
                       <div className="bg-gradient-to-br from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-2">
-                          <AlertTriangle className="w-5 h-5 text-red-400" />
-                          <span className="text-sm text-slate-400 flex items-center gap-1">
+                          <AlertTriangle className="w-5 h-5 text-red-700" />
+                          <span className="text-sm text-slate-600 flex items-center gap-1">
                             <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                             Total Penalties
                           </span>
                         </div>
-                        <div className="text-xl font-bold text-red-400">
+                        <div className="text-xl font-bold text-red-700">
                           <span className="flex items-center gap-1">
                             <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                             {Math.round(parseFloat(stakerHistory.totalPenalties) / Math.pow(10, 8)).toLocaleString()} HEX
@@ -667,8 +758,8 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
 
                       <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-2">
-                          <TrendingUp className="w-5 h-5 text-blue-400" />
-                          <span className="text-sm text-slate-400">Avg APY</span>
+                          <TrendingUp className="w-5 h-5 text-blue-700" />
+                          <span className="text-sm text-slate-600">Avg APY</span>
                         </div>
                         <div className="text-xl font-bold text-blue-400">
                           {(() => {
@@ -705,8 +796,8 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                           onClick={() => setHistorySubTab(key as any)}
                           className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                             historySubTab === key
-                              ? 'border-purple-500 text-purple-400'
-                              : 'border-transparent text-slate-400 hover:text-slate-300'
+                              ? 'border-purple-500 text-purple-700'
+                              : 'border-transparent text-slate-600 hover:text-slate-300'
                           }`}
                         >
                           <Icon className="w-4 h-4" />
@@ -799,22 +890,22 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                                 <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white">
                                   {historyStake.stakeId}
                                 </td>
-                                <td className="px-3 py-4 whitespace-nowrap text-sm text-green-400 font-semibold">
+                                <td className="px-3 py-4 whitespace-nowrap text-sm text-green-700 font-semibold">
                                   <span className="flex items-center gap-1">
                           <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                           {multiNetworkHexStakingService.formatHexAmount(historyStake.stakedHearts)}
                         </span>
                                 </td>
-                                <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
+                                <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-700">
                                   <span className="flex items-center gap-1">
                           <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                           {multiNetworkHexStakingService.formatTShareAmount(historyStake.stakeTShares || historyStake.stakeShares)}
                         </span>
                                 </td>
-                                <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
+                                <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-700">
                                   {multiNetworkHexStakingService.formatStakeLengthInDays(parseInt(historyStake.stakedDays))}
                                 </td>
-                                <td className="px-3 py-4 whitespace-nowrap text-sm text-orange-400">
+                                <td className="px-3 py-4 whitespace-nowrap text-sm text-orange-700">
                                   <div className="space-y-1">
                                     <div>
                                       {historyStake.daysServed?.toLocaleString() || 'N/A'} days
@@ -823,7 +914,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                                       const daysLate = multiNetworkHexStakingService.calculateLateEndingDays(historyStake, endData);
                                       if (daysLate > 0) {
                                         return (
-                                          <div className="text-xs text-yellow-400">
+                                          <div className="text-xs text-yellow-700">
                                             +{daysLate.toLocaleString()} days late
                                           </div>
                                         );
@@ -842,13 +933,13 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                                         style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                                       />
                                     </div>
-                                    <span className="text-xs text-slate-400">{progress.toFixed(0)}%</span>
+                                    <span className="text-xs text-slate-600">{progress.toFixed(0)}%</span>
                                   </div>
                                 </td>
-                                <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-400">
+                                <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-600">
                                   {formatDate(historyStake.timestamp)}
                                 </td>
-                                <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-400">
+                                <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-600">
                                   <div className="flex items-center gap-1">
                                     <span className={`text-xs px-2 py-1 rounded ${
                                       historyStake.network === 'ethereum' 
@@ -863,12 +954,12 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                                   <div className="space-y-1">
                                     {/* Start Transaction */}
                                     <div className="flex items-center gap-1">
-                                      <span className="text-xs text-slate-500">Start:</span>
+                                      <span className="text-xs text-slate-600">Start:</span>
                                       <a
                                         href={multiNetworkHexStakingService.getTransactionUrl(historyStake.transactionHash, historyStake.network)}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1 underline"
+                                        className="text-xs text-green-700 hover:text-green-300 flex items-center gap-1 underline"
                                         title={`View start transaction: ${historyStake.transactionHash}`}
                                       >
                                         <span>{historyStake.transactionHash.slice(0, 8)}...</span>
@@ -879,12 +970,12 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                                     {/* End Transaction */}
                                     {endData && endData.transactionHash && (
                                       <div className="flex items-center gap-1">
-                                        <span className="text-xs text-slate-500">End:</span>
+                                        <span className="text-xs text-slate-600">End:</span>
                                         <a
                                           href={multiNetworkHexStakingService.getTransactionUrl(endData.transactionHash, historyStake.network)}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 underline"
+                                          className="text-xs text-red-700 hover:text-red-300 flex items-center gap-1 underline"
                                           title={`View end transaction: ${endData.transactionHash}`}
                                         >
                                           <span>{endData.transactionHash.slice(0, 8)}...</span>
@@ -894,7 +985,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                                     )}
                                     
                                     {historyStake.isActive && (
-                                      <div className="text-xs text-slate-500">End: N/A</div>
+                                      <div className="text-xs text-slate-600">End: N/A</div>
                                     )}
                                   </div>
                                 </td>
@@ -902,7 +993,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                                   {endData ? (
                                     <div className="space-y-1">
                                       {parseFloat(endData.payout || '0') > 0 && (
-                                        <div className="text-xs text-green-400">
+                                        <div className="text-xs text-green-700">
                                           <span className="flex items-center gap-1">
                           <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                           +{Math.round(parseFloat(endData.payout) / Math.pow(10, 8)).toLocaleString()} HEX
@@ -910,7 +1001,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                                         </div>
                                       )}
                                       {parseFloat(endData.penalty || '0') > 0 && (
-                                        <div className="text-xs text-red-400">
+                                        <div className="text-xs text-red-700">
                                           <span className="flex items-center gap-1">
                           <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                           -{Math.round(parseFloat(endData.penalty) / Math.pow(10, 8)).toLocaleString()} HEX
@@ -918,15 +1009,15 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                                         </div>
                                       )}
                                       {parseFloat(endData.payout || '0') > 0 && (
-                                        <div className="text-xs text-blue-400">
+                                        <div className="text-xs text-blue-700">
                                           APY: {multiNetworkHexStakingService.calculateStakeAPY(historyStake, endData).toFixed(1)}%
                                         </div>
                                       )}
                                     </div>
                                   ) : historyStake.isActive ? (
-                                    <span className="text-xs text-slate-500">Active</span>
+                                    <span className="text-xs text-slate-700">Active</span>
                                   ) : (
-                                    <span className="text-xs text-slate-500">N/A</span>
+                                    <span className="text-xs text-slate-600">N/A</span>
                                   )}
                                 </td>
                               </tr>
@@ -936,7 +1027,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                       </table>
                       
                       {sortedStakes.length === 0 && (
-                        <div className="text-center py-8 text-slate-400">
+                        <div className="text-center py-8 text-slate-600">
                           No stakes found for this filter
                         </div>
                       )}

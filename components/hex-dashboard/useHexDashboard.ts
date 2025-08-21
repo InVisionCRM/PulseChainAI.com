@@ -392,6 +392,27 @@ export const useHexDashboard = () => {
     return await pulsechainHexStakingService.getCacheStatus();
   }, []);
 
+  const getCurrentHexPrice = useCallback((): number => {
+    if (!state.liveData) return 0;
+    
+    // Try to get the current HEX price from live data
+    // Priority: priceUV2UV3 > price > calculated from market cap
+    if (state.liveData.priceUV2UV3) {
+      return state.liveData.priceUV2UV3;
+    }
+    
+    if (state.liveData.price) {
+      return state.liveData.price;
+    }
+    
+    // Calculate from market cap and circulating supply if available
+    if (state.liveData.marketCap && state.liveData.circulatingHEX) {
+      return state.liveData.marketCap / state.liveData.circulatingHEX;
+    }
+    
+    return 0;
+  }, [state.liveData]);
+
   // Load initial data
   useEffect(() => {
     fetchData();
@@ -420,5 +441,6 @@ export const useHexDashboard = () => {
     // Efficient data access for AI timing
     getSortedPulsechainData,
     getPulsechainCacheStatus,
+    getCurrentHexPrice,
   };
 };

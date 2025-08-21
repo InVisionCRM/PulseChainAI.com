@@ -157,6 +157,7 @@ export interface StakingOverviewProps {
       stakerMetrics: number;
     };
   }>;
+  getCurrentHexPrice: () => number; // Function to get current HEX price
 }
 
 export interface DashboardActionsProps {
