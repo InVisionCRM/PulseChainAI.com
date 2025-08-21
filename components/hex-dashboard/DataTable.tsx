@@ -116,223 +116,192 @@ const DataTable: React.FC<DataTableProps> = ({
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedData = data.slice(startIndex, startIndex + itemsPerPage);
 
-  const columns = [
-    { key: 'date', label: 'Date', width: 'w-32' },
-    { key: 'currentDay', label: 'Day', width: 'w-20' },
-    { key: 'priceUV2UV3', label: 'HEX Price (USD)', width: 'w-28' },
-    { key: 'priceChangeUV2UV3', label: 'Price Change (%)', width: 'w-24' },
-    { key: 'marketCap', label: 'Market Cap', width: 'w-32' },
-    { key: 'totalValueLocked', label: 'Total Value Locked', width: 'w-32' },
-    { key: 'totalHEX', label: 'Total Supply', width: 'w-32' },
-    { key: 'circulatingHEX', label: 'Circulating Supply', width: 'w-32' },
-    { key: 'circulatingSupplyChange', label: 'Circulation Change', width: 'w-32' },
-    { key: 'stakedHEX', label: 'Staked Supply', width: 'w-32' },
-    { key: 'stakedSupplyChange', label: 'Staked Change', width: 'w-32' },
-    { key: 'stakedHEXPercent', label: 'Staked %', width: 'w-24' },
-    { key: 'totalTshares', label: 'Total T-Shares', width: 'w-32' },
-    { key: 'totalTsharesChange', label: 'T-Shares Change', width: 'w-32' },
-    { key: 'tshareRateHEX', label: 'T-Share Rate (HEX)', width: 'w-32' },
-    { key: 'tshareMarketCap', label: 'T-Share Market Cap', width: 'w-32' },
-    { key: 'payoutPerTshareHEX', label: 'Payout/T-Share', width: 'w-28' },
-    { key: 'dailyPayoutHEX', label: 'Daily Payout', width: 'w-32' },
-    { key: 'dailyMintedInflationTotal', label: 'Daily Inflation', width: 'w-32' },
-    { key: 'actualAPYRate', label: 'APY Rate (%)', width: 'w-24' },
-    { key: 'currentStakerCount', label: 'Active Stakers', width: 'w-28' },
-    { key: 'currentStakerCountChange', label: 'Staker Change', width: 'w-28' },
-    { key: 'currentHolders', label: 'Current Holders', width: 'w-28' },
-    { key: 'currentHoldersChange', label: 'Holder Change', width: 'w-28' },
-    { key: 'numberOfHolders', label: 'Total Holders', width: 'w-28' },
-    { key: 'averageStakeLength', label: 'Avg Stake Length', width: 'w-28' },
-    { key: 'penaltiesHEX', label: 'Penalties (HEX)', width: 'w-32' },
-    { key: 'roiMultiplierFromATL', label: 'ROI from ATL', width: 'w-28' },
+  // Mobile-optimized columns - show fewer columns on mobile
+  const allColumns = [
+    { key: 'date', label: 'Date', width: 'w-24 sm:w-32', mobile: true },
+    { key: 'currentDay', label: 'Day', width: 'w-16 sm:w-20', mobile: true },
+    { key: 'priceUV2UV3', label: 'HEX Price', shortLabel: 'Price', width: 'w-20 sm:w-28', mobile: true },
+    { key: 'priceChangeUV2UV3', label: 'Price Change (%)', shortLabel: 'Change', width: 'w-20 sm:w-24', mobile: true },
+    { key: 'marketCap', label: 'Market Cap', shortLabel: 'Cap', width: 'w-24 sm:w-32', mobile: false },
+    { key: 'totalValueLocked', label: 'Total Value Locked', shortLabel: 'TVL', width: 'w-24 sm:w-32', mobile: false },
+    { key: 'totalHEX', label: 'Total Supply', shortLabel: 'Supply', width: 'w-24 sm:w-32', mobile: false },
+    { key: 'circulatingHEX', label: 'Circulating Supply', shortLabel: 'Circ', width: 'w-24 sm:w-32', mobile: false },
+    { key: 'circulatingSupplyChange', label: 'Circulation Change', shortLabel: 'Circ Δ', width: 'w-24 sm:w-32', mobile: false },
+    { key: 'stakedHEX', label: 'Staked Supply', shortLabel: 'Staked', width: 'w-24 sm:w-32', mobile: true },
+    { key: 'stakedSupplyChange', label: 'Staked Change', shortLabel: 'Staked Δ', width: 'w-24 sm:w-32', mobile: false },
+    { key: 'stakedHEXPercent', label: 'Staked %', shortLabel: '%', width: 'w-16 sm:w-24', mobile: false },
+    { key: 'totalTshares', label: 'Total T-Shares', shortLabel: 'T-Shares', width: 'w-24 sm:w-32', mobile: false },
+    { key: 'totalTsharesChange', label: 'T-Shares Change', shortLabel: 'T-Δ', width: 'w-24 sm:w-32', mobile: false },
+    { key: 'tshareRateHEX', label: 'T-Share Rate (HEX)', shortLabel: 'T-Rate', width: 'w-24 sm:w-32', mobile: false },
+    { key: 'tshareMarketCap', label: 'T-Share Market Cap', shortLabel: 'T-Cap', width: 'w-24 sm:w-32', mobile: false },
+    { key: 'payoutPerTshareHEX', label: 'Payout/T-Share', shortLabel: 'Payout', width: 'w-20 sm:w-28', mobile: false },
+    { key: 'dailyPayoutHEX', label: 'Daily Payout', shortLabel: 'Daily', width: 'w-24 sm:w-32', mobile: false },
+    { key: 'dailyMintedInflationTotal', label: 'Daily Inflation', shortLabel: 'Inflation', width: 'w-24 sm:w-32', mobile: false },
+    { key: 'actualAPYRate', label: 'APY Rate (%)', shortLabel: 'APY', width: 'w-16 sm:w-24', mobile: true },
+    { key: 'currentStakerCount', label: 'Active Stakers', shortLabel: 'Stakers', width: 'w-20 sm:w-28', mobile: false },
+    { key: 'currentStakerCountChange', label: 'Staker Change', shortLabel: 'Staker Δ', width: 'w-20 sm:w-28', mobile: false },
+    { key: 'currentHolders', label: 'Current Holders', shortLabel: 'Holders', width: 'w-20 sm:w-28', mobile: false },
+    { key: 'currentHoldersChange', label: 'Holder Change', shortLabel: 'Holder Δ', width: 'w-20 sm:w-28', mobile: false },
+    { key: 'numberOfHolders', label: 'Total Holders', shortLabel: 'Total H', width: 'w-20 sm:w-28', mobile: false },
+    { key: 'averageStakeLength', label: 'Avg Stake Length', shortLabel: 'Avg Len', width: 'w-20 sm:w-28', mobile: false },
+    { key: 'penaltiesHEX', label: 'Penalties (HEX)', shortLabel: 'Penalties', width: 'w-24 sm:w-32', mobile: false },
+    { key: 'roiMultiplierFromATL', label: 'ROI from ATL', shortLabel: 'ROI', width: 'w-20 sm:w-28', mobile: false },
     ...(activeTab === 'ethereum' ? [
-      { key: 'priceBTC', label: 'BTC Price', width: 'w-28' },
-      { key: 'priceETH', label: 'ETH Price', width: 'w-28' },
+      { key: 'priceBTC', label: 'BTC Price', shortLabel: 'BTC', width: 'w-20 sm:w-28', mobile: false },
+      { key: 'priceETH', label: 'ETH Price', shortLabel: 'ETH', width: 'w-20 sm:w-28', mobile: false },
     ] : []),
     ...(activeTab === 'pulsechain' ? [
-      { key: 'pricePulseX', label: 'PulseX Price', width: 'w-28' },
-      { key: 'pricePulseX_PLS', label: 'PLS Price', width: 'w-28' },
+      { key: 'pricePulseX', label: 'PulseX Price', shortLabel: 'PulseX', width: 'w-20 sm:w-28', mobile: false },
+      { key: 'pricePulseX_PLS', label: 'PLS Price', shortLabel: 'PLS', width: 'w-20 sm:w-28', mobile: false },
     ] : [])
   ];
+
+  // Filter columns for mobile
+  const columns = allColumns;
 
   if (activeTab === 'staking') {
     return null;
   }
 
   return (
-    <div className="bg-black/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
-      <div className="overflow-auto max-h-[70vh]">
+    <div className="bg-black/5 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
+      <div className="overflow-auto max-h-[50vh] sm:max-h-[70vh]">
         <table className="min-w-full divide-y divide-white/10">
           <thead className="bg-slate-900 text-white">
             <tr>
-              {columns.map((column) => (
-                <th
-                  key={column.key}
-                  onClick={() => handleSort(column.key as keyof HexRow)}
-                  className="sticky top-0 z-10 bg-black/80 backdrop-blur px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-white/20 select-none"
-                >
-                  <div className="flex items-center gap-1">
-                    <span>{column.label}</span>
-                    <span className="text-slate-300">{getSortIcon(column.key as keyof HexRow)}</span>
-                  </div>
-                </th>
-              ))}
+              {columns.map((column) => {
+                const isMobileVisible = column.mobile;
+                return (
+                  <th
+                    key={column.key}
+                    onClick={() => handleSort(column.key as keyof HexRow)}
+                    className={`sticky top-0 z-10 bg-black/80 backdrop-blur px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-white/20 select-none ${!isMobileVisible ? 'hidden sm:table-cell' : ''}`}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className="hidden sm:inline">{column.label}</span>
+                      <span className="sm:hidden">{column.shortLabel || column.label}</span>
+                      <span className="text-slate-300 text-xs">{getSortIcon(column.key as keyof HexRow)}</span>
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="bg-transparent divide-y divide-white/10">
             {paginatedData.map((row, index) => (
               <tr key={row._id || index} className="hover:bg-white/5">
-                {/* Date */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white">
-                  {formatDate(row.date)}
-                </td>
-                {/* Current Day */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
-                  {formatNumber(row.currentDay, 0, true)}
-                </td>
-                {/* HEX Price */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-green-400 font-semibold">
-                  {formatPrice(row.priceUV2UV3, 8)}
-                </td>
-                {/* Price Change */}
-                <td className={`px-3 py-4 whitespace-nowrap text-sm ${getChangeColor(row.priceChangeUV2UV3)}`}>
-                  <div className="flex items-center gap-1">
-                    {getChangeIcon(row.priceChangeUV2UV3)}
-                    {formatPercent(row.priceChangeUV2UV3)}
-                  </div>
-                </td>
-                {/* Market Cap */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
-                  {formatCurrency(row.marketCap, 0)}
-                </td>
-                {/* Total Value Locked */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400 font-semibold">
-                  {formatCurrency(row.totalValueLocked, 0)}
-                </td>
-                {/* Total Supply */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
-                  {formatHEX(row.totalHEX)}
-                </td>
-                {/* Circulating Supply */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
-                  {formatHEX(row.circulatingHEX)}
-                </td>
-                {/* Circulation Change */}
-                <td className={`px-3 py-4 whitespace-nowrap text-sm ${getChangeColor(row.circulatingSupplyChange)}`}>
-                  <div className="flex items-center gap-1">
-                    {getChangeIcon(row.circulatingSupplyChange)}
-                    {formatHEX(row.circulatingSupplyChange)}
-                  </div>
-                </td>
-                {/* Staked Supply */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
-                  {formatHEX(row.stakedHEX)}
-                </td>
-                {/* Staked Change */}
-                <td className={`px-3 py-4 whitespace-nowrap text-sm ${getChangeColor(row.stakedSupplyChange)}`}>
-                  <div className="flex items-center gap-1">
-                    {getChangeIcon(row.stakedSupplyChange)}
-                    {formatHEX(row.stakedSupplyChange)}
-                  </div>
-                </td>
-                {/* Staked Percentage */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-300">
-                  {formatPercent(row.stakedHEXPercent)}
-                </td>
-                {/* Total T-Shares */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-300">
-                  {formatTShares(row.totalTshares)}
-                </td>
-                {/* T-Shares Change */}
-                <td className={`px-3 py-4 whitespace-nowrap text-sm ${getChangeColor(row.totalTsharesChange)}`}>
-                  <div className="flex items-center gap-1">
-                    {getChangeIcon(row.totalTsharesChange)}
-                    {formatTShares(row.totalTsharesChange)}
-                  </div>
-                </td>
-                {/* T-Share Rate */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-orange-400">
-                  {formatNumber(row.tshareRateHEX, 1)} HEX
-                </td>
-                {/* T-Share Market Cap */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
-                  {formatCurrency(row.tshareMarketCap, 0)}
-                </td>
-                {/* Payout Per T-Share */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-yellow-400">
-                  {formatNumber(row.payoutPerTshareHEX, 6)} HEX
-                </td>
-                {/* Daily Payout */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-green-300">
-                  {formatHEX(row.dailyPayoutHEX)}
-                </td>
-                {/* Daily Inflation */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-green-400">
-                  {formatHEX(row.dailyMintedInflationTotal)}
-                </td>
-                {/* APY Rate */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-orange-400 font-semibold">
-                  {formatPercent(row.actualAPYRate, 2)}
-                </td>
-                {/* Active Stakers */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-cyan-400">
-                  {formatNumber(row.currentStakerCount, 0, true)}
-                </td>
-                {/* Staker Change */}
-                <td className={`px-3 py-4 whitespace-nowrap text-sm ${getChangeColor(row.currentStakerCountChange)}`}>
-                  <div className="flex items-center gap-1">
-                    {getChangeIcon(row.currentStakerCountChange)}
-                    {formatNumber(row.currentStakerCountChange, 0, true)}
-                  </div>
-                </td>
-                {/* Current Holders */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-cyan-300">
-                  {formatNumber(row.currentHolders, 0, true)}
-                </td>
-                {/* Holder Change */}
-                <td className={`px-3 py-4 whitespace-nowrap text-sm ${getChangeColor(row.currentHoldersChange)}`}>
-                  <div className="flex items-center gap-1">
-                    {getChangeIcon(row.currentHoldersChange)}
-                    {formatNumber(row.currentHoldersChange, 0, true)}
-                  </div>
-                </td>
-                {/* Total Holders */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-cyan-200">
-                  {formatNumber(row.numberOfHolders, 0, true)}
-                </td>
-                {/* Average Stake Length */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-yellow-300">
-                  {formatNumber(row.averageStakeLength, 2)} years
-                </td>
-                {/* Penalties */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-red-400">
-                  {formatHEX(row.penaltiesHEX)}
-                </td>
-                {/* ROI from ATL */}
-                <td className="px-3 py-4 whitespace-nowrap text-sm text-emerald-400 font-semibold">
-                  {formatNumber(row.roiMultiplierFromATL, 0)}x
-                </td>
-                {/* Network-specific columns */}
-                {activeTab === 'ethereum' && (
-                  <>
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-orange-400">
-                      {formatCurrency(row.priceBTC, 2)}
+                {columns.map((column) => {
+                  const isMobileVisible = column.mobile;
+                  const cellClass = `px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm ${!isMobileVisible ? 'hidden sm:table-cell' : ''}`;
+                  
+                  // Get cell content based on column key
+                  const getCellContent = () => {
+                    switch (column.key) {
+                      case 'date':
+                        return <span className="font-medium text-white">{formatDate(row.date)}</span>;
+                      case 'currentDay':
+                        return <span className="text-white">{formatNumber(row.currentDay, 0, true)}</span>;
+                      case 'priceUV2UV3':
+                        return <span className="text-green-400 font-semibold">{formatPrice(row.priceUV2UV3, 8)}</span>;
+                      case 'priceChangeUV2UV3':
+                        return (
+                          <div className={`flex items-center gap-1 ${getChangeColor(row.priceChangeUV2UV3)}`}>
+                            <span className="hidden sm:inline">{getChangeIcon(row.priceChangeUV2UV3)}</span>
+                            {formatPercent(row.priceChangeUV2UV3)}
+                          </div>
+                        );
+                      case 'marketCap':
+                        return <span className="text-white">{formatCurrency(row.marketCap, 0)}</span>;
+                      case 'totalValueLocked':
+                        return <span className="text-purple-400 font-semibold">{formatCurrency(row.totalValueLocked, 0)}</span>;
+                      case 'totalHEX':
+                        return <span className="text-white">{formatHEX(row.totalHEX)}</span>;
+                      case 'circulatingHEX':
+                        return <span className="text-white">{formatHEX(row.circulatingHEX)}</span>;
+                      case 'circulatingSupplyChange':
+                        return (
+                          <div className={`flex items-center gap-1 ${getChangeColor(row.circulatingSupplyChange)}`}>
+                            <span className="hidden sm:inline">{getChangeIcon(row.circulatingSupplyChange)}</span>
+                            {formatHEX(row.circulatingSupplyChange)}
+                          </div>
+                        );
+                      case 'stakedHEX':
+                        return <span className="text-blue-400">{formatHEX(row.stakedHEX)}</span>;
+                      case 'stakedSupplyChange':
+                        return (
+                          <div className={`flex items-center gap-1 ${getChangeColor(row.stakedSupplyChange)}`}>
+                            <span className="hidden sm:inline">{getChangeIcon(row.stakedSupplyChange)}</span>
+                            {formatHEX(row.stakedSupplyChange)}
+                          </div>
+                        );
+                      case 'stakedHEXPercent':
+                        return <span className="text-blue-300">{formatPercent(row.stakedHEXPercent)}</span>;
+                      case 'totalTshares':
+                        return <span className="text-purple-300">{formatTShares(row.totalTshares)}</span>;
+                      case 'totalTsharesChange':
+                        return (
+                          <div className={`flex items-center gap-1 ${getChangeColor(row.totalTsharesChange)}`}>
+                            <span className="hidden sm:inline">{getChangeIcon(row.totalTsharesChange)}</span>
+                            {formatTShares(row.totalTsharesChange)}
+                          </div>
+                        );
+                      case 'tshareRateHEX':
+                        return <span className="text-orange-400">{formatNumber(row.tshareRateHEX, 1)} HEX</span>;
+                      case 'tshareMarketCap':
+                        return <span className="text-purple-400">{formatCurrency(row.tshareMarketCap, 0)}</span>;
+                      case 'payoutPerTshareHEX':
+                        return <span className="text-yellow-400">{formatNumber(row.payoutPerTshareHEX, 6)} HEX</span>;
+                      case 'dailyPayoutHEX':
+                        return <span className="text-green-300">{formatHEX(row.dailyPayoutHEX)}</span>;
+                      case 'dailyMintedInflationTotal':
+                        return <span className="text-green-400">{formatHEX(row.dailyMintedInflationTotal)}</span>;
+                      case 'actualAPYRate':
+                        return <span className="text-yellow-400 font-semibold">{formatPercent(row.actualAPYRate)}</span>;
+                      case 'currentStakerCount':
+                        return <span className="text-cyan-400">{formatNumber(row.currentStakerCount, 0, true)}</span>;
+                      case 'currentStakerCountChange':
+                        return (
+                          <div className={`flex items-center gap-1 ${getChangeColor(row.currentStakerCountChange)}`}>
+                            <span className="hidden sm:inline">{getChangeIcon(row.currentStakerCountChange)}</span>
+                            {formatNumber(row.currentStakerCountChange, 0, true)}
+                          </div>
+                        );
+                      case 'currentHolders':
+                        return <span className="text-cyan-300">{formatNumber(row.currentHolders, 0, true)}</span>;
+                      case 'currentHoldersChange':
+                        return (
+                          <div className={`flex items-center gap-1 ${getChangeColor(row.currentHoldersChange)}`}>
+                            <span className="hidden sm:inline">{getChangeIcon(row.currentHoldersChange)}</span>
+                            {formatNumber(row.currentHoldersChange, 0, true)}
+                          </div>
+                        );
+                      case 'numberOfHolders':
+                        return <span className="text-cyan-200">{formatNumber(row.numberOfHolders, 0, true)}</span>;
+                      case 'averageStakeLength':
+                        return <span className="text-yellow-300">{formatNumber(row.averageStakeLength, 2)} years</span>;
+                      case 'penaltiesHEX':
+                        return <span className="text-red-400">{formatHEX(row.penaltiesHEX)}</span>;
+                      case 'roiMultiplierFromATL':
+                        return <span className="text-emerald-400 font-semibold">{formatNumber(row.roiMultiplierFromATL, 0)}x</span>;
+                      case 'priceBTC':
+                        return <span className="text-orange-400">{formatCurrency(row.priceBTC, 2)}</span>;
+                      case 'priceETH':
+                        return <span className="text-blue-400">{formatCurrency(row.priceETH, 2)}</span>;
+                      case 'pricePulseX':
+                        return <span className="text-pink-400">{formatPrice(row.pricePulseX, 8)}</span>;
+                      case 'pricePulseX_PLS':
+                        return <span className="text-pink-300">{formatPrice(row.pricePulseX_PLS, 8)}</span>;
+                      default:
+                        return <span className="text-white">{formatNumber(row[column.key])}</span>;
+                    }
+                  };
+
+                  return (
+                    <td key={column.key} className={cellClass}>
+                      {getCellContent()}
                     </td>
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
-                      {formatCurrency(row.priceETH, 2)}
-                    </td>
-                  </>
-                )}
-                {activeTab === 'pulsechain' && (
-                  <>
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-pink-400">
-                      {formatPrice(row.pricePulseX, 8)}
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-pink-300">
-                      {formatPrice(row.pricePulseX_PLS, 8)}
-                    </td>
-                  </>
-                )}
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -341,19 +310,22 @@ const DataTable: React.FC<DataTableProps> = ({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="bg-slate-800/30 px-4 py-3 flex items-center justify-between border-t border-slate-700">
-          <div className="flex-1 flex justify-between sm:hidden">
+        <div className="bg-slate-800/30 px-2 sm:px-4 py-2 sm:py-3 flex flex-col sm:flex-row items-center justify-between border-t border-slate-700 gap-2 sm:gap-0">
+          <div className="flex-1 flex justify-between sm:hidden w-full">
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-slate-600 text-sm font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="relative inline-flex items-center px-3 py-1.5 border border-slate-600 text-xs font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Previous
+              Prev
             </button>
+            <span className="text-xs text-slate-400 self-center">
+              {currentPage} / {totalPages}
+            </span>
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-600 text-sm font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="relative inline-flex items-center px-3 py-1.5 border border-slate-600 text-xs font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>
@@ -373,7 +345,7 @@ const DataTable: React.FC<DataTableProps> = ({
                   disabled={currentPage === 1}
                   className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-slate-600 bg-slate-800 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                  <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
                 </button>
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   const pageNum = i + 1;
@@ -381,7 +353,7 @@ const DataTable: React.FC<DataTableProps> = ({
                     <button
                       key={pageNum}
                       onClick={() => setCurrentPage(pageNum)}
-                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                      className={`relative inline-flex items-center px-3 sm:px-4 py-2 border text-sm font-medium ${
                         currentPage === pageNum
                           ? 'z-10 bg-purple-600 border-purple-600 text-white'
                           : 'bg-slate-800 border-slate-600 text-white hover:bg-slate-700'
@@ -396,7 +368,7 @@ const DataTable: React.FC<DataTableProps> = ({
                   disabled={currentPage === totalPages}
                   className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-slate-600 bg-slate-800 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
                 </button>
               </nav>
             </div>

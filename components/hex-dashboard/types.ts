@@ -1,5 +1,6 @@
 import type { HexDataPoint } from '@/lib/hooks/useHexGemini';
 import type { HexStakingMetrics } from '@/services/hexStakingService';
+import type { PulseChainHexStakingService } from '@/services/pulsechainHexStakingService';
 import type { DexScreenerData } from '@/services/core/types';
 
 // Core dashboard types
@@ -47,6 +48,20 @@ export interface SortConfig {
   direction: 'asc' | 'desc';
 }
 
+// Multi-network staking data interface
+export interface MultiNetworkStakingData {
+  ethereum: HexStakingMetrics | null;
+  pulsechain: any | null; // Using any for now since PulseChain service returns different structure
+  combined: {
+    totalActiveStakes: number;
+    totalStakedHearts: string;
+    totalStakeShares: string;
+    averageStakeLength: number;
+    latestStakeId: string;
+    hexDay: string;
+  };
+}
+
 // Dashboard state interface
 export interface DashboardState {
   ethereumData: HexRow[];
@@ -63,7 +78,7 @@ export interface DashboardState {
   isLoadingDexPairs: boolean;
   dexPairs: NonNullable<DexScreenerData['pairs']> | null;
   dexPairsError: string | null;
-  stakingData: HexStakingMetrics | null;
+  stakingData: MultiNetworkStakingData | null;
   isLoadingStaking: boolean;
   stakingError: string | null;
   allStakeStarts: any[];
@@ -71,6 +86,10 @@ export interface DashboardState {
   stakingSubTab: StakingSubTab;
   activeStakes: any[];
   isLoadingActiveStakes: boolean;
+  // PulseChain specific staking data
+  pulsechainStakeStarts: any[];
+  pulsechainActiveStakes: any[];
+  isLoadingPulsechainStakes: boolean;
 }
 
 // Component props interfaces
@@ -80,7 +99,7 @@ export interface TabNavigationProps {
   setCurrentPage: (page: number) => void;
   ethereumDataLength: number;
   pulsechainDataLength: number;
-  stakingData: HexStakingMetrics | null;
+  stakingData: MultiNetworkStakingData | null;
   loadStakingData: () => void;
 }
 
@@ -101,7 +120,7 @@ export interface DataTableProps {
 }
 
 export interface StakingOverviewProps {
-  stakingData: HexStakingMetrics | null;
+  stakingData: MultiNetworkStakingData | null;
   isLoadingStaking: boolean;
   stakingError: string | null;
   loadStakingData: () => void;
@@ -113,6 +132,31 @@ export interface StakingOverviewProps {
   activeStakes: any[];
   isLoadingActiveStakes: boolean;
   loadActiveStakes: () => void;
+  // PulseChain staking data
+  pulsechainStakeStarts: any[];
+  pulsechainActiveStakes: any[];
+  isLoadingPulsechainStakes: boolean;
+  loadPulsechainStakeStarts: () => void;
+  loadPulsechainActiveStakes: () => void;
+  getSortedPulsechainData: (type: 'stakeStarts' | 'activeStakes', sortBy: string, order: 'asc' | 'desc') => any[];
+  getPulsechainCacheStatus: () => Promise<{
+    hasStakeStarts: boolean;
+    hasStakeEnds: boolean;
+    hasActiveStakes: boolean;
+    hasGlobalInfo: boolean;
+    isExpired: boolean;
+    lastFetchTime: string | null;
+    cacheAge: number | null;
+    totalStakeStarts: number;
+    totalActiveStakes: number;
+    databaseAvailable: boolean;
+    databaseCounts?: {
+      stakeStarts: number;
+      stakeEnds: number;
+      globalInfo: number;
+      stakerMetrics: number;
+    };
+  }>;
 }
 
 export interface DashboardActionsProps {

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { dexscreenerApi } from '@/services/blockchain/dexscreenerApi';
 import { hexStakingService } from '@/services/hexStakingService';
-import type { DashboardState, HexRow, LiveData, ActiveTab, StakingSubTab } from './types';
+import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingService';
+import type { DashboardState, HexRow, LiveData, ActiveTab, StakingSubTab, MultiNetworkStakingData } from './types';
 import type { DexScreenerData } from '@/services/core/types';
 import type { HexStakingMetrics } from '@/services/hexStakingService';
 
@@ -38,6 +39,9 @@ export const useHexDashboard = () => {
     stakingSubTab: 'overview',
     activeStakes: [],
     isLoadingActiveStakes: false,
+    pulsechainStakeStarts: [],
+    pulsechainActiveStakes: [],
+    isLoadingPulsechainStakes: false,
   });
 
   const updateState = useCallback((updates: Partial<DashboardState>) => {
@@ -123,19 +127,92 @@ export const useHexDashboard = () => {
     updateState({ isLoadingStaking: true, stakingError: null });
     
     try {
-      console.log('🔍 Loading HEX staking data from The Graph...');
-      const stakingMetrics = await hexStakingService.getStakingMetrics();
-      console.log('✅ Staking data loaded successfully:', stakingMetrics);
+      console.log('🔍 Loading multi-network HEX staking data from The Graph...');
+      
+      // Fetch both Ethereum and PulseChain staking data in parallel
+      const [ethereumStakingMetrics, pulsechainStakingMetrics] = await Promise.allSettled([
+        hexStakingService.getStakingMetrics(),
+        pulsechainHexStakingService.getStakingMetrics()
+      ]);
+
+      let ethereumData: HexStakingMetrics | null = null;
+      let pulsechainData: any = null;
+      let combinedData = {
+        totalActiveStakes: 0,
+        totalStakedHearts: '0',
+        totalStakeShares: '0',
+        averageStakeLength: 0,
+        latestStakeId: '0',
+        hexDay: '0'
+      };
+
+      // Process Ethereum data
+      if (ethereumStakingMetrics.status === 'fulfilled') {
+        ethereumData = ethereumStakingMetrics.value;
+        console.log('✅ Ethereum staking data loaded successfully:', ethereumData);
+        
+        // Add to combined totals
+        combinedData.totalActiveStakes += ethereumData.totalActiveStakes || 0;
+        combinedData.totalStakedHearts = (parseInt(combinedData.totalStakedHearts) + parseInt(ethereumData.totalStakedHearts || '0')).toString();
+        combinedData.totalStakeShares = (parseInt(combinedData.totalStakeShares) + parseInt(ethereumData.globalInfo?.stakeSharesTotal || '0')).toString();
+        combinedData.averageStakeLength += ethereumData.averageStakeLength || 0;
+        combinedData.latestStakeId = ethereumData.globalInfo?.latestStakeId || '0';
+        combinedData.hexDay = ethereumData.globalInfo?.hexDay || '0';
+      } else {
+        console.error('❌ Failed to load Ethereum staking data:', ethereumStakingMetrics.reason);
+      }
+
+      // Process PulseChain data
+      if (pulsechainStakingMetrics.status === 'fulfilled') {
+        pulsechainData = pulsechainStakingMetrics.value;
+        console.log('✅ PulseChain staking data loaded successfully:', pulsechainData);
+        
+        // Add to combined totals (adjust field names as needed based on actual PulseChain response)
+        if (pulsechainData.totalActiveStakes) {
+          combinedData.totalActiveStakes += pulsechainData.totalActiveStakes;
+        }
+        if (pulsechainData.totalStakedHearts) {
+          combinedData.totalStakedHearts = (parseInt(combinedData.totalStakedHearts) + parseInt(pulsechainData.totalStakedHearts)).toString();
+        }
+        if (pulsechainData.globalInfo?.stakeSharesTotal) {
+          combinedData.totalStakeShares = (parseInt(combinedData.totalStakeShares) + parseInt(pulsechainData.globalInfo.stakeSharesTotal)).toString();
+        }
+        if (pulsechainData.averageStakeLength) {
+          combinedData.averageStakeLength += pulsechainData.averageStakeLength;
+        }
+        // Use the higher stake ID and hex day
+        if (pulsechainData.globalInfo?.latestStakeId && parseInt(pulsechainData.globalInfo.latestStakeId) > parseInt(combinedData.latestStakeId)) {
+          combinedData.latestStakeId = pulsechainData.globalInfo.latestStakeId;
+        }
+        if (pulsechainData.globalInfo?.hexDay && parseInt(pulsechainData.globalInfo.hexDay) > parseInt(combinedData.hexDay)) {
+          combinedData.hexDay = pulsechainData.globalInfo.hexDay;
+        }
+      } else {
+        console.error('❌ Failed to load PulseChain staking data:', pulsechainStakingMetrics.reason);
+      }
+
+      // Calculate average stake length
+      if (ethereumData && pulsechainData) {
+        combinedData.averageStakeLength = Math.round(combinedData.averageStakeLength / 2);
+      }
+
+      const multiNetworkStakingData: MultiNetworkStakingData = {
+        ethereum: ethereumData,
+        pulsechain: pulsechainData,
+        combined: combinedData
+      };
+
+      console.log('✅ Combined multi-network staking data:', multiNetworkStakingData);
       
       updateState({ 
-        stakingData: stakingMetrics,
+        stakingData: multiNetworkStakingData,
         isLoadingStaking: false,
         stakingError: null
       });
     } catch (error) {
-      console.error('❌ Error loading staking data:', error);
+      console.error('❌ Error loading multi-network staking data:', error);
       updateState({ 
-        stakingError: error instanceof Error ? error.message : 'Failed to load staking data',
+        stakingError: error instanceof Error ? error.message : 'Failed to load multi-network staking data',
         isLoadingStaking: false
       });
     }
@@ -164,16 +241,16 @@ export const useHexDashboard = () => {
     updateState({ isLoadingAllStakes: true });
     
     try {
-      console.log('🔍 Loading all stake start events...');
+      console.log('🔍 Loading all Ethereum stake start events...');
       const allStakes = await hexStakingService.getAllStakeStartsPaginated(1000);
-      console.log(`✅ Loaded ${allStakes.length} stake start events`);
+      console.log(`✅ Loaded ${allStakes.length} Ethereum stake start events`);
       
       updateState({ 
         allStakeStarts: allStakes,
         isLoadingAllStakes: false
       });
     } catch (error) {
-      console.error('❌ Error loading all stake starts:', error);
+      console.error('❌ Error loading Ethereum stake starts:', error);
       updateState({ isLoadingAllStakes: false });
     }
   }, [updateState]);
@@ -182,19 +259,90 @@ export const useHexDashboard = () => {
     updateState({ isLoadingActiveStakes: true });
     
     try {
-      console.log('🔍 Loading all active stakes...');
+      console.log('🔍 Loading all Ethereum active stakes...');
       const activeStakesData = await hexStakingService.getAllActiveStakes();
-      console.log(`✅ Loaded ${activeStakesData.length} active stakes`);
+      console.log(`✅ Loaded ${activeStakesData.length} Ethereum active stakes`);
       
       updateState({ 
         activeStakes: activeStakesData,
         isLoadingActiveStakes: false
       });
     } catch (error) {
-      console.error('❌ Error loading active stakes:', error);
+      console.error('❌ Error loading Ethereum active stakes:', error);
       updateState({ isLoadingActiveStakes: false });
     }
   }, [updateState]);
+
+  // New PulseChain staking functions
+  const loadPulsechainStakeStarts = useCallback(async () => {
+    updateState({ isLoadingPulsechainStakes: true });
+    
+    try {
+      console.log('🔍 Loading PulseChain stake start events...');
+      
+      // Check if we already have the data from the initial staking load
+      if (state.stakingData?.pulsechain?.totalActiveStakes !== undefined) {
+        console.log('📋 Using existing PulseChain stake starts data from initial load');
+        const cachedData = pulsechainHexStakingService.getCachedStakeStarts();
+        if (cachedData) {
+          const result = cachedData.slice(0, 1000).map(stake => ({
+            ...stake,
+            network: 'pulsechain'
+          }));
+          updateState({ 
+            pulsechainStakeStarts: result,
+            isLoadingPulsechainStakes: false
+          });
+          return;
+        }
+      }
+      
+      // Fetch fresh data if not cached - get ALL data for pagination
+      const allStakes = await pulsechainHexStakingService.getAllStakeStartsPaginated(undefined);
+      console.log(`✅ Loaded ${allStakes.length} PulseChain stake start events (full dataset)`);
+      
+      updateState({ 
+        pulsechainStakeStarts: allStakes,
+        isLoadingPulsechainStakes: false
+      });
+    } catch (error) {
+      console.error('❌ Error loading PulseChain stake starts:', error);
+      updateState({ isLoadingPulsechainStakes: false });
+    }
+  }, [updateState, state.stakingData?.pulsechain?.totalActiveStakes]);
+
+  const loadPulsechainActiveStakes = useCallback(async () => {
+    updateState({ isLoadingPulsechainStakes: true });
+    
+    try {
+      console.log('🔍 Loading PulseChain active stakes...');
+      
+      // Check if we already have the data from the initial staking load
+      if (state.stakingData?.pulsechain?.totalActiveStakes !== undefined) {
+        console.log('📋 Using existing PulseChain active stakes data from initial load');
+        const cachedData = pulsechainHexStakingService.getCachedActiveStakes();
+        if (cachedData) {
+          updateState({ 
+            pulsechainActiveStakes: cachedData,
+            isLoadingPulsechainStakes: false
+          });
+          return;
+        }
+      }
+      
+      // Fetch fresh data if not cached - get ALL active stakes for pagination
+      const activeStakesData = await pulsechainHexStakingService.getAllActiveStakes();
+      console.log(`✅ Loaded ${activeStakesData.length} PulseChain active stakes (full dataset)`);
+      
+      updateState({ 
+        pulsechainActiveStakes: activeStakesData,
+        isLoadingPulsechainStakes: false
+      });
+    } catch (error) {
+      console.error('❌ Error loading PulseChain active stakes:', error);
+      updateState({ isLoadingPulsechainStakes: false });
+    }
+  }, [updateState, state.stakingData?.pulsechain?.totalActiveStakes]);
 
   const setActiveTab = useCallback((tab: ActiveTab) => {
     updateState({ activeTab });
@@ -224,6 +372,26 @@ export const useHexDashboard = () => {
     updateState({ stakingSubTab: tab });
   }, [updateState]);
 
+  // Efficient data access for AI timing analysis
+  const getSortedPulsechainData = useCallback((type: 'stakeStarts' | 'activeStakes', sortBy: string, order: 'asc' | 'desc') => {
+    if (type === 'stakeStarts') {
+      return pulsechainHexStakingService.getSortedStakeStarts(
+        sortBy as 'timestamp' | 'stakedHearts' | 'stakedDays',
+        order
+      );
+    } else {
+      return pulsechainHexStakingService.getSortedActiveStakes(
+        sortBy as 'daysLeft' | 'daysServed' | 'stakedHearts',
+        order
+      );
+    }
+  }, []);
+
+  // Get cache status for debugging
+  const getPulsechainCacheStatus = useCallback(async () => {
+    return await pulsechainHexStakingService.getCacheStatus();
+  }, []);
+
   // Load initial data
   useEffect(() => {
     fetchData();
@@ -239,6 +407,8 @@ export const useHexDashboard = () => {
     loadDexPairs,
     loadAllStakeStarts,
     loadActiveStakes,
+    loadPulsechainStakeStarts,
+    loadPulsechainActiveStakes,
     setActiveTab,
     setCurrentPage,
     setSortConfig,
@@ -246,5 +416,9 @@ export const useHexDashboard = () => {
     setShowGeminiAnalysis,
     setShowDexPairs,
     setStakingSubTab,
+    
+    // Efficient data access for AI timing
+    getSortedPulsechainData,
+    getPulsechainCacheStatus,
   };
 };

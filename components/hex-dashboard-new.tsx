@@ -118,13 +118,14 @@ const HEXDataDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-3 sm:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-            <h1 className="text-3xl font-bold text-white mb-4 md:mb-0">
-              HEX Analytics Dashboard
+        <div className="mb-4 sm:mb-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 sm:mb-6">
+            <h1 className="text-xl sm:text-3xl font-bold text-white mb-3 sm:mb-4 md:mb-0">
+              <span className="hidden sm:inline">HEX Analytics Dashboard</span>
+              <span className="sm:hidden">HEX Analytics</span>
             </h1>
             
             <DashboardActions
@@ -191,6 +192,13 @@ const HEXDataDashboard = () => {
             activeStakes={activeStakes}
             isLoadingActiveStakes={isLoadingActiveStakes}
             loadActiveStakes={loadActiveStakes}
+            pulsechainStakeStarts={pulsechainStakeStarts}
+            pulsechainActiveStakes={pulsechainActiveStakes}
+            isLoadingPulsechainStakes={isLoadingPulsechainStakes}
+            loadPulsechainStakeStarts={loadPulsechainStakeStarts}
+            loadPulsechainActiveStakes={loadPulsechainActiveStakes}
+            getSortedPulsechainData={getSortedPulsechainData}
+            getPulsechainCacheStatus={getPulsechainCacheStatus}
           />
         )}
 
