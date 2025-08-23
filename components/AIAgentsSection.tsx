@@ -78,7 +78,8 @@ const agents = [
     color: "from-pink-500 to-purple-500",
     size: "col-span-1 md:col-span-2 row-span-1 md:row-span-2",
     src: "/api/placeholder/400/600/pink/purple",
-    category: "AI Agent"
+    category: "AI Agent",
+    videoUrl: null
   },
   {
     id: 5,
@@ -88,7 +89,8 @@ const agents = [
     color: "from-blue-500 to-cyan-500",
     size: "col-span-1 md:col-span-2 row-span-1 md:row-span-2",
     src: "/api/placeholder/400/600/blue/cyan",
-    category: "Analysis Tool"
+    category: "Analysis Tool",
+    videoUrl: null
   },
   {
     id: 4,
@@ -98,7 +100,8 @@ const agents = [
     color: "from-yellow-500 to-orange-500",
     size: "col-span-1 row-span-1",
     src: "/api/placeholder/400/600/yellow/orange",
-    category: "AI Chat"
+    category: "AI Chat",
+    videoUrl: null
   },
   {
     id: 2,
@@ -108,7 +111,8 @@ const agents = [
     color: "from-red-500 to-pink-500",
     size: "col-span-1 row-span-1",
     src: "/api/placeholder/400/600/red/pink",
-    category: "AI Therapy"
+    category: "AI Therapy",
+    videoUrl: null
   },
   {
     id: 3,
@@ -118,7 +122,8 @@ const agents = [
     color: "from-pink-500 to-rose-500",
     size: "col-span-1 md:col-span-2 row-span-1",
     src: "/api/placeholder/400/600/pink/rose",
-    category: "AI Therapy"
+    category: "AI Therapy",
+    videoUrl: null
   },
   {
     id: 6,
@@ -128,7 +133,8 @@ const agents = [
     color: "from-emerald-500 to-teal-500",
     size: "col-span-1 row-span-1",
     src: "/api/placeholder/400/600/emerald/teal",
-    category: "Builder Tool"
+    category: "Builder Tool",
+    videoUrl: null
   },
   {
     id: 7,
@@ -138,7 +144,8 @@ const agents = [
     color: "from-orange-500 to-red-500",
     size: "col-span-1 md:col-span-1 row-span-1",
     src: "/api/placeholder/400/600/orange/red",
-    category: "Dashboard"
+    category: "Dashboard",
+    videoUrl: "https://dvba8d38nfde7nic.public.blob.vercel-storage.com/Video/HEX%20Dashboard"
   },
   {
     id: 8,
@@ -148,7 +155,8 @@ const agents = [
     color: "from-purple-500 to-indigo-500",
     size: "col-span-1 md:col-span-1 row-span-1",
     src: "/api/placeholder/400/600/purple/indigo",
-    category: "Analysis Tool"
+    category: "Analysis Tool",
+    videoUrl: null
   },
   {
     id: 9,
@@ -158,7 +166,8 @@ const agents = [
     color: "from-indigo-500 to-blue-500",
     size: "col-span-1 md:col-span-1 row-span-1",
     src: "/api/placeholder/400/600/indigo/blue",
-    category: "Admin Tool"
+    category: "Admin Tool",
+    videoUrl: null
   }
 ];
 
@@ -168,7 +177,8 @@ const transformAgentsToCarousel = () => {
     src: agent.src,
     title: agent.name,
     category: agent.category,
-    content: null // Remove popup content
+    content: null, // Remove popup content
+    videoUrl: agent.videoUrl
   }));
 };
 
