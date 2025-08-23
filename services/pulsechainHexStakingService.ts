@@ -73,35 +73,35 @@ export class PulseChainHexStakingService {
       variables
     };
 
-    // Try main endpoint first
     try {
-      const response = await this.tryEndpoint(this.baseUrl, payload);
-      if (response.data) {
-        return response.data;
+      // Use the GraphQL proxy API to avoid CORS issues
+      const response = await fetch('/api/pulsechain-graphql-proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`GraphQL proxy error: ${response.status} - ${response.statusText}`);
       }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(`GraphQL proxy error: ${data.error}`);
+      }
+
+      if (data.data) {
+        return data.data;
+      }
+
+      throw new Error('No data returned from GraphQL proxy');
     } catch (error) {
-      console.log(`Primary PulseChain endpoint failed: ${this.baseUrl}`);
+      console.error('❌ PulseChain GraphQL proxy request failed:', error);
+      throw new Error(`PulseChain GraphQL unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    // Try fallback endpoints
-    for (const endpoint of this.fallbackEndpoints) {
-      try {
-        console.log(`Trying PulseChain fallback endpoint: ${endpoint}`);
-        const response = await this.tryEndpoint(endpoint, payload);
-        if (response.data) {
-          console.log(`✅ Successfully connected to PulseChain endpoint: ${endpoint}`);
-          this.baseUrl = endpoint; // Update to working endpoint
-          return response.data;
-        }
-      } catch (error) {
-        console.log(`Fallback endpoint failed: ${endpoint}`);
-        continue;
-      }
-    }
-
-    // If all endpoints fail, throw error - no mock data
-    console.error('❌ All PulseChain HEX staking endpoints failed. No data available.');
-    throw new Error('All PulseChain GraphQL endpoints are unavailable');
   }
 
   private async tryEndpoint(url: string, payload: any): Promise<any> {
@@ -670,8 +670,8 @@ export class PulseChainHexStakingService {
     console.log('🔍 Fetching PulseChain HEX staking metrics...');
     
     try {
-      // Try database first for metrics
-      if (this.isDatabaseAvailable) {
+      // TEMPORARILY SKIP database first for metrics (sync issues - using GraphQL for fresh data)  
+      if (false && this.isDatabaseAvailable) {
         try {
           console.log('🗄️ Fetching metrics from database...');
           const [overview, globalInfo, topStakes] = await Promise.all([
@@ -923,7 +923,7 @@ export class PulseChainHexStakingService {
 
   async getAllActiveStakes(forceRefresh = false): Promise<any[]> {
     // Try database first if available
-    if (this.isDatabaseAvailable && !forceRefresh) {
+    if (false && this.isDatabaseAvailable && !forceRefresh) {
       try {
         console.log('🗄️ Fetching active stakes from database...');
         const globalInfo = await pulsechainStakingDb.getLatestGlobalInfo();

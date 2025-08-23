@@ -1300,7 +1300,8 @@ const TreasuryTracker: React.FC = () => {
               </DialogTitle>
             </DialogHeader>
             <div className="px-6 py-5 bg-white">
-              {detailData ? (
+              {detailData ? (]
+              
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {detailData.blockNumber && (
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Crown, TrendingUp, Clock, Target, Zap, ArrowUpDown, ArrowUp, ArrowDown, Globe } from 'lucide-react';
+import { Crown, TrendingUp, Clock, Target, Zap, ArrowUpDown, ArrowUp, ArrowDown, Globe, Copy } from 'lucide-react';
 import { hexStakingService } from '@/services/hexStakingService';
 import { multiNetworkHexStakingService } from '@/services/multiNetworkHexStakingService';
 import StakeDetailModal from './StakeDetailModal';
@@ -53,6 +53,15 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
       return `$${(amount / 1000).toFixed(2)}K`;
     } else {
       return `$${amount.toFixed(2)}`;
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // You could add a toast notification here if desired
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
     }
   };
 
@@ -221,16 +230,28 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                             </div>
                           )}
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent triggering the stake detail modal
-                            handleStakerClick(stake.stakerAddr);
-                          }}
-                          className="text-xs text-slate-600 font-mono hover:text-blue-600 transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
-                          title={`${stake.stakerAddr} - Click to view staking history`}
-                        >
-                          {stake.stakerAddr}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent triggering the stake detail modal
+                              handleStakerClick(stake.stakerAddr);
+                            }}
+                            className="text-xs text-slate-600 font-mono hover:text-blue-600 transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
+                            title={`${stake.stakerAddr} - Click to view staking history`}
+                          >
+                            {stake.stakerAddr.slice(0, 4)}...{stake.stakerAddr.slice(-4)}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(stake.stakerAddr);
+                            }}
+                            className="text-slate-500 hover:text-blue-600 transition-colors cursor-pointer"
+                            title="Copy address to clipboard"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                       <div className="text-right">
                         <div className="text-lg font-bold text-black">
@@ -421,6 +442,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
         isOpen={isStakerHistoryModalOpen}
         onClose={handleStakerHistoryModalClose}
         network={selectedStake?.network || 'ethereum'}
+        currentPrice={hexPrice}
       />
     </div>
   );

@@ -295,7 +295,12 @@ Strict rules to avoid contradictions:
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
       
       try {
-        const response = await fetch('/api/hex-gemini', {
+        const apiUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/hex-gemini` : '/api/hex-gemini';
+        console.log('🌐 Fetching from API URL:', apiUrl);
+        console.log('🌐 Current window location:', typeof window !== 'undefined' ? window.location.href : 'server-side');
+        console.log('🌐 Window origin:', typeof window !== 'undefined' ? window.location.origin : 'server-side');
+        
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -306,11 +311,20 @@ Strict rules to avoid contradictions:
             dataPoints: sanitizedData, // Send full history (sanitized) for comprehensive analysis
           }),
           signal: controller.signal,
+        }).catch(fetchError => {
+          console.error('🚨 Fetch error:', fetchError);
+          console.error('🚨 Fetch error details:', {
+            message: fetchError.message,
+            name: fetchError.name,
+            cause: fetchError.cause
+          });
+          throw fetchError;
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to analyze HEX data');
+          console.error('❌ Response not OK:', response.status, response.statusText);
+          const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+          throw new Error(errorData.error || `Failed to analyze HEX data: ${response.status} ${response.statusText}`);
         }
 
         if (!response.body) {

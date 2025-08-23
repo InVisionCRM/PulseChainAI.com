@@ -1280,6 +1280,8 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
         stakerAddress={selectedStakerAddress}
         isOpen={isStakerHistoryModalOpen}
         onClose={handleStakerHistoryModalClose}
+        network="ethereum"
+        currentPrice={getCurrentHexPrice()}
       />
     </div>
   );

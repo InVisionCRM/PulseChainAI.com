@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, User, TrendingUp, Target, Clock, Zap, Award, AlertTriangle, CheckCircle, Activity, Calendar, DollarSign, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, Link, Globe } from 'lucide-react';
 import { hexStakingService } from '@/services/hexStakingService';
 import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingService';
 import type { StakerHistoryMetrics, HexStake, HexStakeEnd } from '@/services/hexStakingService';
@@ -9,6 +8,7 @@ interface StakerHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   network: 'ethereum' | 'pulsechain';
+  currentPrice: number;
 }
 
 const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
@@ -16,20 +16,20 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
   isOpen,
   onClose,
   network,
+  currentPrice,
 }) => {
   const [historyData, setHistoryData] = useState<StakerHistoryMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'active' | 'ended'>('overview');
-  const [sortField, setSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'daysServed'>('timestamp');
+  const [sortField, setSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'daysServed' | 'timestamp'>('timestamp');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Helper functions for calculations
   const calculateStakeUSD = (stakedHearts: string): number => {
     const hearts = parseFloat(stakedHearts);
-    // Use a default price if not available - this should be passed from parent
-    const defaultPrice = 0.01; // Default HEX price
-    return (hearts / 100000000) * defaultPrice;
+    // Use the actual current HEX price passed from parent
+    return (hearts / 100000000) * currentPrice;
   };
 
   const calculateExpectedEarnings = (stakedHearts: string, stakedDays: string): number => {
@@ -94,8 +94,8 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
   };
 
   const getSortIcon = (field: string) => {
-    if (sortField !== field) return <ArrowUpDown className="w-3 h-3" />;
-    return sortDirection === 'desc' ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />;
+    if (sortField !== field) return '↕️';
+    return sortDirection === 'desc' ? '↓' : '↑';
   };
 
   const sortedStakes = useMemo(() => {
@@ -141,7 +141,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
       }
       
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+        return sortDirection === 'asc' ? (aValue as string).localeCompare(bValue as string) : (bValue as string).localeCompare(aValue as string);
       }
       
       return sortDirection === 'asc' ? (aValue as number) - (bValue as number) : (bValue as number) - (aValue as number);
@@ -155,22 +155,22 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
 
   const getStakeStatusColor = (stake: HexStake) => {
     if (stake.isActive) {
-      if (stake.daysLeft && stake.daysLeft < 30) return 'text-yellow-400';
-      return 'text-green-400';
+      if (stake.daysLeft && stake.daysLeft < 30) return 'text-yellow-600';
+      return 'text-green-600';
     }
     const endData = getStakeEndData(stake.stakeId);
-    if (endData && parseFloat(endData.penalty || '0') > 0) return 'text-red-400';
-    return 'text-blue-400';
+    if (endData && parseFloat(endData.penalty || '0') > 0) return 'text-red-600';
+    return 'text-blue-600';
   };
 
   const getStakeStatusIcon = (stake: HexStake) => {
     if (stake.isActive) {
-      if (stake.daysLeft && stake.daysLeft < 30) return <AlertTriangle className="w-4 h-4" />;
-      return <Activity className="w-4 h-4" />;
+      if (stake.daysLeft && stake.daysLeft < 30) return '⚠️';
+      return '🔄';
     }
     const endData = getStakeEndData(stake.stakeId);
-    if (endData && parseFloat(endData.penalty || '0') > 0) return <AlertTriangle className="w-4 h-4" />;
-    return <CheckCircle className="w-4 h-4" />;
+    if (endData && parseFloat(endData.penalty || '0') > 0) return '❌';
+    return '✅';
   };
 
   const formatDate = (timestamp: string) => {
@@ -185,39 +185,26 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="relative w-full max-w-7xl max-h-[90vh] bg-gradient-to-br from-slate-900/95 to-purple-900/95 backdrop-blur-xl border border-white/20 rounded-3xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.8)] overflow-hidden transform transition-all duration-300 ease-out scale-100">
+      <div className="relative w-full max-w-7xl max-h-[90vh] bg-white/10 backdrop-blur-2xl border border-white/30 rounded-3xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.8)] overflow-hidden transform transition-all duration-300 ease-out scale-100">
         
         {/* Header */}
-        <div className="relative px-8 py-6 bg-gradient-to-r from-purple-900/40 to-blue-900/40 border-b border-white/10">
+        <div className="relative px-8 py-6 bg-white/20 backdrop-blur-xl border-b border-white/30">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-500/20 rounded-xl">
-                <User className="w-6 h-6 text-purple-400" />
-              </div>
               <div>
                 <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                  {network === 'ethereum' ? (
-                    <>
-                      <img src="/ethlogo.svg" alt="Ethereum" className="w-6 h-6" />
-                      Ethereum
-                    </>
-                  ) : (
-                    <>
-                      <img src="/LogoVector.svg" alt="PulseChain" className="w-6 h-6" />
-                      PulseChain
-                    </>
-                  )} Staker History
+                  {network === 'ethereum' ? 'Ethereum' : 'PulseChain'} Staker History
                 </h2>
-                <p className="text-slate-400 text-sm mt-1 font-mono break-all">
-                  {stakerAddress}
-                </p>
+                        <p className="text-white text-sm mt-1 font-mono break-all">
+          {stakerAddress}
+        </p>
               </div>
             </div>
             <button
               onClick={onClose}
               className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
             >
-              <X className="w-6 h-6" />
+×
             </button>
           </div>
         </div>
@@ -230,14 +217,14 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
               <h3 className="text-xl font-semibold text-white mb-2">Loading Staker History...</h3>
-              <p className="text-slate-400">Fetching comprehensive staking data from The Graph</p>
+              <p className="text-white">Fetching comprehensive staking data from The Graph</p>
             </div>
           )}
 
           {/* Error State */}
           {error && (
             <div className="text-center py-12">
-              <div className="bg-red-900/20 border border-red-500/50 text-red-300 px-6 py-4 rounded-xl mb-4">
+              <div className="bg-red-900/20 border border-red-500/50 text-red-700 px-6 py-4 rounded-xl mb-4">
                 <h3 className="font-bold text-lg mb-2">Error Loading History</h3>
                 <p className="mb-4">{error}</p>
                 <button
@@ -258,72 +245,38 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Activity className="w-5 h-5 text-blue-400" />
-                    <span className="text-sm text-slate-400 flex items-center gap-1">
-                      <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
+                    <span className="text-sm text-white">
                       Total Stakes
                     </span>
                   </div>
-                  <div className="text-2xl font-bold text-blue-400">
+                  <div className="text-2xl font-bold text-white">
                     {(historyData.totalStakes || 0).toLocaleString()}
                   </div>
                 </div>
 
                 <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-5 h-5 text-green-400" />
-                    <span className="text-sm text-slate-400">Active</span>
+                    <span className="text-sm text-white">Active</span>
                   </div>
-                  <div className="text-2xl font-bold text-green-400">
+                  <div className="text-2xl font-bold text-white">
                     {(historyData.activeStakes || 0).toLocaleString()}
                   </div>
                 </div>
 
                 <div className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border border-purple-500/20 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle className="w-5 h-5 text-purple-400" />
-                    <span className="text-sm text-slate-400">Ended</span>
+                    <span className="text-sm text-white">Ended</span>
                   </div>
-                  <div className="text-2xl font-bold text-purple-400">
+                  <div className="text-2xl font-bold text-white">
                     {(historyData.endedStakes || 0).toLocaleString()}
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className="w-5 h-5 text-yellow-400" />
-                    <span className="text-sm text-slate-400 flex items-center gap-1">
-                      <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
-                      Total HEX
-                    </span>
-                  </div>
-                  <div className="text-xl font-bold text-yellow-400">
-                    {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatHexAmount(historyData.totalStakedHearts || '0')}
-                  </div>
-                  <div className="text-xs text-yellow-600 mt-1">
-                    {formatUSD(calculateStakeUSD(historyData.totalStakedHearts || '0'))}
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-pink-500/10 to-rose-500/10 border border-pink-500/20 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Award className="w-5 h-5 text-pink-400" />
-                    <span className="text-sm text-slate-400 flex items-center gap-1">
-                      <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
-                      Total T-Shares
-                    </span>
-                  </div>
-                  <div className="text-xl font-bold text-pink-400">
-                    {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatTShareAmount(historyData.totalTShares || '0')}
                   </div>
                 </div>
 
                 <div className="bg-gradient-to-br from-indigo-500/10 to-blue-500/10 border border-indigo-500/20 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Clock className="w-5 h-5 text-indigo-400" />
-                    <span className="text-sm text-slate-400">Avg Length</span>
+                    <span className="text-sm text-white">Avg Length</span>
                   </div>
-                  <div className="text-xl font-bold text-indigo-400">
+                  <div className="text-xl font-bold text-white">
                     {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatStakeLength(Math.round(historyData.averageStakeLength || 0))}
                   </div>
                 </div>
@@ -334,36 +287,31 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <DollarSign className="w-5 h-5 text-green-400" />
-                      <span className="text-sm text-slate-400 flex items-center gap-1">
-                      <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
+                      <span className="text-sm text-white">
                       Total Payouts
                     </span>
                     </div>
-                    <div className="text-xl font-bold text-green-400">
+                    <div className="text-xl font-bold text-white">
                       {Math.round(parseFloat(historyData.totalPayouts || '0') / Math.pow(10, 8)).toLocaleString()} HEX
                     </div>
                   </div>
 
                   <div className="bg-gradient-to-br from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <AlertTriangle className="w-5 h-5 text-red-400" />
-                      <span className="text-sm text-slate-400 flex items-center gap-1">
-                      <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
+                      <span className="text-sm text-white">
                       Total Penalties
                     </span>
                     </div>
-                    <div className="text-xl font-bold text-red-400">
+                    <div className="text-xl font-bold text-white">
                       {Math.round(parseFloat(historyData.totalPenalties || '0') / Math.pow(10, 8)).toLocaleString()} HEX
                     </div>
                   </div>
 
                   <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <TrendingUp className="w-5 h-5 text-blue-400" />
-                      <span className="text-sm text-slate-400">Avg APY</span>
+                      <span className="text-sm text-white">Avg APY</span>
                     </div>
-                    <div className="text-xl font-bold text-blue-400">
+                    <div className="text-xl font-bold text-white">
                       {(() => {
                         if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0.0%';
                         
@@ -373,7 +321,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                           if (!stake) return 0;
                           const endData = getStakeEndData(stake.stakeId);
                           if (endData && parseFloat(endData.payout || '0') > 0) {
-                            return service.calculateStakeAPY(stake, endData);
+                            return service.calculateStakeAPY(stake as any, endData as any);
                           }
                           return 0;
                         }).filter(apy => apy > 0);
@@ -394,10 +342,9 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <TrendingUp className="w-5 h-5 text-green-400" />
-                      <span className="text-sm text-slate-400">Active Stakes Earnings</span>
+                      <span className="text-sm text-white">Active Stakes Earnings</span>
                     </div>
-                    <div className="text-xl font-bold text-green-400">
+                    <div className="text-xl font-bold text-white">
                       {(() => {
                         if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
                         
@@ -406,29 +353,17 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                           return sum + calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays);
                         }, 0);
                         
-                        return `${(totalEarned * 100000000).toFixed(0)} HEX`;
-                      })()}
-                    </div>
-                    <div className="text-xs text-emerald-400">
-                      {(() => {
-                        if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '$0.00';
-                        
-                        const activeStakes = historyData.stakes.filter(s => s && s.isActive);
-                        const totalEarned = activeStakes.reduce((sum, stake) => {
-                          return sum + calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays);
-                        }, 0);
-                        
-                        return formatUSD(totalEarned);
+                        const service = network === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
+                        return service.formatHexAmount((totalEarned * 100000000).toString()) + ' HEX';
                       })()}
                     </div>
                   </div>
 
                   <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <Target className="w-5 h-5 text-blue-400" />
-                      <span className="text-sm text-slate-400">Expected Total</span>
+                      <span className="text-sm text-white">Expected Total</span>
                     </div>
-                    <div className="text-xl font-bold text-blue-400">
+                    <div className="text-xl font-bold text-white">
                       {(() => {
                         if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
                         
@@ -437,29 +372,17 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                           return sum + calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays);
                         }, 0);
                         
-                        return `${(totalExpected * 100000000).toFixed(0)} HEX`;
-                      })()}
-                    </div>
-                    <div className="text-xs text-blue-400">
-                      {(() => {
-                        if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '$0.00';
-                        
-                        const activeStakes = historyData.stakes.filter(s => s && s.isActive);
-                        const totalExpected = activeStakes.reduce((sum, stake) => {
-                          return sum + calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays);
-                        }, 0);
-                        
-                        return formatUSD(totalExpected);
+                        const service = network === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
+                        return service.formatHexAmount((totalExpected * 100000000).toString()) + ' HEX';
                       })()}
                     </div>
                   </div>
 
                   <div className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border border-purple-500/20 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <Clock className="w-5 h-5 text-purple-400" />
-                      <span className="text-sm text-slate-400">Remaining to Earn</span>
+                      <span className="text-sm text-white">Remaining to Earn</span>
                     </div>
-                    <div className="text-xl font-bold text-purple-400">
+                    <div className="text-xl font-bold text-white">
                       {(() => {
                         if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
                         
@@ -471,22 +394,8 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                           return sum + calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays);
                         }, 0);
                         
-                        return `${((totalExpected - totalEarned) * 100000000).toFixed(0)} HEX`;
-                      })()}
-                    </div>
-                    <div className="text-xs text-purple-400">
-                      {(() => {
-                        if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '$0.00';
-                        
-                        const activeStakes = historyData.stakes.filter(s => s && s.isActive);
-                        const totalEarned = activeStakes.reduce((sum, stake) => {
-                          return sum + calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays);
-                        }, 0);
-                        const totalExpected = activeStakes.reduce((sum, stake) => {
-                          return sum + calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays);
-                        }, 0);
-                        
-                        return formatUSD(totalExpected - totalEarned);
+                        const service = network === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
+                        return service.formatHexAmount(((totalExpected - totalEarned) * 100000000).toString()) + ' HEX';
                       })()}
                     </div>
                   </div>
@@ -497,20 +406,19 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
               <div className="border-b border-white/10">
                 <nav className="-mb-px flex space-x-8">
                   {[
-                    { key: 'overview', label: `All Stakes (${historyData.totalStakes || 0})`, icon: Activity },
-                    { key: 'active', label: `Active (${historyData.activeStakes || 0})`, icon: TrendingUp },
-                    { key: 'ended', label: `Ended (${historyData.endedStakes || 0})`, icon: CheckCircle }
-                  ].map(({ key, label, icon: Icon }) => (
+                    { key: 'overview', label: `All Stakes (${historyData.totalStakes || 0})` },
+                    { key: 'active', label: `Active (${historyData.activeStakes || 0})` },
+                    { key: 'ended', label: `Ended (${historyData.endedStakes || 0})` }
+                  ].map(({ key, label }) => (
                     <button
                       key={key}
                       onClick={() => setActiveTab(key as any)}
                       className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                         activeTab === key
-                          ? 'border-purple-500 text-purple-400'
-                          : 'border-transparent text-slate-400 hover:text-slate-300'
+                          ? 'border-purple-500 text-purple-700'
+                          : 'border-transparent text-white hover:text-slate-300'
                       }`}
                     >
-                      <Icon className="w-4 h-4" />
                       {label}
                     </button>
                   ))}
@@ -590,26 +498,26 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                             <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white">
                               {stake.stakeId}
                             </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-sm text-green-400 font-semibold">
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-white font-semibold">
                               {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatHexAmount(stake.stakedHearts)}
                             </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                               {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatTShareAmount(stake.stakeTShares || stake.stakeShares)}
                             </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                               {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatStakeLengthInDays(parseInt(stake.stakedDays))}
                             </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-sm text-orange-400">
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                               <div className="space-y-1">
                                 <div>
                                   {stake.daysServed?.toLocaleString() || 'N/A'} days
                                 </div>
                                 {endData && !stake.isActive && (() => {
                                   const service = network === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
-                                  const daysLate = service.calculateLateEndingDays(stake, endData);
+                                  const daysLate = service.calculateLateEndingDays(stake as any, endData as any);
                                   if (daysLate > 0) {
                                     return (
-                                      <div className="text-xs text-yellow-400">
+                                      <div className="text-xs text-white">
                                         +{daysLate.toLocaleString()} days late
                                       </div>
                                     );
@@ -628,17 +536,17 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                                     style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                                   />
                                 </div>
-                                <span className="text-xs text-slate-400">{progress.toFixed(0)}%</span>
+                                <span className="text-xs text-white">{progress.toFixed(0)}%</span>
                               </div>
                             </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-400">
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                               {formatDate(stake.timestamp)}
                             </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-400">
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                               <div className="flex items-center gap-1">
                                 <span className={`text-xs px-2 py-1 rounded ${
                                   network === 'ethereum' 
-                                    ? 'bg-blue-500/20 text-blue-400' 
+                                    ? 'bg-blue-500/20 text-blue-700' 
                                     : 'bg-purple-500/20 text-purple-400'
                                 }`}>
                                   {network === 'ethereum' ? 'Ethereum' : 'PulseChain'}
@@ -649,38 +557,38 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                               <div className="space-y-1">
                                 {/* Start Transaction */}
                                 <div className="flex items-center gap-1">
-                                  <span className="text-xs text-slate-500">Start:</span>
+                                  <span className="text-xs text-white">Start:</span>
                                   <a
                                     href={(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).getTransactionUrl(stake.transactionHash)}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1 underline"
+                                    className="text-xs text-green-700 hover:text-green-500 flex items-center gap-1 underline"
                                     title={`View start transaction: ${stake.transactionHash}`}
                                   >
                                     <span>{stake.transactionHash.slice(0, 8)}...</span>
-                                    <ExternalLink className="w-3 h-3" />
+↗
                                   </a>
                                 </div>
                                 
                                 {/* End Transaction */}
                                 {endData && endData.transactionHash && (
                                   <div className="flex items-center gap-1">
-                                    <span className="text-xs text-slate-500">End:</span>
+                                    <span className="text-xs text-white">End:</span>
                                     <a
                                       href={(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).getTransactionUrl(endData.transactionHash)}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 underline"
+                                      className="text-xs text-red-700 hover:text-red-500 flex items-center gap-1 underline"
                                       title={`View end transaction: ${endData.transactionHash}`}
                                     >
                                       <span>{endData.transactionHash.slice(0, 8)}...</span>
-                                      <ExternalLink className="w-3 h-3" />
+  ↗
                                     </a>
                                   </div>
                                 )}
                                 
                                 {stake.isActive && (
-                                  <div className="text-xs text-slate-500">End: N/A</div>
+                                  <div className="text-xs text-white">End: N/A</div>
                                 )}
                               </div>
                             </td>
@@ -688,25 +596,25 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                               {endData ? (
                                 <div className="space-y-1">
                                   {parseFloat(endData.payout || '0') > 0 && (
-                                    <div className="text-xs text-green-400">
+                                    <div className="text-xs text-white">
                                       +{Math.round(parseFloat(endData.payout) / Math.pow(10, 8)).toLocaleString()} HEX
                                     </div>
                                   )}
                                   {parseFloat(endData.penalty || '0') > 0 && (
-                                    <div className="text-xs text-red-400">
+                                    <div className="text-xs text-white">
                                       -{Math.round(parseFloat(endData.penalty) / Math.pow(10, 8)).toLocaleString()} HEX
                                     </div>
                                   )}
                                   {parseFloat(endData.payout || '0') > 0 && (
-                                    <div className="text-xs text-blue-400">
-                                      APY: {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).calculateStakeAPY(stake, endData).toFixed(1)}%
+                                    <div className="text-xs text-white">
+                                      APY: {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).calculateStakeAPY(stake as any, endData as any).toFixed(1)}%
                                     </div>
                                   )}
                                 </div>
                               ) : stake.isActive ? (
-                                <span className="text-xs text-slate-500">Active</span>
+                                <span className="text-xs text-white">Active</span>
                               ) : (
-                                <span className="text-xs text-slate-500">N/A</span>
+                                <span className="text-xs text-white">N/A</span>
                               )}
                             </td>
                           </tr>
@@ -716,7 +624,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                   </table>
                   
                   {sortedStakes.length === 0 && (
-                    <div className="text-center py-8 text-slate-400">
+                    <div className="text-center py-8 text-white">
                       No stakes found for this filter
                     </div>
                   )}

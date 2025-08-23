@@ -32,7 +32,15 @@ interface EndstakeRecommendation {
   confidence: 'high' | 'medium' | 'low';
 }
 
-const EndstakeTimingAI: React.FC = () => {
+interface EndstakeTimingAIProps {
+  ethereumPrice?: number;
+  pulsechainPrice?: number;
+}
+
+const EndstakeTimingAI: React.FC<EndstakeTimingAIProps> = ({ 
+  ethereumPrice = 0, 
+  pulsechainPrice = 0 
+}) => {
   const [inputs, setInputs] = useState<EndstakeTimingInput>({
     hexAmount: 1000000,
     targetDays: 365,
@@ -715,6 +723,7 @@ const EndstakeTimingAI: React.FC = () => {
         isOpen={isStakerHistoryModalOpen}
         onClose={handleStakerHistoryModalClose}
         network={selectedNetwork}
+        currentPrice={selectedNetwork === 'ethereum' ? ethereumPrice : pulsechainPrice}
       />
     </div>
   );
