@@ -5,6 +5,7 @@ import { multiNetworkHexStakingService } from '@/services/multiNetworkHexStaking
 import StakeDetailModal from './StakeDetailModal';
 import StakerHistoryModal from './StakerHistoryModal';
 import { CometCard } from '@/components/ui/comet-card';
+import { OptimizedImage } from '@/components/ui/optimized-image';
 import type { HexStake } from '@/services/hexStakingService';
 import type { MultiNetworkHexStake } from '@/services/multiNetworkHexStakingService';
 
@@ -17,6 +18,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
   const [selectedStake, setSelectedStake] = useState<HexStake | MultiNetworkHexStake | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedStakerAddress, setSelectedStakerAddress] = useState<string | null>(null);
+  const [selectedStakerNetwork, setSelectedStakerNetwork] = useState<'ethereum' | 'pulsechain'>('ethereum');
   const [isStakerHistoryModalOpen, setIsStakerHistoryModalOpen] = useState<boolean>(false);
 
   // Helper functions for calculations
@@ -73,14 +75,16 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
     setSelectedStake(null);
   };
 
-  const handleStakerClick = (stakerAddress: string) => {
+  const handleStakerClick = (stakerAddress: string, network: 'ethereum' | 'pulsechain' = 'ethereum') => {
     setSelectedStakerAddress(stakerAddress);
+    setSelectedStakerNetwork(network);
     setIsStakerHistoryModalOpen(true);
   };
 
   const handleStakerHistoryModalClose = () => {
     setIsStakerHistoryModalOpen(false);
     setSelectedStakerAddress(null);
+    setSelectedStakerNetwork('ethereum');
   };
 
   // Use stakes directly since sorting is removed
@@ -107,35 +111,10 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
   };
 
   return (
-    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
-      <div className="px-6 py-4 border-b border-white/10 relative overflow-hidden shadow-[0_4px_20px_-2px_rgba(0,0,0,0.3)]">
-        {/* Background Image */}
-        <div className="absolute inset-0 -z-10">
-          <img 
-            src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/hexgradient" 
-            alt="Header Background" 
-            className="w-full h-full object-cover opacity-80"
-            onError={(e) => {
-              console.error('Failed to load header background image:', e);
-              console.error('Image path attempted:', 'https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/hexgradient');
-              e.currentTarget.style.display = 'none';
-            }}
-            onLoad={(e) => {
-              console.log('Header background image loaded successfully');
-              console.log('Image dimensions:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight);
-            }}
-            style={{ 
-              display: 'block',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%'
-            }}
-          />
-          {/* Overlay for better text contrast */}
-          <div className="absolute inset-0 bg-black/10"></div>
-        </div>
+    <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl shadow-lg overflow-hidden">
+      <div className="px-6 py-4 border-b border-white/10 relative overflow-hidden bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-purple-600/20">
+        {/* Simplified background with CSS gradient instead of heavy image */}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-purple-500/10 via-blue-500/5 to-purple-500/10"></div>
         
         <div className="relative z-10">
           <div className="text-center">
@@ -194,7 +173,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                           <button
                             onClick={(e) => {
                               e.stopPropagation(); // Prevent triggering the stake detail modal
-                              handleStakerClick(stake.stakerAddr);
+                              handleStakerClick(stake.stakerAddr, stake.network || 'ethereum');
                             }}
                             className="text-xs text-slate-600 font-mono hover:text-blue-600 transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
                             title={`${stake.stakerAddr} - Click to view staking history`}
@@ -297,7 +276,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                             <div className="text-center">
                               <div className="text-xs text-slate-600 mb-1">Earned So Far</div>
                               <div className="text-sm font-semibold text-green-600 flex items-center justify-center gap-1">
-                                <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
+                                <OptimizedImage src="/HEXagon (1).svg" alt="HEX" width={16} height={16} className="w-4 h-4" />
                                 {multiNetworkHexStakingService.formatHexAmount(
                                   (calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays) * 100000000).toString()
                                 )}
@@ -306,7 +285,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                             <div className="text-center">
                               <div className="text-xs text-slate-600 mb-1">Expected Total</div>
                               <div className="text-sm font-semibold text-blue-600 flex items-center justify-center gap-1">
-                                <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
+                                <OptimizedImage src="/HEXagon (1).svg" alt="HEX" width={16} height={16} className="w-4 h-4" />
                                 {multiNetworkHexStakingService.formatHexAmount(
                                   (calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays) * 100000000).toString()
                                 )}
@@ -392,7 +371,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
         stakerAddress={selectedStakerAddress}
         isOpen={isStakerHistoryModalOpen}
         onClose={handleStakerHistoryModalClose}
-        network={selectedStake?.network || 'ethereum'}
+        network={selectedStakerNetwork}
         currentPrice={hexPrice}
       />
     </div>

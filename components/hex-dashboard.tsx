@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Calendar, Download, Filter, Brain, Users, Lock, Globe, Search, X } from 'lucide-react';
 import { dexscreenerApi } from '@/services/blockchain/dexscreenerApi';
+import { OptimizedImage } from '@/components/ui/optimized-image';
 import type { DexScreenerData } from '@/services/core/types';
 // import HexGeminiAnalysis from './HexGeminiAnalysis';
 import TopStakesVisual from './hex-dashboard/TopStakesVisual';
@@ -941,71 +942,25 @@ const HEXDataDashboard = () => {
   return (
     <div className="min-h-screen bg-[#E6E6FA]">
       <div className="w-full mx-auto">
-        <div className="relative overflow-hidden sm:rounded-2xl p-[1px] bg-gradient-to-br from-white/10 via-white/5 to-white/10 shadow-[0_0_40px_-15px_rgba(168,85,247,0.45)]">
-          <div className="relative bg-white/5 backdrop-blur-xl sm:rounded-2xl border border-white/10 p-3 sm:p-6 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.6)]">
+        <div className="relative overflow-hidden sm:rounded-2xl p-[1px] bg-gradient-to-br from-white/10 via-white/5 to-white/10 shadow-xl">
+          <div className="relative bg-white/5 backdrop-blur-sm sm:rounded-2xl border border-white/10 p-3 sm:p-6 shadow-lg">
             <div className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-purple-600/20 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-16 -right-24 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-16 -right-24 h-72 w-72 rounded-full bg-purple-500/10 blur-3xl" />
 
             {/* Header */}
             <div className="mb-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 rounded-xl bg-slate-900 text-white px-3 sm:px-4 py-3 border border-white/10 shadow-[0_6px_20px_-10px_rgba(0,0,0,0.6)] relative overflow-hidden">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 rounded-xl bg-slate-900 text-white px-3 sm:px-4 py-3 border border-white/10 shadow-lg relative overflow-hidden">
                 {/* Background Image - Only for PulseChain tabs */}
                 {(activeTab === 'pulsechain' || activeTab === 'pulsechain-staking') && (
-                  <div className="absolute inset-0 z-10">
-                    <img 
-                      src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/HEX-pattern" 
-                      alt="PulseChain Header Background" 
-                      className="w-full h-full object-cover opacity-80"
-                      onError={(e) => {
-                        console.error('Failed to load header background image:', e);
-                        console.error('Image path attempted:', 'https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/HEX-pattern');
-                        e.currentTarget.style.display = 'none';
-                      }}
-                      onLoad={(e) => {
-                        console.log('Header background image loaded successfully');
-                        console.log('Image dimensions:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight);
-                      }}
-                      style={{ 
-                        display: 'block',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%'
-                      }}
-                    />
-                    {/* Black overlay for better text contrast */}
-                    <div className="absolute inset-0 bg-white/10"></div>
+                  <div className="absolute inset-0 z-10 bg-gradient-to-r from-purple-600/20 via-purple-500/10 to-purple-600/20">
+                    <div className="absolute inset-0 bg-black/5"></div>
                   </div>
                 )}
                 
                 {/* Background Image - Only for Ethereum tabs */}
                 {(activeTab === 'ethereum' || activeTab === 'ethereum-staking') && (
-                  <div className="absolute inset-0 z-10">
-                    <img 
-                      src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/minimalhexeth" 
-                      alt="Ethereum Header Background" 
-                      className="w-full h-full object-cover opacity-50"
-                      onError={(e) => {
-                        console.error('Failed to load Ethereum header background image:', e);
-                        console.error('Image path attempted:', 'https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/minimalhexeth');
-                        e.currentTarget.style.display = 'none';
-                      }}
-                      onLoad={(e) => {
-                        console.log('Ethereum header background image loaded successfully');
-                        console.log('Image dimensions:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight);
-                      }}
-                      style={{ 
-                        display: 'block',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%'
-                      }}
-                    />
-                    {/* Black overlay for better text contrast */}
-                    <div className="absolute inset-0 bg-blue-900/15"></div>
+                  <div className="absolute inset-0 z-10 bg-gradient-to-r from-blue-600/20 via-blue-500/10 to-blue-600/20">
+                    <div className="absolute inset-0 bg-black/5"></div>
                   </div>
                 )}
                 
@@ -1110,7 +1065,7 @@ const HEXDataDashboard = () => {
           </div>
 
           {/* Wallet Address Search */}
-          <div className="mb-6 p-4 bg-white/50 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_6px_20px_-10px_rgba(0,0,0,0.6)] relative overflow-hidden">
+          <div className="mb-6 p-4 bg-white/50 backdrop-blur-sm border border-white/10 rounded-xl shadow-lg relative overflow-hidden">
             {/* Background Image */}
             <div className="absolute inset-0 -z-10">
               <img 
@@ -1184,7 +1139,7 @@ const HEXDataDashboard = () => {
 
                 {/* Live Stats Section */}
         {!activeTab.includes('staking') && liveData ? (
-          <div className="w-full border border-white/10 rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] shadow-[0_20px_40px_-20px_rgba(0,0,0,0.3)] p-3 sm:p-6 relative overflow-hidden">
+          <div className="w-full border border-white/10 rounded-2xl shadow-lg p-3 sm:p-6 relative overflow-hidden">
             {/* Background Image - Only for Ethereum */}
             {activeTab === 'ethereum' && (
               <div className="absolute inset-0 -z-10 bg-blue-900/30 rounded-2xl">
@@ -1349,7 +1304,7 @@ const HEXDataDashboard = () => {
                     }
                   </div>
                     <div className="text-xs text-white flex items-center justify-center gap-1">
-                    <img src="/HEXagon (1).svg" alt="HEX" className="w-3 h-3" />
+                    <OptimizedImage src="/HEXagon (1).svg" alt="HEX" width={12} height={12} className="w-3 h-3" />
                     Liquidity HEX
                   </div>
                 </div>
@@ -1363,12 +1318,12 @@ const HEXDataDashboard = () => {
                     <div className="text-xs text-white flex items-center justify-center gap-1">
                     {activeTab === 'ethereum' ? (
                       <>
-                        <img src="/ethlogo.svg" alt="Ethereum" className="w-3 h-3" />
+                        <OptimizedImage src="/ethlogo.svg" alt="Ethereum" width={12} height={12} className="w-3 h-3" />
                         Liquidity USDC
                       </>
                     ) : (
                       <>
-                        <img src="/LogoVector.svg" alt="PulseChain" className="w-3 h-3" />
+                        <OptimizedImage src="/LogoVector.svg" alt="PulseChain" width={12} height={12} className="w-3 h-3" />
                         Liquidity PLS
                       </>
                     )}
@@ -1384,12 +1339,12 @@ const HEXDataDashboard = () => {
                     <div className="text-xs text-white flex items-center justify-center gap-1">
                     {activeTab === 'ethereum' ? (
                       <>
-                        <img src="/ethlogo.svg" alt="Ethereum" className="w-3 h-3" />
+                        <OptimizedImage src="/ethlogo.svg" alt="Ethereum" width={12} height={12} className="w-3 h-3" />
                         Liquidity ETH
                       </>
                     ) : (
                       <>
-                        <img src="/HEXagon (1).svg" alt="HEX" className="w-3 h-3" />
+                        <OptimizedImage src="/HEXagon (1).svg" alt="HEX" width={12} height={12} className="w-3 h-3" />
                         Liquidity EHEX
                       </>
                     )}
@@ -1403,7 +1358,7 @@ const HEXDataDashboard = () => {
                     }
                   </div>
                     <div className="text-xs text-white flex items-center justify-center gap-1">
-                    <img src="/HEXagon (1).svg" alt="HEX" className="w-3 h-3" />
+                    <OptimizedImage src="/HEXagon (1).svg" alt="HEX" width={12} height={12} className="w-3 h-3" />
                     Penalties HEX
                 </div>
               </div>
@@ -1414,7 +1369,7 @@ const HEXDataDashboard = () => {
              </div>
            </div>
          ) : !activeTab.includes('staking') && (
-            <div className="mb-6 bg-white/5 backdrop-blur-xl border border-white/10 sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] p-3 sm:p-6">
+            <div className="mb-6 bg-white/5 backdrop-blur-sm border border-white/10 sm:rounded-2xl shadow-lg p-3 sm:p-6">
              <div className="flex items-center justify-between mb-4">
                <h3 className="text-xl font-bold text-white flex items-center gap-2">
                  <div className="w-3 h-3 bg-yellow-400 rounded-full animate-spin"></div>
@@ -1449,7 +1404,7 @@ const HEXDataDashboard = () => {
               <span className="font-medium">Data Loading</span>
             </div>
             <p className="text-sm mt-1 flex items-center gap-2">
-              <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
+              <OptimizedImage src="/HEXagon (1).svg" alt="HEX" width={16} height={16} className="w-4 h-4" />
               Please wait for HEX data to fully load before running AI analysis. 
               Current data points: {currentData.length}
               {currentData[0] && ` | Latest price: $${currentData[0].priceUV2UV3 || 'N/A'}`}
@@ -1655,7 +1610,7 @@ const HEXDataDashboard = () => {
                     <h4 className="text-md font-semibold text-white mb-3">Ethereum Protocol Global Metrics</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="text-center p-3">
-                        <div className="text-lg font-bold text-cyan-300">
+                        <div className="text-lg font-bold text-purple-300">
                           {ethereumStakingData.globalInfo ? hexStakingService.formatHexAmount(ethereumStakingData.globalInfo.stakeSharesTotal) : 'N/A'}
                         </div>
                         <div className="text-xs text-white">Stake Shares Total</div>
@@ -1844,7 +1799,7 @@ const HEXDataDashboard = () => {
                                 <td className="px-3 py-4 whitespace-nowrap text-sm text-amber-700">
                                   Day {stake.startDay}
                                 </td>
-                                <td className="px-3 py-4 whitespace-nowrap text-sm text-cyan-700">
+                                <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-700">
                                   Day {stake.endDay}
                                 </td>
                                 <td className="px-3 py-4 whitespace-nowrap text-sm text-yellow-700">
@@ -2010,7 +1965,7 @@ const HEXDataDashboard = () => {
                                   <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-slate-700">
                                     {stake.stakeId}
                                   </td>
-                                  <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-600 font-mono">
+                                  <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-700 font-mono">
                                     <button
                                       onClick={() => handleEthereumStakerClick(stake.stakerAddr)}
                                       className="hover:text-blue-400 transition-colors cursor-pointer underline decoration-blue-400/60 decoration-2 underline-offset-2"
@@ -2032,7 +1987,7 @@ const HEXDataDashboard = () => {
                                     {stake.daysServed.toLocaleString()} days
                                   </td>
                                   <td className={`px-3 py-4 whitespace-nowrap text-sm font-semibold ${
-                                    isOverdue ? 'text-red-400' : isNearEnd ? 'text-yellow-700' : 'text-cyan-400'
+                                    isOverdue ? 'text-red-400' : isNearEnd ? 'text-yellow-700' : 'text-purple-400'
                                   }`}>
                                     {isOverdue ? `${Math.abs(stake.daysLeft)} overdue` : `${stake.daysLeft} days`}
                                   </td>
@@ -2051,7 +2006,7 @@ const HEXDataDashboard = () => {
                                       </span>
                                     </div>
                                   </td>
-                                  <td className="px-3 py-4 whitespace-nowrap text-sm text-cyan-400">
+                                  <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
                                     Day {stake.endDay}
                                   </td>
                                   <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-400">
@@ -2252,7 +2207,7 @@ const HEXDataDashboard = () => {
                     <h4 className="text-md font-semibold text-white mb-3">PulseChain Protocol Global Metrics</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="text-center p-3">
-                        <div className="text-lg font-bold text-cyan-300">
+                        <div className="text-lg font-bold text-purple-300">
                           {pulsechainStakingData.globalInfo ? pulsechainHexStakingService.formatHexAmount(pulsechainStakingData.globalInfo.stakeSharesTotal) : 'N/A'}
                         </div>
                         <div className="text-md text-white">Stake Shares Total</div>
@@ -2444,7 +2399,7 @@ const HEXDataDashboard = () => {
                                 <td className="px-3 py-4 whitespace-nowrap text-sm text-amber-400">
                                   {stake.daysServed.toLocaleString()} days
                                 </td>
-                                <td className="px-3 py-4 whitespace-nowrap text-sm text-cyan-400">
+                                <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
                                   Day {stake.endDay}
                                 </td>
                                 <td className="px-3 py-4 whitespace-nowrap text-sm text-yellow-400">
@@ -2484,19 +2439,19 @@ const HEXDataDashboard = () => {
                 )}
 
                 {pulsechainStakingSubTab === 'active-stakes' && (
-                  <div className="bg-grey/80 backdrop-blur-xl border border-white/10 sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
+                  <div className="bg-white/5 backdrop-blur-xl border border-white/10 sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
                     <div className="flex items-center justify-between px-3 sm:px-6 py-4 border-b border-white/10">
                       <div>
                         <h4 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
                           <Users className="w-5 h-5" />
                           All PulseChain Active HEX Stakes (Not Ended)
                         </h4>
-                        <p className="text-sm text-slate-400 mt-1">
+                        <p className="text-sm text-slate-600 mt-1">
                           PulseChain stakes that have started but not yet ended or been emergency ended
                         </p>
                       </div>
                       <div className="flex items-center gap-4">
-                        <div className="text-sm text-slate-400">
+                        <div className="text-sm text-slate-600">
                           {pulsechainActiveStakes.length.toLocaleString()} active stakes
                         </div>
                       </div>
@@ -2576,6 +2531,7 @@ const HEXDataDashboard = () => {
                               <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">Progress</th>
                               <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">End Day</th>
                               <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">Timestamp</th>
+                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">Transaction</th>
                             </tr>
                           </thead>
                           <tbody className="bg-transparent divide-y divide-gray-200">
@@ -2589,7 +2545,7 @@ const HEXDataDashboard = () => {
                                   <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-700">
                                     {stake.stakeId}
                                   </td>
-                                  <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-300 font-mono">
+                                  <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-700 font-mono">
                                     <button
                                       onClick={() => handlePulsechainStakerClick(stake.stakerAddr)}
                                       className="hover:text-purple-400 transition-colors cursor-pointer underline decoration-purple-400/60 decoration-2 underline-offset-2"
@@ -2611,7 +2567,7 @@ const HEXDataDashboard = () => {
                                     {stake.daysServed.toLocaleString()} days
                                   </td>
                                   <td className={`px-3 py-4 whitespace-nowrap text-sm font-semibold ${
-                                    isOverdue ? 'text-red-400' : isNearEnd ? 'text-yellow-700' : 'text-cyan-400'
+                                    isOverdue ? 'text-red-400' : isNearEnd ? 'text-yellow-700' : 'text-purple-400'
                                   }`}>
                                     {isOverdue ? `${Math.abs(stake.daysLeft)} overdue` : `${stake.daysLeft} days`}
                                   </td>
@@ -2630,11 +2586,33 @@ const HEXDataDashboard = () => {
                                       </span>
                                     </div>
                                   </td>
-                                  <td className="px-3 py-4 whitespace-nowrap text-sm text-cyan-800">
+                                  <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-800">
                                     Day {stake.endDay}
                                   </td>
                                   <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-600">
                                     {new Date(parseInt(stake.timestamp) * 1000).toLocaleDateString()}
+                                  </td>
+                                  <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
+                                    <a
+                                      href={`https://scan.pulsechain.com/tx/${stake.transactionHash}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="hover:text-purple-400 transition-colors"
+                                      title={stake.transactionHash}
+                                    >
+                                      {stake.transactionHash.slice(0, 8)}...
+                                    </a>
+                                  </td>
+                                  <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
+                                    <a
+                                      href={`https://scan.pulsechain.com/tx/${stake.transactionHash}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="hover:text-purple-400 transition-colors"
+                                      title={stake.transactionHash}
+                                    >
+                                      {stake.transactionHash.slice(0, 8)}...
+                                    </a>
                                   </td>
                                 </tr>
                               );
@@ -2643,7 +2621,7 @@ const HEXDataDashboard = () => {
                         </table>
                         
                         {pulsechainActiveStakes.length > 1000 && (
-                          <div className="px-3 sm:px-6 py-4 border-t border-white/10 text-center text-slate-400">
+                          <div className="px-3 sm:px-6 py-4 border-t border-white/10 text-center text-slate-600">
                             Showing first 1,000 of {pulsechainActiveStakes.length.toLocaleString()} PulseChain active stakes
                             <br />
                             <span className="text-xs">Full dataset loaded in memory for analysis</span>
@@ -2846,7 +2824,7 @@ const HEXDataDashboard = () => {
                       </div>
                     </td>
                     {/* Current Holders */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-cyan-800">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-800">
                       {formatNumber(row.currentHolders, 0)}
                     </td>
                     {/* Holder Change */}
@@ -2856,7 +2834,7 @@ const HEXDataDashboard = () => {
                       </div>
                     </td>
                     {/* Total Holders */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-cyan-800">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-800">
                       {formatNumber(row.numberOfHolders, 0)}
                     </td>
                     {/* Average Stake Length */}

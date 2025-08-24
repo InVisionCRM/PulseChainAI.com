@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { hexStakingService } from '@/services/hexStakingService';
 import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingService';
+import { hexTransactionService, type WalletTransactionData, type HexTransaction } from '@/services/hexTransactionService';
 import type { StakerHistoryMetrics, HexStake, HexStakeEnd } from '@/services/hexStakingService';
 
 interface StakerHistoryModalProps {
@@ -19,9 +20,12 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
   currentPrice,
 }) => {
   const [historyData, setHistoryData] = useState<StakerHistoryMetrics | null>(null);
+  const [transactionData, setTransactionData] = useState<WalletTransactionData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'active' | 'ended'>('overview');
+  const [transactionError, setTransactionError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'active' | 'ended' | 'transactions'>('overview');
   const [sortField, setSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'daysServed' | 'timestamp'>('timestamp');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -64,8 +68,17 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
   useEffect(() => {
     if (isOpen && stakerAddress) {
       fetchStakerHistory();
+      if (activeTab === 'transactions') {
+        fetchTransactionData();
+      }
     }
   }, [isOpen, stakerAddress, network]);
+
+  useEffect(() => {
+    if (isOpen && stakerAddress && activeTab === 'transactions' && !transactionData) {
+      fetchTransactionData();
+    }
+  }, [activeTab, isOpen, stakerAddress]);
 
   const fetchStakerHistory = async () => {
     if (!stakerAddress) return;
@@ -81,6 +94,22 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
       setError(err instanceof Error ? err.message : 'Failed to fetch staker history');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchTransactionData = async () => {
+    if (!stakerAddress) return;
+    
+    setIsLoadingTransactions(true);
+    setTransactionError(null);
+    
+    try {
+      const data = await hexTransactionService.getWalletTransactionData(stakerAddress, network);
+      setTransactionData(data);
+    } catch (err) {
+      setTransactionError(err instanceof Error ? err.message : 'Failed to fetch transaction data');
+    } finally {
+      setIsLoadingTransactions(false);
     }
   };
 
@@ -408,7 +437,8 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                   {[
                     { key: 'overview', label: `All Stakes (${historyData.totalStakes || 0})` },
                     { key: 'active', label: `Active (${historyData.activeStakes || 0})` },
-                    { key: 'ended', label: `Ended (${historyData.endedStakes || 0})` }
+                    { key: 'ended', label: `Ended (${historyData.endedStakes || 0})` },
+                    { key: 'transactions', label: `Transactions${transactionData ? ` (${transactionData.totalTransactions})` : ''}` }
                   ].map(({ key, label }) => (
                     <button
                       key={key}
@@ -425,10 +455,143 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                 </nav>
               </div>
 
-              {/* Stakes Table */}
-              <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl overflow-hidden">
-                <div className="overflow-auto max-h-[60vh]">
-                  <table className="min-w-full divide-y divide-white/10">
+              {/* Content based on active tab */}
+              {activeTab === 'transactions' ? (
+                /* Transactions Section */
+                <div className="space-y-6">
+                  {/* Balance Section */}
+                  {transactionData?.balance && (
+                    <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-6">
+                      <h3 className="text-lg font-semibold text-white mb-4">💰 Current Liquid HEX Balance</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <div className="text-2xl font-bold text-green-400">
+                            {transactionData.balance.balanceFormatted}
+                          </div>
+                          <div className="text-sm text-white/70">HEX Balance</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold text-white">
+                            {formatUSD(parseFloat(transactionData.balance.balance) / Math.pow(10, 8) * currentPrice)}
+                          </div>
+                          <div className="text-sm text-white/70">USD Value</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-white/70">
+                            Last Updated: {new Date(transactionData.balance.timestamp).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Loading State for Transactions */}
+                  {isLoadingTransactions && (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+                      <h3 className="text-xl font-semibold text-white mb-2">Loading Transactions...</h3>
+                      <p className="text-white">Fetching all HEX-related transactions</p>
+                    </div>
+                  )}
+
+                  {/* Error State for Transactions */}
+                  {transactionError && (
+                    <div className="text-center py-12">
+                      <div className="bg-red-900/20 border border-red-500/50 text-red-700 px-6 py-4 rounded-xl mb-4">
+                        <h3 className="font-bold text-lg mb-2">Error Loading Transactions</h3>
+                        <p className="mb-4">{transactionError}</p>
+                        <button
+                          onClick={fetchTransactionData}
+                          className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg"
+                        >
+                          Try Again
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Transactions Table */}
+                  {transactionData && !isLoadingTransactions && !transactionError && (
+                    <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl overflow-hidden">
+                      <div className="px-6 py-4 border-b border-white/10">
+                        <h3 className="text-lg font-semibold text-white">
+                          📊 All HEX Transactions ({transactionData.totalTransactions})
+                        </h3>
+                        <p className="text-sm text-white/70 mt-1">
+                          Includes transfers, stakes, and other HEX-related activities
+                        </p>
+                      </div>
+                      <div className="overflow-auto max-h-[60vh]">
+                        <table className="min-w-full divide-y divide-white/10">
+                          <thead className="bg-slate-900 text-white sticky top-0">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Type</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Description</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Amount</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Date</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Transaction</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-transparent divide-y divide-white/10">
+                            {transactionData.transactions.map((tx) => (
+                              <tr key={tx.id} className="hover:bg-white/5">
+                                <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                  <div className={`flex items-center gap-2 ${hexTransactionService.getTransactionTypeColor(tx.type)}`}>
+                                    <span className="text-lg">{hexTransactionService.getTransactionTypeIcon(tx.type)}</span>
+                                    <span className="font-medium capitalize">
+                                      {tx.type.replace('_', ' ')}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-4 text-sm text-white">
+                                  <div className="max-w-md">
+                                    {tx.description}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                  <div className="font-semibold text-white">
+                                    {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatHexAmount(tx.value)} HEX
+                                  </div>
+                                  {currentPrice > 0 && (
+                                    <div className="text-xs text-white/70">
+                                      {formatUSD(parseFloat(tx.value) / Math.pow(10, 8) * currentPrice)}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-4 py-4 whitespace-nowrap text-sm text-white">
+                                  {hexTransactionService.formatDate(tx.timestamp)}
+                                </td>
+                                <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                  <a
+                                    href={hexTransactionService.getExplorerUrl(tx.hash, network)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-purple-400 hover:text-purple-300 flex items-center gap-1 underline"
+                                    title={`View transaction: ${tx.hash}`}
+                                  >
+                                    <span>{tx.hash.slice(0, 10)}...</span>
+                                    <span>↗</span>
+                                  </a>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        
+                        {transactionData.transactions.length === 0 && (
+                          <div className="text-center py-8 text-white">
+                            No HEX transactions found for this address
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Stakes Table */
+                <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl overflow-hidden">
+                  <div className="overflow-auto max-h-[60vh]">
+                    <table className="min-w-full divide-y divide-white/10">
                     <thead className="bg-slate-900 text-white sticky top-0">
                       <tr>
                         <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Status</th>
@@ -630,6 +793,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                   )}
                 </div>
               </div>
+              )}
             </div>
           )}
         </div>
