@@ -292,8 +292,6 @@ export const Card = ({
         onMouseLeave={() => setIsHovering(false)}
         className="relative z-10 flex h-80 w-56 flex-col items-start justify-start overflow-hidden rounded-3xl bg-gray-100 md:h-[40rem] md:w-96 dark:bg-neutral-900 cursor-pointer hover:scale-105 transition-transform duration-200"
       >
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 h-full bg-gradient-to-b from-black/50 via-transparent to-transparent" />
-        
         {/* Video Background */}
         {card.videoUrl && (
           <video
@@ -332,6 +330,9 @@ export const Card = ({
           />
         )}
         
+        {/* Subtle overlay for better text readability */}
+        <div className="absolute inset-0 z-15 bg-black/20" />
+        
         {/* Coming Soon Overlay */}
         {card.isComingSoon && (
           <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm rounded-3xl flex items-center justify-center">
@@ -342,16 +343,17 @@ export const Card = ({
           </div>
         )}
         
-        <div className="relative z-40 p-8">
+        {/* Card Content - Moved to bottom for better visibility */}
+        <div className="absolute inset-x-0 bottom-0 z-40 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
           <motion.p
             layoutId={layout ? `category-${card.category}` : undefined}
-            className="text-left font-sans text-sm font-medium text-white md:text-base"
+            className="text-left font-sans text-sm font-medium text-white/90 md:text-base mb-2"
           >
             {card.category}
           </motion.p>
           <motion.p
             layoutId={layout ? `title-${card.title}` : undefined}
-            className="text-left font-sans text-xl font-semibold [text-wrap:balance] text-white md:text-3xl"
+            className="text-left font-sans text-lg font-semibold [text-wrap:balance] text-white md:text-2xl leading-tight"
           >
             {card.title}
           </motion.p>

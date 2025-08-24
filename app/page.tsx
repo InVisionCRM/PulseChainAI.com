@@ -16,7 +16,7 @@ export default function Home() {
         <div className="relative z-30 text-center">
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6">
             <div className="relative mb-4">
-              <FlipText className="text-white text-6xl md:text-7xl lg:text-8xl font-bold">
+              <FlipText className="text-white text-5xl md:text-7xl lg:text-8xl font-bold">
                 PULSECHAIN
               </FlipText>
             </div>
