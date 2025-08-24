@@ -460,30 +460,26 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                 /* Transactions Section */
                 <div className="space-y-6">
                   {/* Balance Section */}
-                  {transactionData?.balance && (
-                    <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-6">
-                      <h3 className="text-lg font-semibold text-white mb-4">💰 Current Liquid HEX Balance</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <div className="text-2xl font-bold text-green-400">
-                            {transactionData.balance.balanceFormatted}
-                          </div>
-                          <div className="text-sm text-white/70">HEX Balance</div>
+                  <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4">💰 Wallet Information</h3>
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="bg-white/5 rounded-lg p-4">
+                        <div className="text-sm text-white/70 mb-2">Liquid HEX Balance</div>
+                        <div className="text-white/80 text-sm">
+                          ⚠️ Liquid balance requires direct blockchain RPC call
                         </div>
-                        <div>
-                          <div className="text-lg font-semibold text-white">
-                            {formatUSD(parseFloat(transactionData.balance.balance) / Math.pow(10, 8) * currentPrice)}
-                          </div>
-                          <div className="text-sm text-white/70">USD Value</div>
+                        <div className="text-xs text-white/60 mt-2">
+                          This subgraph only tracks staking events, not wallet balances
                         </div>
-                        <div>
-                          <div className="text-sm text-white/70">
-                            Last Updated: {new Date(transactionData.balance.timestamp).toLocaleString()}
-                          </div>
+                      </div>
+                      <div className="bg-white/5 rounded-lg p-4">
+                        <div className="text-sm text-white/70 mb-2">Transaction History</div>
+                        <div className="text-white/80 text-sm">
+                          Showing staking transactions from {network === 'ethereum' ? 'Ethereum' : 'PulseChain'} HEX subgraph
                         </div>
                       </div>
                     </div>
-                  )}
+                  </div>
 
                   {/* Loading State for Transactions */}
                   {isLoadingTransactions && (

@@ -35,9 +35,9 @@ export class HexTransactionService {
   private readonly HEX_CONTRACT_ETHEREUM = '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
   private readonly HEX_CONTRACT_PULSECHAIN = '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
   
-  // The Graph endpoints
+  // The Graph endpoints - using the same endpoints as the working staking services
   private readonly ETHEREUM_SUBGRAPH = 'https://gateway.thegraph.com/api/a08fcab20e333b38bb75daf3d97a0bb5/subgraphs/id/A6JyHRn6CUvvgBZwni9JyrgovKWK6FoSQ8TVt6JJGhcp';
-  private readonly PULSECHAIN_PROXY = '/api/pulsechain-graphql-proxy';
+  private readonly PULSECHAIN_SUBGRAPH = 'https://graph.pulsechain.com/subgraphs/name/Codeakk/Hex';
 
   async getWalletTransactionData(address: string, network: 'ethereum' | 'pulsechain'): Promise<WalletTransactionData> {
     console.log(`🔍 Fetching HEX transaction data for ${address} on ${network}...`);
@@ -83,67 +83,29 @@ export class HexTransactionService {
   }
 
   private async getEthereumHexBalance(address: string): Promise<HexBalance> {
-    // Query The Graph for current balance
-    const query = `
-      query GetHexBalance($address: String!) {
-        # Try to get the most recent transfer involving this address
-        transfersTo: transfers(
-          where: { to: $address }
-          orderBy: timestamp
-          orderDirection: desc
-          first: 1
-        ) {
-          id
-          value
-          timestamp
-        }
-        transfersFrom: transfers(
-          where: { from: $address }
-          orderBy: timestamp
-          orderDirection: desc
-          first: 1
-        ) {
-          id
-          value
-          timestamp
-        }
-        # Also check if this address has any HEX-related activity
-        stakeStarts(where: { stakerAddr: $address }) {
-          id
-        }
-      }
-    `;
-
+    // For HEX balance, we need to use a proper ERC20 balance query or external API
+    // The Graph doesn't directly track ERC20 balances, only events
+    // We'll use a fallback approach with Ethereum RPC or return placeholder for now
+    
     try {
-      const data = await this.executeEthereumQuery<{
-        transfersTo: Array<{ id: string; value: string; timestamp: string }>;
-        transfersFrom: Array<{ id: string; value: string; timestamp: string }>;
-        stakeStarts: Array<{ id: string }>;
-      }>(query, { address: address.toLowerCase() });
-
-      // For now, we'll estimate balance based on recent activity
-      // In a production app, you'd want to use a proper blockchain API like Alchemy/Infura
-      let estimatedBalance = '0';
+      // For now, return a realistic placeholder since proper balance fetching 
+      // requires direct blockchain RPC calls or specialized APIs like Alchemy
+      // In a real implementation, you'd use:
+      // 1. Ethereum RPC call to HEX contract balanceOf(address) method
+      // 2. Or use services like Alchemy Token API
+      // 3. Or maintain a balance tracking system based on transfer events
       
-      if (data.transfersTo.length > 0 || data.transfersFrom.length > 0 || data.stakeStarts.length > 0) {
-        // If there's any HEX activity, we can try to get a rough balance estimate
-        // This is a simplified approach - in reality you'd sum all inbound/outbound transfers
-        const latestTransferTo = data.transfersTo[0];
-        if (latestTransferTo) {
-          estimatedBalance = latestTransferTo.value;
-        }
-      }
-
+      const placeholderBalance = '0'; // Default to 0 since we can't reliably estimate from transfers
+      
       return {
         address,
-        balance: estimatedBalance,
-        balanceFormatted: this.formatHexAmount(estimatedBalance),
+        balance: placeholderBalance,
+        balanceFormatted: this.formatHexAmount(placeholderBalance),
         network: 'ethereum',
         timestamp: new Date().toISOString()
       };
     } catch (error) {
       console.error(`❌ Error fetching Ethereum HEX balance:`, error);
-      // Return zero balance on error
       return {
         address,
         balance: '0',
@@ -155,55 +117,15 @@ export class HexTransactionService {
   }
 
   private async getPulsechainHexBalance(address: string): Promise<HexBalance> {
-    // Similar approach for PulseChain using the proxy
-    const query = `
-      query GetHexBalance($address: String!) {
-        transfersTo: transfers(
-          where: { to: $address }
-          orderBy: timestamp
-          orderDirection: desc
-          first: 1
-        ) {
-          id
-          value
-          timestamp
-        }
-        transfersFrom: transfers(
-          where: { from: $address }
-          orderBy: timestamp
-          orderDirection: desc
-          first: 1
-        ) {
-          id
-          value
-          timestamp
-        }
-        stakeStarts(where: { stakerAddr: $address }) {
-          id
-        }
-      }
-    `;
-
     try {
-      const data = await this.executePulsechainQuery<{
-        transfersTo: Array<{ id: string; value: string; timestamp: string }>;
-        transfersFrom: Array<{ id: string; value: string; timestamp: string }>;
-        stakeStarts: Array<{ id: string }>;
-      }>(query, { address: address.toLowerCase() });
-
-      let estimatedBalance = '0';
+      // Same issue as Ethereum - proper balance fetching requires RPC calls
+      // For PulseChain, you'd need to call the HEX contract directly
+      const placeholderBalance = '0';
       
-      if (data.transfersTo.length > 0 || data.transfersFrom.length > 0 || data.stakeStarts.length > 0) {
-        const latestTransferTo = data.transfersTo[0];
-        if (latestTransferTo) {
-          estimatedBalance = latestTransferTo.value;
-        }
-      }
-
       return {
         address,
-        balance: estimatedBalance,
-        balanceFormatted: this.formatHexAmount(estimatedBalance),
+        balance: placeholderBalance,
+        balanceFormatted: this.formatHexAmount(placeholderBalance),
         network: 'pulsechain',
         timestamp: new Date().toISOString()
       };
@@ -232,35 +154,6 @@ export class HexTransactionService {
   private async getEthereumHexTransactions(address: string, limit: number = 100): Promise<HexTransaction[]> {
     const query = `
       query GetAllHexTransactions($address: String!, $limit: Int!) {
-        # Regular HEX transfers
-        transfersFrom: transfers(
-          where: { from: $address }
-          orderBy: timestamp
-          orderDirection: desc
-          first: $limit
-        ) {
-          id
-          from
-          to
-          value
-          timestamp
-          transactionHash
-          blockNumber
-        }
-        transfersTo: transfers(
-          where: { to: $address }
-          orderBy: timestamp
-          orderDirection: desc
-          first: $limit
-        ) {
-          id
-          from
-          to
-          value
-          timestamp
-          transactionHash
-          blockNumber
-        }
         # Staking transactions
         stakeStarts(
           where: { stakerAddr: $address }
@@ -297,14 +190,6 @@ export class HexTransactionService {
 
     try {
       const data = await this.executeEthereumQuery<{
-        transfersFrom: Array<{
-          id: string; from: string; to: string; value: string; 
-          timestamp: string; transactionHash: string; blockNumber: string;
-        }>;
-        transfersTo: Array<{
-          id: string; from: string; to: string; value: string; 
-          timestamp: string; transactionHash: string; blockNumber: string;
-        }>;
         stakeStarts: Array<{
           id: string; stakeId: string; stakerAddr: string; stakedHearts: string; 
           stakedDays: string; timestamp: string; transactionHash: string; blockNumber: string;
@@ -316,38 +201,6 @@ export class HexTransactionService {
       }>(query, { address: address.toLowerCase(), limit });
 
       const transactions: HexTransaction[] = [];
-
-      // Process transfers from the address (outgoing)
-      data.transfersFrom.forEach(transfer => {
-        transactions.push({
-          id: transfer.id,
-          hash: transfer.transactionHash,
-          blockNumber: transfer.blockNumber,
-          timestamp: transfer.timestamp,
-          from: transfer.from,
-          to: transfer.to,
-          value: transfer.value,
-          type: 'transfer',
-          description: `Sent ${this.formatHexAmount(transfer.value)} HEX to ${transfer.to.slice(0, 8)}...`,
-          network: 'ethereum'
-        });
-      });
-
-      // Process transfers to the address (incoming)
-      data.transfersTo.forEach(transfer => {
-        transactions.push({
-          id: transfer.id,
-          hash: transfer.transactionHash,
-          blockNumber: transfer.blockNumber,
-          timestamp: transfer.timestamp,
-          from: transfer.from,
-          to: transfer.to,
-          value: transfer.value,
-          type: 'transfer',
-          description: `Received ${this.formatHexAmount(transfer.value)} HEX from ${transfer.from.slice(0, 8)}...`,
-          network: 'ethereum'
-        });
-      });
 
       // Process stake starts
       data.stakeStarts.forEach(stake => {
@@ -398,37 +251,9 @@ export class HexTransactionService {
   }
 
   private async getPulsechainHexTransactions(address: string, limit: number = 100): Promise<HexTransaction[]> {
-    // Similar query structure for PulseChain
     const query = `
       query GetAllHexTransactions($address: String!, $limit: Int!) {
-        transfersFrom: transfers(
-          where: { from: $address }
-          orderBy: timestamp
-          orderDirection: desc
-          first: $limit
-        ) {
-          id
-          from
-          to
-          value
-          timestamp
-          transactionHash
-          blockNumber
-        }
-        transfersTo: transfers(
-          where: { to: $address }
-          orderBy: timestamp
-          orderDirection: desc
-          first: $limit
-        ) {
-          id
-          from
-          to
-          value
-          timestamp
-          transactionHash
-          blockNumber
-        }
+        # Staking transactions
         stakeStarts(
           where: { stakerAddr: $address }
           orderBy: timestamp
@@ -464,14 +289,6 @@ export class HexTransactionService {
 
     try {
       const data = await this.executePulsechainQuery<{
-        transfersFrom: Array<{
-          id: string; from: string; to: string; value: string; 
-          timestamp: string; transactionHash: string; blockNumber: string;
-        }>;
-        transfersTo: Array<{
-          id: string; from: string; to: string; value: string; 
-          timestamp: string; transactionHash: string; blockNumber: string;
-        }>;
         stakeStarts: Array<{
           id: string; stakeId: string; stakerAddr: string; stakedHearts: string; 
           stakedDays: string; timestamp: string; transactionHash: string; blockNumber: string;
@@ -483,38 +300,6 @@ export class HexTransactionService {
       }>(query, { address: address.toLowerCase(), limit });
 
       const transactions: HexTransaction[] = [];
-
-      // Process transfers from the address (outgoing)
-      data.transfersFrom.forEach(transfer => {
-        transactions.push({
-          id: transfer.id,
-          hash: transfer.transactionHash,
-          blockNumber: transfer.blockNumber,
-          timestamp: transfer.timestamp,
-          from: transfer.from,
-          to: transfer.to,
-          value: transfer.value,
-          type: 'transfer',
-          description: `Sent ${this.formatHexAmount(transfer.value)} HEX to ${transfer.to.slice(0, 8)}...`,
-          network: 'pulsechain'
-        });
-      });
-
-      // Process transfers to the address (incoming)
-      data.transfersTo.forEach(transfer => {
-        transactions.push({
-          id: transfer.id,
-          hash: transfer.transactionHash,
-          blockNumber: transfer.blockNumber,
-          timestamp: transfer.timestamp,
-          from: transfer.from,
-          to: transfer.to,
-          value: transfer.value,
-          type: 'transfer',
-          description: `Received ${this.formatHexAmount(transfer.value)} HEX from ${transfer.from.slice(0, 8)}...`,
-          network: 'pulsechain'
-        });
-      });
 
       // Process stake starts
       data.stakeStarts.forEach(stake => {
@@ -591,7 +376,7 @@ export class HexTransactionService {
   }
 
   private async executePulsechainQuery<T>(query: string, variables: any = {}): Promise<T> {
-    const response = await fetch(this.PULSECHAIN_PROXY, {
+    const response = await fetch(this.PULSECHAIN_SUBGRAPH, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -603,13 +388,14 @@ export class HexTransactionService {
     });
 
     if (!response.ok) {
-      throw new Error(`PulseChain GraphQL proxy error: ${response.status} - ${response.statusText}`);
+      throw new Error(`PulseChain GraphQL error: ${response.status} - ${response.statusText}`);
     }
 
     const data = await response.json();
     
-    if (data.error) {
-      throw new Error(`PulseChain GraphQL proxy error: ${data.error}`);
+    if (data.errors) {
+      const errorMessage = data.errors.map((e: any) => e.message).join(', ');
+      throw new Error(`PulseChain GraphQL error: ${errorMessage}`);
     }
 
     return data.data;
