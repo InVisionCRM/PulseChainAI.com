@@ -1103,8 +1103,8 @@ const HEXDataDashboard = () => {
                     : 'border-transparent text-slate-600 hover:text-green-600'
                 }`}
               >
-                <span className="hidden sm:inline">Sell Pressure</span>
-                <span className="sm:hidden">Sell Pressure</span>
+                <span className="hidden sm:inline">Ending Soon</span>
+                <span className="sm:hidden">Ending Soon</span>
               </button>
             </nav>
           </div>
@@ -1462,7 +1462,7 @@ const HEXDataDashboard = () => {
           <div className="space-y-6">
             {/* Sell Pressure Header with Home Button */}
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-slate-800">Sell Pressure Analysis</h2>
+              <h2 className="text-2xl font-bold text-slate-800">Stakes Ending Soon</h2>
               
               {/* Home Button */}
               <button
@@ -1476,7 +1476,7 @@ const HEXDataDashboard = () => {
             {isLoadingEthereumActiveStakes || isLoadingPulsechainActiveStakes ? (
               <div className="text-center py-12">
                 <RefreshCw className="w-12 h-12 animate-spin text-orange-600 mx-auto mb-4" />
-                <h2 className="text-xl font-semibold text-slate-800 mb-2">Loading Sell Pressure Analysis...</h2>
+                <h2 className="text-xl font-semibold text-slate-800 mb-2">Loading Stakes</h2>
                 <p className="text-slate-800">Fetching active stakes data for analysis</p>
               </div>
             ) : (
