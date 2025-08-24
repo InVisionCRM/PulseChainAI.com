@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Crown, TrendingUp, Clock, Target, Zap, ArrowUpDown, ArrowUp, ArrowDown, Globe, Copy } from 'lucide-react';
+import { Crown, Clock, Target, Zap, Globe, Copy } from 'lucide-react';
 import { hexStakingService } from '@/services/hexStakingService';
 import { multiNetworkHexStakingService } from '@/services/multiNetworkHexStakingService';
 import StakeDetailModal from './StakeDetailModal';
@@ -16,8 +16,6 @@ interface TopStakesVisualProps {
 const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 }) => {
   const [selectedStake, setSelectedStake] = useState<HexStake | MultiNetworkHexStake | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [sortField, setSortField] = useState<'amount' | 'progress' | 'daysLeft' | 'length'>('amount');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedStakerAddress, setSelectedStakerAddress] = useState<string | null>(null);
   const [isStakerHistoryModalOpen, setIsStakerHistoryModalOpen] = useState<boolean>(false);
 
@@ -85,41 +83,8 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
     setSelectedStakerAddress(null);
   };
 
-  const handleSort = (field: 'amount' | 'progress' | 'daysLeft' | 'length') => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('desc');
-    }
-  };
-
-  const sortedStakes = [...stakes].sort((a, b) => {
-    let aValue: number, bValue: number;
-    
-    switch (sortField) {
-      case 'amount':
-        aValue = parseFloat(a.stakedHearts);
-        bValue = parseFloat(b.stakedHearts);
-        break;
-      case 'progress':
-        aValue = a.daysServed && a.stakedDays ? (a.daysServed / parseInt(a.stakedDays)) * 100 : 0;
-        bValue = b.daysServed && b.stakedDays ? (b.daysServed / parseInt(b.stakedDays)) * 100 : 0;
-        break;
-      case 'daysLeft':
-        aValue = a.daysLeft || 0;
-        bValue = b.daysLeft || 0;
-        break;
-      case 'length':
-        aValue = parseInt(a.stakedDays);
-        bValue = parseInt(b.stakedDays);
-        break;
-      default:
-        return 0;
-    }
-    
-    return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-  });
+  // Use stakes directly since sorting is removed
+  const displayStakes = stakes;
 
   const getProgressColor = (progress: number) => {
     if (progress < 25) return 'from-red-500 to-orange-500';
@@ -143,51 +108,46 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
 
   return (
     <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
-      <div className="px-6 py-4 border-b border-white/10 bg-gradient-to-r from-pink-900/20 to-blue-900/20">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-500/20 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-purple-800" />
-            </div>
-            <div>
-              <h4 className="text-xl font-bold text-slate-600">Top 50 Active HEX Stakes</h4>
-              <p className="text-sm text-slate-600">Largest currently active stakes by amount • Excludes ended & expired stakes</p>
-            </div>
-          </div>
-          
-          {/* Sort Controls */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-slate-600 mr-2">Sort by:</span>
-            {[
-              { key: 'amount', label: 'Amount' },
-              { key: 'progress', label: 'Progress' },
-              { key: 'daysLeft', label: 'Days Left' },
-              { key: 'length', label: 'Length' }
-            ].map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => handleSort(key as any)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  sortField === key
-                    ? 'bg-purple-500/20 text-slate-600 border border-slate-400/30'
-                    : 'bg-white/5 text-slate-600 hover:bg-white/10 hover:text-red-600'
-                }`}
-              >
-                {label}
-                {sortField === key ? (
-                  sortDirection === 'desc' ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />
-                ) : (
-                  <ArrowUpDown className="w-3 h-3" />
-                )}
-              </button>
-            ))}
+      <div className="px-6 py-4 border-b border-white/10 relative overflow-hidden shadow-[0_4px_20px_-2px_rgba(0,0,0,0.3)]">
+        {/* Background Image */}
+        <div className="absolute inset-0 -z-10">
+          <img 
+            src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/hexgradient" 
+            alt="Header Background" 
+            className="w-full h-full object-cover opacity-80"
+            onError={(e) => {
+              console.error('Failed to load header background image:', e);
+              console.error('Image path attempted:', 'https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/hexgradient');
+              e.currentTarget.style.display = 'none';
+            }}
+            onLoad={(e) => {
+              console.log('Header background image loaded successfully');
+              console.log('Image dimensions:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight);
+            }}
+            style={{ 
+              display: 'block',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%'
+            }}
+          />
+          {/* Overlay for better text contrast */}
+          <div className="absolute inset-0 bg-black/10"></div>
+        </div>
+        
+        <div className="relative z-10">
+          <div className="text-center">
+            <h4 className="text-xl font-bold text-white">Top 50 Active HEX Stakes</h4>
+            <p className="text-sm text-white/80">Largest currently active stakes by amount • Excludes ended & expired stakes</p>
           </div>
         </div>
       </div>
       
       <div className="p-6 max-h-[80vh] overflow-y-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {sortedStakes.map((stake, index) => {
+          {displayStakes.map((stake, index) => {
             const progress = stake.daysServed && stake.stakedDays 
               ? (stake.daysServed / parseInt(stake.stakedDays)) * 100 
               : 0;
@@ -293,7 +253,6 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                       {/* Stats Grid */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="flex items-center gap-2 bg-white/5 rounded-lg p-2">
-                          <Clock className="w-4 h-4 text-blue-700" />
                           <div>
                             <div className="text-md text-slate-600">Days Served</div>
                             <div className="text-md font-semibold text-blue-700">
@@ -303,7 +262,6 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                         </div>
                         
                         <div className="flex items-center gap-2 bg-white/5 rounded-lg p-2">
-                          <Target className="w-4 h-4 text-red-700" />
                           <div>
                             <div className="text-md text-slate-600">Days Left</div>
                             <div className="text-md font-semibold text-red-700">
@@ -316,7 +274,6 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                       {/* Bottom Stats */}
                       <div className="flex justify-between items-center pt-2 border-t border-white/10">
                         <div className="flex items-center gap-2">
-                          <Zap className="w-4 h-4 text-purple-700" />
                           <div>
                             <div className="text-md text-slate-600">T-Shares</div>
                             <div className="text-md font-semibold text-purple-700">
@@ -345,9 +302,6 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                                   (calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays) * 100000000).toString()
                                 )}
                               </div>
-                              <div className="text-xs text-emerald-600">
-                                {formatUSD(calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays))}
-                              </div>
                             </div>
                             <div className="text-center">
                               <div className="text-xs text-slate-600 mb-1">Expected Total</div>
@@ -356,9 +310,6 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                                 {multiNetworkHexStakingService.formatHexAmount(
                                   (calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays) * 100000000).toString()
                                 )}
-                              </div>
-                              <div className="text-xs text-blue-600">
-                                {formatUSD(calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays))}
                               </div>
                             </div>
                           </div>

@@ -79,7 +79,9 @@ const agents = [
     size: "col-span-1 md:col-span-2 row-span-1 md:row-span-2",
     src: "/api/placeholder/400/600/pink/purple",
     category: "AI Agent",
-    videoUrl: null
+    videoUrl: "https://dvba8d38nfde7nic.public.blob.vercel-storage.com/Ai-code-reader",
+    hasMovingGradient: false,
+    isComingSoon: false
   },
   {
     id: 5,
@@ -90,40 +92,9 @@ const agents = [
     size: "col-span-1 md:col-span-2 row-span-1 md:row-span-2",
     src: "/api/placeholder/400/600/blue/cyan",
     category: "Analysis Tool",
-    videoUrl: null
-  },
-  {
-    id: 4,
-    name: "Talk to Richard Heart!",
-    description: "AI-powered conversation with the tone, knowledge, wit and persona of crypto founder Richard Heart",
-    icon: IconCrown,
-    color: "from-yellow-500 to-orange-500",
-    size: "col-span-1 row-span-1",
-    src: "/api/placeholder/400/600/yellow/orange",
-    category: "AI Chat",
-    videoUrl: null
-  },
-  {
-    id: 2,
-    name: "Positive Vibes Only",
-    description: "Transform negative thoughts into positive, uplifting messages with AI",
-    icon: IconHeart,
-    color: "from-red-500 to-pink-500",
-    size: "col-span-1 row-span-1",
-    src: "/api/placeholder/400/600/red/pink",
-    category: "AI Therapy",
-    videoUrl: null
-  },
-  {
-    id: 3,
-    name: "AI Therapist",
-    description: "Dr. Sarah Chen - Compassionate AI therapy and emotional support",
-    icon: IconHeartPulse,
-    color: "from-pink-500 to-rose-500",
-    size: "col-span-1 md:col-span-2 row-span-1",
-    src: "/api/placeholder/400/600/pink/rose",
-    category: "AI Therapy",
-    videoUrl: null
+    videoUrl: "https://dvba8d38nfde7nic.public.blob.vercel-storage.com/BlockChain-Analyst",
+    hasMovingGradient: false,
+    isComingSoon: false
   },
   {
     id: 6,
@@ -134,7 +105,9 @@ const agents = [
     size: "col-span-1 row-span-1",
     src: "/api/placeholder/400/600/emerald/teal",
     category: "Builder Tool",
-    videoUrl: null
+    videoUrl: "https://dvba8d38nfde7nic.public.blob.vercel-storage.com/Stat-card",
+    hasMovingGradient: false,
+    isComingSoon: false
   },
   {
     id: 7,
@@ -145,7 +118,61 @@ const agents = [
     size: "col-span-1 md:col-span-1 row-span-1",
     src: "/api/placeholder/400/600/orange/red",
     category: "Dashboard",
-    videoUrl: "https://dvba8d38nfde7nic.public.blob.vercel-storage.com/Video/HEX%20Dashboard"
+    videoUrl: "https://dvba8d38nfde7nic.public.blob.vercel-storage.com/Video/HEX%20Dashboard",
+    hasMovingGradient: false,
+    isComingSoon: false
+  },
+  {
+    id: 9,
+    name: "Quick API Calls",
+    description: "Comprehensive token analytics and statistics dashboard for advanced PulseChain analysis and monitoring",
+    icon: IconChartBar,
+    color: "from-indigo-500 to-blue-500",
+    size: "col-span-1 md:col-span-1 row-span-1",
+    src: "/api/placeholder/400/600/indigo/blue",
+    category: "Admin Tool",
+    videoUrl: "https://dvba8d38nfde7nic.public.blob.vercel-storage.com/Stat-card",
+    hasMovingGradient: false,
+    isComingSoon: false
+  },
+  {
+    id: 4,
+    name: "Talk to Richard Heart!",
+    description: "AI-powered conversation with the tone, knowledge, wit and persona of crypto founder Richard Heart",
+    icon: IconCrown,
+    color: "from-yellow-500 to-orange-500",
+    size: "col-span-1 row-span-1",
+    src: "/api/placeholder/400/600/yellow/orange",
+    category: "AI Chat",
+    videoUrl: null,
+    hasMovingGradient: true,
+    isComingSoon: true
+  },
+  {
+    id: 2,
+    name: "Positive Vibes Only",
+    description: "Transform negative thoughts into positive, uplifting messages with AI",
+    icon: IconHeart,
+    color: "from-red-500 to-pink-500",
+    size: "col-span-1 row-span-1",
+    src: "/api/placeholder/400/600/red/pink",
+    category: "AI Therapy",
+    videoUrl: null,
+    hasMovingGradient: true,
+    isComingSoon: true
+  },
+  {
+    id: 3,
+    name: "AI Therapist",
+    description: "Dr. Sarah Chen - Compassionate AI therapy and emotional support",
+    icon: IconHeartPulse,
+    color: "from-pink-500 to-rose-500",
+    size: "col-span-1 md:col-span-2 row-span-1",
+    src: "/api/placeholder/400/600/pink/rose",
+    category: "AI Therapy",
+    videoUrl: null,
+    hasMovingGradient: true,
+    isComingSoon: true
   },
   {
     id: 8,
@@ -156,18 +183,9 @@ const agents = [
     size: "col-span-1 md:col-span-1 row-span-1",
     src: "/api/placeholder/400/600/purple/indigo",
     category: "Analysis Tool",
-    videoUrl: null
-  },
-  {
-    id: 9,
-    name: "Admin Stats",
-    description: "Comprehensive token analytics and statistics dashboard for advanced PulseChain analysis and monitoring",
-    icon: IconChartBar,
-    color: "from-indigo-500 to-blue-500",
-    size: "col-span-1 md:col-span-1 row-span-1",
-    src: "/api/placeholder/400/600/indigo/blue",
-    category: "Admin Tool",
-    videoUrl: null
+    videoUrl: null,
+    hasMovingGradient: true,
+    isComingSoon: true
   }
 ];
 
@@ -178,7 +196,9 @@ const transformAgentsToCarousel = () => {
     title: agent.name,
     category: agent.category,
     content: null, // Remove popup content
-    videoUrl: agent.videoUrl
+    videoUrl: agent.videoUrl,
+    hasMovingGradient: agent.hasMovingGradient,
+    isComingSoon: agent.isComingSoon
   }));
 };
 

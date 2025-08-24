@@ -13,6 +13,7 @@ import { hexStakingService, type HexStakingMetrics } from '@/services/hexStaking
 import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingService';
 import { HexLoader } from '@/components/ui/hex-loader';
 import { NumberTicker } from './magicui/number-ticker';
+import { FlickeringGrid } from './magicui/flickering-grid';
 
 // Stronger types for dashboard data
 type HexRow = HexDataPoint & {
@@ -886,16 +887,27 @@ const HEXDataDashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden">
+        {/* FlickeringGrid Background */}
+        <div className="absolute inset-0 z-0">
+          <FlickeringGrid 
+            color="rgb(20, 20, 20)"
+            maxOpacity={0.15}
+            squareSize={6}
+            gridGap={8}
+            flickerChance={0.4}
+            className="w-full h-full"
+          />
+        </div>
+        
+        {/* Loading Content - Positioned above the grid */}
+        <div className="text-center relative z-10">
           <div className="w-32 h-32 mx-auto mb-6">
             <HexLoader />
           </div>
-                          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <img src="/HEXagon (1).svg" alt="HEX" className="w-6 h-6" />
-                  Loading HEX Data...
-                </h2>
-          <p className="text-slate-400">Fetching data from HEXDailyStats APIs</p>
+          <h2 className="text-xl font-semibold text-white">
+            Loading HEX Data...
+          </h2>
         </div>
       </div>
     );
@@ -941,12 +953,12 @@ const HEXDataDashboard = () => {
                 {(activeTab === 'pulsechain' || activeTab === 'pulsechain-staking') && (
                   <div className="absolute inset-0 z-10">
                     <img 
-                      src="/app-pics/clean.png" 
+                      src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/HEX-pattern" 
                       alt="PulseChain Header Background" 
                       className="w-full h-full object-cover opacity-80"
                       onError={(e) => {
                         console.error('Failed to load header background image:', e);
-                        console.error('Image path attempted:', '/app-pics/clean.png');
+                        console.error('Image path attempted:', 'https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/HEX-pattern');
                         e.currentTarget.style.display = 'none';
                       }}
                       onLoad={(e) => {
@@ -963,7 +975,7 @@ const HEXDataDashboard = () => {
                       }}
                     />
                     {/* Black overlay for better text contrast */}
-                    <div className="absolute inset-0 bg-black/5"></div>
+                    <div className="absolute inset-0 bg-white/10"></div>
                   </div>
                 )}
                 
@@ -971,12 +983,12 @@ const HEXDataDashboard = () => {
                 {(activeTab === 'ethereum' || activeTab === 'ethereum-staking') && (
                   <div className="absolute inset-0 z-10">
                     <img 
-                      src="/app-pics/eth-banner.png" 
+                      src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/minimalhexeth" 
                       alt="Ethereum Header Background" 
-                      className="w-full h-full object-cover opacity-80"
+                      className="w-full h-full object-cover opacity-50"
                       onError={(e) => {
                         console.error('Failed to load Ethereum header background image:', e);
-                        console.error('Image path attempted:', '/app-pics/eth-banner.png');
+                        console.error('Image path attempted:', 'https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/minimalhexeth');
                         e.currentTarget.style.display = 'none';
                       }}
                       onLoad={(e) => {
@@ -993,11 +1005,11 @@ const HEXDataDashboard = () => {
                       }}
                     />
                     {/* Black overlay for better text contrast */}
-                    <div className="absolute inset-0 bg-black/5"></div>
+                    <div className="absolute inset-0 bg-blue-900/15"></div>
                   </div>
                 )}
                 
-                <div>
+                <div className="flex items-center gap-4">
                   <h1 className="text-2xl sm:text-3xl font-bold text-white z-20 mb-1">
                     {activeTab === 'pulsechain' && 'pHEX'}
                     {activeTab === 'ethereum' && 'eHEX'}
@@ -1005,6 +1017,14 @@ const HEXDataDashboard = () => {
                     {activeTab === 'pulsechain-staking' && 'PLS Staking'}
                     {activeTab === 'sell-pressure' && 'Sell Pressure Analysis'}
                   </h1>
+                  
+                  {/* Home Button */}
+                  <button
+                    onClick={() => window.location.href = '/'}
+                    className="px-3 py-1.5 text-sm text-white border border-white/30 rounded-lg hover:border-white/50 hover:text-white/90 transition-colors z-20"
+                  >
+                    Home
+                  </button>
                 </div>
                 
               </div>
@@ -1086,11 +1106,40 @@ const HEXDataDashboard = () => {
           </div>
 
           {/* Wallet Address Search */}
-          <div className="mb-6 p-4 bg-white/50 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_6px_20px_-10px_rgba(0,0,0,0.6)]">
-            <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
-              <Search className="w-5 h-5" />
-              Search Wallet Address
-            </h3>
+          <div className="mb-6 p-4 bg-white/50 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_6px_20px_-10px_rgba(0,0,0,0.6)] relative overflow-hidden">
+            {/* Background Image */}
+            <div className="absolute inset-0 -z-10">
+              <img 
+                src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/hexgradient" 
+                alt="Search Background" 
+                className="w-full h-full object-cover opacity-80"
+                onError={(e) => {
+                  console.error('Failed to load search background image:', e);
+                  console.error('Image path attempted:', 'https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/hexgradient');
+                  e.currentTarget.style.display = 'none';
+                }}
+                onLoad={(e) => {
+                  console.log('Search background image loaded successfully');
+                  console.log('Image dimensions:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight);
+                }}
+                style={{ 
+                  display: 'block',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%'
+                }}
+              />
+              {/* Overlay for better text contrast */}
+              <div className="absolute inset-0 bg-black/5"></div>
+            </div>
+            
+            <div className="relative z-10">
+              <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                <Search className="w-5 h-5" />
+                Search Wallet Address
+              </h3>
             <form onSubmit={handleSearchSubmit} className="space-y-3">
               <div className="flex gap-3">
                 <div className="flex-1">
@@ -1099,13 +1148,13 @@ const HEXDataDashboard = () => {
                     value={searchAddress}
                     onChange={(e) => setSearchAddress(e.target.value)}
                     placeholder="Enter wallet address (0x...)"
-                    className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 bg-white/50 border border-white/20 rounded-lg text-black placeholder-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isSearching || !searchAddress.trim()}
-                  className="px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
+                  className="px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600/15 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
                 >
                   {isSearching ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
@@ -1122,6 +1171,7 @@ const HEXDataDashboard = () => {
                 {searchError}
               </div>
             )}
+            </div>
           </div>
 
           {/* Filters */}
@@ -1135,12 +1185,12 @@ const HEXDataDashboard = () => {
             {activeTab === 'ethereum' && (
               <div className="absolute inset-0 -z-10 bg-blue-900/30 rounded-2xl">
                 <img 
-                  src="/app-pics/eth-banner.png" 
+                  src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/minimalhexeth" 
                   alt="Ethereum Background" 
-                  className="w-full h-full object-cover opacity-40"
+                  className="w-full h-full object-cover opacity-100"
                   onError={(e) => {
                     console.error('Failed to load background image:', e);
-                    console.error('Image path attempted:', '/app-pics/eth-banner.png');
+                    console.error('Image path attempted:', 'https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/minimalhexeth');
                     e.currentTarget.style.display = 'none';
                   }}
                   onLoad={(e) => {
@@ -1157,7 +1207,7 @@ const HEXDataDashboard = () => {
                   }}
                 />
                 {/* Black overlay for better text contrast */}
-                <div className="absolute inset-0 bg-black/80"></div>
+                <div className="absolute inset-0 bg-black/5"></div>
                 {/* Fallback background color for debugging */}
                 <div className="absolute inset-0 bg-blue-900/20"></div>
               </div>
@@ -1167,12 +1217,12 @@ const HEXDataDashboard = () => {
             {activeTab === 'pulsechain' && (
               <div className="absolute inset-0 -z-10 bg-purple-900/30 rounded-2xl">
                 <img 
-                  src="/app-pics/pls-hex.png" 
+                  src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/HEX-pattern" 
                   alt="PulseChain Background" 
                   className="w-full h-full object-cover opacity-100"
                   onError={(e) => {
                     console.error('Failed to load PulseChain background image:', e);
-                    console.error('Image path attempted:', '/app-pics/pls-hex.png');
+                    console.error('Image path attempted:', 'https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/HEX-pattern');
                     e.currentTarget.style.display = 'none';
                   }}
                   onLoad={(e) => {
@@ -1189,17 +1239,26 @@ const HEXDataDashboard = () => {
                   }}
                 />
                 {/* Black overlay for better text contrast */}
-                <div className="absolute inset-0 bg-black/80"></div>
+                <div className="absolute inset-0 bg-white/10"></div>
               </div>
             )}
             
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <div className="flex items-center gap-4">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
                     <div className="w-3 h-3 bg-green-900 rounded-full animate-pulse"></div>
                     Live {activeTab === 'ethereum' ? 'Ethereum' : 'PulseChain'} HEX Stats
                   </h3>
-                
+                  
+                  {/* Home Button */}
+                  <button
+                    onClick={() => window.location.href = '/'}
+                    className="px-3 py-1.5 text-sm text-white border border-white/30 rounded-lg hover:border-white/50 hover:text-white/90 transition-colors"
+                  >
+                    Home
+                  </button>
+                </div>
               </div>
               
               {/* Key Metrics Grid */}
@@ -1397,6 +1456,19 @@ const HEXDataDashboard = () => {
         {/* Sell Pressure Analysis Tab */}
         {activeTab === 'sell-pressure' && (
           <div className="space-y-6">
+            {/* Sell Pressure Header with Home Button */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-slate-800">Sell Pressure Analysis</h2>
+              
+              {/* Home Button */}
+              <button
+                onClick={() => window.location.href = '/'}
+                className="px-3 py-1.5 text-sm text-slate-700 border border-slate-300 rounded-lg hover:border-slate-400 hover:text-slate-800 transition-colors"
+              >
+                Home
+              </button>
+            </div>
+            
             {isLoadingEthereumActiveStakes || isLoadingPulsechainActiveStakes ? (
               <div className="text-center py-12">
                 <RefreshCw className="w-12 h-12 animate-spin text-orange-600 mx-auto mb-4" />
@@ -1504,12 +1576,12 @@ const HEXDataDashboard = () => {
                   {/* Background Image - Ethereum Staking */}
                   <div className="absolute inset-0 -z-10">
                     <img 
-                      src="/app-pics/hex-on-eth.jpg" 
+                      src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/minimalhexeth" 
                       alt="ETH HEX Staking Background" 
-                      className="w-full h-full object-cover opacity-40"
+                      className="w-full h-full object-cover opacity-100"
                       onError={(e) => {
                         console.error('Failed to load staking background image:', e);
-                        console.error('Image path attempted:', '/app-pics/hex-on-eth.jpg');
+                        console.error('Image path attempted:', 'https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/minimalhexeth');
                         e.currentTarget.style.display = 'none';
                       }}
                       onLoad={(e) => {
@@ -1526,15 +1598,24 @@ const HEXDataDashboard = () => {
                       }}
                     />
                     {/* Black overlay for better text contrast */}
-                    <div className="absolute inset-0 bg-black/70"></div>
+                    <div className="absolute inset-0 bg-blue-900/15"></div>
                   </div>
                   
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                      <Lock className="w-5 h-5" />
-                      Ethereum HEX Staking Overview
-                    </h3>
-
+                    <div className="flex items-center gap-4">
+                      <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <Lock className="w-5 h-5" />
+                        Ethereum HEX Staking Overview
+                      </h3>
+                      
+                      {/* Home Button */}
+                      <button
+                        onClick={() => window.location.href = '/'}
+                        className="px-3 py-1.5 text-sm text-white border border-white/30 rounded-lg hover:border-white/50 hover:text-white/90 transition-colors"
+                      >
+                        Home
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -2036,7 +2117,7 @@ const HEXDataDashboard = () => {
                       className={`py-2 px-1 border-b-2 font-medium text-sm ${
                         pulsechainStakingSubTab === 'overview'
                           ? 'border-purple-500 text-purple-400'
-                          : 'border-transparent text-slate-400 hover:text-green-300'
+                          : 'border-transparent text-slate-500 hover:text-green-600'
                       }`}
                     >
                       Overview & Top Stakes
@@ -2051,7 +2132,7 @@ const HEXDataDashboard = () => {
                       className={`py-2 px-1 border-b-2 font-medium text-sm ${
                         pulsechainStakingSubTab === 'all-stakes'
                           ? 'border-purple-500 text-purple-400'
-                          : 'border-transparent text-slate-400 hover:text-green-300'
+                          : 'border-transparent text-slate-500 hover:text-green-600'
                       }`}
                     >
                       All Stake Starts
@@ -2066,7 +2147,7 @@ const HEXDataDashboard = () => {
                       className={`py-2 px-1 border-b-2 font-medium text-sm ${
                         pulsechainStakingSubTab === 'active-stakes'
                           ? 'border-purple-500 text-purple-400'
-                          : 'border-transparent text-slate-400 hover:text-green-300'
+                          : 'border-transparent text-slate-500 hover:text-green-600'
                       }`}
                     >
                       Active Stakes
@@ -2076,7 +2157,7 @@ const HEXDataDashboard = () => {
                       className={`py-2 px-1 border-b-2 font-medium text-sm ${
                         pulsechainStakingSubTab === 'ai-timing'
                           ? 'border-purple-500 text-purple-400'
-                          : 'border-transparent text-slate-400 hover:text-green-300'
+                          : 'border-transparent text-slate-500 hover:text-green-600'
                       }`}
                     >
                       AI Timing
@@ -2091,12 +2172,12 @@ const HEXDataDashboard = () => {
                   {/* Background Image - PulseChain Staking */}
                   <div className="absolute inset-0 -z-10">
                     <img 
-                      src="/app-pics/hex-pulse-staking.jpg" 
+                      src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/HEX-pattern" 
                       alt="PLS HEX Staking Background" 
-                      className="w-full h-full object-cover opacity-40"
+                      className="w-full h-full object-cover opacity-100"
                       onError={(e) => {
                         console.error('Failed to load PulseChain staking background image:', e);
-                        console.error('Image path attempted:', '/app-pics/hex-pulse-staking.jpg');
+                        console.error('Image path attempted:', 'https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/HEX-pattern');
                         e.currentTarget.style.display = 'none';
                       }}
                       onLoad={(e) => {
@@ -2113,15 +2194,25 @@ const HEXDataDashboard = () => {
                       }}
                     />
                     {/* Black overlay for better text contrast */}
-                    <div className="absolute inset-0 bg-black/70"></div>
+                    <div className="absolute inset-0 bg-white/10"></div>
                   </div>
                   
                   <div className="relative z-10">
                     <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Lock className="w-5 h-5" />
-                        PulseChain HEX Staking Overview
-                      </h3>
+                      <div className="flex items-center gap-4">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          <Lock className="w-5 h-5" />
+                          PulseChain HEX Staking Overview
+                        </h3>
+                        
+                        {/* Home Button */}
+                        <button
+                          onClick={() => window.location.href = '/'}
+                          className="px-3 py-1.5 text-sm text-white border border-white/30 rounded-lg hover:border-white/50 hover:text-white/90 transition-colors"
+                        >
+                          Home
+                        </button>
+                      </div>
                     </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -2411,8 +2502,8 @@ const HEXDataDashboard = () => {
                       <div className="text-center py-12">
                         <RefreshCw className="w-8 h-8 animate-spin text-purple-500 mx-auto mb-4" />
                         <p className="text-gray-700">Loading all PulseChain active stakes...</p>
-                        <p className="text-slate-400 text-sm">Cross-referencing starts vs ends...</p>
-                        <p className="text-slate-400 text-xs mt-2">This process fetches all stake starts and ends to determine which are still active</p>
+                        <p className="text-slate-700 text-sm">Cross-referencing starts vs ends...</p>
+                        <p className="text-slate-700 text-xs mt-2">This process fetches all stake starts and ends to determine which are still active</p>
                       </div>
                     )}
 
@@ -2569,7 +2660,18 @@ const HEXDataDashboard = () => {
             {/* Date Filter and Historical Data Title */}
             <div className="pt-6 pb-1 px-6 rounded-t-2xl bg-gray-50/10 shadow-[0_8px_20px_-2px_rgba(0,0,0,0.5)]">
               <div className="flex items-center justify-between">
-                <h3 className="text-md font-medium text-slate-800">Historical Data</h3>
+                <div className="flex items-center gap-4">
+                  <h3 className="text-md font-medium text-slate-800">Historical Data</h3>
+                  
+                  {/* Home Button */}
+                  <button
+                    onClick={() => window.location.href = '/'}
+                    className="px-3 py-1.5 text-sm text-slate-700 border border-slate-300 rounded-lg hover:border-slate-400 hover:text-slate-800 transition-colors"
+                  >
+                    Home
+                  </button>
+                </div>
+                
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-slate-400" />
                   <input

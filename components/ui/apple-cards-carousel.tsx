@@ -27,6 +27,8 @@ type Card = {
   category: string;
   content: React.ReactNode;
   videoUrl?: string | null;
+  hasMovingGradient?: boolean;
+  isComingSoon?: boolean;
 };
 
 export const CarouselContext = createContext<{
@@ -97,9 +99,17 @@ export const Carousel = ({ items, initialScroll = 0 }: CarouselProps) => {
           ref={carouselRef}
           onScroll={checkScrollability}
         >
+          {/* Fade in effect at start */}
           <div
             className={cn(
-              "absolute right-0 z-[1000] h-auto w-[5%] overflow-hidden bg-gradient-to-l",
+              "absolute left-0 z-[1000] h-auto w-[5%] overflow-hidden bg-gradient-to-r from-black to-transparent",
+            )}
+          ></div>
+
+          {/* Fade out effect at end */}
+          <div
+            className={cn(
+              "absolute right-0 z-[1000] h-auto w-[5%] overflow-hidden bg-gradient-to-l from-black to-transparent",
             )}
           ></div>
 
@@ -299,14 +309,37 @@ export const Card = ({
           </video>
         )}
         
-        {/* Fallback Image */}
-        {!card.videoUrl && (
+        {/* Moving Gradient Background for cards without videos */}
+        {!card.videoUrl && card.hasMovingGradient && (
+          <div className="absolute inset-0 z-10 bg-gradient-to-br from-purple-600 via-pink-600 to-blue-600 animate-pulse">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-pink-600 to-blue-600 animate-pulse" 
+                 style={{
+                   background: 'linear-gradient(-45deg, #9333ea, #ec4899, #3b82f6, #8b5cf6)',
+                   backgroundSize: '400% 400%',
+                   animation: 'gradient 3s ease infinite'
+                 }}
+            />
+          </div>
+        )}
+        
+        {/* Fallback Image for cards without videos or gradients */}
+        {!card.videoUrl && !card.hasMovingGradient && (
           <BlurImage
             src={card.src}
             alt={card.title}
             fill
             className="absolute inset-0 z-10 object-cover"
           />
+        )}
+        
+        {/* Coming Soon Overlay */}
+        {card.isComingSoon && (
+          <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm rounded-3xl flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
+              <div className="text-sm text-gray-300">This feature is under development</div>
+            </div>
+          </div>
         )}
         
         <div className="relative z-40 p-8">
@@ -318,7 +351,7 @@ export const Card = ({
           </motion.p>
           <motion.p
             layoutId={layout ? `title-${card.title}` : undefined}
-            className="mt-2 max-w-xs text-left font-sans text-xl font-semibold [text-wrap:balance] text-white md:text-3xl"
+            className="text-left font-sans text-xl font-semibold [text-wrap:balance] text-white md:text-3xl"
           >
             {card.title}
           </motion.p>

@@ -110,7 +110,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
   };
 
   const sortedStakes = useMemo(() => {
-    if (!stakerHistory) return [];
+    if (!stakerHistory || !stakerHistory.allStakes) return [];
     
     const stakesToSort = historySubTab === 'active' 
       ? stakerHistory.allStakes.filter(s => s.isActive)
@@ -571,7 +571,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
               )}
 
               {/* Data Display */}
-              {stakerHistory && !isLoadingHistory && !historyError && (
+              {stakerHistory && stakerHistory.stakes && stakerHistory.ethereum && stakerHistory.pulsechain && stakerHistory.allStakeEnds && !isLoadingHistory && !historyError && (
                 <div className="space-y-6">
                   
                   {/* Network Summary */}
@@ -763,6 +763,8 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
                         </div>
                         <div className="text-xl font-bold text-blue-400">
                           {(() => {
+                            if (!stakerHistory || !stakerHistory.stakes) return '0.0%';
+                            
                             const endedStakes = stakerHistory.stakes.filter(s => !s.isActive);
                             const apyValues = endedStakes.map(stake => {
                               const endData = getStakeEndData(stake.stakeId);
