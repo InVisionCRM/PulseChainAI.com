@@ -10,19 +10,19 @@ export function GoogleGeminiEffectDemo() {
     offset: ["start start", "end start"],
   });
 
-  const pathLengthFirst = useTransform(scrollYProgress, [0, 0.8], [0, 1]);
-  const pathLengthSecond = useTransform(scrollYProgress, [0, 0.8], [0, 1]);
-  const pathLengthThird = useTransform(scrollYProgress, [0, 0.8], [0, 1]);
-  const pathLengthFourth = useTransform(scrollYProgress, [0, 0.8], [0, 1]);
-  const pathLengthFifth = useTransform(scrollYProgress, [0, 0.8], [0, 1]);
+  const pathLengthFirst = useTransform(scrollYProgress, [0, 0.6], [0, 1]);
+  const pathLengthSecond = useTransform(scrollYProgress, [0, 0.6], [0, 1]);
+  const pathLengthThird = useTransform(scrollYProgress, [0, 0.6], [0, 1]);
+  const pathLengthFourth = useTransform(scrollYProgress, [0, 0.6], [0, 1]);
+  const pathLengthFifth = useTransform(scrollYProgress, [0, 0.6], [0, 1]);
   
   return (
     <div
-      className="h-[400vh] bg-black w-full dark:border dark:border-white/[0.1] rounded-md relative pt-40 overflow-clip"
+      className="h-[200vh] bg-black w-full dark:border dark:border-white/[0.1] rounded-md relative pt-40 overflow-clip"
       ref={ref}
     >
       <div className="sticky top-80">
-        <div className="w-full h-[400px] flex items-center justify-center">
+        <div className="w-full h-[300px] flex items-center justify-center">
           <svg
             width="600"
             height="150"

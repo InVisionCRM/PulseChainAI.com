@@ -123,14 +123,16 @@ export const Carousel = ({ items, initialScroll = 0 }: CarouselProps) => {
               <motion.div
                 initial={{
                   opacity: 0,
-                  y: 20,
+                  y: 30,
+                  scale: 0.95,
                 }}
                 animate={{
                   opacity: 1,
                   y: 0,
+                  scale: 1,
                   transition: {
-                    duration: 0.5,
-                    delay: 0.2 * index,
+                    duration: 0.8,
+                    delay: 0.15 * index,
                     ease: "easeOut",
                   },
                 }}
@@ -290,7 +292,7 @@ export const Card = ({
         onClick={handleOpen}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
-        className="relative z-10 flex h-80 w-56 flex-col items-start justify-start overflow-hidden rounded-3xl bg-gray-100 md:h-[40rem] md:w-96 dark:bg-neutral-900 cursor-pointer hover:scale-105 transition-transform duration-200"
+        className="relative z-10 flex h-60 w-42 flex-col items-start justify-start overflow-hidden rounded-3xl bg-gray-100 md:h-[30rem] md:w-72 dark:bg-neutral-900 cursor-pointer hover:scale-105 transition-transform duration-200"
       >
         {/* Video Background */}
         {card.videoUrl && (
