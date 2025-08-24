@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import React, { ElementType, ReactNode, useEffect, useState } from "react";
+import { OptimizedVideo } from "@/components/ui/optimized-video";
 
 export interface VideoTextProps {
   /**
@@ -113,17 +114,15 @@ export function VideoText({
           WebkitMaskPosition: "center",
         }}
       >
-        <video
-          className="w-full h-full object-cover"
+        <OptimizedVideo
+          src={src}
+          className="w-full h-full"
           autoPlay={autoPlay}
           muted={muted}
           loop={loop}
           preload={preload}
-          playsInline
-        >
-          <source src={src} />
-          Your browser does not support the video tag.
-        </video>
+          playsInline={true}
+        />
       </div>
 
       {/* Add a backup text element for SEO/accessibility */}

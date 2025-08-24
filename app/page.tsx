@@ -3,7 +3,7 @@ import AIAgentsSection from "@/components/AIAgentsSection";
 import TeachersSection from "@/components/TeachersSection";
 import LoaderThreeSection from "@/components/LoaderThreeSection";
 import { Boxes } from "@/components/ui/background-boxes";
-import { VideoText } from "@/components/magicui/video-text";
+import { FlipText } from "@/components/magicui/flip-text";
 import Link from "next/link";
 
 export default function Home() {
@@ -15,8 +15,10 @@ export default function Home() {
         <Boxes />
         <div className="relative z-30 text-center">
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6">
-            <div className="relative h-[200px] w-full overflow-hidden inline-block mb-4">
-              <VideoText src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/Video/videotext">PULSECHAIN</VideoText>
+            <div className="relative mb-4">
+              <FlipText className="text-white text-6xl md:text-7xl lg:text-8xl font-bold">
+                PULSECHAIN
+              </FlipText>
             </div>
             <Highlight className="text-white">
               AI
