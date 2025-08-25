@@ -76,8 +76,9 @@ const HEXDataDashboard = () => {
   const [ethereumStakingSubTab, setEthereumStakingSubTab] = useState<'overview' | 'all-stakes' | 'active-stakes' | 'ai-timing'>('overview');
   const [ethereumActiveStakes, setEthereumActiveStakes] = useState<any[]>([]);
   const [isLoadingEthereumActiveStakes, setIsLoadingEthereumActiveStakes] = useState<boolean>(false);
-  const [ethereumActiveStakesSortField, setEthereumActiveStakesSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft'>('stakedHearts');
+  const [ethereumActiveStakesSortField, setEthereumActiveStakesSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress'>('stakedHearts');
   const [ethereumActiveStakesSortDirection, setEthereumActiveStakesSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [ethereumActiveStakesCurrentPage, setEthereumActiveStakesCurrentPage] = useState<number>(1);
   const [ethereumStakeStartsSortField, setEthereumStakeStartsSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp'>('stakeId');
   const [ethereumStakeStartsSortDirection, setEthereumStakeStartsSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -90,8 +91,9 @@ const HEXDataDashboard = () => {
   const [pulsechainStakingSubTab, setPulsechainStakingSubTab] = useState<'overview' | 'all-stakes' | 'active-stakes' | 'ai-timing'>('overview');
   const [pulsechainActiveStakes, setPulsechainActiveStakes] = useState<any[]>([]);
   const [isLoadingPulsechainActiveStakes, setIsLoadingPulsechainActiveStakes] = useState<boolean>(false);
-  const [pulsechainActiveStakesSortField, setPulsechainActiveStakesSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft'>('stakedHearts');
+  const [pulsechainActiveStakesSortField, setPulsechainActiveStakesSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress'>('stakedHearts');
   const [pulsechainActiveStakesSortDirection, setPulsechainActiveStakesSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [pulsechainActiveStakesCurrentPage, setPulsechainActiveStakesCurrentPage] = useState<number>(1);
   const [pulsechainStakeStartsSortField, setPulsechainStakeStartsSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp'>('stakeId');
   const [pulsechainStakeStartsSortDirection, setPulsechainStakeStartsSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedStakerAddress, setSelectedStakerAddress] = useState<string | null>(null);
@@ -428,7 +430,7 @@ const HEXDataDashboard = () => {
   };
 
   // Handle Ethereum active stakes sorting
-  const handleEthereumActiveStakesSort = (field: 'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft') => {
+  const handleEthereumActiveStakesSort = (field: 'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress') => {
     if (ethereumActiveStakesSortField === field) {
       setEthereumActiveStakesSortDirection(ethereumActiveStakesSortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -446,6 +448,9 @@ const HEXDataDashboard = () => {
       setEthereumStakeStartsSortDirection('desc');
     }
   };
+
+  // Pagination constants
+  const ACTIVE_STAKES_PER_PAGE = 100;
 
   // Get sorted Ethereum active stakes
   const getSortedEthereumActiveStakes = () => {
@@ -473,12 +478,42 @@ const HEXDataDashboard = () => {
           aValue = a.daysLeft || 0;
           bValue = b.daysLeft || 0;
           break;
+        case 'progress':
+          aValue = (a.daysServed || 0) / parseInt(a.stakedDays) * 100;
+          bValue = (b.daysServed || 0) / parseInt(b.stakedDays) * 100;
+          break;
         default:
           return 0;
       }
       
       return ethereumActiveStakesSortDirection === 'asc' ? aValue - bValue : bValue - aValue;
     });
+  };
+
+  // Get paginated Ethereum active stakes
+  const getPaginatedEthereumActiveStakes = () => {
+    const sortedStakes = getSortedEthereumActiveStakes();
+    const startIndex = (ethereumActiveStakesCurrentPage - 1) * ACTIVE_STAKES_PER_PAGE;
+    const endIndex = startIndex + ACTIVE_STAKES_PER_PAGE;
+    return sortedStakes.slice(startIndex, endIndex);
+  };
+
+  // Get Ethereum active stakes pagination info
+  const getEthereumActiveStakesPaginationInfo = () => {
+    const totalStakes = ethereumActiveStakes.length;
+    const totalPages = Math.ceil(totalStakes / ACTIVE_STAKES_PER_PAGE);
+    const startIndex = (ethereumActiveStakesCurrentPage - 1) * ACTIVE_STAKES_PER_PAGE;
+    const endIndex = Math.min(startIndex + ACTIVE_STAKES_PER_PAGE, totalStakes);
+    
+    return {
+      totalStakes,
+      totalPages,
+      currentPage: ethereumActiveStakesCurrentPage,
+      startIndex: startIndex + 1,
+      endIndex,
+      hasNextPage: ethereumActiveStakesCurrentPage < totalPages,
+      hasPrevPage: ethereumActiveStakesCurrentPage > 1
+    };
   };
 
   // Get sorted Ethereum stake starts
@@ -524,7 +559,7 @@ const HEXDataDashboard = () => {
   };
 
   // Handle PulseChain active stakes sorting
-  const handlePulsechainActiveStakesSort = (field: 'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft') => {
+  const handlePulsechainActiveStakesSort = (field: 'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress') => {
     if (pulsechainActiveStakesSortField === field) {
       setPulsechainActiveStakesSortDirection(pulsechainActiveStakesSortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -565,12 +600,42 @@ const HEXDataDashboard = () => {
           aValue = a.daysLeft || 0;
           bValue = b.daysLeft || 0;
           break;
+        case 'progress':
+          aValue = (a.daysServed || 0) / parseInt(a.stakedDays) * 100;
+          bValue = (b.daysServed || 0) / parseInt(b.stakedDays) * 100;
+          break;
         default:
           return 0;
       }
       
       return pulsechainActiveStakesSortDirection === 'asc' ? aValue - bValue : bValue - aValue;
     });
+  };
+
+  // Get paginated PulseChain active stakes
+  const getPaginatedPulsechainActiveStakes = () => {
+    const sortedStakes = getSortedPulsechainActiveStakes();
+    const startIndex = (pulsechainActiveStakesCurrentPage - 1) * ACTIVE_STAKES_PER_PAGE;
+    const endIndex = startIndex + ACTIVE_STAKES_PER_PAGE;
+    return sortedStakes.slice(startIndex, endIndex);
+  };
+
+  // Get PulseChain active stakes pagination info
+  const getPulsechainActiveStakesPaginationInfo = () => {
+    const totalStakes = pulsechainActiveStakes.length;
+    const totalPages = Math.ceil(totalStakes / ACTIVE_STAKES_PER_PAGE);
+    const startIndex = (pulsechainActiveStakesCurrentPage - 1) * ACTIVE_STAKES_PER_PAGE;
+    const endIndex = Math.min(startIndex + ACTIVE_STAKES_PER_PAGE, totalStakes);
+    
+    return {
+      totalStakes,
+      totalPages,
+      currentPage: pulsechainActiveStakesCurrentPage,
+      startIndex: startIndex + 1,
+      endIndex,
+      hasNextPage: pulsechainActiveStakesCurrentPage < totalPages,
+      hasPrevPage: pulsechainActiveStakesCurrentPage > 1
+    };
   };
 
   // Get sorted PulseChain stake starts
@@ -977,91 +1042,93 @@ const HEXDataDashboard = () => {
                   <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-white z-20 mb-1 absolute left-1/2 transform -translate-x-1/2">
                     {activeTab === 'pulsechain' && 'PULSECHAIN'}
                     {activeTab === 'ethereum' && 'ETHEREUM'}
-                    {activeTab === 'ethereum-staking' && 'ETH Staking'}
-                    {activeTab === 'pulsechain-staking' && 'PLS Staking'}
+                {activeTab === 'ethereum-staking' && 'ETH Staking'}
+                {activeTab === 'pulsechain-staking' && 'PLS Staking'}
                     {activeTab === 'sell-pressure' && 'Sell Pressure Analysis'}
-                  </h1>
+              </h1>
                   
                   {/* Spacer to maintain layout balance */}
                   <div className="w-[72px]"></div>
-                </div>
+            </div>
             
           </div>
 
           {/* Network Tabs */}
           <div className="border-b border-white/10 mb-4">
-            <nav className="-mb-px flex justify-between w-full">
-              <button
-                onClick={() => {
-                  setActiveTab('pulsechain');
-                  setCurrentPage(1);
-                }}
-                className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-1 text-center ${
-                  activeTab === 'pulsechain'
-                    ? 'border-purple-500 text-purple-500'
-                    : 'border-transparent text-gray-700 hover:text-green-600'
-                }`}
-              >
-                <span className="hidden sm:inline">PulseChain HEX</span>
-                <span className="sm:hidden">pHEX</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('ethereum');
-                  setCurrentPage(1);
-                }}
-                className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-1 text-center ${
-                  activeTab === 'ethereum'
-                    ? 'border-purple-500 text-purple-500'
-                    : 'border-transparent text-gray-700 hover:text-green-600'
-                }`}
-              >
-                <span className="hidden sm:inline">Ethereum HEX</span>
-                <span className="sm:hidden">eHEX</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('ethereum-staking');
-                  setCurrentPage(1);
-                }}
-                className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-1 text-center ${
-                  activeTab === 'ethereum-staking'
-                    ? 'border-blue-500 text-blue-500'
-                    : 'border-transparent text-gray-700 hover:text-green-600'
-                }`}
-              >
-                <span className="hidden sm:inline">Ethereum HEX Staking</span>
-                <span className="sm:hidden">ETH Staking</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('pulsechain-staking');
-                  setCurrentPage(1);
-                }}
-                className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-1 text-center ${
-                  activeTab === 'pulsechain-staking'
-                    ? 'border-pink-700 text-pink-700'
-                    : 'border-transparent text-gray-700 hover:text-green-600'
-                }`}
-              >
-                <span className="hidden sm:inline">PulseChain HEX Staking</span>
-                <span className="sm:hidden">PLS Staking</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('sell-pressure');
-                  setCurrentPage(1);
-                }}
-                className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-1 text-center ${
-                  activeTab === 'sell-pressure'
-                    ? 'border-orange-500 text-orange-600'
-                    : 'border-transparent text-slate-600 hover:text-green-600'
-                }`}
-              >
-                <span className="hidden sm:inline">Ending Soon</span>
-                <span className="sm:hidden">Ending Soon</span>
-              </button>
-            </nav>
+            <div className="overflow-x-auto">
+              <nav className="-mb-px flex w-full min-w-max">
+                <button
+                  onClick={() => {
+                    setActiveTab('pulsechain');
+                    setCurrentPage(1);
+                  }}
+                  className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-shrink-0 ${
+                    activeTab === 'pulsechain'
+                      ? 'border-purple-500 text-purple-500'
+                      : 'border-transparent text-gray-700 hover:text-green-600'
+                  }`}
+                >
+                  <span className="hidden sm:inline">PulseChain HEX</span>
+                  <span className="sm:hidden">pHEX</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('ethereum');
+                    setCurrentPage(1);
+                  }}
+                  className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-shrink-0 ${
+                    activeTab === 'ethereum'
+                      ? 'border-purple-500 text-purple-500'
+                      : 'border-transparent text-gray-700 hover:text-green-600'
+                  }`}
+                >
+                  <span className="hidden sm:inline">Ethereum HEX</span>
+                  <span className="sm:hidden">eHEX</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('ethereum-staking');
+                    setCurrentPage(1);
+                  }}
+                  className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-shrink-0 ${
+                    activeTab === 'ethereum-staking'
+                      ? 'border-blue-500 text-blue-500'
+                      : 'border-transparent text-gray-700 hover:text-green-600'
+                  }`}
+                >
+                  <span className="hidden sm:inline">Ethereum HEX Staking</span>
+                  <span className="sm:hidden">ETH Staking</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('pulsechain-staking');
+                    setCurrentPage(1);
+                  }}
+                  className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-shrink-0 ${
+                    activeTab === 'pulsechain-staking'
+                      ? 'border-pink-700 text-pink-700'
+                      : 'border-transparent text-gray-700 hover:text-green-600'
+                  }`}
+                >
+                  <span className="hidden sm:inline">PulseChain HEX Staking</span>
+                  <span className="sm:hidden">PLS Staking</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('sell-pressure');
+                    setCurrentPage(1);
+                  }}
+                  className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-shrink-0 ${
+                    activeTab === 'sell-pressure'
+                      ? 'border-orange-500 text-orange-600'
+                      : 'border-transparent text-slate-600 hover:text-green-600'
+                  }`}
+                >
+                  <span className="hidden sm:inline">Ending Soon</span>
+                  <span className="sm:hidden">Ending Soon</span>
+                </button>
+              </nav>
+            </div>
           </div>
 
           {/* Wallet Address Search */}
@@ -1128,8 +1195,8 @@ const HEXDataDashboard = () => {
             {searchError && (
               <div className="mt-3 p-3 bg-red-900/20 border border-red-500/50 text-red-700 rounded-lg">
                 {searchError}
-              </div>
-            )}
+            </div>
+          )}
             </div>
           </div>
 
@@ -1474,58 +1541,60 @@ const HEXDataDashboard = () => {
               <>
                 {/* Ethereum Staking Sub-Tabs */}
                 <div className="border-b border-white/10 mb-6">
-                  <nav className="-mb-px flex space-x-8">
-                    <button
-                      onClick={() => setEthereumStakingSubTab('overview')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        ethereumStakingSubTab === 'overview'
-                          ? 'border-blue-500 text-blue-700'
-                          : 'border-transparent text-slate-700 hover:text-blue-700'
-                      }`}
-                    >
-                      Overview & Top Stakes
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEthereumStakingSubTab('all-stakes');
-                        if (ethereumAllStakeStarts.length === 0) {
-                          loadEthereumStakeStarts();
-                        }
-                      }}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        ethereumStakingSubTab === 'all-stakes'
-                          ? 'border-blue-500 text-blue-700'
-                          : 'border-transparent text-slate-700 hover:text-blue-700'
-                      }`}
-                    >
-                      All Stake Starts
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEthereumStakingSubTab('active-stakes');
-                        if (ethereumActiveStakes.length === 0) {
-                          loadEthereumActiveStakes();
-                        }
-                      }}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        ethereumStakingSubTab === 'active-stakes'
-                          ? 'border-blue-500 text-blue-700'
-                          : 'border-transparent text-slate-700 hover:text-blue-700'
-                      }`}
-                    >
-                      Active Stakes
-                    </button>
-                    <button
-                      onClick={() => setEthereumStakingSubTab('ai-timing')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        ethereumStakingSubTab === 'ai-timing'
-                          ? 'border-blue-500 text-blue-700'
-                          : 'border-transparent text-slate-700 hover:text-blue-700'
-                      }`}
-                    >
-                      AI Timing
-                    </button>
-                  </nav>
+                  <div className="overflow-x-auto">
+                    <nav className="-mb-px flex min-w-max">
+                      <button
+                        onClick={() => setEthereumStakingSubTab('overview')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm flex-shrink-0 ${
+                          ethereumStakingSubTab === 'overview'
+                            ? 'border-blue-500 text-blue-700'
+                            : 'border-transparent text-slate-700 hover:text-blue-700'
+                        }`}
+                      >
+                        Overview & Top Stakes
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEthereumStakingSubTab('all-stakes');
+                          if (ethereumAllStakeStarts.length === 0) {
+                            loadEthereumStakeStarts();
+                          }
+                        }}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm flex-shrink-0 ${
+                          ethereumStakingSubTab === 'all-stakes'
+                            ? 'border-blue-500 text-blue-700'
+                            : 'border-transparent text-slate-700 hover:text-blue-700'
+                        }`}
+                      >
+                        All Stake Starts
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEthereumStakingSubTab('active-stakes');
+                          if (ethereumActiveStakes.length === 0) {
+                            loadEthereumActiveStakes();
+                          }
+                        }}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm flex-shrink-0 ${
+                          ethereumStakingSubTab === 'active-stakes'
+                            ? 'border-blue-500 text-blue-700'
+                            : 'border-transparent text-slate-700 hover:text-blue-700'
+                        }`}
+                      >
+                        Active Stakes
+                      </button>
+                      <button
+                        onClick={() => setEthereumStakingSubTab('ai-timing')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm flex-shrink-0 ${
+                          ethereumStakingSubTab === 'ai-timing'
+                            ? 'border-blue-500 text-blue-700'
+                            : 'border-transparent text-slate-700 hover:text-blue-700'
+                        }`}
+                      >
+                        AI Timing
+                      </button>
+                    </nav>
+                  </div>
                 </div>
 
                 {ethereumStakingSubTab === 'overview' && (
@@ -1873,7 +1942,7 @@ const HEXDataDashboard = () => {
                           <thead className="bg-gray-800/60 border border-gray-300 sticky top-0">
                             <tr>
                               <th 
-                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-700/60 transition-colors bg-gray-800/60 text-blue-700"
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-700/60 transition-colors bg-gray-800/60 text-white"
                                 onClick={() => handleEthereumActiveStakesSort('stakeId')}
                               >
                                 <div className="flex items-center gap-1">
@@ -1931,6 +2000,17 @@ const HEXDataDashboard = () => {
                               </th>
                               <th 
                                 className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-700/60 transition-colors bg-gray-800/60 text-white"
+                                onClick={() => handleEthereumActiveStakesSort('progress')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  Progress
+                                  {ethereumActiveStakesSortField === 'progress' ? (
+                                    ethereumActiveStakesSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-700/60 transition-colors bg-gray-800/60 text-white"
                                 onClick={() => handleEthereumActiveStakesSort('stakeTShares')}
                               >
                                 <div className="flex items-center gap-1">
@@ -1955,7 +2035,7 @@ const HEXDataDashboard = () => {
                             </tr>
                           </thead>
                           <tbody className="bg-transparent divide-y divide-gray-200">
-                            {getSortedEthereumActiveStakes().slice(0, 1000).map((stake, index) => {
+                            {getPaginatedEthereumActiveStakes().map((stake, index) => {
                               const progress = stake.daysServed / parseInt(stake.stakedDays) * 100;
                               const isNearEnd = stake.daysLeft <= 30;
                               const isOverdue = stake.daysLeft < 0;
@@ -2005,6 +2085,11 @@ const HEXDataDashboard = () => {
                                         {progress.toFixed(1)}%
                                       </span>
                                     </div>
+                                    {progress > 100 && (
+                                      <div className="text-xs text-red-500 mt-1">
+                                        {Math.round(progress - 100)} days over
+                                      </div>
+                                    )}
                                   </td>
                                   <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
                                     Day {stake.endDay}
@@ -2029,13 +2114,80 @@ const HEXDataDashboard = () => {
                           </tbody>
                         </table>
                         
-                        {ethereumActiveStakes.length > 1000 && (
-                          <div className="px-3 sm:px-6 py-4 border-t border-white/10 text-center text-slate-400">
-                            Showing first 1,000 of {ethereumActiveStakes.length.toLocaleString()} Ethereum active stakes
-                            <br />
-                            <span className="text-xs">Full dataset loaded in memory for analysis</span>
+                        {(() => {
+                          const paginationInfo = getEthereumActiveStakesPaginationInfo();
+                          return (
+                            <div className="px-3 sm:px-6 py-4 border-t border-white/10">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 flex justify-between sm:hidden">
+                                  <button
+                                    onClick={() => setEthereumActiveStakesCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={!paginationInfo.hasPrevPage}
+                                    className="relative inline-flex items-center px-4 py-2 border border-slate-600 text-sm font-medium rounded-md text-slate-300 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    Previous
+                                  </button>
+                                  <button
+                                    onClick={() => setEthereumActiveStakesCurrentPage(prev => Math.min(prev + 1, paginationInfo.totalPages))}
+                                    disabled={!paginationInfo.hasNextPage}
+                                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-600 text-sm font-medium rounded-md text-slate-300 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    Next
+                                  </button>
                           </div>
-                        )}
+                                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                                  <div>
+                                    <p className="text-sm text-slate-300">
+                                      Showing <span className="font-medium">{paginationInfo.startIndex}</span> to{' '}
+                                      <span className="font-medium">{paginationInfo.endIndex}</span> of{' '}
+                                      <span className="font-medium">{paginationInfo.totalStakes.toLocaleString()}</span> Ethereum active stakes
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                      <button
+                                        onClick={() => setEthereumActiveStakesCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        disabled={!paginationInfo.hasPrevPage}
+                                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-slate-600 bg-slate-800 text-sm font-medium text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        Previous
+                                      </button>
+                                      {Array.from({ length: Math.min(5, paginationInfo.totalPages) }, (_, i) => {
+                                        let pageNum;
+                                        if (paginationInfo.totalPages <= 5) {
+                                          pageNum = i + 1;
+                                        } else {
+                                          const startPage = Math.max(1, Math.min(paginationInfo.currentPage - 2, paginationInfo.totalPages - 4));
+                                          pageNum = startPage + i;
+                                        }
+                                        return (
+                                          <button
+                                            key={i}
+                                            onClick={() => setEthereumActiveStakesCurrentPage(pageNum)}
+                                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                              paginationInfo.currentPage === pageNum
+                                                ? 'z-10 bg-purple-900/50 border-purple-500 text-purple-400'
+                                                : 'bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700'
+                                            }`}
+                                          >
+                                            {pageNum}
+                                          </button>
+                                        );
+                                      })}
+                                      <button
+                                        onClick={() => setEthereumActiveStakesCurrentPage(prev => Math.min(prev + 1, paginationInfo.totalPages))}
+                                        disabled={!paginationInfo.hasNextPage}
+                                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-slate-600 bg-slate-800 text-sm font-medium text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        Next
+                                      </button>
+                                    </nav>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
@@ -2070,58 +2222,60 @@ const HEXDataDashboard = () => {
               <>
                 {/* PulseChain Staking Sub-Tabs */}
                 <div className="border-b border-white/10 mb-6">
-                  <nav className="-mb-px flex space-x-8">
-                    <button
-                      onClick={() => setPulsechainStakingSubTab('overview')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        pulsechainStakingSubTab === 'overview'
-                          ? 'border-purple-500 text-purple-400'
-                          : 'border-transparent text-slate-500 hover:text-green-600'
-                      }`}
-                    >
-                      Overview & Top Stakes
-                    </button>
-                    <button
-                      onClick={() => {
-                        setPulsechainStakingSubTab('all-stakes');
-                        if (pulsechainAllStakeStarts.length === 0) {
-                          loadPulsechainStakeStarts();
-                        }
-                      }}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        pulsechainStakingSubTab === 'all-stakes'
-                          ? 'border-purple-500 text-purple-400'
-                          : 'border-transparent text-slate-500 hover:text-green-600'
-                      }`}
-                    >
-                      All Stake Starts
-                    </button>
-                    <button
-                      onClick={() => {
-                        setPulsechainStakingSubTab('active-stakes');
-                        if (pulsechainActiveStakes.length === 0) {
-                          loadPulsechainActiveStakes();
-                        }
-                      }}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        pulsechainStakingSubTab === 'active-stakes'
-                          ? 'border-purple-500 text-purple-400'
-                          : 'border-transparent text-slate-500 hover:text-green-600'
-                      }`}
-                    >
-                      Active Stakes
-                    </button>
-                    <button
-                      onClick={() => setPulsechainStakingSubTab('ai-timing')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        pulsechainStakingSubTab === 'ai-timing'
-                          ? 'border-purple-500 text-purple-400'
-                          : 'border-transparent text-slate-500 hover:text-green-600'
-                      }`}
-                    >
-                      AI Timing
-                    </button>
-                  </nav>
+                  <div className="overflow-x-auto">
+                    <nav className="-mb-px flex min-w-max">
+                      <button
+                        onClick={() => setPulsechainStakingSubTab('overview')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm flex-shrink-0 ${
+                          pulsechainStakingSubTab === 'overview'
+                            ? 'border-purple-500 text-purple-400'
+                            : 'border-transparent text-slate-500 hover:text-green-600'
+                        }`}
+                      >
+                        Overview & Top Stakes
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPulsechainStakingSubTab('all-stakes');
+                          if (pulsechainAllStakeStarts.length === 0) {
+                            loadPulsechainStakeStarts();
+                          }
+                        }}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm flex-shrink-0 ${
+                          pulsechainStakingSubTab === 'all-stakes'
+                            ? 'border-purple-500 text-purple-400'
+                            : 'border-transparent text-slate-500 hover:text-green-600'
+                        }`}
+                      >
+                        All Stake Starts
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPulsechainStakingSubTab('active-stakes');
+                          if (pulsechainActiveStakes.length === 0) {
+                            loadPulsechainActiveStakes();
+                          }
+                        }}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm flex-shrink-0 ${
+                          pulsechainStakingSubTab === 'active-stakes'
+                            ? 'border-purple-500 text-purple-400'
+                            : 'border-transparent text-slate-500 hover:text-green-600'
+                        }`}
+                      >
+                        Active Stakes
+                      </button>
+                      <button
+                        onClick={() => setPulsechainStakingSubTab('ai-timing')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm flex-shrink-0 ${
+                          pulsechainStakingSubTab === 'ai-timing'
+                            ? 'border-purple-500 text-purple-400'
+                            : 'border-transparent text-slate-500 hover:text-green-600'
+                        }`}
+                      >
+                        AI Timing
+                      </button>
+                    </nav>
+                  </div>
                 </div>
 
                 {pulsechainStakingSubTab === 'overview' && (
@@ -2528,14 +2682,24 @@ const HEXDataDashboard = () => {
                                   ) : '↕'}
                                 </div>
                               </th>
-                              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">Progress</th>
+                              <th 
+                                className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-700/60 transition-colors bg-gray-800/60 text-white"
+                                onClick={() => handlePulsechainActiveStakesSort('progress')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  Progress
+                                  {pulsechainActiveStakesSortField === 'progress' ? (
+                                    pulsechainActiveStakesSortDirection === 'desc' ? '↓' : '↑'
+                                  ) : '↕'}
+                                </div>
+                              </th>
                               <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">End Day</th>
                               <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">Timestamp</th>
                               <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">Transaction</th>
                             </tr>
                           </thead>
                           <tbody className="bg-transparent divide-y divide-gray-200">
-                            {getSortedPulsechainActiveStakes().slice(0, 1000).map((stake, index) => {
+                            {getPaginatedPulsechainActiveStakes().map((stake, index) => {
                               const progress = stake.daysServed / parseInt(stake.stakedDays) * 100;
                               const isNearEnd = stake.daysLeft <= 30;
                               const isOverdue = stake.daysLeft < 0;
@@ -2585,6 +2749,11 @@ const HEXDataDashboard = () => {
                                         {progress.toFixed(1)}%
                                       </span>
                                     </div>
+                                    {progress > 100 && (
+                                      <div className="text-xs text-red-500 mt-1">
+                                        {Math.round(progress - 100)} days over
+                                      </div>
+                                    )}
                                   </td>
                                   <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-800">
                                     Day {stake.endDay}
@@ -2603,30 +2772,86 @@ const HEXDataDashboard = () => {
                                       {stake.transactionHash.slice(0, 8)}...
                                     </a>
                                   </td>
-                                  <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
-                                    <a
-                                      href={`https://scan.pulsechain.com/tx/${stake.transactionHash}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="hover:text-purple-400 transition-colors"
-                                      title={stake.transactionHash}
-                                    >
-                                      {stake.transactionHash.slice(0, 8)}...
-                                    </a>
-                                  </td>
                                 </tr>
                               );
                             })}
                           </tbody>
                         </table>
                         
-                        {pulsechainActiveStakes.length > 1000 && (
-                          <div className="px-3 sm:px-6 py-4 border-t border-white/10 text-center text-slate-600">
-                            Showing first 1,000 of {pulsechainActiveStakes.length.toLocaleString()} PulseChain active stakes
-                            <br />
-                            <span className="text-xs">Full dataset loaded in memory for analysis</span>
+                        {(() => {
+                          const paginationInfo = getPulsechainActiveStakesPaginationInfo();
+                          return (
+                            <div className="px-3 sm:px-6 py-4 border-t border-white/10">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 flex justify-between sm:hidden">
+                                  <button
+                                    onClick={() => setPulsechainActiveStakesCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={!paginationInfo.hasPrevPage}
+                                    className="relative inline-flex items-center px-4 py-2 border border-slate-600 text-sm font-medium rounded-md text-slate-300 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    Previous
+                                  </button>
+                                  <button
+                                    onClick={() => setPulsechainActiveStakesCurrentPage(prev => Math.min(prev + 1, paginationInfo.totalPages))}
+                                    disabled={!paginationInfo.hasNextPage}
+                                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-600 text-sm font-medium rounded-md text-slate-300 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    Next
+                                  </button>
                           </div>
-                        )}
+                                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                                  <div>
+                                    <p className="text-sm text-slate-300">
+                                      Showing <span className="font-medium">{paginationInfo.startIndex}</span> to{' '}
+                                      <span className="font-medium">{paginationInfo.endIndex}</span> of{' '}
+                                      <span className="font-medium">{paginationInfo.totalStakes.toLocaleString()}</span> PulseChain active stakes
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                      <button
+                                        onClick={() => setPulsechainActiveStakesCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        disabled={!paginationInfo.hasPrevPage}
+                                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-slate-600 bg-slate-800 text-sm font-medium text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        Previous
+                                      </button>
+                                      {Array.from({ length: Math.min(5, paginationInfo.totalPages) }, (_, i) => {
+                                        let pageNum;
+                                        if (paginationInfo.totalPages <= 5) {
+                                          pageNum = i + 1;
+                                        } else {
+                                          const startPage = Math.max(1, Math.min(paginationInfo.currentPage - 2, paginationInfo.totalPages - 4));
+                                          pageNum = startPage + i;
+                                        }
+                                        return (
+                                          <button
+                                            key={i}
+                                            onClick={() => setPulsechainActiveStakesCurrentPage(pageNum)}
+                                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                              paginationInfo.currentPage === pageNum
+                                                ? 'z-10 bg-purple-900/50 border-purple-500 text-purple-400'
+                                                : 'bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700'
+                                            }`}
+                                          >
+                                            {pageNum}
+                                          </button>
+                                        );
+                                      })}
+                                      <button
+                                        onClick={() => setPulsechainActiveStakesCurrentPage(prev => Math.min(prev + 1, paginationInfo.totalPages))}
+                                        disabled={!paginationInfo.hasNextPage}
+                                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-slate-600 bg-slate-800 text-sm font-medium text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        Next
+                                      </button>
+                                    </nav>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
@@ -3033,6 +3258,7 @@ const HEXDataDashboard = () => {
         isOpen={isEthereumStakerHistoryModalOpen}
         onClose={handleEthereumStakerHistoryModalClose}
         network="ethereum"
+        currentPrice={liveData?.price || 0}
       />
 
       {/* PulseChain Staker History Modal */}
@@ -3041,6 +3267,7 @@ const HEXDataDashboard = () => {
         isOpen={isPulsechainStakerHistoryModalOpen}
         onClose={handlePulsechainStakerHistoryModalClose}
         network="pulsechain"
+        currentPrice={liveData?.price_Pulsechain || liveData?.pricePulseX || 0}
       />
 
       {/* Dual Network Staker History Modal */}

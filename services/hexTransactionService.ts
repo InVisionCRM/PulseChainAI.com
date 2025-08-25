@@ -1,3 +1,5 @@
+import Moralis from 'moralis';
+
 export interface HexTransaction {
   id: string;
   hash: string;
@@ -30,14 +32,40 @@ export interface WalletTransactionData {
   lastUpdated: string;
 }
 
+// Global Moralis initialization state
+let isMoralisInitialized = false;
+
 export class HexTransactionService {
   // HEX contract addresses
-  private readonly HEX_CONTRACT_ETHEREUM = '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
-  private readonly HEX_CONTRACT_PULSECHAIN = '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
+  private readonly HEX_CONTRACT_ADDRESS = '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39';
   
-  // The Graph endpoints - using the same endpoints as the working staking services
-  private readonly ETHEREUM_SUBGRAPH = 'https://gateway.thegraph.com/api/a08fcab20e333b38bb75daf3d97a0bb5/subgraphs/id/A6JyHRn6CUvvgBZwni9JyrgovKWK6FoSQ8TVt6JJGhcp';
-  private readonly PULSECHAIN_SUBGRAPH = 'https://graph.pulsechain.com/subgraphs/name/Codeakk/Hex';
+  // Moralis API configuration
+  private readonly MORALIS_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYzOWU4ZWMwLTJkM2ItNDgwYS04MWY5LTdiMDM3OTYxZjIyYSIsIm9yZ0lkIjoiNDMyMTk3IiwidXNlcklkIjoiNDQ0NTc3IiwidHlwZUlkIjoiZWY3YmEyYjMtMTMyYS00MWI0LWEyMDgtYTUwNGEzMjk5NDMzIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3Mzk4NTgyMDYsImV4cCI6NDg5NTYxODIwNn0.iSuHF229Nk_9yiiqDxyyGM0MB6DEG09gLa2oFWYf5us';
+  
+  private async initMoralis() {
+    if (!isMoralisInitialized) {
+      try {
+        // Check if Moralis is already started
+        if (Moralis.Core.isStarted) {
+          isMoralisInitialized = true;
+          return;
+        }
+        
+        await Moralis.start({
+          apiKey: this.MORALIS_API_KEY
+        });
+        isMoralisInitialized = true;
+      } catch (error) {
+        // If error is about modules already started, just mark as initialized
+        if (error instanceof Error && error.message.includes('Modules are started already')) {
+          isMoralisInitialized = true;
+          return;
+        }
+        console.error('Failed to initialize Moralis:', error);
+        throw error;
+      }
+    }
+  }
 
   async getWalletTransactionData(address: string, network: 'ethereum' | 'pulsechain'): Promise<WalletTransactionData> {
     console.log(`🔍 Fetching HEX transaction data for ${address} on ${network}...`);
@@ -83,24 +111,25 @@ export class HexTransactionService {
   }
 
   private async getEthereumHexBalance(address: string): Promise<HexBalance> {
-    // For HEX balance, we need to use a proper ERC20 balance query or external API
-    // The Graph doesn't directly track ERC20 balances, only events
-    // We'll use a fallback approach with Ethereum RPC or return placeholder for now
-    
     try {
-      // For now, return a realistic placeholder since proper balance fetching 
-      // requires direct blockchain RPC calls or specialized APIs like Alchemy
-      // In a real implementation, you'd use:
-      // 1. Ethereum RPC call to HEX contract balanceOf(address) method
-      // 2. Or use services like Alchemy Token API
-      // 3. Or maintain a balance tracking system based on transfer events
+      await this.initMoralis();
       
-      const placeholderBalance = '0'; // Default to 0 since we can't reliably estimate from transfers
+      const response = await Moralis.EvmApi.token.getWalletTokenBalances({
+        chain: '0x1',
+        address: address,
+        tokenAddresses: [this.HEX_CONTRACT_ADDRESS]
+      });
+      
+      const hexToken = response.raw.find((token: any) => 
+        token.token_address.toLowerCase() === this.HEX_CONTRACT_ADDRESS.toLowerCase()
+      );
+      
+      const balance = hexToken ? hexToken.balance : '0';
       
       return {
         address,
-        balance: placeholderBalance,
-        balanceFormatted: this.formatHexAmount(placeholderBalance),
+        balance,
+        balanceFormatted: this.formatHexAmount(balance),
         network: 'ethereum',
         timestamp: new Date().toISOString()
       };
@@ -118,14 +147,24 @@ export class HexTransactionService {
 
   private async getPulsechainHexBalance(address: string): Promise<HexBalance> {
     try {
-      // Same issue as Ethereum - proper balance fetching requires RPC calls
-      // For PulseChain, you'd need to call the HEX contract directly
-      const placeholderBalance = '0';
+      await this.initMoralis();
+      
+      const response = await Moralis.EvmApi.token.getWalletTokenBalances({
+        chain: '0x171',
+        address: address,
+        tokenAddresses: [this.HEX_CONTRACT_ADDRESS]
+      });
+      
+      const hexToken = response.raw.find((token: any) => 
+        token.token_address.toLowerCase() === this.HEX_CONTRACT_ADDRESS.toLowerCase()
+      );
+      
+      const balance = hexToken ? hexToken.balance : '0';
       
       return {
         address,
-        balance: placeholderBalance,
-        balanceFormatted: this.formatHexAmount(placeholderBalance),
+        balance,
+        balanceFormatted: this.formatHexAmount(balance),
         network: 'pulsechain',
         timestamp: new Date().toISOString()
       };
@@ -152,98 +191,41 @@ export class HexTransactionService {
   }
 
   private async getEthereumHexTransactions(address: string, limit: number = 100): Promise<HexTransaction[]> {
-    const query = `
-      query GetAllHexTransactions($address: String!, $limit: Int!) {
-        # Staking transactions
-        stakeStarts(
-          where: { stakerAddr: $address }
-          orderBy: timestamp
-          orderDirection: desc
-          first: $limit
-        ) {
-          id
-          stakeId
-          stakerAddr
-          stakedHearts
-          stakedDays
-          timestamp
-          transactionHash
-          blockNumber
-        }
-        stakeEnds(
-          where: { stakerAddr: $address }
-          orderBy: timestamp
-          orderDirection: desc
-          first: $limit
-        ) {
-          id
-          stakeId
-          stakerAddr
-          payout
-          penalty
-          timestamp
-          transactionHash
-          blockNumber
-        }
-      }
-    `;
-
     try {
-      const data = await this.executeEthereumQuery<{
-        stakeStarts: Array<{
-          id: string; stakeId: string; stakerAddr: string; stakedHearts: string; 
-          stakedDays: string; timestamp: string; transactionHash: string; blockNumber: string;
-        }>;
-        stakeEnds: Array<{
-          id: string; stakeId: string; stakerAddr: string; payout: string; 
-          penalty: string; timestamp: string; transactionHash: string; blockNumber: string;
-        }>;
-      }>(query, { address: address.toLowerCase(), limit });
-
-      const transactions: HexTransaction[] = [];
-
-      // Process stake starts
-      data.stakeStarts.forEach(stake => {
-        transactions.push({
-          id: stake.id,
-          hash: stake.transactionHash,
-          blockNumber: stake.blockNumber,
-          timestamp: stake.timestamp,
-          from: stake.stakerAddr,
-          to: this.HEX_CONTRACT_ETHEREUM,
-          value: stake.stakedHearts,
-          type: 'stake_start',
-          description: `Started stake #${stake.stakeId}: ${this.formatHexAmount(stake.stakedHearts)} HEX for ${stake.stakedDays} days`,
-          network: 'ethereum'
-        });
+      await this.initMoralis();
+      
+      const response = await Moralis.EvmApi.token.getWalletTokenTransfers({
+        chain: '0x1',
+        order: 'DESC',
+        address: address,
+        contractAddresses: [this.HEX_CONTRACT_ADDRESS],
+        limit: limit
       });
-
-      // Process stake ends
-      data.stakeEnds.forEach(stake => {
-        const penalty = parseFloat(stake.penalty || '0');
-        const payout = parseFloat(stake.payout || '0');
-        const description = penalty > 0 
-          ? `Ended stake #${stake.stakeId} with penalty: ${this.formatHexAmount(stake.penalty)} HEX`
-          : `Ended stake #${stake.stakeId}: received ${this.formatHexAmount(stake.payout)} HEX`;
-
+      
+      const transactions: HexTransaction[] = [];
+      
+      // Process token transfers
+      response.raw.result.forEach((tx: any) => {
+        const isReceived = tx.to_address.toLowerCase() === address.toLowerCase();
+        const description = isReceived 
+          ? `Received ${this.formatHexAmount(tx.value)} HEX from ${tx.from_address.slice(0, 8)}...`
+          : `Sent ${this.formatHexAmount(tx.value)} HEX to ${tx.to_address.slice(0, 8)}...`;
+          
         transactions.push({
-          id: stake.id,
-          hash: stake.transactionHash,
-          blockNumber: stake.blockNumber,
-          timestamp: stake.timestamp,
-          from: this.HEX_CONTRACT_ETHEREUM,
-          to: stake.stakerAddr,
-          value: payout > penalty ? stake.payout : '0',
-          type: 'stake_end',
+          id: `${tx.transaction_hash}_${tx.log_index}`,
+          hash: tx.transaction_hash,
+          blockNumber: tx.block_number,
+          timestamp: tx.block_timestamp,
+          from: tx.from_address,
+          to: tx.to_address,
+          value: tx.value,
+          type: 'transfer',
           description,
           network: 'ethereum'
         });
       });
-
-      // Sort all transactions by timestamp (most recent first)
-      transactions.sort((a, b) => parseInt(b.timestamp) - parseInt(a.timestamp));
-
-      return transactions.slice(0, limit);
+      
+      return transactions;
     } catch (error) {
       console.error(`❌ Error fetching Ethereum HEX transactions:`, error);
       return [];
@@ -251,154 +233,45 @@ export class HexTransactionService {
   }
 
   private async getPulsechainHexTransactions(address: string, limit: number = 100): Promise<HexTransaction[]> {
-    const query = `
-      query GetAllHexTransactions($address: String!, $limit: Int!) {
-        # Staking transactions
-        stakeStarts(
-          where: { stakerAddr: $address }
-          orderBy: timestamp
-          orderDirection: desc
-          first: $limit
-        ) {
-          id
-          stakeId
-          stakerAddr
-          stakedHearts
-          stakedDays
-          timestamp
-          transactionHash
-          blockNumber
-        }
-        stakeEnds(
-          where: { stakerAddr: $address }
-          orderBy: timestamp
-          orderDirection: desc
-          first: $limit
-        ) {
-          id
-          stakeId
-          stakerAddr
-          payout
-          penalty
-          timestamp
-          transactionHash
-          blockNumber
-        }
-      }
-    `;
-
     try {
-      const data = await this.executePulsechainQuery<{
-        stakeStarts: Array<{
-          id: string; stakeId: string; stakerAddr: string; stakedHearts: string; 
-          stakedDays: string; timestamp: string; transactionHash: string; blockNumber: string;
-        }>;
-        stakeEnds: Array<{
-          id: string; stakeId: string; stakerAddr: string; payout: string; 
-          penalty: string; timestamp: string; transactionHash: string; blockNumber: string;
-        }>;
-      }>(query, { address: address.toLowerCase(), limit });
-
-      const transactions: HexTransaction[] = [];
-
-      // Process stake starts
-      data.stakeStarts.forEach(stake => {
-        transactions.push({
-          id: stake.id,
-          hash: stake.transactionHash,
-          blockNumber: stake.blockNumber,
-          timestamp: stake.timestamp,
-          from: stake.stakerAddr,
-          to: this.HEX_CONTRACT_PULSECHAIN,
-          value: stake.stakedHearts,
-          type: 'stake_start',
-          description: `Started stake #${stake.stakeId}: ${this.formatHexAmount(stake.stakedHearts)} HEX for ${stake.stakedDays} days`,
-          network: 'pulsechain'
-        });
+      await this.initMoralis();
+      
+      const response = await Moralis.EvmApi.token.getWalletTokenTransfers({
+        chain: '0x171',
+        order: 'DESC',
+        address: address,
+        contractAddresses: [this.HEX_CONTRACT_ADDRESS],
+        limit: limit
       });
-
-      // Process stake ends
-      data.stakeEnds.forEach(stake => {
-        const penalty = parseFloat(stake.penalty || '0');
-        const payout = parseFloat(stake.payout || '0');
-        const description = penalty > 0 
-          ? `Ended stake #${stake.stakeId} with penalty: ${this.formatHexAmount(stake.penalty)} HEX`
-          : `Ended stake #${stake.stakeId}: received ${this.formatHexAmount(stake.payout)} HEX`;
-
+      
+      const transactions: HexTransaction[] = [];
+      
+      // Process token transfers
+      response.raw.result.forEach((tx: any) => {
+        const isReceived = tx.to_address.toLowerCase() === address.toLowerCase();
+        const description = isReceived 
+          ? `Received ${this.formatHexAmount(tx.value)} HEX from ${tx.from_address.slice(0, 8)}...`
+          : `Sent ${this.formatHexAmount(tx.value)} HEX to ${tx.to_address.slice(0, 8)}...`;
+          
         transactions.push({
-          id: stake.id,
-          hash: stake.transactionHash,
-          blockNumber: stake.blockNumber,
-          timestamp: stake.timestamp,
-          from: this.HEX_CONTRACT_PULSECHAIN,
-          to: stake.stakerAddr,
-          value: payout > penalty ? stake.payout : '0',
-          type: 'stake_end',
+          id: `${tx.transaction_hash}_${tx.log_index}`,
+          hash: tx.transaction_hash,
+          blockNumber: tx.block_number,
+          timestamp: tx.block_timestamp,
+          from: tx.from_address,
+          to: tx.to_address,
+          value: tx.value,
+          type: 'transfer',
           description,
           network: 'pulsechain'
         });
       });
-
-      // Sort all transactions by timestamp (most recent first)
-      transactions.sort((a, b) => parseInt(b.timestamp) - parseInt(a.timestamp));
-
-      return transactions.slice(0, limit);
+      
+      return transactions;
     } catch (error) {
       console.error(`❌ Error fetching PulseChain HEX transactions:`, error);
       return [];
     }
-  }
-
-  private async executeEthereumQuery<T>(query: string, variables: any = {}): Promise<T> {
-    const response = await fetch(this.ETHEREUM_SUBGRAPH, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        variables,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Ethereum GraphQL error: ${response.status} - ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    if (data.errors) {
-      const errorMessage = data.errors.map((e: any) => e.message).join(', ');
-      throw new Error(`Ethereum GraphQL error: ${errorMessage}`);
-    }
-
-    return data.data;
-  }
-
-  private async executePulsechainQuery<T>(query: string, variables: any = {}): Promise<T> {
-    const response = await fetch(this.PULSECHAIN_SUBGRAPH, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        variables,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`PulseChain GraphQL error: ${response.status} - ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    if (data.errors) {
-      const errorMessage = data.errors.map((e: any) => e.message).join(', ');
-      throw new Error(`PulseChain GraphQL error: ${errorMessage}`);
-    }
-
-    return data.data;
   }
 
   private formatHexAmount(amount: string): string {
@@ -411,7 +284,7 @@ export class HexTransactionService {
   }
 
   formatDate(timestamp: string): string {
-    return new Date(parseInt(timestamp) * 1000).toLocaleDateString('en-US', {
+    return new Date(timestamp).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: '2-digit',

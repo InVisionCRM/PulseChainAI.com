@@ -3,6 +3,10 @@ import { hexStakingService } from '@/services/hexStakingService';
 import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingService';
 import { hexTransactionService, type WalletTransactionData, type HexTransaction } from '@/services/hexTransactionService';
 import type { StakerHistoryMetrics, HexStake, HexStakeEnd } from '@/services/hexStakingService';
+import { liquidHexBalanceService, type LiquidHexBalances } from '@/services/liquidHexBalanceService';
+import { hexSwapService, type HexSwap, type SwapResponse } from '@/services/hexSwapService';
+import { FlickeringGrid } from '@/components/magicui/flickering-grid';
+import { GridPattern } from '@/components/magicui/grid-pattern';
 
 interface StakerHistoryModalProps {
   stakerAddress: string | null;
@@ -26,8 +30,20 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [transactionError, setTransactionError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'active' | 'ended' | 'transactions'>('overview');
+  const [activeNetwork, setActiveNetwork] = useState<'ethereum' | 'pulsechain'>(network);
   const [sortField, setSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'daysServed' | 'timestamp'>('timestamp');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [liquidHexBalances, setLiquidHexBalances] = useState<{
+    ethereum: number | null;
+    pulsechain: number | null;
+  }>({ ethereum: null, pulsechain: null });
+  const [isLoadingBalances, setIsLoadingBalances] = useState(false);
+  
+  // HEX Swap state
+  const [hexSwaps, setHexSwaps] = useState<SwapResponse | null>(null);
+  const [isLoadingHexSwaps, setIsLoadingHexSwaps] = useState(false);
+  const [hexSwapsError, setHexSwapsError] = useState<string | null>(null);
+  const [hexSwapsPage, setHexSwapsPage] = useState(1);
 
   // Helper functions for calculations
   const calculateStakeUSD = (stakedHearts: string): number => {
@@ -68,8 +84,10 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
   useEffect(() => {
     if (isOpen && stakerAddress) {
       fetchStakerHistory();
+      fetchLiquidHexBalances();
       if (activeTab === 'transactions') {
         fetchTransactionData();
+        fetchHexSwaps();
       }
     }
   }, [isOpen, stakerAddress, network]);
@@ -80,6 +98,27 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
     }
   }, [activeTab, isOpen, stakerAddress]);
 
+  useEffect(() => {
+    if (isOpen && stakerAddress && activeTab === 'transactions') {
+      fetchHexSwaps();
+    }
+  }, [activeTab, isOpen, stakerAddress]);
+
+  useEffect(() => {
+    setActiveNetwork(network);
+  }, [network]);
+
+  useEffect(() => {
+    if (isOpen && stakerAddress && activeNetwork !== network) {
+      fetchStakerHistory();
+      fetchLiquidHexBalances();
+      if (activeTab === 'transactions') {
+        fetchTransactionData();
+        fetchHexSwaps();
+      }
+    }
+  }, [activeNetwork, isOpen, stakerAddress]);
+
   const fetchStakerHistory = async () => {
     if (!stakerAddress) return;
     
@@ -87,7 +126,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
     setError(null);
     
     try {
-      const service = network === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
+      const service = activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
       const data = await service.getStakerHistory(stakerAddress);
       setHistoryData(data);
     } catch (err) {
@@ -110,6 +149,41 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
       setTransactionError(err instanceof Error ? err.message : 'Failed to fetch transaction data');
     } finally {
       setIsLoadingTransactions(false);
+    }
+  };
+
+  const fetchLiquidHexBalances = async () => {
+    if (!stakerAddress) return;
+    
+    setIsLoadingBalances(true);
+    
+    try {
+      const balances = await liquidHexBalanceService.getLiquidHexBalances(stakerAddress);
+      setLiquidHexBalances(balances);
+    } catch (err) {
+      console.error('Failed to fetch liquid HEX balances:', err);
+      setLiquidHexBalances({ ethereum: null, pulsechain: null });
+    } finally {
+      setIsLoadingBalances(false);
+    }
+  };
+
+  const fetchHexSwaps = async (page: number = 1) => {
+    if (!stakerAddress) return;
+    
+    setIsLoadingHexSwaps(true);
+    setHexSwapsError(null);
+    
+    try {
+      const swaps = await hexSwapService.getHexSwaps(stakerAddress, activeNetwork, page);
+      setHexSwaps(swaps);
+      setHexSwapsPage(page);
+    } catch (err) {
+      console.error('Failed to fetch HEX swaps:', err);
+      setHexSwapsError(err instanceof Error ? err.message : 'Failed to fetch HEX swaps');
+      setHexSwaps(null);
+    } finally {
+      setIsLoadingHexSwaps(false);
     }
   };
 
@@ -184,12 +258,12 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
 
   const getStakeStatusColor = (stake: HexStake) => {
     if (stake.isActive) {
-      if (stake.daysLeft && stake.daysLeft < 30) return 'text-yellow-600';
-      return 'text-green-600';
+      if (stake.daysLeft && stake.daysLeft < 30) return 'text-yellow-700';
+      return 'text-green-700';
     }
     const endData = getStakeEndData(stake.stakeId);
-    if (endData && parseFloat(endData.penalty || '0') > 0) return 'text-red-600';
-    return 'text-blue-600';
+    if (endData && parseFloat(endData.penalty || '0') > 0) return 'text-red-700';
+    return 'text-blue-700';
   };
 
   const getStakeStatusIcon = (stake: HexStake) => {
@@ -200,6 +274,11 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
     const endData = getStakeEndData(stake.stakeId);
     if (endData && parseFloat(endData.penalty || '0') > 0) return '❌';
     return '✅';
+  };
+
+  const handleHexSwapsPageChange = (newPage: number) => {
+    setHexSwapsPage(newPage);
+    fetchHexSwaps(newPage);
   };
 
   const formatDate = (timestamp: string) => {
@@ -215,31 +294,99 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="relative w-full max-w-7xl max-h-[90vh] bg-white/10 backdrop-blur-2xl border border-white/30 rounded-3xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.8)] overflow-hidden transform transition-all duration-300 ease-out scale-100">
+        {/* Grid Pattern Background */}
+        <div className="absolute inset-0 z-0">
+          <GridPattern 
+            width={32}
+            height={32}
+            strokeDasharray="0"
+            className="opacity-20"
+          />
+        </div>
         
         {/* Header */}
-        <div className="relative px-8 py-6 bg-white/20 backdrop-blur-xl border-b border-white/30">
-          <div className="flex items-start justify-between">
+        <div className="relative px-8 py-6 bg-white/20 backdrop-blur-xl border-b border-white/30 overflow-hidden z-10">
+          {/* Flickering Grid Background */}
+          <div className="absolute inset-0 z-0">
+            <FlickeringGrid 
+              squareSize={6}
+              gridGap={8}
+              flickerChance={0.4}
+              color="rgb(235, 99, 8)"
+              maxOpacity={1.0}
+              className="opacity-50"
+            />
+          </div>
+          
+          {/* Content Layer - Above the grid */}
+          <div className="relative z-10 flex items-start justify-between">
             <div className="flex items-center gap-4">
               <div>
-                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                  {network === 'ethereum' ? 'Ethereum' : 'PulseChain'} Staker History
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2 drop-shadow-lg">
+                  Staker History
                 </h2>
-                        <p className="text-white text-sm mt-1 font-mono break-all">
-          {stakerAddress}
-        </p>
+                <p className="text-white text-sm mt-1 font-mono break-all drop-shadow-lg">
+                  {stakerAddress}
+                </p>
+                
+                {/* Network Tabs */}
+                <div className="flex gap-1 mt-3">
+                  <button
+                    onClick={() => setActiveNetwork('ethereum')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors backdrop-blur-sm ${
+                      activeNetwork === 'ethereum'
+                        ? 'bg-blue-500/90 text-white shadow-lg'
+                        : 'bg-white/20 text-white/90 hover:bg-white/30 hover:text-white shadow-md'
+                    }`}
+                  >
+                    Ethereum
+                  </button>
+                  <button
+                    onClick={() => setActiveNetwork('pulsechain')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors backdrop-blur-sm ${
+                      activeNetwork === 'pulsechain'
+                        ? 'bg-purple-500/90 text-white shadow-lg'
+                        : 'bg-white/20 text-white/90 hover:bg-white/30 hover:text-white shadow-md'
+                    }`}
+                  >
+                    PulseChain
+                  </button>
+                </div>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-            >
-×
-            </button>
+            
+            {/* Explorer Links and Close Button */}
+            <div className="flex items-center gap-4">
+              <div className="flex gap-3 text-sm">
+                <a
+                  href={`https://etherscan.io/address/${stakerAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 transition-colors drop-shadow-lg font-medium"
+                >
+                  View on Etherscan
+                </a>
+                <a
+                  href={`https://scan.mypinata.cloud/ipfs/bafybeih3olry3is4e4lzm7rus5l3h6zrphcal5a7ayfkhzm5oivjro2cp4/#/address/${stakerAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-purple-400 hover:text-purple-300 transition-colors drop-shadow-lg font-medium"
+                >
+                  View on PulseScan
+                </a>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors backdrop-blur-sm shadow-md"
+              >
+                ×
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-8 max-h-[calc(90vh-120px)] overflow-y-auto">
+        <div className="relative z-10 p-8 max-h-[calc(90vh-120px)] overflow-y-auto">
           
           {/* Loading State */}
           {isLoading && (
@@ -270,162 +417,185 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
           {historyData && !isLoading && !error && (
             <div className="space-y-8">
 
-              {/* Overview Metrics */}
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm text-white">
-                      Total Stakes
-                    </span>
+              {/* Overview Metrics - Consolidated Layout */}
+              <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Staking Overview</h3>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Left Column - Basic Stats */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between py-2 border-b border-white/10">
+                      <span className="text-white/80 font-medium">Total Stakes</span>
+                      <span className="text-white font-bold text-lg">{(historyData.totalStakes || 0).toLocaleString()}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between py-2 border-b border-white/10">
+                      <span className="text-white/80 font-medium">Active Stakes</span>
+                      <span className="text-white font-bold text-lg">{(historyData.activeStakes || 0).toLocaleString()}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between py-2 border-b border-white/10">
+                      <span className="text-white/80 font-medium">Ended Stakes</span>
+                      <span className="text-white font-bold text-lg">{(historyData.endedStakes || 0).toLocaleString()}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between py-2 border-b border-white/10">
+                      <span className="text-white/80 font-medium">Average Length</span>
+                      <span className="text-white font-bold text-lg">
+                        {(activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatStakeLength(Math.round(historyData.averageStakeLength || 0))}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-2xl font-bold text-white">
-                    {(historyData.totalStakes || 0).toLocaleString()}
-                  </div>
-                </div>
 
-                <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm text-white">Active</span>
-                  </div>
-                  <div className="text-2xl font-bold text-white">
-                    {(historyData.activeStakes || 0).toLocaleString()}
-                  </div>
-                </div>
+                  {/* Right Column - Liquid HEX & Performance */}
+                  <div className="space-y-4">
+                    {/* Liquid HEX Balances */}
+                    <div className="space-y-3">
+                      <h4 className="text-white/90 font-medium text-sm uppercase tracking-wider">Liquid HEX</h4>
+                      
+                      {liquidHexBalances.ethereum !== null && liquidHexBalances.ethereum > 0 && (
+                        <div className="flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg">
+                          <span className="text-blue-300 text-sm">eHEX</span>
+                          <span className="text-white font-semibold">
+                            {isLoadingBalances ? (
+                              <div className="animate-pulse bg-white/20 h-4 w-16 rounded"></div>
+                            ) : (
+                              liquidHexBalanceService.formatHexAmount(liquidHexBalances.ethereum)
+                            )}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {liquidHexBalances.pulsechain !== null && liquidHexBalances.pulsechain > 0 && (
+                        <div className="flex items-center justify-between py-2 px-3 bg-purple-500/10 rounded-lg">
+                          <span className="text-purple-300 text-sm">pHEX</span>
+                          <span className="text-white font-semibold">
+                            {isLoadingBalances ? (
+                              <div className="animate-pulse bg-white/20 h-4 w-16 rounded"></div>
+                            ) : (
+                              liquidHexBalanceService.formatHexAmount(liquidHexBalances.pulsechain)
+                            )}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {(!liquidHexBalances.ethereum || liquidHexBalances.ethereum === 0) && 
+                       (!liquidHexBalances.pulsechain || liquidHexBalances.pulsechain === 0) && (
+                        <div className="flex items-center justify-between py-2 px-3 bg-slate-500/10 rounded-lg">
+                          <span className="text-slate-300 text-sm">No liquid HEX</span>
+                          <span className="text-white/60 text-sm">0</span>
+                        </div>
+                      )}
+                    </div>
 
-                <div className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border border-purple-500/20 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm text-white">Ended</span>
-                  </div>
-                  <div className="text-2xl font-bold text-white">
-                    {(historyData.endedStakes || 0).toLocaleString()}
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-indigo-500/10 to-blue-500/10 border border-indigo-500/20 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm text-white">Avg Length</span>
-                  </div>
-                  <div className="text-xl font-bold text-white">
-                    {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatStakeLength(Math.round(historyData.averageStakeLength || 0))}
+                    {/* Performance Metrics */}
+                    {(historyData.endedStakes || 0) > 0 && (
+                      <div className="space-y-3 pt-2">
+                        <h4 className="text-white/90 font-medium text-sm uppercase tracking-wider">Performance</h4>
+                        
+                        <div className="flex items-center justify-between py-2 px-3 bg-green-500/10 rounded-lg">
+                          <span className="text-green-300 text-sm">Total Payouts</span>
+                          <span className="text-white font-semibold">
+                            {Math.round(parseFloat(historyData.totalPayouts || '0') / Math.pow(10, 8)).toLocaleString()} HEX
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between py-2 px-3 bg-red-500/10 rounded-lg">
+                          <span className="text-red-300 text-sm">Total Penalties</span>
+                          <span className="text-white font-semibold">
+                            {Math.round(parseFloat(historyData.totalPenalties || '0') / Math.pow(10, 8)).toLocaleString()} HEX
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg">
+                          <span className="text-blue-300 text-sm">Avg APY</span>
+                          <span className="text-white font-semibold">
+                            {(() => {
+                              if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0.0%';
+                              
+                              const endedStakes = historyData.stakes.filter(s => s && !s.isActive);
+                              const service = activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
+                              const apyValues = endedStakes.map(stake => {
+                                if (!stake) return 0;
+                                const endData = getStakeEndData(stake.stakeId);
+                                if (endData && parseFloat(endData.payout || '0') > 0) {
+                                  return service.calculateStakeAPY(stake as any, endData as any);
+                                }
+                                return 0;
+                              }).filter(apy => apy > 0);
+                              
+                              const avgAPY = apyValues.length > 0 
+                                ? apyValues.reduce((sum, apy) => sum + apy, 0) / apyValues.length 
+                                : 0;
+                              
+                              return `${avgAPY.toFixed(1)}%`;
+                            })()}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Performance Metrics */}
-              {(historyData.endedStakes || 0) > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm text-white">
-                      Total Payouts
-                    </span>
-                    </div>
-                    <div className="text-xl font-bold text-white">
-                      {Math.round(parseFloat(historyData.totalPayouts || '0') / Math.pow(10, 8)).toLocaleString()} HEX
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm text-white">
-                      Total Penalties
-                    </span>
-                    </div>
-                    <div className="text-xl font-bold text-white">
-                      {Math.round(parseFloat(historyData.totalPenalties || '0') / Math.pow(10, 8)).toLocaleString()} HEX
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm text-white">Avg APY</span>
-                    </div>
-                    <div className="text-xl font-bold text-white">
-                      {(() => {
-                        if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0.0%';
-                        
-                        const endedStakes = historyData.stakes.filter(s => s && !s.isActive);
-                        const service = network === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
-                        const apyValues = endedStakes.map(stake => {
-                          if (!stake) return 0;
-                          const endData = getStakeEndData(stake.stakeId);
-                          if (endData && parseFloat(endData.payout || '0') > 0) {
-                            return service.calculateStakeAPY(stake as any, endData as any);
-                          }
-                          return 0;
-                        }).filter(apy => apy > 0);
-                        
-                        const avgAPY = apyValues.length > 0 
-                          ? apyValues.reduce((sum, apy) => sum + apy, 0) / apyValues.length 
-                          : 0;
-                        
-                        return `${avgAPY.toFixed(1)}%`;
-                      })()}
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Earnings Projections for Active Stakes */}
               {(historyData.activeStakes || 0) > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm text-white">Active Stakes Earnings</span>
+                <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-white mb-4">Active Stakes Earnings</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex items-center justify-between py-3 px-4 bg-green-500/10 rounded-lg">
+                      <span className="text-green-300 text-sm font-medium">Earned So Far</span>
+                      <span className="text-white font-bold">
+                        {(() => {
+                          if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
+                          
+                          const activeStakes = historyData.stakes.filter(s => s && s.isActive);
+                          const totalEarned = activeStakes.reduce((sum, stake) => {
+                            return sum + calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays);
+                          }, 0);
+                          
+                          const service = activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
+                          return service.formatHexAmount((totalEarned * 100000000).toString()) + ' HEX';
+                        })()}
+                      </span>
                     </div>
-                    <div className="text-xl font-bold text-white">
-                      {(() => {
-                        if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
-                        
-                        const activeStakes = historyData.stakes.filter(s => s && s.isActive);
-                        const totalEarned = activeStakes.reduce((sum, stake) => {
-                          return sum + calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays);
-                        }, 0);
-                        
-                        const service = network === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
-                        return service.formatHexAmount((totalEarned * 100000000).toString()) + ' HEX';
-                      })()}
-                    </div>
-                  </div>
 
-                  <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm text-white">Expected Total</span>
+                    <div className="flex items-center justify-between py-3 px-4 bg-blue-500/10 rounded-lg">
+                      <span className="text-blue-300 text-sm font-medium">Expected Total</span>
+                      <span className="text-white font-bold">
+                        {(() => {
+                          if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
+                          
+                          const activeStakes = historyData.stakes.filter(s => s && s.isActive);
+                          const totalExpected = activeStakes.reduce((sum, stake) => {
+                            return sum + calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays);
+                          }, 0);
+                          
+                          const service = activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
+                          return service.formatHexAmount((totalExpected * 100000000).toString()) + ' HEX';
+                        })()}
+                      </span>
                     </div>
-                    <div className="text-xl font-bold text-white">
-                      {(() => {
-                        if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
-                        
-                        const activeStakes = historyData.stakes.filter(s => s && s.isActive);
-                        const totalExpected = activeStakes.reduce((sum, stake) => {
-                          return sum + calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays);
-                        }, 0);
-                        
-                        const service = network === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
-                        return service.formatHexAmount((totalExpected * 100000000).toString()) + ' HEX';
-                      })()}
-                    </div>
-                  </div>
 
-                  <div className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border border-purple-500/20 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm text-white">Remaining to Earn</span>
-                    </div>
-                    <div className="text-xl font-bold text-white">
-                      {(() => {
-                        if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
-                        
-                        const activeStakes = historyData.stakes.filter(s => s && s.isActive);
-                        const totalEarned = activeStakes.reduce((sum, stake) => {
-                          return sum + calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays);
-                        }, 0);
-                        const totalExpected = activeStakes.reduce((sum, stake) => {
-                          return sum + calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays);
-                        }, 0);
-                        
-                        const service = network === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
-                        return service.formatHexAmount(((totalExpected - totalEarned) * 100000000).toString()) + ' HEX';
-                      })()}
+                    <div className="flex items-center justify-between py-3 px-4 bg-purple-500/10 rounded-lg">
+                      <span className="text-purple-300 text-sm font-medium">Remaining to Earn</span>
+                      <span className="text-white font-bold">
+                        {(() => {
+                          if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
+                          
+                          const activeStakes = historyData.stakes.filter(s => s && s.isActive);
+                          const totalEarned = activeStakes.reduce((sum, stake) => {
+                            return sum + calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays);
+                          }, 0);
+                          const totalExpected = activeStakes.reduce((sum, stake) => {
+                            return sum + calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays);
+                          }, 0);
+                          
+                          const service = activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
+                          return service.formatHexAmount(((totalExpected - totalEarned) * 100000000).toString()) + ' HEX';
+                        })()}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -475,7 +645,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                       <div className="bg-white/5 rounded-lg p-4">
                         <div className="text-sm text-white/70 mb-2">Transaction History</div>
                         <div className="text-white/80 text-sm">
-                          Showing staking transactions from {network === 'ethereum' ? 'Ethereum' : 'PulseChain'} HEX subgraph
+                          Showing staking transactions from {activeNetwork === 'ethereum' ? 'Ethereum' : 'PulseChain'} HEX subgraph
                         </div>
                       </div>
                     </div>
@@ -546,7 +716,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                                 </td>
                                 <td className="px-4 py-4 whitespace-nowrap text-sm">
                                   <div className="font-semibold text-white">
-                                    {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatHexAmount(tx.value)} HEX
+                                    {(activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatHexAmount(tx.value)} HEX
                                   </div>
                                   {currentPrice > 0 && (
                                     <div className="text-xs text-white/70">
@@ -582,12 +752,178 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                       </div>
                     </div>
                   )}
+
+                  {/* HEX Swaps Section */}
+                  <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl overflow-hidden">
+                    <div className="px-6 py-4 border-b border-white/10">
+                      <h3 className="text-lg font-semibold text-white">
+                        🔄 HEX Swaps ({hexSwaps?.total || 0})
+                      </h3>
+                                              <p className="text-sm text-white/70 mt-1">
+                          HEX trading activity on {hexSwapService.getNetworkName(activeNetwork)}
+                        </p>
+                    </div>
+
+                    {/* Loading State for HEX Swaps */}
+                    {isLoadingHexSwaps && (
+                      <div className="text-center py-12">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+                        <h3 className="text-xl font-semibold text-white mb-2">Loading HEX Swaps...</h3>
+                        <p className="text-white">Fetching swap transactions from Moralis API</p>
+                      </div>
+                    )}
+
+                    {/* Error State for HEX Swaps */}
+                    {hexSwapsError && (
+                      <div className="text-center py-12">
+                        <div className="bg-red-900/20 border border-red-500/50 text-red-700 px-6 py-4 rounded-xl mb-4">
+                          <h3 className="font-bold text-lg mb-2">Error Loading HEX Swaps</h3>
+                          <p className="mb-4">{hexSwapsError}</p>
+                          <button
+                            onClick={() => fetchHexSwaps()}
+                            className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg"
+                          >
+                            Try Again
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* HEX Swaps Table */}
+                    {hexSwaps && !isLoadingHexSwaps && !hexSwapsError && (
+                      <div className="overflow-auto max-h-[60vh]">
+                        {hexSwaps.result.length > 0 ? (
+                          <table className="min-w-full divide-y divide-white/10">
+                            <thead className="bg-slate-900 text-white sticky top-0">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Type</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Token</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Direction</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Amount</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Value (USD)</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Gas Fee</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Date</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Transaction</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-transparent divide-y divide-white/10">
+                              {hexSwaps.result.map((swap) => (
+                                <tr key={swap.transaction_hash} className="hover:bg-white/5">
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                    <div className={`flex items-center gap-2 ${
+                                      swap.swap_type === 'HEX_IN' ? 'text-green-400' : 
+                                      swap.swap_type === 'HEX_OUT' ? 'text-red-400' : 'text-blue-400'
+                                    }`}>
+                                      <span className="text-lg">
+                                        {swap.swap_type === 'HEX_IN' ? '📥' : 
+                                         swap.swap_type === 'HEX_OUT' ? '📤' : '🔄'}
+                                      </span>
+                                      <span className="font-medium capitalize">
+                                        {swap.swap_type === 'HEX_IN' ? 'HEX In' : 
+                                         swap.swap_type === 'HEX_OUT' ? 'HEX Out' : 'Other'}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                    <div className="flex items-center gap-2">
+                                      {swap.token_logo && (
+                                        <img 
+                                          src={swap.token_logo} 
+                                          alt={swap.token_symbol}
+                                          className="w-6 h-6 rounded-full"
+                                          onError={(e) => e.currentTarget.style.display = 'none'}
+                                        />
+                                      )}
+                                      <div>
+                                        <div className="font-medium text-white">{swap.token_symbol}</div>
+                                        <div className="text-xs text-white/70">{swap.token_name}</div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      swap.direction === 'IN' 
+                                        ? 'bg-green-500/20 text-green-400' 
+                                        : 'bg-red-500/20 text-red-400'
+                                    }`}>
+                                      {swap.direction === 'IN' ? 'Received' : 'Sent'}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                    <div className="font-semibold text-white">
+                                      {swap.amount_formatted} {swap.token_symbol}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                    <div className="text-white">
+                                      {hexSwapService.formatUSD(swap.value_usd || '0')}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                    <div className="text-white">
+                                      {hexSwapService.formatUSD(swap.gas_fee_usd || '0')}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-white">
+                                    {new Date(swap.block_timestamp).toLocaleDateString()}
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                    <a
+                                      href={hexSwapService.getExplorerUrl(swap.transaction_hash, activeNetwork)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-purple-400 hover:text-purple-300 flex items-center gap-1 underline"
+                                      title={`View transaction: ${swap.transaction_hash}`}
+                                    >
+                                      <span>{swap.transaction_hash.slice(0, 10)}...</span>
+                                      <span>↗</span>
+                                    </a>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <div className="text-center py-8 text-white">
+                            No HEX swaps found for this address
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* HEX Swaps Pagination */}
+                    {hexSwaps && hexSwaps.total > 50 && (
+                      <div className="px-6 py-4 border-t border-white/10">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-white/70">
+                            Showing page {hexSwaps.page} of {Math.ceil(hexSwaps.total / 50)}
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleHexSwapsPageChange(hexSwaps.page - 1)}
+                              disabled={hexSwaps.page <= 1}
+                              className="px-3 py-1 bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
+                            >
+                              Previous
+                            </button>
+                            <button
+                              onClick={() => handleHexSwapsPageChange(hexSwaps.page + 1)}
+                              disabled={hexSwaps.page >= Math.ceil(hexSwaps.total / 50)}
+                              className="px-3 py-1 bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
+                            >
+                              Next
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 /* Stakes Table */
-                <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl overflow-hidden">
-                  <div className="overflow-auto max-h-[60vh]">
-                    <table className="min-w-full divide-y divide-white/10">
+              <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl overflow-hidden">
+                <div className="overflow-auto max-h-[60vh]">
+                  <table className="min-w-full divide-y divide-white/10">
                     <thead className="bg-slate-900 text-white sticky top-0">
                       <tr>
                         <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Status</th>
@@ -658,13 +994,13 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                               {stake.stakeId}
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-white font-semibold">
-                              {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatHexAmount(stake.stakedHearts)}
+                                                                {(activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatHexAmount(stake.stakedHearts)}
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
-                              {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatTShareAmount(stake.stakeTShares || stake.stakeShares)}
+                                                                {(activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatTShareAmount(stake.stakeTShares || stake.stakeShares)}
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
-                              {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatStakeLengthInDays(parseInt(stake.stakedDays))}
+                                                                {(activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService).formatStakeLengthInDays(parseInt(stake.stakedDays))}
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                               <div className="space-y-1">
@@ -672,7 +1008,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                                   {stake.daysServed?.toLocaleString() || 'N/A'} days
                                 </div>
                                 {endData && !stake.isActive && (() => {
-                                  const service = network === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
+                                  const service = activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
                                   const daysLate = service.calculateLateEndingDays(stake as any, endData as any);
                                   if (daysLate > 0) {
                                     return (
@@ -704,11 +1040,11 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                               <div className="flex items-center gap-1">
                                 <span className={`text-xs px-2 py-1 rounded ${
-                                  network === 'ethereum' 
+                                  activeNetwork === 'ethereum' 
                                     ? 'bg-blue-500/20 text-blue-700' 
                                     : 'bg-purple-500/20 text-purple-400'
                                 }`}>
-                                  {network === 'ethereum' ? 'Ethereum' : 'PulseChain'}
+                                  {activeNetwork === 'ethereum' ? 'Ethereum' : 'PulseChain'}
                                 </span>
                               </div>
                             </td>
@@ -718,7 +1054,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                                 <div className="flex items-center gap-1">
                                   <span className="text-xs text-white">Start:</span>
                                   <a
-                                    href={(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).getTransactionUrl(stake.transactionHash)}
+                                    href={(activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService).getTransactionUrl(stake.transactionHash)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-xs text-green-700 hover:text-green-500 flex items-center gap-1 underline"
@@ -734,7 +1070,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                                   <div className="flex items-center gap-1">
                                     <span className="text-xs text-white">End:</span>
                                     <a
-                                      href={(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).getTransactionUrl(endData.transactionHash)}
+                                      href={(activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService).getTransactionUrl(endData.transactionHash)}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="text-xs text-red-700 hover:text-red-500 flex items-center gap-1 underline"
@@ -766,7 +1102,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                                   )}
                                   {parseFloat(endData.payout || '0') > 0 && (
                                     <div className="text-xs text-white">
-                                      APY: {(network === 'ethereum' ? hexStakingService : pulsechainHexStakingService).calculateStakeAPY(stake as any, endData as any).toFixed(1)}%
+                                      APY: {(activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService).calculateStakeAPY(stake as any, endData as any).toFixed(1)}%
                                     </div>
                                   )}
                                 </div>
