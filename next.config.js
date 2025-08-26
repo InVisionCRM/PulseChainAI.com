@@ -34,6 +34,7 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['@tabler/icons-react', 'motion', 'lucide-react', '@radix-ui/react-icons', 'recharts'],
   },
+  serverExternalPackages: ['@neondatabase/serverless'],
   
   // Webpack optimizations
   webpack: (config, { dev, isServer }) => {

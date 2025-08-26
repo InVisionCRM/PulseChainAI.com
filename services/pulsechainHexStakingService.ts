@@ -41,8 +41,8 @@ export class PulseChainHexStakingService {
     globalInfo: null
   };
 
-  // Cache expiration time (5 minutes)
-  private readonly CACHE_EXPIRY = 5 * 60 * 1000;
+  // Cache expiration time (24 hours)
+  private readonly CACHE_EXPIRY = 24 * 60 * 60 * 1000;
 
   // Database availability flag
   private isDatabaseAvailable = false;
@@ -74,7 +74,30 @@ export class PulseChainHexStakingService {
     };
 
     try {
-      // Use the GraphQL proxy API to avoid CORS issues
+      // For server-side execution, use GraphQL directly
+      if (typeof window === 'undefined') {
+        const response = await fetch(this.baseUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'PulseChain-AI-Dashboard/1.0'
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        if (data.errors) {
+          throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+        }
+        
+        return data.data;
+      }
+      
+      // For client-side execution, use the proxy API to avoid CORS issues
       const response = await fetch('/api/pulsechain-graphql-proxy', {
         method: 'POST',
         headers: {
@@ -532,61 +555,81 @@ export class PulseChainHexStakingService {
   }
 
   async getTopStakes(limit: number = 100): Promise<PulseChainHexStake[]> {
-    const query = `
-      query GetTopStakes($limit: Int!) {
-        stakeStarts(
-          first: $limit,
-          orderBy: stakedHearts,
-          orderDirection: desc
-        ) {
-          id
-          stakeId
-          stakerAddr
-          stakedHearts
-          stakeShares
-          stakedDays
-          startDay
-          endDay
-          timestamp
-          isAutoStake
-          stakeTShares
-          transactionHash
-          blockNumber
+    console.log('🔍 Fetching PulseChain top active stakes...');
+    
+    try {
+      // Get all active stakes first
+      const allActiveStakes = await this.getAllActiveStakes();
+      
+      // Sort by staked amount and take top N
+      const topActiveStakes = allActiveStakes
+        .sort((a, b) => parseFloat(b.stakedHearts) - parseFloat(a.stakedHearts))
+        .slice(0, limit);
+      
+      console.log(`✅ Found ${topActiveStakes.length} top active stakes out of ${allActiveStakes.length} total active stakes`);
+      
+      return topActiveStakes;
+    } catch (error) {
+      console.error('❌ Error fetching top active stakes:', error);
+      
+      // Fallback to the old method if getAllActiveStakes fails
+      console.log('⚠️ Falling back to basic top stakes query...');
+      const query = `
+        query GetTopStakes($limit: Int!) {
+          stakeStarts(
+            first: $limit,
+            orderBy: stakedHearts,
+            orderDirection: desc
+          ) {
+            id
+            stakeId
+            stakerAddr
+            stakedHearts
+            stakeShares
+            stakedDays
+            startDay
+            endDay
+            timestamp
+            isAutoStake
+            stakeTShares
+            transactionHash
+            blockNumber
+          }
+          globalInfos(first: 1, orderBy: timestamp, orderDirection: desc) {
+            hexDay
+          }
         }
-        globalInfos(first: 1, orderBy: timestamp, orderDirection: desc) {
-          hexDay
-        }
-      }
-    `;
+      `;
 
-    const data = await this.executeQuery<{
-      stakeStarts: Array<{
-        id: string;
-        stakeId: string;
-        stakerAddr: string;
-        stakedHearts: string;
-        stakeShares: string;
-        stakedDays: string;
-        startDay: string;
-        endDay: string;
-        timestamp: string;
-        isAutoStake: boolean;
-        stakeTShares: string;
-        transactionHash: string;
-        blockNumber: string;
-      }>;
-      globalInfos: Array<{ hexDay: string }>;
-    }>(query, { limit });
+      const data = await this.executeQuery<{
+        stakeStarts: Array<{
+          id: string;
+          stakeId: string;
+          stakerAddr: string;
+          stakedHearts: string;
+          stakeShares: string;
+          stakedDays: string;
+          startDay: string;
+          endDay: string;
+          timestamp: string;
+          isAutoStake: boolean;
+          stakeTShares: string;
+          transactionHash: string;
+          blockNumber: string;
+        }>;
+        globalInfos: Array<{ hexDay: string }>;
+      }>(query, { limit });
 
-    const currentDay = data.globalInfos[0] ? parseInt(data.globalInfos[0].hexDay) : 0;
+      const currentDay = data.globalInfos[0] ? parseInt(data.globalInfos[0].hexDay) : 0;
 
-    return data.stakeStarts.map(stake => ({
-      ...stake,
-      network: 'pulsechain' as const,
-      isActive: true, // Assume active for simplicity
-      daysServed: Math.max(0, currentDay - parseInt(stake.startDay)),
-      daysLeft: Math.max(0, parseInt(stake.endDay) - currentDay),
-    }));
+      return data.stakeStarts.map(stake => ({
+        ...stake,
+        network: 'pulsechain' as const,
+        isActive: true, // Assume active for simplicity
+        daysServed: Math.max(0, currentDay - parseInt(stake.startDay)),
+        daysLeft: Math.max(0, parseInt(stake.endDay) - currentDay),
+      }));
+    }
   }
 
   getChainInfo(): { name: string; explorers: string[] } {
@@ -670,8 +713,8 @@ export class PulseChainHexStakingService {
     console.log('🔍 Fetching PulseChain HEX staking metrics...');
     
     try {
-      // TEMPORARILY SKIP database first for metrics (sync issues - using GraphQL for fresh data)  
-      if (false && this.isDatabaseAvailable) {
+      // Try database first for metrics (fast and complete data)
+      if (this.isDatabaseAvailable) {
         try {
           console.log('🗄️ Fetching metrics from database...');
           const [overview, globalInfo, topStakes] = await Promise.all([
@@ -923,7 +966,7 @@ export class PulseChainHexStakingService {
 
   async getAllActiveStakes(forceRefresh = false): Promise<any[]> {
     // Try database first if available
-    if (false && this.isDatabaseAvailable && !forceRefresh) {
+    if (this.isDatabaseAvailable && !forceRefresh) {
       try {
         console.log('🗄️ Fetching active stakes from database...');
         const globalInfo = await pulsechainStakingDb.getLatestGlobalInfo();

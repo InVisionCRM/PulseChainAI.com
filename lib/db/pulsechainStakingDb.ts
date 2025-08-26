@@ -384,26 +384,20 @@ export class PulsechainStakingDb {
 
   async updateSyncStatus(updates: Partial<Omit<DbSyncStatus, 'id' | 'created_at' | 'updated_at'>>): Promise<void> {
     try {
-      const setClauses: string[] = [];
-      const params: any[] = [];
-      let paramIndex = 1;
+      // Build dynamic update query using template literals
+      const entries = Object.entries(updates).filter(([_, value]) => value !== undefined);
+      if (entries.length === 0) return;
 
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value !== undefined) {
-          setClauses.push(`${key} = $${paramIndex++}`);
-          params.push(value);
-        }
-      });
+      // Create the SET clause dynamically
+      const setClause = entries.map(([key, value]) => {
+        return `${key} = ${typeof value === 'string' ? `'${value}'` : value}`;
+      }).join(', ');
 
-      if (setClauses.length === 0) return;
-
-      const query = `
+      await sql.unsafe(`
         UPDATE pulsechain_sync_status 
-        SET ${setClauses.join(', ')}, updated_at = CURRENT_TIMESTAMP
+        SET ${setClause}, updated_at = CURRENT_TIMESTAMP
         WHERE id = (SELECT id FROM pulsechain_sync_status ORDER BY id DESC LIMIT 1)
-      `;
-
-      await sql(query, ...params);
+      `);
     } catch (error) {
       console.error('Error updating sync status:', error);
       throw error;

@@ -4,7 +4,6 @@ import { hexStakingService } from '@/services/hexStakingService';
 import { multiNetworkHexStakingService } from '@/services/multiNetworkHexStakingService';
 import StakeDetailModal from './StakeDetailModal';
 import StakerHistoryModal from './StakerHistoryModal';
-import { CometCard } from '@/components/ui/comet-card';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import type { HexStake } from '@/services/hexStakingService';
 import type { MultiNetworkHexStake } from '@/services/multiNetworkHexStakingService';
@@ -91,42 +90,42 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
   const displayStakes = stakes;
 
   const getProgressColor = (progress: number) => {
-    if (progress < 25) return 'from-red-500 to-orange-500';
-    if (progress < 50) return 'from-orange-500 to-yellow-500';
-    if (progress < 75) return 'from-yellow-500 to-blue-500';
-    return 'from-blue-500 to-green-500';
+    if (progress < 25) return 'from-red-500 to-orange-700';
+    if (progress < 50) return 'from-orange-500 to-yellow-700';
+    if (progress < 75) return 'from-yellow-500 to-blue-700';
+    return 'from-blue-700 to-green-700';
   };
 
   const getRankIcon = (index: number) => {
     if (index === 0) return <Crown className="w-5 h-5 text-yellow-400" />;
-    if (index === 1) return <Crown className="w-5 h-5 text-gray-300" />;
+    if (index === 1) return <Crown className="w-5 h-5 text-gray-400" />;
     if (index === 2) return <Crown className="w-5 h-5 text-amber-600" />;
-    return <span className="text-sm font-bold text-slate-400">#{index + 1}</span>;
+    return <span className="text-sm font-bold text-white">#{index + 1}</span>;
   };
 
   const getStakeStatusColor = (daysLeft: number) => {
-    if (daysLeft < 30) return 'text-red-400';
+    if (daysLeft < 30) return 'text-red-500';
     if (daysLeft < 365) return 'text-yellow-400';
-    return 'text-green-400';
+    return 'text-green-700';
   };
 
   return (
-    <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl shadow-lg overflow-hidden">
-      <div className="px-6 py-4 border-b border-white/10 relative overflow-hidden bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-purple-600/20">
+    <div className="bg-gradient-to-b from-slate-900 to-slate-900 via-black bg-opacity-50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg overflow-hidden">
+      <div className="px-6 py-4 border-b border-white/10 relative overflow-hidden bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 via-pink-500 to-blue-500">
         {/* Simplified background with CSS gradient instead of heavy image */}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-purple-500/10 via-blue-500/5 to-purple-500/10"></div>
+        <div className="absolute inset-0 -z-10 bg-black/10"></div>
         
         <div className="relative z-10">
-          <div className="text-center">
+          <div className="text-left">
             <h4 className="text-xl font-bold text-white">Top 50 Active HEX Stakes</h4>
-            <p className="text-sm text-white/80">Largest currently active stakes by amount • Excludes ended & expired stakes</p>
+            <p className="text-sm text-white">Largest current active stakes</p>
           </div>
         </div>
       </div>
       
       <div className="p-6 max-h-[80vh] overflow-y-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {displayStakes.map((stake, index) => {
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {displayStakes.slice(0, 8).map((stake, index) => {
             const progress = stake.daysServed && stake.stakedDays 
               ? (stake.daysServed / parseInt(stake.stakedDays)) * 100 
               : 0;
@@ -135,14 +134,12 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
               <div
                 key={stake.id}
                 onClick={() => handleStakeClick(stake)}
-                className="cursor-pointer"
+                className="cursor-pointer group"
               >
-                <CometCard
-                  className="relative group bg-gradient-to-br from-white/5 to-white/10 backdrop-blur border border-white/10 rounded-xl transition-all duration-300"
-                >
-                  <div className="p-6">
+                <div className="relative bg-gradient-to-br from-orange-500 to-purple-500/30 via-red-500/80 to-pink-500/80 bg-opacity-50 backdrop-blur border border-black rounded-xl transition-all duration-300 hover:bg-black/80 hover:border-lime-400/80 hover:scale-105">
+                  <div className="p-4">
                     {/* Rank Badge */}
-                    <div className="absolute -top-2 -left-2 flex items-center justify-center w-8 h-8 bg-slate-800 border border-white/20 rounded-full">
+                    <div className="absolute -top-2 -left-2 flex items-center justify-center w-8 h-8 bg-slate-800 border border-lime-400 rounded-full">
                       {getRankIcon(index)}
                     </div>
 
@@ -151,202 +148,179 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                       <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/5 to-purple-400/5 rounded-xl -z-10" />
                     )}
 
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="text-lg font-bold text-blue-700">
-                            Stake #{stake.stakeId}
-                          </div>
-                          {stake.network && (
-                            <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${
-                              stake.network === 'ethereum' 
-                                ? 'bg-blue-500/20 text-blue-600 border border-blue-500/30' 
-                                : 'bg-purple-500/20 text-purple-600 border border-purple-500/30'
-                            }`}>
-                              <Globe className="w-3 h-3" />
-                              {stake.network === 'ethereum' ? 'ETH' : 'PLS'}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent triggering the stake detail modal
-                              handleStakerClick(stake.stakerAddr, stake.network || 'ethereum');
-                            }}
-                            className="text-xs text-slate-600 font-mono hover:text-blue-600 transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
-                            title={`${stake.stakerAddr} - Click to view staking history`}
-                          >
-                            {stake.stakerAddr.slice(0, 4)}...{stake.stakerAddr.slice(-4)}
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(stake.stakerAddr);
-                            }}
-                            className="text-slate-500 hover:text-blue-600 transition-colors cursor-pointer"
-                            title="Copy address to clipboard"
-                          >
-                            <Copy className="w-3 h-3" />
-                          </button>
-                        </div>
+                    {/* Header - Staker Address */}
+                    <div className="mb-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent triggering the stake detail modal
+                            handleStakerClick(stake.stakerAddr, stake.network || 'ethereum');
+                          }}
+                          className="text-sm text-white font-mono hover:text-blue-400 transition-colors cursor-pointed"
+                          title={`${stake.stakerAddr} - Click to view staking history`}
+                        >
+                          {stake.stakerAddr.slice(0, 4)}...{stake.stakerAddr.slice(-4)}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyToClipboard(stake.stakerAddr);
+                          }}
+                          className="text-white/60 hover:text-blue-400 transition-colors cursor-pointer"
+                          title="Copy address to clipboard"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-black">
-                          {multiNetworkHexStakingService.formatHexAmount(stake.stakedHearts)}
+                      
+                      {/* Network Badge */}
+                      {stake.network && (
+                        <div className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${
+                          stake.network === 'ethereum' 
+                            ? 'bg-blue-500/20 bg-opacity-50 text-blue-700 border border-blue-500/30' 
+                            : 'bg-purple-500/20 bg-opacity-50 text-purple-700 border border-purple-500/30'
+                        }`}>
+                          <Globe className="w-3 h-3" />
+                          {stake.network === 'ethereum' ? 'ETH' : 'PLS'}
                         </div>
-                        <div className="text-md text-slate-600">HEX</div>
-                        {hexPrice > 0 && (
-                          <div className="text-sm font-semibold text-emerald-600">
-                            {formatUSD(calculateStakeUSD(stake.stakedHearts))}
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
 
                     {/* Progress Section */}
                     <div className="space-y-3">
                       {/* Progress Bar */}
                       <div>
-                        <div className="flex justify-between text-xs text-slate-600 mb-1">
+                        <div className="flex justify-between text-sm text-white mb-1">
                           <span>Progress</span>
                           <span>{progress.toFixed(1)}%</span>
                         </div>
-                        <div className="relative w-full bg-slate-500/10 rounded-full h-2 overflow-hidden">
+                        <div className="relative w-full bg-white/50 border border-slate-700 border-1 rounded-full h-4 overflow-hidden">
                           <div 
                             className={`h-full bg-gradient-to-r ${getProgressColor(progress)} transition-all duration-1000 ease-out rounded-full relative`}
                             style={{ 
                               width: `${Math.min(100, Math.max(0, progress))}%`,
                             }}
                           >
-                            <div className="absolute inset-0 bg-white/20 animate-pulse rounded-full" />
-                          </div>
-                        </div>
-                        <div className="flex justify-between text-xs text-slate-600 mt-1">
-                          <span>Start: Day {stake.startDay}</span>
-                          <span>End: Day {stake.endDay}</span>
-                        </div>
-                      </div>
-
-                      {/* Stats Grid */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="flex items-center gap-2 bg-white/5 rounded-lg p-2">
-                          <div>
-                            <div className="text-md text-slate-600">Days Served</div>
-                            <div className="text-md font-semibold text-blue-700">
-                              {stake.daysServed?.toLocaleString() || 'N/A'}
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 bg-white/5 rounded-lg p-2">
-                          <div>
-                            <div className="text-md text-slate-600">Days Left</div>
-                            <div className="text-md font-semibold text-red-700">
-                              {stake.daysLeft?.toLocaleString() || 'N/A'}
-                            </div>
+                            <div className="absolute inset-0 bg-lime-400 rounded-full" />
                           </div>
                         </div>
                       </div>
 
-                      {/* Bottom Stats */}
-                      <div className="flex justify-between items-center pt-2 border-t border-white/10">
-                        <div className="flex items-center gap-2">
-                          <div>
-                            <div className="text-md text-slate-600">T-Shares</div>
-                            <div className="text-md font-semibold text-purple-700">
-                              {hexStakingService.formatTShareAmount(stake.stakeTShares || stake.stakeShares)}
-                            </div>
-                          </div>
+                      {/* HEX Amount */}
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-white">
+                          {multiNetworkHexStakingService.formatHexAmount(stake.stakedHearts)}
                         </div>
-                        
-                        <div className="text-right">
-                          <div className="text-md font-semibold text-slate-600">Length</div>
-                          <div className="text-md font-semibold text-orange-700">
-                            {hexStakingService.formatStakeLength(parseInt(stake.stakedDays))}
+                        <div className="text-sm text-white font-bold">HEX</div>
+                        {hexPrice > 0 && (
+                          <div className="text-xs font-semibold text-white">
+                            {formatUSD(calculateStakeUSD(stake.stakedHearts))}
                           </div>
-                        </div>
+                        )}
                       </div>
 
-                      {/* Earnings Section */}
-                      {hexPrice > 0 && (
-                        <div className="mt-3 pt-3 border-t border-white/10">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="text-center">
-                              <div className="text-xs text-slate-600 mb-1">Earned So Far</div>
-                              <div className="text-sm font-semibold text-green-600 flex items-center justify-center gap-1">
-                                <OptimizedImage src="/HEXagon (1).svg" alt="HEX" width={16} height={16} className="w-4 h-4" />
-                                {multiNetworkHexStakingService.formatHexAmount(
-                                  (calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays) * 100000000).toString()
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-xs text-slate-600 mb-1">Expected Total</div>
-                              <div className="text-sm font-semibold text-blue-600 flex items-center justify-center gap-1">
-                                <OptimizedImage src="/HEXagon (1).svg" alt="HEX" width={16} height={16} className="w-4 h-4" />
-                                {multiNetworkHexStakingService.formatHexAmount(
-                                  (calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays) * 100000000).toString()
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        
-                          {/* Current APY */}
-                          <div className="mt-3 pt-3 border-t border-white/10">
-                            <div className="text-center">
-                              <div className="text-xs text-slate-600 mb-1">Current APY</div>
-                              <div className="text-sm font-semibold text-purple-600">
-                                {(() => {
-                                  if (!stake.daysServed || !stake.stakedDays) return 'N/A';
-                                  const daysServed = stake.daysServed;
-                                  const totalDays = parseInt(stake.stakedDays);
-                                  const progressRatio = daysServed / totalDays;
-                                  const baseYield = 0.05; // 5% base yield
-                                  const dayMultiplier = Math.min(totalDays / 365, 2);
-                                  const annualizedYield = baseYield * dayMultiplier;
-                                  const currentAPY = annualizedYield * progressRatio;
-                                  return `${(currentAPY * 100).toFixed(2)}%`;
-                                })()}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      {/* Stake Info */}
+                      <div className="text-center text-xs text-white/70">
+                        <div>Stake #{stake.stakeId}</div>
+                        <div>{hexStakingService.formatStakeLength(parseInt(stake.stakedDays))}</div>
+                      </div>
                     </div>
                   </div>
-                </CometCard>
+                </div>
               </div>
             );
           })}
         </div>
+        
+        {/* Show remaining stakes in a more compact format if there are more than 8 */}
+        {displayStakes.length > 8 && (
+          <div className="mt-6">
+            <div className="text-center mb-4">
+              <p className="text-white text-sm">Showing top 8 stakes • Click any stake for full details</p>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+              {displayStakes.slice(8).map((stake, index) => {
+                const progress = stake.daysServed && stake.stakedDays 
+                  ? (stake.daysServed / parseInt(stake.stakedDays)) * 100 
+                  : 0;
+                
+                return (
+                  <div
+                    key={stake.id}
+                    onClick={() => handleStakeClick(stake)}
+                    className="cursor-pointer group"
+                  >
+                    <div className="bg-gradient-to-r from-orange-500/60 via-red-500/60 to-purple-600/60 bg-opacity-50 backdrop-blur border border-white/30 border-1 rounded-lg p-3 transition-all duration-300 hover:bg-slate-700/50 hover:border-white/20">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center font-bold gap-5">
+                          <div className="text-lg font-bold text-white">#{index + 9}</div>
+                          <div className="text-sm text-white font-mono">
+                            {stake.stakerAddr.slice(0, 4)}...{stake.stakerAddr.slice(-4)}
+                          </div>
+                          {stake.network && (
+                            <div className={`text-xs px-2 py-1 rounded ${
+                              stake.network === 'ethereum' 
+                                ? 'bg-blue-500/20 bg-opacity-50 text-blue-700' 
+                                : 'bg-purple-500/20 bg-opacity-50 text-purple-700'
+                            }`}>
+                              {stake.network === 'ethereum' ? 'ETH' : 'PLS'}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-white">
+                            {multiNetworkHexStakingService.formatHexAmount(stake.stakedHearts)}
+                          </div>
+                          <div className="text-xs text-white">{progress.toFixed(1)}%</div>
+                        </div>
+                      </div>
+                      
+                      {/* Progress Bar for Compact Stakes */}
+                      <div className="w-full">
+                        <div className="relative w-full bg-white/20 border border-slate-600 rounded-full h-2 overflow-hidden">
+                          <div 
+                            className={`h-full bg-gradient-to-r ${getProgressColor(progress)} transition-all duration-1000 ease-out rounded-full relative`}
+                            style={{ 
+                              width: `${Math.min(100, Math.max(0, progress))}%`,
+                            }}
+                          >
+                            <div className="absolute inset-0 bg-lime-400 rounded-full" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Bottom Stats Summary */}
-      <div className="px-6 py-4 border-t border-white/10 bg-white/5">
+      <div className="px-6 py-4 border-t border-white bg-slate-800">
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <div className="text-lg font-bold text-green-700">
+            <div className="text-lg font-bold text-green-500">
               {hexStakingService.formatHexAmount(
                 stakes.reduce((sum, stake) => sum + parseFloat(stake.stakedHearts), 0).toString()
               )}
             </div>
-            <div className="text-xs text-slate-600">Total in Top 50</div>
+            <div className="text-xs text-white">Total in Top 50</div>
           </div>
           <div>
-            <div className="text-lg font-bold text-blue-700">
+            <div className="text-lg font-bold text-blue-500">
               {(stakes.reduce((sum, stake) => sum + (stake.daysServed || 0), 0) / stakes.length).toFixed(0)}
             </div>
-            <div className="text-xs text-slate-600">Avg Days Served</div>
+            <div className="text-xs text-white">Avg Days Served</div>
           </div>
           <div>
-            <div className="text-lg font-bold text-orange-700">
+            <div className="text-lg font-bold text-orange-400">
               {hexStakingService.formatStakeLength(
                 Math.round(stakes.reduce((sum, stake) => sum + parseInt(stake.stakedDays), 0) / stakes.length)
               )}
             </div>
-            <div className="text-xs text-slate-600">Avg Length</div>
+            <div className="text-xs text-white">Avg Length</div>
           </div>
         </div>
       </div>

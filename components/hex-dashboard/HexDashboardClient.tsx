@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Calendar, Download, Filter, Brain, Users, Lock, Globe, Search, X, BarChart3 } from 'lucide-react';
+import { RefreshCw, Calendar, Download, Filter, Brain, Users, Lock, Globe, Search, X } from 'lucide-react';
 import { dexscreenerApi } from '@/services/blockchain/dexscreenerApi';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import type { DexScreenerData } from '@/services/core/types';
@@ -99,9 +99,6 @@ const HEXDataDashboard = () => {
   const [selectedStakerAddress, setSelectedStakerAddress] = useState<string | null>(null);
   const [isEthereumStakerHistoryModalOpen, setIsEthereumStakerHistoryModalOpen] = useState<boolean>(false);
   const [isPulsechainStakerHistoryModalOpen, setIsPulsechainStakerHistoryModalOpen] = useState<boolean>(false);
-  
-  // Chart modal state
-  const [isChartModalOpen, setIsChartModalOpen] = useState<boolean>(false);
   
   // Wallet address search state
   const [searchAddress, setSearchAddress] = useState<string>('');
@@ -1129,7 +1126,7 @@ const HEXDataDashboard = () => {
                 >
                   <span className="hidden sm:inline">Ending Soon</span>
                   <span className="sm:hidden">Ending Soon</span>
-              </button>
+                </button>
             </nav>
             </div>
           </div>
@@ -1280,13 +1277,12 @@ const HEXDataDashboard = () => {
                   Live {activeTab === 'ethereum' ? 'Ethereum' : 'PulseChain'} HEX Stats
                 </h3>
               
-                  {/* Chart Button */}
+                  {/* Home Button */}
                   <button
-                    onClick={() => setIsChartModalOpen(true)}
-                    className="p-2 text-white border border-white/30 rounded-lg hover:border-white/50 hover:text-white/90 transition-colors"
-                    title={`View ${activeTab === 'ethereum' ? 'Ethereum' : 'PulseChain'} HEX Chart`}
+                    onClick={() => window.location.href = '/'}
+                    className="px-3 py-1.5 text-sm text-white border border-white/30 rounded-lg hover:border-white/50 hover:text-white/90 transition-colors"
                   >
-                    <BarChart3 className="w-5 h-5" />
+                    Home
                   </button>
                 </div>
             </div>
@@ -2236,7 +2232,7 @@ const HEXDataDashboard = () => {
                             : 'border-transparent text-slate-500 hover:text-green-600'
                       }`}
                     >
-                      Overview & Top Stakes
+                      Overview
                     </button>
                     <button
                       onClick={() => {
@@ -2251,7 +2247,7 @@ const HEXDataDashboard = () => {
                             : 'border-transparent text-slate-500 hover:text-green-600'
                       }`}
                     >
-                      All Stake Starts
+                      New
                     </button>
                     <button
                       onClick={() => {
@@ -2266,7 +2262,7 @@ const HEXDataDashboard = () => {
                             : 'border-transparent text-slate-500 hover:text-green-600'
                       }`}
                     >
-                      Active Stakes
+                      Active 
                     </button>
                     <button
                       onClick={() => setPulsechainStakingSubTab('ai-timing')}
@@ -2276,7 +2272,7 @@ const HEXDataDashboard = () => {
                             : 'border-transparent text-slate-500 hover:text-green-600'
                       }`}
                     >
-                      AI Timing
+                      AI
                     </button>
                   </nav>
                   </div>
@@ -3397,47 +3393,6 @@ const HEXDataDashboard = () => {
               <div className="text-center text-gray-600 mb-4">
                 Click on a network tab above to view detailed staking history
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Chart Modal */}
-      {isChartModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="relative w-full max-w-7xl max-h-[90vh] bg-white/10 backdrop-blur-2xl border border-white/30 rounded-3xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.8)] overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/20 bg-white/10">
-              <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                <BarChart3 className="w-6 h-6" />
-                {activeTab === 'ethereum' ? 'Ethereum' : 'PulseChain'} HEX Price Chart
-              </h2>
-              <button
-                onClick={() => setIsChartModalOpen(false)}
-                className="p-2 text-white hover:text-white/80 transition-colors"
-                title="Close Chart"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
-            {/* Chart Content */}
-            <div className="p-6 h-[calc(90vh-120px)]">
-              {activeTab === 'ethereum' ? (
-                <div 
-                  className="w-full h-full"
-                  dangerouslySetInnerHTML={{
-                    __html: `<style>#dexscreener-embed{position:relative;width:100%;padding-bottom:125%;}@media(min-width:1400px){#dexscreener-embed{padding-bottom:65%;}}#dexscreener-embed iframe{position:absolute;width:100%;height:100%;top:0;left:0;border:0;}</style><div id="dexscreener-embed"><iframe src="https://dexscreener.com/ethereum/0x55D5c232D921B9eAA6b37b5845E439aCD04b4DBa?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartDefaultOnMobile=1&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=15"></iframe></div>`
-                  }}
-                />
-              ) : (
-                <div 
-                  className="w-full h-full"
-                  dangerouslySetInnerHTML={{
-                    __html: `<style>#dexscreener-embed{position:relative;width:100%;padding-bottom:125%;}@media(min-width:1400px){#dexscreener-embed{padding-bottom:65%;}}#dexscreener-embed iframe{position:absolute;width;100%;height:100%;top:0;left:0;border:0;}</style><div id="dexscreener-embed"><iframe src="https://dexscreener.com/pulsechain/0xf1F4ee610b2bAbB05C635F726eF8B0C568c8dc65?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartDefaultOnMobile=1&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=15"></iframe></div>`
-                  }}
-                />
-              )}
             </div>
           </div>
         </div>
