@@ -1,4 +1,5 @@
 import { HexStake, HexStakeEnd, HexGlobalInfo, StakerHistoryMetrics } from './hexStakingService';
+import type { DbStakeStart } from '../lib/db/hexStakingDb';
 
 export interface PulseChainHexStake extends HexStake {
   network: 'pulsechain';
@@ -721,18 +722,18 @@ export class PulseChainHexStakingService {
       // Try database first for metrics (fast and complete data)
       if (this.isDatabaseAvailable) {
         try {
-          console.log('🗄️ Fetching metrics from database...');
-          const { pulsechainStakingDb } = await import('../lib/db/pulsechainStakingDb');
+          console.log('🗄️ Fetching PulseChain metrics from database...');
+          const { hexStakingDb } = await import('../lib/db/hexStakingDb');
           const [overview, globalInfo, topStakes] = await Promise.all([
-            pulsechainStakingDb.getStakingOverview(),
-            pulsechainStakingDb.getLatestGlobalInfo(),
-            pulsechainStakingDb.getTopStakes(100)
+            hexStakingDb.getStakingOverview('pulsechain'),
+            hexStakingDb.getLatestGlobalInfo('pulsechain'),
+            hexStakingDb.getTopStakes('pulsechain', 100)
           ]);
 
           if (globalInfo && overview.totalActiveStakes > 0) {
             const serviceTopStakes = topStakes.map(stake => this.dbStakeToServiceStake(stake, globalInfo.hex_day));
             
-            console.log(`✅ Database metrics: ${overview.totalActiveStakes} active stakes, ${this.formatHexAmount(overview.totalStakedHearts)} HEX staked`);
+            console.log(`✅ Retrieved PulseChain metrics from database: ${overview.totalActiveStakes} active stakes, ${this.formatHexAmount(overview.totalStakedHearts)} HEX staked`);
             
             return {
               globalInfo: {
@@ -741,7 +742,8 @@ export class PulseChainHexStakingService {
                 stakeSharesTotal: globalInfo.stake_shares_total,
                 stakePenaltyTotal: globalInfo.stake_penalty_total,
                 lockedHeartsTotal: globalInfo.locked_hearts_total,
-                latestStakeId: globalInfo.latest_stake_id || overview.latestStakeId || '0'
+                latestStakeId: globalInfo.latest_stake_id || '0',
+                timestamp: globalInfo.created_at
               },
               topStakes: serviceTopStakes,
               totalActiveStakes: overview.totalActiveStakes,
@@ -974,14 +976,14 @@ export class PulseChainHexStakingService {
     // Try database first if available
     if (this.isDatabaseAvailable && !forceRefresh) {
       try {
-        console.log('🗄️ Fetching active stakes from database...');
-        const { pulsechainStakingDb } = await import('../lib/db/pulsechainStakingDb');
-        const globalInfo = await pulsechainStakingDb.getLatestGlobalInfo();
+        console.log('🗄️ Fetching PulseChain active stakes from database...');
+        const { hexStakingDb } = await import('../lib/db/hexStakingDb');
+        const globalInfo = await hexStakingDb.getLatestGlobalInfo('pulsechain');
         const currentDay = globalInfo ? globalInfo.hex_day : 0;
         
-        const dbStakes = await pulsechainStakingDb.getActiveStakes({ currentDay });
+        const dbStakes = await hexStakingDb.getActiveStakes({ network: 'pulsechain', currentDay, limit: 100000 });
         if (dbStakes.length > 0) {
-          console.log(`✅ Retrieved ${dbStakes.length} active stakes from database`);
+          console.log(`✅ Retrieved ${dbStakes.length} PulseChain active stakes from database`);
           const serviceStakes = dbStakes.map(stake => this.dbStakeToServiceStake(stake, currentDay));
           
           // Update cache

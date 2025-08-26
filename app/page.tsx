@@ -3,6 +3,7 @@ import AIAgentsSection from "@/components/AIAgentsSection";
 import TeachersSection from "@/components/TeachersSection";
 import LoaderThreeSection from "@/components/LoaderThreeSection";
 import { Boxes } from "@/components/ui/background-boxes";
+import { GridPattern } from "@/components/magicui/grid-pattern";
 import { FlipText } from "@/components/magicui/flip-text";
 import Link from "next/link";
 
@@ -12,7 +13,14 @@ export default function Home() {
       <div className="h-screen relative w-full overflow-hidden bg-black flex flex-col items-center justify-center">
         <div className="absolute inset-0 w-full h-full bg-black z-20 [mask-image:radial-gradient(transparent,white)] pointer-events-none" />
         
-        <Boxes />
+        {/* Show GridPattern on medium and mobile, Boxes on large screens */}
+        <div className="hidden md:block">
+          <Boxes />
+        </div>
+        <div className="block md:hidden">
+          <GridPattern />
+        </div>
+        
         <div className="relative z-30 text-center">
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6">
             <div className="relative mb-4">
