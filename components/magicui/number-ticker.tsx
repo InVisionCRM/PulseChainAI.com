@@ -1,9 +1,21 @@
 "use client";
 
-import { useInView, useMotionValue, useSpring } from "motion/react";
 import { ComponentPropsWithoutRef, useEffect, useRef } from "react";
-
 import { cn } from "@/lib/utils";
+
+// Try to import motion with fallback
+let useInView: any, useMotionValue: any, useSpring: any;
+try {
+  const motionModule = require("motion/react");
+  useInView = motionModule.useInView;
+  useMotionValue = motionModule.useMotionValue;
+  useSpring = motionModule.useSpring;
+} catch (error) {
+  console.warn("Motion library not available, using fallback");
+  useInView = () => true;
+  useMotionValue = (val: any) => ({ set: () => {}, on: () => () => {} });
+  useSpring = (val: any) => ({ on: () => () => {} });
+}
 
 interface NumberTickerProps extends ComponentPropsWithoutRef<"span"> {
   value: number;
@@ -23,6 +35,26 @@ export function NumberTicker({
   ...props
 }: NumberTickerProps) {
   const ref = useRef<HTMLSpanElement>(null);
+  
+  // Fallback for when motion is not available
+  if (!useInView || !useMotionValue || !useSpring) {
+    return (
+      <span
+        ref={ref}
+        className={cn(
+          "inline-block tabular-nums tracking-wider text-white dark:text-white",
+          className,
+        )}
+        {...props}
+      >
+        {Intl.NumberFormat("en-US", {
+          minimumFractionDigits: decimalPlaces,
+          maximumFractionDigits: decimalPlaces,
+        }).format(value)}
+      </span>
+    );
+  }
+  
   const motionValue = useMotionValue(direction === "down" ? value : startValue);
   const springValue = useSpring(motionValue, {
     damping: 60,

@@ -1,6 +1,4 @@
 import { HexStake, HexStakeEnd, HexGlobalInfo, StakerHistoryMetrics } from './hexStakingService';
-import { pulsechainStakingDb, DbStakeStart, DbStakeEnd, DbGlobalInfo } from '../lib/db/pulsechainStakingDb';
-import { testDatabaseConnection } from '../lib/db/connection';
 
 export interface PulseChainHexStake extends HexStake {
   network: 'pulsechain';
@@ -52,6 +50,12 @@ export class PulseChainHexStakingService {
   }
 
   private async initializeDatabase(): Promise<void> {
+    // Only enable database on server-side to avoid client-side bundling issues
+    if (typeof window !== 'undefined') {
+      this.isDatabaseAvailable = false;
+      return;
+    }
+    
     try {
       const { databaseStatus } = await import('../lib/db/databaseStatus');
       this.isDatabaseAvailable = await databaseStatus.checkAvailability();
@@ -280,6 +284,7 @@ export class PulseChainHexStakingService {
     let databaseCounts;
     if (this.isDatabaseAvailable) {
       try {
+        const { pulsechainStakingDb } = await import('../lib/db/pulsechainStakingDb');
         databaseCounts = await pulsechainStakingDb.getTableCounts();
       } catch (error) {
         console.error('Error getting database counts:', error);
@@ -717,6 +722,7 @@ export class PulseChainHexStakingService {
       if (this.isDatabaseAvailable) {
         try {
           console.log('🗄️ Fetching metrics from database...');
+          const { pulsechainStakingDb } = await import('../lib/db/pulsechainStakingDb');
           const [overview, globalInfo, topStakes] = await Promise.all([
             pulsechainStakingDb.getStakingOverview(),
             pulsechainStakingDb.getLatestGlobalInfo(),
@@ -969,6 +975,7 @@ export class PulseChainHexStakingService {
     if (this.isDatabaseAvailable && !forceRefresh) {
       try {
         console.log('🗄️ Fetching active stakes from database...');
+        const { pulsechainStakingDb } = await import('../lib/db/pulsechainStakingDb');
         const globalInfo = await pulsechainStakingDb.getLatestGlobalInfo();
         const currentDay = globalInfo ? globalInfo.hex_day : 0;
         
@@ -1136,6 +1143,7 @@ export class PulseChainHexStakingService {
           console.log('💾 Storing fetched data in database...');
           
           // Convert and store stake starts
+          const { pulsechainStakingDb } = await import('../lib/db/pulsechainStakingDb');
           const dbStakeStarts = allStakeStarts.map(stake => this.serviceStakeToDbStake(stake, currentDay));
           await pulsechainStakingDb.insertStakeStartsBatch(dbStakeStarts);
           

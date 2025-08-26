@@ -73,6 +73,35 @@ export class HexStakingService {
   private apiKey = 'a08fcab20e333b38bb75daf3d97a0bb5';
   private subgraphId = 'A6JyHRn6CUvvgBZwni9JyrgovKWK6FoSQ8TVt6JJGhcp';
 
+  // Database availability flag
+  private isDatabaseAvailable = false;
+
+  constructor() {
+    this.initializeDatabase();
+  }
+
+  private async initializeDatabase(): Promise<void> {
+    // Only enable database on server-side to avoid client-side bundling issues
+    if (typeof window !== 'undefined') {
+      this.isDatabaseAvailable = false;
+      return;
+    }
+    
+    try {
+      const { databaseStatus } = await import('../lib/db/databaseStatus');
+      this.isDatabaseAvailable = await databaseStatus.checkAvailability();
+      
+      if (this.isDatabaseAvailable) {
+        console.log('✅ Database connection established for Ethereum HEX staking service');
+      } else {
+        console.warn('⚠️ Database not available, using GraphQL API only for Ethereum');
+      }
+    } catch (error) {
+      console.error('❌ Database initialization failed for Ethereum:', error);
+      this.isDatabaseAvailable = false;
+    }
+  }
+
   private get apiUrl(): string {
     return `${this.baseUrl}/subgraphs/id/${this.subgraphId}`;
   }
@@ -143,8 +172,45 @@ export class HexStakingService {
   }
 
   async getStakingMetrics(): Promise<HexStakingMetrics> {
-    console.log('🔍 Getting comprehensive staking metrics...');
+    console.log('🔍 Getting comprehensive Ethereum staking metrics...');
     
+    // Try database first if available
+    if (this.isDatabaseAvailable) {
+      try {
+        console.log('🗄️ Fetching Ethereum metrics from database...');
+        const { hexStakingDb } = await import('../lib/db/hexStakingDb');
+        const [overview, globalInfo, topStakes] = await Promise.all([
+          hexStakingDb.getStakingOverview('ethereum'),
+          hexStakingDb.getLatestGlobalInfo('ethereum'),
+          hexStakingDb.getTopStakes('ethereum', 100)
+        ]);
+        
+        if (globalInfo && overview.totalActiveStakes > 0) {
+          console.log(`✅ Retrieved Ethereum metrics from database: ${overview.totalActiveStakes} active stakes`);
+          
+          return {
+            totalActiveStakes: overview.totalActiveStakes,
+            totalStakedHearts: overview.totalStakedHearts,
+            averageStakeLength: overview.averageStakeLength,
+            globalInfo: {
+              id: globalInfo.id.toString(),
+              hexDay: globalInfo.hex_day.toString(),
+              stakeSharesTotal: globalInfo.stake_shares_total,
+              stakePenaltyTotal: globalInfo.stake_penalty_total,
+              latestStakeId: globalInfo.latest_stake_id,
+              shareRate: '0', // Not stored in DB yet
+              totalSupply: '0', // Not stored in DB yet
+              lockedHeartsTotal: globalInfo.locked_hearts_total,
+              timestamp: globalInfo.timestamp
+            }
+          };
+        }
+      } catch (dbError) {
+        console.warn('⚠️ Database query failed for Ethereum, falling back to GraphQL:', dbError);
+      }
+    }
+    
+    console.log('📡 Fetching Ethereum metrics from GraphQL API...');
     try {
       // Get global info first
       const globalInfoQuery = `
@@ -728,8 +794,47 @@ export class HexStakingService {
   }
 
   async getAllActiveStakes(): Promise<HexStake[]> {
-    console.log('🔍 Fetching all active (non-ended) stakes...');
+    console.log('🔍 Fetching all active Ethereum stakes...');
     
+    // Try database first if available
+    if (this.isDatabaseAvailable) {
+      try {
+        console.log('🗄️ Fetching active Ethereum stakes from database...');
+        const { hexStakingDb } = await import('../lib/db/hexStakingDb');
+        const globalInfo = await hexStakingDb.getLatestGlobalInfo('ethereum');
+        const currentDay = globalInfo ? globalInfo.hex_day : 0;
+        
+        const dbStakes = await hexStakingDb.getActiveStakes({ network: 'ethereum', currentDay });
+        if (dbStakes.length > 0) {
+          console.log(`✅ Retrieved ${dbStakes.length} active Ethereum stakes from database`);
+          
+          // Convert database stakes to service format
+          return dbStakes.map(stake => ({
+            id: stake.stake_id,
+            stakeId: stake.stake_id,
+            stakerAddr: stake.staker_addr,
+            stakedHearts: stake.staked_hearts,
+            stakeShares: stake.stake_shares,
+            stakedDays: stake.staked_days.toString(),
+            startDay: stake.start_day.toString(),
+            endDay: stake.end_day.toString(),
+            timestamp: stake.timestamp,
+            isAutoStake: stake.is_auto_stake,
+            stakeTShares: stake.stake_t_shares || '0',
+            isActive: stake.is_active,
+            daysServed: stake.days_served,
+            daysLeft: stake.days_left,
+            transactionHash: stake.transaction_hash,
+            blockNumber: stake.block_number,
+            network: 'ethereum' as const
+          }));
+        }
+      } catch (dbError) {
+        console.warn('⚠️ Database query failed for Ethereum active stakes, falling back to GraphQL:', dbError);
+      }
+    }
+    
+    console.log('📡 Fetching active Ethereum stakes from GraphQL API...');
     try {
       // Step 1: Get all stake starts
       console.log('📥 Step 1: Fetching all stake starts...');
