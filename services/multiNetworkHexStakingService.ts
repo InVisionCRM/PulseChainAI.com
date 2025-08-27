@@ -220,29 +220,31 @@ export class MultiNetworkHexStakingService {
   }
   
   async getTopStakes(limit: number = 100): Promise<MultiNetworkStakingMetrics> {
-    console.log(`🌐 Fetching top stakes from both networks (limit: ${limit})...`);
+    console.log(`🌐 Fetching top stakes from both networks (limit: ${limit}) - DATABASE FIRST...`);
     
     try {
-      // Fetch top stakes from both networks in parallel
+      // ALWAYS use database first - NEVER hit expensive GraphQL APIs directly
       const [ethereumStakes, pulsechainStakesResult] = await Promise.allSettled([
-        hexStakingService.getTopStakes(limit),
-        pulsechainHexStakingService.getTopStakes(limit)
+        this.getEthereumStakesFromDatabase(limit),
+        this.getPulsechainStakesFromDatabase(limit)
       ]);
       
       // Handle Ethereum stakes
       let ethStakes: HexStake[] = [];
       if (ethereumStakes.status === 'fulfilled') {
         ethStakes = ethereumStakes.value;
+        console.log(`✅ Retrieved ${ethStakes.length} Ethereum stakes from DATABASE`);
       } else {
-        console.error('Failed to fetch Ethereum top stakes:', ethereumStakes.reason);
+        console.error('Failed to fetch Ethereum stakes from database:', ethereumStakes.reason);
       }
       
       // Handle PulseChain stakes
       let pulseStakes: PulseChainHexStake[] = [];
       if (pulsechainStakesResult.status === 'fulfilled') {
         pulseStakes = pulsechainStakesResult.value;
+        console.log(`✅ Retrieved ${pulseStakes.length} PulseChain stakes from DATABASE`);
       } else {
-        console.warn('Failed to fetch PulseChain top stakes:', pulsechainStakesResult.reason);
+        console.warn('Failed to fetch PulseChain stakes from database:', pulsechainStakesResult.reason);
       }
       
       // Convert to multi-network format
@@ -305,6 +307,81 @@ export class MultiNetworkHexStakingService {
     } catch (error) {
       console.error('❌ Error fetching multi-network top stakes:', error);
       throw error;
+    }
+  }
+  
+  // Database-first methods - NO expensive GraphQL calls
+  private async getEthereumStakesFromDatabase(limit: number): Promise<HexStake[]> {
+    try {
+      const { hexStakingDb } = await import('../lib/db/hexStakingDb');
+      const globalInfo = await hexStakingDb.getLatestGlobalInfo('ethereum');
+      const currentDay = globalInfo ? globalInfo.hex_day : 0;
+      
+      const dbStakes = await hexStakingDb.getActiveStakes({ 
+        network: 'ethereum', 
+        currentDay, 
+        limit: limit * 2 // Get more to account for sorting
+      });
+      
+      return dbStakes.map(stake => ({
+        id: stake.stake_id,
+        stakeId: stake.stake_id,
+        stakerAddr: stake.staker_addr,
+        stakedHearts: stake.staked_hearts,
+        stakeShares: stake.stake_shares,
+        stakeTShares: stake.stake_t_shares || '0',
+        stakedDays: stake.staked_days.toString(),
+        startDay: stake.start_day.toString(),
+        endDay: stake.end_day.toString(),
+        timestamp: stake.timestamp,
+        isAutoStake: stake.is_auto_stake,
+        transactionHash: stake.transaction_hash,
+        blockNumber: stake.block_number,
+        isActive: stake.is_active,
+        daysServed: stake.days_served,
+        daysLeft: stake.days_left,
+        network: 'ethereum' as const
+      }));
+    } catch (error) {
+      console.error('Database error for Ethereum stakes:', error);
+      return [];
+    }
+  }
+  
+  private async getPulsechainStakesFromDatabase(limit: number): Promise<PulseChainHexStake[]> {
+    try {
+      const { hexStakingDb } = await import('../lib/db/hexStakingDb');
+      const globalInfo = await hexStakingDb.getLatestGlobalInfo('pulsechain');
+      const currentDay = globalInfo ? globalInfo.hex_day : 0;
+      
+      const dbStakes = await hexStakingDb.getActiveStakes({ 
+        network: 'pulsechain', 
+        currentDay, 
+        limit: limit * 2 // Get more to account for sorting
+      });
+      
+      return dbStakes.map(stake => ({
+        id: stake.stake_id,
+        stakeId: stake.stake_id,
+        stakerAddr: stake.staker_addr,
+        stakedHearts: stake.staked_hearts,
+        stakeShares: stake.stake_shares,
+        stakeTShares: stake.stake_t_shares || '0',
+        stakedDays: stake.staked_days.toString(),
+        startDay: stake.start_day.toString(),
+        endDay: stake.end_day.toString(),
+        timestamp: stake.timestamp,
+        isAutoStake: stake.is_auto_stake,
+        transactionHash: stake.transaction_hash,
+        blockNumber: stake.block_number,
+        isActive: stake.is_active,
+        daysServed: stake.days_served,
+        daysLeft: stake.days_left,
+        network: 'pulsechain' as const
+      }));
+    } catch (error) {
+      console.error('Database error for PulseChain stakes:', error);
+      return [];
     }
   }
   

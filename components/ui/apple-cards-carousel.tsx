@@ -228,7 +228,7 @@ export const Card = ({
         window.location.href = "/stat-counter-builder";
       } else if (card.title === "HEX Stats") {
         window.location.href = "/hex-dashboard";
-      } else if (card.title === "Admin Stats") {
+      } else if (card.title === "Quick API Calls") {
         window.location.href = "/admin-stats";
       }
       return;
@@ -298,7 +298,7 @@ export const Card = ({
         {card.videoUrl && (
           <video
             ref={videoRef}
-            className="absolute inset-0 z-10 object-cover w-full h-full"
+            className="absolute inset-0 z-10 object-cover w-full h-full transition-all duration-500 group-hover:grayscale-0 grayscale"
             muted
             loop
             playsInline
@@ -328,7 +328,8 @@ export const Card = ({
             src={card.src}
             alt={card.title}
             fill
-            className="absolute inset-0 z-10 object-cover"
+            className="absolute inset-0 z-10 object-cover transition-all duration-500 group-hover:grayscale-0 grayscale"
+            style={{ filter: 'grayscale(100%) brightness(0.8)' }}
           />
         )}
         
@@ -345,14 +346,8 @@ export const Card = ({
           </div>
         )}
         
-        {/* Card Content - Moved to bottom for better visibility */}
+        {/* Card Content - Simplified */}
         <div className="absolute inset-x-0 bottom-0 z-40 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-          <motion.p
-            layoutId={layout ? `category-${card.category}` : undefined}
-            className="text-left font-sans text-sm font-medium text-white/90 md:text-base mb-2"
-          >
-            {card.category}
-          </motion.p>
           <motion.p
             layoutId={layout ? `title-${card.title}` : undefined}
             className="text-left font-sans text-lg font-semibold [text-wrap:balance] text-white md:text-2xl leading-tight"

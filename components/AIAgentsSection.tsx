@@ -1,6 +1,5 @@
 "use client";
 import { motion } from "framer-motion";
-import { Carousel, Card } from "@/components/ui/apple-cards-carousel";
 
 // Simple SVG icon components
 const IconFileText = () => (
@@ -69,7 +68,22 @@ const IconHex = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const agents = [
+interface Agent {
+  id: number;
+  name: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  size: string;
+  src: string;
+  category: string;
+  videoUrl: string | null;
+  hasMovingGradient: boolean;
+  isComingSoon: boolean;
+  useSvgBackground?: boolean;
+}
+
+const agents: Agent[] = [
   {
     id: 1,
     name: "AI Code Reader/Chat Agent",
@@ -116,11 +130,12 @@ const agents = [
     icon: IconHex,
     color: "from-orange-500 to-red-500",
     size: "col-span-1 md:col-span-1 row-span-1",
-    src: "/api/placeholder/400/600/orange/red",
+    src: "/HEXagon (1).svg",
     category: "Dashboard",
-    videoUrl: "https://dvba8d38nfde7nic.public.blob.vercel-storage.com/Video/HEX%20Dashboard",
+    videoUrl: null,
     hasMovingGradient: false,
-    isComingSoon: false
+    isComingSoon: false,
+    useSvgBackground: true
   },
   {
     id: 9,
@@ -135,6 +150,8 @@ const agents = [
     hasMovingGradient: false,
     isComingSoon: false
   },
+  // Commented out Coming Soon cards
+  /*
   {
     id: 4,
     name: "Talk to Richard Heart!",
@@ -187,24 +204,10 @@ const agents = [
     hasMovingGradient: true,
     isComingSoon: true
   }
+  */
 ];
 
-// Transform agents to carousel format
-const transformAgentsToCarousel = () => {
-  return agents.map((agent) => ({
-    src: agent.src,
-    title: agent.name,
-    category: agent.category,
-    content: null, // Remove popup content
-    videoUrl: agent.videoUrl,
-    hasMovingGradient: agent.hasMovingGradient,
-    isComingSoon: agent.isComingSoon
-  }));
-};
-
 export default function AIAgentsSection() {
-  const carouselItems = transformAgentsToCarousel();
-
   return (
     <section className="min-h-screen bg-black py-12 md:py-20 px-4">
       <div className="max-w-7xl mx-auto">
@@ -218,45 +221,40 @@ export default function AIAgentsSection() {
           </p>
         </div>
 
-        {/* Carousel - Show only on large screens */}
-        <div className="mb-20 hidden lg:block">
-          <Carousel items={carouselItems.map((item, index) => (
-            <Card key={index} card={item} index={index} />
-          ))} />
-        </div>
-
-        {/* Standard Grid - Show on medium and mobile screens */}
-        <div className="mb-20 lg:hidden">
+        {/* Regular Grid - Show on all screen sizes */}
+        <div className="mb-20">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 max-w-6xl mx-auto">
             {agents.map((agent, index) => (
               <div
                 key={agent.id}
                 className={`relative group cursor-pointer ${agent.size}`}
                 onClick={() => {
-                  if (!agent.isComingSoon) {
-                    if (agent.name === "AI Code Reader/Chat Agent") {
-                      window.location.href = "/ai-agent";
-                    } else if (agent.name === "Blockchain Analyzer") {
-                      window.location.href = "/blockchain-analyzer";
-                    } else if (agent.name === "AI Therapist") {
-                      window.location.href = "/therapist";
-                    } else if (agent.name === "Stat Counter Builder") {
-                      window.location.href = "/stat-counter-builder";
-                    } else if (agent.name === "HEX Stats") {
-                      window.location.href = "/hex-dashboard";
-                    } else if (agent.name === "Quick API Calls") {
-                      window.location.href = "/admin-stats";
-                    }
+                  if (agent.name === "AI Code Reader/Chat Agent") {
+                    window.location.href = "/ai-agent";
+                  } else if (agent.name === "Blockchain Analyzer") {
+                    window.location.href = "/blockchain-analyzer";
+                  } else if (agent.name === "AI Therapist") {
+                    window.location.href = "/therapist";
+                  } else if (agent.name === "Stat Counter Builder") {
+                    window.location.href = "/stat-counter-builder";
+                  } else if (agent.name === "HEX Stats") {
+                    window.location.href = "/hex-dashboard";
+                  } else if (agent.name === "Quick API Calls") {
+                    window.location.href = "/admin-stats";
                   }
                 }}
               >
-                <div className="relative h-60 md:h-80 rounded-2xl border border-gray-800 p-2">
+                <motion.div 
+                  className="relative h-60 md:h-80 rounded-2xl border border-gray-800 p-2 overflow-hidden"
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
                     
                     {/* Video Background */}
                     {agent.videoUrl && (
                       <video
-                        className="absolute inset-0 z-10 object-cover w-full h-full"
+                        className="absolute inset-0 z-10 object-cover w-full h-full transition-all duration-500 group-hover:grayscale-0 grayscale"
                         muted
                         loop
                         playsInline
@@ -267,63 +265,43 @@ export default function AIAgentsSection() {
                       </video>
                     )}
                     
-                    {/* Moving Gradient Background for cards without videos */}
-                    {!agent.videoUrl && agent.hasMovingGradient && (
-                      <div className="absolute inset-0 z-10 bg-gradient-to-br from-purple-600 via-pink-600 to-blue-600 animate-pulse"
-                           style={{
-                             background: 'linear-gradient(-45deg, #9333ea, #ec4899, #3b82f6, #8b5cf6)',
-                             backgroundSize: '400% 400%',
-                             animation: 'gradient 3s ease infinite'
-                           }}
-                      />
+                    {/* SVG Background for specific cards */}
+                    {!agent.videoUrl && agent.useSvgBackground && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center">
+                        <img
+                          src={agent.src}
+                          alt={agent.name}
+                          className="w-full h-full object-contain opacity-20 transition-all duration-500 group-hover:grayscale-0 group-hover:opacity-40 grayscale"
+                          style={{ filter: 'grayscale(100%) brightness(0.8)' }}
+                        />
+                      </div>
                     )}
                     
-                    {/* Fallback Image for cards without videos or gradients */}
-                    {!agent.videoUrl && !agent.hasMovingGradient && (
+                    {/* Fallback Image for cards without videos or SVG backgrounds */}
+                    {!agent.videoUrl && !agent.useSvgBackground && (
                       <img
                         src={agent.src}
                         alt={agent.name}
-                        className="absolute inset-0 z-10 object-cover w-full h-full"
+                        className="absolute inset-0 z-10 object-cover w-full h-full transition-all duration-500 group-hover:grayscale-0 grayscale"
+                        style={{ filter: 'grayscale(100%) brightness(0.8)' }}
                       />
                     )}
                     
                     {/* Subtle overlay for better text readability */}
                     <div className="absolute inset-0 z-15 bg-black/20" />
                     
-                    {/* Coming Soon Overlay */}
-                    {agent.isComingSoon && (
-                      <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
-                          <div className="text-sm text-gray-300">This feature is under development</div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Card Content */}
+                    {/* Card Content - Simplified */}
                     <div className="relative z-40 flex flex-col h-full justify-between">
-                      <div className="flex items-center mb-3 md:mb-4">
-                        <div className={`p-2 md:p-3 rounded-xl bg-gradient-to-br ${agent.color} mr-3 md:mr-4`}>
-                          <agent.icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
-                        </div>
-                        <h3 className="text-lg md:text-xl font-semibold text-white">
+                      <div className="flex-grow" />
+                      
+                      <div className="text-center">
+                        <h3 className="text-xl md:text-2xl font-bold text-white mb-2">
                           {agent.name}
                         </h3>
                       </div>
-                      
-                      <p className="text-gray-300 text-sm leading-relaxed flex-grow">
-                        {agent.description}
-                      </p>
-                      
-                      <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-800">
-                        <div className="flex items-center text-xs text-gray-400">
-                          <div className={`w-2 h-2 rounded-full mr-2 ${agent.isComingSoon ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
-                          {agent.isComingSoon ? 'Coming Soon' : 'Available'}
-                        </div>
-                      </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               </div>
             ))}
           </div>
@@ -351,64 +329,43 @@ export default function AIAgentsSection() {
               window.open("https://hextroids.vercel.app", "_blank");
             }}
           >
-            <div className="relative h-full rounded-2xl border border-gray-800 p-2">
+            <motion.div 
+              className="relative h-full rounded-2xl border border-gray-800 p-2 overflow-hidden"
+              whileHover={{ scale: 1.02 }}
+              transition={{ duration: 0.2 }}
+            >
               <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
                 {/* Content */}
                 <div className="relative flex flex-1 flex-col justify-between gap-3">
-                  <div className="flex items-center mb-3 md:mb-4">
-                    <div className="p-2 md:p-3 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 mr-3 md:mr-4">
-                      <IconHex className="w-5 h-5 md:w-6 md:h-6 text-white" />
-                    </div>
-                    <h3 className="text-lg md:text-xl font-semibold text-white">
+                  <div className="flex-grow" />
+                  
+                  <div className="text-center">
+                    <h3 className="text-xl md:text-2xl font-semibold text-white mb-2">
                       HEXtroids
                     </h3>
                   </div>
-                  
-                  <p className="text-gray-400 text-sm leading-relaxed flex-grow">
-                    Classic Asteroids gameplay with HEX-themed levels and boss battles. Experience retro gaming with modern blockchain integration.
-                  </p>
-                  
-                  <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-800">
-                    <div className="flex items-center text-xs text-gray-500">
-                      <div className="w-2 h-2 rounded-full mr-2 bg-green-500"></div>
-                      Play Now
-                    </div>
-                  </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
-          {/* Coming Soon Game 1 */}
+          {/* Coming Soon Game 1 - Commented out */}
+          {/*
           <div
             className="relative group col-span-1 row-span-1"
           >
             <div className="relative h-full rounded-2xl border border-gray-800 p-2">
               <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
-                {/* Content */}
                 <div className="relative flex flex-1 flex-col justify-between gap-3">
-                  <div className="flex items-center mb-3 md:mb-4">
-                    <div className="p-2 md:p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 mr-3 md:mr-4">
-                      <IconChartBar className="w-5 h-5 md:w-6 md:h-6 text-white" />
-                    </div>
-                    <h3 className="text-lg md:text-xl font-semibold text-white">
+                  <div className="flex-grow" />
+                  
+                  <div className="text-center">
+                    <h3 className="text-xl md:text-2xl font-semibold text-white mb-2">
                       HEX Runner
                     </h3>
                   </div>
-                  
-                  <p className="text-gray-400 text-sm leading-relaxed flex-grow">
-                    Endless runner game featuring HEX characters and PulseChain-themed obstacles and power-ups.
-                  </p>
-                  
-                  <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-800">
-                    <div className="flex items-center text-xs text-gray-500">
-                      <div className="w-2 h-2 rounded-full mr-2 bg-yellow-500"></div>
-                      Coming Soon
-                    </div>
-                  </div>
                 </div>
                 
-                {/* Coming Soon Overlay */}
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
@@ -418,37 +375,25 @@ export default function AIAgentsSection() {
               </div>
             </div>
           </div>
+          */}
 
-          {/* Coming Soon Game 2 */}
+          {/* Coming Soon Game 2 - Commented out */}
+          {/*
           <div
             className="relative group col-span-1 row-span-1"
           >
             <div className="relative h-full rounded-2xl border border-gray-800 p-2">
               <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
-                {/* Content */}
                 <div className="relative flex flex-1 flex-col justify-between gap-3">
-                  <div className="flex items-center mb-3 md:mb-4">
-                    <div className="p-2 md:p-3 rounded-xl bg-gradient-to-br from-blue-500 to-pink-500 mr-3 md:mr-4">
-                      <IconChartBar className="w-5 h-5 md:w-6 md:h-6 text-white" />
-                    </div>
-                    <h3 className="text-lg md:text-xl font-semibold text-white">
+                  <div className="flex-grow" />
+                  
+                  <div className="text-center">
+                    <h3 className="text-xl md:text-2xl font-semibold text-white mb-2">
                       Pulse Defender
                     </h3>
                   </div>
-                  
-                  <p className="text-gray-400 text-sm leading-relaxed flex-grow">
-                    Tower defense strategy game where you protect PulseChain from various threats using HEX and PLS tokens.
-                  </p>
-                  
-                  <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-800">
-                    <div className="flex items-center text-xs text-gray-500">
-                      <div className="w-2 h-2 rounded-full mr-2 bg-yellow-500"></div>
-                      Coming Soon
-                    </div>
-                  </div>
                 </div>
                 
-                {/* Coming Soon Overlay */}
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
@@ -458,6 +403,7 @@ export default function AIAgentsSection() {
               </div>
             </div>
           </div>
+          */}
         </div>
       </div>
     </section>

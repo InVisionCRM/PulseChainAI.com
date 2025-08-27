@@ -110,7 +110,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
   };
 
   return (
-    <div className="bg-gradient-to-b from-slate-900 to-slate-900 via-black bg-opacity-50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg overflow-hidden">
+    <div className="bg-gradient-to-b from-slate-900 to-slate-900/90 via-slate-900/90 to-purple-500/30  bg-opacity-50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg overflow-hidden">
       <div className="px-6 py-4 border-b border-white/10 relative overflow-hidden bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 via-pink-500 to-blue-500">
         {/* Simplified background with CSS gradient instead of heavy image */}
         <div className="absolute inset-0 -z-10 bg-black/10"></div>
@@ -136,10 +136,10 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                 onClick={() => handleStakeClick(stake)}
                 className="cursor-pointer group"
               >
-                <div className="relative bg-gradient-to-br from-orange-500 to-purple-500/30 via-red-500/80 to-pink-500/80 bg-opacity-50 backdrop-blur border border-black rounded-xl transition-all duration-300 hover:bg-black/80 hover:border-lime-400/80 hover:scale-105">
+                <div className="relative bg-gradient-to-b from-slate-900/60 to-purple-500/10 via-slate-900/50 to-purple-900/25 bg-opacity-50 backdrop-blur border border-black rounded-xl transition-all duration-300 hover:bg-black/80 hover:border-lime-400/80 hover:scale-105">
                   <div className="p-4">
                     {/* Rank Badge */}
-                    <div className="absolute -top-2 -left-2 flex items-center justify-center w-8 h-8 bg-slate-800 border border-lime-400 rounded-full">
+                    <div className="absolute -top-2 -left-2 flex items-center justify-center w-8 h-8 bg-slate-800/10 bg-opacity-50 bg-transparent border border-lime-400 rounded-full">
                       {getRankIcon(index)}
                     </div>
 
@@ -250,7 +250,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                     onClick={() => handleStakeClick(stake)}
                     className="cursor-pointer group"
                   >
-                    <div className="bg-gradient-to-r from-orange-500/60 via-red-500/60 to-purple-600/60 bg-opacity-50 backdrop-blur border border-white/30 border-1 rounded-lg p-3 transition-all duration-300 hover:bg-slate-700/50 hover:border-white/20">
+                    <div className="bg-gradient-to-b from-slate-900/60 via-slate-900/10 to-purple-600/10 bg-opacity-50 backdrop-blur border border-purple-500/30 border-1 rounded-lg p-3 transition-all duration-300 hover:bg-slate-700/50 hover:border-white/20">
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center font-bold gap-5">
                           <div className="text-lg font-bold text-white">#{index + 9}</div>

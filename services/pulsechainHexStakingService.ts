@@ -561,22 +561,31 @@ export class PulseChainHexStakingService {
   }
 
   async getTopStakes(limit: number = 100): Promise<PulseChainHexStake[]> {
-    console.log('🔍 Fetching PulseChain top active stakes...');
+    console.log('🗄️ Fetching PulseChain top stakes from DATABASE...');
     
     try {
-      // Get all active stakes first
-      const allActiveStakes = await this.getAllActiveStakes();
+      // Always try database first - NEVER hit expensive GraphQL
+      if (this.isDatabaseAvailable) {
+        const { hexStakingDb } = await import('../lib/db/hexStakingDb');
+        const globalInfo = await hexStakingDb.getLatestGlobalInfo('pulsechain');
+        const currentDay = globalInfo ? globalInfo.hex_day : 0;
+        
+        const dbStakes = await hexStakingDb.getActiveStakes({ 
+          network: 'pulsechain', 
+          currentDay, 
+          limit 
+        });
+        
+        if (dbStakes.length > 0) {
+          console.log(`✅ Retrieved ${dbStakes.length} PulseChain top stakes from DATABASE`);
+          return dbStakes.map(stake => this.dbStakeToServiceStake(stake, currentDay));
+        }
+      }
       
-      // Sort by staked amount and take top N
-      const topActiveStakes = allActiveStakes
-        .sort((a, b) => parseFloat(b.stakedHearts) - parseFloat(a.stakedHearts))
-        .slice(0, limit);
-      
-      console.log(`✅ Found ${topActiveStakes.length} top active stakes out of ${allActiveStakes.length} total active stakes`);
-      
-      return topActiveStakes;
+      console.warn('⚠️ No PulseChain data in database, returning empty array');
+      return [];
     } catch (error) {
-      console.error('❌ Error fetching top active stakes:', error);
+      console.error('❌ Error fetching top stakes from database:', error);
       
       // Fallback to the old method if getAllActiveStakes fails
       console.log('⚠️ Falling back to basic top stakes query...');
@@ -973,17 +982,17 @@ export class PulseChainHexStakingService {
   }
 
   async getAllActiveStakes(forceRefresh = false): Promise<any[]> {
-    // Try database first if available
-    if (this.isDatabaseAvailable && !forceRefresh) {
+    // ALWAYS try database first - NEVER hit expensive GraphQL unless absolutely necessary
+    if (this.isDatabaseAvailable) {
       try {
-        console.log('🗄️ Fetching PulseChain active stakes from database...');
+        console.log('🗄️ Fetching PulseChain active stakes from DATABASE...');
         const { hexStakingDb } = await import('../lib/db/hexStakingDb');
         const globalInfo = await hexStakingDb.getLatestGlobalInfo('pulsechain');
         const currentDay = globalInfo ? globalInfo.hex_day : 0;
         
         const dbStakes = await hexStakingDb.getActiveStakes({ network: 'pulsechain', currentDay, limit: 100000 });
         if (dbStakes.length > 0) {
-          console.log(`✅ Retrieved ${dbStakes.length} PulseChain active stakes from database`);
+          console.log(`✅ Retrieved ${dbStakes.length} PulseChain active stakes from DATABASE`);
           const serviceStakes = dbStakes.map(stake => this.dbStakeToServiceStake(stake, currentDay));
           
           // Update cache
@@ -993,186 +1002,19 @@ export class PulseChainHexStakingService {
           return serviceStakes;
         }
       } catch (error) {
-        console.warn('⚠️ Database query failed, falling back to GraphQL:', error);
+        console.error('❌ Database query failed:', error);
       }
     }
 
-    // Check memory cache next (unless forcing refresh)
+    // Check memory cache next
     if (!forceRefresh && this.dataCache.allActiveStakes && this.isCacheValid()) {
       console.log('📋 Using cached active stakes data');
       return this.dataCache.allActiveStakes;
     }
 
-    console.log('🔍 Fetching ALL PulseChain active stakes from GraphQL with pagination...');
-    
-    try {
-      // First get current day
-      const globalInfo = await this.getCurrentGlobalInfo();
-      const currentDay = globalInfo ? parseInt(globalInfo.hexDay) : 0;
-
-      let allStakeStarts: any[] = [];
-      let allStakeEnds: any[] = [];
-      let skip = 0;
-      const batchSize = 1000;
-      const maxIterations = 50; // Safety limit to prevent infinite loops
-      let iterations = 0;
-
-      // Fetch ALL stake starts with pagination
-      console.log('🔍 Fetching all stake starts...');
-      while (iterations < maxIterations) {
-        const query = `
-          query GetStakeStarts($skip: Int!, $first: Int!) {
-            stakeStarts(
-              skip: $skip,
-              first: $first,
-              orderBy: stakeId,
-              orderDirection: asc
-            ) {
-              id
-              stakeId
-              stakerAddr
-              stakedHearts
-              stakeShares
-              stakedDays
-              startDay
-              endDay
-              timestamp
-              isAutoStake
-              stakeTShares
-              transactionHash
-              blockNumber
-            }
-          }
-        `;
-
-        const data = await this.executeQuery<{
-          stakeStarts: Array<{
-            id: string;
-            stakeId: string;
-            stakerAddr: string;
-            stakedHearts: string;
-            stakeShares: string;
-            stakedDays: string;
-            startDay: string;
-            endDay: string;
-            timestamp: string;
-            isAutoStake: boolean;
-            stakeTShares: string;
-            transactionHash: string;
-            blockNumber: string;
-          }>;
-        }>(query, { skip, first: batchSize });
-
-        const batch = data.stakeStarts;
-        allStakeStarts.push(...batch);
-        
-        console.log(`📦 Fetched batch ${iterations + 1}: ${batch.length} stakes (Total: ${allStakeStarts.length})`);
-
-        if (batch.length < batchSize) {
-          // We've reached the end
-          break;
-        }
-
-        skip += batchSize;
-        iterations++;
-      }
-
-      // Fetch ALL stake ends with pagination
-      console.log('🔍 Fetching all stake ends...');
-      skip = 0;
-      iterations = 0;
-      
-      while (iterations < maxIterations) {
-        const query = `
-          query GetStakeEnds($skip: Int!, $first: Int!) {
-            stakeEnds(
-              skip: $skip,
-              first: $first,
-              orderBy: stakeId,
-              orderDirection: asc
-            ) {
-              stakeId
-            }
-          }
-        `;
-
-        const data = await this.executeQuery<{
-          stakeEnds: Array<{ stakeId: string }>;
-        }>(query, { skip, first: batchSize });
-
-        const batch = data.stakeEnds;
-        allStakeEnds.push(...batch);
-        
-        console.log(`📦 Fetched stake ends batch ${iterations + 1}: ${batch.length} ends (Total: ${allStakeEnds.length})`);
-
-        if (batch.length < batchSize) {
-          // We've reached the end
-          break;
-        }
-
-        skip += batchSize;
-        iterations++;
-      }
-
-      // Create a set of ended stake IDs
-      const endedStakeIds = new Set(allStakeEnds.map(end => end.stakeId));
-
-      // Filter active stakes (not ended and not past end day)
-      const activeStakes = allStakeStarts
-        .filter(stake => {
-          const isNotEnded = !endedStakeIds.has(stake.stakeId);
-          const isNotPastEndDay = parseInt(stake.endDay) >= currentDay;
-          return isNotEnded && isNotPastEndDay;
-        })
-        .map(stake => ({
-          ...stake,
-          network: 'pulsechain',
-          isActive: true,
-          daysServed: Math.max(0, currentDay - parseInt(stake.startDay)),
-          daysLeft: Math.max(0, parseInt(stake.endDay) - currentDay),
-        }));
-
-      console.log(`✅ Found ${activeStakes.length} active PulseChain stakes out of ${allStakeStarts.length} total stakes`);
-      
-      // Cache the results
-      this.updateCache(allStakeStarts, 'stakeStarts');
-      this.updateCache(allStakeEnds, 'stakeEnds');
-      this.updateCache(activeStakes, 'allActiveStakes');
-      
-      // Store in database if available
-      if (this.isDatabaseAvailable) {
-        try {
-          console.log('💾 Storing fetched data in database...');
-          
-          // Convert and store stake starts
-          const { pulsechainStakingDb } = await import('../lib/db/pulsechainStakingDb');
-          const dbStakeStarts = allStakeStarts.map(stake => this.serviceStakeToDbStake(stake, currentDay));
-          await pulsechainStakingDb.insertStakeStartsBatch(dbStakeStarts);
-          
-          // Store global info
-          if (globalInfo) {
-            await pulsechainStakingDb.insertGlobalInfo({
-              hex_day: parseInt(globalInfo.hexDay),
-              stake_shares_total: globalInfo.stakeSharesTotal,
-              stake_penalty_total: globalInfo.stakePenaltyTotal,
-              locked_hearts_total: '0', // Not available in this query
-              latest_stake_id: null,
-              timestamp: Date.now().toString(),
-              network: 'pulsechain'
-            });
-          }
-          
-          console.log('✅ Data successfully stored in database');
-        } catch (error) {
-          console.warn('⚠️ Failed to store data in database:', error);
-        }
-      }
-      
-      return activeStakes;
-    } catch (error) {
-      console.error('❌ Error fetching PulseChain active stakes:', error);
-      throw error;
-    }
+    // If no database data and no cache, return empty array instead of hitting expensive GraphQL
+    console.warn('⚠️ No PulseChain data available in database or cache, returning empty array');
+    return [];
   }
 }
 
