@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, Suspense } from 'react';
 // import { motion } from "framer-motion"; // Temporarily disabled due to TypeScript issues
 import { useSearchParams } from 'next/navigation';
 
@@ -37,8 +37,14 @@ type TabId = 'code' | 'chat' | 'info' | 'holders' | 'liquidity';
 
 
 
+// Component that uses useSearchParams
+const AppWithSearchParams: React.FC = () => {
+  const searchParams = useSearchParams();
+  return <App searchParams={searchParams} />;
+};
+
 // Main App Component
-const App: React.FC = () => {
+const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
   // State management
   const [contractAddress, setContractAddress] = useState<string>('0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e'); // Default for demo
   const [contractData, setContractData] = useState<ContractData | null>(null);
@@ -82,7 +88,6 @@ const App: React.FC = () => {
 
   // Hooks
   const { getApiKey } = useApiKey();
-  const searchParams = useSearchParams();
 
   // Search Modal State
   const [showSearchModal, setShowSearchModal] = useState<boolean>(false);
@@ -114,7 +119,7 @@ const App: React.FC = () => {
   // Derived state
   const abiReadFunctions = contractData?.abi?.filter(item => item.type === 'function' && item.stateMutability === 'view') || [];
   const abiWriteFunctions = contractData?.abi?.filter(item => item.type === 'function' && item.stateMutability !== 'view') || [];
-
+  
   // Unverified contract risks modal state
   const [showUnverifiedRisksModal, setShowUnverifiedRisksModal] = useState<boolean>(false);
   
@@ -620,47 +625,47 @@ const App: React.FC = () => {
                   }
                 }}
               />
-                {showSearchResults && (
+              {showSearchResults && (
                   <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto relative">
                     <div 
                       className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-lg opacity-20"
                       style={{ backgroundImage: 'url(/Mirage.jpg)' }}
                     />
                     <div className="relative z-10">
-                      {isSearching && (
-                        <div className="flex items-center justify-center p-4">
-                          <div className="text-slate-400 text-sm">Searching...</div>
-                        </div>
-                      )}
-                      {!isSearching && searchError && (
-                        <div className="p-4 text-red-400 text-sm">{searchError}</div>
-                      )}
-                      {!isSearching && searchQuery.length >= 2 && searchResults?.length === 0 && !searchError && (
-                        <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
-                      )}
-                      {!isSearching && searchResults?.map(item => (
-                        <div
-                          key={item.address}
-                          onClick={() => {
-                            handleSelectSearchResult(item);
-                            setShowSearchModal(false);
-                          }}
-                          className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
-                        >
-                          {item.icon_url ?
-                            <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
-                            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
-                          }
-                          <div className="overflow-hidden flex-1">
-                            <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
-                            <div className="text-xs text-slate-400 capitalize">{item.type}</div>
-                            <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
-                          </div>
-                        </div>
-                      ))}
+                  {isSearching && (
+                    <div className="flex items-center justify-center p-4">
+                      <div className="text-slate-400 text-sm">Searching...</div>
                     </div>
-                  </div>
-                )}
+                  )}
+                  {!isSearching && searchError && (
+                    <div className="p-4 text-red-400 text-sm">{searchError}</div>
+                  )}
+                  {!isSearching && searchQuery.length >= 2 && searchResults?.length === 0 && !searchError && (
+                    <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
+                  )}
+                  {!isSearching && searchResults?.map(item => (
+                    <div
+                      key={item.address}
+                      onClick={() => {
+                        handleSelectSearchResult(item);
+                        setShowSearchModal(false);
+                      }}
+                          className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
+                    >
+                      {item.icon_url ?
+                        <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
+                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
+                      }
+                      <div className="overflow-hidden flex-1">
+                        <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
+                        <div className="text-xs text-slate-400 capitalize">{item.type}</div>
+                        <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
+                      </div>
+                    </div>
+                  ))}
+                    </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -700,34 +705,34 @@ const App: React.FC = () => {
                     style={{ backgroundImage: 'url(/Mirage.jpg)' }}
                   />
                   <div className="relative z-10">
-                    {isSearching && (
-                      <div className="flex items-center justify-center p-4">
-                        <div className="text-slate-400 text-sm">Searching...</div>
-                      </div>
-                    )}
-                    {!isSearching && searchError && (
-                      <div className="p-4 text-red-400 text-sm">{searchError}</div>
-                    )}
-                    {!isSearching && searchQuery.length >= 2 && searchResults?.length === 0 && !searchError && (
-                      <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
-                    )}
-                    {!isSearching && searchResults?.map(item => (
-                      <div
-                        key={item.address}
-                        onClick={() => handleSelectSearchResult(item)}
+                  {isSearching && (
+                    <div className="flex items-center justify-center p-4">
+                      <div className="text-slate-400 text-sm">Searching...</div>
+                    </div>
+                  )}
+                  {!isSearching && searchError && (
+                    <div className="p-4 text-red-400 text-sm">{searchError}</div>
+                  )}
+                  {!isSearching && searchQuery.length >= 2 && searchResults?.length === 0 && !searchError && (
+                    <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
+                  )}
+                  {!isSearching && searchResults?.map(item => (
+                    <div
+                      key={item.address}
+                      onClick={() => handleSelectSearchResult(item)}
                         className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
-                      >
-                        {item.icon_url ?
-                          <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
-                          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
-                        }
-                        <div className="overflow-hidden flex-1">
-                          <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
-                          <div className="text-xs text-slate-400 capitalize">{item.type}</div>
-                          <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
-                        </div>
+                    >
+                      {item.icon_url ?
+                        <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
+                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
+                      }
+                      <div className="overflow-hidden flex-1">
+                        <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
+                        <div className="text-xs text-slate-400 capitalize">{item.type}</div>
+                        <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
                       </div>
-                    ))}
+                    </div>
+                  ))}
                   </div>
                 </div>
               )}
@@ -852,7 +857,7 @@ const App: React.FC = () => {
                                 </div>
                               </div>
                             )}
-                           <button
+                     <button
                              onClick={() => {
                                setShowHeaderSearch(false);
                                setShowSearchResults(false);
@@ -870,7 +875,7 @@ const App: React.FC = () => {
                        ) : (
                          <button
                            onClick={() => setShowHeaderSearch(true)}
-                           className="p-2 bg-slate-500 hover:bg-slate-600 rounded-lg transition-colors"
+                       className="p-2 bg-slate-500 hover:bg-slate-600 rounded-lg transition-colors"
                            title="Search new token"
                          >
                            <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1159,8 +1164,8 @@ const App: React.FC = () => {
                                   ${Number(dexScreenerData.pairs[0].volume?.h24 || 0) >= 1000000 
                                     ? `${(Number(dexScreenerData.pairs[0].volume?.h24 || 0) / 1000000).toFixed(2)}M`
                                     : Number(dexScreenerData.pairs[0].volume?.h24 || 0).toLocaleString()}
-                                </div>
-                              </div>
+                                 </div>
+                               </div>
                              </div>
                            )}
                            
@@ -1657,14 +1662,14 @@ const App: React.FC = () => {
                       
                       {/* Holders Tab */}
                       <TabsContent value="holders" className="flex-1 overflow-y-auto px-4 py-4">
-                        <HoldersTabContent
+                        <HoldersTabContent 
                           contractAddress={contractAddress}
                           tokenInfo={tokenInfo}
                         />
                       </TabsContent>
                      
                      <TabsContent value="liquidity" className="flex-1 overflow-y-auto px-4 py-4">
-                       <LiquidityTab
+                       <LiquidityTab 
                          dexScreenerData={dexScreenerData}
                          isLoading={isLoadingContract}
                        />
@@ -1680,7 +1685,13 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+export default function AICodeReaderPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AppWithSearchParams />
+    </Suspense>
+  );
+}
  
 // Holders Tab Content (local to this page)
 const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInfo | null }>
