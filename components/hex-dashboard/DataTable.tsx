@@ -292,7 +292,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       case 'pricePulseX_PLS':
                         return <span className="text-pink-600">{formatPrice(row.pricePulseX_PLS, 8)}</span>;
                       default:
-                        return <span className="text-white">{formatNumber(row[column.key])}</span>;
+                        return <span className="text-white">{formatNumber(row[column.key as keyof HexRow])}</span>;
                     }
                   };
 
@@ -313,6 +313,7 @@ const DataTable: React.FC<DataTableProps> = ({
         <div className="bg-slate-800/30 px-2 sm:px-4 py-2 sm:py-3 flex flex-col sm:flex-row items-center justify-between border-t border-slate-700 gap-2 sm:gap-0">
           <div className="flex-1 flex justify-between sm:hidden w-full">
             <button
+              type="button"
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
               className="relative inline-flex items-center px-3 py-1.5 border border-slate-600 text-xs font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -323,6 +324,7 @@ const DataTable: React.FC<DataTableProps> = ({
               {currentPage} / {totalPages}
             </span>
             <button
+              type="button"
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
               className="relative inline-flex items-center px-3 py-1.5 border border-slate-600 text-xs font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -339,18 +341,21 @@ const DataTable: React.FC<DataTableProps> = ({
               </p>
             </div>
             <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                 <button
+                  type="button"
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
+                  title="Previous page"
                   className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-slate-600 bg-slate-800 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+                  <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   const pageNum = i + 1;
                   return (
                     <button
+                      type="button"
                       key={pageNum}
                       onClick={() => setCurrentPage(pageNum)}
                       className={`relative inline-flex items-center px-3 sm:px-4 py-2 border text-sm font-medium ${
@@ -364,11 +369,13 @@ const DataTable: React.FC<DataTableProps> = ({
                   );
                 })}
                 <button
+                  type="button"
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
+                  title="Next page"
                   className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-slate-600 bg-slate-800 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </nav>
             </div>

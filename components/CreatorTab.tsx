@@ -79,7 +79,7 @@ const CreatorTab: React.FC<{
         const decimals = parseInt(tokenInfo.decimals, 10);
         const balance = BigInt(tokenBalance.value);
         const divisor = BigInt(10) ** BigInt(decimals);
-        const formatted = Number(balance * 10000n / divisor) / 10000;
+        const formatted = Number(balance * BigInt(10000) / divisor) / 10000;
         return formatted.toLocaleString(undefined, { maximumFractionDigits: 4 });
     };
 

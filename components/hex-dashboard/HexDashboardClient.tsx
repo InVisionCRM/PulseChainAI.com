@@ -5,16 +5,16 @@ import { dexscreenerApi } from '@/services/blockchain/dexscreenerApi';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import type { DexScreenerData } from '@/services/core/types';
 // import HexGeminiAnalysis from './HexGeminiAnalysis';
-import TopStakesVisual from './hex-dashboard/TopStakesVisual';
-import StakerHistoryModal from './hex-dashboard/StakerHistoryModal';
-import EndstakeTimingAI from './hex-dashboard/EndstakeTimingAI';
-import SellPressureAnalysisTab from './hex-dashboard/SellPressureAnalysisTab';
+import TopStakesVisual from './TopStakesVisual';
+import StakerHistoryModal from './StakerHistoryModal';
+import EndstakeTimingAI from './EndstakeTimingAI';
+import SellPressureAnalysisTab from './SellPressureAnalysisTab';
 import type { HexDataPoint } from '@/lib/hooks/useHexGemini';
 import { hexStakingService, type HexStakingMetrics } from '@/services/hexStakingService';
 import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingService';
 import { HexLoader } from '@/components/ui/hex-loader';
-import { NumberTicker } from './magicui/number-ticker';
-import { FlickeringGrid } from './magicui/flickering-grid';
+import { NumberTicker } from '../magicui/number-ticker';
+import { FlickeringGrid } from '../magicui/flickering-grid';
 
 // Stronger types for dashboard data
 type HexRow = HexDataPoint & {
@@ -76,7 +76,7 @@ const HEXDataDashboard = () => {
   const [ethereumStakingSubTab, setEthereumStakingSubTab] = useState<'overview' | 'all-stakes' | 'active-stakes' | 'ai-timing'>('overview');
   const [ethereumActiveStakes, setEthereumActiveStakes] = useState<any[]>([]);
   const [isLoadingEthereumActiveStakes, setIsLoadingEthereumActiveStakes] = useState<boolean>(false);
-  const [ethereumActiveStakesSortField, setEthereumActiveStakesSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress'>('stakedHearts');
+  const [ethereumActiveStakesSortField, setEthereumActiveStakesSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp'>('stakedHearts');
   const [ethereumActiveStakesSortDirection, setEthereumActiveStakesSortDirection] = useState<'asc' | 'desc'>('desc');
   const [ethereumActiveStakesCurrentPage, setEthereumActiveStakesCurrentPage] = useState<number>(1);
   const [ethereumStakeStartsSortField, setEthereumStakeStartsSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp'>('stakeId');
@@ -91,7 +91,7 @@ const HEXDataDashboard = () => {
   const [pulsechainStakingSubTab, setPulsechainStakingSubTab] = useState<'overview' | 'all-stakes' | 'active-stakes' | 'ai-timing'>('overview');
   const [pulsechainActiveStakes, setPulsechainActiveStakes] = useState<any[]>([]);
   const [isLoadingPulsechainActiveStakes, setIsLoadingPulsechainActiveStakes] = useState<boolean>(false);
-  const [pulsechainActiveStakesSortField, setPulsechainActiveStakesSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress'>('stakedHearts');
+  const [pulsechainActiveStakesSortField, setPulsechainActiveStakesSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp'>('stakedHearts');
   const [pulsechainActiveStakesSortDirection, setPulsechainActiveStakesSortDirection] = useState<'asc' | 'desc'>('desc');
   const [pulsechainActiveStakesCurrentPage, setPulsechainActiveStakesCurrentPage] = useState<number>(1);
   const [pulsechainStakeStartsSortField, setPulsechainStakeStartsSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp'>('stakeId');
@@ -430,7 +430,7 @@ const HEXDataDashboard = () => {
   };
 
   // Handle Ethereum active stakes sorting
-  const handleEthereumActiveStakesSort = (field: 'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress') => {
+  const handleEthereumActiveStakesSort = (field: 'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp') => {
     if (ethereumActiveStakesSortField === field) {
       setEthereumActiveStakesSortDirection(ethereumActiveStakesSortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -481,6 +481,22 @@ const HEXDataDashboard = () => {
         case 'progress':
           aValue = (a.daysServed || 0) / parseInt(a.stakedDays) * 100;
           bValue = (b.daysServed || 0) / parseInt(b.stakedDays) * 100;
+          break;
+        case 'startDay':
+          aValue = parseInt((a as any).startDay) || 0;
+          bValue = parseInt((b as any).startDay) || 0;
+          break;
+        case 'endDay':
+          aValue = parseInt((a as any).endDay) || 0;
+          bValue = parseInt((b as any).endDay) || 0;
+          break;
+        case 'stakeTShares':
+          aValue = parseFloat(a.stakeTShares);
+          bValue = parseFloat(b.stakeTShares);
+          break;
+        case 'timestamp':
+          aValue = parseInt(a.timestamp);
+          bValue = parseInt(b.timestamp);
           break;
         default:
           return 0;
@@ -559,7 +575,7 @@ const HEXDataDashboard = () => {
   };
 
   // Handle PulseChain active stakes sorting
-  const handlePulsechainActiveStakesSort = (field: 'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress') => {
+  const handlePulsechainActiveStakesSort = (field: 'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp') => {
     if (pulsechainActiveStakesSortField === field) {
       setPulsechainActiveStakesSortDirection(pulsechainActiveStakesSortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -588,6 +604,10 @@ const HEXDataDashboard = () => {
           aValue = parseInt(a.stakeId);
           bValue = parseInt(b.stakeId);
           break;
+        case 'stakedHearts':
+          aValue = parseFloat(a.stakedHearts);
+          bValue = parseFloat(b.stakedHearts);
+          break;
         case 'stakedDays':
           aValue = parseInt(a.stakedDays);
           bValue = parseInt(b.stakedDays);
@@ -603,6 +623,22 @@ const HEXDataDashboard = () => {
         case 'progress':
           aValue = (a.daysServed || 0) / parseInt(a.stakedDays) * 100;
           bValue = (b.daysServed || 0) / parseInt(b.stakedDays) * 100;
+          break;
+        case 'startDay':
+          aValue = parseInt((a as any).startDay) || 0;
+          bValue = parseInt((b as any).startDay) || 0;
+          break;
+        case 'endDay':
+          aValue = parseInt((a as any).endDay) || 0;
+          bValue = parseInt((b as any).endDay) || 0;
+          break;
+        case 'stakeTShares':
+          aValue = parseFloat(a.stakeTShares);
+          bValue = parseFloat(b.stakeTShares);
+          break;
+        case 'timestamp':
+          aValue = parseInt(a.timestamp);
+          bValue = parseInt(b.timestamp);
           break;
         default:
           return 0;
@@ -2144,7 +2180,7 @@ const HEXDataDashboard = () => {
                                     </p>
                                   </div>
                                   <div>
-                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                                       <button
                                         onClick={() => setEthereumActiveStakesCurrentPage(prev => Math.max(prev - 1, 1))}
                                         disabled={!paginationInfo.hasPrevPage}
@@ -2808,7 +2844,7 @@ const HEXDataDashboard = () => {
                                     </p>
                                   </div>
                                   <div>
-                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                                       <button
                                         onClick={() => setPulsechainActiveStakesCurrentPage(prev => Math.max(prev - 1, 1))}
                                         disabled={!paginationInfo.hasPrevPage}
@@ -3187,7 +3223,6 @@ const HEXDataDashboard = () => {
                 <button
                   onClick={() => setShowDexPairs(false)}
                   className="text-slate-300 hover:text-white text-sm"
-                  aria-label="Close"
                 >
                   Close
                 </button>
@@ -3279,12 +3314,14 @@ const HEXDataDashboard = () => {
                 Staker History: {selectedStakerAddress}
               </h2>
               <button
+                type="button"
                 onClick={() => {
                   setIsDualNetworkModalOpen(false);
                   setSelectedStakerAddress(null);
                   setDualNetworkStakerData(null);
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Close"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>

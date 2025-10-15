@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { DexScreenerData } from '@/types';
 import { pulsechainApiService } from '@/services/pulsechainApiService';
+import AddressDetailsModal from './AddressDetailsModal';
 
 interface LiquidityTabProps {
   dexScreenerData: DexScreenerData | null;
@@ -25,11 +25,84 @@ interface PairHoldersData {
   };
 }
 
+interface LiquidityEvent {
+  type: 'add' | 'remove';
+  timestamp: string;
+  txHash: string;
+  from: string;
+  method: string;
+}
+
+interface PairLiquidityEvents {
+  [pairAddress: string]: {
+    events: LiquidityEvent[];
+    isLoading: boolean;
+    error: string | null;
+  };
+}
+
+// Move formatting functions outside component to prevent recreation on each render
+const formatNumber = (value: number | string): string => {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) return 'N/A';
+  
+  if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+  if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
+  if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
+  return `$${num.toFixed(2)}`;
+};
+
+const formatPercentage = (value: number | string): string => {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) return 'N/A';
+  return `${num >= 0 ? '+' : ''}${num.toFixed(2)}%`;
+};
+
+const formatHolderBalance = (value: string, decimals: number = 18): string => {
+  const num = Number(value);
+  if (isNaN(num)) return 'N/A';
+  
+  const balance = num / Math.pow(10, decimals);
+  if (balance >= 1e9) return `${(balance / 1e9).toFixed(2)}B`;
+  if (balance >= 1e6) return `${(balance / 1e6).toFixed(2)}M`;
+  if (balance >= 1e3) return `${(balance / 1e3).toFixed(2)}K`;
+  return balance.toFixed(6);
+};
+
+const formatHolderPercentage = (percentage: number): string => {
+  if (percentage >= 1) return `${percentage.toFixed(2)}%`;
+  if (percentage >= 0.01) return `${percentage.toFixed(4)}%`;
+  return `<0.01%`;
+};
+
+const formatTimeAgo = (timestamp: string): string => {
+  if (!timestamp) return 'Unknown';
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+};
+
 const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading }) => {
   const [expandedPairs, setExpandedPairs] = useState<Set<string>>(new Set());
   const [pairHoldersData, setPairHoldersData] = useState<PairHoldersData>({});
+  const [pairLiquidityEvents, setPairLiquidityEvents] = useState<PairLiquidityEvents>({});
+  const [selectedHolder, setSelectedHolder] = useState<{
+    address: string;
+    tokenAddress: string;
+    tokenSymbol: string;
+  } | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const fetchPairHolders = async (pairAddress: string) => {
+  const fetchPairHolders = useCallback(async (pairAddress: string) => {
     if (pairHoldersData[pairAddress]) {
       return; // Already fetched or currently fetching
     }
@@ -48,15 +121,15 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
     try {
       // Fetch both holders and token info for total supply
       const [holdersResult, tokenInfo] = await Promise.all([
-        pulsechainApiService.getTokenHolders(pairAddress, 1, 25), // Get top 25 holders
-        pulsechainApiService.getTokenInfo(pairAddress)
+        pulsechainApiService.getTokenHolders(pairAddress, 1, 25).catch(() => null), // Get top 25 holders, catch 404
+        pulsechainApiService.getTokenInfo(pairAddress).catch(() => null)
       ]);
 
       let holders: PairHolder[] = [];
       const totalSupply = tokenInfo?.total_supply || '0';
 
       // Process holders data - now directly from the service
-      if (Array.isArray(holdersResult)) {
+      if (holdersResult && Array.isArray(holdersResult)) {
         holders = holdersResult.map((h: any) => {
           const value = h.value || '0';
           const percentage = totalSupply !== '0' ? (Number(value) / Number(totalSupply)) * 100 : 0;
@@ -73,7 +146,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
         [pairAddress]: {
           holders,
           isLoading: false,
-          error: null,
+          error: holders.length === 0 && !holdersResult ? 'LP token holder data not available for this pair' : null,
           totalSupply
         }
       }));
@@ -84,24 +157,143 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
         [pairAddress]: {
           holders: [],
           isLoading: false,
-          error: error instanceof Error ? error.message : 'Failed to fetch holders',
+          error: 'LP token holder data not available',
           totalSupply: '0'
         }
       }));
     }
-  };
+  }, [pairHoldersData]);
 
-  const togglePairExpansion = async (pairAddress: string) => {
+  const fetchLiquidityEvents = useCallback(async (pairAddress: string) => {
+    if (pairLiquidityEvents[pairAddress]) {
+      return; // Already fetched or currently fetching
+    }
+
+    // Set loading state
+    setPairLiquidityEvents(prev => ({
+      ...prev,
+      [pairAddress]: {
+        events: [],
+        isLoading: true,
+        error: null
+      }
+    }));
+
+    try {
+      // Fetch recent transactions for the pair address
+      const response = await pulsechainApiService.getAddressTransactions(pairAddress, 1, 50);
+      
+      // Parse response structure
+      const transactions = Array.isArray(response) ? response 
+                         : (response as any).data && Array.isArray((response as any).data) ? (response as any).data
+                         : (response as any).items && Array.isArray((response as any).items) ? (response as any).items
+                         : [];
+      
+      // Filter for liquidity-related transactions
+      const liquidityEvents: LiquidityEvent[] = transactions
+        .filter((tx: any) => {
+          const method = (tx.method || '').toLowerCase();
+          return method.includes('addliquidity') || 
+                 method.includes('removeliquidity') ||
+                 method.includes('add_liquidity') ||
+                 method.includes('remove_liquidity');
+        })
+        .slice(0, 10) // Only keep the 10 most recent
+        .map((tx: any) => {
+          const method = (tx.method || '').toLowerCase();
+          const isAdd = method.includes('add');
+          
+          return {
+            type: isAdd ? 'add' : 'remove',
+            timestamp: tx.timestamp || tx.block_timestamp || '',
+            txHash: tx.hash || '',
+            from: tx.from?.hash || tx.from || '',
+            method: tx.method || 'Unknown'
+          } as LiquidityEvent;
+        });
+
+      setPairLiquidityEvents(prev => ({
+        ...prev,
+        [pairAddress]: {
+          events: liquidityEvents,
+          isLoading: false,
+          error: null
+        }
+      }));
+    } catch (error) {
+      console.error('Error fetching liquidity events:', error);
+      setPairLiquidityEvents(prev => ({
+        ...prev,
+        [pairAddress]: {
+          events: [],
+          isLoading: false,
+          error: error instanceof Error ? error.message : 'Failed to fetch liquidity events'
+        }
+      }));
+    }
+  }, [pairLiquidityEvents]);
+
+  const togglePairExpansion = useCallback(async (pairAddress: string) => {
     const newExpanded = new Set(expandedPairs);
     if (newExpanded.has(pairAddress)) {
       newExpanded.delete(pairAddress);
     } else {
       newExpanded.add(pairAddress);
-      // Fetch holders data when expanding
-      await fetchPairHolders(pairAddress);
+      // Fetch both holders data and liquidity events when expanding
+      await Promise.all([
+        fetchPairHolders(pairAddress),
+        fetchLiquidityEvents(pairAddress)
+      ]);
     }
     setExpandedPairs(newExpanded);
-  };
+  }, [expandedPairs, fetchPairHolders, fetchLiquidityEvents]);
+
+  const handleHolderClick = useCallback((holderAddress: string, pair: any) => {
+    setSelectedHolder({
+      address: holderAddress,
+      tokenAddress: pair.pairAddress,
+      tokenSymbol: `${pair.baseToken.symbol}/${pair.quoteToken.symbol}`,
+    });
+    setIsModalOpen(true);
+  }, []);
+
+  // Memoize all computed values to prevent recalculation on every render
+  const sortedPairs = useMemo(() => {
+    if (!dexScreenerData?.pairs) return [];
+    return [...dexScreenerData.pairs].sort((a, b) => {
+      const liquidityA = parseFloat(String(a.liquidity?.usd || 0));
+      const liquidityB = parseFloat(String(b.liquidity?.usd || 0));
+      return liquidityB - liquidityA;
+    });
+  }, [dexScreenerData?.pairs]);
+
+  const topPair = useMemo(() => sortedPairs[0], [sortedPairs]);
+  const top3Pairs = useMemo(() => sortedPairs.slice(0, 3), [sortedPairs]);
+  
+  const totalLiquidity = useMemo(() => 
+    sortedPairs.reduce((sum, pair) => sum + parseFloat(String(pair.liquidity?.usd || 0)), 0),
+    [sortedPairs]
+  );
+  
+  const totalVolume = useMemo(() => 
+    sortedPairs.reduce((sum, pair) => sum + parseFloat(String(pair.volume?.h24 || 0)), 0),
+    [sortedPairs]
+  );
+  
+  const totalTransactions = useMemo(() => 
+    sortedPairs.reduce((sum, pair) => sum + (pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0), 0),
+    [sortedPairs]
+  );
+
+  const activePairs = useMemo(() => 
+    sortedPairs.filter(pair => parseFloat(String(pair.liquidity?.usd || 0)) > 0),
+    [sortedPairs]
+  );
+  
+  const zeroLiquidityPairs = useMemo(() => 
+    sortedPairs.filter(pair => parseFloat(String(pair.liquidity?.usd || 0)) === 0),
+    [sortedPairs]
+  );
 
   if (isLoading) {
     return (
@@ -126,194 +318,129 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
     );
   }
 
-  const formatNumber = (value: number | string): string => {
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(num)) return 'N/A';
-    
-    if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
-    if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
-    if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
-    return `$${num.toFixed(2)}`;
-  };
-
-  const formatPercentage = (value: number | string): string => {
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(num)) return 'N/A';
-    return `${num >= 0 ? '+' : ''}${num.toFixed(2)}%`;
-  };
-
-  const formatHolderBalance = (value: string, decimals: number = 18): string => {
-    const num = Number(value);
-    if (isNaN(num)) return 'N/A';
-    
-    const balance = num / Math.pow(10, decimals);
-    if (balance >= 1e9) return `${(balance / 1e9).toFixed(2)}B`;
-    if (balance >= 1e6) return `${(balance / 1e6).toFixed(2)}M`;
-    if (balance >= 1e3) return `${(balance / 1e3).toFixed(2)}K`;
-    return balance.toFixed(6);
-  };
-
-  const formatHolderPercentage = (percentage: number): string => {
-    if (percentage >= 1) return `${percentage.toFixed(2)}%`;
-    if (percentage >= 0.01) return `${percentage.toFixed(4)}%`;
-    return `<0.01%`;
-  };
-
-  // Sort pairs by liquidity (highest first)
-  const sortedPairs = [...dexScreenerData.pairs].sort((a, b) => {
-    const liquidityA = parseFloat(a.liquidity?.usd || '0');
-    const liquidityB = parseFloat(b.liquidity?.usd || '0');
-    return liquidityB - liquidityA;
-  });
-
-  const topPair = sortedPairs[0];
-  const top3Pairs = sortedPairs.slice(0, 3);
-  const totalLiquidity = sortedPairs.reduce((sum, pair) => sum + parseFloat(pair.liquidity?.usd || '0'), 0);
-  const totalVolume = sortedPairs.reduce((sum, pair) => sum + parseFloat(pair.volume?.h24 || '0'), 0);
-  const totalTransactions = sortedPairs.reduce((sum, pair) => sum + (pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0), 0);
-
-  // Separate pairs with $0 liquidity
-  const activePairs = sortedPairs.filter(pair => parseFloat(pair.liquidity?.usd || '0') > 0);
-  const zeroLiquidityPairs = sortedPairs.filter(pair => parseFloat(pair.liquidity?.usd || '0') === 0);
-
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-6">
-      {/* TOP 3 PAIRS - Pyramid Layout */}
-      <div className="space-y-4">
-        {/* Pyramid Layout for Top 3 */}
-        <div className="flex flex-col items-center space-y-2">
-          {/* #1 - Top */}
-          {top3Pairs[0] && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="w-full max-w-md bg-gradient-to-r from-yellow-600/20 to-yellow-500/20 border border-yellow-500/30 rounded-xl p-4 text-center shadow-lg shadow-yellow-500/20"
-            >
-              <div className="text-lg font-bold text-white mb-1">
-                {top3Pairs[0].baseToken.symbol}/{top3Pairs[0].quoteToken.symbol}
-              </div>
-              <div className="text-sm text-yellow-300 mb-2">{top3Pairs[0].dexId}</div>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <div className="text-slate-400">Liquidity</div>
-                  <div className="text-green-400 font-bold text-lg">{formatNumber(top3Pairs[0].liquidity?.usd || 0)}</div>
-                </div>
-                <div>
-                  <div className="text-slate-400">Volume</div>
-                  <div className="text-purple-400 font-bold text-lg">{formatNumber(top3Pairs[0].volume?.h24 || 0)}</div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* #2 and #3 - Side by side */}
-          <div className="flex gap-4 w-full max-w-lg">
-            {top3Pairs[1] && (
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="flex-1 bg-gradient-to-r from-slate-600/20 to-slate-500/20 border border-slate-500/30 rounded-xl p-3 text-center shadow-lg shadow-slate-500/20"
-              >
-                <div className="text-sm font-bold text-white mb-1">
-                  {top3Pairs[1].baseToken.symbol}/{top3Pairs[1].quoteToken.symbol}
-                </div>
-                <div className="text-xs text-slate-300 mb-2">{top3Pairs[1].dexId}</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <div className="text-slate-400">Liquidity</div>
-                    <div className="text-green-400 font-bold text-base">{formatNumber(top3Pairs[1].liquidity?.usd || 0)}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-400">Volume</div>
-                    <div className="text-purple-400 font-bold text-base">{formatNumber(top3Pairs[1].volume?.h24 || 0)}</div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {top3Pairs[2] && (
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="flex-1 bg-gradient-to-r from-amber-600/20 to-amber-500/20 border border-amber-500/30 rounded-xl p-3 text-center shadow-lg shadow-amber-500/20"
-              >
-                <div className="text-sm font-bold text-white mb-1">
-                  {top3Pairs[2].baseToken.symbol}/{top3Pairs[2].quoteToken.symbol}
-                </div>
-                <div className="text-xs text-amber-300 mb-2">{top3Pairs[2].dexId}</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <div className="text-slate-400">Liquidity</div>
-                    <div className="text-green-400 font-bold text-base">{formatNumber(top3Pairs[2].liquidity?.usd || 0)}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-400">Volume</div>
-                    <div className="text-purple-400 font-bold text-base">{formatNumber(top3Pairs[2].volume?.h24 || 0)}</div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </div>
+    <div className="h-full overflow-y-auto space-y-6">
+      {/* TOP BANNER */}
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-2xl font-bold text-white">Liquidity</h3>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-400">Total:</span>
+          <span className="text-xl font-bold text-green-400">{formatNumber(totalLiquidity)}</span>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Liquidity */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="bg-slate-800 border border-slate-700/50 rounded-xl p-4 text-center"
-        >
-          <div className="text-2xl font-bold text-green-400 mb-1">
-            {formatNumber(totalLiquidity)}
+      {/* MAIN PAIR CARD */}
+      {top3Pairs[0] && (
+        <div className="w-full bg-gradient-to-r from-slate-800/50 to-slate-700/50 border border-slate-600/50 rounded-xl p-6 shadow-lg">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <img 
+                src={top3Pairs[0].baseToken.logoURI || '/LogoVector.svg'} 
+                alt={top3Pairs[0].baseToken.symbol}
+                className="w-8 h-8 rounded-full"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/LogoVector.svg';
+                }}
+              />
+              <div>
+                <div className="text-xl font-bold text-white">
+                  {top3Pairs[0].baseToken.symbol}/{top3Pairs[0].quoteToken.symbol}
+                </div>
+                <div className="text-sm text-slate-400">{top3Pairs[0].dexId}</div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-slate-400">Price</div>
+              <div className="text-lg font-bold text-white">${parseFloat(top3Pairs[0].priceUsd || '0').toFixed(6)}</div>
+            </div>
           </div>
-          <div className="text-xs text-slate-400 uppercase tracking-wide">Total Liquidity</div>
-        </motion.div>
+          
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <div className="text-sm text-slate-400 mb-1">Liquidity</div>
+              <div className="text-2xl font-bold text-green-400">{formatNumber(top3Pairs[0].liquidity?.usd || 0)}</div>
+            </div>
+            <div>
+              <div className="text-sm text-slate-400 mb-1">Volume 24h</div>
+              <div className="text-2xl font-bold text-purple-400">{formatNumber(top3Pairs[0].volume?.h24 || 0)}</div>
+            </div>
+          </div>
 
-        {/* Price USD */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-          className="bg-slate-800 border border-slate-700/50 rounded-xl p-4 text-center"
-        >
-          <div className="text-2xl font-bold text-white mb-1">
-            ${parseFloat(topPair?.priceUsd || '0').toFixed(6)}
+          {/* Token Amounts */}
+          <div className="mt-6 grid grid-cols-2 gap-6">
+            <div>
+              <div className="text-sm text-slate-400 mb-1">{top3Pairs[0].baseToken.symbol} Amount</div>
+              <div className="text-lg font-semibold text-blue-400">
+                {parseFloat(String(top3Pairs[0].liquidity?.base || '0')).toLocaleString()}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-slate-400 mb-1">{top3Pairs[0].quoteToken.symbol} Amount</div>
+              <div className="text-lg font-semibold text-cyan-400">
+                {parseFloat(String(top3Pairs[0].liquidity?.quote || '0')).toLocaleString()}
+              </div>
+            </div>
           </div>
-          <div className="text-xs text-slate-400 uppercase tracking-wide">Price USD</div>
-        </motion.div>
+        </div>
+      )}
 
-        {/* Total Volume */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
-          className="bg-slate-800 border border-slate-700/50 rounded-xl p-4 text-center"
-        >
-          <div className="text-2xl font-bold text-purple-400 mb-1">
-            {formatNumber(totalVolume)}
-          </div>
-          <div className="text-xs text-slate-400 uppercase tracking-wide">Total Volume</div>
-        </motion.div>
+      {/* ADDITIONAL PAIRS GRID */}
+      <div className="grid grid-cols-2 gap-4">
+        {top3Pairs.slice(1, 5).map((pair, index) => (
+          <div key={pair.pairAddress} className="bg-slate-800/50 border border-slate-600/50 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <img 
+                  src={pair.baseToken.logoURI || '/LogoVector.svg'} 
+                  alt={pair.baseToken.symbol}
+                  className="w-6 h-6 rounded-full"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/LogoVector.svg';
+                  }}
+                />
+                <div>
+                  <div className="text-sm font-semibold text-white">
+                    {pair.baseToken.symbol}/{pair.quoteToken.symbol}
+                  </div>
+                  <div className="text-xs text-slate-400">{pair.dexId}</div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-slate-400">Price</div>
+                <div className="text-sm font-semibold text-white">${parseFloat(pair.priceUsd || '0').toFixed(6)}</div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <div className="text-xs text-slate-400">Liquidity</div>
+                <div className="text-sm font-bold text-green-400">{formatNumber(pair.liquidity?.usd || 0)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-400">Volume</div>
+                <div className="text-sm font-bold text-purple-400">{formatNumber(pair.volume?.h24 || 0)}</div>
+              </div>
+            </div>
 
-        {/* Transactions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.3 }}
-          className="bg-slate-800 border border-slate-700/50 rounded-xl p-4 text-center"
-        >
-          <div className="text-2xl font-bold text-cyan-400 mb-1">
-            {totalTransactions}
+            {/* Token Amounts */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs text-slate-400">{pair.baseToken.symbol}</div>
+                <div className="text-xs font-semibold text-blue-400">
+                  {parseFloat(String(pair.liquidity?.base || '0')).toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-400">{pair.quoteToken.symbol}</div>
+                <div className="text-xs font-semibold text-cyan-400">
+                  {parseFloat(String(pair.liquidity?.quote || '0')).toLocaleString()}
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="text-xs text-slate-400 uppercase tracking-wide">TX 24H</div>
-        </motion.div>
+        ))}
       </div>
+
 
       {/* All Pairs List */}
       <div className="space-y-4">
@@ -321,11 +448,8 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
         
         {/* Active Pairs */}
         {activePairs.map((pair, index) => (
-          <motion.div
+          <div
             key={pair.pairAddress}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.1 }}
             className="bg-slate-800 border border-slate-700/50 rounded-lg overflow-hidden"
           >
             {/* Collapsed View */}
@@ -358,12 +482,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
             {/* Expanded View */}
             {expandedPairs.has(pair.pairAddress) && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3 }}
-                className="border-t border-slate-700/50 p-4"
+              <div className="border-t border-slate-700/50 p-4"
               >
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   <div>
@@ -380,12 +499,12 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   
                   <div>
                     <div className="text-xs text-orange-300 mb-1">FDV</div>
-                    <div className="text-white font-semibold">{formatNumber(pair.fdv || 0)}</div>
+                    <div className="text-white font-semibold">{formatNumber((pair as any).fdv || 0)}</div>
                   </div>
                   
                   <div>
                     <div className="text-xs text-cyan-300 mb-1">Market Cap</div>
-                    <div className="text-white font-semibold">{formatNumber(pair.marketCap || 0)}</div>
+                    <div className="text-white font-semibold">{formatNumber((pair as any).marketCap || 0)}</div>
                   </div>
                 </div>
 
@@ -422,9 +541,15 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                         {pairHoldersData[pair.pairAddress].holders.map((holder, holderIndex) => (
                           <div key={holder.address} className="grid grid-cols-4 gap-2 text-xs py-2 hover:bg-slate-700/30 rounded transition-colors">
                             <div className="text-slate-400">#{holderIndex + 1}</div>
-                            <div className="font-mono text-purple-300">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleHolderClick(holder.address, pair);
+                              }}
+                              className="font-mono text-purple-300 hover:text-purple-200 underline cursor-pointer text-left transition-colors"
+                            >
                               {holder.address.slice(0, 8)}...{holder.address.slice(-6)}
-                            </div>
+                            </button>
                             <div className="text-white font-medium">
                               {formatHolderBalance(holder.value)}
                             </div>
@@ -452,61 +577,80 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                           </div>
                         ))}
                       </div>
-                      
-                      {/* Liquidity Lock Analysis */}
-                      {(() => {
-                        const holders = pairHoldersData[pair.pairAddress].holders;
-                        const top5Percentage = holders.slice(0, 5).reduce((sum, h) => sum + h.percentage, 0);
-                        const top10Percentage = holders.slice(0, 10).reduce((sum, h) => sum + h.percentage, 0);
-                        
-                        return (
-                          <div className="mt-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                            <div className="text-xs text-slate-400 mb-2">Liquidity Distribution Analysis</div>
-                            <div className="grid grid-cols-2 gap-4 text-xs">
-                              <div>
-                                <div className="text-slate-300">Top 5 holders control:</div>
-                                <div className={`font-bold ${
-                                  top5Percentage >= 80 ? 'text-red-400' : 
-                                  top5Percentage >= 60 ? 'text-yellow-400' : 
-                                  'text-green-400'
-                                }`}>
-                                  {top5Percentage.toFixed(2)}% of liquidity
-                                </div>
-                              </div>
-                              <div>
-                                <div className="text-slate-300">Top 10 holders control:</div>
-                                <div className={`font-bold ${
-                                  top10Percentage >= 90 ? 'text-red-400' : 
-                                  top10Percentage >= 75 ? 'text-yellow-400' : 
-                                  'text-green-400'
-                                }`}>
-                                  {top10Percentage.toFixed(2)}% of liquidity
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="mt-2 text-xs">
-                              <div className={`font-medium ${
-                                top5Percentage >= 80 ? 'text-red-400' : 
-                                top5Percentage >= 60 ? 'text-yellow-400' : 
-                                'text-green-400'
-                              }`}>
-                                Risk Level: {
-                                  top5Percentage >= 80 ? 'HIGH - Highly concentrated liquidity' : 
-                                  top5Percentage >= 60 ? 'MEDIUM - Moderately concentrated' : 
-                                  'LOW - Well distributed liquidity'
-                                }
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
                     </div>
                   )}
                   
                   {pairHoldersData[pair.pairAddress]?.holders && pairHoldersData[pair.pairAddress].holders.length === 0 && !pairHoldersData[pair.pairAddress].isLoading && (
                     <div className="text-center text-slate-400 py-4 text-sm">
                       No holders data available for this pair
+                    </div>
+                  )}
+                </div>
+
+                {/* Recent Liquidity Activity Section */}
+                <div className="mb-4">
+                  <h5 className="text-white font-semibold mb-3 flex items-center gap-2">
+                    <span>📊</span>
+                    Recent Liquidity Activity (Last 10)
+                  </h5>
+                  
+                  {pairLiquidityEvents[pair.pairAddress]?.isLoading && (
+                    <div className="flex items-center justify-center py-6">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+                      <span className="ml-2 text-slate-400 text-sm">Loading activity...</span>
+                    </div>
+                  )}
+                  
+                  {pairLiquidityEvents[pair.pairAddress]?.error && (
+                    <div className="bg-red-900/20 border border-red-500/30 text-red-300 px-3 py-2 rounded text-sm">
+                      Failed to load activity: {pairLiquidityEvents[pair.pairAddress].error}
+                    </div>
+                  )}
+                  
+                  {pairLiquidityEvents[pair.pairAddress]?.events && pairLiquidityEvents[pair.pairAddress].events.length > 0 && (
+                    <div className="space-y-2">
+                      {pairLiquidityEvents[pair.pairAddress].events.map((event, eventIndex) => (
+                        <div 
+                          key={`${event.txHash}-${eventIndex}`}
+                          className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:bg-slate-700/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className={`text-2xl ${event.type === 'add' ? 'text-green-400' : 'text-red-400'}`}>
+                              {event.type === 'add' ? '🟢' : '🔴'}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`font-medium ${event.type === 'add' ? 'text-green-400' : 'text-red-400'}`}>
+                                  {event.type === 'add' ? 'Added' : 'Removed'}
+                                </span>
+                                <span className="text-xs text-slate-400">{formatTimeAgo(event.timestamp)}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="text-slate-400">By:</span>
+                                <code className="font-mono text-purple-300">
+                                  {event.from ? `${event.from.slice(0, 8)}...${event.from.slice(-6)}` : 'Unknown'}
+                                </code>
+                                <a 
+                                  href={`https://scan.pulsechain.com/tx/${event.txHash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:text-blue-300 ml-2"
+                                  title="View transaction"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  🔗
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {pairLiquidityEvents[pair.pairAddress]?.events && pairLiquidityEvents[pair.pairAddress].events.length === 0 && !pairLiquidityEvents[pair.pairAddress].isLoading && (
+                    <div className="text-center text-slate-400 py-4 text-sm">
+                      No recent liquidity activity found
                     </div>
                   )}
                 </div>
@@ -539,18 +683,14 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     Copy
                   </button>
                 </div>
-              </motion.div>
+              </div>
             )}
-          </motion.div>
+          </div>
         ))}
 
         {/* Zero Liquidity Pairs - Collapsed */}
         {zeroLiquidityPairs.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3, delay: activePairs.length * 0.1 }}
-            className="bg-slate-800 border border-slate-700/50 rounded-lg p-4"
+          <div className="bg-slate-800 border border-slate-700/50 rounded-lg p-4"
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
@@ -566,9 +706,23 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                 <div className="text-xs text-slate-400">Liquidity</div>
               </div>
             </div>
-          </motion.div>
+          </div>
         )}
       </div>
+
+      {/* Address Details Modal */}
+      {selectedHolder && (
+        <AddressDetailsModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedHolder(null);
+          }}
+          address={selectedHolder.address}
+          tokenAddress={selectedHolder.tokenAddress}
+          tokenSymbol={selectedHolder.tokenSymbol}
+        />
+      )}
     </div>
   );
 };

@@ -66,7 +66,6 @@ export default function AddTokenModal({ open, onClose, onAdd, onMinimize, compac
               <button
                 onClick={onClose}
                 className="text-white/60 hover:text-white text-2xl"
-                aria-label="Close"
               >
                 ×
               </button>
@@ -121,7 +120,7 @@ export default function AddTokenModal({ open, onClose, onAdd, onMinimize, compac
                           gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))'
                         }}>
                           {selectedStats.map((stat, index) => {
-                            const result = statResults[stat.id];
+                            const result = statResults[stat.id] as any;
                             return (
                               <div key={index} className={`bg-gray-700 rounded-lg text-center ${compact ? 'p-2' : 'p-3'}`} style={{
                                 minWidth: 'fit-content',

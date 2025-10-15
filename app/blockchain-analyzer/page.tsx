@@ -5,9 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from '@/components/ui/navigation-menu';
 import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
-import { LoaderThree } from '@/components/ui/loader-three';
 import { GlowingEffect } from '@/components/ui/glowing-effect';
-import { ContainerTextFlip } from '@/components/ui/container-text-flip';
 import { WobbleCard } from '@/components/ui/wobble-card';
 import { pulsechainApi } from '@/services';
 import { fetchDexScreenerData } from '@/services/pulsechainService';
@@ -1248,31 +1246,6 @@ const BlockchainAnalyzer: React.FC = () => {
       >
         <div className="container mx-auto p-3 md:p-6 lg:p-8 max-w-7xl w-full pb-32 md:pb-16">
           
-          {/* Header */}
-          <header className="flex items-center justify-between mb-6 pb-4 border-b border-slate-700">
-            <a
-              href="/"
-              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-slate-700/30"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              <span className="text-sm font-medium">Back to Home</span>
-            </a>
-            
-            <div className="flex flex-col items-center">
-              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
-                🔍 <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">PulseChain</span> AI Analyst
-              </h1>
-              <p className="text-slate-400 text-sm md:text-base">Your comprehensive blockchain analysis assistant</p>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-xs text-slate-400">Live</span>
-            </div>
-          </header>
-
           {/* Endpoint Picker */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
@@ -1520,8 +1493,10 @@ const BlockchainAnalyzer: React.FC = () => {
                         </div>
                       </div>
                       <button
+                        type="button"
                         onClick={() => removeContextItem(item.id)}
                         className="text-slate-400 hover:text-red-400 transition-colors"
+                        title="Remove item"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1615,7 +1590,6 @@ const BlockchainAnalyzer: React.FC = () => {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg relative mb-6"
-              role="alert"
             >
               <strong className="font-bold">Error: </strong>
               <span className="block sm:inline">{error}</span>
@@ -1920,6 +1894,7 @@ const BlockchainAnalyzer: React.FC = () => {
                 type="submit" 
                 disabled={isLoading || !inputValue.trim()} 
                 className="bg-purple-600 text-white p-3 rounded-full hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors"
+                title="Send message"
               >
                 <SendIcon className="w-5 h-5"/>
               </button>

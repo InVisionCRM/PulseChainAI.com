@@ -29,14 +29,13 @@ const nextConfig = {
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
-  // eslint and typescript checking enabled for build safety
   // Performance optimizations
   experimental: {
     optimizePackageImports: ['@tabler/icons-react', 'motion', 'lucide-react', '@radix-ui/react-icons', 'recharts'],
   },
   serverExternalPackages: ['@neondatabase/serverless'],
-  
-  // Webpack optimizations
+
+  // Webpack optimizations (only in production)
   webpack: (config, { dev, isServer }) => {
     if (!dev && !isServer) {
       // Production client-side optimizations
@@ -65,11 +64,12 @@ const nextConfig = {
   // Enable compression
   compress: true,
 
-  // Add caching headers
+  // FIXED: Only cache static assets, not pages
   async headers() {
     return [
       {
-        source: '/(.*)',
+        // Cache static assets only
+        source: '/_next/static/(.*)',
         headers: [
           {
             key: 'Cache-Control',
@@ -78,7 +78,28 @@ const nextConfig = {
         ],
       },
       {
+        // Cache images
+        source: '/images/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        // Don't cache API routes
         source: '/api/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
+      {
+        // Don't cache pages (allow Fast Refresh to work)
+        source: '/:path*',
         headers: [
           {
             key: 'Cache-Control',

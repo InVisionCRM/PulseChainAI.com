@@ -74,7 +74,6 @@ interface Agent {
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   color: string;
-  size: string;
   src: string;
   category: string;
   videoUrl: string | null;
@@ -90,7 +89,6 @@ const agents: Agent[] = [
     description: "PulseChainAI's Most Powerful AI Agent which allows user to interact with Solidity Smart Contract like never before! (Warning: Still in Beta. Use with Caution)",
     icon: IconFileText,
     color: "from-pink-500 to-purple-500",
-    size: "col-span-1 md:col-span-2 row-span-1 md:row-span-2",
     src: "/api/placeholder/400/600/pink/purple",
     category: "AI Agent",
     videoUrl: "https://dvba8d38nfde7nic.public.blob.vercel-storage.com/Ai-code-reader",
@@ -103,7 +101,6 @@ const agents: Agent[] = [
     description: "Advanced blockchain analysis tool for deep insights into PulseChain transactions, token movements, and network activity",
     icon: IconChartBar,
     color: "from-blue-500 to-cyan-500",
-    size: "col-span-1 md:col-span-2 row-span-1 md:row-span-2",
     src: "/api/placeholder/400/600/blue/cyan",
     category: "Analysis Tool",
     videoUrl: "https://dvba8d38nfde7nic.public.blob.vercel-storage.com/BlockChain-Analyst",
@@ -116,7 +113,6 @@ const agents: Agent[] = [
     description: "Create custom stat counters for any PulseChain token. Build, preview, and embed real-time statistics",
     icon: IconBarChart,
     color: "from-emerald-500 to-teal-500",
-    size: "col-span-1 row-span-1",
     src: "/api/placeholder/400/600/emerald/teal",
     category: "Builder Tool",
     videoUrl: "https://dvba8d38nfde7nic.public.blob.vercel-storage.com/Stat-card",
@@ -129,7 +125,6 @@ const agents: Agent[] = [
     description: "Complete HEX daily statistics dashboard with historical data from Ethereum and PulseChain networks",
     icon: IconHex,
     color: "from-orange-500 to-red-500",
-    size: "col-span-1 md:col-span-1 row-span-1",
     src: "/HEXagon (1).svg",
     category: "Dashboard",
     videoUrl: null,
@@ -143,7 +138,6 @@ const agents: Agent[] = [
     description: "Comprehensive token analytics and statistics dashboard for advanced PulseChain analysis and monitoring",
     icon: IconChartBar,
     color: "from-indigo-500 to-blue-500",
-    size: "col-span-1 md:col-span-1 row-span-1",
     src: "/api/placeholder/400/600/indigo/blue",
     category: "Admin Tool",
     videoUrl: "https://dvba8d38nfde7nic.public.blob.vercel-storage.com/Stat-card",
@@ -158,7 +152,6 @@ const agents: Agent[] = [
     description: "AI-powered conversation with the tone, knowledge, wit and persona of crypto founder Richard Heart",
     icon: IconCrown,
     color: "from-yellow-500 to-orange-500",
-    size: "col-span-1 row-span-1",
     src: "/api/placeholder/400/600/yellow/orange",
     category: "AI Chat",
     videoUrl: null,
@@ -171,7 +164,6 @@ const agents: Agent[] = [
     description: "Transform negative thoughts into positive, uplifting messages with AI",
     icon: IconHeart,
     color: "from-red-500 to-pink-500",
-    size: "col-span-1 row-span-1",
     src: "/api/placeholder/400/600/red/pink",
     category: "AI Therapy",
     videoUrl: null,
@@ -184,7 +176,6 @@ const agents: Agent[] = [
     description: "Dr. Sarah Chen - Compassionate AI therapy and emotional support",
     icon: IconHeartPulse,
     color: "from-pink-500 to-rose-500",
-    size: "col-span-1 md:col-span-2 row-span-1",
     src: "/api/placeholder/400/600/pink/rose",
     category: "AI Therapy",
     videoUrl: null,
@@ -197,7 +188,6 @@ const agents: Agent[] = [
     description: "Track Richard Heart's treasury movements and analyze transaction history from sacrifice wallets and alleged ETH purchases",
     icon: IconChartBar,
     color: "from-purple-500 to-indigo-500",
-    size: "col-span-1 md:col-span-1 row-span-1",
     src: "/api/placeholder/400/600/purple/indigo",
     category: "Analysis Tool",
     videoUrl: null,
@@ -209,7 +199,7 @@ const agents: Agent[] = [
 
 export default function AIAgentsSection() {
   return (
-    <section className="min-h-screen bg-black py-12 md:py-20 px-4">
+    <section className="min-h-screen py-12 md:py-20 px-4" style={{ backgroundColor: '#0C2340' }}>
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-12 md:mb-16 px-4">
@@ -227,7 +217,7 @@ export default function AIAgentsSection() {
             {agents.map((agent, index) => (
               <div
                 key={agent.id}
-                className={`relative group cursor-pointer ${agent.size}`}
+                className="relative group cursor-pointer"
                 onClick={() => {
                   if (agent.name === "AI Code Reader/Chat Agent") {
                     window.location.href = "/ai-agent";
@@ -245,9 +235,8 @@ export default function AIAgentsSection() {
                 }}
               >
                 <motion.div 
-                  className="relative h-60 md:h-80 rounded-2xl border border-gray-800 p-2 overflow-hidden"
-                  whileHover={{ scale: 1.02 }}
-                  transition={{ duration: 0.2 }}
+                  className="relative w-full aspect-[4/5] rounded-2xl p-2 overflow-hidden"
+                  style={{ borderWidth: '2px', borderColor: '#FA4616' }}
                 >
                   <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
                     
@@ -295,7 +284,7 @@ export default function AIAgentsSection() {
                       <div className="flex-grow" />
                       
                       <div className="text-center">
-                        <h3 className="text-xl md:text-2xl font-bold text-white mb-2">
+                        <h3 className="text-xl md:text-2xl font-bold mb-2" style={{ color: '#FA4616' }}>
                           {agent.name}
                         </h3>
                       </div>
@@ -321,26 +310,38 @@ export default function AIAgentsSection() {
         </div>
 
         {/* Games Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 max-w-6xl mx-auto">
           {/* HEXtroids Card */}
           <div
-            className="relative group cursor-pointer col-span-1 md:col-span-2 row-span-1 md:row-span-2"
+            className="relative group cursor-pointer"
             onClick={() => {
               window.open("https://hextroids.vercel.app", "_blank");
             }}
           >
             <motion.div 
-              className="relative h-full rounded-2xl border border-gray-800 p-2 overflow-hidden"
-              whileHover={{ scale: 1.02 }}
-              transition={{ duration: 0.2 }}
+              className="relative w-full aspect-[4/5] rounded-2xl p-2 overflow-hidden"
+              style={{ borderWidth: '2px', borderColor: '#FA4616' }}
             >
               <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
+                {/* HEXtroids Image Background */}
+                <div className="absolute inset-0 z-10 flex items-center justify-center">
+                  <img
+                    src="/HEXagon (1).svg"
+                    alt="HEXtroids"
+                    className="w-full h-full object-cover opacity-20 transition-all duration-500 group-hover:grayscale-0 group-hover:opacity-40 grayscale"
+                    style={{ filter: 'grayscale(100%) brightness(0.8)' }}
+                  />
+                </div>
+                
+                {/* Subtle overlay for better text readability */}
+                <div className="absolute inset-0 z-15 bg-black/20" />
+                
                 {/* Content */}
-                <div className="relative flex flex-1 flex-col justify-between gap-3">
+                <div className="relative z-40 flex flex-1 flex-col justify-between gap-3">
                   <div className="flex-grow" />
                   
                   <div className="text-center">
-                    <h3 className="text-xl md:text-2xl font-semibold text-white mb-2">
+                    <h3 className="text-xl md:text-2xl font-semibold mb-2" style={{ color: '#FA4616' }}>
                       HEXtroids
                     </h3>
                   </div>

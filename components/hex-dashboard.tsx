@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Calendar, Download, Filter, Brain, Users, Lock, Globe, Search, X, BarChart3 } from 'lucide-react';
 import { dexscreenerApi } from '@/services/blockchain/dexscreenerApi';
 import { OptimizedImage } from '@/components/ui/optimized-image';
@@ -76,7 +76,7 @@ const HEXDataDashboard = () => {
   const [ethereumStakingSubTab, setEthereumStakingSubTab] = useState<'overview' | 'all-stakes' | 'active-stakes' | 'ai-timing'>('overview');
   const [ethereumActiveStakes, setEthereumActiveStakes] = useState<any[]>([]);
   const [isLoadingEthereumActiveStakes, setIsLoadingEthereumActiveStakes] = useState<boolean>(false);
-  const [ethereumActiveStakesSortField, setEthereumActiveStakesSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress'>('stakedHearts');
+  const [ethereumActiveStakesSortField, setEthereumActiveStakesSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp'>('stakedHearts');
   const [ethereumActiveStakesSortDirection, setEthereumActiveStakesSortDirection] = useState<'asc' | 'desc'>('desc');
   const [ethereumActiveStakesCurrentPage, setEthereumActiveStakesCurrentPage] = useState<number>(1);
   const [ethereumStakeStartsSortField, setEthereumStakeStartsSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp'>('stakeId');
@@ -98,7 +98,38 @@ const HEXDataDashboard = () => {
   const [pulsechainStakeStartsSortDirection, setPulsechainStakeStartsSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedStakerAddress, setSelectedStakerAddress] = useState<string | null>(null);
   const [isEthereumStakerHistoryModalOpen, setIsEthereumStakerHistoryModalOpen] = useState<boolean>(false);
+
+
   const [isPulsechainStakerHistoryModalOpen, setIsPulsechainStakerHistoryModalOpen] = useState<boolean>(false);
+  
+  // Database status state
+  const [isDatabaseAvailable, setIsDatabaseAvailable] = useState<boolean>(false);
+  const [databaseStatus, setDatabaseStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
+  
+  // Simple loading states for database operations
+  const [databaseLoadingStates, setDatabaseLoadingStates] = useState<{
+    ethereum: {
+      overview: boolean;
+      stakes: boolean;
+      global: boolean;
+    };
+    pulsechain: {
+      overview: boolean;
+      stakes: boolean;
+      global: boolean;
+    };
+  }>({
+    ethereum: {
+      overview: false,
+      stakes: false,
+      global: false
+    },
+    pulsechain: {
+      overview: false,
+      stakes: false,
+      global: false
+    }
+  });
   
   // Chart modal state
   const [isChartModalOpen, setIsChartModalOpen] = useState<boolean>(false);
@@ -124,6 +155,291 @@ const HEXDataDashboard = () => {
 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 50;
+
+  // Data flow management state
+  const [dataFlowStatus, setDataFlowStatus] = useState<{
+    ethereum: 'database' | 'graphql' | 'transitioning' | 'error';
+    pulsechain: 'database' | 'graphql' | 'transitioning' | 'error';
+  }>({
+    ethereum: 'transitioning',
+    pulsechain: 'transitioning'
+  });
+
+  // Load Ethereum HEX staking data from database first, then GraphQL as fallback
+  const loadEthereumStakingData = useCallback(async () => {
+    setIsLoadingEthereumStaking(true);
+    setEthereumStakingError(null);
+    
+    try {
+      // Try database first
+      try {
+        setDatabaseLoading('ethereum', 'overview', true);
+        setDatabaseLoading('ethereum', 'global', true);
+        setDatabaseLoading('ethereum', 'stakes', true);
+        
+        const { hexStakingDb } = await import('@/lib/db/hexStakingDb');
+        const { databaseStatus } = await import('@/lib/db/databaseStatus');
+        
+        const isDbAvailable = await databaseStatus.checkAvailability();
+        
+        if (isDbAvailable) {
+          console.log('🗄️ Loading Ethereum staking data from database...');
+          const [overview, globalInfo, topStakes] = await Promise.all([
+            hexStakingDb.getStakingOverview('ethereum'),
+            hexStakingDb.getLatestGlobalInfo('ethereum'),
+            hexStakingDb.getTopStakes('ethereum', 100)
+          ]);
+          
+          if (overview && globalInfo && overview.totalActiveStakes > 0) {
+            const stakingData = {
+              totalActiveStakes: overview.totalActiveStakes,
+              totalStakedHearts: overview.totalStakedHearts,
+              averageStakeLength: overview.averageStakeLength,
+              globalInfo: {
+                id: globalInfo.id.toString(),
+                hexDay: globalInfo.hex_day.toString(),
+                stakeSharesTotal: globalInfo.stake_shares_total,
+                stakePenaltyTotal: globalInfo.stake_penalty_total,
+                latestStakeId: globalInfo.latest_stake_id,
+                shareRate: '0',
+                totalSupply: '0',
+                lockedHeartsTotal: globalInfo.locked_hearts_total,
+                timestamp: globalInfo.timestamp
+              },
+              topStakes: topStakes.map(stake => ({
+                id: stake.id.toString(),
+                stakeId: stake.stake_id,
+                stakerAddr: stake.staker_addr,
+                stakedHearts: stake.staked_hearts,
+                stakedDays: stake.staked_days.toString(),
+                startDay: stake.start_day.toString(),
+                endDay: stake.end_day.toString(),
+                stakeShares: stake.stake_shares,
+                stakeTShares: stake.stake_t_shares,
+                timestamp: stake.timestamp,
+                isAutoStake: stake.is_auto_stake,
+                transactionHash: stake.transaction_hash,
+                blockNumber: stake.block_number,
+                daysServed: stake.days_served,
+                daysLeft: stake.days_left,
+                isActive: true
+              })),
+              recentStakeStarts: []
+            };
+            
+            setEthereumStakingData(stakingData);
+            setDataFlowStatus(prev => ({ ...prev, ethereum: 'database' }));
+            console.log('✅ Ethereum staking data loaded from database');
+            
+            // Clear loading states
+            setDatabaseLoading('ethereum', 'overview', false);
+            setDatabaseLoading('ethereum', 'global', false);
+            setDatabaseLoading('ethereum', 'stakes', false);
+            return;
+          }
+        }
+      } catch (dbError) {
+        console.warn('⚠️ Database query failed for Ethereum:', dbError);
+        // Clear loading states on error
+        setDatabaseLoading('ethereum', 'overview', false);
+        setDatabaseLoading('ethereum', 'global', false);
+        setDatabaseLoading('ethereum', 'stakes', false);
+      }
+      
+      // Fallback to GraphQL API
+      console.log('📡 Loading Ethereum staking data from GraphQL API...');
+      const stakingData = await hexStakingService.getStakingMetrics();
+      setEthereumStakingData(stakingData);
+      setDataFlowStatus(prev => ({ ...prev, ethereum: 'graphql' }));
+      console.log('✅ Ethereum staking data loaded from GraphQL API');
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setEthereumStakingError(errorMessage);
+      setDataFlowStatus(prev => ({ ...prev, ethereum: 'error' }));
+      console.error('❌ Failed to load Ethereum staking data:', error);
+    } finally {
+      setIsLoadingEthereumStaking(false);
+    }
+  }, []);
+
+  // Load PulseChain HEX staking data from database first, then GraphQL as fallback
+  const loadPulsechainStakingData = useCallback(async () => {
+    setIsLoadingPulsechainStaking(true);
+    setPulsechainStakingError(null);
+    
+    try {
+      // Try database first
+      try {
+        setDatabaseLoading('pulsechain', 'overview', true);
+        setDatabaseLoading('pulsechain', 'global', true);
+        setDatabaseLoading('pulsechain', 'stakes', true);
+        
+        const { hexStakingDb } = await import('@/lib/db/hexStakingDb');
+        const { databaseStatus } = await import('@/lib/db/databaseStatus');
+        
+        const isDbAvailable = await databaseStatus.checkAvailability();
+        
+        if (isDbAvailable) {
+          console.log('🗄️ Loading PulseChain staking data from database...');
+          const [overview, globalInfo, topStakes] = await Promise.all([
+            hexStakingDb.getStakingOverview('pulsechain'),
+            hexStakingDb.getLatestGlobalInfo('pulsechain'),
+            hexStakingDb.getTopStakes('pulsechain', 100)
+          ]);
+          
+          if (overview && globalInfo && overview.totalActiveStakes > 0) {
+            const stakingData = {
+              totalActiveStakes: overview.totalActiveStakes,
+              totalStakedHearts: overview.totalStakedHearts,
+              averageStakeLength: overview.averageStakeLength,
+              globalInfo: {
+                id: globalInfo.id.toString(),
+                hexDay: globalInfo.hex_day.toString(),
+                stakeSharesTotal: globalInfo.stake_shares_total,
+                stakePenaltyTotal: globalInfo.stake_penalty_total,
+                latestStakeId: globalInfo.latest_stake_id,
+                shareRate: '0',
+                totalSupply: '0',
+                lockedHeartsTotal: globalInfo.locked_hearts_total,
+                timestamp: globalInfo.timestamp
+              },
+              topStakes: topStakes.map(stake => ({
+                id: stake.id.toString(),
+                stakeId: stake.stake_id,
+                stakerAddr: stake.staker_addr,
+                stakedHearts: stake.staked_hearts,
+                stakedDays: stake.staked_days.toString(),
+                startDay: stake.start_day.toString(),
+                endDay: stake.end_day.toString(),
+                stakeShares: stake.stake_shares,
+                stakeTShares: stake.stake_t_shares,
+                timestamp: stake.timestamp,
+                isAutoStake: stake.is_auto_stake,
+                transactionHash: stake.transaction_hash,
+                blockNumber: stake.block_number,
+                daysServed: stake.days_served,
+                daysLeft: stake.days_left,
+                isActive: true
+              })),
+              recentStakeStarts: []
+            };
+            
+            setPulsechainStakingData(stakingData);
+            setDataFlowStatus(prev => ({ ...prev, pulsechain: 'database' }));
+            console.log('✅ PulseChain staking data loaded from database');
+            
+            // Clear loading states
+            setDatabaseLoading('pulsechain', 'overview', false);
+            setDatabaseLoading('pulsechain', 'global', false);
+            setDatabaseLoading('pulsechain', 'stakes', false);
+            return;
+          }
+        }
+      } catch (dbError) {
+        console.warn('⚠️ Database query failed for PulseChain:', dbError);
+        // Clear loading states on error
+        setDatabaseLoading('pulsechain', 'overview', false);
+        setDatabaseLoading('pulsechain', 'stakes', false);
+        setDatabaseLoading('pulsechain', 'global', false);
+      }
+      
+      // Fallback to GraphQL API
+      console.log('📡 Loading PulseChain staking data from GraphQL API...');
+      const stakingData = await pulsechainHexStakingService.getStakingMetrics();
+      setPulsechainStakingData(stakingData);
+      setDataFlowStatus(prev => ({ ...prev, pulsechain: 'graphql' }));
+      console.log('✅ PulseChain staking data loaded from GraphQL API');
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setPulsechainStakingError(errorMessage);
+      setDataFlowStatus(prev => ({ ...prev, pulsechain: 'error' }));
+      console.error('❌ Failed to load PulseChain staking data:', error);
+    } finally {
+      setIsLoadingPulsechainStaking(false);
+    }
+  }, []);
+
+  // Data consistency checker
+  const checkDataConsistency = useCallback((ethereumData: any, pulsechainData: any) => {
+    const issues = [];
+    
+    // Check if data structures are consistent
+    if (ethereumData && pulsechainData) {
+      if (ethereumData.totalStakes !== undefined && pulsechainData.totalStakes !== undefined) {
+        if (typeof ethereumData.totalStakes !== typeof pulsechainData.totalStakes) {
+          issues.push('Data type mismatch between networks');
+        }
+      }
+    }
+    
+    return issues;
+  }, []);
+
+  // Enhanced data flow with transitions
+  const transitionToDatabase = useCallback(async (network: 'ethereum' | 'pulsechain') => {
+    if (!isDatabaseAvailable) return;
+    
+    setDataFlowStatus(prev => ({
+      ...prev,
+      [network]: 'transitioning'
+    }));
+    
+    try {
+      // Pre-fetch database data
+      if (network === 'ethereum') {
+        await loadEthereumStakingData();
+      } else {
+        await loadPulsechainStakingData();
+      }
+      
+      setDataFlowStatus(prev => ({
+        ...prev,
+        [network]: 'database'
+      }));
+    } catch (error) {
+      console.error(`Failed to transition ${network} to database:`, error);
+      setDataFlowStatus(prev => ({
+        ...prev,
+        [network]: 'error'
+      }));
+    }
+  }, [isDatabaseAvailable, loadEthereumStakingData, loadPulsechainStakingData]);
+
+  // Auto-transition to database when it becomes available
+  useEffect(() => {
+    if (isDatabaseAvailable) {
+      // Transition both networks to database if they're currently using GraphQL
+      if (dataFlowStatus.ethereum === 'graphql') {
+        transitionToDatabase('ethereum');
+      }
+      if (dataFlowStatus.pulsechain === 'graphql') {
+        transitionToDatabase('pulsechain');
+      }
+    }
+  }, [isDatabaseAvailable, dataFlowStatus, transitionToDatabase]);
+
+  // Enhanced error boundary for data flow
+  const handleDataFlowError = useCallback((network: 'ethereum' | 'pulsechain', error: any) => {
+    console.error(`${network} data flow error:`, error);
+    
+    setDataFlowStatus(prev => ({
+      ...prev,
+      [network]: 'error'
+    }));
+    
+    // Attempt to recover by falling back to GraphQL
+    setTimeout(() => {
+      if (network === 'ethereum') {
+        loadEthereumStakingData();
+      } else {
+        loadPulsechainStakingData();
+      }
+    }, 2000);
+  }, [loadEthereumStakingData, loadPulsechainStakingData]);
+
+
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -292,27 +608,245 @@ const HEXDataDashboard = () => {
     }
   };
 
-  // Load Ethereum HEX staking data from The Graph
-  const loadEthereumStakingData = async () => {
-    setIsLoadingEthereumStaking(true);
-    setEthereumStakingError(null);
-    try {
-      const data = await hexStakingService.getStakingMetrics();
-      setEthereumStakingData(data);
-    } catch (e) {
-      setEthereumStakingData(null);
-      setEthereumStakingError(e instanceof Error ? e.message : 'Unknown error');
+  // Custom hook for database-first data fetching - COMMENTED OUT (causes TypeScript errors with generic syntax inside component)
+  // This functionality is already handled by loadEthereumStakingData and loadPulsechainStakingData
+  /*
+  const useDatabaseQuery = <T>(
+    queryFn: () => Promise<T>,
+    fallbackFn: () => Promise<T>,
+    dependencies: any[] = []
+  ) => {
+    const [data, setData] = useState<T | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
+    const [dataSource, setDataSource] = useState<'database' | 'graphql'>('database');
+
+    const fetchData = useCallback(async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // Try database first if available
+        if (isDatabaseAvailable) {
+          try {
+            console.log('🗄️ Attempting database query...');
+            const result = await queryFn();
+            if (result) {
+              setData(result);
+              setDataSource('database');
+              console.log('✅ Data loaded from database');
+              return;
+            }
+          } catch (dbError) {
+            console.warn('⚠️ Database query failed, falling back to GraphQL:', dbError);
+          }
+        }
+        
+        // Fallback to GraphQL
+        console.log('📡 Loading data from GraphQL API...');
+        const result = await fallbackFn();
+        setData(result);
+        setDataSource('graphql');
+        console.log('✅ Data loaded from GraphQL API');
+        
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+        console.error('❌ Both database and GraphQL failed:', err);
     } finally {
-      setIsLoadingEthereumStaking(false);
-    }
+        setIsLoading(false);
+      }
+    }, [isDatabaseAvailable, ...dependencies]);
+
+    useEffect(() => {
+      fetchData();
+    }, [fetchData]);
+
+    return { data, isLoading, error, dataSource, refetch: fetchData };
   };
 
-  // Load Ethereum stake starts
+  // Database-first data fetching for Ethereum staking metrics
+  const {
+    data: ethereumStakingMetrics,
+    isLoading: isLoadingEthereumMetrics,
+    error: ethereumMetricsError,
+    dataSource: ethereumMetricsSource
+  } = useDatabaseQuery(
+    async () => {
+      const { hexStakingDb } = await import('@/lib/db/hexStakingDb');
+      const [overview, globalInfo, topStakes] = await Promise.all([
+        hexStakingDb.getStakingOverview('ethereum'),
+        hexStakingDb.getLatestGlobalInfo('ethereum'),
+        hexStakingDb.getTopStakes('ethereum', 100)
+      ]);
+      
+      if (overview && globalInfo && overview.totalActiveStakes > 0) {
+        return {
+          totalActiveStakes: overview.totalActiveStakes,
+          totalStakedHearts: overview.totalStakedHearts,
+          averageStakeLength: overview.averageStakeLength,
+          globalInfo: {
+            id: globalInfo.id.toString(),
+            hexDay: globalInfo.hex_day.toString(),
+            stakeSharesTotal: globalInfo.stake_shares_total,
+            stakePenaltyTotal: globalInfo.stake_penalty_total,
+            latestStakeId: globalInfo.latest_stake_id,
+            shareRate: '0',
+            totalSupply: '0',
+            lockedHeartsTotal: globalInfo.locked_hearts_total,
+            timestamp: globalInfo.timestamp
+          },
+          topStakes: topStakes.map(stake => ({
+            id: stake.id.toString(),
+            stakeId: stake.stake_id,
+            stakerAddr: stake.staker_addr,
+            stakedHearts: stake.staked_hearts,
+            stakedDays: stake.staked_days.toString(),
+            startDay: stake.start_day.toString(),
+            endDay: stake.end_day.toString(),
+            stakeShares: stake.stake_shares,
+            stakeTShares: stake.stake_t_shares,
+            timestamp: stake.timestamp,
+            isAutoStake: stake.is_auto_stake,
+            transactionHash: stake.transaction_hash,
+            blockNumber: stake.block_number,
+            daysServed: stake.days_served,
+            daysLeft: stake.days_left
+          }))
+        };
+      }
+      return null;
+    },
+    () => hexStakingService.getStakingMetrics(),
+    [isDatabaseAvailable]
+  );
+
+  // Database-first data fetching for PulseChain staking metrics
+  const {
+    data: pulsechainStakingMetrics,
+    isLoading: isLoadingPulsechainMetrics,
+    error: pulsechainMetricsError,
+    dataSource: pulsechainMetricsSource
+  } = useDatabaseQuery(
+    async () => {
+      const { pulsechainStakingDb } = await import('@/lib/db/pulsechainStakingDb');
+      const [overview, globalInfo, topStakes] = await Promise.all([
+        pulsechainStakingDb.getStakingOverview(),
+        pulsechainStakingDb.getLatestGlobalInfo(),
+        pulsechainStakingDb.getTopStakes(100)
+      ]);
+      
+      if (overview && globalInfo && overview.totalActiveStakes > 0) {
+        return {
+          totalActiveStakes: overview.totalActiveStakes,
+          totalStakedHearts: overview.totalStakedHearts,
+          averageStakeLength: overview.averageStakeLength,
+          globalInfo: {
+            id: globalInfo.id.toString(),
+            hexDay: globalInfo.hex_day.toString(),
+            stakeSharesTotal: globalInfo.stake_shares_total,
+            stakePenaltyTotal: globalInfo.stake_penalty_total,
+            latestStakeId: globalInfo.latest_stake_id,
+            shareRate: '0',
+            totalSupply: '0',
+            lockedHeartsTotal: globalInfo.locked_hearts_total,
+            timestamp: globalInfo.timestamp
+          },
+          topStakes: topStakes.map(stake => ({
+            id: stake.id.toString(),
+            stakeId: stake.stake_id,
+            stakerAddr: stake.staker_addr,
+            stakedHearts: stake.staked_hearts,
+            stakedDays: stake.staked_days.toString(),
+            startDay: stake.start_day.toString(),
+            endDay: stake.end_day.toString(),
+            stakeShares: stake.stake_shares,
+            stakeTShares: stake.stake_t_shares,
+            timestamp: stake.timestamp,
+            isAutoStake: stake.is_auto_stake,
+            transactionHash: stake.transaction_hash,
+            blockNumber: stake.block_number,
+            daysServed: stake.days_served,
+            daysLeft: stake.days_left
+          }))
+        };
+      }
+      return null;
+    },
+    () => pulsechainHexStakingService.getStakingMetrics(),
+    [isDatabaseAvailable]
+  );
+
+  // Update existing state when database data is available
+  useEffect(() => {
+    if (ethereumStakingMetrics) {
+      setEthereumStakingData(ethereumStakingMetrics);
+    }
+  }, [ethereumStakingMetrics]);
+
+  useEffect(() => {
+    if (pulsechainStakingMetrics) {
+      setPulsechainStakingData(pulsechainStakingMetrics);
+    }
+  }, [pulsechainStakingMetrics]);
+  */
+
+  // Load Ethereum stake starts from database first, then GraphQL as fallback
   const loadEthereumStakeStarts = async () => {
     setIsLoadingEthereumAllStakes(true);
     try {
+      // Check if we're on server-side and can access database
+      if (typeof window === 'undefined') {
+        try {
+          const { hexStakingDb } = await import('@/lib/db/hexStakingDb');
+          const { databaseStatus } = await import('@/lib/db/databaseStatus');
+          
+          const isDbAvailable = await databaseStatus.checkAvailability();
+          
+          if (isDbAvailable) {
+            console.log('🗄️ Loading Ethereum stake starts from database...');
+            
+            // Get all stake starts from database (limit to 1000 for performance)
+            const dbStakes = await hexStakingDb.getActiveStakes({ 
+              network: 'ethereum', 
+              limit: 1000 
+            });
+            
+            if (dbStakes.length > 0) {
+              console.log(`✅ Retrieved ${dbStakes.length} Ethereum stake starts from database`);
+              
+              // Convert database format to expected format
+              const convertedStakes = dbStakes.map(stake => ({
+                id: stake.id.toString(),
+                stakeId: stake.stake_id,
+                stakerAddr: stake.staker_addr,
+                stakedHearts: stake.staked_hearts,
+                stakeShares: stake.stake_shares,
+                stakedDays: stake.staked_days.toString(),
+                startDay: stake.start_day.toString(),
+                endDay: stake.end_day.toString(),
+                stakeTShares: stake.stake_t_shares,
+                timestamp: stake.timestamp,
+                isAutoStake: stake.is_auto_stake,
+                transactionHash: stake.transaction_hash,
+                blockNumber: stake.block_number,
+                daysServed: stake.days_served,
+                daysLeft: stake.days_left
+              }));
+              
+              setEthereumAllStakeStarts(convertedStakes);
+              return; // Successfully loaded from database
+            }
+          }
+        } catch (dbError) {
+          console.warn('⚠️ Database query failed for Ethereum stake starts, falling back to GraphQL:', dbError);
+        }
+      }
+      
+      // Fallback to GraphQL API
+      console.log('📡 Loading Ethereum stake starts from GraphQL API...');
       const stakes = await hexStakingService.getAllStakeStartsPaginated(1000);
       setEthereumAllStakeStarts(stakes);
+      
     } catch (e) {
       console.error('Error loading Ethereum stake starts:', e);
     } finally {
@@ -320,12 +854,61 @@ const HEXDataDashboard = () => {
     }
   };
 
-  // Load Ethereum active stakes
+  // Load Ethereum active stakes from database first, then GraphQL as fallback
   const loadEthereumActiveStakes = async () => {
     setIsLoadingEthereumActiveStakes(true);
     try {
+      // Try database first
+      try {
+        const { hexStakingDb } = await import('@/lib/db/hexStakingDb');
+        const { databaseStatus } = await import('@/lib/db/databaseStatus');
+        
+        const isDbAvailable = await databaseStatus.checkAvailability();
+        
+        if (isDbAvailable) {
+          console.log('🗄️ Loading Ethereum active stakes from database...');
+          
+          // Get active stakes from database
+          const dbStakes = await hexStakingDb.getActiveStakes({ 
+            network: 'ethereum', 
+            limit: 10000 
+          });
+          
+          if (dbStakes.length > 0) {
+            console.log(`✅ Retrieved ${dbStakes.length} Ethereum active stakes from database`);
+            
+            // Convert database format to expected format
+            const convertedStakes = dbStakes.map(stake => ({
+              id: stake.id.toString(),
+              stakeId: stake.stake_id,
+              stakerAddr: stake.staker_addr,
+              stakedHearts: stake.staked_hearts,
+              stakeShares: stake.stake_shares,
+              stakedDays: stake.staked_days.toString(),
+              startDay: stake.start_day.toString(),
+              endDay: stake.end_day.toString(),
+              stakeTShares: stake.stake_t_shares,
+              timestamp: stake.timestamp,
+              isAutoStake: stake.is_auto_stake,
+              transactionHash: stake.transaction_hash,
+              blockNumber: stake.block_number,
+              daysServed: stake.days_served,
+              daysLeft: stake.days_left
+            }));
+            
+            setEthereumActiveStakes(convertedStakes);
+            return; // Successfully loaded from database
+          }
+        }
+      } catch (dbError) {
+        console.warn('⚠️ Database query failed for Ethereum active stakes, falling back to GraphQL:', dbError);
+      }
+      
+      // Fallback to GraphQL API
+      console.log('📡 Loading Ethereum active stakes from GraphQL API...');
       const stakes = await hexStakingService.getAllActiveStakes();
       setEthereumActiveStakes(stakes);
+      
     } catch (e) {
       console.error('Error loading Ethereum active stakes:', e);
     } finally {
@@ -333,27 +916,58 @@ const HEXDataDashboard = () => {
     }
   };
 
-  // Load PulseChain HEX staking data from The Graph
-  const loadPulsechainStakingData = async () => {
-    setIsLoadingPulsechainStaking(true);
-    setPulsechainStakingError(null);
-    try {
-      const data = await pulsechainHexStakingService.getStakingMetrics();
-      setPulsechainStakingData(data);
-    } catch (e) {
-      setPulsechainStakingData(null);
-      setPulsechainStakingError(e instanceof Error ? e.message : 'Unknown error');
-    } finally {
-      setIsLoadingPulsechainStaking(false);
-    }
-  };
-
-  // Load PulseChain stake starts
+  // Load PulseChain stake starts from database first, then GraphQL as fallback
   const loadPulsechainStakeStarts = async () => {
     setIsLoadingPulsechainAllStakes(true);
     try {
+      // Try database first
+      try {
+        const { pulsechainStakingDb } = await import('@/lib/db/pulsechainStakingDb');
+        const { databaseStatus } = await import('@/lib/db/databaseStatus');
+        
+        const isDbAvailable = await databaseStatus.checkAvailability();
+        
+        if (isDbAvailable) {
+          console.log('🗄️ Loading PulseChain stake starts from database...');
+          
+          // Get all stake starts from database (limit to 1000 for performance)
+          const dbStakes = await pulsechainStakingDb.getStakeStarts({ limit: 1000, offset: 0 });
+          
+          if (dbStakes.length > 0) {
+            console.log(`✅ Retrieved ${dbStakes.length} PulseChain stake starts from database`);
+            
+            // Convert database format to expected format
+            const convertedStakes = dbStakes.map(stake => ({
+              id: stake.id.toString(),
+              stakeId: stake.stake_id,
+              stakerAddr: stake.staker_addr,
+              stakedHearts: stake.staked_hearts,
+              stakeShares: stake.stake_shares,
+              stakedDays: stake.staked_days.toString(),
+              startDay: stake.start_day.toString(),
+              endDay: stake.end_day.toString(),
+              stakeTShares: stake.stake_t_shares,
+              timestamp: stake.timestamp,
+              isAutoStake: stake.is_auto_stake,
+              transactionHash: stake.transaction_hash,
+              blockNumber: stake.block_number,
+              daysServed: stake.days_served,
+              daysLeft: stake.days_left
+            }));
+            
+            setPulsechainAllStakeStarts(convertedStakes);
+            return; // Successfully loaded from database
+          }
+        }
+      } catch (dbError) {
+        console.warn('⚠️ Database query failed for PulseChain stake starts, falling back to GraphQL:', dbError);
+      }
+      
+      // Fallback to GraphQL API
+      console.log('📡 Loading PulseChain stake starts from GraphQL API...');
       const stakes = await pulsechainHexStakingService.getAllStakeStartsPaginated(1000);
       setPulsechainAllStakeStarts(stakes);
+      
     } catch (e) {
       console.error('Error loading PulseChain stake starts:', e);
     } finally {
@@ -361,12 +975,58 @@ const HEXDataDashboard = () => {
     }
   };
 
-  // Load PulseChain active stakes
+  // Load PulseChain active stakes from database first, then GraphQL as fallback
   const loadPulsechainActiveStakes = async () => {
     setIsLoadingPulsechainActiveStakes(true);
     try {
+      // Try database first
+      try {
+        const { pulsechainStakingDb } = await import('@/lib/db/pulsechainStakingDb');
+        const { databaseStatus } = await import('@/lib/db/databaseStatus');
+        
+        const isDbAvailable = await databaseStatus.checkAvailability();
+        
+        if (isDbAvailable) {
+          console.log('🗄️ Loading PulseChain active stakes from database...');
+          
+          // Get active stakes from database
+          const dbStakes = await pulsechainStakingDb.getActiveStakes({ limit: 10000, offset: 0 });
+          
+          if (dbStakes.length > 0) {
+            console.log(`✅ Retrieved ${dbStakes.length} PulseChain active stakes from database`);
+            
+            // Convert database format to expected format
+            const convertedStakes = dbStakes.map(stake => ({
+              id: stake.id.toString(),
+              stakeId: stake.stake_id,
+              stakerAddr: stake.staker_addr,
+              stakedHearts: stake.staked_hearts,
+              stakeShares: stake.stake_shares,
+              stakedDays: stake.staked_days.toString(),
+              startDay: stake.start_day.toString(),
+              endDay: stake.end_day.toString(),
+              stakeTShares: stake.stake_t_shares,
+              timestamp: stake.timestamp,
+              isAutoStake: stake.is_auto_stake,
+              transactionHash: stake.transaction_hash,
+              blockNumber: stake.block_number,
+              daysServed: stake.days_served,
+              daysLeft: stake.days_left
+            }));
+            
+            setPulsechainActiveStakes(convertedStakes);
+            return; // Successfully loaded from database
+          }
+        }
+      } catch (dbError) {
+        console.warn('⚠️ Database query failed for PulseChain active stakes, falling back to GraphQL:', dbError);
+      }
+      
+      // Fallback to GraphQL API
+      console.log('📡 Loading PulseChain active stakes from GraphQL API...');
       const stakes = await pulsechainHexStakingService.getAllActiveStakes();
       setPulsechainActiveStakes(stakes);
+      
     } catch (e) {
       console.error('Error loading PulseChain active stakes:', e);
     } finally {
@@ -433,7 +1093,7 @@ const HEXDataDashboard = () => {
   };
 
   // Handle Ethereum active stakes sorting
-  const handleEthereumActiveStakesSort = (field: 'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress') => {
+  const handleEthereumActiveStakesSort = (field: 'stakeId' | 'stakedHearts' | 'stakedDays' | 'daysServed' | 'daysLeft' | 'progress' | 'startDay' | 'endDay' | 'stakeTShares' | 'timestamp') => {
     if (ethereumActiveStakesSortField === field) {
       setEthereumActiveStakesSortDirection(ethereumActiveStakesSortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -484,6 +1144,22 @@ const HEXDataDashboard = () => {
         case 'progress':
           aValue = (a.daysServed || 0) / parseInt(a.stakedDays) * 100;
           bValue = (b.daysServed || 0) / parseInt(b.stakedDays) * 100;
+          break;
+        case 'startDay':
+          aValue = parseInt((a as any).startDay) || 0;
+          bValue = parseInt((b as any).startDay) || 0;
+          break;
+        case 'endDay':
+          aValue = parseInt((a as any).endDay) || 0;
+          bValue = parseInt((b as any).endDay) || 0;
+          break;
+        case 'stakeTShares':
+          aValue = parseFloat(a.stakeTShares);
+          bValue = parseFloat(b.stakeTShares);
+          break;
+        case 'timestamp':
+          aValue = parseInt(a.timestamp);
+          bValue = parseInt(b.timestamp);
           break;
         default:
           return 0;
@@ -734,8 +1410,54 @@ const HEXDataDashboard = () => {
     }
   };
 
+  // Check database availability
+  const checkDatabaseStatus = async () => {
+    if (typeof window !== 'undefined') {
+      // Client-side: database not available
+      setIsDatabaseAvailable(false);
+      setDatabaseStatus('unavailable');
+      return;
+    }
+
+    try {
+      const { databaseStatus } = await import('@/lib/db/databaseStatus');
+      const isAvailable = await databaseStatus.checkAvailability();
+      
+      setIsDatabaseAvailable(isAvailable);
+      setDatabaseStatus(isAvailable ? 'available' : 'unavailable');
+      
+      if (isAvailable) {
+        console.log('✅ Database is available for dashboard operations');
+      } else {
+        console.log('⚠️ Database is not available, dashboard will use GraphQL APIs');
+      }
+    } catch (error) {
+      console.error('❌ Error checking database status:', error);
+      setIsDatabaseAvailable(false);
+      setDatabaseStatus('unavailable');
+    }
+  };
+
+  // Helper functions to manage loading states
+  const setDatabaseLoading = useCallback((network: 'ethereum' | 'pulsechain', operation: 'overview' | 'stakes' | 'global', loading: boolean) => {
+    setDatabaseLoadingStates(prev => ({
+      ...prev,
+      [network]: {
+        ...prev[network],
+        [operation]: loading
+      }
+    }));
+  }, []);
+
+  const isDatabaseLoading = useCallback((network: 'ethereum' | 'pulsechain', operation: 'overview' | 'stakes' | 'global') => {
+    return databaseLoadingStates[network][operation];
+  }, [databaseLoadingStates]);
+
   useEffect(() => {
     fetchData();
+    
+    // Check database status on mount
+    checkDatabaseStatus();
     
     // Set up auto-refresh every 5 minutes
     const interval = setInterval(fetchData, 5 * 60 * 1000);
@@ -744,9 +1466,12 @@ const HEXDataDashboard = () => {
 
   // Load initial staking data for both networks
   useEffect(() => {
+    console.log('🚀 Dashboard mounted, database-first data loading initiated');
+    
+    // Load staking data from database first
     loadEthereumStakingData();
     loadPulsechainStakingData();
-  }, []);
+  }, [loadEthereumStakingData, loadPulsechainStakingData]);
 
   // Load active stakes when overview tab is active for sell pressure analysis
   useEffect(() => {
@@ -1050,8 +1775,62 @@ const HEXDataDashboard = () => {
                     {activeTab === 'sell-pressure' && 'Sell Pressure Analysis'}
               </h1>
                   
-                  {/* Spacer to maintain layout balance */}
-                  <div className="w-[72px]"></div>
+                  {/* Database Status Indicator - Far Right */}
+                  <div className="flex items-center gap-2 z-20">
+                    <div className={`w-2 h-2 rounded-full ${
+                      databaseStatus === 'checking' ? 'bg-yellow-500 animate-pulse' :
+                      databaseStatus === 'available' ? 'bg-green-500 animate-pulse' :
+                      'bg-red-500'
+                    }`}></div>
+                    <span className={`text-xs font-medium hidden sm:inline ${
+                      databaseStatus === 'checking' ? 'text-yellow-400' :
+                      databaseStatus === 'available' ? 'text-green-400' :
+                      'text-red-400'
+                    }`}>
+                      {databaseStatus === 'checking' ? 'Checking DB...' :
+                       databaseStatus === 'available' ? '🗄️ Database' :
+                       '📡 GraphQL Only'}
+                    </span>
+                    
+                    {/* Data Flow Status Indicators */}
+                    <div className="hidden lg:flex items-center gap-3 ml-4">
+                      <div className="flex items-center gap-1">
+                        <div className={`w-2 h-2 rounded-full ${
+                          dataFlowStatus.ethereum === 'database' ? 'bg-green-500' :
+                          dataFlowStatus.ethereum === 'graphql' ? 'bg-blue-500' :
+                          dataFlowStatus.ethereum === 'transitioning' ? 'bg-yellow-500 animate-pulse' :
+                          'bg-red-500'
+                        }`}></div>
+                        <span className="text-xs text-white/70">ETH</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className={`w-2 h-2 rounded-full ${
+                          dataFlowStatus.pulsechain === 'database' ? 'bg-green-500' :
+                          dataFlowStatus.pulsechain === 'graphql' ? 'bg-blue-500' :
+                          dataFlowStatus.pulsechain === 'transitioning' ? 'bg-yellow-500 animate-pulse' :
+                          'bg-red-500'
+                        }`}></div>
+                        <span className="text-xs text-white/70">PLS</span>
+                      </div>
+                      
+                      {/* Loading Legend */}
+                      <div className="flex items-center gap-2 ml-2 border-l border-white/20 pl-2">
+                        <span className="text-xs text-white/50">Loading:</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
+                          <span className="text-xs text-white/60">Overview</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+                          <span className="text-xs text-white/60">Global</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                          <span className="text-xs text-white/60">Stakes</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
             </div>
             
           </div>
@@ -1640,6 +2419,40 @@ const HEXDataDashboard = () => {
                       Ethereum HEX Staking Overview
                     </h3>
 
+                      {/* Data Flow Status Indicator */}
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          dataFlowStatus.ethereum === 'transitioning' ? 'bg-yellow-500 animate-pulse' :
+                          dataFlowStatus.ethereum === 'database' ? 'bg-green-500' :
+                          dataFlowStatus.ethereum === 'graphql' ? 'bg-blue-500' :
+                          'bg-red-500'
+                        }`}></div>
+                        <span className={`text-xs font-medium ${
+                          dataFlowStatus.ethereum === 'transitioning' ? 'text-yellow-400' :
+                          dataFlowStatus.ethereum === 'database' ? 'text-green-400' :
+                          dataFlowStatus.ethereum === 'graphql' ? 'text-blue-400' :
+                          'text-red-400'
+                        }`}>
+                          {dataFlowStatus.ethereum === 'transitioning' ? '🔄 Transitioning...' :
+                           dataFlowStatus.ethereum === 'database' ? '🗄️ Database' :
+                           dataFlowStatus.ethereum === 'graphql' ? '📡 GraphQL API' :
+                           '❌ Error'}
+                        </span>
+                        
+                        {/* Database Loading Indicators */}
+                        <div className="flex items-center gap-1 ml-2">
+                          {isDatabaseLoading('ethereum', 'overview') && (
+                            <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></div>
+                          )}
+                          {isDatabaseLoading('ethereum', 'global') && (
+                            <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+                          )}
+                          {isDatabaseLoading('ethereum', 'stakes') && (
+                            <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse"></div>
+                          )}
+                        </div>
+                      </div>
+
                       {/* Home Button */}
                       <button
                         onClick={() => window.location.href = '/'}
@@ -2040,9 +2853,9 @@ const HEXDataDashboard = () => {
                           </thead>
                           <tbody className="bg-transparent divide-y divide-gray-200">
                             {getPaginatedEthereumActiveStakes().map((stake, index) => {
-                              const progress = stake.daysServed / parseInt(stake.stakedDays) * 100;
-                              const isNearEnd = stake.daysLeft <= 30;
-                              const isOverdue = stake.daysLeft < 0;
+                              const progress = (stake.daysServed || 0) / parseInt(stake.stakedDays || '1') * 100;
+                              const isNearEnd = (stake.daysLeft || 0) <= 30;
+                              const isOverdue = (stake.daysLeft || 0) < 0;
                               
                               return (
                                 <tr key={stake.id} className="hover:bg-gray-100">
@@ -2068,12 +2881,12 @@ const HEXDataDashboard = () => {
                                     {hexStakingService.formatStakeLength(parseInt(stake.stakedDays))}
                                   </td>
                                   <td className="px-3 py-4 whitespace-nowrap text-sm text-amber-700">
-                                    {stake.daysServed.toLocaleString()} days
+                                    {stake.daysServed ? stake.daysServed.toLocaleString() : '0'} days
                                   </td>
                                   <td className={`px-3 py-4 whitespace-nowrap text-sm font-semibold ${
                                     isOverdue ? 'text-red-400' : isNearEnd ? 'text-yellow-700' : 'text-purple-400'
                                   }`}>
-                                    {isOverdue ? `${Math.abs(stake.daysLeft)} overdue` : `${stake.daysLeft} days`}
+                                    {isOverdue ? `${Math.abs(stake.daysLeft || 0)} overdue` : `${stake.daysLeft || 0} days`}
                                   </td>
                                   <td className="px-3 py-4 whitespace-nowrap text-sm">
                                     <div className="flex items-center gap-2">
@@ -2148,7 +2961,7 @@ const HEXDataDashboard = () => {
                                     </p>
                                   </div>
                                   <div>
-                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                                       <button
                                         onClick={() => setEthereumActiveStakesCurrentPage(prev => Math.max(prev - 1, 1))}
                                         disabled={!paginationInfo.hasPrevPage}
@@ -2321,6 +3134,40 @@ const HEXDataDashboard = () => {
                       <Lock className="w-5 h-5" />
                       PulseChain HEX Staking Overview
                     </h3>
+
+                        {/* Data Flow Status Indicator */}
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${
+                            dataFlowStatus.pulsechain === 'transitioning' ? 'bg-yellow-500 animate-pulse' :
+                            dataFlowStatus.pulsechain === 'database' ? 'bg-green-500' :
+                            dataFlowStatus.pulsechain === 'graphql' ? 'bg-blue-500' :
+                            'bg-red-500'
+                          }`}></div>
+                          <span className={`text-xs font-medium ${
+                            dataFlowStatus.pulsechain === 'transitioning' ? 'text-yellow-400' :
+                            dataFlowStatus.pulsechain === 'graphql' ? 'text-blue-400' :
+                            dataFlowStatus.pulsechain === 'database' ? 'text-green-400' :
+                            'text-red-400'
+                          }`}>
+                            {dataFlowStatus.pulsechain === 'transitioning' ? '🔄 Transitioning...' :
+                             dataFlowStatus.pulsechain === 'database' ? '🗄️ Database' :
+                             dataFlowStatus.pulsechain === 'graphql' ? '📡 GraphQL API' :
+                             '❌ Error'}
+                          </span>
+                          
+                          {/* Database Loading Indicators */}
+                          <div className="flex items-center gap-1 ml-2">
+                            {isDatabaseLoading('pulsechain', 'overview') && (
+                              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></div>
+                            )}
+                            {isDatabaseLoading('pulsechain', 'global') && (
+                              <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+                            )}
+                            {isDatabaseLoading('pulsechain', 'stakes') && (
+                              <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse"></div>
+                            )}
+                          </div>
+                        </div>
 
                         {/* Home Button */}
                         <button
@@ -2555,7 +3402,7 @@ const HEXDataDashboard = () => {
                                   {pulsechainHexStakingService.formatStakeLength(parseInt(stake.stakedDays))}
                                 </td>
                                 <td className="px-3 py-4 whitespace-nowrap text-sm text-amber-400">
-                                  {stake.daysServed.toLocaleString()} days
+                                  {stake.daysServed ? stake.daysServed.toLocaleString() : '0'} days
                                 </td>
                                 <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
                                   Day {stake.endDay}
@@ -2704,9 +3551,9 @@ const HEXDataDashboard = () => {
                           </thead>
                           <tbody className="bg-transparent divide-y divide-gray-200">
                             {getPaginatedPulsechainActiveStakes().map((stake, index) => {
-                              const progress = stake.daysServed / parseInt(stake.stakedDays) * 100;
-                              const isNearEnd = stake.daysLeft <= 30;
-                              const isOverdue = stake.daysLeft < 0;
+                              const progress = (stake.daysServed || 0) / parseInt(stake.stakedDays || '1') * 100;
+                              const isNearEnd = (stake.daysLeft || 0) <= 30;
+                              const isOverdue = (stake.daysLeft || 0) < 0;
                               
                               return (
                                 <tr key={stake.id} className="hover:bg-gray-100">
@@ -2732,12 +3579,12 @@ const HEXDataDashboard = () => {
                                     {pulsechainHexStakingService.formatStakeLength(parseInt(stake.stakedDays))}
                                   </td>
                                   <td className="px-3 py-4 whitespace-nowrap text-sm text-amber-700">
-                                    {stake.daysServed.toLocaleString()} days
+                                    {stake.daysServed ? stake.daysServed.toLocaleString() : '0'} days
                                   </td>
                                   <td className={`px-3 py-4 whitespace-nowrap text-sm font-semibold ${
                                     isOverdue ? 'text-red-400' : isNearEnd ? 'text-yellow-700' : 'text-purple-400'
                                   }`}>
-                                    {isOverdue ? `${Math.abs(stake.daysLeft)} overdue` : `${stake.daysLeft} days`}
+                                    {isOverdue ? `${Math.abs(stake.daysLeft || 0)} overdue` : `${stake.daysLeft || 0} days`}
                                   </td>
                                   <td className="px-3 py-4 whitespace-nowrap text-sm">
                                     <div className="flex items-center gap-2">
@@ -2812,7 +3659,7 @@ const HEXDataDashboard = () => {
                                     </p>
                                   </div>
                                   <div>
-                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                                       <button
                                         onClick={() => setPulsechainActiveStakesCurrentPage(prev => Math.max(prev - 1, 1))}
                                         disabled={!paginationInfo.hasPrevPage}
@@ -3191,7 +4038,6 @@ const HEXDataDashboard = () => {
                 <button
                   onClick={() => setShowDexPairs(false)}
                   className="text-slate-300 hover:text-white text-sm"
-                  aria-label="Close"
                 >
                   Close
                 </button>
@@ -3289,6 +4135,7 @@ const HEXDataDashboard = () => {
                   setDualNetworkStakerData(null);
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Close"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
@@ -3434,7 +4281,7 @@ const HEXDataDashboard = () => {
                 <div 
                   className="w-full h-full"
                   dangerouslySetInnerHTML={{
-                    __html: `<style>#dexscreener-embed{position:relative;width:100%;padding-bottom:125%;}@media(min-width:1400px){#dexscreener-embed{padding-bottom:65%;}}#dexscreener-embed iframe{position:absolute;width;100%;height:100%;top:0;left:0;border:0;}</style><div id="dexscreener-embed"><iframe src="https://dexscreener.com/pulsechain/0xf1F4ee610b2bAbB05C635F726eF8B0C568c8dc65?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartDefaultOnMobile=1&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=15"></iframe></div>`
+                    __html: `<style>#dexscreener-embed{position:relative;width:100%;padding-bottom:125%;}@media(min-width:1400px){#dexscreener-embed{padding-bottom:65%;}}#dexscreener-embed iframe{position:absolute;width:100%;height:100%;top:0;left:0;border:0;}</style><div id="dexscreener-embed"><iframe src="https://dexscreener.com/pulsechain/0xf1F4ee610b2bAbB05C635F726eF8B0C568c8dc65?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartDefaultOnMobile=1&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=15"></iframe></div>`
                   }}
                 />
               )}

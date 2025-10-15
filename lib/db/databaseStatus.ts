@@ -9,12 +9,8 @@ export class DatabaseStatus {
       return this.isAvailable;
     }
 
-    // Client-side: database not available
-    if (typeof window !== 'undefined') {
-      this.isAvailable = false;
-      this.checkedOnce = true;
-      return false;
-    }
+    // Allow database access from both server and client
+    // The actual database operations will handle connection issues
 
     try {
       const { sql } = await import('./connection');
@@ -81,14 +77,8 @@ export class DatabaseStatus {
     tableCount: number;
     tableNames: string[];
   }> {
-    if (typeof window !== 'undefined') {
-      return {
-        available: false,
-        tablesExist: false,
-        tableCount: 0,
-        tableNames: []
-      };
-    }
+    // Allow database access from both server and client
+    // The actual database operations will handle connection issues
 
     try {
       const { sql } = await import('./connection');

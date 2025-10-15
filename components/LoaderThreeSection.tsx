@@ -18,7 +18,8 @@ export function GoogleGeminiEffectDemo() {
   
   return (
     <div
-      className="h-[200vh] bg-black w-full dark:border dark:border-white/[0.1] rounded-md relative pt-40 overflow-clip"
+      className="h-[200vh] w-full dark:border dark:border-white/[0.1] rounded-md relative pt-40 overflow-clip"
+      style={{ backgroundColor: '#0C2340' }}
       ref={ref}
     >
       <div className="sticky top-80">

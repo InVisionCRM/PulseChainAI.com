@@ -30,6 +30,10 @@ export class DexScreenerApiClient {
         const tokenData = tokenResponse.ok ? await tokenResponse.json() : { pairs: [] };
         const searchData = searchResponse.ok ? await searchResponse.json() : { pairs: [] };
 
+        // Debug: Log raw response
+        console.log('DexScreener Raw Token Response:', tokenData);
+        console.log('DexScreener Raw Search Response:', searchData);
+
         // Combine and deduplicate pairs
         const allPairs = new Map();
         [...(tokenData.pairs || []), ...(searchData.pairs || [])].forEach(pair => {
@@ -46,12 +50,51 @@ export class DexScreenerApiClient {
           throw new Error('No pairs found for token');
         }
 
+        // Debug: Log main pair structure
+        console.log('DexScreener Main Pair:', mainPair);
+
+        // Fetch detailed pair information from v4 endpoint via proxy
+        let pairDetails = null;
+        if (mainPair.pairAddress) {
+          try {
+            const v4Url = `/api/dexscreener-v4/pulsechain/${mainPair.pairAddress}`;
+            console.log('Fetching DexScreener V4 via proxy:', v4Url);
+            const pairDetailsResponse = await fetch(v4Url);
+            console.log('V4 Response Status:', pairDetailsResponse.status, pairDetailsResponse.statusText);
+            if (pairDetailsResponse.ok) {
+              pairDetails = await pairDetailsResponse.json();
+              console.log('DexScreener Pair Details V4 Response:', pairDetails);
+              console.log('V4 CMS Description:', pairDetails?.cms?.description);
+            } else {
+              console.warn('V4 endpoint returned error:', pairDetailsResponse.status);
+            }
+          } catch (error) {
+            console.error('Failed to fetch pair details v4:', error);
+          }
+        } else {
+          console.warn('No pair address found for v4 fetch');
+        }
+
         // Get the most complete token info
         const tokenInfo = mainPair.baseToken || mainPair.token0 || mainPair.token1;
         
         // Extract social links and additional info
         const socials = [];
         const websites = [];
+        
+        // Check pair details v4 first for socials and websites
+        if (pairDetails?.profile?.socials) {
+          socials.push(...pairDetails.profile.socials);
+        }
+        if (pairDetails?.profile?.websites) {
+          websites.push(...pairDetails.profile.websites);
+        }
+        if (pairDetails?.info?.socials) {
+          socials.push(...pairDetails.info.socials);
+        }
+        if (pairDetails?.info?.websites) {
+          websites.push(...pairDetails.info.websites);
+        }
         
         // Check for social links in various possible locations
         if (mainPair.info?.socials) {
@@ -77,26 +120,62 @@ export class DexScreenerApiClient {
           }
         }
 
+        // Extract CMS data from v4 endpoint
+        const cms = pairDetails?.cms || null;
+        const description = cms?.description || '';
+        
+        // Extract header and icon image URLs
+        const tokenAddress = address.toLowerCase();
+        const headerImageUrl = cms?.header?.id 
+          ? `https://dd.dexscreener.com/ds-data/tokens/pulsechain/${tokenAddress}/header.png?key=${cms.header.id}`
+          : null;
+        const iconImageUrl = cms?.icon?.id
+          ? `https://dd.dexscreener.com/ds-data/tokens/pulsechain/${tokenAddress}/icon.png?key=${cms.icon.id}`
+          : null;
+        
+        // Extract links from CMS
+        const cmsLinks = cms?.links || [];
+        
+        // Debug logging
+        console.log('CMS Data Extraction:', {
+          hasDescription: !!description,
+          hasHeader: !!headerImageUrl,
+          hasIcon: !!iconImageUrl,
+          linksCount: cmsLinks.length,
+          descriptionPreview: description ? description.substring(0, 100) : 'EMPTY'
+        });
+
+        // Extract logo from multiple sources
+        const logo = pairDetails?.profile?.logo || 
+                    pairDetails?.info?.imageUrl ||
+                    tokenInfo?.logoURI || 
+                    mainPair.baseToken?.logoURI ||
+                    mainPair.info?.imageUrl;
+
         const profileData = {
           pairs: combinedPairs,
           tokenInfo: {
             address: tokenInfo?.address || address,
-            name: tokenInfo?.name || 'Unknown Token',
-            symbol: tokenInfo?.symbol || 'Unknown',
-            logoURI: tokenInfo?.logoURI || mainPair.baseToken?.logoURI,
-            description: mainPair.baseToken?.description || mainPair.info?.description,
+            name: cms?.name || tokenInfo?.name || 'Unknown Token',
+            symbol: cms?.symbol || tokenInfo?.symbol || 'Unknown',
+            logoURI: logo,
+            iconImageUrl: iconImageUrl,
+            description: description,
             totalSupply: tokenInfo?.totalSupply,
             decimals: tokenInfo?.decimals || 18
           },
           profile: {
-            logo: tokenInfo?.logoURI || mainPair.baseToken?.logoURI,
-            description: mainPair.baseToken?.description || mainPair.info?.description,
+            logo: logo,
+            headerImageUrl: headerImageUrl,
+            iconImageUrl: iconImageUrl,
+            description: description,
             socials,
             websites,
+            cmsLinks: cmsLinks,
             // Additional metadata
-            tags: mainPair.baseToken?.tags || [],
-            category: mainPair.baseToken?.category,
-            verified: mainPair.baseToken?.verified || false
+            tags: pairDetails?.profile?.tags || mainPair.baseToken?.tags || [],
+            category: pairDetails?.profile?.category || mainPair.baseToken?.category,
+            verified: pairDetails?.profile?.verified || mainPair.baseToken?.verified || false
           },
           marketData: {
             priceUsd: mainPair.priceUsd,
@@ -107,6 +186,19 @@ export class DexScreenerApiClient {
             marketCap: mainPair.marketCap
           }
         };
+
+        console.log('Final Profile Data:', {
+          hasDescription: !!profileData.profile.description,
+          hasSocials: profileData.profile.socials.length,
+          hasWebsites: profileData.profile.websites.length,
+          descriptionPreview: profileData.profile.description ? profileData.profile.description.substring(0, 100) : 'NONE',
+          logoSources: {
+            profileIconImageUrl: profileData.profile.iconImageUrl || 'NONE',
+            profileLogo: profileData.profile.logo || 'NONE',
+            tokenInfoLogoURI: profileData.tokenInfo.logoURI || 'NONE',
+            tokenInfoIconImageUrl: profileData.tokenInfo.iconImageUrl || 'NONE'
+          }
+        });
 
         return profileData;
       }, SERVICE_CONFIG.dexscreener.retries, 1000, 'dexscreener');

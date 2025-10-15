@@ -249,8 +249,6 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
                               : 'border-white/10 bg-white/5 hover:bg-white/10'
                           }`}
                           onClick={() => handleStatToggle(stat.id)}
-                          role="button"
-                          aria-pressed={isSelected}
                           title={`${isSelected ? 'Remove' : 'Add'} ${stat.name}`}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -274,7 +272,6 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
                               onChange={() => handleStatToggle(stat.id)}
                               className="mt-1 w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
                               title={`Select ${stat.name} stat`}
-                              aria-label={`Select ${stat.name} stat`}
                             />
                           </div>
                         </motion.div>

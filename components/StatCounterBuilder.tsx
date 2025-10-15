@@ -208,14 +208,20 @@ export default function StatCounterBuilder() {
           const mainPair = dexData.pairs[0];
           detailedToken = {
             ...detailedToken,
-            price: parseFloat(mainPair.priceUsd),
-            marketCap: dexData.marketCap,
+            price: parseFloat(mainPair.priceUsd || '0'),
+            marketCap: (dexData as any).marketCap,
             volume24h: mainPair.volume?.h24 || 0,
             liquidity: mainPair.liquidity?.usd || 0,
             lpCount: dexData.pairs.length,
             dexScreenerData: {
-              ...dexData,
-              info: dexData.info // Include the info field with images, socials, etc.
+              price: parseFloat(mainPair.priceUsd || '0'),
+              priceChange24h: mainPair.priceChange?.h24 || 0,
+              marketCap: (dexData as any).marketCap || 0,
+              volume24h: mainPair.volume?.h24 || 0,
+              liquidity: mainPair.liquidity?.usd || 0,
+              lpCount: dexData.pairs.length,
+              pairs: dexData.pairs as any,
+              info: (dexData as any).info
             },
           };
         }
@@ -436,7 +442,7 @@ export default function StatCounterBuilder() {
 }
 
 // Debounce utility function
-function debounce<T extends (...args: unknown[]) => unknown>(
+function debounce<T extends (...args: any[]) => any>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {

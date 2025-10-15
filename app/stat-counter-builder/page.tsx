@@ -401,7 +401,6 @@ export default function StatCounterBuilderPage() {
                   onClick={() => setShowTokenSearch(false)}
                   className="text-slate-400 hover:text-white"
                   title="Close token search dialog"
-                  aria-label="Close token search dialog"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -488,7 +487,6 @@ export default function StatCounterBuilderPage() {
                   }}
                   className="text-slate-400 hover:text-white"
                   title="Close stats palette"
-                  aria-label="Close stats palette"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -554,7 +552,6 @@ export default function StatCounterBuilderPage() {
                 onChange={(e) => setZoom(Number(e.target.value))}
                 className="w-32 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer zoom-slider"
                 title="Zoom level control"
-                aria-label="Zoom level control"
                 style={{
                   background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(zoom - 0.1) / 4.9 * 100}%, #475569 ${(zoom - 0.1) / 4.9 * 100}%, #475569 100%)`
                 }} // eslint-disable-line react/forbid-dom-props

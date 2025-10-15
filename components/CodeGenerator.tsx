@@ -13,12 +13,12 @@ export default function CodeGenerator({ config, onError }: CodeGeneratorProps) {
   const [activeTab, setActiveTab] = useState<'html' | 'iframe' | 'widget'>('html');
 
   const generateCode = () => {
-    if (!config.token || !config.stats.some(stat => stat.enabled)) {
+    if (!config.tokens?.[0] || !config.stats.some(stat => stat.enabled)) {
       return '';
     }
 
     const enabledStats = config.stats.filter(stat => stat.enabled);
-    const widgetId = `stat-counter-${config.token.address.slice(2, 8)}`;
+    const widgetId = `stat-counter-${config.tokens[0].address.slice(2, 8)}`;
     
     const cssStyles = generateCSS();
     const jsCode = generateJS(widgetId, enabledStats);
@@ -31,7 +31,7 @@ export default function CodeGenerator({ config, onError }: CodeGeneratorProps) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${config.token?.name || 'Token'} Stat Counter</title>
+    <title>${config.tokens?.[0]?.name || 'Token'} Stat Counter</title>
     <style>
 ${cssStyles}
     </style>
@@ -44,7 +44,7 @@ ${jsCode}
       
       case 'iframe':
         return `<iframe 
-    src="${window.location.origin}/api/stat-counter-widget?token=${config.token.address}&stats=${enabledStats.map(s => s.id).join(',')}"
+    src="${window.location.origin}/api/stat-counter-widget?token=${config.tokens?.[0]?.address}&stats=${enabledStats.map(s => s.id).join(',')}"
     width="100%" 
     height="300" 
     frameborder="0" 
@@ -60,7 +60,7 @@ ${jsCode}
     script.src = '${window.location.origin}/api/stat-counter-widget.js';
     script.onload = function() {
         initStatCounter('${widgetId}', {
-            token: '${config.token.address}',
+            token: '${config.tokens?.[0]?.address}',
             stats: ${JSON.stringify(enabledStats.map(s => s.id))}
         });
     };
@@ -192,16 +192,16 @@ ${jsCode}
   };
 
   const generateJS = (widgetId: string, enabledStats: StatConfig[]) => {
-    const tokenName = config.token?.name || 'Token';
-    const tokenSymbol = config.token?.symbol || 'TKN';
-    const tokenAddress = config.token?.address || '';
+    const tokenName = config.tokens?.[0]?.name || 'Token';
+    const tokenSymbol = config.tokens?.[0]?.symbol || 'TKN';
+    const tokenAddress = config.tokens?.[0]?.address || '';
     
     return `
 <script>
 (function() {
     const widgetId = '${widgetId}';
     const tokenAddress = '${tokenAddress}';
-    const enabledStats = ${JSON.stringify(enabledStats.map(s => s.id))};
+    const enabledStats = ${JSON.stringify(enabledStats.map(s => ({ id: s.id, format: s.format, decimals: s.decimals })))};
     const tokenName = '${tokenName}';
     const tokenSymbol = '${tokenSymbol}';
 
@@ -331,7 +331,7 @@ ${jsCode}
   };
 
   const generateHTML = (widgetId: string, enabledStats: StatConfig[]) => {
-    const { token } = config;
+    const token = config.tokens?.[0];
     
     return `<div id="${widgetId}" class="stat-counter-widget">
     <div class="stat-counter-header">
@@ -377,14 +377,15 @@ ${jsCode}
     <div className="space-y-4">
       {/* Code Type Tabs */}
       <div className="flex space-x-1 bg-white/5 rounded-lg p-1">
-        {[
-          { id: 'html', label: 'HTML', icon: '🌐' },
-          { id: 'iframe', label: 'iFrame', icon: '📦' },
-          { id: 'widget', label: 'Widget', icon: '⚡' }
-        ].map((tab) => (
+        {([
+          { id: 'html' as const, label: 'HTML', icon: '🌐' },
+          { id: 'iframe' as const, label: 'iFrame', icon: '📦' },
+          { id: 'widget' as const, label: 'Widget', icon: '⚡' }
+        ] as const).map((tab) => (
           <button
+            type="button"
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => setActiveTab(tab.id)}
             className={`flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === tab.id
                 ? 'bg-purple-500 text-white'
@@ -407,6 +408,7 @@ ${jsCode}
               {activeTab === 'widget' && 'JavaScript widget for dynamic loading'}
             </span>
             <button
+              type="button"
               onClick={() => copyToClipboard(generatedCode, activeTab)}
               className={`flex items-center space-x-2 px-3 py-1 rounded text-xs font-medium transition-colors ${
                 copied === activeTab

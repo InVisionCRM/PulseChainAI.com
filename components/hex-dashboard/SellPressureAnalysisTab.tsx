@@ -83,8 +83,8 @@ export default function SellPressureAnalysisTab({
             currentPrice={ethereumPrice}
             currentHexDay={ethereumHexDay}
             network="ethereum"
-            formatHexAmount={hexStakingService.formatHexAmount}
-            formatTShareAmount={hexStakingService.formatTShareAmount}
+            formatHexAmount={(amount: string | number) => hexStakingService.formatHexAmount(String(amount))}
+            formatTShareAmount={(amount: string | number) => hexStakingService.formatTShareAmount(String(amount))}
           />
         ) : (
           <SellPressureAnalysis
@@ -92,8 +92,8 @@ export default function SellPressureAnalysisTab({
             currentPrice={pulsechainPrice}
             currentHexDay={pulsechainHexDay}
             network="pulsechain"
-            formatHexAmount={pulsechainHexStakingService.formatHexAmount}
-            formatTShareAmount={pulsechainHexStakingService.formatTShareAmount}
+            formatHexAmount={(amount: string | number) => pulsechainHexStakingService.formatHexAmount(String(amount))}
+            formatTShareAmount={(amount: string | number) => pulsechainHexStakingService.formatTShareAmount(String(amount))}
           />
         )}
       </div>

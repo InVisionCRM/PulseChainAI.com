@@ -33,11 +33,11 @@ export default function CodeGenerationModal({
       }
 
       const cardStats = tokenCard.stats.map(stat => {
-        const result = statResults[tokenCard.id]?.[stat.id];
+        const result = statResults[tokenCard.id]?.[stat.id] as any;
         const value = result?.formattedValue || result?.value || 'Loading...';
         return `
         <div class="stat-item" style="
-          background: ${tokenCard.customization.cardBackgroundColor}${Math.round((tokenCard.customization.cardOpacity || 100) / 100 * 255).toString(16).padStart(2, '0')};
+          background: ${tokenCard.customization.cardBackgroundColor}${Math.round((Number(tokenCard.customization.cardOpacity) || 100) / 100 * 255).toString(16).padStart(2, '0')};
           border: 1px solid ${tokenCard.customization.cardBorderColor};
           border-radius: 8px;
           padding: 12px;
@@ -45,7 +45,7 @@ export default function CodeGenerationModal({
           text-align: center;
         ">
           <div style="color: ${tokenCard.customization.textColor}; font-size: 14px; margin-bottom: 4px;">
-            ${(tokenCard.customization.customLabels && tokenCard.customization.customLabels[stat.id]) || stat.label}
+            ${(tokenCard.customization.customLabels && (tokenCard.customization.customLabels as any)[stat.id]) || stat.label}
           </div>
           <div style="color: ${tokenCard.customization.accentColor}; font-size: 18px; font-weight: bold;">
             ${value}
@@ -60,7 +60,7 @@ export default function CodeGenerationModal({
         top: ${tokenCard.position.y}px;
         width: ${tokenCard.size.width}px;
         height: ${tokenCard.size.height}px;
-        background: ${tokenCard.customization.backgroundColor}${Math.round((tokenCard.customization.backgroundOpacity || 100) / 100 * 255).toString(16).padStart(2, '0')};
+        background: ${tokenCard.customization.backgroundColor}${Math.round((Number(tokenCard.customization.backgroundOpacity) || 100) / 100 * 255).toString(16).padStart(2, '0')};
         border: 1px solid ${tokenCard.customization.cardBorderColor};
         border-radius: 12px;
         padding: 16px;
@@ -165,7 +165,6 @@ export default function CodeGenerationModal({
               <button
                 onClick={onClose}
                 className="text-white/60 hover:text-white text-2xl"
-                aria-label="Close"
               >
                 ×
               </button>

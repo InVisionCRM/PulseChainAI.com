@@ -128,6 +128,19 @@ export interface DexScreenerToken {
     address: string;
     name: string;
     symbol: string;
+    logoURI?: string;
+    description?: string;
+    totalSupply?: string;
+    decimals?: number;
+    links?: {
+        website?: string;
+        twitter?: string;
+        telegram?: string;
+        discord?: string;
+    };
+    tags?: string[];
+    category?: string;
+    verified?: boolean;
 }
 
 export interface DexScreenerPair {
@@ -140,11 +153,7 @@ export interface DexScreenerPair {
     priceNative: string;
     priceUsd: string;
     txns: {
-        h24: {
-            buys: number;
-            sells: number;
-        };
-        h6: {
+        m5: {
             buys: number;
             sells: number;
         };
@@ -152,16 +161,26 @@ export interface DexScreenerPair {
             buys: number;
             sells: number;
         };
+        h6: {
+            buys: number;
+            sells: number;
+        };
+        h24: {
+            buys: number;
+            sells: number;
+        };
     };
     volume: {
-        h24: number;
-        h6: number;
+        m5: number;
         h1: number;
+        h6: number;
+        h24: number;
     };
     priceChange: {
-        h24: number;
-        h6: number;
+        m5: number;
         h1: number;
+        h6: number;
+        h24: number;
     };
     liquidity: {
         usd: number;
@@ -169,7 +188,21 @@ export interface DexScreenerPair {
         quote: number;
     };
     fdv: number;
+    marketCap?: number;
     pairCreatedAt: number;
+    info?: {
+        imageUrl?: string;
+        header?: string;
+        openGraph?: string;
+        websites?: Array<{
+            label: string;
+            url: string;
+        }>;
+        socials?: Array<{
+            type: string;
+            url: string;
+        }>;
+    };
 }
 
 export interface DexScreenerData {
@@ -180,6 +213,40 @@ export interface DexScreenerData {
         address: string;
         name: string;
         symbol: string;
+        logoURI?: string;
+        iconImageUrl?: string;
+        description?: string;
+        totalSupply?: string;
+        decimals?: number;
+    } | null;
+    profile?: {
+        logo?: string;
+        headerImageUrl?: string;
+        iconImageUrl?: string;
+        description?: string;
+        socials?: Array<{
+            type: string;
+            url: string;
+        }>;
+        websites?: Array<{
+            label: string;
+            url: string;
+        }>;
+        cmsLinks?: Array<{
+            label: string;
+            url: string;
+        }>;
+        tags?: string[];
+        category?: string;
+        verified?: boolean;
+    } | null;
+    marketData?: {
+        priceUsd?: string;
+        priceChange?: any;
+        liquidity?: any;
+        volume?: any;
+        fdv?: number;
+        marketCap?: number;
     } | null;
     info?: {
         imageUrl?: string;

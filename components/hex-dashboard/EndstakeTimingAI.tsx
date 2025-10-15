@@ -331,6 +331,7 @@ const EndstakeTimingAI: React.FC<EndstakeTimingAIProps> = ({
       <div className="border-b border-white/10 mb-6">
         <nav className="-mb-px flex space-x-8">
           <button
+            type="button"
             onClick={() => setActiveTab('input')}
             className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
               activeTab === 'input'
@@ -342,6 +343,7 @@ const EndstakeTimingAI: React.FC<EndstakeTimingAIProps> = ({
             Input Parameters
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('analysis')}
             className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
               activeTab === 'analysis'
@@ -353,6 +355,7 @@ const EndstakeTimingAI: React.FC<EndstakeTimingAIProps> = ({
             Market Analysis
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('recommendation')}
             className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
               activeTab === 'recommendation'
@@ -409,6 +412,7 @@ const EndstakeTimingAI: React.FC<EndstakeTimingAIProps> = ({
               <select
                 value={inputs.strategy}
                 onChange={(e) => setInputs(prev => ({ ...prev, strategy: e.target.value as 'lump-sum' | 'ladder' }))}
+                title="Select staking strategy"
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="lump-sum">Lump Sum Stake</option>
@@ -434,6 +438,7 @@ const EndstakeTimingAI: React.FC<EndstakeTimingAIProps> = ({
               <select
                 value={inputs.network}
                 onChange={(e) => setInputs(prev => ({ ...prev, network: e.target.value as 'ethereum' | 'pulsechain' | 'both' }))}
+                title="Select network for analysis"
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="both">Both Ethereum & PulseChain</option>
@@ -452,6 +457,7 @@ const EndstakeTimingAI: React.FC<EndstakeTimingAIProps> = ({
           {/* Analysis Button */}
           <div className="text-center">
             <button
+              type="button"
               onClick={analyzeEndstakeTiming}
               disabled={isAnalyzing || inputs.hexAmount <= 0 || inputs.targetDays <= 0 || inputs.varianceDays <= 0}
               className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-bold py-4 px-8 rounded-xl flex items-center gap-3 mx-auto transition-colors"
@@ -594,6 +600,7 @@ const EndstakeTimingAI: React.FC<EndstakeTimingAIProps> = ({
           {/* Navigation */}
           <div className="flex justify-between">
             <button
+              type="button"
               onClick={() => setActiveTab('input')}
               className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
             >
@@ -601,6 +608,7 @@ const EndstakeTimingAI: React.FC<EndstakeTimingAIProps> = ({
               Back to Input
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('recommendation')}
               className="flex items-center gap-2 text-purple-400 hover:text-purple-300 transition-colors"
             >
@@ -692,6 +700,7 @@ const EndstakeTimingAI: React.FC<EndstakeTimingAIProps> = ({
           {/* Navigation */}
           <div className="flex justify-between">
             <button
+              type="button"
               onClick={() => setActiveTab('analysis')}
               className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
             >
@@ -699,6 +708,7 @@ const EndstakeTimingAI: React.FC<EndstakeTimingAIProps> = ({
               View Analysis
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('input')}
               className="flex items-center gap-2 text-purple-400 hover:text-purple-300 transition-colors"
             >

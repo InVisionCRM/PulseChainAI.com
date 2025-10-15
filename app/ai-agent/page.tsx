@@ -2,115 +2,40 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 // import { motion } from "framer-motion"; // Temporarily disabled due to TypeScript issues
+import { useSearchParams } from 'next/navigation';
 
 import { LoaderThree } from "@/components/ui/loader";
+import { HexLoader } from "@/components/ui/hex-loader";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList } from "@/components/ui/navigation-menu";
 
 import type { Message, ContractData, TokenInfo, AbiItem, ExplainedFunction, SearchResultItem, Transaction, TokenBalance, DexScreenerData } from '../../types';
-import { fetchContract, fetchTokenInfo, search, fetchReadMethods, fetchCreatorTransactions, fetchAddressTokenBalances, fetchAddressInfo, fetchDexScreenerData } from '../../services/pulsechainService';
+import { fetchContract, fetchTokenInfo, search, fetchReadMethods, fetchDexScreenerData } from '../../services/pulsechainService';
 import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
-import { coingeckoApi } from '../../services/blockchain/coingeckoApi';
 import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { useApiKey } from '../../lib/hooks/useApiKey';
 import { useGemini } from '../../lib/hooks/useGemini';
 import UnverifiedContractRisksModal from '@/components/UnverifiedContractRisksModal';
-import { ContainerTextFlip } from '@/components/ui/container-text-flip';
 import { WobbleCard } from '@/components/ui/wobble-card';
 import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
-import CreatorTab from '@/components/CreatorTab';
 import SourceCodeTab from '@/components/SourceCodeTab';
 import ApiResponseTab from '@/components/ApiResponseTab';
 import LiquidityTab from '@/components/LiquidityTab';
 import SendIcon from '@/components/icons/SendIcon';
+import AddressDetailsModal from '@/components/AddressDetailsModal';
+import { Button as StatefulButton } from '@/components/ui/stateful-button';
+import DexScreenerChart from '@/components/DexScreenerChart';
 
 // Note: API key is handled server-side in API routes
 
-type TabId = 'creator' | 'code' | 'api' | 'chart' | 'chat' | 'info' | 'holders' | 'liquidity';
+type TabId = 'code' | 'chat' | 'info' | 'holders' | 'liquidity';
 
 
 
 
 
 
-
-// Splash Screen Modal Component
-const SplashModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-    if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-800 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-2xl max-w-md w-full p-6">
-                <div className="text-center mb-6">
-                    <h2 className="text-2xl font-bold text-white mb-2">Before You Continue...</h2>
-                    <p className="text-slate-400 text-sm">Important information about AI-powered contract analysis</p>
-                </div>
-
-                <div className="space-y-4 mb-6">
-                    <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <span className="text-white text-xs font-bold">NEW</span>
-                        </div>
-                        <p className="text-slate-300 text-sm">AI Contract Analyzer is in Beta. It will undergo frequent improvements.</p>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-purple-600 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                            </svg>
-                        </div>
-                        <p className="text-slate-300 text-sm">You may need a valid <span className="text-blue-400 font-medium">Gemini API Key</span> to generate responses.</p>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-green-600 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
-                            </svg>
-                        </div>
-                        <p className="text-slate-300 text-sm">We do not store your API key on our servers.</p>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-yellow-600 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                            </svg>
-                        </div>
-                        <p className="text-slate-300 text-sm">AI analysis only supports <span className="text-blue-400 font-medium">Chat Completion</span> mode at the moment.</p>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-red-600 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                        </div>
-                        <p className="text-slate-300 text-sm">Don&apos;t assume answers are correct or use them for security audits.</p>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-purple-600 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                            </svg>
-                        </div>
-                        <p className="text-slate-300 text-sm">Remember: the answers are generated by an AI, not by PulseChain.</p>
-                    </div>
-                </div>
-
-                <button
-                    onClick={onClose}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
-                >
-                    Understand and Continue
-                </button>
-            </div>
-        </div>
-    );
-};
 
 // Main App Component
 const App: React.FC = () => {
@@ -119,12 +44,7 @@ const App: React.FC = () => {
   const [contractData, setContractData] = useState<ContractData | null>(null);
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [dexScreenerData, setDexScreenerData] = useState<DexScreenerData | null>(null);
-  const [coinGeckoData, setCoinGeckoData] = useState<any>(null);
   const [explainedFunctions, setExplainedFunctions] = useState<ExplainedFunction[] | null>(null);
-  
-  // Creator Tab State
-  const [creatorTransactions, setCreatorTransactions] = useState<Transaction[] | null>(null);
-  const [creatorTokenBalance, setCreatorTokenBalance] = useState<TokenBalance | null>(null);
 
   // Holders tab state
   const [holders, setHolders] = useState<SearchResultItem[] | null>(null);
@@ -154,8 +74,7 @@ const App: React.FC = () => {
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [activeTabbedContent, setActiveTabbedContent] = useState<number>(0);
-  const [isLoadingCreatorInfo, setIsLoadingCreatorInfo] = useState<boolean>(false);
-  
+
   // Refs
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -163,15 +82,39 @@ const App: React.FC = () => {
 
   // Hooks
   const { getApiKey } = useApiKey();
-  const { analyzeContract } = useGemini();
+  const searchParams = useSearchParams();
+
+  // Search Modal State
+  const [showSearchModal, setShowSearchModal] = useState<boolean>(false);
+  const [showHeaderSearch, setShowHeaderSearch] = useState<boolean>(false);
+
+  // Listen for search modal trigger from sidebar
+  useEffect(() => {
+    const handleOpenSearch = () => {
+      setShowSearchModal(true);
+    };
+    window.addEventListener('openAICodeSearch', handleOpenSearch);
+    return () => window.removeEventListener('openAICodeSearch', handleOpenSearch);
+  }, []);
+
+  // Handle URL parameters - load token when address is in URL
+  useEffect(() => {
+    const addressParam = searchParams.get('address');
+    if (addressParam) {
+      // Close splash modal when loading from URL
+      setContractAddress(addressParam);
+      setAddressSet(true);
+      // Use a small timeout to ensure state is updated before loading
+      setTimeout(() => {
+        handleLoadContract(addressParam);
+      }, 100);
+    }
+  }, [searchParams]);
 
   // Derived state
   const abiReadFunctions = contractData?.abi?.filter(item => item.type === 'function' && item.stateMutability === 'view') || [];
   const abiWriteFunctions = contractData?.abi?.filter(item => item.type === 'function' && item.stateMutability !== 'view') || [];
 
-  // Splash screen state
-  const [showSplash, setShowSplash] = useState<boolean>(true);
-  
   // Unverified contract risks modal state
   const [showUnverifiedRisksModal, setShowUnverifiedRisksModal] = useState<boolean>(false);
   
@@ -190,31 +133,16 @@ const App: React.FC = () => {
   
   // AI Analysis
   const analyzeWithAI = useCallback(async () => {
-    if (!contractData || !getApiKey) return;
-
-    setIsAnalyzingAI(true);
-    try {
-      const result = await analyzeContract(contractData.source_code, getApiKey());
-      
-      if (result.success && result.data) {
-        const mergedFunctions = result.data.map((func: ExplainedFunctionFromAI) => ({
-          name: func.name,
-          explanation: func.explanation
-        }));
-        
-        setExplainedFunctions(mergedFunctions);
-      }
-    } catch (e) {
-      setError(`AI analysis failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
-      console.error(e);
-    } finally {
-      setIsAnalyzingAI(false);
-    }
-  }, [contractData, getApiKey, analyzeContract]);
+    // TODO: Implement AI contract analysis
+    // if (!contractData || !getApiKey) return;
+    // setIsAnalyzingAI(true);
+    setIsAnalyzingAI(false);
+  }, [contractData, getApiKey]);
   
   // Handle contract loading
-  const handleLoadContract = useCallback(async () => {
-    if (!contractAddress) {
+  const handleLoadContract = useCallback(async (addressToLoad?: string) => {
+    const address = addressToLoad || contractAddress;
+    if (!address) {
       setError('Please enter a contract address.');
       return;
     }
@@ -225,42 +153,31 @@ const App: React.FC = () => {
     setContractData(null);
     setTokenInfo(null);
     setDexScreenerData(null);
-    setCoinGeckoData(null);
     setExplainedFunctions(null);
     // setOwnerAddress(null); // This line was removed
     setMessages([]);
-    setCreatorTransactions(null);
-    setCreatorTokenBalance(null);
     setHolders(null);
     setApiResponses({});
 
     try {
-      const [contractResult, tokenResult, dexResult, profileResult, coinGeckoResult] = await Promise.all([
-        fetchContract(contractAddress),
-        fetchTokenInfo(contractAddress),
-        fetchDexScreenerData(contractAddress),
-        dexscreenerApi.getTokenProfile(contractAddress),
-        coingeckoApi.getTokenProfile(contractAddress, 'ethereum') // Try Ethereum first, will search other networks if needed
+      const [contractResult, tokenResult, dexResult, profileResult] = await Promise.all([
+        fetchContract(address),
+        fetchTokenInfo(address),
+        fetchDexScreenerData(address),
+        dexscreenerApi.getTokenProfile(address)
       ]);
 
-      setContractData(contractResult.data);
-      setTokenInfo(tokenResult.data);
-      setDexScreenerData(dexResult.data);
+      setContractData(contractResult?.data ?? null);
+      setTokenInfo(tokenResult?.data ?? null);
       
       // Use comprehensive profile data if available, fallback to regular DexScreener data
       const finalDexData = profileResult.success ? profileResult.data : dexResult.data;
       setDexScreenerData(finalDexData);
       
-      // Set CoinGecko data for rich token profile information
-      if (coinGeckoResult.success) {
-        setCoinGeckoData(coinGeckoResult.data);
-      }
-      
       setApiResponses({
-        contract: contractResult.data,
-        token: tokenResult.data,
-        dex: finalDexData,
-        coinGecko: coinGeckoResult.data
+        contract: contractResult?.data,
+        token: tokenResult?.data,
+        dex: finalDexData
       });
 
       // Auto-analyze with AI
@@ -286,7 +203,6 @@ const App: React.FC = () => {
     
     if (embedded === 'true') {
       setAddressSet(true);
-      setShowSplash(false);
       setShowTutorial(false);
     }
     
@@ -334,32 +250,6 @@ const App: React.FC = () => {
     };
 
     findOwner();
-  }, [contractData, contractAddress]);
-
-  // Fetch creator info when contract data is loaded
-  useEffect(() => {
-    if (!contractData || !contractAddress) return;
-
-    const fetchCreatorData = async () => {
-      // setIsLoadingCreatorInfo(true); // This line was removed
-      try {
-        const [transactionsResult, balanceResult] = await Promise.all([
-          fetchCreatorTransactions(contractAddress),
-          fetchAddressTokenBalances(contractAddress)
-        ]);
-
-        setCreatorTransactions(transactionsResult.data);
-        setCreatorTokenBalance(balanceResult.data);
-      } catch (e) {
-        console.error("Could not fetch creator data:", e);
-        setCreatorTransactions(null);
-        setCreatorTokenBalance(null);
-      } finally {
-        // setIsLoadingCreatorInfo(false); // This line was removed
-      }
-    };
-
-    fetchCreatorData();
   }, [contractData, contractAddress]);
 
   // Token search with debouncing (similar to stat-counter-builder)
@@ -644,8 +534,7 @@ const App: React.FC = () => {
     setShowSearchResults(false);
     setIsSearchFocused(false);
     setShowTutorial(false);
-    setAddressSet(true); // This triggers the auto-loading useEffect
-    
+
     // Clear both search inputs
     if (searchInputRef.current) {
       searchInputRef.current.value = '';
@@ -653,6 +542,9 @@ const App: React.FC = () => {
     if (headerSearchInputRef.current) {
       headerSearchInputRef.current.value = '';
     }
+
+    // Directly trigger contract loading with the address
+    handleLoadContract(item.address);
   };
 
   const explainedReadFunctions = explainedFunctions?.filter(f => f.type === 'read') || [];
@@ -676,42 +568,112 @@ const App: React.FC = () => {
           }
         }
       `}</style>
-      <div className="min-h-screen bg-gradient-to-br from-black via-slate-900 to-black relative overflow-hidden">
+      <div className="min-h-screen w-full relative bg-gradient-to-br from-black via-slate-900 to-black">
         {/* Dark Animated Background with Moving Blob */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(30,30,60,0.3),transparent_40%)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(20,20,40,0.2),transparent_40%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(30,30,60,0.3),transparent_40%)] pointer-events-none"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(20,20,40,0.2),transparent_40%)] pointer-events-none"></div>
       
       {/* Subtle Grid Pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(30,30,60,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(30,30,60,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-20"></div>
       
-      <SplashModal isOpen={showSplash} onClose={() => setShowSplash(false)} />
       <UnverifiedContractRisksModal 
         isOpen={showUnverifiedRisksModal} 
         onClose={() => setShowUnverifiedRisksModal(false)} 
       />
-      <div
-        className="relative flex flex-col gap-4 items-center justify-start w-full min-h-screen max-w-none overflow-y-auto"
-      >
-        {/* Persistent Back to Home Button - Top Left */}
-        <div className="fixed top-4 left-4 z-40">
-          <a
-            href="/"
-            className="flex items-center gap-2 bg-black/40 backdrop-blur-xl border border-white/20 text-white hover:text-purple-300 hover:bg-black/60 transition-all duration-200 px-4 py-2 rounded-lg shadow-lg hover:shadow-xl"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span className="text-sm font-medium hidden md:inline">Back to Home</span>
-          </a>
-        </div>
-
-        {/* ContainerTextFlip Demo - Top Half with Even Padding - Only on Initial Load */}
-        {!contractData && !addressSet && (
-          <div className="w-full flex flex-col items-center justify-center p-8 md:p-12 lg:p-16 min-h-[50vh] gap-8">
-            <ContainerTextFlip />
+      
+      {/* Search Modal */}
+      {showSearchModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-2xl max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">Search Token or Contract</h2>
+              <button
+                type="button"
+                onClick={() => setShowSearchModal(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+                title="Close"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             
-            {/* Search Bar - Only visible when no token is loaded */}
-            <div className="relative w-80 lg:w-[40rem] xl:w-[50rem]" ref={searchInputRef}>
+            <div className="relative" ref={headerSearchInputRef}>
+              <PlaceholdersAndVanishInput
+                placeholders={searchPlaceholders}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setContractAddress(value);
+                  setSearchQuery(value);
+                  if (value.trim()) {
+                    setShowSearchResults(true);
+                  } else {
+                    setShowSearchResults(false);
+                  }
+                }}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (contractAddress.trim()) {
+                    handleLoadContract();
+                    setShowSearchModal(false);
+                  }
+                }}
+              />
+                {showSearchResults && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto relative">
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-lg opacity-20"
+                      style={{ backgroundImage: 'url(/Mirage.jpg)' }}
+                    />
+                    <div className="relative z-10">
+                      {isSearching && (
+                        <div className="flex items-center justify-center p-4">
+                          <div className="text-slate-400 text-sm">Searching...</div>
+                        </div>
+                      )}
+                      {!isSearching && searchError && (
+                        <div className="p-4 text-red-400 text-sm">{searchError}</div>
+                      )}
+                      {!isSearching && searchQuery.length >= 2 && searchResults?.length === 0 && !searchError && (
+                        <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
+                      )}
+                      {!isSearching && searchResults?.map(item => (
+                        <div
+                          key={item.address}
+                          onClick={() => {
+                            handleSelectSearchResult(item);
+                            setShowSearchModal(false);
+                          }}
+                          className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
+                        >
+                          {item.icon_url ?
+                            <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
+                            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
+                          }
+                          <div className="overflow-hidden flex-1">
+                            <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
+                            <div className="text-xs text-slate-400 capitalize">{item.type}</div>
+                            <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <div
+        className="relative flex flex-col gap-4 justify-start w-full max-w-none overflow-y-auto"
+      >
+        {/* Search Bar - Only visible when no token is loaded */}
+        {!contractData && !addressSet && (
+          <div className="flex items-center justify-center min-h-[80vh] w-full">
+            <div className="relative w-[90vw] max-w-4xl h-[60vh]">
+              <div className="relative w-80 lg:w-[40rem] xl:w-[50rem] z-10 mx-auto mt-[25vh]" ref={searchInputRef}>
               <PlaceholdersAndVanishInput
                 placeholders={searchPlaceholders}
                 onChange={(e) => {
@@ -732,79 +694,12 @@ const App: React.FC = () => {
                 }}
               />
               {showSearchResults && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-20 max-h-80 overflow-y-auto">
-                  {isSearching && (
-                    <div className="flex items-center justify-center p-4">
-                      <div className="text-slate-400 text-sm">Searching...</div>
-                    </div>
-                  )}
-                  {!isSearching && searchError && (
-                    <div className="p-4 text-red-400 text-sm">{searchError}</div>
-                  )}
-                  {!isSearching && searchQuery.length >= 2 && searchResults?.length === 0 && !searchError && (
-                    <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
-                  )}
-                  {!isSearching && searchResults?.map(item => (
-                    <div
-                      key={item.address}
-                      onClick={() => handleSelectSearchResult(item)}
-                      className="flex items-center gap-3 p-3 hover:bg-slate-700 cursor-pointer transition-colors"
-                    >
-                      {item.icon_url ?
-                        <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
-                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
-                      }
-                      <div className="overflow-hidden flex-1">
-                        <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
-                        <div className="text-xs text-slate-400 capitalize">{item.type}</div>
-                        <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* WobbleCard Demo Component - Temporarily disabled due to API mismatch */}
-        {/* {!addressSet && (
-          <WobbleCard>
-            <div>Tutorial content would go here</div>
-          </WobbleCard>
-        )} */}
-
-        {/* Navigation Menu - Fixed at top - Always visible */}
-          <NavigationMenu className="fixed top-0 left-0 right-0 z-30 bg-black/20 backdrop-blur-xl border-b border-white/10 h-16 md:h-18 w-full max-w-none shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
-          <NavigationMenuList className="relative flex items-center w-full px-3 md:px-4 h-full gap-4">
-            {/* Spacer to center the navigation */}
-            <div className="flex-1" />
-
-            {/* Search Bar - Right-aligned, only visible after token is loaded */}
-            {addressSet && (
-            <NavigationMenuItem className="flex-shrink-0">
-                <div className="relative w-60 lg:w-[32rem] xl:w-[40rem]" ref={headerSearchInputRef}>
-                <PlaceholdersAndVanishInput
-                  placeholders={searchPlaceholders}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setContractAddress(value);
-                    setSearchQuery(value);
-                    if (value.trim()) {
-                      setShowSearchResults(true);
-                    } else {
-                      setShowSearchResults(false);
-                    }
-                  }}
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (contractAddress.trim()) {
-                      handleLoadContract();
-                    }
-                  }}
-                />
-                {showSearchResults && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-20 max-h-80 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto relative">
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-lg opacity-20"
+                    style={{ backgroundImage: 'url(/Mirage.jpg)' }}
+                  />
+                  <div className="relative z-10">
                     {isSearching && (
                       <div className="flex items-center justify-center p-4">
                         <div className="text-slate-400 text-sm">Searching...</div>
@@ -820,7 +715,7 @@ const App: React.FC = () => {
                       <div
                         key={item.address}
                         onClick={() => handleSelectSearchResult(item)}
-                        className="flex items-center gap-3 p-3 hover:bg-slate-700 cursor-pointer transition-colors"
+                        className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
                       >
                         {item.icon_url ?
                           <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
@@ -834,162 +729,193 @@ const App: React.FC = () => {
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            </NavigationMenuItem>
-            )}
-          </NavigationMenuList>
-        </NavigationMenu>
+                </div>
+              )}
+            </div>
+            </div>
+          </div>
+        )}
 
-                <div className={`w-full max-w-none p-3 md:p-6 lg:p-8 pb-32 md:pb-16 pt-20 md:pt-24 relative`}>
+        {/* WobbleCard Demo Component - Temporarily disabled due to API mismatch */}
+        {/* {!addressSet && (
+          <WobbleCard>
+            <div>Tutorial content would go here</div>
+          </WobbleCard>
+        )} */}
 
         {error && (
-            <div className="bg-red-900/20 backdrop-blur-xl border border-red-500/30 text-red-200 px-4 py-3 rounded-xl relative mb-6 shadow-[0_8px_32px_rgba(239,68,68,0.2)]" role="alert">
+            <div className="bg-red-900/20 backdrop-blur-xl border border-red-500/30 text-red-200 px-4 py-3 rounded-xl relative mb-6 mx-4 shadow-[0_8px_32px_rgba(239,68,68,0.2)]">
                 <strong className="font-bold">Error: </strong>
                 <span className="block sm:inline">{error}</span>
             </div>
         )}
 
-
-
-        </div>
-
         {isLoadingContract && (
-            <div className="flex flex-col items-center justify-center text-center p-6 md:p-8 bg-black/20 backdrop-blur-xl rounded-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
-              <LoaderThree className="w-8 h-8 md:w-10 md:h-8 text-purple-400" />
-              <p className="mt-4 text-base md:text-lg font-semibold text-white">Loading contract data...</p>
+          <div className="flex items-center justify-center min-h-[80vh] w-full">
+            <div className="relative w-[90vw] max-w-4xl h-[60vh] flex flex-col items-center justify-center">
+              <div className="w-64 h-64 mb-8">
+                <HexLoader />
+              </div>
+              <p className="text-base md:text-lg font-semibold text-white">Loading contract data...</p>
               <p className="text-slate-300 text-sm md:text-base">Fetching from PulseChain Scan API.</p>
             </div>
+          </div>
         )}
 
         {contractData && (
-          <main className={`flex flex-col ${addressSet ? 'h-full' : 'h-[calc(100vh-6rem)] pb-20 md:pb-0'} max-w-7xl mx-auto w-full px-4`}>
-            <div className="flex flex-col h-full">
-              <div className="relative flex-grow bg-black/20 backdrop-blur-xl rounded-xl border border-white/10 overflow-hidden h-full shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+          <main className={`flex flex-col ${addressSet ? 'h-full' : 'h-[calc(100vh-6rem)] pb-20 md:pb-0'} w-full`}>
+            <div className="flex flex-col h-full w-full">
+              <div className="relative flex-grow bg-black/20 backdrop-blur-xl border border-white/10 overflow-hidden h-full shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
                    <GlowingEffect disabled={false} glow={true} />
-                   
-                   {/* Mobile Navigation Hint */}
-                   <div className="md:hidden p-3 text-center bg-purple-600/20 border-b border-purple-500/30">
-                     <p className="text-xs text-purple-300">
-                       💡 Use the navigation button to switch between tabs
-                     </p>
+
+                   {/* Header with Token Info and Search */}
+                   <div className="relative flex items-center justify-between px-4 py-3 bg-black/30 backdrop-blur-xl border-b border-white/10 z-50">
+                     <div className="flex items-center gap-2">
+                       {dexScreenerData?.tokenInfo?.name && (
+                         <>
+                           <span className="text-sm font-medium text-white">{dexScreenerData.tokenInfo.name}</span>
+                           <span className="text-xs text-slate-400">({dexScreenerData.tokenInfo.symbol || dexScreenerData.pairs?.[0]?.baseToken?.symbol})</span>
+                         </>
+                       )}
+                     </div>
+                     
+                     {/* Collapsible Search Bar for Medium+ Screens */}
+                     <div className="hidden md:block absolute right-4">
+                       {showHeaderSearch ? (
+                         <div className="relative flex items-center gap-2 bg-slate-800/90 backdrop-blur-sm border border-slate-600/50 rounded-lg px-3 py-2 shadow-lg min-w-fit">
+                           <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                           </svg>
+                           <input
+                             type="text"
+                             value={contractAddress}
+                             onChange={(e) => {
+                               const value = e.target.value;
+                               setContractAddress(value);
+                               setSearchQuery(value);
+                               if (value.trim()) {
+                                 setShowSearchResults(true);
+                               } else {
+                                 setShowSearchResults(false);
+                               }
+                             }}
+                             onKeyDown={(e) => {
+                               if (e.key === 'Enter' && contractAddress.trim()) {
+                                 handleLoadContract();
+                                 setShowHeaderSearch(false);
+                                 setShowSearchResults(false);
+                               }
+                             }}
+                             placeholder="Search token or contract..."
+                             className="bg-transparent border-none outline-none text-white text-sm w-64 placeholder-slate-400"
+                             autoFocus
+                           />
+                            {showSearchResults && (
+                              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto relative">
+                                <div 
+                                  className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-lg opacity-20"
+                                  style={{ backgroundImage: 'url(/Mirage.jpg)' }}
+                                />
+                                <div className="relative z-10">
+                                  {isSearching && (
+                                    <div className="flex items-center justify-center p-4">
+                                      <div className="text-slate-400 text-sm">Searching...</div>
+                                    </div>
+                                  )}
+                                  {!isSearching && searchError && (
+                                    <div className="p-4 text-red-400 text-sm">{searchError}</div>
+                                  )}
+                                  {!isSearching && searchQuery.length >= 2 && searchResults?.length === 0 && !searchError && (
+                                    <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
+                                  )}
+                                  {!isSearching && searchResults?.map(item => (
+                                    <div
+                                      key={item.address}
+                                      onClick={() => {
+                                        handleSelectSearchResult(item);
+                                        setShowHeaderSearch(false);
+                                        setShowSearchResults(false);
+                                      }}
+                                      className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
+                                    >
+                                      {item.icon_url ?
+                                        <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
+                                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
+                                      }
+                                      <div className="overflow-hidden flex-1">
+                                        <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
+                                        <div className="text-xs text-slate-400 capitalize">{item.type}</div>
+                                        <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                           <button
+                             onClick={() => {
+                               setShowHeaderSearch(false);
+                               setShowSearchResults(false);
+                               setContractAddress('');
+                               setSearchQuery('');
+                             }}
+                             className="text-slate-400 hover:text-white transition-colors"
+                             title="Close search"
+                           >
+                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                             </svg>
+                           </button>
+                         </div>
+                       ) : (
+                         <button
+                           onClick={() => setShowHeaderSearch(true)}
+                           className="p-2 bg-slate-500 hover:bg-slate-600 rounded-lg transition-colors"
+                           title="Search new token"
+                         >
+                           <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                           </svg>
+                         </button>
+                       )}
+                     </div>
+                     
+                     {/* Mobile Search Button */}
+                     <button
+                       onClick={() => setShowSearchModal(true)}
+                       className="md:hidden p-2 bg-slate-500 hover:bg-slate-600 rounded-lg transition-colors"
+                       title="Search new token"
+                     >
+                       <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                       </svg>
+                     </button>
                    </div>
-                   
+
                    {/* Simple shadcn/ui Tabs Component */}
-                   <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+                   <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col w-full">
                      {contractData && (
-                     <TabsList className="hidden md:grid w-full grid-cols-8 bg-black/20 backdrop-blur-xl border-b border-white/10">
-                         <TabsTrigger value="creator" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Creator</TabsTrigger>
-                         <TabsTrigger value="code" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Source Code</TabsTrigger>
-                         <TabsTrigger value="api" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">API Response</TabsTrigger>
-                         <TabsTrigger value="chart" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Chart</TabsTrigger>
-                         <TabsTrigger value="chat" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Chat with AI</TabsTrigger>
-                         <TabsTrigger value="info" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Info</TabsTrigger>
-                       <TabsTrigger value="holders" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Holders</TabsTrigger>
-                         <TabsTrigger value="liquidity" className="text-xs text-white data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-purple-400">Liquidity</TabsTrigger>
-                       </TabsList>
+                     <TabsList className="grid w-full grid-cols-5 bg-black/20 backdrop-blur-xl border-b border-white/10">
+                        <TabsTrigger value="code" className="text-xs text-white data-[state=active]:bg-orange-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-orange-500">Code</TabsTrigger>
+                        <TabsTrigger value="chat" className="text-xs text-white data-[state=active]:bg-orange-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-orange-500">Chat</TabsTrigger>
+                        <TabsTrigger value="info" className="text-xs text-white data-[state=active]:bg-orange-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-orange-500">Info</TabsTrigger>
+                      <TabsTrigger value="holders" className="text-xs text-white data-[state=active]:bg-orange-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-orange-500">Holders</TabsTrigger>
+                        <TabsTrigger value="liquidity" className="text-xs text-white data-[state=active]:bg-orange-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-orange-500">Liquidity</TabsTrigger>
+                      </TabsList>
                      )}
                      
-                     <TabsContent value="creator" className="flex-1 overflow-y-auto p-3 md:p-4">
-                       <CreatorTab
-                         creatorAddress={contractData.creator_address_hash}
-                         creationTxHash={contractData.creation_tx_hash}
-                         tokenBalance={creatorTokenBalance}
-                         transactions={creatorTransactions}
-                         tokenInfo={tokenInfo}
-                         isLoading={isLoadingCreatorInfo}
-                       />
-                     </TabsContent>
                      
-                     <TabsContent value="code" className="flex-1 overflow-y-auto p-3 md:p-4">
-                       <SourceCodeTab 
-                         sourceCode={contractData.source_code} 
+                     <TabsContent value="code" className="flex-1 overflow-y-auto px-4 py-4">
+                       <SourceCodeTab
+                         sourceCode={contractData.source_code}
                          readFunctions={abiReadFunctions}
                          writeFunctions={abiWriteFunctions}
                          isAnalyzingAI={isAnalyzingAI}
                        />
                      </TabsContent>
-                     
-                     <TabsContent value="api" className="flex-1 overflow-y-auto p-3 md:p-4">
-                       <ApiResponseTab responses={apiResponses} />
-                     </TabsContent>
-                     
-                     <TabsContent value="chart" className="flex-1 overflow-y-auto min-h-[800px]">
-                       {dexScreenerData && dexScreenerData.pairs.length > 0 ? (
-                         <div className="h-full flex flex-col min-h-[800px]">
-                           {/* Header */}
-                           <div className="p-3 md:p-4 border-b border-white/10 bg-black/10 backdrop-blur-sm">
-                             <div className="flex items-center justify-between">
-                               <div className="flex items-center gap-2 md:gap-3">
-                                 <div className="text-sm font-medium text-white">
-                                   {dexScreenerData.pairs[0].baseToken.symbol}/{dexScreenerData.pairs[0].quoteToken.symbol}
-                                 </div>
-                                 <div className="text-xs text-slate-400">
-                                   {dexScreenerData.pairs[0].dexId}
-                                 </div>
-                               </div>
-                               <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm">
-                                 <div className="text-slate-400">
-                                   ${parseFloat(dexScreenerData.pairs[0].priceUsd || '0').toFixed(6)}
-                                 </div>
-                                 <div className={`font-medium ${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                   {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '+' : ''}{(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
-                                 </div>
-                                 <a 
-                                   href={dexScreenerData.pairs[0].url} 
-                                   target="_blank" 
-                                   rel="noopener noreferrer"
-                                   className="text-blue-400 hover:text-blue-300"
-                                 >
-                                   Open Full Chart →
-                                 </a>
-                               </div>
-                             </div>
-                           </div>
-                           
-                           {/* Chart */}
-                           <div className="flex-1 min-h-[700px]">
-                             <iframe
-                               src={`${dexScreenerData.pairs[0].url}?theme=dark`}
-                               className="w-full h-full border-0"
-                               title={`${dexScreenerData.pairs[0].baseToken.symbol}/${dexScreenerData.pairs[0].quoteToken.symbol} Chart`}
-                               sandbox="allow-scripts allow-same-origin allow-forms"
-                               style={{ minWidth: '100%', width: '100%', minHeight: '700px' }}
-                             />
-                           </div>
-                           
-                           {/* Stats */}
-                           <div className="p-3 md:p-4 bg-black/20 backdrop-blur-xl border-t border-white/10">
-                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 text-xs md:text-sm">
-                               <div>
-                                 <div className="text-slate-400">Price WPLS</div>
-                                 <div className="text-white font-medium">{parseFloat(dexScreenerData.pairs[0].priceNative || '0').toFixed(8)}</div>
-                               </div>
-                               <div>
-                                 <div className="text-slate-400">24h Volume</div>
-                                 <div className="text-white font-medium">${(dexScreenerData.pairs[0].volume?.h24 || 0).toLocaleString()}</div>
-                               </div>
-                               <div>
-                                 <div className="text-slate-400">Liquidity USD</div>
-                                 <div className="text-white font-medium">${(dexScreenerData.pairs[0].liquidity?.usd || 0).toLocaleString()}</div>
-                               </div>
-                               <div>
-                                 <div className="text-slate-400">FDV</div>
-                                 <div className="text-white font-medium">${(dexScreenerData.pairs[0].fdv || 0).toLocaleString()}</div>
-                               </div>
-                             </div>
-                           </div>
-                         </div>
-                       ) : (
-                         <div className="text-center text-slate-400 py-6 md:py-8">
-                           <div className="text-base md:text-lg mb-2">No chart data available</div>
-                           <div className="text-xs md:text-sm">DEXScreener data will appear here when available.</div>
-                         </div>
-                       )}
-                     </TabsContent>
-                     
-                     <TabsContent value="chat" className="flex-1 flex flex-col p-3 md:p-4">
-                       <div ref={chatContainerRef} className="flex-grow overflow-y-auto space-y-3 md:space-y-4 pb-20 md:pb-0 min-h-[600px]">
+
+                     <TabsContent value="chat" className="flex-1 flex flex-col">
+                       <div ref={chatContainerRef} className="flex-grow overflow-y-auto space-y-1 md:space-y-4 pb-20 md:pb-0 min-h-[400px] py-4">
                          {messages.length === 0 && (
                            <div className="text-center text-slate-400 h-full flex flex-col items-center justify-center gap-3 md:gap-4">
                              {isAnalyzingAI ? (
@@ -1035,31 +961,31 @@ const App: React.FC = () => {
                            </div>
                          )}
                          {messages.map((msg) => (
-                           <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                             <div className={`max-w-[85%] md:max-w-md lg:max-w-2xl rounded-xl px-3 md:px-4 py-2 md:py-3 ${msg.sender === 'user' ? 'bg-purple-700 text-white' : 'bg-slate-700 backdrop-blur-sm text-slate-200 border border-slate-600/50'}`}>
+                           <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} px-4`}>
+                             <div className={`max-w-[95%] rounded-xl px-3 md:px-4 py-2 md:py-3 ${msg.sender === 'user' ? 'bg-purple-700 text-white' : 'bg-slate-700 backdrop-blur-sm text-slate-200 border border-slate-600/50'}`}>
                                {msg.sender === 'user' ? (
                                  <div className="text-white text-sm md:text-base">
                                    {msg.text}
                                  </div>
                                ) : (
                                  <div className="space-y-2">
-                                   {msg.text === '...' ? (
-                                     <LoaderThree className="w-4 h-4 md:w-5 md:h-5" />
-                                   ) : (
-                                     renderMessageText(msg.text)
+                                  {msg.text === '...' ? (
+                                    <LoaderThree />
+                                  ) : (
+                                    renderMessageText(msg.text)
                                    )}
                                  </div>
                                )}
                              </div>
                            </div>
                          ))}
-                         {isLoadingChat && messages[messages.length - 1]?.sender === 'user' && (
-                           <div className="flex justify-start">
-                             <div className="max-w-[85%] md:max-w-md lg:max-w-lg rounded-xl px-3 md:px-4 py-2 bg-slate-700 text-slate-200">
-                               <LoaderThree className="w-4 h-4 md:w-5 md:h-5" />
-                             </div>
-                           </div>
-                         )}
+                        {isLoadingChat && messages[messages.length - 1]?.sender === 'user' && (
+                          <div className="flex justify-start px-4">
+                            <div className="max-w-[95%] rounded-xl px-3 md:px-4 py-2 bg-slate-700 text-slate-200">
+                              <LoaderThree />
+                            </div>
+                          </div>
+                        )}
                        </div>
                        <form onSubmit={handleSendMessage} className="border-t border-white/10 flex items-center gap-2 md:gap-3 bg-black/20 backdrop-blur-xl flex-shrink-0 p-4">
                          <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask about the contract..." className="flex-grow bg-black/30 backdrop-blur-sm border border-white/20 rounded-lg px-3 md:px-4 py-2 text-white placeholder-slate-300 focus:ring-2 focus:ring-purple-500 focus:outline-none transition text-sm md:text-base" disabled={isLoadingChat} />
@@ -1068,409 +994,677 @@ const App: React.FC = () => {
                      </TabsContent>
                      
                      
-                     <TabsContent value="info" className="flex-1 overflow-y-auto p-3 sm:p-4">
-                       <div className="h-full space-y-4 sm:space-y-6">
-                         {/* Top Header Section */}
-                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 gap-3 sm:gap-0">
-                           {/* Left: Token Info */}
-                           <div className="flex items-center gap-3 sm:gap-4">
-                             {coinGeckoData?.image?.large || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI ? (
-                               <img 
-                                 src={coinGeckoData?.image?.large || dexScreenerData.pairs[0].baseToken.logoURI} 
-                                 alt={`${coinGeckoData?.symbol || dexScreenerData.pairs[0].baseToken.symbol} logo`}
-                                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10"
+                     <TabsContent value="info" className="flex-1 overflow-y-auto">
+                       <div className="h-full bg-slate-900 w-full">
+                         {/* Header Banner Image with Overlay Buttons */}
+                         <div className="relative w-full -mt-px">
+                           {dexScreenerData?.profile?.headerImageUrl && (
+                             <div className="relative w-full overflow-hidden border-b-2 border-orange-500">
+                               <img
+                                 src={dexScreenerData.profile.headerImageUrl}
+                                 alt="Token header"
+                                 className="w-full h-auto object-cover"
+                                 style={{ maxHeight: '500px', aspectRatio: '3/1' }}
+                                 onError={(e) => {
+                                   e.currentTarget.style.display = 'none';
+                                 }}
                                />
-                             ) : (
-                               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
-                                 <span className="text-xl sm:text-2xl font-bold text-purple-400">
-                                   {coinGeckoData?.symbol?.[0] || dexScreenerData?.pairs?.[0]?.baseToken?.symbol?.[0] || '?'}
-                                 </span>
-                               </div>
-                             )}
-                             <div>
-                               <h2 className="text-xl sm:text-2xl font-bold text-white">
-                                 {coinGeckoData?.symbol || dexScreenerData?.pairs?.[0]?.baseToken?.symbol || 'Unknown'}
-                               </h2>
-                               <p className="text-sm sm:text-base text-slate-400">
-                                 {coinGeckoData?.name || dexScreenerData?.pairs?.[0]?.baseToken?.name || 'Unknown Token'}
-                               </p>
-                               {/* Token Description */}
-                               {coinGeckoData?.description?.en && (
-                                 <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-md">
-                                   {coinGeckoData.description.en}
-                                 </p>
-                               )}
                              </div>
-                           </div>
+                           )}
                            
-                           {/* Right: Price Display */}
-                           <div className="text-left sm:text-right">
-                             <div className="text-2xl sm:text-3xl font-bold text-white">
-                               ${parseFloat(dexScreenerData?.pairs?.[0]?.priceUsd || '0').toFixed(8)}
-                             </div>
-                             <div className={`text-base sm:text-lg font-medium ${
-                               (dexScreenerData?.pairs?.[0]?.priceChange?.h24 || 0) >= 0 
-                                 ? 'text-green-400' 
-                                 : 'text-red-400'
-                             }`}>
-                               {(dexScreenerData?.pairs?.[0]?.priceChange?.h24 || 0) >= 0 ? '+' : ''}
-                               {(dexScreenerData?.pairs?.[0]?.priceChange?.h24 || 0).toFixed(2)}%
-                             </div>
-                           </div>
-                         </div>
-
-                                                  {/* Key Metrics Row */}
-                         <div className="grid grid-cols-5 gap-2 sm:gap-4">
-                           <button 
-                             onClick={() => setActiveTab('liquidity')}
-                             className="p-2 sm:p-4 text-center hover:bg-white/5 transition-colors cursor-pointer rounded-lg"
-                             title="Click to view detailed liquidity information"
-                           >
-                               <div className="text-xs sm:text-sm text-slate-400 mb-1">Liquidity</div>
-                               <div className="text-sm sm:text-xl font-bold text-blue-400">
-                                 ${(dexScreenerData?.pairs?.[0]?.liquidity?.usd || 0).toLocaleString()}
-                               </div>
-                             </button>
-                           
-                                                        <div className="p-2 sm:p-4 text-center">
-                               <div className="text-xs sm:text-sm text-slate-400 mb-1">Volume</div>
-                               <div className="text-sm sm:text-xl font-bold text-green-400">
-                                 ${(dexScreenerData?.pairs?.[0]?.volume?.h24 || 0).toLocaleString()}
-                               </div>
-                             </div>
-                           
-                                                        <div className="p-2 sm:p-4 text-center">
-                               <div className="text-xs sm:text-sm text-slate-400 mb-1">Supply</div>
-                               <div className="text-sm sm:text-xl font-bold text-purple-400">
-                                 {(parseFloat(dexScreenerData?.pairs?.[0]?.baseToken?.totalSupply || '0') / Math.pow(10, parseInt(dexScreenerData?.pairs?.[0]?.baseToken?.decimals || '18'))).toLocaleString()}
-                               </div>
-                             </div>
-                           
-                                                        <div className="p-2 sm:p-4 text-center">
-                               <div className="text-xs sm:text-sm text-slate-400 mb-1">Age</div>
-                               <div className="text-sm sm:text-xl font-bold text-yellow-400">
-                                 {contractData?.creation_tx_hash ? 'N/A' : 'N/A'}
-                               </div>
-                             </div>
-                           
-                                                        <div className="p-2 sm:p-4 text-center">
-                               <div className="text-sm text-slate-400 mb-1">Holders</div>
-                               <div className="text-sm sm:text-xl font-bold text-pink-400">
-                                 {tokenInfo?.holders?.toLocaleString() || 'N/A'}
-                               </div>
-                             </div>
-                         </div>
-
-
-
-                         {/* Bottom Information */}
-                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-                           {/* Smart Contract */}
-                           <div className="p-3 sm:p-4">
-                             <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-3">Smart Contract</h3>
-                             <div className="space-y-2">
-                               <div className="flex items-center gap-2">
-                                 <span className="text-slate-400 text-xs sm:text-sm">Address:</span>
-                                 <div className="flex items-center gap-2">
-                                   <code className="text-xs text-blue-400 font-mono bg-black/30 px-2 py-1 rounded">
-                                     {contractAddress}
-                                   </code>
-                                   <button
-                                     onClick={() => {
-                                       navigator.clipboard.writeText(contractAddress);
-                                       // You could add a toast notification here
-                                     }}
-                                     className="text-blue-400 hover:text-blue-300 transition-colors"
-                                     title="Copy address to clipboard"
-                                   >
-                                     📋
-                                   </button>
-                                 </div>
-                               </div>
-                               <div className="flex items-center gap-2">
-                                 <span className="text-slate-400 text-xs sm:text-sm">Decimals:</span>
-                                 <span className="text-white text-sm">{tokenInfo?.decimals || '18'}</span>
-                               </div>
-                               <div className="flex items-center gap-2">
-                                 <span className="text-slate-400 text-xs sm:text-sm">Creator:</span>
-                                 <code className="text-xs text-purple-400 font-mono bg-black/30 px-2 py-1 rounded">
-                                   {contractData?.creator_address_hash?.slice(0, 10)}...{contractData?.creator_address_hash?.slice(-8)}
-                                 </code>
-                               </div>
-                             </div>
-                           </div>
-
-                           {/* Token Info */}
-                           <div className="p-3 sm:p-4">
-                             <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-3">Token Info</h3>
-                             <div className="space-y-2">
-                               <div className="flex items-center gap-2">
-                                 <span className="text-slate-400 text-xs sm:text-sm">Total Supply:</span>
-                                 <span className="text-white text-sm">
-                                   {(parseFloat(tokenInfo?.total_supply || '0') / Math.pow(10, parseInt(tokenInfo?.decimals || '18'))).toLocaleString()}
-                                 </span>
-                               </div>
-                               <div className="flex items-center gap-2">
-                                 <span className="text-slate-400 text-xs sm:text-sm">Market Cap:</span>
-                                 <span className="text-white text-sm">
-                                   ${(dexScreenerData?.pairs?.[0]?.fdv || 0).toLocaleString()}
-                                 </span>
-                               </div>
-                               <div className="flex items-center gap-2">
-                                 <span className="text-slate-400 text-xs sm:text-sm">Verification:</span>
-                                 <span className={`text-xs sm:text-sm px-2 py-1 rounded ${
-                                   contractData?.is_verified 
-                                     ? 'bg-green-500/20 text-green-400' 
-                                     : 'bg-red-500/20 text-red-400'
-                                 }`}>
-                                   {contractData?.is_verified ? 'Verified' : 'Unverified'}
-                                 </span>
-                               </div>
-                               {coinGeckoData?.categories?.[0] && (
-                                 <div className="flex items-center gap-2">
-                                   <span className="text-slate-400 text-xs sm:text-sm">Category:</span>
-                                   <span className="text-white text-sm">{coinGeckoData.categories[0]}</span>
-                                 </div>
-                               )}
-                               {coinGeckoData?.tags?.[0] && (
-                                 <div className="flex items-center gap-2">
-                                   <span className="text-slate-400 text-xs sm:text-sm">Tags:</span>
-                                   <span className="text-white text-sm">{coinGeckoData.tags.slice(0, 3).join(', ')}</span>
-                                 </div>
-                               )}
-                             </div>
-                           </div>
-
-                           {/* Social Links & Websites */}
-                           <div className="p-3 sm:p-4">
-                             <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-3">Social & Links</h3>
-                             <div className="space-y-3">
-                               {/* Social Links */}
-                               {coinGeckoData?.links && (
-                                 <div className="space-y-2">
-                                   <div className="text-xs text-slate-400 uppercase tracking-wide">Social Media</div>
-                                   <div className="flex flex-wrap gap-2">
-                                     {coinGeckoData?.links?.twitter_screen_name && (
-                                       <a 
-                                         href={`https://twitter.com/${coinGeckoData.links.twitter_screen_name}`}
-                                         target="_blank"
-                                         rel="noopener noreferrer"
-                                         className="inline-flex items-center gap-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs px-2 py-1 rounded transition-colors"
-                                       >
-                                         <span>🐦</span> Twitter
-                                       </a>
-                                     )}
-                                     {coinGeckoData?.links?.telegram_channel_identifier && (
-                                       <a 
-                                         href={`https://t.me/${coinGeckoData.links.telegram_channel_identifier}`}
-                                         target="_blank"
-                                         rel="noopener noreferrer"
-                                         className="inline-flex items-center gap-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs px-2 py-1 rounded transition-colors"
-                                       >
-                                         <span>📱</span> Telegram
-                                       </a>
-                                     )}
-                                     {coinGeckoData?.links?.chat_url?.[0] && (
-                                       <a 
-                                         href={coinGeckoData.links.chat_url[0]}
-                                         target="_blank"
-                                         rel="noopener noreferrer"
-                                         className="inline-flex items-center gap-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs px-2 py-1 rounded transition-colors"
-                                       >
-                                         <span>🎮</span> Discord
-                                       </a>
-                                     )}
-                                     {coinGeckoData?.links?.subreddit_url && (
-                                       <a 
-                                         href={coinGeckoData.links.subreddit_url}
-                                         target="_blank"
-                                         rel="noopener noreferrer"
-                                         className="inline-flex items-center gap-1 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 text-xs px-2 py-1 rounded transition-colors"
-                                       >
-                                         <span>💬</span> Reddit
-                                       </a>
-                                     )}
-                                     {coinGeckoData?.links?.repos_url?.github?.[0] && (
-                                       <a 
-                                         href={coinGeckoData.links.repos_url.github[0]}
-                                         target="_blank"
-                                         rel="noopener noreferrer"
-                                         className="inline-flex items-center gap-1 bg-gray-500/20 hover:bg-gray-500/30 text-gray-400 text-xs px-2 py-1 rounded transition-colors"
-                                       >
-                                         <span>💻</span> GitHub
-                                       </a>
-                                     )}
-                                     {coinGeckoData?.links?.facebook_username && (
-                                       <a 
-                                         href={`https://facebook.com/${coinGeckoData.links.facebook_username}`}
-                                         target="_blank"
-                                         rel="noopener noreferrer"
-                                         className="inline-flex items-center gap-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-500 text-xs px-2 py-1 rounded transition-colors"
-                                       >
-                                         <span>📘</span> Facebook
-                                       </a>
-                                     )}
-                                   </div>
-                                 </div>
-                               )}
-                               
-                               {/* Community Stats */}
-                               {coinGeckoData?.community_data && (
-                                 <div className="space-y-2">
-                                   <div className="text-xs text-slate-400 uppercase tracking-wide">Community Stats</div>
-                                   <div className="grid grid-cols-2 gap-2">
-                                     {coinGeckoData.community_data.reddit_subscribers > 0 && (
-                                       <div className="text-xs text-slate-300">
-                                         Reddit: {coinGeckoData.community_data.reddit_subscribers.toLocaleString()}
-                                       </div>
-                                     )}
-                                     {coinGeckoData.community_data.telegram_channel_user_count && (
-                                       <div className="text-xs text-slate-300">
-                                         Telegram: {coinGeckoData.community_data.telegram_channel_user_count.toLocaleString()}
-                                       </div>
-                                     )}
-                                     {coinGeckoData.community_data.facebook_likes && (
-                                       <div className="text-xs text-slate-300">
-                                         Facebook: {coinGeckoData.community_data.facebook_likes.toLocaleString()}
-                                       </div>
-                                     )}
-                                     {coinGeckoData.watchlist_portfolio_users > 0 && (
-                                       <div className="text-xs text-slate-300">
-                                         Watchlist: {coinGeckoData.watchlist_portfolio_users.toLocaleString()}
-                                       </div>
-                                     )}
-                                   </div>
-                                 </div>
-                               )}
-                               
-                               {/* Categories & Tags */}
-                               {coinGeckoData?.categories && coinGeckoData.categories.length > 0 && (
-                                 <div className="space-y-2">
-                                   <div className="text-xs text-slate-400 uppercase tracking-wide">Categories</div>
-                                   <div className="flex flex-wrap gap-1">
-                                     {coinGeckoData.categories.slice(0, 5).map((category, index) => (
-                                       <span key={index} className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded">
-                                         {category}
+                           {/* Social Links Row - Overlaying bottom of header */}
+                           {dexScreenerData?.profile?.cmsLinks && dexScreenerData.profile.cmsLinks.length > 0 && (() => {
+                             // Filter for Website, Twitter, and Telegram only
+                             const websiteLink = dexScreenerData.profile.cmsLinks.find((link: any) => {
+                               const urlLower = (link.url || '').toLowerCase();
+                               const labelLower = (link.label || '').toLowerCase();
+                               return !urlLower.includes('twitter.com') && !urlLower.includes('x.com') && 
+                                      !urlLower.includes('t.me') && !labelLower.includes('telegram') &&
+                                      !urlLower.includes('instagram.com') && !urlLower.includes('discord');
+                             });
+                             
+                             const twitterLink = dexScreenerData.profile.cmsLinks.find((link: any) => {
+                               const urlLower = (link.url || '').toLowerCase();
+                               const labelLower = (link.label || '').toLowerCase();
+                               return urlLower.includes('twitter.com') || urlLower.includes('x.com') || 
+                                      labelLower.includes('twitter') || labelLower === 'x';
+                             });
+                             
+                             const telegramLink = dexScreenerData.profile.cmsLinks.find((link: any) => {
+                               const urlLower = (link.url || '').toLowerCase();
+                               const labelLower = (link.label || '').toLowerCase();
+                               return urlLower.includes('t.me') || labelLower.includes('telegram');
+                             });
+                             
+                             const filteredLinks = [websiteLink, twitterLink, telegramLink].filter(Boolean);
+                             
+                             if (filteredLinks.length === 0) return null;
+                             
+                             return (
+                               <div className="absolute bottom-0 left-0 right-0 transform translate-y-1/2 px-4 z-10">
+                                 <div className="flex items-center justify-center gap-2">
+                                   {/* Website Button */}
+                                   {websiteLink && (
+                                     <a
+                                       href={websiteLink.url}
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
+                                       style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
+                                     >
+                                       <span className="absolute inset-0 overflow-hidden rounded-full">
+                                         <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                                        </span>
-                                     ))}
+                                       <div className="relative flex space-x-2 items-center z-10 rounded-full bg-zinc-950 py-0.5 px-4 ring-1 ring-white/10">
+                                         <span>Website</span>
+                                         <svg fill="none" height="16" viewBox="0 0 24 24" width="16" xmlns="http://www.w3.org/2000/svg">
+                                           <path d="M10.75 8.75L14.25 12L10.75 15.25" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
+                                         </svg>
+                                       </div>
+                                       <span className="absolute -bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-orange-400/0 via-orange-400/90 to-orange-400/0 transition-opacity duration-500 group-hover:opacity-40" />
+                                     </a>
+                                   )}
+                                   
+                                   {/* Twitter Button */}
+                                   {twitterLink && (
+                                     <a
+                                       href={twitterLink.url}
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
+                                       style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
+                                     >
+                                       <span className="absolute inset-0 overflow-hidden rounded-full">
+                                         <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                                       </span>
+                                       <div className="relative flex space-x-2 items-center z-10 rounded-full bg-zinc-950 py-0.5 px-4 ring-1 ring-white/10">
+                                         <span>Twitter</span>
+                                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                           <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                         </svg>
+                                       </div>
+                                       <span className="absolute -bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-orange-400/0 via-orange-400/90 to-orange-400/0 transition-opacity duration-500 group-hover:opacity-40" />
+                                     </a>
+                                   )}
+                                   
+                                   {/* Telegram Button */}
+                                   {telegramLink && (
+                                     <a
+                                       href={telegramLink.url}
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
+                                       style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
+                                     >
+                                       <span className="absolute inset-0 overflow-hidden rounded-full">
+                                         <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                                       </span>
+                                       <div className="relative flex space-x-2 items-center z-10 rounded-full bg-zinc-950 py-0.5 px-4 ring-1 ring-white/10">
+                                         <span>Telegram</span>
+                                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                                         </svg>
+                                       </div>
+                                       <span className="absolute -bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-orange-400/0 via-orange-400/90 to-orange-400/0 transition-opacity duration-500 group-hover:opacity-40" />
+                                     </a>
+                                   )}
+                                   
+                                   {/* Smaller dropdown button */}
+                                   {dexScreenerData.profile.cmsLinks.length > filteredLinks.length && (
+                                     <button 
+                                       onClick={() => {
+                                         document.getElementById('description-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                       }}
+                                       className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
+                                       style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.5))' }}
+                                       title="View all links"
+                                     >
+                                       <span className="absolute inset-0 overflow-hidden rounded-full">
+                                         <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                                       </span>
+                                       <div className="relative flex space-x-2 items-center z-10 rounded-full bg-zinc-950 py-0.5 px-3 ring-1 ring-white/10">
+                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                         </svg>
+                                       </div>
+                                       <span className="absolute -bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-orange-400/0 via-orange-400/90 to-orange-400/0 transition-opacity duration-500 group-hover:opacity-40" />
+                                     </button>
+                                   )}
+                                 </div>
+                               </div>
+                             );
+                           })()}
+                         </div>
+                         
+                         {/* Main Content */}
+                         <div className="pt-8 px-4 pb-4">
+                           {/* Price Section */}
+                           {dexScreenerData?.pairs?.[0] && (
+                            <div className="grid grid-cols-3 gap-4 mb-4">
+                              <div className="bg-slate-800/50 p-3 rounded text-center bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+                                 <div className="text-xs text-slate-400 uppercase mb-1">Price USD</div>
+                                 <div className="text-base font-bold text-white">
+                                   ${Number(dexScreenerData.pairs[0].priceUsd || 0).toFixed(6)}
+                                 </div>
+                               </div>
+                              <div className="bg-slate-800/50 p-3 rounded text-center bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+                                 <div className="text-xs text-slate-400 uppercase mb-1">Price</div>
+                                 <div className="text-base font-bold text-white">
+                                   {Number(dexScreenerData.pairs[0].priceNative || 0).toFixed(2)} {dexScreenerData.pairs[0].quoteToken?.symbol || 'WPLS'}
+                                 </div>
+                               </div>
+                              <div className="bg-slate-800/50 p-3 rounded text-center bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+                                <div className="text-xs text-slate-400 uppercase mb-1">24h Volume</div>
+                                <div className="text-base font-bold text-white">
+                                  ${Number(dexScreenerData.pairs[0].volume?.h24 || 0) >= 1000000 
+                                    ? `${(Number(dexScreenerData.pairs[0].volume?.h24 || 0) / 1000000).toFixed(2)}M`
+                                    : Number(dexScreenerData.pairs[0].volume?.h24 || 0).toLocaleString()}
+                                </div>
+                              </div>
+                             </div>
+                           )}
+                           
+                           {/* Key Metrics */}
+                           {dexScreenerData?.pairs?.[0] && (
+                             <div className="grid grid-cols-3 gap-4 mb-4">
+                               <div className="bg-slate-800/50 p-3 rounded text-center bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+                                 <div className="text-xs text-slate-400 uppercase mb-1">Liquidity</div>
+                                 <div className="text-base font-bold text-white">
+                                   ${Number(dexScreenerData.pairs[0].liquidity?.usd || 0) >= 1000000 
+                                     ? `${(Number(dexScreenerData.pairs[0].liquidity?.usd || 0) / 1000000).toFixed(2)}M`
+                                     : `${(Number(dexScreenerData.pairs[0].liquidity?.usd || 0) / 1000).toFixed(1)}K`}
+                                 </div>
+                               </div>
+                               <div className="bg-slate-800/50 p-3 rounded text-center bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+                                 <div className="text-xs text-slate-400 uppercase mb-1">FDV</div>
+                                 <div className="text-base font-bold text-white">
+                                   ${Number(dexScreenerData.pairs[0].fdv || 0) >= 1000000 
+                                     ? `${(Number(dexScreenerData.pairs[0].fdv || 0) / 1000000).toFixed(2)}M`
+                                     : `${(Number(dexScreenerData.pairs[0].fdv || 0) / 1000).toFixed(1)}K`}
+                                 </div>
+                               </div>
+                               <div className="bg-slate-800/50 p-3 rounded text-center bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+                                 <div className="text-xs text-slate-400 uppercase mb-1">Mkt Cap</div>
+                                 <div className="text-base font-bold text-white">
+                                   ${Number((dexScreenerData.pairs[0] as any).marketCap || dexScreenerData.pairs[0].fdv || 0) >= 1000000 
+                                     ? `${(Number((dexScreenerData.pairs[0] as any).marketCap || dexScreenerData.pairs[0].fdv || 0) / 1000000).toFixed(2)}M`
+                                     : `${(Number((dexScreenerData.pairs[0] as any).marketCap || dexScreenerData.pairs[0].fdv || 0) / 1000).toFixed(1)}K`}
+                                 </div>
+                               </div>
+                             </div>
+                           )}
+                           
+                           {/* Price Chart */}
+                           {dexScreenerData?.pairs?.[0] && (
+                             <div className="mb-4">
+                              <DexScreenerChart 
+                                 pairAddress={dexScreenerData.pairs[0].pairAddress}
+                               />
+                             </div>
+                           )}
+                           
+                           {/* Time Period Performance */}
+                           {dexScreenerData?.pairs?.[0]?.priceChange && (
+                             <div className="grid grid-cols-4 bg-slate-800/50 border border-slate-700 rounded overflow-hidden mb-0 bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+                               <div className="p-3 text-center border-r border-slate-700">
+                                 <div className="text-xs text-slate-400 uppercase mb-1">5M</div>
+                                 <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.m5 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                   {(dexScreenerData.pairs[0].priceChange.m5 || 0).toFixed(2)}%
+                                 </div>
+                               </div>
+                               <div className="p-3 text-center border-r border-slate-700">
+                                 <div className="text-xs text-slate-400 uppercase mb-1">1H</div>
+                                 <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.h1 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                   {(dexScreenerData.pairs[0].priceChange.h1 || 0).toFixed(2)}%
+                                 </div>
+                               </div>
+                               <div className="p-3 text-center border-r border-slate-700">
+                                 <div className="text-xs text-slate-400 uppercase mb-1">6H</div>
+                                 <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.h6 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                   {(dexScreenerData.pairs[0].priceChange.h6 || 0).toFixed(2)}%
+                                 </div>
+                               </div>
+                               <div className="p-3 text-center">
+                                 <div className="text-xs text-slate-400 uppercase mb-1">24H</div>
+                                 <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                   {(dexScreenerData.pairs[0].priceChange.h24 || 0).toFixed(2)}%
+                                 </div>
+                               </div>
+                             </div>
+                           )}
+                           
+                           {/* Transaction, Volume, and Maker Stats - Two Column Layout */}
+                           {dexScreenerData?.pairs?.[0]?.txns && dexScreenerData?.pairs?.[0]?.volume && (
+                             <div className="bg-slate-800/50 border border-slate-700 rounded p-4 mb-4 bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+                               <div className="grid gap-0" style={{ gridTemplateColumns: '1fr 3fr' }}>
+                                 {/* Left Column - Labels and Totals */}
+                                 <div className="space-y-5 pr-4">
+                                   {/* TXNS */}
+                                   <div>
+                                     <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">TXNS</div>
+                                     <div className="text-lg font-bold text-white">
+                                       {(Number(dexScreenerData.pairs[0].txns.h24?.buys || 0) + Number(dexScreenerData.pairs[0].txns.h24?.sells || 0))}
+                                     </div>
+                                   </div>
+                                   
+                                   {/* VOLUME */}
+                                   <div>
+                                     <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">VOLUME</div>
+                                     <div className="text-lg font-bold text-white">
+                                       ${Number(dexScreenerData.pairs[0].volume.h24 || 0) >= 1000000 
+                                         ? `${(Number(dexScreenerData.pairs[0].volume.h24 || 0) / 1000000).toFixed(2)}M`
+                                         : Math.round(Number(dexScreenerData.pairs[0].volume.h24 || 0))}
+                                     </div>
+                                   </div>
+                                   
+                                   {/* MAKERS */}
+                                   <div>
+                                     <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">MAKERS</div>
+                                     <div className="text-lg font-bold text-white">
+                                       {(Number(dexScreenerData.pairs[0].txns.h24?.buys || 0) + Number(dexScreenerData.pairs[0].txns.h24?.sells || 0))}
+                                     </div>
                                    </div>
                                  </div>
-                               )}
-                               
-                               {/* Website */}
-                               {coinGeckoData?.links?.homepage?.[0] && (
-                                 <div className="space-y-2">
-                                   <div className="text-xs text-slate-400 uppercase tracking-wide">Website</div>
-                                   <a 
-                                     href={coinGeckoData.links.homepage[0]}
-                                     target="_blank"
-                                     rel="noopener noreferrer"
-                                     className="inline-flex items-center gap-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs px-2 py-1 rounded transition-colors"
-                                   >
-                                     <span>🌐</span> Official Site
-                                   </a>
+                                 
+                                 {/* Vertical Divider */}
+                                 <div className="relative">
+                                   <div className="absolute left-0 top-0 bottom-0 w-px bg-slate-700" />
+                                   
+                                   {/* Right Column - Buys/Sells with Progress Bars */}
+                                   <div className="space-y-5 pl-4">
+                                     {/* TXNS Buys/Sells */}
+                                     <div>
+                                       <div className="flex justify-between mb-2">
+                                         <div className="text-center flex-1">
+                                           <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">BUYS</div>
+                                           <div className="text-lg font-bold text-white">
+                                             {Number(dexScreenerData.pairs[0].txns.h24?.buys || 0)}
+                                           </div>
+                                         </div>
+                                         <div className="text-center flex-1">
+                                           <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">SELLS</div>
+                                           <div className="text-lg font-bold text-white">
+                                             {Number(dexScreenerData.pairs[0].txns.h24?.sells || 0)}
+                                           </div>
+                                         </div>
+                                       </div>
+                                       <div className="w-full h-2 bg-slate-700 rounded-sm overflow-hidden flex">
+                                         <div 
+                                           className="h-full bg-green-500"
+                                           style={{ 
+                                             width: `${(Number(dexScreenerData.pairs[0].txns.h24?.buys || 0) / (Number(dexScreenerData.pairs[0].txns.h24?.buys || 0) + Number(dexScreenerData.pairs[0].txns.h24?.sells || 1)) * 100)}%` 
+                                           }}
+                                         />
+                                         <div className="h-full bg-red-500 flex-1" />
+                                       </div>
+                                     </div>
+                                     
+                                     {/* VOLUME Buys/Sells */}
+                                     <div>
+                                       <div className="flex justify-between mb-2">
+                                         <div className="text-center flex-1">
+                                           <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">BUY VOL</div>
+                                           <div className="text-lg font-bold text-white">
+                                             ${Number(dexScreenerData.pairs[0].volume.h24 || 0) * 0.55 >= 1000000 
+                                               ? `${(Number(dexScreenerData.pairs[0].volume.h24 || 0) * 0.55 / 1000000).toFixed(0)}K`
+                                               : Math.round(Number(dexScreenerData.pairs[0].volume.h24 || 0) * 0.55)}
+                                           </div>
+                                         </div>
+                                         <div className="text-center flex-1">
+                                           <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">SELL VOL</div>
+                                           <div className="text-lg font-bold text-white">
+                                             ${Number(dexScreenerData.pairs[0].volume.h24 || 0) * 0.45 >= 1000000 
+                                               ? `${(Number(dexScreenerData.pairs[0].volume.h24 || 0) * 0.45 / 1000000).toFixed(0)}K`
+                                               : Math.round(Number(dexScreenerData.pairs[0].volume.h24 || 0) * 0.45)}
+                                           </div>
+                                         </div>
+                                       </div>
+                                       <div className="w-full h-2 bg-slate-700 rounded-sm overflow-hidden flex">
+                                         <div className="h-full bg-green-500" style={{ width: '55%' }} />
+                                         <div className="h-full bg-red-500 flex-1" />
+                                       </div>
+                                     </div>
+                                     
+                                     {/* MAKERS Buys/Sells */}
+                                     <div>
+                                       <div className="flex justify-between mb-2">
+                                         <div className="text-center flex-1">
+                                           <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">BUYERS</div>
+                                           <div className="text-lg font-bold text-white">
+                                             {Number(dexScreenerData.pairs[0].txns.h24?.buys || 0)}
+                                           </div>
+                                         </div>
+                                         <div className="text-center flex-1">
+                                           <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">SELLERS</div>
+                                           <div className="text-lg font-bold text-white">
+                                             {Number(dexScreenerData.pairs[0].txns.h24?.sells || 0)}
+                                           </div>
+                                         </div>
+                                       </div>
+                                       <div className="w-full h-2 bg-slate-700 rounded-sm overflow-hidden flex">
+                                         <div 
+                                           className="h-full bg-green-500"
+                                           style={{ 
+                                             width: `${(Number(dexScreenerData.pairs[0].txns.h24?.buys || 0) / (Number(dexScreenerData.pairs[0].txns.h24?.buys || 0) + Number(dexScreenerData.pairs[0].txns.h24?.sells || 1)) * 100)}%` 
+                                           }}
+                                         />
+                                         <div className="h-full bg-red-500 flex-1" />
+                                       </div>
+                                     </div>
+                                   </div>
                                  </div>
-                               )}
-                               
-                               {/* Additional Links */}
-                               {coinGeckoData?.links?.blockchain_site?.[0] && (
-                                 <div className="space-y-2">
-                                   <div className="text-xs text-slate-400 uppercase tracking-wide">Blockchain Explorer</div>
-                                   <a 
-                                     href={coinGeckoData.links.blockchain_site[0]}
-                                     target="_blank"
-                                     rel="noopener noreferrer"
-                                     className="inline-flex items-center gap-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 text-xs px-2 py-1 rounded transition-colors"
-                                   >
-                                     <span>🔗</span> View on Explorer
-                                   </a>
+                               </div>
+                             </div>
+                           )}
+                           
+                           {/* Action Buttons */}
+                           <div className="flex items-center justify-center gap-2 mb-4">
+                             <button
+                               onClick={() => {
+                                 const tokenSymbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData?.pairs?.[0]?.baseToken?.symbol || '';
+                                 window.open(`https://x.com/search?q=%23${encodeURIComponent(tokenSymbol)}`, '_blank');
+                               }}
+                               className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
+                               style={{ filter: 'drop-shadow(0 10px 15px rgb(0, 0, 0))' }}
+                             >
+                               <span className="absolute inset-0 overflow-hidden rounded-full">
+                                 <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                               </span>
+                               <div className="relative flex space-x-2 items-center z-10 rounded-full bg-zinc-950 py-0.5 px-4 ring-1 ring-white/10">
+                                 <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                 </svg>
+                                 <span>Search</span>
+                               </div>
+                               <span className="absolute -bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-orange-400/0 via-orange-400/90 to-orange-400/0 transition-opacity duration-500 group-hover:opacity-40" />
+                             </button>
+                             
+                             <button
+                               onClick={() => setActiveTab('liquidity')}
+                               className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
+                               style={{ filter: 'drop-shadow(0 10px 15px rgb(0, 0, 0))' }}
+                             >
+                               <span className="absolute inset-0 overflow-hidden rounded-full">
+                                 <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                               </span>
+                               <div className="relative flex space-x-2 items-center z-10 rounded-full bg-zinc-950 py-0.5 px-4 ring-1 ring-white/10">
+                                 <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                 </svg>
+                                 <span className="hidden sm:inline">Other pairs</span>
+                                 <span className="sm:hidden">Pairs</span>
+                               </div>
+                               <span className="absolute -bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-orange-400/0 via-orange-400/90 to-orange-400/0 transition-opacity duration-500 group-hover:opacity-40" />
+                             </button>
+                             
+                             <button
+                               onClick={() => setActiveTab('code')}
+                               className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
+                               style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
+                             >
+                               <span className="absolute inset-0 overflow-hidden rounded-full">
+                                 <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                               </span>
+                               <div className="relative flex space-x-2 items-center z-10 rounded-full bg-zinc-950 py-0.5 px-4 ring-1 ring-white/10">
+                                 <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                 </svg>
+                                 <span className="hidden sm:inline">View Code</span>
+                                 <span className="sm:hidden">Code</span>
+                               </div>
+                               <span className="absolute -bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-orange-400/0 via-orange-400/90 to-orange-400/0 transition-opacity duration-500 group-hover:opacity-40" />
+                             </button>
+                             
+                             <button
+                               onClick={() => setActiveTab('chat')}
+                               className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
+                               style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
+                             >
+                               <span className="absolute inset-0 overflow-hidden rounded-full">
+                                 <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                               </span>
+                               <div className="relative flex space-x-2 items-center z-10 rounded-full bg-zinc-950 py-0.5 px-4 ring-1 ring-white/10">
+                                 <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                 </svg>
+                                 <span>Ask AI</span>
+                               </div>
+                               <span className="absolute -bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-orange-400/0 via-orange-400/90 to-orange-400/0 transition-opacity duration-500 group-hover:opacity-40" />
+                             </button>
+                           </div>
+                           
+                           {/* Pair Details */}
+                           {dexScreenerData?.pairs?.[0] && (
+                             <div className="bg-slate-800/50 border border-slate-700 rounded p-4 relative bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)', marginBottom: '50px' }}>
+                               <button
+                                 onClick={() => setActiveTab('liquidity')}
+                                 className="absolute top-4 right-4 px-3 py-1.5 text-xs font-medium text-white bg-orange-500 hover:bg-orange-600 rounded transition-colors"
+                               >
+                                 Other Pairs
+                               </button>
+                               <h3 className="text-sm font-semibold text-white mb-3 uppercase tracking-wider">Pair Information</h3>
+                               <div className="space-y-2 text-sm">
+                                 <div className="flex justify-between py-2 border-b border-slate-700">
+                                   <span className="text-slate-400">Pair created</span>
+                                   <span className="text-white">
+                                     {dexScreenerData.pairs[0].pairCreatedAt 
+                                       ? (() => {
+                                           const now = new Date();
+                                           const created = new Date(dexScreenerData.pairs[0].pairCreatedAt);
+                                           const diffTime = Math.abs(now.getTime() - created.getTime());
+                                           const diffMonths = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 30));
+                                           return `${diffMonths}mo ago`;
+                                         })()
+                                       : 'N/A'}
+                                   </span>
                                  </div>
-                               )}
-                               
-                               {/* Network Info */}
-                               <div className="space-y-2 pt-2 border-t border-white/10">
-                                 <div className="flex items-center gap-2">
-                                   <span className="text-slate-400 text-xs sm:text-sm">Network:</span>
-                                   <span className="text-white text-sm">PulseChain</span>
-                                 </div>
-                                 <div className="flex items-center gap-2">
-                                   <span className="text-slate-400 text-xs sm:text-sm">Standard:</span>
-                                   <span className="text-white text-sm">PRC-20</span>
-                                 </div>
-
-                                 {coinGeckoData?.community_data?.reddit_subscribers && (
+                                 
+                                 {dexScreenerData.pairs[0].liquidity && (
+                                   <>
+                                     <div className="flex justify-between py-2 border-b border-slate-700">
+                                       <span className="text-slate-400">Pooled {dexScreenerData.pairs[0].baseToken?.symbol}</span>
+                                       <span className="text-white">
+                                         {Number(dexScreenerData.pairs[0].liquidity.base || 0).toLocaleString()} 
+                                         <span className="text-slate-500 ml-2">
+                                           ${(Number(dexScreenerData.pairs[0].liquidity.base || 0) * Number(dexScreenerData.pairs[0].priceUsd || 0)).toLocaleString()}
+                                         </span>
+                                       </span>
+                                     </div>
+                                     
+                                     <div className="flex justify-between py-2 border-b border-slate-700">
+                                       <span className="text-slate-400">Pooled {dexScreenerData.pairs[0].quoteToken?.symbol}</span>
+                                       <span className="text-white">
+                                         {Number(dexScreenerData.pairs[0].liquidity.quote || 0).toLocaleString()}
+                                         <span className="text-slate-500 ml-2">
+                                           ${(Number(dexScreenerData.pairs[0].liquidity.usd || 0) / 2).toLocaleString()}
+                                         </span>
+                                       </span>
+                                     </div>
+                                   </>
+                                 )}
+                                 
+                                 <div className="flex justify-between py-2 border-b border-slate-700">
+                                   <span className="text-slate-400">Pair</span>
                                    <div className="flex items-center gap-2">
-                                     <span className="text-slate-400 text-xs sm:text-sm">Reddit:</span>
-                                     <span className="text-white text-sm">{coinGeckoData.community_data.reddit_subscribers.toLocaleString()} members</span>
+                                     <a
+                                       href={`https://scan.pulsechain.box/token/${dexScreenerData.pairs[0].pairAddress}`}
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       className="text-blue-400 hover:text-blue-300 font-mono text-xs transition-colors"
+                                     >
+                                       {dexScreenerData.pairs[0].pairAddress?.slice(0, 4)}...{dexScreenerData.pairs[0].pairAddress?.slice(-4)}
+                                     </a>
+                                     <StatefulButton
+                                       onClick={() => navigator.clipboard.writeText(dexScreenerData.pairs[0].pairAddress || '')}
+                                       className="min-w-[70px] px-2 py-1 text-xs bg-orange-500 hover:ring-orange-500"
+                                       skipLoader={true}
+                                     >
+                                       Copy
+                                     </StatefulButton>
+                                   </div>
+                                 </div>
+                                 
+                                 <div className="flex justify-between py-2 border-b border-slate-700">
+                                   <span className="text-slate-400">{dexScreenerData.pairs[0].baseToken?.symbol}</span>
+                                   <div className="flex items-center gap-2">
+                                     <a
+                                       href={`https://scan.pulsechain.box/token/${dexScreenerData.pairs[0].baseToken?.address}`}
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       className="text-blue-400 hover:text-blue-300 font-mono text-xs transition-colors"
+                                     >
+                                       {dexScreenerData.pairs[0].baseToken?.address?.slice(0, 4)}...{dexScreenerData.pairs[0].baseToken?.address?.slice(-4)}
+                                     </a>
+                                     <StatefulButton
+                                       onClick={() => navigator.clipboard.writeText(dexScreenerData.pairs[0].baseToken?.address || '')}
+                                       className="min-w-[70px] px-2 py-1 text-xs bg-orange-500 hover:ring-orange-500"
+                                       skipLoader={true}
+                                     >
+                                       Copy
+                                     </StatefulButton>
+                                   </div>
+                                 </div>
+                                 
+                                 <div className="flex justify-between py-2">
+                                   <span className="text-slate-400">{dexScreenerData.pairs[0].quoteToken?.symbol}</span>
+                                   <div className="flex items-center gap-2">
+                                     <a
+                                       href={`https://scan.pulsechain.box/token/${dexScreenerData.pairs[0].quoteToken?.address}`}
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       className="text-blue-400 hover:text-blue-300 font-mono text-xs transition-colors"
+                                     >
+                                       {dexScreenerData.pairs[0].quoteToken?.address?.slice(0, 4)}...{dexScreenerData.pairs[0].quoteToken?.address?.slice(-4)}
+                                     </a>
+                                     <StatefulButton
+                                       onClick={() => navigator.clipboard.writeText(dexScreenerData.pairs[0].quoteToken?.address || '')}
+                                       className="min-w-[70px] px-2 py-1 text-xs bg-orange-500 hover:ring-orange-500"
+                                       skipLoader={true}
+                                     >
+                                       Copy
+                                     </StatefulButton>
+                                   </div>
+                                 </div>
+                               </div>
+                             </div>
+                           )}
+                           
+                           {/* Description Section */}
+                           {dexScreenerData?.profile?.description && (
+                             <div id="description-section" className="bg-slate-800/50 border border-slate-700 rounded pt-4 px-4 pb-6 mb-6 scroll-mt-4 bg-cover bg-center relative" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+                               {/* Token Logo - Centered with Overflow */}
+                               <div className="flex justify-center mb-4 -mt-16">
+                                 {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? (
+                                   <img
+                                     src={dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl}
+                                     alt={`${dexScreenerData?.tokenInfo?.symbol} logo`}
+                                     className="w-16 h-16 sm:w-20 sm:h-20"
+                                     style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
+                                   />
+                                 ) : (
+                                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-purple-600 to-orange-600 flex items-center justify-center shadow-lg">
+                                     <span className="text-2xl sm:text-3xl font-bold text-white">
+                                       {dexScreenerData?.tokenInfo?.symbol?.[0] || '?'}
+                                     </span>
                                    </div>
                                  )}
                                </div>
-                             </div>
-                           </div>
-                         </div>
-                         
-                         {/* Chart Section - Moved to bottom */}
-                         <div className="overflow-hidden">
-                           {/* Chart Header */}
-                           <div className="p-3 sm:p-4">
-                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
-                               <div className="flex items-center gap-2">
-                                 <span className="text-white font-medium text-sm sm:text-base">
-                                   {dexScreenerData?.pairs?.[0]?.baseToken?.symbol}/{dexScreenerData?.pairs?.[0]?.quoteToken?.symbol}
-                                 </span>
-                                 <span className="text-slate-400 text-xs sm:text-sm">
-                                   on {dexScreenerData?.pairs?.[0]?.dexId}
-                                 </span>
-                               </div>
-                               <div className="flex items-center gap-2">
-                                 <a 
-                                   href={dexScreenerData?.pairs?.[0]?.url} 
-                                   target="_blank" 
-                                   rel="noopener noreferrer"
-                                   className="text-blue-400 hover:text-blue-300 text-xs sm:text-sm"
-                                 >
-                                   View on DexScreener →
-                                 </a>
-                               </div>
-                             </div>
-                           </div>
-                           
-                           {/* Embedded Chart - Reduced size */}
-                           <div className="w-full">
-                             {dexScreenerData?.pairs?.[0]?.pairAddress ? (
-                               <>
-                                 <style>{`#dexscreener-embed{position:relative;width:70%;padding-bottom:50%;margin:0 auto;}@media(min-width:1400px){#dexscreener-embed{padding-bottom:25%;}}#dexscreener-embed iframe{position:absolute;width:100%;height:100%;top:0;left:0;border:0;border-radius:12px;}`}</style>
-                                 <div id="dexscreener-embed" className="rounded-xl overflow-hidden">
-                                   <iframe 
-                                     src={`https://dexscreener.com/pulsechain/${dexScreenerData.pairs[0].pairAddress}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartDefaultOnMobile=1&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=15`}
-                                     title={`${dexScreenerData.pairs[0].baseToken.symbol}/${dexScreenerData.pairs[0].quoteToken.symbol} Chart`}
-                                     sandbox="allow-scripts allow-same-origin allow-forms"
-                                   />
+                               
+                               {/* Token Title - Centered */}
+                               <h2 className="text-2xl font-bold text-white text-center mb-6" style={{ textShadow: '0 10px 4px rgba(0, 0, 0, 0.8)' }}>
+                                 {dexScreenerData?.tokenInfo?.name || 'Token Description'}
+                               </h2>
+                               
+                               {/* All Social Links & Websites - Before Description */}
+                               {dexScreenerData?.profile?.cmsLinks && dexScreenerData.profile.cmsLinks.length > 0 && (
+                                 <div className="flex flex-wrap justify-center gap-2 mb-6">
+                                   {dexScreenerData.profile.cmsLinks.map((link: any, index: number) => {
+                                     const getSocialIcon = (url: string, label: string) => {
+                                       const urlLower = url.toLowerCase();
+                                       const labelLower = label.toLowerCase();
+                                       
+                                       if (urlLower.includes('twitter.com') || urlLower.includes('x.com') || labelLower.includes('twitter') || labelLower === 'x') {
+                                         return (
+                                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                             <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                           </svg>
+                                         );
+                                       } else if (urlLower.includes('t.me') || labelLower.includes('telegram')) {
+                                         return (
+                                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                                           </svg>
+                                         );
+                                       } else if (urlLower.includes('instagram.com') || labelLower.includes('instagram')) {
+                                         return (
+                                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                             <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                                           </svg>
+                                         );
+                                       } else {
+                                         return (
+                                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                                           </svg>
+                                         );
+                                       }
+                                     };
+                                     
+                                     const getLinkLabel = (url: string, label: string) => {
+                                       if (!label || label === 'Link') {
+                                         const urlLower = url.toLowerCase();
+                                         if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) return 'Twitter';
+                                         if (urlLower.includes('t.me')) return 'Telegram';
+                                         if (urlLower.includes('instagram.com')) return 'Instagram';
+                                         if (urlLower.includes('discord')) return 'Discord';
+                                         return 'Website';
+                                       }
+                                       return label;
+                                     };
+                                     
+                                     return (
+                                       <a
+                                         key={index}
+                                         href={link.url}
+                                         target="_blank"
+                                         rel="noopener noreferrer"
+                                         className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
+                                         style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
+                                       >
+                                         <span className="absolute inset-0 overflow-hidden rounded-full">
+                                           <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                                         </span>
+                                         <div className="relative flex space-x-2 items-center z-10 rounded-full bg-zinc-950 py-0.5 px-4 ring-1 ring-white/10">
+                                           {getSocialIcon(link.url || '', link.label || '')}
+                                           <span>{getLinkLabel(link.url || '', link.label || '')}</span>
+                                         </div>
+                                         <span className="absolute -bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-orange-400/0 via-orange-400/90 to-orange-400/0 transition-opacity duration-500 group-hover:opacity-40" />
+                                       </a>
+                                     );
+                                   })}
                                  </div>
-                               </>
-                             ) : (
-                               <div className="h-40 sm:h-48 md:h-60 lg:h-72 flex items-center justify-center text-slate-400">
-                         <div className="text-center">
-                                   <div className="text-4xl mb-2">📊</div>
-                                   <p>Chart data not available</p>
-                                 </div>
+                               )}
+                               
+                               {/* Description Text - Centered */}
+                               <div className="text-sm text-slate-300 leading-relaxed text-center whitespace-pre-line">
+                                 {dexScreenerData.profile.description}
                                </div>
-                             )}
-                           </div>
+                             </div>
+                           )}
                          </div>
                        </div>
                      </TabsContent>
                       
                       {/* Holders Tab */}
-                      <TabsContent value="holders" className="flex-1 overflow-y-auto p-3 md:p-4">
-                        <HoldersTabContent 
+                      <TabsContent value="holders" className="flex-1 overflow-y-auto px-4 py-4">
+                        <HoldersTabContent
                           contractAddress={contractAddress}
                           tokenInfo={tokenInfo}
                         />
                       </TabsContent>
                      
-                     <TabsContent value="liquidity" className="flex-1 overflow-y-auto p-3 md:p-4">
-                       <LiquidityTab 
+                     <TabsContent value="liquidity" className="flex-1 overflow-y-auto px-4 py-4">
+                       <LiquidityTab
                          dexScreenerData={dexScreenerData}
                          isLoading={isLoadingContract}
                        />
@@ -1479,75 +1673,6 @@ const App: React.FC = () => {
                  </div>
             </div>
           </main>
-        )}
-
-        {/* Mobile Sidebar - Floating Tabs Button */}
-        <div className="md:hidden fixed bottom-16 right-4 z-50">
-          {/* Toggle Button */}
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-full shadow-lg transition-all duration-200 hover:scale-105 border-2 border-purple-400/30"
-            title="Navigation Menu"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-          
-          {/* Active Tab Indicator */}
-          <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-medium">
-            {activeTab === 'chat' ? 'AI' : 
-             activeTab === 'creator' ? 'Creator' : 
-             activeTab === 'code' ? 'Code' : 
-             activeTab === 'api' ? 'API' : 
-             activeTab === 'chart' ? 'Chart' : 
-             activeTab === 'info' ? 'Info' : 
-             activeTab === 'holders' ? 'Holders' : 
-             activeTab === 'liquidity' ? 'Liquidity' : 'Menu'}
-          </div>
-
-          {/* Collapsible Sidebar */}
-          {isSidebarOpen && (
-            <div 
-              className="absolute bottom-16 right-0 bg-black/20 backdrop-blur-xl border border-white/10 rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.3)] p-2 min-w-[200px]"
-            >
-              <div className="space-y-1">
-                {[
-                  { tabId: 'chat' as TabId, name: 'Chat with AI' },
-                  { tabId: 'creator' as TabId, name: 'Creator' },
-                  { tabId: 'code' as TabId, name: 'Source Code' },
-                  { tabId: 'api' as TabId, name: 'API Response' },
-                  { tabId: 'chart' as TabId, name: 'Chart' },
-                  { tabId: 'info' as TabId, name: 'Info' },
-                  { tabId: 'holders' as TabId, name: 'Holders' },
-                  { tabId: 'liquidity' as TabId, name: 'Liquidity' }
-                ].map(({ tabId, name }, index) => (
-                  <button
-                    key={tabId}
-                    onClick={() => {
-                      setActiveTab(tabId);
-                      setIsSidebarOpen(false);
-                    }}
-                    className={`w-full flex items-center px-3 py-2 rounded-md transition-all duration-200 text-left ${
-                      activeTab === tabId
-                        ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
-                        : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-                    }`}
-                  >
-                    <span className="text-sm font-medium">{name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Click outside to close sidebar */}
-        {isSidebarOpen && (
-          <div 
-            className="md:hidden fixed inset-0 z-40"
-            onClick={() => setIsSidebarOpen(false)}
-          />
         )}
       </div>
     </div>
@@ -1560,8 +1685,10 @@ export default App;
 // Holders Tab Content (local to this page)
 const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInfo | null }>
   = ({ contractAddress, tokenInfo }) => {
-  const [list, setList] = useState<Array<{ address: string; value: string }>>([]);
+  const [list, setList] = useState<Array<{ address: string; value: string; isContract?: boolean; isVerified?: boolean }>>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
+  const [showAddressModal, setShowAddressModal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -1569,92 +1696,48 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
       if (!contractAddress) return;
       setLoading(true);
       try {
-        console.log('Fetching holders for:', contractAddress);
-        
-        // Debug: Show what endpoint we're calling
-        console.log('Calling endpoint:', `/tokens/${contractAddress}/holders`);
-        
-        // Try the standard token holders endpoint first
         const res = await pulsechainApiService.getTokenHolders(contractAddress, 1, 50);
-        console.log('Holders API response:', res);
+        const resData: any = res;
         
-        // Also try a direct fetch to see what's happening
-        try {
-          console.log('Trying direct fetch to debug...');
-          const directResponse = await fetch(`/api/pulsechain-proxy?endpoint=/tokens/${contractAddress}/holders&page=1&limit=50`);
-          console.log('Direct response status:', directResponse.status);
-          if (directResponse.ok) {
-            const directData = await directResponse.json();
-            console.log('Direct response data:', directData);
-          } else {
-            const errorText = await directResponse.text();
-            console.log('Direct response error:', errorText);
-          }
-        } catch (directError) {
-          console.error('Direct fetch error:', directError);
-        }
-        
-        // Check if the response has the expected structure
+        // Parse response structure
         let items: Array<{ address: string; value: string }> = [];
+        const rawData = Array.isArray(resData) ? resData 
+                      : resData.data && Array.isArray(resData.data) ? resData.data
+                      : resData.items && Array.isArray(resData.items) ? resData.items
+                      : [];
         
-        if (Array.isArray(res)) {
-          // Direct array response
-          items = res.map((h: any) => ({ 
+        items = rawData
+          .map((h: any) => ({ 
             address: h.address?.hash || '', 
             value: h.value || '0' 
-          })).filter(item => item.address && item.value);
-        } else if (res.data && Array.isArray(res.data)) {
-          // Response with data array
-          items = res.data.map((h: any) => ({ 
-            address: h.address?.hash || '', 
-            value: h.value || '0' 
-          })).filter(item => item.address && item.value);
-        } else if (res.items && Array.isArray(res.items)) {
-          // Response with items array
-          items = res.items.map((h: any) => ({ 
-            address: h.address?.hash || '', 
-            value: h.value || '0' 
-          })).filter(item => item.address && item.value);
-        }
+          }))
+          .filter((item: any) => item.address && item.value);
         
-        console.log('Processed items:', items);
-        console.log('Sample item structure:', items[0]);
+        // Fetch contract info for top 10 holders (to avoid too many API calls)
+        const top10Addresses = items.slice(0, 10).map(h => h.address);
+        const contractChecks = await Promise.allSettled(
+          top10Addresses.map(addr => pulsechainApiService.getAddressInfo(addr))
+        );
         
-        if (!cancelled) setList(items);
+        // Map contract info to holders
+        const itemsWithContractInfo = items.map((item, idx) => {
+          if (idx < 10) {
+            const checkResult = contractChecks[idx];
+            if (checkResult.status === 'fulfilled' && checkResult.value) {
+              return {
+                ...item,
+                isContract: checkResult.value.is_contract,
+                isVerified: checkResult.value.is_verified
+              };
+            }
+          }
+          return item;
+        });
+        
+        if (!cancelled) setList(itemsWithContractInfo);
       } catch (error) {
         console.error('Error fetching holders:', error);
-        
-        // Log the full error details
-        if (error instanceof Error) {
-          console.error('Error message:', error.message);
-          console.error('Error stack:', error.stack);
-        }
-        
-        // Try alternative approach - get token info first to see if it's a valid token
-        try {
-          console.log('Trying to get token info as fallback...');
-          const tokenInfo = await pulsechainApiService.getTokenInfo(contractAddress);
-          console.log('Token info:', tokenInfo);
-          
-          // Try to get token counters to see holder count
-          try {
-            const counters = await pulsechainApiService.getTokenCounters(contractAddress);
-            console.log('Token counters:', counters);
-          } catch (countersError) {
-            console.error('Could not get token counters:', countersError);
-          }
-          
-          if (tokenInfo.holders > 0) {
-            console.log(`Token has ${tokenInfo.holders} holders, but couldn't fetch individual holder data`);
-            // Set empty list but show the total count
-            if (!cancelled) setList([]);
-          } else {
-            if (!cancelled) setList([]);
-          }
-        } catch (fallbackError) {
-          console.error('Fallback also failed:', fallbackError);
-          if (!cancelled) setList([]);
-        }
+        if (!cancelled) setList([]);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -1663,27 +1746,68 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
     return () => { cancelled = true; };
   }, [contractAddress]);
 
-  const decimals = tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18;
-  const totalSupply = tokenInfo?.total_supply ? Number(tokenInfo.total_supply) : 0;
+  // Memoize constants
+  const decimals = React.useMemo(() => 
+    tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18, 
+    [tokenInfo?.decimals]
+  );
+  
+  const totalSupply = React.useMemo(() => 
+    tokenInfo?.total_supply ? Number(tokenInfo.total_supply) : 0, 
+    [tokenInfo?.total_supply]
+  );
 
-  const percentOfSupply = (raw: string): number => {
+  // Memoize formatting functions
+  const percentOfSupply = useCallback((raw: string): number => {
     if (!totalSupply) return 0;
     const bal = Number(raw);
     if (!Number.isFinite(bal)) return 0;
     return (bal / totalSupply) * 100;
-  };
+  }, [totalSupply]);
 
-  const formatAmount = (raw: string) => {
+  const formatAmount = useCallback((raw: string) => {
     const n = Number(raw);
     if (!Number.isFinite(n)) return '0';
     const v = n / Math.pow(10, decimals);
     return v.toLocaleString(undefined, { maximumFractionDigits: 6 });
+  }, [decimals]);
+
+  // Pre-calculate all row data to avoid recalculation on every render
+  const processedList = React.useMemo(() => 
+    list.map((h, idx) => ({
+      ...h,
+      index: idx + 1,
+      formattedAddress: h.address ? `${h.address.slice(0, 10)}...${h.address.slice(-6)}` : 'Unknown Address',
+      formattedBalance: formatAmount(h.value),
+      percentage: percentOfSupply(h.value),
+      isContract: h.isContract,
+      isVerified: h.isVerified
+    })),
+    [list, formatAmount, percentOfSupply]
+  );
+
+  // Calculate contract vs wallet stats
+  const contractCount = React.useMemo(() =>
+    processedList.filter(h => h.isContract === true).length,
+    [processedList]
+  );
+
+  const handleAddressClick = (address: string) => {
+    setSelectedAddress(address);
+    setShowAddressModal(true);
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-white font-semibold">Top 50 Holders</h3>
+        <div>
+          <h3 className="text-white font-semibold">Top 50 Holders</h3>
+          {contractCount > 0 && (
+            <p className="text-xs text-slate-400 mt-1">
+              {contractCount} contract{contractCount !== 1 ? 's' : ''} detected in top 10 (LP pools, contracts, etc.)
+            </p>
+          )}
+        </div>
         {tokenInfo?.symbol && (
           <div className="text-slate-400 text-sm">Token: {tokenInfo.symbol}</div>
         )}
@@ -1691,9 +1815,9 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <LoaderThree className="w-6 h-6" />
+          <LoaderThree />
         </div>
-      ) : list.length === 0 ? (
+      ) : processedList.length === 0 ? (
         <div className="text-center text-slate-400 py-12">No holders found</div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-white/10">
@@ -1707,31 +1831,61 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
               </tr>
             </thead>
             <tbody>
-              {list.map((h, idx) => {
-                const pct = percentOfSupply(h.value);
-                return (
-                  <tr key={h.address || idx} className="border-t border-white/10 hover:bg-white/5">
-                    <td className="px-4 py-2 text-slate-400">{idx + 1}</td>
-                    <td className="px-4 py-2">
-                      <code className="font-mono text-purple-300">
-                        {h.address ? `${h.address.slice(0, 10)}...${h.address.slice(-6)}` : 'Unknown Address'}
-                      </code>
-                    </td>
-                    <td className="px-4 py-2 text-white">{formatAmount(h.value)} {tokenInfo?.symbol}</td>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-white font-medium">{pct.toFixed(4)}%</span>
-                        <div className="flex-1 h-2 bg-white/10 rounded-full">
-                          <div className="h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full" style={{ width: `${Math.min(100, pct)}%` }} />
+              {processedList.map((holder) => (
+                <tr key={holder.address || holder.index} className="border-t border-white/10 hover:bg-white/5">
+                  <td className="px-4 py-2 text-slate-400">{holder.index}</td>
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleAddressClick(holder.address)}
+                        className="font-mono text-purple-300 hover:text-purple-100 transition-colors cursor-pointer hover:underline"
+                        title="Click to view address details"
+                      >
+                        {holder.formattedAddress}
+                      </button>
+                      {holder.isContract && (
+                        <div className="flex items-center gap-1">
+                          <span className="px-2 py-0.5 bg-blue-600/20 border border-blue-500/30 rounded text-xs text-blue-300 font-medium" title="This address is a smart contract (likely LP or other contract)">
+                            📄 Contract
+                          </span>
+                          {holder.isVerified && (
+                            <span className="px-2 py-0.5 bg-green-600/20 border border-green-500/30 rounded text-xs text-green-300 font-medium" title="Verified contract">
+                              ✓
+                            </span>
+                          )}
                         </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2 text-white">{holder.formattedBalance} {tokenInfo?.symbol}</td>
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-medium">{holder.percentage.toFixed(4)}%</span>
+                      <div className="flex-1 h-2 bg-white/10 rounded-full">
+                        <div className="h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full" style={{ width: `${Math.min(100, holder.percentage)}%` }} />
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Address Details Modal */}
+      {selectedAddress && (
+        <AddressDetailsModal
+          isOpen={showAddressModal}
+          onClose={() => {
+            setShowAddressModal(false);
+            setSelectedAddress(null);
+          }}
+          address={selectedAddress}
+          tokenAddress={contractAddress}
+          tokenSymbol={tokenInfo?.symbol || 'TOKEN'}
+          tokenDecimals={tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18}
+        />
       )}
     </div>
   );

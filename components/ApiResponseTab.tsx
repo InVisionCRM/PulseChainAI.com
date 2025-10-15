@@ -23,11 +23,9 @@ const SubTabButton: React.FC<{ name: string; tabId: string; activeTab: string; o
     const isActive = activeTab === tabId;
     return (
         <button
+            type="button"
             onClick={() => onClick(tabId)}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus:outline-none flex-shrink-0 ${isActive ? 'text-white bg-purple-600' : 'text-slate-300 hover:bg-slate-700'}`}
-            aria-selected={isActive.toString()}
-            aria-controls={`panel-${tabId}`}
-            role="tab"
         >
             {name}
         </button>
@@ -58,7 +56,7 @@ const ApiResponseTab: React.FC<{ responses: Record<string, unknown> }> = ({ resp
     return (
         <div className="flex flex-col h-full">
             <div className="p-2 border-b border-slate-700 bg-slate-900/50">
-                <div className="flex items-center gap-2 overflow-x-auto" role="tablist">
+                <div className="flex items-center gap-2 overflow-x-auto">
                     {availableTabs.map(key => (
                         <SubTabButton
                             key={key}
@@ -72,12 +70,12 @@ const ApiResponseTab: React.FC<{ responses: Record<string, unknown> }> = ({ resp
             </div>
             <div className="flex-grow overflow-hidden">
                 {availableTabs.map(key => (
-                    <div key={key} role="tabpanel" id={`panel-${key}`} hidden={activeTab !== key} className="h-full flex flex-col">
+                    <div key={key} hidden={activeTab !== key} className="h-full flex flex-col">
                          <div className="p-2 bg-slate-900 text-xs text-slate-400 font-mono border-b border-slate-700">
                             GET {API_ENDPOINT_MAP[key] || ''}
                          </div>
                          <div className="flex-grow overflow-auto p-4 font-mono text-sm">
-                            <JsonViewer data={responses[key]} />
+                            <JsonViewer data={responses[key] as any} />
                          </div>
                     </div>
                 ))}

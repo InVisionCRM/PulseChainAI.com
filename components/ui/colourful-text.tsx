@@ -41,11 +41,6 @@ export default function ColourfulText({ text }: { text: string }) {
         scale: [1, 1.1, 1],
         filter: ["blur(0px)", `blur(8px)`, "blur(0px)"],
         opacity: [1, 0.9, 1],
-        textShadow: [
-          "0 0 5px currentColor",
-          "0 0 20px currentColor",
-          "0 0 5px currentColor"
-        ],
       }}
       transition={{
         duration: 0.5,
@@ -54,7 +49,7 @@ export default function ColourfulText({ text }: { text: string }) {
       className="inline-block whitespace-pre font-black tracking-wider"
       style={{
         fontWeight: 900,
-        textShadow: "2px 2px 0px rgba(0,0,0,0.3), 4px 4px 0px rgba(0,0,0,0.2)"
+        textShadow: "0 2px 4px rgba(0,0,0,1)"
       }}
     >
       {char}

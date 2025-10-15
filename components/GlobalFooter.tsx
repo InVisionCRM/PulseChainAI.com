@@ -21,7 +21,7 @@ export default function GlobalFooter() {
         currentApiKey={apiKey}
       />
       <DisclaimerModal isOpen={showDisclaimer} onClose={() => setShowDisclaimer(false)} />
-      <footer className="relative z-40 bg-black/20 backdrop-blur-sm border-t border-slate-700/30 mt-auto">
+      <footer className="relative z-40 backdrop-blur-sm border-t border-slate-700/30 mt-auto" style={{ backgroundColor: 'rgba(12, 35, 64, 0.8)' }}>
 npm run dev
         <div className="w-full px-4 py-3 md:py-4 flex items-center justify-center">
           <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4">

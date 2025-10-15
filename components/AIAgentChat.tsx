@@ -109,7 +109,7 @@ const AIAgentChat: React.FC<AIAgentChatProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="w-full px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -159,7 +159,7 @@ const AIAgentChat: React.FC<AIAgentChatProps> = ({
                 className={`mb-4 flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                  className={`max-w-[95%] px-4 py-2 rounded-lg ${
                     message.sender === 'user'
                       ? 'bg-purple-600 text-white'
                       : 'bg-gray-700 text-white'
@@ -171,7 +171,7 @@ const AIAgentChat: React.FC<AIAgentChatProps> = ({
             ))}
             {isLoadingChat && (
               <div className="mb-4 flex justify-start">
-                <div className="bg-gray-700 text-white max-w-xs lg:max-w-md px-4 py-2 rounded-lg flex items-center">
+                <div className="bg-gray-700 text-white max-w-[95%] px-4 py-2 rounded-lg flex items-center">
                   <LoadingSpinner />
                   <span className="ml-2">Thinking...</span>
                 </div>
@@ -181,21 +181,22 @@ const AIAgentChat: React.FC<AIAgentChatProps> = ({
 
           <div className="flex gap-2">
             <div className="flex-1 relative">
-              <GlowingEffect>
-                <textarea
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Type your message here..."
-                  className="w-full p-3 pr-12 bg-black/30 border border-white/30 rounded-lg text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                  rows={2}
-                  disabled={isLoadingChat}
-                />
-              </GlowingEffect>
+              <textarea
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type your message here..."
+                className="w-full p-3 pr-12 bg-black/30 border border-white/30 rounded-lg text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                rows={2}
+                disabled={isLoadingChat}
+              />
+              <GlowingEffect className="rounded-lg" />
               <button
+                type="button"
                 onClick={handleSendMessage}
                 disabled={!chatInput.trim() || isLoadingChat}
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-purple-400 hover:text-purple-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+                title="Send message"
               >
                 <SendIcon />
               </button>

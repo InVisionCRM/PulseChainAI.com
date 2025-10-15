@@ -2,37 +2,38 @@
 
 import { cn } from "@/lib/utils";
 import React, { useEffect, useState } from "react";
-import { useMobileOptimization } from "@/lib/hooks/useMobileOptimization";
 
 export const InfiniteMovingCards = ({
   items,
   direction = "left",
-  speed = "fast",
+  speed = "normal",
   pauseOnHover = true,
   className,
+  onItemClick,
 }: {
   items: {
     quote: string;
     name: string;
-    title: string;
+    logo?: string | null;
+    changeColor?: string;
+    changeText?: string;
+    tokenAddress?: string | null;
   }[];
   direction?: "left" | "right";
   speed?: "fast" | "normal" | "slow";
   pauseOnHover?: boolean;
   className?: string;
+  onItemClick?: (tokenAddress: string) => void;
 }) => {
-  const mobileConfig = useMobileOptimization();
   const containerRef = React.useRef<HTMLDivElement>(null);
   const scrollerRef = React.useRef<HTMLUListElement>(null);
 
   useEffect(() => {
-    // Disable animations on mobile or when reduced motion is preferred
-    if (mobileConfig.shouldReduceMotion || mobileConfig.isMobile) {
-      return;
-    }
     addAnimation();
-  }, [mobileConfig.shouldReduceMotion, mobileConfig.isMobile]);
+  }, []);
+  
   const [start, setStart] = useState(false);
+  
   function addAnimation() {
     if (containerRef.current && scrollerRef.current) {
       const scrollerContent = Array.from(scrollerRef.current.children);
@@ -49,70 +50,89 @@ export const InfiniteMovingCards = ({
       setStart(true);
     }
   }
+  
   const getDirection = () => {
     if (containerRef.current) {
       if (direction === "left") {
         containerRef.current.style.setProperty(
           "--animation-direction",
-          "forwards",
+          "forwards"
         );
       } else {
         containerRef.current.style.setProperty(
           "--animation-direction",
-          "reverse",
+          "reverse"
         );
       }
     }
   };
+  
   const getSpeed = () => {
     if (containerRef.current) {
       if (speed === "fast") {
-        containerRef.current.style.setProperty("--animation-duration", "20s");
-      } else if (speed === "normal") {
-        containerRef.current.style.setProperty("--animation-duration", "40s");
-      } else {
         containerRef.current.style.setProperty("--animation-duration", "80s");
+      } else if (speed === "normal") {
+        containerRef.current.style.setProperty("--animation-duration", "120s");
+      } else {
+        containerRef.current.style.setProperty("--animation-duration", "120s");
       }
     }
   };
+  
   return (
     <div
       ref={containerRef}
       className={cn(
-        "scroller relative z-20 max-w-7xl overflow-hidden [mask-image:linear-gradient(to_right,transparent,white_20%,white_80%,transparent)]",
-        className,
+        "scroller relative z-20 overflow-hidden [mask-image:linear-gradient(to_right,transparent,white_20%,white_80%,transparent)]",
+        className
       )}
     >
       <ul
         ref={scrollerRef}
         className={cn(
-          "flex w-max min-w-full shrink-0 flex-nowrap gap-4 py-4",
+          "flex min-w-full shrink-0 gap-1 py-2 w-max flex-nowrap",
           start && "animate-scroll",
-          pauseOnHover && "hover:[animation-play-state:paused]",
+          pauseOnHover && "hover:[animation-play-state:paused]"
         )}
       >
         {items.map((item, idx) => (
           <li
-            className="relative w-[350px] max-w-full shrink-0 rounded-2xl border border-b-0 border-zinc-200 bg-[linear-gradient(180deg,#fafafa,#f5f5f5)] px-8 py-6 md:w-[450px] dark:border-zinc-700 dark:bg-[linear-gradient(180deg,#27272a,#18181b)]"
-            key={item.name}
+            className="w-auto relative flex-shrink-0 px-2"
+            style={{ background: 'transparent' }}
+            key={idx}
+            onClick={() => {
+              if (onItemClick && item.tokenAddress) {
+                onItemClick(item.tokenAddress);
+              }
+            }}
           >
-            <blockquote>
-              <div
-                aria-hidden="true"
-                className="user-select-none pointer-events-none absolute -top-0.5 -left-0.5 -z-1 h-[calc(100%_+_4px)] w-[calc(100%_+_4px)]"
-              ></div>
-              <span className="relative z-20 text-sm leading-[1.6] font-normal text-neutral-800 dark:text-gray-100">
-                {item.quote}
-              </span>
-              <div className="relative z-20 mt-6 flex flex-row items-center">
-                <span className="flex flex-col gap-1">
-                  <span className="text-sm leading-[1.6] font-normal text-neutral-500 dark:text-gray-400">
-                    {item.name}
-                  </span>
-                  <span className="text-sm leading-[1.6] font-normal text-neutral-500 dark:text-gray-400">
-                    {item.title}
-                  </span>
+            <blockquote 
+              style={{ background: 'transparent' }}
+              className={item.tokenAddress ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}
+            >
+              <div className="flex items-center gap-2">
+                {item.logo && (
+                  <img 
+                    src={item.logo} 
+                    alt="" 
+                    className="w-5 h-5 rounded-full flex-shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                )}
+                <span className="relative z-20 text-sm leading-[1.6] font-normal whitespace-nowrap text-white/90">
+                  {item.quote}
                 </span>
+                {item.changeText && (
+                  <span 
+                    className="relative z-20 text-sm leading-[1.6] font-semibold whitespace-nowrap"
+                    style={{ color: item.changeColor }}
+                  >
+                    {item.changeText}
+                  </span>
+                )}
+                <span className="text-white/30 mx-1">•</span>
               </div>
             </blockquote>
           </li>

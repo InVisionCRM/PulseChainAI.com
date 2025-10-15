@@ -17,7 +17,7 @@ export default function MobileDebugInfo() {
         <div>Device: {config.isMobile ? 'Mobile' : config.isTablet ? 'Tablet' : 'Desktop'}</div>
         <div>Pixel Ratio: {config.devicePixelRatio}</div>
         <div>CPU Cores: {navigator.hardwareConcurrency || 'Unknown'}</div>
-        <div>Memory: {navigator.deviceMemory || 'Unknown'} GB</div>
+        <div>Memory: {(navigator as any).deviceMemory || 'Unknown'} GB</div>
         <div className="border-t border-gray-600 pt-1 mt-2">
           <div className={config.shouldDisableHeavyAnimations ? 'text-red-400' : 'text-green-400'}>
             Heavy Animations: {config.shouldDisableHeavyAnimations ? 'Disabled' : 'Enabled'}

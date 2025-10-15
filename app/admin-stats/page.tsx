@@ -3,6 +3,7 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { pulsechainApi } from '@/services';
 import { fetchDexScreenerData, search } from '@/services/pulsechainService';
+import { Button } from '@/components/ui/stateful-button';
 
 type TransferItem = {
   timestamp?: string;
@@ -1216,32 +1217,27 @@ export default function AdminStatsPage(): JSX.Element {
   const runOneStat = useCallback(async (id: string) => {
     const item = statCategories.flatMap(c => c.stats).find(s => s.id === id);
     if (!item) return;
-    
+
     setBusyStat(id);
     const startTime = Date.now();
-    
+
     try {
       // Determine the endpoint type based on the stat ID
-      let endpoint = 'Custom Stat Function';
+      let endpoint = 'Multiple API Calls';
       let params = { statId: id, label: item.label };
-      
+
       if (id.includes('holders') || id.includes('Holders')) {
-        endpoint = 'PulseChain Scan API - Holders';
-        params = { ...params, endpoint: `/api/v2/tokens/{address}/holders` };
+        endpoint = `https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}/holders`;
       } else if (id.includes('transfers') || id.includes('Transfers')) {
-        endpoint = 'PulseChain Scan API - Transfers';
-        params = { ...params, endpoint: `/api/v2/tokens/{address}/transfers` };
-      } else if (id.includes('dex') || id.includes('liquidity') || id.includes('Liquidity')) {
-        endpoint = 'DexScreener API';
-        params = { ...params, endpoint: 'https://api.dexscreener.com/latest/dex/tokens/{address}' };
-      } else if (id.includes('token') || id.includes('Token')) {
-        endpoint = 'PulseChain Scan API - Token Info';
-        params = { ...params, endpoint: `/api/v2/tokens/{address}` };
-      } else if (id.includes('address') || id.includes('Address')) {
-        endpoint = 'PulseChain Scan API - Address Info';
-        params = { ...params, endpoint: `/api/v2/addresses/{address}` };
+        endpoint = `https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}/transfers`;
+      } else if (id.includes('dex') || id.includes('liquidity') || id.includes('Liquidity') || id.includes('price') || id.includes('Price') || id.includes('volume') || id.includes('Volume')) {
+        endpoint = `https://api.dexscreener.com/latest/dex/tokens/pulsechain/${tokenAddress}`;
+      } else if (id === 'totalSupply' || id === 'symbol' || id === 'name' || id === 'iconUrl') {
+        endpoint = `https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}`;
+      } else if (id.includes('creator') || id.includes('Creator') || id.includes('contract') || id.includes('Contract')) {
+        endpoint = `https://api.scan.pulsechain.com/api/v2/addresses/${tokenAddress}`;
       }
-      
+
       // Track the request details
       const requestInfo = {
         statId: id,
@@ -1251,38 +1247,38 @@ export default function AdminStatsPage(): JSX.Element {
         timestamp: new Date(),
         duration: 0
       };
-      
+
       setCurrentRequest(requestInfo);
-      
+
       const value = await item.run();
       const duration = Date.now() - startTime;
-      
+
       // Update with response and duration
       setCurrentRequest({
         ...requestInfo,
         response: value,
         duration
       });
-      
+
       setStatResult(prev => ({ ...prev, [id]: value }));
     } catch (e) {
       const duration = Date.now() - startTime;
       const errorResponse = { error: (e as Error).message };
-      
+
       setCurrentRequest({
         statId: id,
-        endpoint: 'Custom Stat Function',
+        endpoint: 'Multiple API Calls',
         params: { statId: id, label: item.label, error: (e as Error).message },
         response: errorResponse,
         timestamp: new Date(),
         duration
       });
-      
+
       setStatResult(prev => ({ ...prev, [id]: errorResponse }));
     } finally {
       setBusyStat(null);
     }
-  }, [statCategories]);
+  }, [statCategories, tokenAddress]);
 
   const clearOneStat = useCallback((id: string) => {
     setStatResult(prev => {
@@ -1299,15 +1295,18 @@ export default function AdminStatsPage(): JSX.Element {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        <h1 className="text-2xl font-bold">Admin Stats Test</h1>
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div>
+          <h1 className="text-3xl font-bold">Quick Calls</h1>
+          <p className="text-slate-400 mt-1">PulseChain API Endpoint Library</p>
+        </div>
+        <div className="bg-slate-900/70 border border-slate-800/30 rounded-xl p-4 space-y-3">
           <label htmlFor="token" className="text-sm text-slate-300">Token Address or Ticker</label>
           <div className="relative">
             <input
               id="token"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+              className="w-full bg-slate-800 border border-slate-700/30 rounded-lg px-3 py-2 text-sm"
               placeholder="Search by address, ticker, or name..."
             />
             {isSearching && <div className="absolute top-full mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-400">Searching...</div>}
@@ -1342,15 +1341,15 @@ export default function AdminStatsPage(): JSX.Element {
 
         {Object.keys(results).length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4">
+            <div className="bg-slate-900/70 border border-slate-800/30 rounded-xl p-4">
               <h2 className="font-semibold mb-2">Core</h2>
               <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(results.core, null, 2)}</pre>
             </div>
-            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4">
+            <div className="bg-slate-900/70 border border-slate-800/30 rounded-xl p-4">
               <h2 className="font-semibold mb-2">Holders</h2>
               <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(results.holders, null, 2)}</pre>
             </div>
-            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4">
+            <div className="bg-slate-900/70 border border-slate-800/30 rounded-xl p-4">
               <h2 className="font-semibold mb-2">Activity (24h)</h2>
               <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(results.activity24h, null, 2)}</pre>
             </div>
@@ -1359,7 +1358,7 @@ export default function AdminStatsPage(): JSX.Element {
 
         {/* Request Display Section */}
         {currentRequest && (
-          <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 mb-6">
+          <div className="bg-slate-900/70 border border-orange-500/30 rounded-xl p-4 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-lg text-white">Current Request Details</h2>
               <button
@@ -1383,8 +1382,17 @@ export default function AdminStatsPage(): JSX.Element {
                 
                 <div>
                   <div className="text-sm text-slate-400 mb-1">Endpoint</div>
-                  <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded">
-                    {currentRequest.endpoint}
+                  <div className="flex items-start gap-2">
+                    <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded flex-1 break-all">
+                      {currentRequest.endpoint}
+                    </div>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(currentRequest.endpoint)}
+                      className="text-xs px-2 py-1 bg-orange-600 hover:bg-orange-700 rounded whitespace-nowrap"
+                      title="Copy endpoint"
+                    >
+                      Copy
+                    </button>
                   </div>
                 </div>
                 
@@ -1428,11 +1436,11 @@ export default function AdminStatsPage(): JSX.Element {
         {/* Per-stat test harness */}
         <div className="space-y-6">
           {statCategories.map(category => (
-            <div key={category.title} className="bg-slate-900/70 border border-slate-800 rounded-xl p-4">
+            <div key={category.title} className="bg-slate-900/70 border border-slate-800/30 rounded-xl p-4">
               <h2 className="font-semibold mb-3 text-lg">{category.title}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {category.stats.map(sa => (
-                  <div key={sa.id} className="border border-slate-800 rounded-lg p-3">
+                  <div key={sa.id} className="bg-slate-900/70 border border-orange-500/30 rounded-lg p-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-sm font-medium text-slate-200">{sa.label}</div>
                       <div className="flex items-center gap-1">
@@ -1445,21 +1453,18 @@ export default function AdminStatsPage(): JSX.Element {
                             Clear
                           </button>
                         )}
-                        <button
+                        <Button
                           onClick={() => runOneStat(sa.id)}
-                          disabled={busyStat === sa.id}
                           title={`Test ${sa.label}`}
-                          className="text-xs px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded"
+                          className="text-xs px-2 py-1 bg-orange-600 hover:ring-orange-600 min-w-[60px] h-7"
                         >
-                          {busyStat === sa.id ? 'Running…' : 'Test'}
-                        </button>
+                          Test
+                        </Button>
                       </div>
                     </div>
                     <div className="mt-2 text-[11px] text-slate-300 break-words">
-                      {sa.id in statResult ? (
+                      {sa.id in statResult && (
                         <pre className="whitespace-pre-wrap">{JSON.stringify(statResult[sa.id], null, 2)}</pre>
-                      ) : (
-                        <span className="text-slate-500">No result yet</span>
                       )}
                     </div>
                   </div>

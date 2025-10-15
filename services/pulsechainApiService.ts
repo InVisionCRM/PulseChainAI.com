@@ -660,6 +660,113 @@ class PulseChainApiService {
       throw error;
     }
   }
+
+  // JSON-RPC Methods for Contract Calls
+  private rpcUrl = 'https://rpc.pulsechain.com';
+
+  /**
+   * Make a JSON-RPC eth_call to read contract data
+   * @param contractAddress - The contract to call
+   * @param data - The encoded function call data
+   * @param blockTag - Block number or 'latest' (default)
+   */
+  async ethCall(contractAddress: string, data: string, blockTag: string = 'latest'): Promise<string> {
+    try {
+      const response = await fetch(this.rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'eth_call',
+          params: [
+            {
+              to: contractAddress,
+              data: data
+            },
+            blockTag
+          ],
+          id: 1
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`RPC call failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.error) {
+        throw new Error(`RPC error: ${result.error.message || JSON.stringify(result.error)}`);
+      }
+
+      return result.result;
+    } catch (error) {
+      console.error('eth_call failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Read token0 address from a Uniswap V2 pair
+   */
+  async getToken0FromPair(pairAddress: string): Promise<string> {
+    // token0() function selector: 0x0dfe1681
+    const data = '0x0dfe1681';
+    const result = await this.ethCall(pairAddress, data);
+    // Result is padded address, extract last 40 chars
+    return '0x' + result.slice(-40);
+  }
+
+  /**
+   * Read token1 address from a Uniswap V2 pair
+   */
+  async getToken1FromPair(pairAddress: string): Promise<string> {
+    // token1() function selector: 0xd21220a7
+    const data = '0xd21220a7';
+    const result = await this.ethCall(pairAddress, data);
+    // Result is padded address, extract last 40 chars
+    return '0x' + result.slice(-40);
+  }
+
+  /**
+   * Read decimals from an ERC20 token
+   */
+  async getTokenDecimals(tokenAddress: string): Promise<number> {
+    try {
+      // decimals() function selector: 0x313ce567
+      const data = '0x313ce567';
+      const result = await this.ethCall(tokenAddress, data);
+      return parseInt(result, 16);
+    } catch (error) {
+      console.warn(`Failed to get decimals for ${tokenAddress}, defaulting to 18:`, error);
+      return 18; // Default to 18 if call fails
+    }
+  }
+
+  /**
+   * Get current reserves from a Uniswap V2 pair
+   * Returns [reserve0, reserve1, blockTimestampLast]
+   */
+  async getReservesFromPair(pairAddress: string): Promise<{
+    reserve0: bigint;
+    reserve1: bigint;
+    blockTimestampLast: number;
+  }> {
+    // getReserves() function selector: 0x0902f1ac
+    const data = '0x0902f1ac';
+    const result = await this.ethCall(pairAddress, data);
+    
+    // Remove '0x' prefix
+    const cleanData = result.startsWith('0x') ? result.slice(2) : result;
+    
+    // Parse the three uint112 values (reserves are uint112, not uint256)
+    // Each uint256 in return is 64 hex chars
+    const reserve0 = BigInt('0x' + cleanData.slice(0, 64));
+    const reserve1 = BigInt('0x' + cleanData.slice(64, 128));
+    const blockTimestampLast = parseInt(cleanData.slice(128, 192), 16);
+    
+    return { reserve0, reserve1, blockTimestampLast };
+  }
 }
 
 // Export singleton instance

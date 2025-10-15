@@ -29,7 +29,6 @@ const DexPairsModal: React.FC<DexPairsModalProps> = ({
           <button
             onClick={onClose}
             className="text-slate-300 hover:text-white text-sm"
-            aria-label="Close"
           >
             Close
           </button>

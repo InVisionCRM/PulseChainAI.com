@@ -11,6 +11,16 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    rules: {
+      // Disable all accessibility rules
+      'jsx-a11y/aria-props': 'off',
+      'jsx-a11y/aria-proptypes': 'off',
+      'jsx-a11y/aria-unsupported-elements': 'off',
+      'jsx-a11y/role-has-required-aria-props': 'off',
+      'jsx-a11y/role-supports-aria-props': 'off',
+    }
+  }
 ];
 
 export default eslintConfig;

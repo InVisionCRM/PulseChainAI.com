@@ -28,6 +28,10 @@ module.exports = {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
+        brand: {
+          navy: '#0C2340',
+          orange: '#FA4616',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

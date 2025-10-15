@@ -224,7 +224,6 @@ export default function TokenSelector({
         {selectedToken && (
           <button
             onClick={clearSelection}
-            aria-label="Clear selected token"
             className="absolute right-6 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors duration-200 p-2 rounded-full hover:bg-white/10"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

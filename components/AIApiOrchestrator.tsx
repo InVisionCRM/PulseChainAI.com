@@ -380,7 +380,6 @@ Please provide a clear, human-readable answer that directly addresses the user's
                           onClick={() => handleRemoveAddress(address.address)}
                           className="ml-2 p-1 text-red-500 hover:text-red-700"
                           title="Remove address"
-                          aria-label={`Remove ${address.name || address.symbol || 'address'}`}
                         >
                           <IconX className="h-4 w-4" />
                         </button>
@@ -431,7 +430,6 @@ Please provide a clear, human-readable answer that directly addresses the user's
                     onChange={() => handleToggleApi(api.endpoint)}
                     className="h-4 w-4 text-purple-600 focus:ring-purple-500"
                     title={`Select ${api.endpoint}`}
-                    aria-label={`Select ${api.endpoint} - ${api.description}`}
                   />
                   <div className="flex-1">
                     <div className="font-medium text-gray-900 dark:text-white">{api.endpoint}</div>

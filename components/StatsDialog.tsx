@@ -240,7 +240,6 @@ export default function StatsDialog({
                 onClick={onClose}
                 className="text-gray-400 hover:text-white transition-colors p-2"
                 title="Close stats dialog"
-                aria-label="Close stats dialog"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -273,7 +272,6 @@ export default function StatsDialog({
                           onChange={() => handleStatToggle(stat.id, !stat.enabled)}
                           className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2 transition-all duration-200 hover:scale-110"
                           title={`Toggle ${stat.label} stat`}
-                          aria-label={`Toggle ${stat.label} stat`}
                         />
                         <div>
                           <h3 className="font-medium text-white">{stat.label}</h3>

@@ -21,8 +21,6 @@ const FunctionItem: React.FC<{ func: ExplainedFunction }> = ({ func }) => {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex justify-between items-center text-left p-4 hover:bg-slate-700/50 transition-colors focus:outline-none focus:bg-slate-700/50"
-        aria-expanded={isOpen}
-        aria-controls={`func-details-${func.name}`}
       >
         <span className="font-mono break-all">
           <span className="text-purple-400">{func.name}{formatParams(func.inputs)}</span>
@@ -33,7 +31,6 @@ const FunctionItem: React.FC<{ func: ExplainedFunction }> = ({ func }) => {
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
-          aria-hidden="true"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
         </svg>

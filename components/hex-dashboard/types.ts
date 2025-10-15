@@ -96,7 +96,7 @@ export interface DashboardState {
 export interface TabNavigationProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
-  setCurrentPage: (page: number) => void;
+  setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
   ethereumDataLength: number;
   pulsechainDataLength: number;
   stakingData: MultiNetworkStakingData | null;
@@ -115,7 +115,7 @@ export interface DataTableProps {
   setSortConfig: (config: SortConfig) => void;
   currentPage: number;
   itemsPerPage: number;
-  setCurrentPage: (page: number) => void;
+  setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
   activeTab: ActiveTab;
 }
 
