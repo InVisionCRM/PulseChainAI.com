@@ -88,11 +88,11 @@ export const DesktopSidebar = ({
     <>
       <motion.div
         className={cn(
-          "h-full px-4 py-4 hidden  md:flex md:flex-col bg-white/5 backdrop-blur-lg border-r border-orange-500/40 w-[300px] shrink-0 relative z-50",
+          "h-full px-4 py-4 hidden  md:flex md:flex-col bg-gradient-to-br from-[#2C3E50] via-[#34495E] to-[#3B6978] border-r border-orange-500/40 w-[300px] shrink-0 relative z-50",
           className
         )}
         animate={{
-          width: animate ? (open ? "300px" : "60px") : "300px",
+          width: animate ? (open ? "300px" : "80px") : "300px",
         }}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
@@ -139,17 +139,23 @@ export const MobileSidebar = ({
                 ease: "easeInOut",
               }}
               className={cn(
-                "fixed h-full w-full inset-0 bg-white/[0.02] backdrop-blur-xl border-r border-orange-500/10 p-10 z-[100] flex flex-col justify-between",
+                "fixed h-full w-full inset-0 bg-gradient-to-br from-[#2C3E50] via-[#34495E] to-[#3B6978] border-r border-orange-500/10 p-10 z-[100] flex flex-col justify-between",
                 className
               )}
             >
-              <div
-                className="absolute right-10 top-10 z-50 text-neutral-800 dark:text-neutral-200 cursor-pointer"
-                onClick={() => setOpen(!open)}
-              >
-                <IconX className="h-8 w-8" />
+              <div className="flex flex-col justify-between h-full">
+                <div>
+                  <div
+                    className="absolute right-10 top-10 z-50 text-neutral-800 dark:text-neutral-200 cursor-pointer"
+                    onClick={() => setOpen(false)}
+                  >
+                    <IconX className="h-8 w-8" />
+                  </div>
+                  <div className="mt-16">
+                    {children}
+                  </div>
+                </div>
               </div>
-              {children}
             </motion.div>
           )}
         </AnimatePresence>
@@ -178,15 +184,16 @@ export const SidebarLink = ({
     >
       {link.icon}
 
-      <motion.span
-        animate={{
-          display: animate ? (open ? "inline-block" : "none") : "inline-block",
-          opacity: animate ? (open ? 1 : 0) : 1,
-        }}
-        className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
-      >
-        {link.label}
-      </motion.span>
+      {open && (
+        <motion.span
+          animate={{
+            opacity: animate ? (open ? 1 : 0) : 1,
+          }}
+          className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
+        >
+          {link.label}
+        </motion.span>
+      )}
     </a>
   );
 };

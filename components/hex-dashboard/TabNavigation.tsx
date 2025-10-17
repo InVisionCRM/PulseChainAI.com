@@ -28,8 +28,8 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
               : 'border-transparent text-slate-400 hover:text-slate-300'
           }`}
         >
-          <span className="hidden sm:inline">PulseChain HEX</span>
-          <span className="sm:hidden">PLS</span> ({pulsechainDataLength})
+          <span className="hidden sm:inline">Overview</span>
+          <span className="sm:hidden">Overview</span> ({pulsechainDataLength})
         </button>
         <button
           onClick={() => {
@@ -42,8 +42,8 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
               : 'border-transparent text-slate-400 hover:text-slate-300'
           }`}
         >
-          <span className="hidden sm:inline">Ethereum HEX</span>
-          <span className="sm:hidden">ETH</span> ({ethereumDataLength})
+          <span className="hidden sm:inline">New</span>
+          <span className="sm:hidden">New</span> ({ethereumDataLength})
         </button>
         <button
           onClick={() => {
@@ -60,8 +60,8 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
           }`}
         >
           <Lock className="w-3 h-3 sm:w-4 sm:h-4" />
-          <span className="hidden sm:inline">HEX Staking</span>
-          <span className="sm:hidden">Stakes</span> ({combinedActiveStakes.toLocaleString()})
+          <span className="hidden sm:inline">Active</span>
+          <span className="sm:hidden">Active</span> ({combinedActiveStakes.toLocaleString()})
         </button>
       </nav>
     </div>

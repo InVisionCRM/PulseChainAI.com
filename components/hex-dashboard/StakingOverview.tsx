@@ -25,7 +25,6 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
   loadPulsechainActiveStakes,
   getSortedPulsechainData,
   getPulsechainCacheStatus,
-  getCurrentHexPrice,
 }) => {
   const [allStakesSortField, setAllStakesSortField] = useState<'stakeId' | 'stakedHearts' | 'stakedDays' | 'startDay'>('stakedHearts');
   const [allStakesSortDirection, setAllStakesSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -33,48 +32,6 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
   const [activeStakesSortDirection, setActiveStakesSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedStakerAddress, setSelectedStakerAddress] = useState<string | null>(null);
   const [isStakerHistoryModalOpen, setIsStakerHistoryModalOpen] = useState<boolean>(false);
-  
-  // Helper functions for calculations
-  const calculateStakeUSD = (stakedHearts: string): number => {
-    const hearts = parseFloat(stakedHearts);
-    return (hearts / 100000000) * getCurrentHexPrice(); // Convert hearts to HEX, then to USD
-  };
-
-  const calculateEstimatedYield = (stakedHearts: string, stakedDays: string): number => {
-    const hearts = parseFloat(stakedHearts);
-    const days = parseInt(stakedDays);
-    const hexAmount = hearts / 100000000;
-    
-    // Basic yield calculation: longer stakes generally have higher yields
-    // This is a simplified calculation - actual HEX yields are more complex
-    const baseYield = 0.05; // 5% base yield
-    const dayMultiplier = Math.min(days / 365, 2); // Cap at 2x for very long stakes
-    return hexAmount * baseYield * dayMultiplier;
-  };
-
-  const calculateYieldEarned = (stakedHearts: string, daysServed: number, stakedDays: string): number => {
-    const hearts = parseFloat(stakedHearts);
-    const days = parseInt(stakedDays);
-    const hexAmount = hearts / 100000000;
-    
-    if (!daysServed || daysServed <= 0) return 0;
-    
-    // Calculate yield based on days served vs total days
-    const progressRatio = daysServed / days;
-    const estimatedYield = calculateEstimatedYield(stakedHearts, stakedDays);
-    
-    return estimatedYield * progressRatio;
-  };
-
-  const formatUSD = (amount: number): string => {
-    if (amount >= 1000000) {
-      return `$${(amount / 1000000).toFixed(2)}M`;
-    } else if (amount >= 1000) {
-      return `$${(amount / 1000).toFixed(2)}K`;
-    } else {
-      return `$${amount.toFixed(2)}`;
-    }
-  };
   
   // Pagination state for active stakes
   const [activeStakesCurrentPage, setActiveStakesCurrentPage] = useState<number>(1);
@@ -717,7 +674,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                 <thead className="bg-slate-900 text-white sticky top-0">
                   <tr>
                     <th 
-                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
                       onClick={() => handleAllStakesSort('stakeId')}
                     >
                       <div className="flex items-center gap-1">
@@ -845,10 +802,8 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Stake ID</th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Staker Address</th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Amount (HEX)</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">USD Value</th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">T-Shares</th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Stake Days</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Est. Yield</th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Start Day</th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">End Day</th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Date</th>
@@ -873,16 +828,10 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                         {hexStakingService.formatHexAmount(stake.stakedHearts)}
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
-                        {formatUSD(calculateStakeUSD(stake.stakedHearts))}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
                         {hexStakingService.formatTShareAmount(stake.stakeTShares || stake.stakeShares)}
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
                         {hexStakingService.formatStakeLength(parseInt(stake.stakedDays))}
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-orange-400">
-                        {formatUSD(calculateEstimatedYield(stake.stakedHearts, stake.stakedDays))}
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-orange-400">
                         {stake.startDay}
@@ -965,7 +914,6 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                         {getSortIcon('stakedHearts', activeStakesSortField, activeStakesSortDirection)}
                       </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">USD Value</th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">T-Shares</th>
                     <th 
                       className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
@@ -994,8 +942,6 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                         {getSortIcon('daysLeft', activeStakesSortField, activeStakesSortDirection)}
                       </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Est. Yield</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Yield Earned</th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Progress</th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">End Day</th>
                   </tr>
@@ -1024,9 +970,6 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                           {hexStakingService.formatHexAmount(stake.stakedHearts)}
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
-                          {formatUSD(calculateStakeUSD(stake.stakedHearts))}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
                           {hexStakingService.formatTShareAmount(stake.stakeTShares || stake.stakeShares)}
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
@@ -1037,12 +980,6 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-yellow-400">
                           {stake.daysLeft?.toLocaleString() || 'N/A'}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-orange-400">
-                          {formatUSD(calculateEstimatedYield(stake.stakedHearts, stake.stakedDays))}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-green-400">
-                          {formatUSD(calculateYieldEarned(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays))}
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm">
                           <div className="flex items-center gap-2">
@@ -1114,59 +1051,24 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
               <table className="min-w-full divide-y divide-white/10">
                 <thead className="bg-slate-900 text-white sticky top-0">
                   <tr>
-                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Stake ID</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Staker Address</th>
-                    <th 
-                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-700/60 transition-colors bg-gray-800/60 text-white"
-                      onClick={() => handlePulsechainActiveStakesSort('stakedHearts')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Staked Hearts
-                        {pulsechainActiveStakesSortField === 'stakedHearts' ? (
-                          pulsechainActiveStakesSortDirection === 'desc' ? '↓' : '↑'
-                        ) : '↕'}
-                      </div>
+                    <th className="px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider">
+                      <span className="hidden sm:inline">Stake ID</span>
+                      <span className="sm:hidden">ID</span>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">USD Value</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">T-Shares</th>
-                    <th 
-                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-700/60 transition-colors bg-gray-800/60 text-white"
-                      onClick={() => handlePulsechainActiveStakesSort('stakedDays')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Staked Days
-                        {pulsechainActiveStakesSortField === 'stakedDays' ? (
-                          pulsechainActiveStakesSortDirection === 'desc' ? '↓' : '↑'
-                        ) : '↕'}
-                      </div>
+                    <th className="px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider">Staker</th>
+                    <th className="px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider">
+                      <span className="hidden sm:inline">Amount (HEX)</span>
+                      <span className="sm:hidden">HEX</span>
                     </th>
-                    <th 
-                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-700/60 transition-colors bg-gray-800/60 text-white"
-                      onClick={() => handlePulsechainActiveStakesSort('daysServed')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Days Served
-                        {pulsechainActiveStakesSortField === 'daysServed' ? (
-                          pulsechainActiveStakesSortDirection === 'desc' ? '↓' : '↑'
-                        ) : '↕'}
-                      </div>
+                    <th className="px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider hidden sm:table-cell">T-Shares</th>
+                    <th className="px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider">
+                      <span className="hidden sm:inline">Total Days</span>
+                      <span className="sm:hidden">Days</span>
                     </th>
-                    <th 
-                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-700/60 transition-colors bg-gray-800/60 text-white"
-                      onClick={() => handlePulsechainActiveStakesSort('daysLeft')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Days Left
-                        {pulsechainActiveStakesSortField === 'daysLeft' ? (
-                          pulsechainActiveStakesSortDirection === 'desc' ? '↓' : '↑'
-                        ) : '↕'}
-                      </div>
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">Est. Yield</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">Yield Earned</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">Progress</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">End Day</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider bg-gray-800/60 text-white">Timestamp</th>
+                    <th className="px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider hidden sm:table-cell">Days Served</th>
+                    <th className="px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider hidden sm:table-cell">Days Left</th>
+                    <th className="px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider">Progress</th>
+                    <th className="px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider hidden sm:table-cell">End Day</th>
                   </tr>
                 </thead>
                 <tbody className="bg-transparent divide-y divide-white/10">
@@ -1177,10 +1079,10 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                     
                     return (
                       <tr key={stake.id} className="hover:bg-white/5">
-                        <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white">
+                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-white">
                           {stake.stakeId}
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-300">
+                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-slate-300">
                           <button
                             onClick={() => handleStakerClick(stake.stakerAddr)}
                             className="hover:text-green-400 transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
@@ -1190,48 +1092,36 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                             <span className="sm:hidden">{stake.stakerAddr.slice(0, 4)}...</span>
                           </button>
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-green-400 font-semibold">
+                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-green-400 font-semibold">
                           <span className="hidden sm:inline">{hexStakingService.formatHexAmount(stake.stakedHearts)}</span>
                           <span className="sm:hidden">{hexStakingService.formatHexAmount(stake.stakedHearts, true)}</span>
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
-                          {formatUSD(calculateStakeUSD(stake.stakedHearts))}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
+                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-purple-400 hidden sm:table-cell">
                           {hexStakingService.formatTShareAmount(stake.stakeTShares || stake.stakeShares)}
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
+                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-blue-400">
                           <span className="hidden sm:inline">{hexStakingService.formatStakeLength(parseInt(stake.stakedDays))}</span>
                           <span className="sm:hidden">{parseInt(stake.stakedDays)}d</span>
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-orange-400">
+                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-orange-400 hidden sm:table-cell">
                           {stake.daysServed?.toLocaleString() || 'N/A'}
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-yellow-400">
+                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-yellow-400 hidden sm:table-cell">
                           {stake.daysLeft?.toLocaleString() || 'N/A'}
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-orange-400">
-                          {formatUSD(calculateEstimatedYield(stake.stakedHearts, stake.stakedDays))}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-green-400">
-                          {formatUSD(calculateYieldEarned(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays))}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm">
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 bg-slate-700 rounded-full h-2">
+                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <div className="w-8 sm:w-16 bg-slate-700 rounded-full h-1.5 sm:h-2">
                               <div 
-                                className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all"
+                                className="bg-gradient-to-r from-purple-500 to-blue-500 h-1.5 sm:h-2 rounded-full transition-all"
                                 style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                               ></div>
                             </div>
                             <span className="text-xs text-slate-400 hidden sm:inline">{progress.toFixed(0)}%</span>
                           </div>
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-cyan-400">
+                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-cyan-400 hidden sm:table-cell">
                           {stake.endDay}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-400">
-                          {new Date(parseInt(stake.timestamp) * 1000).toLocaleDateString()}
                         </td>
                       </tr>
                     );
@@ -1280,8 +1170,6 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
         stakerAddress={selectedStakerAddress}
         isOpen={isStakerHistoryModalOpen}
         onClose={handleStakerHistoryModalClose}
-        network="ethereum"
-        currentPrice={getCurrentHexPrice()}
       />
     </div>
   );

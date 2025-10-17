@@ -18,17 +18,17 @@ export const ThreeDMarquee = ({
   return (
     <div
       className={cn(
-        "mx-auto block h-[600px] overflow-hidden rounded-2xl max-sm:h-100",
+        "absolute inset-0 overflow-hidden",
         className,
       )}
     >
       <div className="flex size-full items-center justify-center">
-        <div className="size-[800px] shrink-0 scale-75 sm:scale-100 lg:scale-125">
+        <div className="size-[1200px] shrink-0 scale-100">
           <div
             style={{
-              transform: "rotateX(55deg) rotateY(0deg) rotateZ(-45deg)",
+              transform: "translate(-50%, -50%) rotateX(60deg) rotateY(0deg) rotateZ(-45deg)",
             }}
-            className="relative top-0 left-0 grid size-full origin-top-left grid-cols-4 gap-8 transform-3d"
+            className="absolute top-1/2 left-1/2 grid size-full origin-center grid-cols-4 gap-12 transform-3d"
           >
             {chunks.map((subarray, colIndex) => (
               <motion.div
@@ -56,9 +56,14 @@ export const ThreeDMarquee = ({
                       key={imageIndex + image}
                       src={image}
                       alt={`Image ${imageIndex + 1}`}
-                      className="aspect-[400/300] rounded-lg object-cover ring ring-gray-950/5 hover:shadow-2xl"
-                      width={400}
-                      height={300}
+                      className="aspect-[500/400] object-cover ring ring-gray-950/5 hover:shadow-2xl"
+                      style={{
+                        clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 20px rgba(250, 70, 22, 0.4), 0 0 40px rgba(250, 70, 22, 0.2)',
+                        backgroundColor: 'rgba(250, 70, 22, 0.1)'
+                      }}
+                      width={500}
+                      height={400}
                     />
                   </div>
                 ))}

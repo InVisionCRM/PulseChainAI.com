@@ -1,9 +1,53 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Database, Clock, TrendingUp, Users, Lock, AlertTriangle, CheckCircle } from 'lucide-react';
-import { unifiedHexStakingService, type HexStakingMetrics, type HexStake } from '@/services/unifiedHexStakingService';
 import { HexLoader } from '@/components/ui/hex-loader';
 import { NumberTicker } from './magicui/number-ticker';
+
+// Type definitions (copied from service)
+interface HexGlobalInfo {
+  id: string;
+  hexDay: string;
+  stakeSharesTotal: string;
+  stakePenaltyTotal: string;
+  latestStakeId: string | null;
+  shareRate: string;
+  totalSupply: string;
+  lockedHeartsTotal: string;
+  timestamp: string;
+}
+
+interface HexStake {
+  id: string;
+  stakeId: string;
+  stakerAddr: string;
+  stakedHearts: string;
+  stakeShares: string;
+  stakedDays: string;
+  startDay: string;
+  endDay: string;
+  timestamp: string;
+  isAutoStake: boolean;
+  stakeTShares: string;
+  isActive: boolean;
+  daysServed?: number;
+  daysLeft?: number;
+  transactionHash: string;
+  blockNumber: string;
+  network: 'ethereum' | 'pulsechain';
+}
+
+interface HexStakingMetrics {
+  totalActiveStakes: number;
+  totalStakedHearts: string;
+  averageStakeLength: number;
+  globalInfo: HexGlobalInfo | null;
+  topStakes: HexStake[];
+  recentStakeStarts: HexStake[];
+  network: 'ethereum' | 'pulsechain';
+  lastSyncTime: string | null;
+  isDataAvailable: boolean;
+}
 
 type NetworkType = 'ethereum' | 'pulsechain';
 
@@ -51,22 +95,29 @@ const UnifiedHEXDashboard = () => {
   const loadStakingData = useCallback(async (network: NetworkType) => {
     setLoading(prev => ({ ...prev, [network]: true }));
     setError(prev => ({ ...prev, [network]: null }));
-    
+
     try {
       console.log(`📡 Loading ${network} staking data...`);
-      const data = await unifiedHexStakingService.getStakingMetrics(network);
-      
+      const response = await fetch(`/api/hex-dashboard/metrics?network=${network}`);
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || `Failed to load ${network} data`);
+      }
+
+      const data = result.data;
+
       setStakingData(prev => ({
         ...prev,
         [network]: data
       }));
-      
+
       console.log(`✅ ${network} data loaded:`, {
         totalActiveStakes: data.totalActiveStakes,
         isDataAvailable: data.isDataAvailable,
         lastSync: data.lastSyncTime
       });
-      
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : `Failed to load ${network} data`;
       console.error(`❌ Failed to load ${network} data:`, err);
@@ -79,8 +130,12 @@ const UnifiedHEXDashboard = () => {
   // Load database status
   const loadDatabaseStatus = useCallback(async () => {
     try {
-      const status = await unifiedHexStakingService.getDatabaseStatus();
-      setDatabaseStatus(status);
+      const response = await fetch('/api/hex-dashboard/status');
+      const result = await response.json();
+
+      if (result.success) {
+        setDatabaseStatus(result.data);
+      }
     } catch (err) {
       console.error('❌ Failed to load database status:', err);
     }
@@ -114,12 +169,23 @@ const UnifiedHEXDashboard = () => {
   const currentLoading = loading[activeTab];
   const currentError = error[activeTab];
 
-  // Format helpers
-  const formatHexAmount = (amount: string) => 
-    unifiedHexStakingService.formatHexAmount(amount);
-    
-  const formatStakeLength = (days: number) => 
-    unifiedHexStakingService.formatStakeLength(days);
+  // Format helpers (client-side implementations)
+  const formatHexAmount = (amount: string, decimals: number = 8): string => {
+    const num = parseFloat(amount) / Math.pow(10, 8); // HEX has 8 decimals
+    if (num >= 1e12) return `${(num / 1e12).toFixed(2)}T`;
+    if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
+    if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
+    if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
+    return num.toFixed(decimals);
+  };
+
+  const formatStakeLength = (days: number): string => {
+    if (days >= 365) {
+      const years = (days / 365).toFixed(1);
+      return `${years} year${parseFloat(years) !== 1 ? 's' : ''}`;
+    }
+    return `${days} day${days !== 1 ? 's' : ''}`;
+  };
 
   const formatNumber = (num: number) => 
     num.toLocaleString();

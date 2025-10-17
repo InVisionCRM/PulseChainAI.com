@@ -494,5 +494,5 @@ img {
 }
 
 .animate-scroll-ticker {
-  animation: scrollTicker 120s linear infinite;
+  animation: scrollTicker 40s linear infinite;
 }

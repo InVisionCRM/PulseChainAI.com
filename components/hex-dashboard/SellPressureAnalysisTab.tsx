@@ -1,7 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { TrendingDown } from 'lucide-react';
-import Image from 'next/image';
+import { TrendingDown, Coins, Zap } from 'lucide-react';
 import SellPressureAnalysis from './SellPressureAnalysis';
 import { hexStakingService } from '@/services/hexStakingService';
 import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingService';
@@ -57,7 +56,7 @@ export default function SellPressureAnalysisTab({
                   : 'text-slate-800 hover:text-slate-600 hover:bg-white/20'
               }`}
             >
-              <Image src="/ethlogo.svg" alt="Ethereum" width={16} height={16} className="w-4 h-4" />
+              <Coins className="w-4 h-4" />
               Ethereum HEX
             </button>
             <button
@@ -68,7 +67,7 @@ export default function SellPressureAnalysisTab({
                   : 'text-slate-800 hover:text-slate-600 hover:bg-white/20'
               }`}
             >
-              <Image src="/LogoVector.svg" alt="PulseChain" width={16} height={16} className="w-4 h-4" />
+              <Zap className="w-4 h-4" />
               PulseChain HEX
             </button>
           </div>
@@ -83,8 +82,7 @@ export default function SellPressureAnalysisTab({
             currentPrice={ethereumPrice}
             currentHexDay={ethereumHexDay}
             network="ethereum"
-            formatHexAmount={(amount: string | number) => hexStakingService.formatHexAmount(String(amount))}
-            formatTShareAmount={(amount: string | number) => hexStakingService.formatTShareAmount(String(amount))}
+            formatHexAmount={hexStakingService.formatHexAmount}
           />
         ) : (
           <SellPressureAnalysis
@@ -92,8 +90,7 @@ export default function SellPressureAnalysisTab({
             currentPrice={pulsechainPrice}
             currentHexDay={pulsechainHexDay}
             network="pulsechain"
-            formatHexAmount={(amount: string | number) => pulsechainHexStakingService.formatHexAmount(String(amount))}
-            formatTShareAmount={(amount: string | number) => pulsechainHexStakingService.formatTShareAmount(String(amount))}
+            formatHexAmount={pulsechainHexStakingService.formatHexAmount}
           />
         )}
       </div>

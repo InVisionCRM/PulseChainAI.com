@@ -8,10 +8,14 @@ import {
   IconHome,
   IconCode,
   IconChartBar,
-  IconHexagon,
   IconChartPie,
   IconSettings,
   IconSearch,
+  IconRocket,
+  IconHeart,
+  IconHexagon,
+  IconMail,
+  IconDeviceGamepad2,
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -37,6 +41,7 @@ export default function RootLayout({
 }>) {
   const pathname = usePathname();
   const isAICodeReaderPage = pathname === "/ai-agent";
+  const isStackerGamePage = pathname === "/stacker-game";
   const [open, setOpen] = useState(false);
 
   const links = [
@@ -62,13 +67,6 @@ export default function RootLayout({
       ),
     },
     {
-      label: "HEX Dashboard",
-      href: "/hex-dashboard",
-      icon: (
-        <IconHexagon className="h-5 w-5 shrink-0 text-white" />
-      ),
-    },
-    {
       label: "Stat Counter Builder",
       href: "/stat-counter-builder",
       icon: (
@@ -76,10 +74,41 @@ export default function RootLayout({
       ),
     },
     {
+      label: "Happy Pulse",
+      href: "https://happypulse.vercel.app/",
+      icon: (
+        <IconHeart className="h-5 w-5 shrink-0 text-white" />
+      ),
+    },
+    {
+      label: "MassMailer",
+      href: "https://www.pulsechaintester.xyz/",
+      icon: (
+        <IconMail className="h-5 w-5 shrink-0 text-white" />
+      ),
+    },
+    {
       label: "Admin Stats",
       href: "/admin-stats",
       icon: (
         <IconSettings className="h-5 w-5 shrink-0 text-white" />
+      ),
+    },
+  ];
+
+  const gamesLinks = [
+    {
+      label: "Hextroids",
+      href: "https://pulsegame.vercel.app",
+      icon: (
+        <IconRocket className="h-5 w-5 shrink-0 text-white" />
+      ),
+    },
+    {
+      label: "Stacker",
+      href: "/stacker-game",
+      icon: (
+        <IconDeviceGamepad2 className="h-5 w-5 shrink-0 text-white" />
       ),
     },
   ];
@@ -95,9 +124,9 @@ export default function RootLayout({
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased min-h-screen`}
         style={{ backgroundColor: '#0C2340' }}
       >
-        <div className="flex flex-col h-screen w-full overflow-hidden">
-          <TopTickerBar />
-          <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        <div className="flex flex-col min-h-screen md:h-screen w-full md:overflow-hidden">
+          {!isStackerGamePage && <TopTickerBar />}
+          <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
             <Sidebar open={open} setOpen={setOpen}>
               <SidebarBody className="justify-between gap-10">
                 <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
@@ -112,7 +141,7 @@ export default function RootLayout({
                       <button
                         type="button"
                         onClick={handleOpenSearch}
-                        className="flex items-center justify-start gap-2 group/sidebar py-2 px-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-md transition duration-200"
+                        className="flex items-center justify-center gap-2 group/sidebar py-2 px-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-md transition duration-200"
                         title="Search Token or Contract"
                       >
                         <IconSearch className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
@@ -123,6 +152,22 @@ export default function RootLayout({
                         )}
                       </button>
                     )}
+
+                    {/* Games Section */}
+                    <div className="mt-6">
+                      {open && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2"
+                        >
+                          Games
+                        </motion.div>
+                      )}
+                      {gamesLinks.map((link, idx) => (
+                        <SidebarLink key={`game-${idx}`} link={link} />
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <div>

@@ -120,19 +120,6 @@ const agents: Agent[] = [
     isComingSoon: false
   },
   {
-    id: 7,
-    name: "HEX Stats",
-    description: "Complete HEX daily statistics dashboard with historical data from Ethereum and PulseChain networks",
-    icon: IconHex,
-    color: "from-orange-500 to-red-500",
-    src: "/HEXagon (1).svg",
-    category: "Dashboard",
-    videoUrl: null,
-    hasMovingGradient: false,
-    isComingSoon: false,
-    useSvgBackground: true
-  },
-  {
     id: 9,
     name: "Quick API Calls",
     description: "Comprehensive token analytics and statistics dashboard for advanced PulseChain analysis and monitoring",
@@ -195,7 +182,7 @@ const agents: Agent[] = [
     isComingSoon: true
   }
   */
-];
+]; 
 
 export default function AIAgentsSection() {
   return (
@@ -227,8 +214,6 @@ export default function AIAgentsSection() {
                     window.location.href = "/therapist";
                   } else if (agent.name === "Stat Counter Builder") {
                     window.location.href = "/stat-counter-builder";
-                  } else if (agent.name === "HEX Stats") {
-                    window.location.href = "/hex-dashboard";
                   } else if (agent.name === "Quick API Calls") {
                     window.location.href = "/admin-stats";
                   }

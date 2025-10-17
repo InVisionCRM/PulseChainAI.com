@@ -90,11 +90,13 @@ export function TickerCardWithPopover({ token, onPause, onResume }: TickerCardPr
       </HoverCardTrigger>
 
       <HoverCardContent
-        className="w-80 bg-black/98 border-2 border-[#FA4616]/40 shadow-2xl backdrop-blur-xl z-[9999]"
+        className="w-80 bg-black/98 border-2 border-[#FA4616]/40 shadow-2xl backdrop-blur-xl z-[9999] bg-cover bg-center relative overflow-hidden"
+        style={{ backgroundImage: 'url(/Mirage.jpg)' }}
         side="bottom"
         align="center"
       >
-        <div className="space-y-3">
+        <div className="absolute inset-0 bg-black/70 z-0"></div>
+        <div className="space-y-3 relative z-10">
             {/* Header */}
             <div className="flex items-center gap-3 mb-4 pb-3 border-b border-white/10">
               <img
