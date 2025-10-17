@@ -687,6 +687,18 @@ export default function StackerGamePage() {
 					z-index: 10;
 				}
 
+				/* Invisible touch layer to tap anywhere on the board to drop */
+				#touch-drop-layer {
+					position: absolute;
+					top: 0;
+					left: 0;
+					width: 100%;
+					height: 100%;
+					background: transparent;
+					z-index: 20;
+					touch-action: manipulation;
+				}
+
 				#stats-board {
 					position: fixed;
 					top: 20px;
@@ -774,7 +786,7 @@ export default function StackerGamePage() {
 					border: 3px solid #fff;
 					border-radius: 50%;
 					cursor: pointer;
-					display: flex;
+					display: none;
 					flex-direction: column;
 					align-items: center;
 					justify-content: center;
@@ -801,6 +813,7 @@ export default function StackerGamePage() {
 
 				@media (max-width: 768px) {
 					#drop-button {
+						display: flex;
 						right: 20px;
 						width: 100px;
 						height: 100px;
@@ -827,6 +840,14 @@ export default function StackerGamePage() {
 						<div className="game-over-overlay" />
 						<div id="game-over-message">REKT</div>
 						<canvas id="particle-canvas" ref={canvasRef} />
+						{/* Invisible layer to handle taps/clicks for dropping */}
+						<div
+							id="touch-drop-layer"
+							role="button"
+							aria-label="Drop Block"
+							onClick={handleDropButtonClick}
+							onTouchStart={handleDropButtonClick}
+						/>
 					</div>
 				</div>
 
@@ -848,15 +869,7 @@ export default function StackerGamePage() {
 					</p>
 				</div>
 
-				<button
-					id="drop-button"
-					type="button"
-					onClick={handleDropButtonClick}
-					aria-label="Drop Block"
-				>
-					<div>DROP</div>
-					<div style={{ fontSize: "14px", marginTop: "5px" }}>⬇</div>
-				</button>
+				{/* DROP button removed; using invisible overlay on the board instead */}
 
 				<div id="start-message">
 					<div
