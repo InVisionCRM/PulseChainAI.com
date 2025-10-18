@@ -1208,10 +1208,10 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                               </button>
                             </div>
                             
-                            <div className="flex items-center justify-center gap-1">
+                            <div className="flex items-center justify-center gap-1 mt-[5px] md:mt-0 mb-3 md:mb-0">
                               <StatefulButton
                                 onClick={() => setActiveTab('chat')}
-                                className="min-w-0 w-auto px-2 py-0.5 text-lg bg-orange-500 hover:ring-orange-500 opacity-100"
+                                className="min-w-0 w-auto px-2 py-0.5 text-lg bg-orange-500 hover:ring-orange-500 opacity-100 shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
                                 skipLoader={true}
                               >
                                 Ask AI
@@ -1222,13 +1222,16 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                   const tokenAddress = contractAddress || dexScreenerData?.pairs?.[0]?.baseToken?.address || '';
                                   window.open(`/admin-stats?address=${tokenAddress}`, '_blank');
                                 }}
-                                className="min-w-0 w-auto px-2 py-0.5 text-lg bg-orange-500 hover:ring-orange-500 opacity-100"
+                                className="min-w-0 w-auto px-2 py-0.5 text-lg bg-orange-500 hover:ring-orange-500 opacity-100 shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
                                 skipLoader={true}
                               >
                                 API
                               </StatefulButton>
                             </div>
                           </div>
+                          
+                          {/* Divider - Mobile Only */}
+                          <div className="md:hidden w-full h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent mb-4"></div>
                           
                           {/* Price Section */}
                           {dexScreenerData?.pairs?.[0] && (

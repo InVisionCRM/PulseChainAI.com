@@ -94,7 +94,7 @@ export const HeroHighlight = ({
       </div>
 
       {/* Search Bar at top */}
-      <div className="absolute top-8 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl z-30">
+      {/* <div className="absolute top-8 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl z-30">
         <div className="relative">
           <PlaceholdersAndVanishInput
             placeholders={searchPlaceholders}
@@ -153,7 +153,7 @@ export const HeroHighlight = ({
             </div>
           )}
         </div>
-      </div>
+      </div> */}
 
       <div className={cn("relative z-20", className)}>{children}</div>
     </div>

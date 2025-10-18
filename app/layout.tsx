@@ -155,15 +155,13 @@ export default function RootLayout({
 
                     {/* Games Section */}
                     <div className="mt-6">
-                      {open && (
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2"
-                        >
-                          Games
-                        </motion.div>
-                      )}
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2 md:opacity-0 md:w-0 md:overflow-hidden md:translate-x-0 group-hover/sidebar:opacity-100 group-hover/sidebar:w-auto group-hover/sidebar:overflow-visible group-hover/sidebar:translate-x-1"
+                      >
+                        Games
+                      </motion.div>
                       {gamesLinks.map((link, idx) => (
                         <SidebarLink key={`game-${idx}`} link={link} />
                       ))}
