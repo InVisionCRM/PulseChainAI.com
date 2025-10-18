@@ -8,15 +8,15 @@ export default function StackerGamePage() {
 	const bgMusicRef = useRef<HTMLAudioElement>(null);
 	const placeBlockSoundRef = useRef<HTMLAudioElement>(null);
 	const gameOverSoundRef = useRef<HTMLAudioElement>(null);
+	const dropNowRef = useRef<(() => void) | null>(null);
 
 	const handleDropButtonClick = () => {
-		// Simulate spacebar press
-		const spaceEvent = new KeyboardEvent("keydown", {
-			code: "Space",
-			key: " ",
-			keyCode: 32,
-			bubbles: true,
-		});
+		if (dropNowRef.current) {
+			dropNowRef.current();
+			return;
+		}
+		// Fallback: simulate spacebar
+		const spaceEvent = new KeyboardEvent("keydown", { code: "Space", key: " ", keyCode: 32, bubbles: true });
 		window.dispatchEvent(spaceEvent);
 	};
 
@@ -120,23 +120,8 @@ export default function StackerGamePage() {
 			left = true;
 			timer = 0;
 			atimer = 0;
-			colorGradient = [
-				"#ffff00",
-				"#ffdf00",
-				"#ffbf00",
-				"#ff9f00",
-				"#ff7f00",
-				"#ff5f00",
-				"#ff3f00",
-				"#ff1f00",
-				"#ff0000",
-				"#ff0020",
-				"#ff0040",
-				"#ff0060",
-				"#ff0080",
-				"#ff00a0",
-				"#ff00c0",
-			];
+			// Brand orange gradient for all rows
+			colorGradient = new Array(15).fill("#FA4616");
 			particleSystem: ParticleSystem | null = null;
 			gamesPlayed = 0;
 			gamesWon = 0;
@@ -185,6 +170,16 @@ export default function StackerGamePage() {
 					this.particleSystem?.draw();
 				}, 1000 / 60);
 				window.addEventListener("keydown", (e) => this.onKeyPress(e));
+				// Low-latency click/touch handlers
+				this.gameElement.addEventListener("pointerdown", (e) => {
+					// Trigger drop immediately on pointerdown to reduce perceived latency
+					if (this.running) {
+						this.onSpacePress();
+					} else {
+						this.onEnterPress();
+					}
+					e.preventDefault();
+				}, { passive: false });
 				this.gameElement.addEventListener("click", (e) => this.onClick(e));
 			}
 
@@ -251,14 +246,12 @@ export default function StackerGamePage() {
 						if (this.board[i][j] === 1) {
 							cell.className = i % 2 === 0 ? "filled-1" : "filled-2";
 							cell.style.backgroundColor = this.colorGradient[i];
-						} else if (
-							this.board[i][j] === 2 &&
-							this.atimer > 0 &&
-							this.atimer % 30 < 15
-						) {
-							cell.className = i % 2 === 0 ? "filled-1" : "filled-2";
-							cell.style.backgroundColor = this.colorGradient[i];
-						} else {
+					} else if (this.board[i][j] === 2 && this.atimer > 0) {
+						// Mark misplaced blocks as falling with animation
+						const baseClass = i % 2 === 0 ? "filled-1" : "filled-2";
+						cell.className = baseClass + " falling";
+						cell.style.backgroundColor = this.colorGradient[i];
+					} else {
 							cell.className = "";
 							cell.style.backgroundColor = "";
 						}
@@ -525,6 +518,8 @@ export default function StackerGamePage() {
 		// Initialize game
 		if (gameContainerRef.current) {
 			const game = new StackerGame(gameContainerRef.current);
+			// Expose low-latency drop function for touch/button
+			dropNowRef.current = () => game.onSpacePress();
 			const bgMusic = bgMusicRef.current;
 			if (bgMusic) {
 				bgMusic.volume = 0.5;
@@ -539,7 +534,7 @@ export default function StackerGamePage() {
 		<>
 			<style jsx global>{`
 				body {
-					background-image: url("/stacker-game/images/Background.jpg");
+					background-image: url("/Mirage.jpg");
 					background-size: cover;
 					background-position: center;
 					background-repeat: no-repeat;
@@ -552,6 +547,10 @@ export default function StackerGamePage() {
 				}
 
 				#stacker-page-container {
+					background-image: url("/Mirage.jpg");
+					background-size: cover;
+					background-position: center;
+					background-repeat: no-repeat;
 					display: center;
 					justify-content: center;
 					align-items: center;
@@ -561,13 +560,12 @@ export default function StackerGamePage() {
 
 				#stacker-game {
 					position: relative;
-					width: 388px;
+					width: 353px;
 					height: 495px;
 					margin: 0;
 					display: flex;
 					justify-content: center;
 					align-items: center;
-					transform: scale(1.105);
 					border: 1px solid white;
 				}
 
@@ -586,8 +584,13 @@ export default function StackerGamePage() {
 					position: relative;
 				}
 
+				/* Orange glow brand color */
+				.filled-1,
+				.filled-2 {
+					box-shadow: 0 0 10px rgba(250, 70, 22, 0.6) !important;
+				}
+
 				.filled-1 {
-					box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 					background-image: url("/stacker-game/images/block.svg");
 					background-size: contain;
 					background-repeat: no-repeat;
@@ -595,11 +598,20 @@ export default function StackerGamePage() {
 				}
 
 				.filled-2 {
-					box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 					background-image: url("/stacker-game/images/block2.svg");
 					background-size: contain;
 					background-repeat: no-repeat;
 					background-position: center;
+				}
+
+				/* Falling animation: slide down and fade out */
+				@keyframes fallOff {
+					0% { transform: translateY(0); opacity: 1; }
+					100% { transform: translateY(120%); opacity: 0; }
+				}
+
+				.falling {
+					animation: fallOff 0.5s ease-out forwards;
 				}
 
 				#game-over-message {
@@ -733,7 +745,6 @@ export default function StackerGamePage() {
 					display: flex;
 					justify-content: center;
 					margin: 0;
-					z-index: 1000;
 				}
 
 				#stacker-header img {
@@ -748,7 +759,8 @@ export default function StackerGamePage() {
 					display: flex;
 					flex-direction: column;
 					align-items: center;
-					gap: 0;
+					gap: 1px; /* 1px buffer between banner and board */
+					margin-top: 35px; /* move stack block area down 35px */
 				}
 
 				@keyframes fadeIn {
@@ -851,6 +863,7 @@ export default function StackerGamePage() {
 					</div>
 				</div>
 
+				{/*
 				<div id="stats-board">
 					<p>
 						Games Played: <span id="games-played">0</span>
@@ -868,34 +881,11 @@ export default function StackerGamePage() {
 						Fastest Win: <span id="fastest-win">--:--.--</span>
 					</p>
 				</div>
+				*/}
 
 				{/* DROP button removed; using invisible overlay on the board instead */}
 
-				<div id="start-message">
-					<div
-						style={{
-							fontSize: "144px",
-							fontWeight: 700,
-							color: "#ff00de",
-							marginBottom: "20px",
-							textShadow:
-								"0 0 10px rgba(255, 0, 222, 0.7), 0 0 20px rgba(255, 0, 222, 0.5), 0 0 30px rgba(255, 0, 222, 0.3)",
-						}}
-					>
-						STACKER
-					</div>
-					<div
-						style={{
-							fontSize: "48px",
-							fontWeight: 700,
-							color: "#ff00de",
-							textShadow:
-								"0 0 10px rgba(255, 0, 222, 0.7), 0 0 20px rgba(255, 0, 222, 0.5), 0 0 30px rgba(255, 0, 222, 0.3)",
-						}}
-					>
-						Press Spacebar to Start
-					</div>
-				</div>
+				{/* start-message removed per request */}
 
 				<audio
 					ref={bgMusicRef}

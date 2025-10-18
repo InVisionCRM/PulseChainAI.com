@@ -7,11 +7,13 @@ export const BackgroundGradient = ({
   className,
   containerClassName,
   animate = true,
+  gradientClassName,
 }: {
   children?: React.ReactNode;
   className?: string;
   containerClassName?: string;
   animate?: boolean;
+  gradientClassName?: string;
 }) => {
   const variants = {
     initial: {
@@ -40,8 +42,8 @@ export const BackgroundGradient = ({
           backgroundSize: animate ? "400% 400%" : undefined,
         }}
         className={cn(
-          "absolute inset-0 rounded-3xl z-[1] opacity-60 group-hover:opacity-60 blur-md transition duration-500 will-change-transform",
-          " bg-[radial-gradient(circle_farthest-side_at_0_100%,#3b82f6,transparent),radial-gradient(circle_farthest-side_at_100%_0,#a855f7,transparent),radial-gradient(circle_farthest-side_at_100%_100%,#ec4899,transparent),radial-gradient(circle_farthest-side_at_0_0,#ef4444,#141316)]"
+          "absolute inset-0 rounded-[inherit] z-[1] opacity-40 group-hover:opacity-50 blur-xl transition duration-500 will-change-transform pointer-events-none",
+          gradientClassName || "bg-[radial-gradient(circle_farthest-side_at_0_100%,#3b82f6,transparent),radial-gradient(circle_farthest-side_at_100%_0,#a855f7,transparent),radial-gradient(circle_farthest-side_at_100%_100%,#ec4899,transparent),radial-gradient(circle_farthest-side_at_0_0,#ef4444,#141316)]"
         )}
       />
       <motion.div
@@ -61,8 +63,8 @@ export const BackgroundGradient = ({
           backgroundSize: animate ? "400% 400%" : undefined,
         }}
         className={cn(
-          "absolute inset-0 rounded-3xl z-[1] will-change-transform",
-          "bg-[radial-gradient(circle_farthest-side_at_0_100%,#3b82f6,transparent),radial-gradient(circle_farthest-side_at_100%_0,#a855f7,transparent),radial-gradient(circle_farthest-side_at_100%_100%,#ec4899,transparent),radial-gradient(circle_farthest-side_at_0_0,#ef4444,#141316)]"
+          "absolute inset-0 rounded-[inherit] z-[1] will-change-transform pointer-events-none",
+          gradientClassName || "bg-[radial-gradient(circle_farthest-side_at_0_100%,#3b82f6,transparent),radial-gradient(circle_farthest-side_at_100%_0,#a855f7,transparent),radial-gradient(circle_farthest-side_at_100%_100%,#ec4899,transparent),radial-gradient(circle_farthest-side_at_0_0,#ef4444,#141316)]"
         )}
       />
 

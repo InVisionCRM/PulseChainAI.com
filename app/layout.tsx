@@ -121,7 +121,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} antialiased min-h-screen`}
+        className={`${inter.variable} ${jetbrainsMono.variable} text-md md:text-base antialiased min-h-screen`}
         style={{ backgroundColor: '#0C2340' }}
       >
         <div className="flex flex-col min-h-screen md:h-screen w-full md:overflow-hidden">

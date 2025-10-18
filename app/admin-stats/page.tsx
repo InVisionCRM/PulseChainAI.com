@@ -4,6 +4,9 @@ import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { pulsechainApi } from '@/services';
 import { fetchDexScreenerData, search } from '@/services/pulsechainService';
 import { Button } from '@/components/ui/stateful-button';
+import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
+import { ProgressiveBlur } from '@/components/ui/progressive-blur';
+import { BackgroundGradient } from '@/components/ui/background-gradient';
 
 type TransferItem = {
   timestamp?: string;
@@ -22,6 +25,16 @@ const DEAD_ADDRESS = '0x000000000000000000000000000000000000dead';
 export default function AdminStatsPage(): JSX.Element {
   const [tokenAddress, setTokenAddress] = useState<string>('0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e');
   const [searchInput, setSearchInput] = useState<string>('0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e');
+  
+  // Read address from URL parameters on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const addressParam = params.get('address');
+    if (addressParam) {
+      setTokenAddress(addressParam);
+      setSearchInput(addressParam);
+    }
+  }, []);
   const [searchResults, setSearchResults] = useState<unknown[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -36,7 +49,15 @@ export default function AdminStatsPage(): JSX.Element {
     response: any;
     timestamp: Date;
     duration: number;
+    apiCalls?: Array<{
+      endpoint: string;
+      method: string;
+      description: string;
+    }>;
   } | null>(null);
+  const [selectedStat, setSelectedStat] = useState<string>('');
+  const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
+  const [showAllEndpoints, setShowAllEndpoints] = useState<boolean>(false);
 
   // simple in-memory caches to avoid refetching per-stat
   const [cache, setCache] = useState<{
@@ -345,12 +366,12 @@ export default function AdminStatsPage(): JSX.Element {
     }
   }, [getHoldersPaged, getTransfers24h, tokenAddress]);
 
-  const statCategories: Array<{ title: string; stats: Array<{ id: string; label: string; run: () => Promise<any> }> }> = useMemo(() => {
+  const statCategories: Array<{ title: string; stats: Array<{ id: string; label: string; description: string; run: () => Promise<any> }> }> = useMemo(() => {
     return [
       {
         title: 'Token Supply',
         stats: [
-          { id: 'totalSupply', label: 'Total Supply', run: async () => {
+          { id: 'totalSupply', label: 'Total Supply', description: 'Total number of tokens in circulation', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
         const raw = Number(tokenInfo?.total_supply ?? 0);
         const decimals = Number(tokenInfo?.decimals ?? 18);
@@ -360,14 +381,14 @@ export default function AdminStatsPage(): JSX.Element {
           decimals
         };
       } },
-          { id: 'holders', label: 'Total Holders', run: async () => {
+          { id: 'holders', label: 'Total Holders', description: 'Number of unique wallet addresses holding this token', run: async () => {
         const count = Number((await ensureCoreCaches()).tokenCounters?.token_holders_count ?? (await ensureCoreCaches()).tokenInfo?.holders ?? 0);
         return {
           raw: count,
           formatted: formatNumber2(count)
         };
       } },
-          { id: 'burnedTotal', label: 'Total Burned', run: async () => {
+          { id: 'burnedTotal', label: 'Total Burned', description: 'Total tokens sent to burn address (dead wallet)', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
         const decimals = Number(tokenInfo?.decimals ?? 18);
         const holders = await ensureHolders();
@@ -382,7 +403,7 @@ export default function AdminStatsPage(): JSX.Element {
           percentFormatted: formatPct2(pct),
         };
       } },
-      { id: 'burned24h', label: 'burned24h', run: async () => {
+      { id: 'burned24h', label: 'Burned (24h)', description: 'Tokens burned in the last 24 hours', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
         const totalSupply = Number(tokenInfo?.total_supply ?? 0);
         const sum = (await ensureTransfers24h())
@@ -392,7 +413,7 @@ export default function AdminStatsPage(): JSX.Element {
         const decimals = Number(tokenInfo?.decimals ?? 18);
         return { raw: sum, formatted: formatTokenAmount2(sum, decimals), percent: pct, percentFormatted: formatPct2(pct) };
       } },
-      { id: 'minted24h', label: 'Minted (24h)', run: async () => {
+      { id: 'minted24h', label: 'Minted (24h)', description: 'New tokens created in the last 24 hours', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
         const decimals = Number(tokenInfo?.decimals ?? 18);
         const sum = (await ensureTransfers24h())
@@ -408,7 +429,7 @@ export default function AdminStatsPage(): JSX.Element {
       {
         title: 'Holder Distribution',
         stats: [
-          { id: 'top1Pct', label: 'Top 1% Holdings', run: async () => {
+          { id: 'top1Pct', label: 'Top 1% Holdings', description: 'Percentage of supply held by top holder', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
         const total = Number(tokenInfo?.total_supply ?? 0);
         const holders = await ensureHolders();
@@ -421,7 +442,7 @@ export default function AdminStatsPage(): JSX.Element {
           total
         };
       } },
-      { id: 'top10Pct', label: 'top10Pct', run: async () => {
+      { id: 'top10Pct', label: 'Top 10 Holdings', description: 'Percentage of supply held by top 10 holders', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
         const total = Number(tokenInfo?.total_supply ?? 0);
         const holders = await ensureHolders();
@@ -434,7 +455,7 @@ export default function AdminStatsPage(): JSX.Element {
           total
         };
       } },
-      { id: 'top20Pct', label: 'top20Pct', run: async () => {
+      { id: 'top20Pct', label: 'Top 20 Holdings', description: 'Percentage of supply held by top 20 holders', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
         const total = Number(tokenInfo?.total_supply ?? 0);
         const holders = await ensureHolders();
@@ -447,7 +468,7 @@ export default function AdminStatsPage(): JSX.Element {
           total
         };
       } },
-      { id: 'top50Pct', label: 'top50Pct', run: async () => {
+      { id: 'top50Pct', label: 'Top 50 Holdings', description: 'Percentage of supply held by top 50 holders', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
         const total = Number(tokenInfo?.total_supply ?? 0);
         const holders = await ensureHolders();
@@ -460,7 +481,7 @@ export default function AdminStatsPage(): JSX.Element {
           total
         };
       } },
-      { id: 'whaleCount1Pct', label: 'whaleCount1Pct', run: async () => {
+      { id: 'whaleCount1Pct', label: 'Whale Count (>1%)', description: 'Number of wallets holding more than 1% of supply', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
         const total = Number(tokenInfo?.total_supply ?? 0);
         const threshold = total * 0.01;
@@ -472,7 +493,7 @@ export default function AdminStatsPage(): JSX.Element {
           threshold: formatTokenAmount2(threshold, Number(tokenInfo?.decimals ?? 18))
         };
       } },
-      { id: 'top50Holders', label: 'Top 50 Holders', run: async () => {
+      { id: 'top50Holders', label: 'Top 50 Holders', description: 'Detailed list of top 50 token holders with balances', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
         const totalSupply = Number(tokenInfo?.total_supply ?? 0);
         const decimals = Number(tokenInfo?.decimals ?? 18);
@@ -493,7 +514,7 @@ export default function AdminStatsPage(): JSX.Element {
           };
         });
       }},
-      { id: 'newVsLostHolders7d', label: 'New vs Lost Holders (7d)', run: async () => {
+      { id: 'newVsLostHolders7d', label: 'New vs Lost Holders (7d)', description: 'Holder growth/decline over the last 7 days', run: async () => {
         const transfers = await getTransfersLastNDays(tokenAddress, 7);
         if (transfers.length === 0) {
           return { newHolders: 0, lostHolders: 0, netChange: 0 };
@@ -529,7 +550,7 @@ export default function AdminStatsPage(): JSX.Element {
           netChange: receivedOnly.size - sentOnly.size,
         };
       }},
-      { id: 'giniCoefficient', label: 'Gini Coefficient (Holder Inequality)', run: async () => {
+      { id: 'giniCoefficient', label: 'Gini Coefficient', description: 'Measures wealth inequality among holders (0=equal, 1=unequal)', run: async () => {
         const holders = await ensureHolders();
         if (holders.length < 2) return 0;
 
@@ -544,7 +565,7 @@ export default function AdminStatsPage(): JSX.Element {
 
         return sumOfDifferences / (n * totalValue);
       }},
-      { id: 'avgHolderBalance', label: 'Average Holder Balance', run: async () => {
+      { id: 'avgHolderBalance', label: 'Average Holder Balance', description: 'Average token balance per holder wallet', run: async () => {
         const { tokenInfo, tokenCounters } = await ensureCoreCaches();
         const holders = await ensureHolders();
         const dead = holders.find(h => h.hash.toLowerCase() === DEAD_ADDRESS)?.value || '0';
@@ -556,7 +577,7 @@ export default function AdminStatsPage(): JSX.Element {
         const avgBalance = circulatingSupply / holderCount;
         return formatTokenAmount2(avgBalance, Number(tokenInfo.decimals));
       }},
-      { id: 'newVsLostHolders1d', label: 'New vs Lost Holders (1d)', run: async () => {
+      { id: 'newVsLostHolders1d', label: 'New vs Lost Holders (1d)', description: 'Holder growth/decline in the last 24 hours', run: async () => {
         const transfers = await getTransfersLastNDays(tokenAddress, 1);
         if (transfers.length === 0) return { newHolders: 0, lostHolders: 0, netChange: 0 };
         const involvedAddresses = new Set<string>();
@@ -574,7 +595,7 @@ export default function AdminStatsPage(): JSX.Element {
         });
         return { newHolders: receivedOnly.size, lostHolders: sentOnly.size, netChange: receivedOnly.size - sentOnly.size };
       }},
-      { id: 'newVsLostHolders30d', label: 'New vs Lost Holders (30d)', run: async () => {
+      { id: 'newVsLostHolders30d', label: 'New vs Lost Holders (30d)', description: 'Holder growth/decline over the last 30 days', run: async () => {
         const transfers = await getTransfersLastNDays(tokenAddress, 30);
         if (transfers.length === 0) return { newHolders: 0, lostHolders: 0, netChange: 0 };
         const involvedAddresses = new Set<string>();
@@ -592,7 +613,7 @@ export default function AdminStatsPage(): JSX.Element {
         });
         return { newHolders: receivedOnly.size, lostHolders: sentOnly.size, netChange: receivedOnly.size - sentOnly.size };
       }},
-      { id: 'newVsLostHolders90d', label: 'New vs Lost Holders (90d)', run: async () => {
+      { id: 'newVsLostHolders90d', label: 'New vs Lost Holders (90d)', description: 'Holder growth/decline over the last 90 days', run: async () => {
         const transfers = await getTransfersLastNDays(tokenAddress, 90);
         if (transfers.length === 0) return { newHolders: 0, lostHolders: 0, netChange: 0 };
         const involvedAddresses = new Set<string>();
@@ -615,7 +636,7 @@ export default function AdminStatsPage(): JSX.Element {
       {
         title: 'Market & Liquidity',
         stats: [
-          { id: 'blueChipPairRatio', label: 'Blue Chip Pair Ratio', run: async () => {
+          { id: 'blueChipPairRatio', label: 'Blue Chip Pair Ratio', description: 'Percentage of liquidity paired with major tokens (WPLS, HEX, USDC, DAI)', run: async () => {
         const BLUE_CHIP_ADDRESSES = new Set([
           '0xa1077a294dde1b09bb078844df40758a5d0f9a27', // WPLS
           '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39', // HEX
@@ -644,7 +665,7 @@ export default function AdminStatsPage(): JSX.Element {
           blueChipLiquidity: formatNumber2(blueChipLiquidity),
         };
       }},
-      { id: 'diamondHandsScore', label: 'Diamond Hands Score (90/180d)', run: async () => {
+      { id: 'diamondHandsScore', label: 'Diamond Hands Score', description: 'Percentage of holders who haven\'t sold in 90/180 days', run: async () => {
         const transfers180d = await getTransfersLastNDays(tokenAddress, 180);
         const activeWallets180d = new Set(transfers180d.map(t => t.from?.hash?.toLowerCase()));
 
@@ -678,7 +699,7 @@ export default function AdminStatsPage(): JSX.Element {
           score180d: formatPct2(score180d),
         };
       }},
-      { id: 'topHolderBalanceChange7d', label: 'Top 10 Holder Change (7d)', run: async () => {
+      { id: 'topHolderBalanceChange7d', label: 'Top 10 Holder Change (7d)', description: 'Balance changes of top 10 holders over 7 days', run: async () => {
         const allHolders = await ensureHolders();
         const top10Addresses = allHolders.sort((a,b) => Number(b.value) - Number(a.value)).slice(0, 10).map(h => h.hash.toLowerCase());
         const transfers = await getTransfersLastNDays(tokenAddress, 7);
@@ -1222,9 +1243,10 @@ export default function AdminStatsPage(): JSX.Element {
     const startTime = Date.now();
 
     try {
-      // Determine the endpoint type based on the stat ID
+      // Determine the endpoint type and API calls based on the stat ID
       let endpoint = 'Multiple API Calls';
       let params = { statId: id, label: item.label };
+      let apiCalls: Array<{ endpoint: string; method: string; description: string }> | undefined;
 
       if (id.includes('holders') || id.includes('Holders')) {
         endpoint = `https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}/holders`;
@@ -1238,6 +1260,46 @@ export default function AdminStatsPage(): JSX.Element {
         endpoint = `https://api.scan.pulsechain.com/api/v2/addresses/${tokenAddress}`;
       }
 
+      // Define detailed API calls for complex stats
+      if (endpoint === 'Multiple API Calls') {
+        apiCalls = [];
+        
+        // Add common API calls based on stat requirements
+        if (id === 'burnedTotal' || id === 'burned24h' || id === 'top1Pct' || id === 'top10Pct' || id === 'top20Pct' || id === 'top50Pct' || id === 'whaleCount1Pct' || id === 'top50Holders' || id === 'avgHolderBalance') {
+          apiCalls.push(
+            { endpoint: `https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}`, method: 'GET', description: 'Get token info (supply, decimals)' },
+            { endpoint: `https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}/holders`, method: 'GET', description: 'Get all token holders (paginated)' }
+          );
+        }
+        
+        if (id === 'burned24h' || id === 'minted24h' || id.includes('newVsLostHolders')) {
+          apiCalls.push(
+            { endpoint: `https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}/transfers`, method: 'GET', description: 'Get token transfers (paginated, filtered by time)' }
+          );
+        }
+        
+        if (id.includes('blueChip') || id.includes('diamond') || id.includes('liquidity') || id.includes('avgBuySell')) {
+          apiCalls.push(
+            { endpoint: `https://api.dexscreener.com/latest/dex/tokens/pulsechain/${tokenAddress}`, method: 'GET', description: 'Get DEX data (pairs, liquidity, volume)' }
+          );
+        }
+        
+        if (id.includes('creator') || id === 'contractAgeInDays' || id === 'ownershipStatus') {
+          apiCalls.push(
+            { endpoint: `https://api.scan.pulsechain.com/api/v2/addresses/${tokenAddress}`, method: 'GET', description: 'Get contract address info' },
+            { endpoint: `https://api.scan.pulsechain.com/api/v2/transactions/{txHash}`, method: 'GET', description: 'Get creation transaction details' }
+          );
+        }
+        
+        if (apiCalls.length === 0) {
+          apiCalls = [
+            { endpoint: `https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}`, method: 'GET', description: 'Get token information' },
+            { endpoint: `https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}/holders`, method: 'GET', description: 'Get token holders' },
+            { endpoint: `https://api.dexscreener.com/latest/dex/tokens/pulsechain/${tokenAddress}`, method: 'GET', description: 'Get DEX data' }
+          ];
+        }
+      }
+
       // Track the request details
       const requestInfo = {
         statId: id,
@@ -1245,7 +1307,8 @@ export default function AdminStatsPage(): JSX.Element {
         params: params,
         response: null,
         timestamp: new Date(),
-        duration: 0
+        duration: 0,
+        apiCalls
       };
 
       setCurrentRequest(requestInfo);
@@ -1292,6 +1355,13 @@ export default function AdminStatsPage(): JSX.Element {
     setCurrentRequest(null);
   }, []);
 
+  // Handle test button click
+  const handleTestStat = useCallback(() => {
+    if (selectedStat) {
+      runOneStat(selectedStat);
+    }
+  }, [selectedStat, runOneStat]);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -1299,7 +1369,9 @@ export default function AdminStatsPage(): JSX.Element {
           <h1 className="text-3xl font-bold">Quick Calls</h1>
           <p className="text-slate-400 mt-1">PulseChain API Endpoint Library</p>
         </div>
-        <div className="bg-slate-900/70 border border-slate-800/30 rounded-xl p-4 space-y-3">
+        
+        {/* Token Address Search */}
+        <div className="bg-slate-900/70 border border-slate-800/30 rounded-xl p-4 space-y-3 bg-cover bg-center relative" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
           <label htmlFor="token" className="text-sm text-slate-300">Token Address or Ticker</label>
           <div className="relative">
             <input
@@ -1328,150 +1400,203 @@ export default function AdminStatsPage(): JSX.Element {
               </div>
             )}
           </div>
-          <button
-            onClick={runTests}
-            disabled={isLoading}
-            title="Run derived stats test"
-            className="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 rounded-lg text-sm font-semibold"
-          >
-            {isLoading ? 'Running...' : 'Run Tests'}
-          </button>
-          {error && <div className="text-red-400 text-sm">{error}</div>}
         </div>
 
-        {Object.keys(results).length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-slate-900/70 border border-slate-800/30 rounded-xl p-4">
-              <h2 className="font-semibold mb-2">Core</h2>
-              <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(results.core, null, 2)}</pre>
-            </div>
-            <div className="bg-slate-900/70 border border-slate-800/30 rounded-xl p-4">
-              <h2 className="font-semibold mb-2">Holders</h2>
-              <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(results.holders, null, 2)}</pre>
-            </div>
-            <div className="bg-slate-900/70 border border-slate-800/30 rounded-xl p-4">
-              <h2 className="font-semibold mb-2">Activity (24h)</h2>
-              <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(results.activity24h, null, 2)}</pre>
-            </div>
+        {/* Stat Selector and Test Section */}
+        <div className="bg-slate-900/70 border border-orange-500/30 rounded-xl p-4 bg-cover bg-center relative" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+          <h2 className="font-semibold text-lg text-white mb-4">Test API Endpoint</h2>
+          
+          {/* Desktop Dropdown */}
+          <div className="mb-4 hidden md:block">
+            <label htmlFor="stat" className="text-sm text-slate-300 mb-2 block">Select Stat</label>
+            <select
+              id="stat"
+              value={selectedStat}
+              onChange={(e) => setSelectedStat(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700/30 rounded-lg px-3 py-2 text-sm max-h-[400px] overflow-auto"
+              size={1}
+            >
+              <option value="">Select a stat...</option>
+              {statCategories.map(category => (
+                <optgroup key={category.title} label={category.title} className="bg-white text-black text-lg font-semibold">
+                  {category.stats.map(stat => (
+                    <option key={stat.id} value={stat.id} className="text-slate-500 text-md font-normal">
+                      {stat.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </div>
-        )}
 
-        {/* Request Display Section */}
-        {currentRequest && (
-          <div className="bg-slate-900/70 border border-orange-500/30 rounded-xl p-4 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-lg text-white">Current Request Details</h2>
-              <button
-                onClick={clearCurrentRequest}
-                title="Clear request display"
-                className="text-xs px-3 py-1 bg-red-800 hover:bg-red-700 rounded text-white"
-              >
-                Clear
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Request Info */}
-              <div className="space-y-3">
-                <div>
-                  <div className="text-sm text-slate-400 mb-1">Stat ID</div>
-                  <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded">
-                    {currentRequest.statId}
+          {/* Mobile Drawer */}
+          <div className="mb-4 md:hidden">
+            <label className="text-sm text-slate-300 mb-2 block">Select Stat</label>
+            <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+              <DrawerTrigger asChild>
+                <button className="w-full bg-slate-800 border border-slate-700/30 rounded-lg px-3 py-2 text-sm text-left">
+                  {selectedStat 
+                    ? statCategories.flatMap(c => c.stats).find(s => s.id === selectedStat)?.label 
+                    : 'Select a stat...'}
+                </button>
+              </DrawerTrigger>
+              <DrawerContent className="bg-slate-900 border-slate-700">
+                <DrawerHeader>
+                  <DrawerTitle className="text-white">Select Stat</DrawerTitle>
+                </DrawerHeader>
+                <div className="relative">
+                  <div className="max-h-[60vh] overflow-y-auto px-4 pb-32">
+                    {statCategories.map(category => (
+                      <div key={category.title} className="mb-4">
+                        <div className="bg-slate-800/60 text-white text-lg font-semibold px-3 py-2 rounded-t-lg">
+                          {category.title}
+                        </div>
+                        <div className="bg-slate-800 rounded-b-lg">
+                          {category.stats.map(stat => (
+                            <button
+                              key={stat.id}
+                              onClick={() => {
+                                setSelectedStat(stat.id);
+                                setDrawerOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-md border-b border-slate-700 last:border-b-0 hover:bg-slate-700 transition-colors ${
+                                selectedStat === stat.id ? 'bg-slate-700 text-white' : 'text-slate-400'
+                              }`}
+                            >
+                              <div>{stat.label}</div>
+                              {stat.description && (
+                                <div className="text-sm text-slate-500 mt-0.5">{stat.description}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                  <ProgressiveBlur position="bottom" height="25%" className="pointer-events-none" />
                 </div>
-                
-                <div>
-                  <div className="text-sm text-slate-400 mb-1">Endpoint</div>
-                  <div className="flex items-start gap-2">
-                    <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded flex-1 break-all">
-                      {currentRequest.endpoint}
-                    </div>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(currentRequest.endpoint)}
-                      className="text-xs px-2 py-1 bg-orange-600 hover:bg-orange-700 rounded whitespace-nowrap"
-                      title="Copy endpoint"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="text-sm text-slate-400 mb-1">Parameters</div>
-                  <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded">
-                    <pre className="whitespace-pre-wrap text-xs">
-                      {JSON.stringify(currentRequest.params, null, 2)}
-                    </pre>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="text-sm text-slate-400 mb-1">Timestamp</div>
-                  <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded">
-                    {currentRequest.timestamp.toLocaleString()}
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="text-sm text-slate-400 mb-1">Duration</div>
-                  <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded">
-                    {currentRequest.duration}ms
-                  </div>
-                </div>
+              </DrawerContent>
+            </Drawer>
+          </div>
+
+          {/* Test Button */}
+          <Button
+            onClick={handleTestStat}
+            disabled={!selectedStat || busyStat === selectedStat}
+            className="px-4 py-2 bg-orange-600 hover:ring-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {busyStat === selectedStat ? 'Testing...' : 'Test'}
+          </Button>
+
+          {/* Current Request Details */}
+          {currentRequest && (
+            <div className="mt-6 pt-6 border-t border-slate-700">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-white">Request Details</h3>
+                <button
+                  onClick={clearCurrentRequest}
+                  title="Clear request display"
+                  className="text-xs px-3 py-1 bg-red-800 hover:bg-red-700 rounded text-white"
+                >
+                  Clear
+                </button>
               </div>
               
-              {/* Response */}
-              <div>
-                <div className="text-sm text-slate-400 mb-1">Response</div>
-                <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded max-h-64 overflow-y-auto">
-                  <pre className="whitespace-pre-wrap text-xs">
-                    {JSON.stringify(currentRequest.response, null, 2)}
-                  </pre>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Request Info */}
+                <div className="space-y-3">
+                  <div>
+                    <div className="text-sm text-slate-400 mb-1">Stat ID</div>
+                    <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded">
+                      {currentRequest.statId}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-slate-400 mb-1">Endpoint</div>
+                    <div className="flex items-start gap-2">
+                      <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded flex-1 break-all">
+                        {currentRequest.endpoint}
+                      </div>
+                      {currentRequest.apiCalls && currentRequest.apiCalls.length > 0 && (
+                        <button
+                          onClick={() => setShowAllEndpoints(!showAllEndpoints)}
+                          className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded whitespace-nowrap"
+                        >
+                          {showAllEndpoints ? 'Hide All' : 'Show All'}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => navigator.clipboard.writeText(currentRequest.endpoint)}
+                        className="text-xs px-2 py-1 bg-orange-600 hover:bg-orange-700 rounded whitespace-nowrap"
+                        title="Copy endpoint"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* API Calls List */}
+                  {showAllEndpoints && currentRequest.apiCalls && currentRequest.apiCalls.length > 0 && (
+                    <div>
+                      <div className="text-sm text-slate-400 mb-2">API Calls ({currentRequest.apiCalls.length})</div>
+                      <div className="space-y-2">
+                        {currentRequest.apiCalls.map((call, index) => (
+                          <div key={index} className="bg-slate-800 p-3 rounded border border-slate-700">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-semibold text-orange-400">{call.method}</span>
+                              <span className="text-xs text-slate-500">Call {index + 1}</span>
+                            </div>
+                            <div className="text-xs text-slate-300 mb-1">{call.description}</div>
+                            <div className="flex items-start gap-2">
+                              <div className="text-xs font-mono text-slate-400 bg-slate-900 px-2 py-1 rounded flex-1 break-all">
+                                {call.endpoint}
+                              </div>
+                              <button
+                                onClick={() => navigator.clipboard.writeText(call.endpoint)}
+                                className="text-xs px-2 py-1 bg-orange-600 hover:bg-orange-700 rounded whitespace-nowrap"
+                                title="Copy endpoint"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Response */}
+                  <div>
+                    <div className="text-sm text-slate-400 mb-1">Response</div>
+                    <BackgroundGradient
+                      containerClassName="rounded-lg"
+                      className="rounded-lg"
+                      gradientClassName="bg-[radial-gradient(circle_farthest-side_at_0_100%,#1d4ed8,transparent),radial-gradient(circle_farthest-side_at_100%_0,#FA4616,transparent),radial-gradient(circle_farthest-side_at_100%_100%,#ffffff33,transparent),radial-gradient(circle_farthest-side_at_0_0,#ffffff22,#0C2340)]"
+                    >
+                      <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded-lg max-h-96 overflow-y-auto">
+                        <pre className="whitespace-pre-wrap text-xs">
+                          {JSON.stringify(currentRequest.response, null, 2)}
+                        </pre>
+                      </div>
+                    </BackgroundGradient>
+                  </div>
+                </div>
+                
+                {/* Parameters */}
+                <div className="space-y-3">
+                  <div>
+                    <div className="text-sm text-slate-400 mb-1">Parameters</div>
+                    <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded">
+                      <pre className="whitespace-pre-wrap text-xs">
+                        {JSON.stringify(currentRequest.params, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Per-stat test harness */}
-        <div className="space-y-6">
-          {statCategories.map(category => (
-            <div key={category.title} className="bg-slate-900/70 border border-slate-800/30 rounded-xl p-4">
-              <h2 className="font-semibold mb-3 text-lg">{category.title}</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {category.stats.map(sa => (
-                  <div key={sa.id} className="bg-slate-900/70 border border-orange-500/30 rounded-lg p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-medium text-slate-200">{sa.label}</div>
-                      <div className="flex items-center gap-1">
-                        {sa.id in statResult && (
-                          <button
-                            onClick={() => clearOneStat(sa.id)}
-                            title="Clear result"
-                            className="text-xs px-2 py-1 bg-red-800 hover:bg-red-700 rounded"
-                          >
-                            Clear
-                          </button>
-                        )}
-                        <Button
-                          onClick={() => runOneStat(sa.id)}
-                          title={`Test ${sa.label}`}
-                          className="text-xs px-2 py-1 bg-orange-600 hover:ring-orange-600 min-w-[60px] h-7"
-                        >
-                          Test
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="mt-2 text-[11px] text-slate-300 break-words">
-                      {sa.id in statResult && (
-                        <pre className="whitespace-pre-wrap">{JSON.stringify(statResult[sa.id], null, 2)}</pre>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+          )}
         </div>
       </div>
     </div>

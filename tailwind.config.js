@@ -8,6 +8,9 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontSize: {
+        md: ["1.125rem", { lineHeight: "1.75rem" }], // 18px for mobile medium text
+      },
       colors: {
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
