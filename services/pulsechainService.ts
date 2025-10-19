@@ -14,19 +14,58 @@ export const fetchContract = async (address: string): Promise<{ data: ContractDa
     const response = await fetch(`${API_BASE_URL}smart-contracts/${address}`);
     const raw = await response.json();
     if (!response.ok) {
+      // If not found, allow viewing by returning minimal structure
       if (response.status === 404) {
-        throw new Error('Contract not found or not verified.');
+        const minimal = {
+          name: raw?.name || 'Unverified Contract',
+          source_code: raw?.source_code || '',
+          compiler_version: raw?.compiler_version || '',
+          optimization_enabled: Boolean(raw?.optimization_enabled),
+          is_verified: false,
+          abi: Array.isArray(raw?.abi) ? raw.abi : [],
+          creator_address_hash: raw?.creator_address_hash || null,
+          creation_tx_hash: raw?.creation_tx_hash || null,
+        } as ContractData;
+        return { data: minimal, raw };
       }
-      throw new Error(`API Error: ${raw.message || response.statusText} (Status: ${response.status})`);
+      // Other API errors: still return minimal data when possible
+      const minimal = {
+        name: raw?.name || 'Unverified Contract',
+        source_code: raw?.source_code || '',
+        compiler_version: raw?.compiler_version || '',
+        optimization_enabled: Boolean(raw?.optimization_enabled),
+        is_verified: Boolean(raw?.is_verified),
+        abi: Array.isArray(raw?.abi) ? raw.abi : [],
+        creator_address_hash: raw?.creator_address_hash || null,
+        creation_tx_hash: raw?.creation_tx_hash || null,
+      } as ContractData;
+      return { data: minimal, raw };
     }
 
-    if (!raw.source_code || !raw.abi) {
-      throw new Error('This contract is not verified or its source code/ABI is not available.');
-    }
-    // The API returns ABI as a stringified JSON, so we need to parse it.
+    // Parse ABI if present
     if (typeof raw.abi === 'string') {
+      try {
         raw.abi = JSON.parse(raw.abi);
+      } catch (_) {
+        raw.abi = [];
+      }
     }
+
+    // If ABI/source missing, still allow viewing with minimal data
+    if (!raw.source_code || !raw.abi) {
+      const minimal = {
+        name: raw?.name || 'Unverified Contract',
+        source_code: raw?.source_code || '',
+        compiler_version: raw?.compiler_version || '',
+        optimization_enabled: Boolean(raw?.optimization_enabled),
+        is_verified: Boolean(raw?.is_verified),
+        abi: Array.isArray(raw?.abi) ? raw.abi : [],
+        creator_address_hash: raw?.creator_address_hash || null,
+        creation_tx_hash: raw?.creation_tx_hash || null,
+      } as ContractData;
+      return { data: minimal, raw };
+    }
+
     return { data: raw as ContractData, raw };
   } catch (error) {
     if (error instanceof Error) {
@@ -281,22 +320,7 @@ export const getAddressCounters = async (address: string): Promise<any> => {
     }
 };
 
-export const getAddressTransactions = async (address: string): Promise<any> => {
-    if (!isAddressValid(address)) {
-        return { error: 'Invalid address' };
-    }
-    try {
-        const response = await fetch(`${API_BASE_URL}addresses/${address}/transactions`);
-        const raw = await response.json();
-        if (!response.ok) {
-            return { error: `API Error: ${response.statusText}` };
-        }
-        return raw;
-    } catch (error) {
-        console.error(`Failed to fetch address transactions: ${(error as Error).message}`);
-        return { error: (error as Error).message };
-    }
-};
+// getAddressTransactions is defined below in a simplified form; keeping only one definition
 
 export const getAddressTokenTransfers = async (address: string): Promise<any> => {
     if (!isAddressValid(address)) {
@@ -353,5 +377,32 @@ export const getTransactionByHash = async (txHash: string): Promise<any> => {
         console.error(`Failed to fetch transaction: ${(error as Error).message}`);
         return { error: (error as Error).message };
     }
+};
+
+export const getAddressTransactions = async (address: string): Promise<any> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}addresses/${address}/transactions`);
+    const raw = await response.json();
+    if (!response.ok) return [];
+    return raw?.items || [];
+  } catch {
+    return [];
+  }
+};
+
+// Helper to fetch creator address via address info then tx details
+export const fetchCreatorAddress = async (contract: string): Promise<string | null> => {
+  try {
+    const info = await fetchAddressInfo(contract);
+    const creationTx = info?.data?.creation_tx_hash;
+    const creator = info?.data?.creator_address_hash;
+    if (creator) return creator;
+    if (!creationTx) return null;
+    const tx = await getTransactionByHash(creationTx);
+    const from = tx?.from?.hash || tx?.from;
+    return typeof from === 'string' ? from : null;
+  } catch {
+    return null;
+  }
 };
 

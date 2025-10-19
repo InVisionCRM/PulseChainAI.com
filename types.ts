@@ -57,6 +57,7 @@ export interface SearchResultItem {
   symbol?: string;
   icon_url?: string | null;
   type: 'token' | 'address' | 'contract' | 'block' | 'transaction';
+  is_smart_contract_verified?: boolean;
 }
 
 export interface SearchResponse {

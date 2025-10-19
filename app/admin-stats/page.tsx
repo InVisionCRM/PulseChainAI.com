@@ -4,6 +4,7 @@ import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { pulsechainApi } from '@/services';
 import { fetchDexScreenerData, search } from '@/services/pulsechainService';
 import { Button } from '@/components/ui/stateful-button';
+import { LoaderThree } from '@/components/ui/loader';
 import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import { ProgressiveBlur } from '@/components/ui/progressive-blur';
 import { BackgroundGradient } from '@/components/ui/background-gradient';
@@ -58,6 +59,29 @@ export default function AdminStatsPage(): JSX.Element {
   const [selectedStat, setSelectedStat] = useState<string>('');
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [showAllEndpoints, setShowAllEndpoints] = useState<boolean>(false);
+
+  // Load a new token and reset dependent state
+  const handleLoadNewToken = useCallback((addr: string) => {
+    const next = addr.trim();
+    if (!/^0x[a-fA-F0-9]{40}$/.test(next)) return;
+    setTokenAddress(next);
+    setSearchInput(next);
+    setSearchResults([]);
+    setResults({});
+    setStatResult({});
+    setBusyStat(null);
+    setCurrentRequest(null);
+    setSelectedStat('');
+    setCache({});
+    setError(null);
+    setShowAllEndpoints(false);
+    // update URL param for sharability
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('address', next);
+      window.history.replaceState({}, '', url.toString());
+    } catch {}
+  }, []);
 
   // simple in-memory caches to avoid refetching per-stat
   const [cache, setCache] = useState<{
@@ -1366,14 +1390,14 @@ export default function AdminStatsPage(): JSX.Element {
     <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Quick Calls</h1>
+          <h1 className="text-3xl font-bold">API Endpoints</h1>
           <p className="text-slate-400 mt-1">PulseChain API Endpoint Library</p>
         </div>
         
         {/* Token Address Search */}
         <div className="bg-slate-900/70 border border-slate-800/30 rounded-xl p-4 space-y-3 bg-cover bg-center relative" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
           <label htmlFor="token" className="text-sm text-slate-300">Token Address or Ticker</label>
-          <div className="relative">
+          <div className="relative flex items-center gap-2">
             <input
               id="token"
               value={searchInput}
@@ -1381,6 +1405,14 @@ export default function AdminStatsPage(): JSX.Element {
               className="w-full bg-slate-800 border border-slate-700/30 rounded-lg px-3 py-2 text-sm"
               placeholder="Search by address, ticker, or name..."
             />
+            <button
+              type="button"
+              title="Load token"
+              onClick={() => handleLoadNewToken(searchInput)}
+              className="shrink-0 px-3 py-2 rounded-md bg-orange-600 hover:bg-orange-700 text-white text-sm"
+            >
+              Load
+            </button>
             {isSearching && <div className="absolute top-full mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-400">Searching...</div>}
             {searchResults.length > 0 && (
               <div className="absolute top-full mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg z-10">
@@ -1388,11 +1420,7 @@ export default function AdminStatsPage(): JSX.Element {
                   <div 
                     key={item.address}
                     className="p-2 hover:bg-slate-700 cursor-pointer text-sm"
-                    onClick={() => {
-                      setTokenAddress(item.address);
-                      setSearchInput(item.address);
-                      setSearchResults([]);
-                    }}
+                    onClick={() => handleLoadNewToken(item.address)}
                   >
                     {item.name} ({item.symbol})
                   </div>
@@ -1574,10 +1602,17 @@ export default function AdminStatsPage(): JSX.Element {
                       className="rounded-lg"
                       gradientClassName="bg-[radial-gradient(circle_farthest-side_at_0_100%,#1d4ed8,transparent),radial-gradient(circle_farthest-side_at_100%_0,#FA4616,transparent),radial-gradient(circle_farthest-side_at_100%_100%,#ffffff33,transparent),radial-gradient(circle_farthest-side_at_0_0,#ffffff22,#0C2340)]"
                     >
-                      <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded-lg max-h-96 overflow-y-auto">
-                        <pre className="whitespace-pre-wrap text-xs">
-                          {JSON.stringify(currentRequest.response, null, 2)}
-                        </pre>
+                      <div className="text-white font-mono text-sm bg-slate-800 px-2 py-3 rounded-lg max-h-96 overflow-y-auto">
+                        {busyStat ? (
+                          <div className="flex flex-col items-center justify-center py-6 gap-2">
+                            <div className="scale-75"><LoaderThree /></div>
+                            <div className="text-slate-300 text-sm">Loading API</div>
+                          </div>
+                        ) : (
+                          <pre className="whitespace-pre-wrap text-xs">
+                            {JSON.stringify(currentRequest.response, null, 2)}
+                          </pre>
+                        )}
                       </div>
                     </BackgroundGradient>
                   </div>

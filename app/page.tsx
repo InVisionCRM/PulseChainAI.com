@@ -7,8 +7,29 @@ import ColourfulText from "@/components/ui/colourful-text";
 import { TopTokensList } from "@/components/TopTokensList";
 import { ThreeDMarquee } from "@/components/ui/3d-marquee";
 import Link from "next/link";
+import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
+import { Button as StatefulButton } from '@/components/ui/stateful-button';
+import { useRouter } from 'next/navigation';
+import React from 'react';
+import { search } from '@/services/pulsechainService';
 
 export default function Home() {
+  const router = useRouter();
+  const [query, setQuery] = React.useState<string>('');
+  const [isSearching, setIsSearching] = React.useState<boolean>(false);
+  const [results, setResults] = React.useState<Array<any>>([]);
+  const [show, setShow] = React.useState<boolean>(false);
+  const placeholders = [
+    "Search Any PulseChain Ticker",
+    "Search By Name, Ticker, or Address",
+    "Search for HEX...or HEX!",
+  ];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+    router.push(`/ai-agent?address=${query.trim()}`);
+  };
   const appPicsImages = Array(25).fill("/LogoVector.svg");
 
   return (
@@ -22,7 +43,7 @@ export default function Home() {
           className="absolute inset-0 w-full h-full object-cover z-0"
           autoPlay
           loop
-          muted
+          muted={true}
           playsInline
         >
           <source src="/hexx.mp4" type="video/mp4" />
@@ -46,6 +67,50 @@ export default function Home() {
             Made by <Link href="https://superstake.win" target="_blank" className="text-blue-400 hover:text-blue-300 transition-colors">SuperStake.Win</Link>
           </p>
         </div> */}
+        {/* Search bar centered in hero */}
+        <div className="relative z-30 w-full flex justify-center">
+          <div className="relative w-72 lg:w-[32rem] xl:w-[40rem]">
+            <PlaceholdersAndVanishInput
+              placeholders={placeholders}
+              onChange={(e) => {
+                const v = e.target.value; setQuery(v); setShow(!!v.trim());
+                if (v.trim().length >= 2) {
+                  setIsSearching(true);
+                  search(v).then((r) => { setResults(r); setIsSearching(false); });
+                } else {
+                  setResults([]);
+                }
+              }}
+              onSubmit={handleSubmit}
+            />
+            {show && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-2xl z-[9999] max-h-80 overflow-y-auto">
+                <div className="relative z-10">
+                  {isSearching && (
+                    <div className="p-3 text-slate-400 text-sm">Searching...</div>
+                  )}
+                  {!isSearching && results.map((item) => (
+                    <div key={item.address} className="p-3 hover:bg-slate-700/50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <img src={item.icon_url || '/LogoVector.svg'} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" />
+                        <div className="overflow-hidden flex-1">
+                          <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
+                          <div className="text-xs text-slate-400 capitalize">{item.type}</div>
+                          <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <StatefulButton onClick={() => router.push(`/ai-agent?address=${item.address}`)} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-700 hover:ring-slate-700 opacity-100" skipLoader={true}>Info</StatefulButton>
+                        <StatefulButton onClick={() => router.push(`/ai-agent?address=${item.address}`)} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-orange-600 hover:ring-orange-600 opacity-100" skipLoader={true}>Ask AI</StatefulButton>
+                        <StatefulButton onClick={() => router.push(`/admin-stats?address=${item.address}`)} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-purple-700 hover:ring-purple-700 opacity-100" skipLoader={true}>API</StatefulButton>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
       <TopTokensList />
       <AIAgentsSection />

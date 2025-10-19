@@ -16,6 +16,7 @@ import {
   IconHexagon,
   IconMail,
   IconDeviceGamepad2,
+  IconPhoneOutgoing,
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -53,7 +54,7 @@ export default function RootLayout({
       ),
     },
     {
-      label: "AI Code Reader",
+      label: "Token + AI",
       href: "/ai-agent",
       icon: (
         <IconCode className="h-5 w-5 shrink-0 text-white" />
@@ -88,10 +89,10 @@ export default function RootLayout({
       ),
     },
     {
-      label: "Admin Stats",
+      label: "API Endpoints",
       href: "/admin-stats",
       icon: (
-        <IconSettings className="h-5 w-5 shrink-0 text-white" />
+        <IconPhoneOutgoing className="h-5 w-5 shrink-0 text-white" />
       ),
     },
   ];
@@ -130,13 +131,12 @@ export default function RootLayout({
             <Sidebar open={open} setOpen={setOpen}>
               <SidebarBody className="justify-between gap-10">
                 <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-                  {open ? <Logo /> : <LogoIcon />}
                   <div className="mt-8 flex flex-col gap-2">
                     {links.map((link, idx) => (
                       <SidebarLink key={idx} link={link} />
                     ))}
 
-                    {/* Search button - only visible on AI Code Reader page */}
+                    {/* Search button - only visible on Token + AI page */}
                     {isAICodeReaderPage && (
                       <button
                         type="button"
@@ -158,7 +158,7 @@ export default function RootLayout({
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2 md:opacity-0 md:w-0 md:overflow-hidden md:translate-x-0 group-hover/sidebar:opacity-100 group-hover/sidebar:w-auto group-hover/sidebar:overflow-visible group-hover/sidebar:translate-x-1"
+                        className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2 md:hidden group-hover/sidebar:md:block"
                       >
                         Games
                       </motion.div>
@@ -166,20 +166,25 @@ export default function RootLayout({
                         <SidebarLink key={`game-${idx}`} link={link} />
                       ))}
                     </div>
+
+                  {/* Sponsored by Section */}
+                  <div className="mt-6">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2 md:hidden group-hover/sidebar:md:block"
+                    >
+                      Sponsored by
+                    </motion.div>
+                    <SidebarLink
+                      link={{
+                        label: "SuperStake.Win",
+                        href: "https://superstake.win",
+                        icon: (<span className="h-5 w-5 shrink-0" />),
+                      }}
+                    />
                   </div>
-                </div>
-                <div>
-                  <SidebarLink
-                    link={{
-                      label: "SuperStake.Win",
-                      href: "https://superstake.win",
-                      icon: (
-                        <div className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-center text-white text-xs font-bold">
-                          SS
-                        </div>
-                      ),
-                    }}
-                  />
+                  </div>
                 </div>
               </SidebarBody>
             </Sidebar>

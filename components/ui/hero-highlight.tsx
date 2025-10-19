@@ -138,10 +138,17 @@ export const HeroHighlight = ({
                     onClick={() => handleSelectSearchResult(item)}
                     className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
                   >
-                    {item.icon_url ?
-                      <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
-                      <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
-                    }
+                    <div className="relative">
+                      {item.icon_url ?
+                        <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
+                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
+                      }
+                      {item.is_smart_contract_verified && (
+                        <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white text-[10px]">
+                          ✓
+                        </span>
+                      )}
+                    </div>
                     <div className="overflow-hidden flex-1">
                       <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
                       <div className="text-xs text-slate-400 capitalize">{item.type}</div>

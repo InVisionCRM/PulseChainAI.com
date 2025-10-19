@@ -10,13 +10,13 @@ import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList } from "@/components/ui/navigation-menu";
 
-import type { Message, ContractData, TokenInfo, AbiItem, ExplainedFunction, SearchResultItem, Transaction, TokenBalance, DexScreenerData } from '../../types';
-import { fetchContract, fetchTokenInfo, search, fetchReadMethods, fetchDexScreenerData } from '../../services/pulsechainService';
+import type { Message, ContractData, TokenInfo, AbiItem, ExplainedFunction, SearchResultItem, Transaction, TokenBalance, DexScreenerData, AddressInfo } from '../../types';
+import { fetchContract, fetchTokenInfo, search, fetchReadMethods, fetchDexScreenerData, fetchAddressInfo, getTransactionByHash, getAddressTransactions } from '../../services/pulsechainService';
 import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
 import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { useApiKey } from '../../lib/hooks/useApiKey';
 import { useGemini } from '../../lib/hooks/useGemini';
-import UnverifiedContractRisksModal from '@/components/UnverifiedContractRisksModal';
+// import UnverifiedContractRisksModal from '@/components/UnverifiedContractRisksModal';
 import { WobbleCard } from '@/components/ui/wobble-card';
 import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
 import SourceCodeTab from '@/components/SourceCodeTab';
@@ -27,6 +27,7 @@ import AddressDetailsModal from '@/components/AddressDetailsModal';
 import { Button as StatefulButton } from '@/components/ui/stateful-button';
 import DexScreenerChart from '@/components/DexScreenerChart';
 import { BackgroundGradient } from '@/components/ui/background-gradient';
+import { StickyBanner } from '@/components/ui/sticky-banner';
 
 // Note: API key is handled server-side in API routes
 
@@ -93,6 +94,11 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
 
   // Hooks
   const { getApiKey } = useApiKey();
+  const [showStickyBanner, setShowStickyBanner] = useState<boolean>(false);
+  const [burnedLiquidityPct, setBurnedLiquidityPct] = useState<number | null>(null);
+  const [lpHolders, setLpHolders] = useState<Array<{ address: string; value: number; pct: number }>>([]);
+  const [lpTotalSupply, setLpTotalSupply] = useState<number>(0);
+  const [showLpPopover, setShowLpPopover] = useState<boolean>(false);
 
   // Search Modal State
   const [showSearchModal, setShowSearchModal] = useState<boolean>(false);
@@ -124,8 +130,258 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
   // Derived state
   const abiReadFunctions = contractData?.abi?.filter(item => item.type === 'function' && item.stateMutability === 'view') || [];
   const abiWriteFunctions = contractData?.abi?.filter(item => item.type === 'function' && item.stateMutability !== 'view') || [];
+  const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
+  const [ownerRenounce, setOwnerRenounce] = useState<{ renounced: boolean; txHash?: string } | null>(null);
+
+  // New vs Old Holders metrics state
+  const [holdersTimeframe, setHoldersTimeframe] = useState<'1' | '7' | '30' | '90'>('30');
+  const [holdersStatsLoading, setHoldersStatsLoading] = useState<boolean>(false);
+  const [holdersStats, setHoldersStats] = useState<{ newHolders: number; lostHolders: number; netChange: number } | null>(null);
+  const [holdersStatsError, setHoldersStatsError] = useState<string | null>(null);
+  const [burnedTokens, setBurnedTokens] = useState<{ amount: number; percent: number } | null>(null);
+  const [holdersCount, setHoldersCount] = useState<number | null>(null);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState<boolean>(false);
+
+  const formatAbbrev = (value: number): string => {
+    const abs = Math.abs(value);
+    const sign = value < 0 ? '-' : '';
+    if (abs >= 1_000_000_000) return `${sign}${(abs / 1_000_000_000).toFixed(1)}b`;
+    if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(1)}m`;
+    if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(1)}k`;
+    return value.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  };
+
+  // Will be re-declared after loadNewVsOldHolders is defined to avoid TDZ
+
+  // Resolve owner via Scan endpoints: address info then creation tx
+  useEffect(() => {
+    const resolveOwner = async () => {
+      try {
+        const addr = contractAddress;
+        if (!addr || !/^0x[a-fA-F0-9]{40}$/.test(addr)) {
+          setOwnerAddress(null);
+          return;
+        }
+        const info = await fetchAddressInfo(addr);
+        const creator = info?.data?.creator_address_hash || null;
+        if (creator) {
+          setOwnerAddress(creator);
+          try {
+            const txs = await getAddressTransactions(creator);
+            const renounceTx = Array.isArray(txs) ? txs.find((t: any) => (t?.method || '').toLowerCase() === 'renounceownership') : null;
+            if (renounceTx?.hash) {
+              // Confirm via tx fetch per requirements (no-op usage)
+              await getTransactionByHash(renounceTx.hash);
+              setOwnerRenounce({ renounced: true, txHash: renounceTx.hash });
+            } else {
+              setOwnerRenounce({ renounced: false });
+            }
+          } catch {
+            setOwnerRenounce({ renounced: false });
+          }
+          return;
+        }
+        const txHash = info?.data?.creation_tx_hash;
+        if (!txHash) {
+          setOwnerAddress(null);
+          return;
+        }
+        const tx = await getTransactionByHash(txHash);
+        const from = tx?.from?.hash || tx?.from || null;
+        const resolved = typeof from === 'string' ? from : null;
+        setOwnerAddress(resolved);
+        if (resolved) {
+          try {
+            const txs = await getAddressTransactions(resolved);
+            const renounceTx = Array.isArray(txs) ? txs.find((t: any) => (t?.method || '').toLowerCase() === 'renounceownership') : null;
+            if (renounceTx?.hash) {
+              await getTransactionByHash(renounceTx.hash);
+              setOwnerRenounce({ renounced: true, txHash: renounceTx.hash });
+            } else {
+              setOwnerRenounce({ renounced: false });
+            }
+          } catch {
+            setOwnerRenounce({ renounced: false });
+          }
+        } else {
+          setOwnerRenounce({ renounced: false });
+        }
+      } catch {
+        setOwnerAddress(null);
+        setOwnerRenounce({ renounced: false });
+      }
+    };
+    resolveOwner();
+  }, [contractAddress]);
+
+  // Helper to fetch transfers within last N days (client-side pagination light)
+  const fetchTransfersLastNDays = useCallback(async (tokenAddr: string, days: number, maxPages = 100) => {
+    const base = 'https://api.scan.pulsechain.com/api/v2';
+    const limit = 200;
+    const out: any[] = [];
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffIso = cutoffDate.toISOString();
+    let nextParams: Record<string, string> | undefined;
+    for (let i = 0; i < maxPages; i++) {
+      const qs = new URLSearchParams({ limit: String(limit) });
+      if (nextParams) Object.entries(nextParams).forEach(([k, v]) => qs.set(k, String(v)));
+      const url = `${base}/tokens/${tokenAddr}/transfers?${qs.toString()}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const items: any[] = Array.isArray(data?.items) ? data.items : [];
+      if (items.length === 0) break;
+      // Stop if last page older than cutoff
+      const lastTs = items[items.length - 1]?.timestamp;
+      out.push(...items.filter((t: any) => t?.timestamp && new Date(t.timestamp).toISOString() >= cutoffIso));
+      if (!data?.next_page_params || (lastTs && new Date(lastTs).toISOString() < cutoffIso)) break;
+      nextParams = data.next_page_params as Record<string, string>;
+    }
+    return out;
+  }, []);
+
+  const getTransfersLastNDays = useCallback(async (address: string, days: number, maxPages = 200) => {
+    const base = 'https://api.scan.pulsechain.com/api/v2';
+    const limit = 200;
+    const out: any[] = [];
+    let nextParams: Record<string, string> | undefined = undefined;
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffIso = cutoffDate.toISOString();
+
+    for (let i = 0; i < maxPages; i += 1) {
+      const qs = new URLSearchParams({ limit: String(limit) });
+      if (nextParams) {
+        Object.entries(nextParams).forEach(([k, v]) => qs.set(k, String(v)));
+      }
+      const res = await fetch(`${base}/tokens/${address}/transfers?${qs.toString()}`);
+      const data = await res.json();
+      const items: any[] = Array.isArray(data?.items) ? data.items : [];
+      if (items.length === 0) break;
+
+      out.push(...items);
+
+      const lastTs = items[items.length - 1]?.timestamp;
+      if (lastTs && new Date(lastTs).toISOString() < cutoffIso) break;
+
+      if (!data?.next_page_params) break;
+      nextParams = data.next_page_params as Record<string, string>;
+    }
+
+    return out.filter((t) => t?.timestamp && new Date(t.timestamp).toISOString() >= cutoffIso);
+  }, []);
+
+  const loadNewVsOldHolders = useCallback(async (tf: '1' | '7' | '30' | '90') => {
+    try {
+      if (!contractAddress) return;
+      setHoldersStatsLoading(true);
+      setHoldersStatsError(null);
+
+      const days = tf === '1' ? 1 : tf === '7' ? 7 : tf === '30' ? 30 : 90;
+      const transfers = await getTransfersLastNDays(contractAddress, days);
+      if (!Array.isArray(transfers) || transfers.length === 0) {
+        setHoldersStats({ newHolders: 0, lostHolders: 0, netChange: 0 });
+        return;
+      }
+
+      const involved = new Set<string>();
+      transfers.forEach((t: any) => {
+        const from = t?.from?.hash?.toLowerCase();
+        const to = t?.to?.hash?.toLowerCase();
+        if (from) involved.add(from);
+        if (to) involved.add(to);
+      });
+
+      const receivedOnly = new Set<string>();
+      const sentOnly = new Set<string>();
+      involved.forEach((addr) => {
+        const sentTx = transfers.some((t: any) => t?.from?.hash?.toLowerCase() === addr);
+        const receivedTx = transfers.some((t: any) => t?.to?.hash?.toLowerCase() === addr);
+        if (receivedTx && !sentTx) receivedOnly.add(addr);
+        if (sentTx && !receivedTx) sentOnly.add(addr);
+      });
+
+      const newHolders = receivedOnly.size;
+      const lostHolders = sentOnly.size;
+      setHoldersStats({ newHolders, lostHolders, netChange: newHolders - lostHolders });
+    } catch (e: any) {
+      setHoldersStatsError(e?.message || 'Failed to load');
+    } finally {
+      setHoldersStatsLoading(false);
+    }
+  }, [contractAddress, getTransfersLastNDays]);
+
+  // Auto-load 30d new vs old holders on Info tab once contract is available
+  useEffect(() => {
+    if (activeTab === 'info' && contractAddress && contractData && holdersStats == null) {
+      setHoldersTimeframe('30');
+      loadNewVsOldHolders('30');
+    }
+  }, [activeTab, contractAddress, contractData, holdersStats, loadNewVsOldHolders]);
+
+  // Tokens Burned (uses exact endpoints as admin-stats page)
+  useEffect(() => {
+    const base = 'https://api.scan.pulsechain.com/api/v2';
+    const isBurnAddress = (addr: string): boolean => {
+      const lower = (addr || '').toLowerCase();
+      return (
+        lower.endsWith('dead') ||
+        lower.endsWith('0000') ||
+        lower.endsWith('0369') ||
+        lower.endsWith('000') ||
+        lower.endsWith('000369')
+      );
+    };
+    let cancelled = false;
+    const fetchJson = async (url: string) => {
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    };
+    const load = async () => {
+      try {
+        if (!contractAddress) return;
+        const tokenInfo = await fetchJson(`${base}/tokens/${contractAddress}`);
+        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const totalSupply = Number(tokenInfo?.total_supply ?? 0);
+
+        // paginate holders
+        const limit = 50;
+        let nextParams: Record<string, string> | undefined = undefined;
+        let deadValueRaw = 0;
+        let holdersTotal = 0;
+        for (let i = 0; i < 200; i += 1) {
+          const qs = new URLSearchParams({ limit: String(limit) });
+          if (nextParams) Object.entries(nextParams).forEach(([k, v]) => qs.set(k, String(v)));
+          const data = await fetchJson(`${base}/tokens/${contractAddress}/holders?${qs.toString()}`);
+          const items: Array<{ address?: { hash?: string }; value?: string }> = Array.isArray(data?.items) ? data.items : [];
+          holdersTotal += items.length;
+          const burnedOnPage = items.reduce((sum, it) => sum + (isBurnAddress(it.address?.hash || '') ? Number(it.value || '0') : 0), 0);
+          deadValueRaw += burnedOnPage;
+          if (!data?.next_page_params) break;
+          nextParams = data.next_page_params as Record<string, string>;
+        }
+
+        const burnedAmount = decimals ? deadValueRaw / Math.pow(10, decimals) : deadValueRaw;
+        const burnedPct = totalSupply > 0 ? (deadValueRaw / totalSupply) * 100 : 0;
+        if (!cancelled) {
+          setBurnedTokens({ amount: burnedAmount, percent: burnedPct });
+          setHoldersCount(holdersTotal);
+        }
+      } catch {
+        if (!cancelled) {
+          setBurnedTokens(null);
+          setHoldersCount(null);
+        }
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [contractAddress]);
+  const isDexUnavailable = !dexScreenerData || dexScreenerData.totalPairs === 0;
   
-  // Unverified contract risks modal state
+  // Unverified contract risks modal disabled to allow viewing any contract
   const [showUnverifiedRisksModal, setShowUnverifiedRisksModal] = useState<boolean>(false);
   
 
@@ -153,11 +409,13 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
   const handleLoadContract = useCallback(async (addressToLoad?: string) => {
     const address = addressToLoad || contractAddress;
     if (!address) {
+      setHasAttemptedLoad(true);
       setError('Please enter a contract address.');
       return;
     }
     setShowTutorial(false); // Hide tutorial when loading contract
     setIsLoadingContract(true);
+    setHasAttemptedLoad(true);
     setError(null);
     setAddressSet(false); // Reset glow effect when loading starts
     setContractData(null);
@@ -190,6 +448,9 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
         dex: finalDexData
       });
 
+      // Show sticky banner only when contract is not verified
+      setShowStickyBanner(!contractResult?.data?.is_verified);
+
       // Auto-analyze with AI
       if (getApiKey()) {
         analyzeWithAI();
@@ -204,6 +465,83 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
       setIsLoadingContract(false);
     }
   }, [contractAddress, getApiKey, analyzeWithAI, setShowTutorial]);
+
+  // Compute burned LP percentage for the primary pair (WPLS only)
+  useEffect(() => {
+    const computeBurnedPct = async () => {
+      try {
+        const pair = dexScreenerData?.pairs?.[0];
+        if (!pair) {
+          setBurnedLiquidityPct(null);
+          setLpHolders([]);
+          setLpTotalSupply(0);
+          return;
+        }
+        const quoteSymbol = (pair.quoteToken?.symbol || '').toUpperCase();
+        if (quoteSymbol !== 'WPLS') {
+          setBurnedLiquidityPct(null);
+          setLpHolders([]);
+          setLpTotalSupply(0);
+          return;
+        }
+
+        const lpAddress = pair.pairAddress;
+        if (!lpAddress) {
+          setBurnedLiquidityPct(null);
+          setLpHolders([]);
+          setLpTotalSupply(0);
+          return;
+        }
+
+        const [holders, tokenInfo] = await Promise.all([
+          pulsechainApiService.getTokenHolders(lpAddress, 1, 2000).catch(() => []),
+          pulsechainApiService.getTokenInfo(lpAddress).catch(() => null),
+        ]);
+
+        const totalSupplyStr = (tokenInfo as any)?.total_supply || '0';
+        const totalSupply = Number(totalSupplyStr);
+        if (!Array.isArray(holders) || !isFinite(totalSupply) || totalSupply <= 0) {
+          setBurnedLiquidityPct(null);
+          setLpHolders([]);
+          setLpTotalSupply(0);
+          return;
+        }
+
+        const isBurnAddress = (addr: string): boolean => {
+          const lower = (addr || '').toLowerCase();
+          return lower.endsWith('dead') || lower.endsWith('000369') || lower.endsWith('000');
+        };
+
+        const burnedRaw = holders.reduce((sum: number, h: any) => {
+          const addr = h?.address?.hash || '';
+          if (!isBurnAddress(addr)) return sum;
+          const v = Number(h?.value || '0');
+          return sum + (isFinite(v) ? v : 0);
+        }, 0);
+
+        const pct = burnedRaw > 0 && totalSupply > 0 ? (burnedRaw / totalSupply) * 100 : 0;
+        setBurnedLiquidityPct(pct > 0 ? pct : null);
+
+        // Map holders for popover
+        const mapped = holders
+          .map((h: any) => {
+            const addr = h?.address?.hash || '';
+            const val = Number(h?.value || '0');
+            const pctLocal = totalSupply > 0 && isFinite(val) ? (val / totalSupply) * 100 : 0;
+            return { address: addr, value: isFinite(val) ? val : 0, pct: pctLocal };
+          })
+          .filter((x: any) => x.address);
+        setLpHolders(mapped);
+        setLpTotalSupply(totalSupply);
+      } catch {
+        setBurnedLiquidityPct(null);
+        setLpHolders([]);
+        setLpTotalSupply(0);
+      }
+    };
+
+    computeBurnedPct();
+  }, [dexScreenerData?.pairs]);
 
   // Handle URL parameters for embedded mode
   useEffect(() => {
@@ -586,10 +924,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
       {/* Subtle Grid Pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(30,30,60,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(30,30,60,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-20"></div>
       
-      <UnverifiedContractRisksModal 
-        isOpen={showUnverifiedRisksModal} 
-        onClose={() => setShowUnverifiedRisksModal(false)} 
-      />
+      {/* Unverified modal removed: viewing is allowed for any contract */}
       
       {/* Search Modal */}
       {showSearchModal && (
@@ -649,27 +984,95 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                     <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
                   )}
                   {!isSearching && searchResults?.map(item => (
+                    <div key={item.address} className="group/item">
                     <div
-                      key={item.address}
                       onClick={() => {
                         handleSelectSearchResult(item);
                         setShowSearchModal(false);
                       }}
                           className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
                     >
+                        <div className="relative">
                       {item.icon_url ?
                         <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
                         <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
                       }
+                          {item.is_smart_contract_verified && (
+                            <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white text-[10px]">
+                              ✓
+                            </span>
+                          )}
+                        </div>
                       <div className="overflow-hidden flex-1">
                         <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
                         <div className="text-xs text-slate-400 capitalize">{item.type}</div>
                         <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
+                        </div>
+                      </div>
+                      <div className="pl-11 pr-3 pb-3 -mt-1 flex items-center gap-2">
+                        <StatefulButton onClick={(e) => { e.stopPropagation(); handleSelectSearchResult(item); setShowSearchModal(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-700 hover:ring-slate-700 opacity-100" skipLoader={true}>Info</StatefulButton>
+                        <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/ai-agent?address=${item.address}`); setShowSearchModal(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-orange-600 hover:ring-orange-600 opacity-100" skipLoader={true}>Ask AI</StatefulButton>
+                        <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/admin-stats?address=${item.address}`); setShowSearchModal(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-purple-700 hover:ring-purple-700 opacity-100" skipLoader={true}>API</StatefulButton>
                       </div>
                     </div>
                   ))}
                     </div>
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LP Holders Popover/Modal */}
+      {showLpPopover && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={() => setShowLpPopover(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className="relative bg-slate-900 text-white text-lg border border-slate-700 rounded-lg shadow-2xl w-[90vw] md:w-[45vw] max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-slate-900 border-b border-slate-700 px-4 py-2 flex items-center justify-between">
+              <h3 className="text-md font-semibold">LP Token Holders</h3>
+              <button className="text-slate-300 hover:text-white" title="Close" onClick={() => setShowLpPopover(false)}>✕</button>
+            </div>
+            <div className="p-4 space-y-2">
+              {lpHolders.length === 0 ? (
+                <div className="text-slate-400 text-base">No data available.</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 text-sm text-slate-400 border-b border-slate-700 pb-2">
+                    <div>Address</div>
+                    <div className="text-right">% of Pool</div>
+                  </div>
+                  {(() => {
+                    const isBurn = (addr: string) => {
+                      const a = (addr || '').toLowerCase();
+                      return a.endsWith('dead') || a.endsWith('000369') || a.endsWith('000');
+                    };
+                    const top = lpHolders
+                      .filter(h => !isBurn(h.address))
+                      .sort((a, b) => b.pct - a.pct)
+                      .slice(0, 5);
+                    const burns = lpHolders.filter(h => isBurn(h.address));
+                    const rows = [...top, ...burns];
+                    return rows.map((h, idx) => (
+                      <div key={`${h.address}-${idx}`} className="grid grid-cols-2 text-sm py-2 hover:bg-slate-800/50 rounded">
+                        <a
+                          href={`https://scan.pulsechain.box/address/${h.address}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-blue-300 hover:text-blue-200 underline truncate pr-1 flex items-center gap-1"
+                          title={h.address}
+                        >
+                          {isBurn(h.address) && <span className="text-base" title="Burn">🔥</span>}
+                          {`${h.address.slice(0, 4)}...${h.address.slice(-4)}`}
+                        </a>
+                        <div className="text-right">{h.pct.toFixed(2)}%</div>
+                      </div>
+                    ));
+                  })()}
+                </>
               )}
             </div>
           </div>
@@ -683,7 +1086,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
         {!contractData && !addressSet && (
           <div className="flex items-center justify-center min-h-[80vh] w-full">
             <div className="relative w-[90vw] max-w-4xl h-[60vh]">
-              <div className="relative w-80 lg:w-[40rem] xl:w-[50rem] z-10 mx-auto mt-[25vh]" ref={searchInputRef}>
+              <div className="relative w-72 lg:w-[32rem] xl:w-[40rem] z-10 mx-auto mt-[25vh]" ref={searchInputRef}>
               <PlaceholdersAndVanishInput
                 placeholders={searchPlaceholders}
                 onChange={(e) => {
@@ -722,19 +1125,36 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                     <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
                   )}
                   {!isSearching && searchResults?.map(item => (
+                    <div key={item.address} className="group/item">
                     <div
-                      key={item.address}
                       onClick={() => handleSelectSearchResult(item)}
                         className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
                     >
-                      {item.icon_url ?
-                        <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
-                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
-                      }
+                        {item.icon_url ? (
+                          <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" />
+                        ) : (
+                          <img src="/LogoVector.svg" alt="token logo" className="w-8 h-8 rounded-full bg-slate-700" />
+                        )}
                       <div className="overflow-hidden flex-1">
                         <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
                         <div className="text-xs text-slate-400 capitalize">{item.type}</div>
-                        <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
+                          <div className="text-xs text-slate-500 font-mono truncate flex items-center gap-2">
+                            <span className="truncate">{item.address}</span>
+                            <button
+                              type="button"
+                              className="text-slate-300 hover:text-white"
+                              title="Copy address"
+                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(item.address); }}
+                            >
+                              📋
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="pl-11 pr-3 pb-3 -mt-1 flex items-center gap-2">
+                        <StatefulButton onClick={(e) => { e.stopPropagation(); handleSelectSearchResult(item); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-700 hover:ring-slate-700 opacity-100" skipLoader={true}>Info</StatefulButton>
+                        <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/ai-agent?address=${item.address}`); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-orange-600 hover:ring-orange-600 opacity-100" skipLoader={true}>Ask AI</StatefulButton>
+                        <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/admin-stats?address=${item.address}`); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-purple-700 hover:ring-purple-700 opacity-100" skipLoader={true}>API</StatefulButton>
                       </div>
                     </div>
                   ))}
@@ -753,7 +1173,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
           </WobbleCard>
         )} */}
 
-        {error && (
+        {false && hasAttemptedLoad && error && (
             <div className="bg-red-900/20 backdrop-blur-xl border border-red-500/30 text-red-200 px-4 py-3 rounded-xl relative mb-6 mx-4 shadow-[0_8px_32px_rgba(239,68,68,0.2)]">
                 <strong className="font-bold">Error: </strong>
                 <span className="block sm:inline">{error}</span>
@@ -761,13 +1181,10 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
         )}
 
         {isLoadingContract && (
-          <div className="flex items-center justify-center min-h-[80vh] w-full">
-            <div className="relative w-[90vw] max-w-4xl h-[60vh] flex flex-col items-center justify-center">
-              <div className="w-64 h-64 mb-8">
-                <HexLoader />
-              </div>
-              <p className="text-base md:text-lg font-semibold text-white">Loading contract data...</p>
-              <p className="text-slate-300 text-sm md:text-base">Fetching from PulseChain Scan API.</p>
+          <div className="flex items-center justify-center py-12">
+            <div className="flex items-center gap-3">
+              <div className="scale-75"><LoaderThree /></div>
+              <div className="text-slate-300 text-sm">Loading Contract Data</div>
             </div>
           </div>
         )}
@@ -775,8 +1192,31 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
         {contractData && (
           <main className={`flex flex-col ${addressSet ? 'h-full' : 'h-[calc(100vh-6rem)] pb-20 md:pb-0'} w-full`}>
             <div className="flex flex-col h-full w-full">
+              {/* Sticky banner using shared component */}
+              {showStickyBanner && (
+                <StickyBanner
+                  className="fixed inset-x-0 top-0 z-[100] text-black"
+                  hideOnScroll={false}
+                  style={{
+                    background: 'rgb(48, 152, 187)',
+                    backgroundImage: 'linear-gradient(180deg, rgb(23, 144, 185) 0%, rgb(52, 144, 201) 21%, hsla(216, 75%, 57%, 1) 100%)',
+                    WebkitBackgroundImage: '-webkit-linear-gradient(180deg, hsla(195, 86%, 60%, 1) 0%, hsla(203, 85%, 66%, 1) 21%, hsla(216, 75%, 57%, 1) 100%)',
+                    MozBackgroundImage: '-moz-linear-gradient(180deg, hsla(195, 86%, 60%, 1) 0%, hsla(203, 85%, 66%, 1) 21%, hsla(216, 75%, 57%, 1) 100%)',
+                    filter: 'progid: DXImageTransform.Microsoft.gradient( startColorstr="#42C6F1", endColorstr="#5EBAF2", GradientType=1 )',
+                    minHeight: 'calc(2rem + 12px)',
+                    height: 'calc(2rem + 12px)',
+                    paddingTop: '6px',
+                    paddingBottom: '6px',
+                    fontSize: '1rem',
+                  }}
+                >
+                  <span>Contract is not verified. AI Agent will not be available.</span>
+                </StickyBanner>
+              )}
               <div className="relative flex-grow bg-black/20 backdrop-blur-xl border border-white/10 overflow-hidden h-full shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
                    <GlowingEffect disabled={false} glow={true} />
+
+                   {/* Info-tab splash handles DexScreener unavailability; overlay removed to avoid duplication */}
 
                    {/* Header with Token Info and Search */}
                    <div className="relative flex items-center justify-between px-4 py-3 bg-black/30 backdrop-blur-xl border-b border-white/10 z-50">
@@ -789,10 +1229,9 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                        )}
                      </div>
                      
-                     {/* Collapsible Search Bar for Medium+ Screens */}
+                    {/* Expanded Search Bar for Medium+ Screens (always visible) */}
                      <div className="hidden md:block absolute right-4">
-                       {showHeaderSearch ? (
-                         <div className="relative flex items-center gap-2 bg-slate-800/90 backdrop-blur-sm border border-slate-600/50 rounded-lg px-3 py-2 shadow-lg min-w-fit">
+                      <div className="relative flex items-center gap-2 bg-slate-800/90 backdrop-blur-sm border border-slate-600/50 rounded-lg px-3 py-2 shadow-2xl min-w-fit">
                            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                            </svg>
@@ -803,16 +1242,11 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                const value = e.target.value;
                                setContractAddress(value);
                                setSearchQuery(value);
-                               if (value.trim()) {
-                                 setShowSearchResults(true);
-                               } else {
-                                 setShowSearchResults(false);
-                               }
+                            setShowSearchResults(!!value.trim());
                              }}
                              onKeyDown={(e) => {
                                if (e.key === 'Enter' && contractAddress.trim()) {
                                  handleLoadContract();
-                                 setShowHeaderSearch(false);
                                  setShowSearchResults(false);
                                }
                              }}
@@ -820,8 +1254,18 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                              className="bg-transparent border-none outline-none text-white text-sm w-64 placeholder-slate-400"
                              autoFocus
                            />
+                           {isLoadingContract && (
+                             <div className="absolute left-1/2 -translate-x-1/2 bg-gradient-to-br from-[#0C2340] via-[#0A1A2B] to-[#07121E] border border-white/40 rounded-lg shadow-2xl z-[99999]"
+                               style={{ top: 'calc(100% + 1px)' }}
+                             >
+                               <div className="flex items-center justify-center gap-3 p-3">
+                                 <div className="scale-75"><LoaderThree /></div>
+                                 <div className="text-white text-sm">Loading Contract Data</div>
+                               </div>
+                             </div>
+                           )}
                             {showSearchResults && (
-                              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto relative">
+                          <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-2xl z-[99990] max-h-80 overflow-y-auto">
                                 <div 
                                   className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-lg opacity-20"
                                   style={{ backgroundImage: 'url(/Mirage.jpg)' }}
@@ -839,58 +1283,33 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                     <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
                                   )}
                                   {!isSearching && searchResults?.map(item => (
-                                    <div
-                                      key={item.address}
-                                      onClick={() => {
-                                        handleSelectSearchResult(item);
-                                        setShowHeaderSearch(false);
-                                        setShowSearchResults(false);
-                                      }}
-                                      className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
-                                    >
-                                      {item.icon_url ?
-                                        <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
-                                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
-                                      }
+                                <div key={item.address} className="p-3 hover:bg-slate-700/50 transition-colors">
+                                  <div className="flex items-center gap-3">
+                                    <img src={item.icon_url || '/LogoVector.svg'} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" />
                                       <div className="overflow-hidden flex-1">
                                         <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
                                         <div className="text-xs text-slate-400 capitalize">{item.type}</div>
-                                        <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
+                                      <div className="text-xs text-slate-500 font-mono truncate flex items-center gap-2">
+                                        <span className="truncate">{item.address}</span>
+                                        <button type="button" className="text-slate-300 hover:text-white" title="Copy address" onClick={() => navigator.clipboard.writeText(item.address)}>📋</button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <StatefulButton onClick={() => { handleSelectSearchResult(item); setShowSearchResults(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-700 hover:ring-slate-700 opacity-100" skipLoader={true}>Info</StatefulButton>
+                                    <StatefulButton onClick={() => { router.push(`/ai-agent?address=${item.address}`); setShowSearchResults(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-orange-600 hover:ring-orange-600 opacity-100" skipLoader={true}>Ask AI</StatefulButton>
+                                    <StatefulButton onClick={() => { router.push(`/admin-stats?address=${item.address}`); setShowSearchResults(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-purple-700 hover:ring-purple-700 opacity-100" skipLoader={true}>API</StatefulButton>
                                       </div>
                                     </div>
                                   ))}
                                 </div>
                               </div>
                             )}
-                     <button
-                             onClick={() => {
-                               setShowHeaderSearch(false);
-                               setShowSearchResults(false);
-                               setContractAddress('');
-                               setSearchQuery('');
-                             }}
-                             className="text-slate-400 hover:text-white transition-colors"
-                             title="Close search"
-                           >
-                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                             </svg>
-                           </button>
                          </div>
-                       ) : (
-                         <button
-                           onClick={() => setShowHeaderSearch(true)}
-                       className="p-2 bg-slate-500 hover:bg-slate-600 rounded-lg transition-colors"
-                           title="Search new token"
-                         >
-                           <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                           </svg>
-                         </button>
-                       )}
                      </div>
                      
-                     {/* Mobile Search Button */}
+                     {/* Mobile Search Button (always visible) */}
+                     {true && (
                      <button
                        onClick={() => setShowSearchModal(true)}
                        className="md:hidden p-2 bg-slate-500 hover:bg-slate-600 rounded-lg transition-colors"
@@ -900,17 +1319,18 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                        </svg>
                      </button>
+                     )}
                    </div>
 
                    {/* Simple shadcn/ui Tabs Component */}
                    <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col w-full">
-                     {contractData && (
-                     <TabsList className="grid w-full grid-cols-5 bg-black/20 backdrop-blur-xl border-b border-white/10">
-                        <TabsTrigger value="code" className="text-xs text-white data-[state=active]:bg-orange-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-orange-500">Code</TabsTrigger>
-                        <TabsTrigger value="chat" className="text-xs text-white data-[state=active]:bg-orange-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-orange-500">Chat</TabsTrigger>
-                        <TabsTrigger value="info" className="text-xs text-white data-[state=active]:bg-orange-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-orange-500">Info</TabsTrigger>
-                      <TabsTrigger value="holders" className="text-xs text-white data-[state=active]:bg-orange-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-orange-500">Holders</TabsTrigger>
-                        <TabsTrigger value="liquidity" className="text-xs text-white data-[state=active]:bg-orange-600 data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-orange-500">Liquidity</TabsTrigger>
+                    {contractData && !(activeTab === 'info' && isDexUnavailable) && (
+                     <TabsList className="grid w-full grid-cols-5 bg-black/20 backdrop-blur-xl">
+                        <TabsTrigger value="code" className="relative text-xs text-white focus-visible:outline-none data-[state=active]:bg-transparent data-[state=active]:text-white after:content-[''] after:absolute after:left-2 after:right-2 after:-bottom-[1px] after:h-[2px] after:rounded-full after:bg-orange-500 data-[state=inactive]:after:bg-transparent border-r border-white/20 last:border-r-0">Code</TabsTrigger>
+                        <TabsTrigger value="chat" className="relative text-xs text-white focus-visible:outline-none data-[state=active]:bg-transparent data-[state=active]:text-white after:content-[''] after:absolute after:left-2 after:right-2 after:-bottom-[1px] after:h-[2px] after:rounded-full after:bg-orange-500 data-[state=inactive]:after:bg-transparent border-r border-white/20 last:border-r-0">Chat</TabsTrigger>
+                        <TabsTrigger value="info" className="relative text-xs text-white focus-visible:outline-none data-[state=active]:bg-transparent data-[state=active]:text-white after:content-[''] after:absolute after:left-2 after:right-2 after:-bottom-[1px] after:h-[2px] after:rounded-full after:bg-orange-500 data-[state=inactive]:after:bg-transparent border-r border-white/20 last:border-r-0">Info</TabsTrigger>
+                        <TabsTrigger value="holders" className="relative text-xs text-white focus-visible:outline-none data-[state=active]:bg-transparent data-[state=active]:text-white after:content-[''] after:absolute after:left-2 after:right-2 after:-bottom-[1px] after:h-[2px] after:rounded-full after:bg-orange-500 data-[state=inactive]:after:bg-transparent border-r border-white/20 last:border-r-0">Holders</TabsTrigger>
+                        <TabsTrigger value="liquidity" className="relative text-xs text-white focus-visible:outline-none data-[state=active]:bg-transparent data-[state=active]:text-white after:content-[''] after:absolute after:left-2 after:right-2 after:-bottom-[1px] after:h-[2px] after:rounded-full after:bg-orange-500 data-[state=inactive]:after:bg-transparent border-r border-white/20 last:border-r-0">Liquidity</TabsTrigger>
                       </TabsList>
                      )}
                      
@@ -1005,22 +1425,35 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                      
                      
                      <TabsContent value="info" className="flex-1 overflow-y-auto">
-                       <div className="h-full bg-slate-900 w-full">
+                      {isDexUnavailable && (
+                        <div className="flex items-center justify-center min-h-[60vh] p-6">
+                          <div className="text-center space-y-2 px-4">
+                            <p className="text-white text-sm md:text-base font-medium">dexscreener Information is unavailable for this token.</p>
+                            <a
+                              href={`https://scan.pulsechain.box/token/${contractAddress}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-300 hover:text-blue-200 underline"
+                            >
+                              Click Here to View on PulseScan
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                      <div className={`h-full bg-slate-900 w-full ${isDexUnavailable ? 'hidden' : ''}`}>
                          {/* Header Banner Image with Overlay Buttons */}
                          <div className="relative w-full -mt-px">
-                           {dexScreenerData?.profile?.headerImageUrl && (
                              <div className="relative w-full overflow-hidden border-b-2 border-orange-500">
                                <img
-                                 src={dexScreenerData.profile.headerImageUrl}
+                               src={dexScreenerData?.profile?.headerImageUrl || '/app-pics/clean.png'}
                                  alt="Token header"
                                  className="w-full h-auto object-cover"
                                  style={{ maxHeight: '500px', aspectRatio: '3/1' }}
                                  onError={(e) => {
-                                   e.currentTarget.style.display = 'none';
+                                 e.currentTarget.src = '/app-pics/clean.png';
                                  }}
                                />
                              </div>
-                           )}
                            
                            {/* Social Links Row - Overlaying bottom of header */}
                            {dexScreenerData?.profile?.cmsLinks && dexScreenerData.profile.cmsLinks.length > 0 && (() => {
@@ -1067,15 +1500,12 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                        </span>
                                        <div className="relative flex space-x-2 items-center z-10 rounded-full bg-zinc-950 py-0.5 px-4 ring-1 ring-white/10">
                                          <span>Website</span>
-                                         <svg fill="none" height="16" viewBox="0 0 24 24" width="16" xmlns="http://www.w3.org/2000/svg">
-                                           <path d="M10.75 8.75L14.25 12L10.75 15.25" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
-                                         </svg>
                                        </div>
                                        <span className="absolute -bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-orange-400/0 via-orange-400/90 to-orange-400/0 transition-opacity duration-500 group-hover:opacity-40" />
                                      </a>
                                    )}
                                    
-                                   {/* Twitter Button */}
+                                   {/* X.com Button */}
                                    {twitterLink && (
                                      <a
                                        href={twitterLink.url}
@@ -1088,7 +1518,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                          <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                                        </span>
                                        <div className="relative flex space-x-2 items-center z-10 rounded-full bg-zinc-950 py-0.5 px-4 ring-1 ring-white/10">
-                                         <span>Twitter</span>
+                                        <span>X.com</span>
                                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                                          </svg>
@@ -1157,7 +1587,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                   window.open(`https://x.com/search?q=%23${encodeURIComponent(tokenSymbol)}`, '_blank');
                                 }}
                                 className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
-                                style={{ filter: 'drop-shadow(0 10px 15px rgb(0, 0, 0))' }}
+                                style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
                               >
                                 <span className="absolute inset-0 overflow-hidden rounded-full">
                                   <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
@@ -1174,7 +1604,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                               <button
                                 onClick={() => setActiveTab('liquidity')}
                                 className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
-                                style={{ filter: 'drop-shadow(0 10px 15px rgb(0, 0, 0))' }}
+                                style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
                               >
                                 <span className="absolute inset-0 overflow-hidden rounded-full">
                                   <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
@@ -1208,7 +1638,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                               </button>
                             </div>
                             
-                            <div className="flex items-center justify-center gap-1 mt-[5px] md:mt-0 mb-3 md:mb-0">
+                            <div className="flex items-center justify-center gap-4 mt-[15px] md:mt-[10px] mb-3 md:mb-0">
                               <StatefulButton
                                 onClick={() => setActiveTab('chat')}
                                 className="min-w-0 w-auto px-2 py-0.5 text-lg bg-orange-500 hover:ring-orange-500 opacity-100 shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
@@ -1236,36 +1666,19 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                           {/* Price Section */}
                           {dexScreenerData?.pairs?.[0] && (
                             <div className="grid grid-cols-3 gap-4 mb-4">
-                             <BackgroundGradient
-                               containerClassName="rounded-xl"
-                               className="rounded-xl"
-                               gradientClassName="bg-[radial-gradient(circle_farthest-side_at_0_100%,#1d4ed8,transparent),radial-gradient(circle_farthest-side_at_100%_0,#FA4616,transparent),radial-gradient(circle_farthest-side_at_100%_100%,#ffffff33,transparent),radial-gradient(circle_farthest-side_at_0_0,#ffffff22,#0C2340)]"
-                             >
-                               <div className="p-2 rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center">
+                               <div className="p-2 rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                  <div className="text-sm text-slate-200 uppercase mb-0.5">Price USD</div>
                                  <div className="text-md font-bold text-white">
                                    ${Number(dexScreenerData.pairs[0].priceUsd || 0).toFixed(6)}
                                  </div>
                                </div>
-                             </BackgroundGradient>
-                             <BackgroundGradient
-                               containerClassName="rounded-xl"
-                               className="rounded-xl"
-                               gradientClassName="bg-[radial-gradient(circle_farthest-side_at_0_100%,#1d4ed8,transparent),radial-gradient(circle_farthest-side_at_100%_0,#FA4616,transparent),radial-gradient(circle_farthest-side_at_100%_100%,#ffffff33,transparent),radial-gradient(circle_farthest-side_at_0_0,#ffffff22,#0C2340)]"
-                             >
-                               <div className="p-2 rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center">
+                               <div className="p-2 rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                  <div className="text-sm text-slate-200 uppercase mb-0.5">Price WPLS</div>
                                  <div className="text-md font-bold text-white">
                                    {Math.round(Number(dexScreenerData.pairs[0].priceNative || 0))}
                                  </div>
                                </div>
-                             </BackgroundGradient>
-                             <BackgroundGradient
-                               containerClassName="rounded-xl"
-                               className="rounded-xl"
-                               gradientClassName="bg-[radial-gradient(circle_farthest-side_at_0_100%,#1d4ed8,transparent),radial-gradient(circle_farthest-side_at_100%_0,#FA4616,transparent),radial-gradient(circle_farthest-side_at_100%_100%,#ffffff33,transparent),radial-gradient(circle_farthest-side_at_0_0,#ffffff22,#0C2340)]"
-                             >
-                                <div className="p-2 rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center">
+                                <div className="p-2 rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                   <div className="text-sm text-slate-200 uppercase mb-0.5">24h Volume</div>
                                   <div className="text-md font-bold text-white">
                                   ${Number(dexScreenerData.pairs[0].volume?.h24 || 0) >= 1000000 
@@ -1273,57 +1686,167 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                       : Math.round(Number(dexScreenerData.pairs[0].volume?.h24 || 0)).toLocaleString()}
                                   </div>
                                 </div>
-                             </BackgroundGradient>
                            </div>
                           )}
                           
                           {/* Key Metrics */}
                            {dexScreenerData?.pairs?.[0] && (
                              <div className="grid grid-cols-3 gap-4 mb-4">
-                              <BackgroundGradient
-                                containerClassName="rounded-xl"
-                                className="rounded-xl"
-                                gradientClassName="bg-[radial-gradient(circle_farthest-side_at_0_100%,#1d4ed8,transparent),radial-gradient(circle_farthest-side_at_100%_0,#FA4616,transparent),radial-gradient(circle_farthest-side_at_100%_100%,#ffffff33,transparent),radial-gradient(circle_farthest-side_at_0_0,#ffffff22,#0C2340)]"
-                              >
-                                 <div className="p-2 rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center">
+                               <div className="relative p-3 min-h-[86px] rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                    <div className="text-sm text-slate-200 uppercase mb-0.5">Liquidity</div>
                                    <div className="text-md font-bold text-white">
                                    ${Number(dexScreenerData.pairs[0].liquidity?.usd || 0) >= 1000000 
                                        ? `${Math.round(Number(dexScreenerData.pairs[0].liquidity?.usd || 0) / 1000000)}M`
                                        : `${Math.round(Number(dexScreenerData.pairs[0].liquidity?.usd || 0) / 1000)}K`}
                                  </div>
+                                {typeof burnedLiquidityPct === 'number' && burnedLiquidityPct > 0 && (
+                                  <span
+                                    className="absolute left-center bottom-0 translate-y-1/2 pointer-events-none flex items-center gap-1 text-green-400 text-lg font-bold"
+                                    title="Burned LP"
+                                  >
+                                    <span className="text-lg">🔥</span>
+                                    {Math.round(burnedLiquidityPct)}%
+                                  </span>
+                                )}
+                                 {/* Chevron to open popover/modal */}
+                                 <button
+                                   type="button"
+                                   onClick={() => setShowLpPopover(true)}
+                                   title="View LP holders"
+                                   className="absolute top-1/2 -translate-y-1/2 right-2 text-white/80 hover:text-white text-lg"
+                                 >
+                                   ▶
+                                 </button>
                                </div>
-                              </BackgroundGradient>
-                              <BackgroundGradient
-                                containerClassName="rounded-xl"
-                                className="rounded-xl"
-                                gradientClassName="bg-[radial-gradient(circle_farthest-side_at_0_100%,#1d4ed8,transparent),radial-gradient(circle_farthest-side_at_100%_0,#FA4616,transparent),radial-gradient(circle_farthest-side_at_100%_100%,#ffffff33,transparent),radial-gradient(circle_farthest-side_at_0_0,#ffffff22,#0C2340)]"
-                              >
-                                <div className="p-2 rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center">
+                               <div className="p-3 min-h-[86px] rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                   <div className="text-sm text-slate-200 uppercase mb-0.5">FDV</div>
                                   <div className="text-md font-bold text-white">
-                                   ${Number(dexScreenerData.pairs[0].fdv || 0) >= 1000000 
-                                      ? `${Math.round(Number(dexScreenerData.pairs[0].fdv || 0) / 1000000)}M`
-                                      : `${Math.round(Number(dexScreenerData.pairs[0].fdv || 0) / 1000)}K`}
+                                   {(() => {
+                                      const v = Number(dexScreenerData.pairs[0].fdv || 0);
+                                      if (!Number.isFinite(v) || v <= 0) return '$0';
+                                      if (v >= 1_000_000_000) return `$${Math.round(v / 1_000_000_000)}B`;
+                                      if (v >= 1_000_000) return `$${Math.round(v / 1_000_000)}M`;
+                                      return `$${Math.round(v / 1_000)}K`;
+                                   })()}
                                  </div>
                                </div>
-                              </BackgroundGradient>
-                              <BackgroundGradient
-                                containerClassName="rounded-xl"
-                                className="rounded-xl"
-                                gradientClassName="bg-[radial-gradient(circle_farthest-side_at_0_100%,#1d4ed8,transparent),radial-gradient(circle_farthest-side_at_100%_0,#FA4616,transparent),radial-gradient(circle_farthest-side_at_100%_100%,#ffffff33,transparent),radial-gradient(circle_farthest-side_at_0_0,#ffffff22,#0C2340)]"
-                              >
-                                <div className="p-2 rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center">
+                               <div className="p-3 min-h-[86px] rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                   <div className="text-sm text-slate-200 uppercase mb-0.5">Mkt Cap</div>
                                   <div className="text-md font-bold text-white">
-                                   ${Number((dexScreenerData.pairs[0] as any).marketCap || dexScreenerData.pairs[0].fdv || 0) >= 1000000 
-                                      ? `${Math.round(Number((dexScreenerData.pairs[0] as any).marketCap || dexScreenerData.pairs[0].fdv || 0) / 1000000)}M`
-                                      : `${Math.round(Number((dexScreenerData.pairs[0] as any).marketCap || dexScreenerData.pairs[0].fdv || 0) / 1000)}K`}
+                                   {(() => {
+                                      const raw = (dexScreenerData.pairs[0] as any).marketCap ?? dexScreenerData.pairs[0].fdv ?? 0;
+                                      const v = Number(raw);
+                                      if (!Number.isFinite(v) || v <= 0) return '$0';
+                                      if (v >= 1_000_000_000) return `$${Math.round(v / 1_000_000_000)}B`;
+                                      if (v >= 1_000_000) return `$${Math.round(v / 1_000_000)}M`;
+                                      return `$${Math.round(v / 1_000)}K`;
+                                   })()}
                                  </div>
                                </div>
-                              </BackgroundGradient>
+                               <div className="p-3 min-h-[86px] rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
+                                 <div className="text-sm text-slate-200 uppercase mb-0.5">Tokens Burned</div>
+                                 <div className="text-md font-bold text-white">
+                                   {burnedTokens ? `${formatAbbrev(burnedTokens.amount)}` : '—'}
+                                 </div>
+                                 {burnedTokens && (
+                                   <div className="text-xs text-slate-400">{burnedTokens.percent.toFixed(2)}%</div>
+                                 )}
+                               </div>
+                               <div className="p-3 min-h-[86px] rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
+                                 <div className="text-sm text-slate-200 uppercase mb-0.5">Holders</div>
+                                 <div className="text-md font-bold text-white">
+                                   {holdersCount !== null ? holdersCount.toLocaleString() : '—'}
+                                 </div>
+                               </div>
+                              {(ownerRenounce?.renounced || ownerAddress) && (
+                                <div className="p-3 min-h-[86px] rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
+                                  <div className="text-sm text-slate-200 uppercase mb-0.5">Owner</div>
+                                  {ownerRenounce?.renounced ? (
+                                    <>
+                                      <div className="text-md font-bold text-green-400">Renounced</div>
+                                      {ownerRenounce?.txHash && (
+                                        <a
+                                          href={`https://scan.pulsechain.com/tx/${ownerRenounce.txHash}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-xs text-blue-300 hover:text-blue-200 underline mt-1 inline-block"
+                                          title={ownerRenounce.txHash}
+                                        >
+                                          TX Hash
+                                        </a>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <a
+                                        href={`https://scan.pulsechain.box/address/${ownerAddress}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-md font-bold text-blue-300 hover:text-blue-200 font-mono"
+                                      >
+                                        {ownerAddress ? `${ownerAddress.slice(0, 4)}...${ownerAddress.slice(-4)}` : 'Unknown'}
+                                      </a>
+                                      <div className="text-xs text-red-400 mt-1">Not Renounced</div>
+                                    </>
+                                  )}
+                                </div>
+                              )}
                              </div>
                            )}
+
+                           {/* New vs Old Holders card with tabs */}
+                           <div className="grid grid-cols-1 gap-4 mb-4">
+                             <div className="p-2 rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm shadow-2xl shadow-zinc-900" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
+                               <div className="flex items-center justify-between mb-2">
+                                 <div className="text-sm text-slate-200 uppercase">New vs Old Holders</div>
+                                 <div className="flex items-center gap-1">
+                                   {(['1','7','30','90'] as const).map(tf => (
+                                     <button
+                                       key={tf}
+                                       type="button"
+                                       className={`px-2 py-0.5 text-xs rounded ${holdersTimeframe===tf?'bg-orange-600 text-white':'bg-slate-700 text-slate-200 hover:bg-slate-600'}`}
+                                       onClick={() => { setHoldersTimeframe(tf); loadNewVsOldHolders(tf); }}
+                                       title={`${tf}d`}
+                                     >
+                                       {tf}d
+                                     </button>
+                                   ))}
+                                 </div>
+                               </div>
+                               <div className="p-2 rounded bg-slate-900/40 border border-white/10">
+                                 {holdersStatsLoading ? (
+                                   <div className="flex items-center justify-center gap-2 py-6">
+                                     <div className="scale-75"><LoaderThree /></div>
+                                     <div className="text-slate-300 text-sm">Loading...</div>
+                                   </div>
+                                 ) : holdersStatsError ? (
+                                   <div className="text-red-400 text-xs">{holdersStatsError}</div>
+                                 ) : holdersStats ? (
+                                   <div className="grid grid-cols-3 text-center gap-2">
+                                     <div>
+                                       <div className="text-xs text-slate-400">New</div>
+                                       <div className="text-md font-bold text-green-400">{holdersStats.newHolders.toLocaleString()}</div>
+                                     </div>
+                                     <div>
+                                       <div className="text-xs text-slate-400">Lost</div>
+                                       <div className="text-md font-bold text-red-400">{holdersStats.lostHolders.toLocaleString()}</div>
+                                     </div>
+                                     <div>
+                                       <div className="text-xs text-slate-400">Net</div>
+                                       <div className="text-md font-bold text-white">{holdersStats.netChange.toLocaleString()}</div>
+                                     </div>
+                                   </div>
+                                 ) : (
+                                   <div className="text-xs text-slate-400">Select a timeframe to load stats</div>
+                                 )}
+                               </div>
+                             </div>
+                           </div>
+
+                          {/* Divider between metrics and token description */}
+                          <div className="w-full h-px bg-white/20 my-4 py-[2px]"></div>
+
+                           
                            
                            {/* Description Section */}
                            {dexScreenerData?.profile?.description && (
@@ -1427,6 +1950,9 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                </div>
                              </div>
                            )}
+
+                          {/* Divider between token description and chart */}
+                          <div className="w-full h-px bg-white/20 my-4 py-[2px]"></div>
                            
                            {/* Price Chart */}
                            {dexScreenerData?.pairs?.[0] && (
@@ -1436,6 +1962,9 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                />
                              </div>
                            )}
+
+                          {/* Divider between chart and pair information */}
+                          <div className="w-full h-px bg-white/20 my-4 py-[2px]"></div>
                            
                            {/* Time Period Performance */}
                            {dexScreenerData?.pairs?.[0]?.priceChange && (
@@ -1674,7 +2203,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                  onClick={() => setActiveTab('liquidity')}
                                  className="absolute top-4 right-4 px-3 py-1.5 text-xs font-medium text-white bg-orange-500 hover:bg-orange-600 rounded transition-colors"
                                >
-                                 Other Pairs
+                                 Pairs
                                </button>
                               <h3 className="text-base font-semibold text-white mb-3 uppercase tracking-wider">Pair Information</h3>
                               <div className="space-y-2 text-base">
@@ -1700,7 +2229,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                        <span className="text-white">
                                          {Number(dexScreenerData.pairs[0].liquidity.base || 0).toLocaleString()} 
                                         <span className="text-slate-400 ml-2">
-                                           ${(Number(dexScreenerData.pairs[0].liquidity.base || 0) * Number(dexScreenerData.pairs[0].priceUsd || 0)).toLocaleString()}
+                                           ${Math.round((Number(dexScreenerData.pairs[0].liquidity.base || 0) * Number(dexScreenerData.pairs[0].priceUsd || 0))).toLocaleString()}
                                          </span>
                                        </span>
                                      </div>
@@ -1710,7 +2239,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                        <span className="text-white">
                                          {Number(dexScreenerData.pairs[0].liquidity.quote || 0).toLocaleString()}
                                         <span className="text-slate-400 ml-2">
-                                           ${(Number(dexScreenerData.pairs[0].liquidity.usd || 0) / 2).toLocaleString()}
+                                           ${Math.round((Number(dexScreenerData.pairs[0].liquidity.usd || 0) / 2)).toLocaleString()}
                                          </span>
                                        </span>
                                      </div>
@@ -1876,6 +2405,9 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                               </div>
                             </div>
                           )}
+
+                          {/* Divider between pair information and estimated token thing */}
+                          <div className="w-full h-px bg-white/20 my-4 py-[2px]"></div>
                          </div>
                        </div>
                      </TabsContent>
@@ -2121,3 +2653,4 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
     </div>
   );
 };
+

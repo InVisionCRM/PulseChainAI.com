@@ -91,6 +91,13 @@ const formatTimeAgo = (timestamp: string): string => {
   return date.toLocaleDateString();
 };
 
+// Identify known burn/dead addresses by suffix
+const isBurnAddress = (address: string): boolean => {
+  if (!address) return false;
+  const lower = address.toLowerCase();
+  return lower.endsWith('dead') || lower.endsWith('000369') || lower.endsWith('000');
+};
+
 const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading }) => {
   const [expandedPairs, setExpandedPairs] = useState<Set<string>>(new Set());
   const [pairHoldersData, setPairHoldersData] = useState<PairHoldersData>({});
@@ -540,7 +547,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                       <div className="max-h-60 overflow-y-auto space-y-1">
                         {pairHoldersData[pair.pairAddress].holders.map((holder, holderIndex) => (
                           <div key={holder.address} className="grid grid-cols-4 gap-2 text-xs py-2 hover:bg-slate-700/30 rounded transition-colors">
-                            <div className="text-slate-400">#{holderIndex + 1}</div>
+                            <div className="text-slate-400 flex items-center gap-1">#{holderIndex + 1}{isBurnAddress(holder.address) && (<span title="Burn address" aria-label="Burn address">🔥</span>)}</div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

@@ -228,7 +228,7 @@ export const MobileSidebar = ({
     <>
       <div
         className={cn(
-          "h-[50px] flex flex-row md:hidden items-center justify-between gap-2 w-full overflow-hidden sticky top-0 bg-white/5 backdrop-blur-xl border-b border-white/40 px-4 z-50"
+          "h-[50px] flex flex-row md:hidden items-center justify-between gap-2 w-full overflow-visible sticky top-0 bg-white/5 backdrop-blur-xl border-b border-white/40 px-4 z-50"
         )}
         {...props}
       >
@@ -250,6 +250,56 @@ export const MobileSidebar = ({
             >
               <IconSearch className="h-4 w-4 text-white/70" />
             </button>
+            {showResults && (
+              <div className="absolute left-0 right-0 top-full bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto search-container">
+                <div 
+                  className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-lg opacity-20 pointer-events-none"
+                  style={{ backgroundImage: 'url(/Mirage.jpg)' }}
+                />
+                <div className="relative z-10">
+                  {isSearching && (
+                    <div className="flex items-center justify-center">
+                      <div className="text-slate-400 text-sm">Searching...</div>
+                    </div>
+                  )}
+                  {!isSearching && searchError && (
+                    <div className="text-red-400 text-sm">{searchError}</div>
+                  )}
+                  {!isSearching && searchValue.length >= 2 && searchResults.length === 0 && !searchError && (
+                    <div className="text-slate-400 text-sm">No tokens found for &quot;{searchValue}&quot;</div>
+                  )}
+                {!isSearching && searchResults.map(item => (
+                    <div
+                      key={item.address}
+                      onClick={() => handleSelectResult(item)}
+                      className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
+                    >
+                    <div className="relative">
+                      {item.icon_url ? (
+                        <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">
+                          {item.name?.[0] || '?'}
+                        </div>
+                      )}
+                      {item.is_smart_contract_verified && (
+                        <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white text-[10px]">
+                          ✓
+                        </span>
+                      )}
+                    </div>
+                      <div className="overflow-hidden flex-1">
+                        <div className="font-semibold text-white truncate">
+                          {item.name} {item.symbol && `(${item.symbol})`}
+                        </div>
+                        <div className="text-xs text-slate-400 capitalize">{item.type}</div>
+                        <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </form>
         
@@ -260,50 +310,7 @@ export const MobileSidebar = ({
         />
       </div>
       
-      {/* Search Results Dropdown - Fixed Position */}
-      {showResults && (
-        <div className="fixed left-4 right-4 top-[58px] bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto search-container">
-          <div 
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-lg opacity-20 pointer-events-none"
-            style={{ backgroundImage: 'url(/Mirage.jpg)' }}
-          />
-          <div className="relative z-10">
-            {isSearching && (
-              <div className="flex items-center justify-center p-4">
-                <div className="text-slate-400 text-sm">Searching...</div>
-              </div>
-            )}
-            {!isSearching && searchError && (
-              <div className="p-4 text-red-400 text-sm">{searchError}</div>
-            )}
-            {!isSearching && searchValue.length >= 2 && searchResults.length === 0 && !searchError && (
-              <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchValue}&quot;</div>
-            )}
-            {!isSearching && searchResults.map(item => (
-              <div
-                key={item.address}
-                onClick={() => handleSelectResult(item)}
-                className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
-              >
-                {item.icon_url ? (
-                  <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">
-                    {item.name?.[0] || '?'}
-                  </div>
-                )}
-                <div className="overflow-hidden flex-1">
-                  <div className="font-semibold text-white truncate">
-                    {item.name} {item.symbol && `(${item.symbol})`}
-                  </div>
-                  <div className="text-xs text-slate-400 capitalize">{item.type}</div>
-                  <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Results now render directly under the search bar inside search-container */}
       
       <AnimatePresence>
         {open && (
