@@ -19,6 +19,7 @@ export default function Home() {
   const [isSearching, setIsSearching] = React.useState<boolean>(false);
   const [results, setResults] = React.useState<Array<any>>([]);
   const [show, setShow] = React.useState<boolean>(false);
+  const [logoMap, setLogoMap] = React.useState<Record<string, string>>({});
   const placeholders = [
     "Search Any PulseChain Ticker",
     "Search By Name, Ticker, or Address",
@@ -68,8 +69,8 @@ export default function Home() {
           </p>
         </div> */}
         {/* Search bar centered in hero */}
-        <div className="relative z-30 w-full flex justify-center">
-          <div className="relative w-72 lg:w-[32rem] xl:w-[40rem]">
+        <div className="relative z-30 w-full flex justify-center -mt-[30px]">
+          <div className="relative w-96 lg:w-[40rem] xl:w-[48rem]">
             <PlaceholdersAndVanishInput
               placeholders={placeholders}
               onChange={(e) => {
@@ -83,6 +84,10 @@ export default function Home() {
               }}
               onSubmit={handleSubmit}
             />
+            {/* Prefetch DexScreener logos for shown results */}
+            {results && results.length > 0 && (
+              <PrefetchDexLogos results={results} onLogos={(updates) => setLogoMap((prev) => ({ ...prev, ...updates }))} />
+            )}
             {show && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-2xl z-[9999] max-h-80 overflow-y-auto">
                 <div className="relative z-10">
@@ -92,7 +97,7 @@ export default function Home() {
                   {!isSearching && results.map((item) => (
                     <div key={item.address} className="p-3 hover:bg-slate-700/50 transition-colors">
                       <div className="flex items-center gap-3">
-                        <img src={item.icon_url || '/LogoVector.svg'} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" />
+                        <img src={logoMap[item.address] || '/LogoVector.svg'} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" />
                         <div className="overflow-hidden flex-1">
                           <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
                           <div className="text-xs text-slate-400 capitalize">{item.type}</div>
@@ -112,9 +117,9 @@ export default function Home() {
           </div>
         </div>
       </div>
-      <TopTokensList />
-      <AIAgentsSection />
-      <LoaderThreeSection />
+      {/* <TopTokensList /> */}
+      {/* <AIAgentsSection /> */}
+      {/* <LoaderThreeSection /> */}
       
       {/* ElevenLabs Convai AI Help Agent */}
       {/* <elevenlabs-convai agent-id="C25KqdgQbXZXGwa1OJcC"></elevenlabs-convai>
