@@ -1219,7 +1219,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
         )}
 
         {isLoadingContract && (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-12 -mt-[300px]">
             <LoaderWithPercent label="Loading Contract Data" />
           </div>
         )}
@@ -1270,7 +1270,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                            </svg>
-                           <input
+                          <input
                              type="text"
                              value={contractAddress}
                              onChange={(e) => {
@@ -1286,7 +1286,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                }
                              }}
                              placeholder="Search token or contract..."
-                             className="bg-transparent border-none outline-none text-white text-sm w-64 placeholder-slate-400"
+                             className="bg-transparent border-none outline-none text-white text-sm w-64 md:w-80 lg:w-105 xl:w-[48rem] placeholder-slate-400"
                              autoFocus
                            />
                            {isLoadingContract && (
@@ -1613,7 +1613,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                         {/* Main Content */}
                         <div className="pt-8 px-4 pb-4">
                           {/* Action Buttons */}
-                          <div className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 mb-4">
+                          <div className="flex flex-col items-center justify-center gap-1 md:gap-2 mb-4">
                             <div className="flex items-center justify-center gap-1 md:gap-2">
                               <button
                                 onClick={() => {
@@ -1672,13 +1672,15 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                               </button>
                             </div>
                             
-                            <div className="flex items-center justify-center gap-4 mt-[15px] md:mt-[10px] mb-3 md:mb-0">
+                            {/* Divider above buttons */}
+                            <div className="w-full h-px bg-white/20 my-3" />
+                            <div className="flex items-center justify-center gap-4 mt-2 md:mt-[10px] mb-3 md:mb-0">
                               <StatefulButton
                                 onClick={() => setActiveTab('chat')}
-                                className="min-w-0 w-auto px-2 py-0.5 text-lg bg-orange-500 hover:ring-orange-500 opacity-100 shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+                                className="min-w-0 w-auto px-3 py-1 text-sm md:text-base bg-orange-500 hover:ring-orange-500 opacity-100 shadow-[0_4px_12px_rgba(0,0,0,0.5)] border-2 border-white text-white font-semibold tracking-wide uppercase"
                                 skipLoader={true}
                               >
-                                Ask AI
+                                ASK AI
                               </StatefulButton>
                               
                               <StatefulButton
@@ -1686,12 +1688,14 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                   const tokenAddress = contractAddress || dexScreenerData?.pairs?.[0]?.baseToken?.address || '';
                                   window.open(`/admin-stats?address=${tokenAddress}`, '_blank');
                                 }}
-                                className="min-w-0 w-auto px-2 py-0.5 text-lg bg-orange-500 hover:ring-orange-500 opacity-100 shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+                                className="min-w-0 w-auto px-3 py-1 text-sm md:text-base bg-orange-500 hover:ring-orange-500 opacity-100 shadow-[0_4px_12px_rgba(0,0,0,0.5)] border-2 border-white text-white font-semibold tracking-wide uppercase"
                                 skipLoader={true}
                               >
-                                API
+                                API ENDPOINTS
                               </StatefulButton>
                             </div>
+                            {/* Divider below buttons */}
+                            <div className="w-full h-px bg-white/20 my-6" />
                           </div>
                           
                           {/* Divider - Mobile Only */}
@@ -1733,15 +1737,15 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                        ? `${Math.round(Number(dexScreenerData.pairs[0].liquidity?.usd || 0) / 1000000)}M`
                                        : `${Math.round(Number(dexScreenerData.pairs[0].liquidity?.usd || 0) / 1000)}K`}
                                  </div>
-                                {typeof burnedLiquidityPct === 'number' && burnedLiquidityPct > 0 && (
-                                  <span
-                                    className="absolute left-center bottom-0 translate-y-1/2 pointer-events-none flex items-center gap-1 text-green-400 text-lg font-bold"
-                                    title="Burned LP"
-                                  >
-                                    <span className="text-md">🔥</span>
-                                    {Math.round(burnedLiquidityPct)}%
-                                  </span>
-                                )}
+                              {typeof burnedLiquidityPct === 'number' && burnedLiquidityPct > 0 && (
+                                <span
+                                  className="absolute left-0 bottom-0 pointer-events-none flex flex-col items-center gap-0 text-green-400 font-bold"
+                                  title="Burned LP"
+                                >
+                                  <span className="text-md" style={{ marginBottom: '1px' }}>🔥</span>
+                                  <span className="text-sm">{Math.round(burnedLiquidityPct)}%</span>
+                                </span>
+                              )}
                                  {/* Chevron to open popover/modal */}
                                  <button
                                    type="button"

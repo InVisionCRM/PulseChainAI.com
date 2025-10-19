@@ -118,7 +118,20 @@ export default function Home() {
                     <div className="p-3 text-slate-400 text-sm">Searching...</div>
                   )}
                   {!isSearching && results.map((item) => (
-                    <div key={item.address} className="p-3 hover:bg-slate-700/50 transition-colors">
+                    <div
+                      key={item.address}
+                      className="p-3 hover:bg-slate-700/50 transition-colors cursor-pointer rounded"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Open ${item.name || item.symbol || 'token'} info`}
+                      onClick={() => router.push(`/ai-agent?address=${item.address}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          router.push(`/ai-agent?address=${item.address}`);
+                        }
+                      }}
+                    >
                       <div className="flex items-center gap-3">
                         <img src={'/LogoVector.svg'} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" />
                         <div className="overflow-hidden flex-1">
@@ -128,9 +141,9 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="mt-2 flex items-center gap-2">
-                        <StatefulButton onClick={() => router.push(`/ai-agent?address=${item.address}`)} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-700 hover:ring-slate-700 opacity-100" skipLoader={true}>Info</StatefulButton>
-                        <StatefulButton onClick={() => router.push(`/ai-agent?address=${item.address}`)} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-orange-600 hover:ring-orange-600 opacity-100" skipLoader={true}>Ask AI</StatefulButton>
-                        <StatefulButton onClick={() => router.push(`/admin-stats?address=${item.address}`)} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-purple-700 hover:ring-purple-700 opacity-100" skipLoader={true}>API</StatefulButton>
+                        <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/ai-agent?address=${item.address}`); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-700 hover:ring-slate-700 opacity-100" skipLoader={true}>Info</StatefulButton>
+                        <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/ai-agent?address=${item.address}`); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-orange-600 hover:ring-orange-600 opacity-100" skipLoader={true}>Ask AI</StatefulButton>
+                        <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/admin-stats?address=${item.address}`); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-purple-700 hover:ring-purple-700 opacity-100" skipLoader={true}>API</StatefulButton>
                       </div>
                     </div>
                   ))}
