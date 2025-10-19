@@ -126,6 +126,59 @@ export class PulsechainApiClient {
     }
   }
 
+  async getContractReadMethodsWithValues(address: string): Promise<ApiResponse<ReadMethodWithValue[]>> {
+    validateAddress(address);
+    
+    try {
+      // First, try to get read methods with values from the API endpoint
+      const readMethodsResponse = await this.apiCall<any>(
+        `smart-contracts/${address}/methods-read`
+      );
+
+      // If the API returns methods with values, process them
+      if (readMethodsResponse && Array.isArray(readMethodsResponse)) {
+        // Extract the value from outputs array and add it to the method object
+        const methodsWithValues = readMethodsResponse.map((method: any) => {
+          // Only process read functions (view/pure) with no inputs
+          if (method.type === 'function' && 
+              (method.stateMutability === 'view' || method.stateMutability === 'pure') &&
+              (!method.inputs || method.inputs.length === 0)) {
+            
+            // Extract value from outputs array
+            let value = undefined;
+            if (method.outputs && Array.isArray(method.outputs) && method.outputs.length > 0) {
+              // Check if the output has a value property
+              const output = method.outputs[0];
+              if (output && output.value !== undefined) {
+                value = output.value;
+              }
+            }
+            
+            return { ...method, value };
+          }
+          return method;
+        });
+        
+        return { data: methodsWithValues, success: true };
+      }
+
+      // Fallback: get contract ABI and filter read methods
+      const contract = await this.getContract(address);
+      if (!contract.success || !contract.data) {
+        return { error: 'Contract not found or not verified', success: false };
+      }
+
+      const readMethods = contract.data.abi.filter((method: any) => 
+        method.type === 'function' && 
+        (method.stateMutability === 'view' || method.stateMutability === 'pure')
+      );
+
+      return { data: readMethods, success: true };
+    } catch (error) {
+      return { error: (error as Error).message, success: false };
+    }
+  }
+
   // Token operations
   async getTokenInfo(address: string): Promise<ApiResponse<TokenInfoDetailed>> {
     validateAddress(address);

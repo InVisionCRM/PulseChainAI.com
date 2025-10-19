@@ -1,6 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { useState, useEffect } from "react";
 
 const CheckIcon = ({ className }: { className?: string }) => {
@@ -37,28 +37,20 @@ const CheckFilled = ({ className }: { className?: string }) => {
 
 type LoadingState = {
   text: string;
-  type?: 'thought' | 'answer' | 'step';
 };
 
 const LoaderCore = ({
   loadingStates,
   value = 0,
-  currentThoughts = "",
-  currentAnswer = "",
 }: {
   loadingStates: LoadingState[];
   value?: number;
-  currentThoughts?: string;
-  currentAnswer?: string;
 }) => {
-  // Use the single thought passed from parent
-  const currentThought = currentThoughts;
-
   return (
-    <div className="flex relative justify-start max-w-xl mx-auto flex-col">
+    <div className="flex relative justify-start max-w-xl mx-auto flex-col mt-40">
       {loadingStates.map((loadingState, index) => {
         const distance = Math.abs(index - value);
-        const opacity = Math.max(1 - distance * 0.2, 0);
+        const opacity = Math.max(1 - distance * 0.2, 0); // Minimum opacity is 0, keep it 0.2 if you're sane.
 
         return (
           <motion.div
@@ -82,57 +74,14 @@ const LoaderCore = ({
                 />
               )}
             </div>
-            <div className="flex flex-col">
-              <span
-                className={cn(
-                  "text-black dark:text-white",
-                  value === index && "text-black dark:text-lime-500 opacity-100"
-                )}
-              >
-                {loadingState.text}
-              </span>
-              
-              {/* Show only the current thought with fade transitions */}
-              {loadingState.type === 'thought' && value === index && currentThought && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="mt-2 p-3 bg-blue-900/30 rounded-lg border border-blue-500/30 max-w-md"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-blue-400 text-xs font-semibold">🧠 AI Thinking</span>
-                  </div>
-                  <motion.p
-                    key={currentThought}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className="text-xs text-blue-200 leading-relaxed whitespace-pre-wrap"
-                  >
-                    {currentThought}
-                    <span className="inline-block w-1 h-3 bg-blue-400 ml-1 animate-pulse"></span>
-                  </motion.p>
-                </motion.div>
+            <span
+              className={cn(
+                "text-black dark:text-white",
+                value === index && "text-black dark:text-lime-500 opacity-100"
               )}
-              
-              {/* Show current answer if this is the answer step */}
-              {loadingState.type === 'answer' && value === index && currentAnswer && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="mt-2 p-3 bg-gray-800/50 rounded-lg border border-gray-700 max-w-md"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-gray-400 text-xs font-semibold">💬 AI Response</span>
-                  </div>
-                  <p className="text-xs text-gray-200 leading-relaxed whitespace-pre-wrap">
-                    {currentAnswer}
-                    <span className="inline-block w-2 h-4 bg-gray-400 ml-1 animate-pulse"></span>
-                  </p>
-                </motion.div>
-              )}
-            </div>
+            >
+              {loadingState.text}
+            </span>
           </motion.div>
         );
       })}
@@ -145,33 +94,31 @@ export const MultiStepLoader = ({
   loading,
   duration = 2000,
   loop = true,
-  currentThoughts = "",
-  currentAnswer = "",
-  currentStep = 0,
 }: {
   loadingStates: LoadingState[];
   loading?: boolean;
   duration?: number;
   loop?: boolean;
-  currentThoughts?: string;
-  currentAnswer?: string;
-  currentStep?: number;
 }) => {
-  const [displayedThought, setDisplayedThought] = useState("");
-  
-  // Update displayed thought when currentThoughts changes
+  const [currentState, setCurrentState] = useState(0);
+
   useEffect(() => {
-    if (currentThoughts) {
-      const sentences = currentThoughts
-        .split(/[.!?]+/)
-        .filter(sentence => sentence.trim().length > 0)
-        .map(sentence => sentence.trim() + '.');
-      
-      const latestThought = sentences[sentences.length - 1] || "";
-      setDisplayedThought(latestThought);
+    if (!loading) {
+      setCurrentState(0);
+      return;
     }
-  }, [currentThoughts]);
-  
+    const timeout = setTimeout(() => {
+      setCurrentState((prevState) =>
+        loop
+          ? prevState === loadingStates.length - 1
+            ? 0
+            : prevState + 1
+          : Math.min(prevState + 1, loadingStates.length - 1)
+      );
+    }, duration);
+
+    return () => clearTimeout(timeout);
+  }, [currentState, loading, loop, loadingStates.length, duration]);
   return (
     <AnimatePresence mode="wait">
       {loading && (
@@ -187,14 +134,13 @@ export const MultiStepLoader = ({
           }}
           className="w-full h-full fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-2xl"
         >
-          <LoaderCore 
-            value={currentStep} 
-            loadingStates={loadingStates} 
-            currentThoughts={displayedThought}
-            currentAnswer={currentAnswer}
-          />
+          <div className="h-96  relative">
+            <LoaderCore value={currentState} loadingStates={loadingStates} />
+          </div>
+
+          <div className="bg-gradient-to-t inset-x-0 z-20 bottom-0 bg-white dark:bg-black h-full absolute [mask-image:radial-gradient(900px_at_center,transparent_30%,white)]" />
         </motion.div>
       )}
     </AnimatePresence>
   );
-}; 
+};

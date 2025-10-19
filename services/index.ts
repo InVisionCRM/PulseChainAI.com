@@ -24,6 +24,7 @@ export const fetchTokenInfo = (address: string) => tokenService.getTokenInfo(add
 export const fetchContract = (address: string) => pulsechainApi.getContract(address);
 export const fetchAddressInfo = (address: string) => pulsechainApi.getAddressInfo(address);
 export const fetchReadMethods = (address: string) => pulsechainApi.getContractReadMethods(address);
+export const fetchReadMethodsWithValues = (address: string) => pulsechainApi.getContractReadMethodsWithValues(address);
 export const search = (query: string) => pulsechainApi.search(query);
 export const fetchCreatorTransactions = (address: string, limit?: number) => 
   pulsechainApi.getCreatorTransactions(address, limit);

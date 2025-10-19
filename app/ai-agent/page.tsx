@@ -5,6 +5,7 @@ import React, { useState, useCallback, useRef, useEffect, Suspense } from 'react
 import { useSearchParams } from 'next/navigation';
 
 import { LoaderThree } from "@/components/ui/loader";
+import { LoaderWithPercent } from "@/components/ui/loader-with-percent";
 import { HexLoader } from "@/components/ui/hex-loader";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -12,6 +13,7 @@ import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuL
 
 import type { Message, ContractData, TokenInfo, AbiItem, ExplainedFunction, SearchResultItem, Transaction, TokenBalance, DexScreenerData, AddressInfo } from '../../types';
 import { fetchContract, fetchTokenInfo, search, fetchReadMethods, fetchDexScreenerData, fetchAddressInfo, getTransactionByHash, getAddressTransactions } from '../../services/pulsechainService';
+import { fetchReadMethodsWithValues } from '../../services/index';
 import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
 import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { useApiKey } from '../../lib/hooks/useApiKey';
@@ -130,6 +132,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
   // Derived state
   const abiReadFunctions = contractData?.abi?.filter(item => item.type === 'function' && item.stateMutability === 'view') || [];
   const abiWriteFunctions = contractData?.abi?.filter(item => item.type === 'function' && item.stateMutability !== 'view') || [];
+  const [readFunctionsWithValues, setReadFunctionsWithValues] = useState<any[]>([]);
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
   const [ownerRenounce, setOwnerRenounce] = useState<{ renounced: boolean; txHash?: string } | null>(null);
 
@@ -329,7 +332,6 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
         lower.endsWith('dead') ||
         lower.endsWith('0000') ||
         lower.endsWith('0369') ||
-        lower.endsWith('000') ||
         lower.endsWith('000369')
       );
     };
@@ -346,28 +348,40 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
         const decimals = Number(tokenInfo?.decimals ?? 18);
         const totalSupply = Number(tokenInfo?.total_supply ?? 0);
 
-        // paginate holders
+        // Get holders count from first page response (it's in the token metadata)
+        const firstPageUrl = `${base}/tokens/${contractAddress}/holders?limit=50`;
+        const firstPage = await fetchJson(firstPageUrl);
+        
+        // Extract total holders from the token metadata in the response
+        const totalHolders = firstPage?.items?.[0]?.token?.holders 
+          ? Number(firstPage.items[0].token.holders) 
+          : 0;
+
+        // Paginate through holders to calculate burned tokens
         const limit = 50;
         let nextParams: Record<string, string> | undefined = undefined;
         let deadValueRaw = 0;
-        let holdersTotal = 0;
+        
         for (let i = 0; i < 200; i += 1) {
           const qs = new URLSearchParams({ limit: String(limit) });
           if (nextParams) Object.entries(nextParams).forEach(([k, v]) => qs.set(k, String(v)));
           const data = await fetchJson(`${base}/tokens/${contractAddress}/holders?${qs.toString()}`);
           const items: Array<{ address?: { hash?: string }; value?: string }> = Array.isArray(data?.items) ? data.items : [];
-          holdersTotal += items.length;
+          
+          // Only calculate burned tokens, not count holders
           const burnedOnPage = items.reduce((sum, it) => sum + (isBurnAddress(it.address?.hash || '') ? Number(it.value || '0') : 0), 0);
           deadValueRaw += burnedOnPage;
+          
           if (!data?.next_page_params) break;
           nextParams = data.next_page_params as Record<string, string>;
         }
 
         const burnedAmount = decimals ? deadValueRaw / Math.pow(10, decimals) : deadValueRaw;
         const burnedPct = totalSupply > 0 ? (deadValueRaw / totalSupply) * 100 : 0;
+        
         if (!cancelled) {
           setBurnedTokens({ amount: burnedAmount, percent: burnedPct });
-          setHoldersCount(holdersTotal);
+          setHoldersCount(totalHolders);
         }
       } catch {
         if (!cancelled) {
@@ -509,7 +523,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
 
         const isBurnAddress = (addr: string): boolean => {
           const lower = (addr || '').toLowerCase();
-          return lower.endsWith('dead') || lower.endsWith('000369') || lower.endsWith('000');
+          return lower.endsWith('dead') || lower.endsWith('0000') || lower.endsWith('0369') || lower.endsWith('000369');
         };
 
         const burnedRaw = holders.reduce((sum: number, h: any) => {
@@ -575,22 +589,22 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
 
     const findOwner = async () => {
       try {
-        const result = await fetchReadMethods(contractAddress);
+        const result = await fetchReadMethodsWithValues(contractAddress);
         
-        // setReadMethods(result.data); // This line was removed
+        if (!result.success || !result.data) {
+          console.error("Could not fetch read methods");
+          return;
+        }
         
         const ownerMethod = result.data.find(
-          (method: AbiItem) => method.name.toLowerCase() === 'owner' && method.inputs.length === 0
+          (method: any) => method.name && method.name.toLowerCase() === 'owner' && (!method.inputs || method.inputs.length === 0)
         );
 
-        if (ownerMethod && ownerMethod.outputs?.[0]?.value) {
-          // setOwnerAddress(ownerMethod.outputs[0].value); // This line was removed
-        } else {
-          // setOwnerAddress(null); // This line was removed
+        if (ownerMethod && ownerMethod.value) {
+          console.log("Found owner from read method:", ownerMethod.value);
         }
       } catch (e) {
         console.error("Could not fetch read methods or find owner:", e);
-        // setOwnerAddress(null); // This line was removed
         // setReadMethods(null); // This line was removed
       } finally {
         // setIsFetchingOwner(false); // This line was removed
@@ -599,6 +613,30 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
 
     findOwner();
   }, [contractData, contractAddress]);
+
+  // Fetch read functions with values
+  useEffect(() => {
+    const fetchReadFunctions = async () => {
+      if (!contractAddress || !contractData) {
+        setReadFunctionsWithValues([]);
+        return;
+      }
+
+      try {
+        console.log('Fetching read functions with values for:', contractAddress);
+        const result = await fetchReadMethodsWithValues(contractAddress);
+        console.log('Read functions result:', result);
+        if (result.success && result.data) {
+          console.log('Setting read functions with values:', result.data);
+          setReadFunctionsWithValues(result.data);
+        }
+      } catch (error) {
+        console.error('Error fetching read functions with values:', error);
+      }
+    };
+
+    fetchReadFunctions();
+  }, [contractAddress, contractData]);
 
   // Token search with debouncing (similar to stat-counter-builder)
   useEffect(() => {
@@ -1182,10 +1220,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
 
         {isLoadingContract && (
           <div className="flex items-center justify-center py-12">
-            <div className="flex items-center gap-3">
-              <div className="scale-75"><LoaderThree /></div>
-              <div className="text-slate-300 text-sm">Loading Contract Data</div>
-            </div>
+            <LoaderWithPercent label="Loading Contract Data" />
           </div>
         )}
 
@@ -1259,8 +1294,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                style={{ top: 'calc(100% + 1px)' }}
                              >
                                <div className="flex items-center justify-center gap-3 p-3">
-                                 <div className="scale-75"><LoaderThree /></div>
-                                 <div className="text-white text-sm">Loading Contract Data</div>
+                                 <LoaderWithPercent label="Loading Contract Data" small />
                                </div>
                              </div>
                            )}
@@ -1338,7 +1372,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                      <TabsContent value="code" className="flex-1 overflow-y-auto px-4 py-4">
                        <SourceCodeTab
                          sourceCode={contractData.source_code}
-                         readFunctions={abiReadFunctions}
+                         readFunctions={readFunctionsWithValues.length > 0 ? readFunctionsWithValues : abiReadFunctions}
                          writeFunctions={abiWriteFunctions}
                          isAnalyzingAI={isAnalyzingAI}
                        />
@@ -1603,7 +1637,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                               
                               <button
                                 onClick={() => setActiveTab('liquidity')}
-                                className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
+                                className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-sm font-semibold leading-6 text-white inline-block"
                                 style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
                               >
                                 <span className="absolute inset-0 overflow-hidden rounded-full">
@@ -1704,7 +1738,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                     className="absolute left-center bottom-0 translate-y-1/2 pointer-events-none flex items-center gap-1 text-green-400 text-lg font-bold"
                                     title="Burned LP"
                                   >
-                                    <span className="text-lg">🔥</span>
+                                    <span className="text-md">🔥</span>
                                     {Math.round(burnedLiquidityPct)}%
                                   </span>
                                 )}
@@ -1814,11 +1848,10 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                  </div>
                                </div>
                                <div className="p-2 rounded bg-slate-900/40 border border-white/10">
-                                 {holdersStatsLoading ? (
-                                   <div className="flex items-center justify-center gap-2 py-6">
-                                     <div className="scale-75"><LoaderThree /></div>
-                                     <div className="text-slate-300 text-sm">Loading...</div>
-                                   </div>
+                                {holdersStatsLoading ? (
+                                  <div className="flex items-center justify-center gap-2 py-6">
+                                    <LoaderWithPercent label="Loading" small />
+                                  </div>
                                  ) : holdersStatsError ? (
                                    <div className="text-red-400 text-xs">{holdersStatsError}</div>
                                  ) : holdersStats ? (

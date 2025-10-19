@@ -5,6 +5,7 @@ import { pulsechainApi } from '@/services';
 import { fetchDexScreenerData, search } from '@/services/pulsechainService';
 import { Button } from '@/components/ui/stateful-button';
 import { LoaderThree } from '@/components/ui/loader';
+import { LoaderWithPercent } from '@/components/ui/loader-with-percent';
 import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import { ProgressiveBlur } from '@/components/ui/progressive-blur';
 import { BackgroundGradient } from '@/components/ui/background-gradient';
@@ -1605,8 +1606,7 @@ export default function AdminStatsPage(): JSX.Element {
                       <div className="text-white font-mono text-sm bg-slate-800 px-2 py-3 rounded-lg max-h-96 overflow-y-auto">
                         {busyStat ? (
                           <div className="flex flex-col items-center justify-center py-6 gap-2">
-                            <div className="scale-75"><LoaderThree /></div>
-                            <div className="text-slate-300 text-sm">Loading API</div>
+                            <LoaderWithPercent label="Loading API" />
                           </div>
                         ) : (
                           <pre className="whitespace-pre-wrap text-xs">

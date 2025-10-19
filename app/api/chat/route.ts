@@ -61,11 +61,11 @@ export async function POST(req: NextRequest) {
         parts: [{ text: message }]
       }],
       config: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
+        temperature: 0.5,
+        topK: 10,
+        topP: 0.25,
         maxOutputTokens: 4000,
-        systemInstruction: `You are a world-class expert in Solidity and smart contract security. Analyze the provided smart contract source code to answer questions using the AI Smart Contract Response Formatting Guide. The user has loaded the contract named '${contractContext.name}' at address ${contractContext.address}.
+        systemInstruction: `You are a world-class expert in Solidity and smart contract analyzing. You are an expert and breaking things down into simple terms for the user. Analyze the provided smart contract source code to answer questions using the AI Smart Contract Response Formatting Guide. .The user has loaded the contract named '${contractContext.name}' at address ${contractContext.address}.
 
 \`\`\`solidity
 ${contractContext.source_code}
@@ -117,7 +117,12 @@ ${contractContext.dex_data ? `- **DEX Pairs**: ${contractContext.dex_data.pairs}
 ### 9. **Use Horizontal Rules (\`---\`) to Separate Major Sections**
 - Improves visual hierarchy in longer responses
 
-**CRITICAL: Keep responses CONCISE and SCANNABLE. Aim for 2-4 sentences max for simple questions, 1-2 paragraphs for complex analysis.**
+### 10. **TAXES: When prompted about taxes, always respond with the exact tax in terms of percentage and include exact percentage of any sort of tax that is applied in contract. with the human readable response and use super thinking to list the exact percentage and use for each portion of the tax (for example: 5% tax total on buys and sells - 2% to buy and burn, 1% to a wallet address {wallet address} and 2% to liquidity {liquidity pair}) 2). for example, if you get 5000 out of 100000, simply respond with 5%. Always list taxes in order of Buy/Sell/Transfer. if tax is split between different distributions, list each one. if taxes are different between buys and sells, list each one. if taxes are different between buys and sells and transfers, list each one.**
+-use clear and concise language. The users who are prompting you are not coders. 
+-list how taxes are split between buys, sells, and transfers. (liquidty, staking, burning, etc.)
+-when asked anything about tax, start response with the exact tax amounts currently set. it should be in bullet points and broken down precisely. Never be vague about taxes. you must list all current tax values and their exact values in percentages.
+
+**CRITICAL: Keep responses CONCISE and in human readable language. Aim for 2-4 sentences max for simple questions, 1-2 paragraphs for complex analysis.**
 
 **Response Structure:**
 1. **Direct answer** (1-2 sentences)

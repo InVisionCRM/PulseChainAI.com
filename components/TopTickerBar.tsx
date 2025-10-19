@@ -74,16 +74,17 @@ export function TopTickerBar() {
   const duplicatedTokens = [...tokens, ...tokens, ...tokens];
 
   return (
-    <div className="h-12 flex items-center w-full overflow-hidden relative border-b-2 border-[#FA4616] bg-black/20">
-      <div
-        ref={scrollerRef}
-        className="flex gap-1 animate-scroll-ticker"
-        style={{
-          maskImage: 'linear-gradient(to right, transparent, white 10%, white 90%, transparent)',
-          WebkitMaskImage: 'linear-gradient(to right, transparent, white 10%, white 90%, transparent)',
-          animationPlayState: isPaused ? 'paused' : 'running',
-        }}
-      >
+    <div className="relative">
+      <div className="h-12 flex items-center w-full overflow-hidden relative border-b-2 border-[#FA4616] bg-black/20">
+        <div
+          ref={scrollerRef}
+          className="flex gap-1 animate-scroll-ticker"
+          style={{
+            maskImage: 'linear-gradient(to right, transparent, white 10%, white 90%, transparent)',
+            WebkitMaskImage: 'linear-gradient(to right, transparent, white 10%, white 90%, transparent)',
+            animationPlayState: isPaused ? 'paused' : 'running',
+          }}
+        >
         {duplicatedTokens.map((token, idx) => (
           <TickerCardWithPopover
             key={`${token.address}-${idx}`}
@@ -92,7 +93,13 @@ export function TopTickerBar() {
             onResume={handleResume}
           />
         ))}
+        </div>
       </div>
+      {/* Shadow effect under the ticker bar */}
+      <div className="absolute top-full left-0 right-0 h-4 pointer-events-none" style={{ 
+        background: 'linear-gradient(to bottom, rgb(0, 0, 0), transparent)',
+        zIndex: 10
+      }} />
     </div>
   );
 }

@@ -24,6 +24,80 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode, readFunctions
   const [activeFileIndex, setActiveFileIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<'files' | 'functions' | 'addresses'>('files');
 
+  // Format function return values for display
+  const formatValue = (value: any, outputType?: string, functionName?: string, decimals?: any): string => {
+    if (value === undefined || value === null) return '';
+    
+    // Handle different types
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+    
+    // Convert value to string for processing
+    const valueStr = String(value);
+    
+    // Check if it's an address (0x followed by 40 hex chars)
+    if (/^0x[a-fA-F0-9]{40}$/.test(valueStr)) {
+      return `${valueStr.slice(0, 6)}...${valueStr.slice(-4)}`;
+    }
+    
+    // Check if it's a number (with or without decimals)
+    if (/^\d+$/.test(valueStr)) {
+      const num = BigInt(valueStr);
+      
+      // Check if this is a token amount function that needs decimal formatting
+      const isTokenAmount = functionName && (
+        functionName.toLowerCase().includes('supply') ||
+        functionName.toLowerCase().includes('balance') ||
+        functionName.toLowerCase() === 'totalsupply' ||
+        functionName.toLowerCase() === 'balanceof' ||
+        functionName.toLowerCase() === 'currentsupply'
+      );
+      
+      console.log(`formatValue - functionName: ${functionName}, isTokenAmount: ${isTokenAmount}, decimals: ${decimals} (type: ${typeof decimals}), value: ${valueStr}`);
+      
+      if (isTokenAmount && decimals !== undefined && decimals !== null) {
+        // Convert decimals to number - handle both string and number types
+        let decimalCount = 0;
+        if (typeof decimals === 'number') {
+          decimalCount = decimals;
+        } else if (typeof decimals === 'string') {
+          decimalCount = parseInt(decimals, 10);
+        } else {
+          decimalCount = Number(decimals);
+        }
+        
+        console.log(`Parsed decimalCount: ${decimalCount}`);
+        
+        if (decimalCount > 0 && !isNaN(decimalCount)) {
+          // Apply decimals: divide by 10^decimals
+          // Build divisor as BigInt to avoid precision issues
+          const divisor = BigInt('1' + '0'.repeat(decimalCount));
+          const wholePart = num / divisor;
+          const remainder = num % divisor;
+          
+          console.log(`Applying decimals: ${decimalCount}, divisor: ${divisor}, wholePart: ${wholePart}, remainder: ${remainder}`);
+          
+          // Format with decimals
+          if (remainder === BigInt(0)) {
+            return wholePart.toLocaleString();
+          } else {
+            const remainderStr = remainder.toString().padStart(decimalCount, '0');
+            // Trim trailing zeros
+            const trimmed = remainderStr.replace(/0+$/, '');
+            return `${wholePart.toLocaleString()}.${trimmed}`;
+          }
+        }
+      }
+      
+      // Format with commas for readability (raw value)
+      return num.toLocaleString();
+    }
+    
+    // Return as-is for strings
+    return valueStr;
+  };
+
   // Parse source code to extract files
   const sourceFiles = useMemo(() => {
     if (!sourceCode) return [];
@@ -258,18 +332,52 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode, readFunctions
             <h3 className="text-lg font-semibold text-white">Read Functions</h3>
             {readFunctions.length > 0 ? (
               <div className="space-y-3">
-                {readFunctions.map((func, index) => (
-                  <div key={index} className="bg-transparent border border-slate-600/30 rounded-lg p-4">
-                    <div className="text-white font-mono text-sm">
-                      {func.name}
-                    </div>
-                    {func.explanation && (
-                      <div className="mt-2 text-slate-300 text-sm">
-                        {func.explanation}
+                {readFunctions.map((func, index) => {
+                  const outputType = func.outputs?.[0]?.type || func.outputs?.[0]?.internalType;
+                  
+                  // Find decimals from the read functions list
+                  const decimalsFunc = readFunctions.find(f => f.name === 'decimals');
+                  const decimals = decimalsFunc?.value;
+                  
+                  // Debug logging
+                  if (func.name === 'totalSupply' || func.name === 'decimals') {
+                    console.log(`Function: ${func.name}, Value: ${func.value}, Decimals: ${decimals}, Type: ${typeof decimals}`);
+                  }
+                  
+                  const formattedValue = func.value !== undefined 
+                    ? formatValue(func.value, outputType, func.name, decimals) 
+                    : null;
+                  
+                  return (
+                    <div key={index} className="bg-slate-800/30 border border-slate-600/30 rounded-lg p-4 hover:border-slate-500/50 transition-colors">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="text-white font-mono text-sm font-semibold">
+                            {func.name}()
+                          </div>
+                          {outputType && (
+                            <div className="text-slate-500 text-xs mt-1">
+                              returns {outputType}
+                            </div>
+                          )}
+                          {formattedValue && (
+                            <div className="mt-3 p-3 bg-slate-900/50 rounded border border-slate-700/50">
+                              <div className="text-xs text-slate-400 mb-1">Current Value:</div>
+                              <div className="text-green-400 text-sm font-mono break-all">
+                                {formattedValue}
+                              </div>
+                            </div>
+                          )}
+                          {func.explanation && (
+                            <div className="mt-2 text-slate-300 text-sm">
+                              {func.explanation}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="text-slate-400 text-sm">No read functions found</div>
