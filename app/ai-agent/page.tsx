@@ -220,7 +220,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
   // Helper to fetch transfers within last N days (client-side pagination light)
   const fetchTransfersLastNDays = useCallback(async (tokenAddr: string, days: number, maxPages = 100) => {
     const base = 'https://api.scan.pulsechain.com/api/v2';
-    const limit = 200;
+    const limit = 1000; // larger page size to reduce round trips
     const out: any[] = [];
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
@@ -245,7 +245,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
 
   const getTransfersLastNDays = useCallback(async (address: string, days: number, maxPages = 200) => {
     const base = 'https://api.scan.pulsechain.com/api/v2';
-    const limit = 200;
+    const limit = 1000; // larger page size to reduce round trips
     const out: any[] = [];
     let nextParams: Record<string, string> | undefined = undefined;
 
@@ -282,31 +282,43 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
       setHoldersStatsError(null);
 
       const days = tf === '1' ? 1 : tf === '7' ? 7 : tf === '30' ? 30 : 90;
+      // Try fast server API first
+      try {
+        const apiRes = await fetch(`/api/holders-metrics?address=${encodeURIComponent(contractAddress)}&days=${days}`, { headers: { Accept: 'application/json' } });
+        if (apiRes.ok) {
+          const data = await apiRes.json();
+          if (data && typeof data.newHolders === 'number' && typeof data.lostHolders === 'number') {
+            setHoldersStats({ newHolders: data.newHolders, lostHolders: data.lostHolders, netChange: data.netChange });
+            return;
+          }
+        }
+      } catch (_) {
+        // fall through to client-side computation
+      }
+
+      // Client-side fallback: fetch transfers and compute in O(n)
       const transfers = await getTransfersLastNDays(contractAddress, days);
       if (!Array.isArray(transfers) || transfers.length === 0) {
         setHoldersStats({ newHolders: 0, lostHolders: 0, netChange: 0 });
         return;
       }
 
-      const involved = new Set<string>();
-      transfers.forEach((t: any) => {
-        const from = t?.from?.hash?.toLowerCase();
+      const sent = new Map<string, number>();
+      const received = new Map<string, number>();
+      for (const t of transfers) {
+        const f = t?.from?.hash?.toLowerCase();
         const to = t?.to?.hash?.toLowerCase();
-        if (from) involved.add(from);
-        if (to) involved.add(to);
-      });
-
-      const receivedOnly = new Set<string>();
-      const sentOnly = new Set<string>();
-      involved.forEach((addr) => {
-        const sentTx = transfers.some((t: any) => t?.from?.hash?.toLowerCase() === addr);
-        const receivedTx = transfers.some((t: any) => t?.to?.hash?.toLowerCase() === addr);
-        if (receivedTx && !sentTx) receivedOnly.add(addr);
-        if (sentTx && !receivedTx) sentOnly.add(addr);
-      });
-
-      const newHolders = receivedOnly.size;
-      const lostHolders = sentOnly.size;
+        if (f) sent.set(f, (sent.get(f) || 0) + 1);
+        if (to) received.set(to, (received.get(to) || 0) + 1);
+      }
+      let newHolders = 0, lostHolders = 0;
+      const all = new Set<string>([...sent.keys(), ...received.keys()]);
+      for (const a of all) {
+        const s = sent.get(a) || 0;
+        const r = received.get(a) || 0;
+        if (r > 0 && s === 0) newHolders++;
+        if (s > 0 && r === 0) lostHolders++;
+      }
       setHoldersStats({ newHolders, lostHolders, netChange: newHolders - lostHolders });
     } catch (e: any) {
       setHoldersStatsError(e?.message || 'Failed to load');
@@ -315,13 +327,99 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
     }
   }, [contractAddress, getTransfersLastNDays]);
 
-  // Auto-load 30d new vs old holders on Info tab once contract is available
+  // Progressive load: show 7d quickly, then upgrade to 30d in background
+  const loadNewVsOldHoldersProgressive = useCallback(async () => {
+    try {
+      if (!contractAddress) return;
+      // Immediately indicate we're loading
+      setHoldersStatsLoading(true);
+      setHoldersStatsError(null);
+
+      // Step 1: fast 7d
+      const fastDays: 7 = 7;
+      try {
+        const apiRes = await fetch(`/api/holders-metrics?address=${encodeURIComponent(contractAddress)}&days=${fastDays}`, { headers: { Accept: 'application/json' } });
+        if (apiRes.ok) {
+          const data = await apiRes.json();
+          if (data && typeof data.newHolders === 'number' && typeof data.lostHolders === 'number') {
+            setHoldersStats({ newHolders: data.newHolders, lostHolders: data.lostHolders, netChange: data.netChange });
+          }
+        } else {
+          // fallback: client-side quick compute 7d
+          const transfers = await getTransfersLastNDays(contractAddress, 7);
+          const sent = new Map<string, number>();
+          const received = new Map<string, number>();
+          for (const t of transfers) {
+            const f = t?.from?.hash?.toLowerCase();
+            const to = t?.to?.hash?.toLowerCase();
+            if (f) sent.set(f, (sent.get(f) || 0) + 1);
+            if (to) received.set(to, (received.get(to) || 0) + 1);
+          }
+          let newHolders = 0, lostHolders = 0;
+          const all = new Set<string>([...sent.keys(), ...received.keys()]);
+          for (const a of all) {
+            const s = sent.get(a) || 0;
+            const r = received.get(a) || 0;
+            if (r > 0 && s === 0) newHolders++;
+            if (s > 0 && r === 0) lostHolders++;
+          }
+          setHoldersStats({ newHolders, lostHolders, netChange: newHolders - lostHolders });
+        }
+      } catch {
+        // ignore; we'll still attempt 30d
+      } finally {
+        // Let users see the quick result
+        setHoldersStatsLoading(false);
+      }
+
+      // Step 2: upgrade to 30d silently and replace numbers when done
+      const slowDays: 30 = 30;
+      const latestAddress = contractAddress;
+      try {
+        const apiRes30 = await fetch(`/api/holders-metrics?address=${encodeURIComponent(latestAddress)}&days=${slowDays}`, { headers: { Accept: 'application/json' } });
+        if (apiRes30.ok) {
+          const data30 = await apiRes30.json();
+          if (data30 && typeof data30.newHolders === 'number' && typeof data30.lostHolders === 'number') {
+            // Only replace if we're still on same address and timeframe is default 30
+            setHoldersStats({ newHolders: data30.newHolders, lostHolders: data30.lostHolders, netChange: data30.netChange });
+          }
+        } else {
+          // fallback client-side 30d
+          const transfers30 = await getTransfersLastNDays(latestAddress, 30);
+          const sent = new Map<string, number>();
+          const received = new Map<string, number>();
+          for (const t of transfers30) {
+            const f = t?.from?.hash?.toLowerCase();
+            const to = t?.to?.hash?.toLowerCase();
+            if (f) sent.set(f, (sent.get(f) || 0) + 1);
+            if (to) received.set(to, (received.get(to) || 0) + 1);
+          }
+          let newHolders = 0, lostHolders = 0;
+          const all = new Set<string>([...sent.keys(), ...received.keys()]);
+          for (const a of all) {
+            const s = sent.get(a) || 0;
+            const r = received.get(a) || 0;
+            if (r > 0 && s === 0) newHolders++;
+            if (s > 0 && r === 0) lostHolders++;
+          }
+          setHoldersStats({ newHolders, lostHolders, netChange: newHolders - lostHolders });
+        }
+      } catch {
+        // silent; keep 7d result
+      }
+    } catch (e: any) {
+      setHoldersStatsError(e?.message || 'Failed to load');
+      setHoldersStatsLoading(false);
+    }
+  }, [contractAddress, getTransfersLastNDays]);
+
+  // Auto-load: show 7d quickly, then upgrade to 30d in background
   useEffect(() => {
     if (activeTab === 'info' && contractAddress && contractData && holdersStats == null) {
-      setHoldersTimeframe('30');
-      loadNewVsOldHolders('30');
+      setHoldersTimeframe('1');
+      loadNewVsOldHoldersProgressive();
     }
-  }, [activeTab, contractAddress, contractData, holdersStats, loadNewVsOldHolders]);
+  }, [activeTab, contractAddress, contractData, holdersStats, loadNewVsOldHoldersProgressive]);
 
   // Tokens Burned (uses exact endpoints as admin-stats page)
   useEffect(() => {
@@ -955,12 +1053,26 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
         }
       `}</style>
       <div className="min-h-screen w-full relative bg-gradient-to-br from-black via-slate-900 to-black">
+        {/* Hero-style video background */}
+        <div className="absolute inset-0 w-full h-full -z-10 [mask-image:radial-gradient(transparent,white)] pointer-events-none" style={{ backgroundColor: '#0C2340' }} />
+        {!addressSet && (
+          <video
+            className="absolute inset-0 w-full h-full object-cover -z-10"
+            autoPlay
+            loop
+            muted={true}
+            playsInline
+          >
+            <source src="/ai-agentbackground.mp4" type="video/mp4" />
+          </video>
+        )}
+
         {/* Dark Animated Background with Moving Blob */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(30,30,60,0.3),transparent_40%)] pointer-events-none"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(20,20,40,0.2),transparent_40%)] pointer-events-none"></div>
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_80%,rgba(30,30,60,0.3),transparent_40%)] pointer-events-none"></div>
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_80%_20%,rgba(20,20,40,0.2),transparent_40%)] pointer-events-none"></div>
       
       {/* Subtle Grid Pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(30,30,60,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(30,30,60,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-20"></div>
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(30,30,60,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(30,30,60,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-20 pointer-events-none"></div>
       
       {/* Unverified modal removed: viewing is allowed for any contract */}
       
@@ -1004,7 +1116,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                 }}
               />
               {showSearchResults && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto relative">
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-black/50 text-white backdrop-blur-lg border border-white/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto relative">
                     <div 
                       className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-lg opacity-20"
                       style={{ backgroundImage: 'url(/Mirage.jpg)' }}
@@ -1012,7 +1124,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                     <div className="relative z-10">
                   {isSearching && (
                     <div className="flex items-center justify-center p-4">
-                      <div className="text-slate-400 text-sm">Searching...</div>
+                      <div className="text-white text-md">Searching...</div>
                     </div>
                   )}
                   {!isSearching && searchError && (
@@ -1394,13 +1506,11 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                  {/* Question Templates */}
                                  <div className="space-y-2">
                                    <p className="text-xs text-slate-500 mb-2 md:mb-3">Quick Questions:</p>
-                                   {[
-                                     "What does this contract do? What is its purpose in the context of the overall smart contract?",
-                                     "Does this token have taxes, fees or similar?",
-                                     "Does this contract interact with any proxy contracts?",
-                                     "Is this contract unique?",
-                                     "Rate the quality of this contract"
-                                   ].map((question, index) => {
+                                  {[
+                                    "Analyze this address",
+                                    "Analyze whale movements",
+                                    "Compare top 1000 holders of DAI and HEX"
+                                  ].map((question, index) => {
                                      const colorClasses = [
                                        "bg-pink-900/20 hover:bg-pink-800/30 border-pink-700/30 hover:border-pink-600/40",
                                        "bg-purple-900/20 hover:bg-purple-800/30 border-purple-700/30 hover:border-purple-600/40",

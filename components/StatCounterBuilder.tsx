@@ -99,6 +99,13 @@ export default function StatCounterBuilder() {
     tokens: [],
     globalCustomization: {}
   });
+  // Zoom/pan state for preview canvas
+  const [zoom, setZoom] = useState<number>(1);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const MIN_ZOOM = 0.5;
+  const MAX_ZOOM = 3;
+  const SNAP_THRESHOLD = 0.04; // snap to 100% when within 4%
   const [statResults, setStatResults] = useState<Record<string, Record<string, unknown>>>({});
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [codeModalOpen, setCodeModalOpen] = useState(false);
@@ -165,6 +172,31 @@ export default function StatCounterBuilder() {
   React.useEffect(() => {
     debouncedSearch(searchQuery);
   }, [searchQuery, debouncedSearch]);
+
+  // Pointer-centered wheel zoom with min/max and snap-to-100%
+  const handleWheelZoom = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+
+    const direction = e.deltaY < 0 ? 1 : -1; // up = zoom in
+    const step = 0.2;
+    let nextZoom = zoom * (1 + step * direction);
+    nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextZoom));
+    if (Math.abs(nextZoom - 1) < SNAP_THRESHOLD) nextZoom = 1; // snap near 100%
+
+    // Keep pointer position stable during zoom by adjusting pan
+    const worldX = (pointer.x - pan.x) / zoom;
+    const worldY = (pointer.y - pan.y) / zoom;
+    const nextPanX = pointer.x - worldX * nextZoom;
+    const nextPanY = pointer.y - worldY * nextZoom;
+
+    setZoom(nextZoom);
+    setPan({ x: nextPanX, y: nextPanY });
+  };
 
   // Token card management functions
   const handleAddToken = async (token: TokenSearchResult) => {
@@ -314,17 +346,43 @@ export default function StatCounterBuilder() {
 
       {/* Main Content */}
       <div className="flex-1 relative overflow-hidden">
+        {/* Mirage.jpg Background */}
+        <div className="absolute inset-0 -z-10 pointer-events-none">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: 'url(/Mirage.jpg)' }} /* eslint-disable-line react/forbid-dom-props */
+          />
+          <div className="absolute inset-0 bg-black/40" />
+        </div>
         {currentView === 'preview' ? (
           /* Preview View */
-          <div className="h-full">
-            <NewMultiTokenPreview
-              config={config}
-              statResults={statResults}
-              onTokenCardUpdate={updateTokenCard}
-              onTokenCardDelete={deleteTokenCard}
-              onCardSelect={setSelectedCardId}
-              onStatResultsUpdate={updateStatResults}
-            />
+          <div
+            className="h-full relative"
+            ref={containerRef}
+            onWheel={handleWheelZoom}
+            style={{ touchAction: 'none' }} /* eslint-disable-line react/forbid-dom-props */
+          >
+            <div
+              className="w-full h-full"
+              style={{
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                transformOrigin: '0 0'
+              }} /* eslint-disable-line react/forbid-dom-props */
+            >
+              <NewMultiTokenPreview
+                config={config}
+                statResults={statResults}
+                onTokenCardUpdate={updateTokenCard}
+                onTokenCardDelete={deleteTokenCard}
+                onCardSelect={setSelectedCardId}
+                onStatResultsUpdate={updateStatResults}
+              />
+            </div>
+
+            {/* Zoom indicator */}
+            <div className="absolute bottom-3 right-4 bg-black/70 text-white text-xs px-2 py-1 rounded-md border border-white/10">
+              {Math.round(zoom * 100)}%
+            </div>
           </div>
         ) : (
           /* Code View */

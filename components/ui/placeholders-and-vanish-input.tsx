@@ -177,8 +177,8 @@ export function PlaceholdersAndVanishInput({
   return (
     <form
       className={cn(
-        "w-full relative max-w-xl mx-auto bg-white border-2 border-black h-12 rounded-full overflow-hidden shadow-lg transition duration-200",
-        value && "bg-gray-50"
+        "w-full relative max-w-lg mx-auto bg-black/50 backdrop-blur-MD border border-black h-9 rounded-full overflow-hidden shadow-lg transition duration-200",
+        value && "bg-black/30"
       )}
       onSubmit={handleSubmit}
     >
@@ -203,49 +203,27 @@ export function PlaceholdersAndVanishInput({
         placeholder=""
         aria-label="Search for contracts by address or name"
         className={cn(
-          "w-full relative text-base sm:text-lg z-50 border-none bg-transparent text-black h-full rounded-full focus:outline-none focus:ring-0 pl-4 sm:pl-10 pr-20",
+          "w-full relative text-base sm:text-lg z-50 border-none bg-transparent text-white h-full rounded-full focus:outline-none focus:ring-0 pl-4 sm:pl-10 pr-4",
           animating && "text-transparent"
         )}
       />
 
-      <button
-        disabled={!value}
-        type="submit"
-        aria-label="Submit search"
-        title="Submit search"
-        className="absolute right-2 top-1/2 z-50 -translate-y-1/2 h-8 w-8 rounded-full disabled:bg-gray-100 bg-black transition duration-200 flex items-center justify-center"
-      >
-        <motion.svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
+      {/* Search Icon */}
+      <div className="absolute left-3 sm:left-6 top-1/2 transform -translate-y-1/2 z-50 pointer-events-none">
+        <svg
+          className="w-4 h-4 text-white/60"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-white h-4 w-4"
+          viewBox="0 0 24 24"
         >
-          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-          <motion.path
-            d="M5 12l14 0"
-            initial={{
-              strokeDasharray: "50%",
-              strokeDashoffset: "50%",
-            }}
-            animate={{
-              strokeDashoffset: value ? 0 : "50%",
-            }}
-            transition={{
-              duration: 0.3,
-              ease: "linear",
-            }}
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
           />
-          <path d="M13 18l6 -6" />
-          <path d="M13 6l6 6" />
-        </motion.svg>
-      </button>
+        </svg>
+      </div>
 
       <div className="absolute inset-0 flex items-center rounded-full pointer-events-none">
         <AnimatePresence mode="wait">
@@ -268,7 +246,7 @@ export function PlaceholdersAndVanishInput({
                 duration: 0.3,
                 ease: "linear",
               }}
-              className="text-neutral-600 text-base sm:text-lg font-normal pl-4 sm:pl-12 text-left w-[calc(100%-2rem)] truncate"
+              className="text-white/80 text-base sm:text-lg font-normal pl-10 sm:pl-14 text-left w-[calc(100%-2rem)] truncate"
             >
               {placeholders[currentPlaceholder]}
             </motion.p>

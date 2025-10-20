@@ -62,7 +62,7 @@ export default function Home() {
           muted={true}
           playsInline
         >
-          <source src="/hexx.mp4" type="video/mp4" />
+          <source src="/pulsechain-ai%20.mp4" type="video/mp4" />
         </video>
 
         {/* <div className="relative z-30 text-center">
@@ -112,10 +112,10 @@ export default function Home() {
               onSubmit={handleSubmit}
             />
             {show && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-2xl z-[9999] max-h-80 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-black/50 backdrop-blur-lg border border-white/50 rounded-lg shadow-2xl z-[9999] max-h-80 overflow-y-auto">
                 <div className="relative z-10">
                   {isSearching && (
-                    <div className="p-3 text-slate-400 text-sm">Searching...</div>
+                    <div className="p-3 text-white text-md">Searching...</div>
                   )}
                   {!isSearching && results.map((item) => (
                     <div

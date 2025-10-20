@@ -9,6 +9,8 @@ import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, useDraggable, Mo
 import { CSS } from '@dnd-kit/utilities';
 import { useGesture } from '@use-gesture/react';
 import clsx from 'clsx';
+import { FloatingDock } from '@/components/ui/floating-dock';
+import { IconPlus, IconZoomIn, IconZoomOut, IconRefresh } from '@tabler/icons-react';
 
 // Grid settings for snapping - Made larger and less sensitive
 const GRID_SIZE = 40;
@@ -61,6 +63,30 @@ export default function StatCounterBuilderPage() {
   const [activeCard, setActiveCard] = useState<TokenCard | null>(null);
   
   const canvasRef = useRef<HTMLDivElement>(null);
+  const MIN_ZOOM = 0.5;
+  const MAX_ZOOM = 3;
+  const SNAP_THRESHOLD = 0.04; // snap to 100% when within 4%
+
+  const getContainerRect = () => {
+    const el = canvasRef.current;
+    if (!el) return null;
+    const parent = el.parentElement;
+    return (parent ?? el).getBoundingClientRect();
+  };
+
+  const applyZoomAtPoint = (nextZoom: number, pointerX: number, pointerY: number) => {
+    const clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextZoom));
+    const snapped = Math.abs(clamped - 1) < SNAP_THRESHOLD ? 1 : clamped;
+
+    // Keep pointer position stable by adjusting pan
+    const worldX = (pointerX - pan.x) / zoom;
+    const worldY = (pointerY - pan.y) / zoom;
+    const nextPanX = pointerX - worldX * snapped;
+    const nextPanY = pointerY - worldY * snapped;
+
+    setZoom(snapped);
+    setPan({ x: nextPanX, y: nextPanY });
+  };
   
   // DnD Kit sensors
   const mouseSensor = useSensor(MouseSensor, {
@@ -108,6 +134,15 @@ export default function StatCounterBuilderPage() {
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Disable page scrolling while builder is active
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
 
   // Add new token card
   const addTokenCard = (token: TokenSearchResult) => {
@@ -183,9 +218,13 @@ export default function StatCounterBuilderPage() {
     },
     onWheel: ({ event, delta: [, dy] }) => {
       event.preventDefault();
-      const delta = dy > 0 ? 0.9 : 1.1;
-      const newZoom = Math.min(Math.max(zoom * delta, 0.1), 3);
-      setZoom(newZoom);
+      const rect = getContainerRect();
+      if (!rect) return;
+      const pointerX = (event as WheelEvent).clientX - rect.left;
+      const pointerY = (event as WheelEvent).clientY - rect.top;
+      const factor = dy < 0 ? 1.06 : 1 / 1.06; // gentler zoom
+      const nextZoom = zoom * factor;
+      applyZoomAtPoint(nextZoom, pointerX, pointerY);
     },
   }, {
     drag: { filterTaps: true },
@@ -267,44 +306,26 @@ export default function StatCounterBuilderPage() {
   }, [selectedCardId, showTokenSearch]);
 
   return (
-    <div className="h-screen w-screen bg-gradient-to-br from-slate-900 via-purple-900 to-black overflow-hidden relative">
-      {/* Header Toolbar */}
-      <div className="absolute top-0 left-0 right-0 z-40 bg-black/20 backdrop-blur-xl border-b border-white/10 p-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-white text-xl font-bold">Token Analytics Dashboard</h1>
-          <div className="text-slate-400 text-sm">
-            Zoom: {(zoom * 100).toFixed(0)}% | Cards: {cards.length}
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={() => setShowTokenSearch(true)}
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            <span className="mr-2">+</span>
-            Add Token
-          </Button>
-          
-          {selectedCardId && (
-            <Button
-              onClick={() => deleteCardLocal(selectedCardId)}
-              variant="destructive"
-              size="sm"
-            >
-              Delete Selected
-            </Button>
-          )}
-          
-          <Button
-            onClick={resetView}
-            variant="outline"
-            size="sm"
-          >
-            Reset View
-          </Button>
-        </div>
+    <div
+      className="h-screen w-screen overflow-hidden relative"
+      onWheel={(e) => { e.preventDefault(); }}
+      onTouchMove={(e) => { e.preventDefault(); }}
+      style={{ overscrollBehavior: 'none', touchAction: 'none' }} /* eslint-disable-line react/forbid-dom-props */
+    >
+      {/* Page-scoped global overrides: hide footer and disable scrolling */}
+      <style jsx global>{`
+        html, body, main { overflow: hidden !important; }
+        footer { display: none !important; }
+      `}</style>
+      {/* Mirage background */}
+      <div className="absolute inset-0 -z-10">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: 'url(/Mirage.jpg)' }} /* eslint-disable-line react/forbid-dom-props */
+        />
+        <div className="absolute inset-0 bg-black/40" />
       </div>
+      {/* Header removed per request */}
 
       {/* Canvas with DnD Context */}
       <DndContext
@@ -528,64 +549,70 @@ export default function StatCounterBuilderPage() {
         )}
       </AnimatePresence>
 
-      {/* Zoom Slider */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40">
-        <div className="bg-black/80 backdrop-blur-md rounded-full px-6 py-3 border border-white/20">
-          <div className="flex items-center gap-4">
-            <span className="text-white text-sm font-medium">Zoom</span>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setZoom(Math.max(0.1, zoom - 0.2))}
-                className="text-white hover:text-blue-400 transition-colors p-1"
-                title="Zoom Out"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                </svg>
-              </button>
-              <input
-                type="range"
-                min="0.1"
-                max="5"
-                step="0.1"
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                className="w-32 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer zoom-slider"
-                title="Zoom level control"
-                style={{
-                  background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(zoom - 0.1) / 4.9 * 100}%, #475569 ${(zoom - 0.1) / 4.9 * 100}%, #475569 100%)`
-                }} // eslint-disable-line react/forbid-dom-props
-              />
-              <button
-                onClick={() => setZoom(Math.min(5, zoom + 0.2))}
-                className="text-white hover:text-blue-400 transition-colors p-1"
-                title="Zoom In"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-              </button>
-            </div>
-            <span className="text-slate-400 text-sm min-w-[3rem] text-right">{Math.round(zoom * 100)}%</span>
-          </div>
-        </div>
-      </div>
+      {/* Zoom Slider removed in favor of FloatingDock */}
 
         
         {/* Drag Overlay */}
         <DragOverlay>
           {activeCard ? (
-            <TokenCardComponent
-              card={activeCard}
-              isSelected={true}
-              onSelect={() => {}}
-              onToggleExpanded={() => {}}
-              onAddStat={() => {}}
-              onRemoveStat={() => {}}
-            />
+            <div
+              style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }} /* eslint-disable-line react/forbid-dom-props */
+            >
+              <TokenCardComponent
+                card={activeCard}
+                isSelected={true}
+                onSelect={() => {}}
+                onToggleExpanded={() => {}}
+                onAddStat={() => {}}
+                onRemoveStat={() => {}}
+              />
+            </div>
           ) : null}
         </DragOverlay>
       </DndContext>
+      {/* Floating dock controls */}
+      <div className="absolute bottom-1/4 right-1/2 z-50">
+        <FloatingDock
+          items={[
+            {
+              title: 'Zoom Out',
+              icon: <IconZoomOut className="h-5 w-5 text-neutral-700 dark:text-white" />,
+              className: 'bg-gradient-to-br from-slate-700/60 to-slate-500/60 text-white border border-white/10',
+              onClick: () => {
+                const rect = getContainerRect();
+                const cx = rect ? rect.width / 2 : 0;
+                const cy = rect ? rect.height / 2 : 0;
+                applyZoomAtPoint(zoom - 0.1, cx, cy);
+              }
+            },
+            {
+              title: 'Zoom In',
+              icon: <IconZoomIn className="h-5 w-5 text-neutral-700 dark:text-white" />,
+              className: 'bg-gradient-to-br from-slate-700/60 to-slate-500/60 text-white border border-white/10',
+              onClick: () => {
+                const rect = getContainerRect();
+                const cx = rect ? rect.width / 2 : 0;
+                const cy = rect ? rect.height / 2 : 0;
+                applyZoomAtPoint(zoom + 0.1, cx, cy);
+              }
+            },
+            {
+              title: 'Add Token',
+              icon: <IconPlus className="h-5 w-5 text-white" />,
+              className: 'relative bg-gradient-to-br from-green-600/60 to-green-500/60 text-white border border-white/20 shadow-[0_0_12px_rgba(255,255,255,0.35)] animate-[pulse_2.5s_ease-in-out_infinite] before:absolute before:inset-0 before:rounded-full before:ring-1 before:ring-white/30',
+              onClick: () => setShowTokenSearch(true),
+            },
+            {
+              title: 'Reset View',
+              icon: <IconRefresh className="h-5 w-5 text-white" />,
+              className: 'bg-gradient-to-br from-yellow-600/60 to-yellow-500/60 text-white border border-white/10',
+              onClick: () => resetView(),
+            },
+          ]}
+          desktopClassName="bg-black/70 border border-white/10"
+          mobileClassName=""
+        />
+      </div>
     </div>
   );
 }

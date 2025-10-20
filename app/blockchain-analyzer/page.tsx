@@ -14,6 +14,7 @@ import { useMobileOptimization } from '@/lib/hooks/useMobileOptimization';
 import { useApiKey } from '@/lib/hooks/useApiKey';
 import PulseChainLogo from '@/components/icons/PulseChainLogo';
 import SendIcon from '@/components/icons/SendIcon';
+import LoadingSpinner from '@/components/icons/LoadingSpinner';
 
 interface Message {
   id: string;
@@ -1938,30 +1939,7 @@ const BlockchainAnalyzer: React.FC = () => {
             </form>
           </div>
 
-                                {/* Quick Actions */}
-                      <div className="mt-6">
-                        <div className="flex items-center justify-center gap-4 text-sm text-slate-400">
-                          <span>Quick Actions:</span>
-                          <button
-                            onClick={() => handleQuickQuery("Compare HEX, WPLS, and PLSX holders")}
-                            className="text-purple-400 hover:text-purple-300 transition-colors"
-                          >
-                            🔍 Multi-Token
-                          </button>
-                          <button
-                            onClick={() => handleQuickQuery("Find addresses with >1000 HEX and >10000 WPLS")}
-                            className="text-blue-400 hover:text-blue-300 transition-colors"
-                          >
-                            🎯 Advanced Search
-                          </button>
-                          <button
-                            onClick={() => handleQuickQuery("Show transactions from last week")}
-                            className="text-green-400 hover:text-green-300 transition-colors"
-                          >
-                            ⏰ Time Filter
-                          </button>
-                        </div>
-                      </div>
+      				
         </div>
       </motion.div>
     </div>
