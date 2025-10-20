@@ -1063,7 +1063,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
             muted={true}
             playsInline
           >
-            <source src="/ai-agentbackground.mp4" type="video/mp4" />
+            <source src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/ai-agentbackground.mp4" type="video/mp4" />
           </video>
         )}
 

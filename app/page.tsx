@@ -62,7 +62,7 @@ export default function Home() {
           muted={true}
           playsInline
         >
-          <source src="/pulsechain-ai.mp4" type="video/mp4" />
+          <source src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/hexx.mp4" type="video/mp4" />
         </video>
 
         {/* <div className="relative z-30 text-center">
