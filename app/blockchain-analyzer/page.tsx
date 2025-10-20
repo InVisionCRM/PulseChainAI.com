@@ -14,7 +14,9 @@ import { useMobileOptimization } from '@/lib/hooks/useMobileOptimization';
 import { useApiKey } from '@/lib/hooks/useApiKey';
 import PulseChainLogo from '@/components/icons/PulseChainLogo';
 import SendIcon from '@/components/icons/SendIcon';
-import LoadingSpinner from '@/components/icons/LoadingSpinner';
+import { BackgroundBeams } from '@/components/ui/background-beams';
+import { LoaderOne } from '@/components/ui/loader';
+import BlockchainAnalyzerTutorial from '@/components/BlockchainAnalyzerTutorial';
 
 interface Message {
   id: string;
@@ -304,28 +306,33 @@ const BlockchainAnalyzer: React.FC = () => {
   const [mentionStartIndex, setMentionStartIndex] = useState<number>(-1);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState<number>(0);
   
+  // Tutorial state
+  const [showTutorial, setShowTutorial] = useState<boolean>(false);
+  
+  // Input expansion state
+  const [isInputExpanded, setIsInputExpanded] = useState<boolean>(false);
+  
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const mentionDropdownRef = useRef<HTMLDivElement>(null);
 
   // Quick query templates
-  const quickQueries = [
-    "Compare HEX, WPLS, and PLSX holders",
-    "Show transactions from last week",
-    "Find addresses with >1000 HEX and >10000 WPLS",
-    "Analyze whale movements in the last 24 hours",
-    "Show me the top 10 HEX holders",
-    "What's the correlation between HEX and WPLS?",
-    "Find large transactions above $100K",
-    "Analyze this address: 0x1234...abcd"
-  ];
+  const quickQueries = [];
 
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Check if tutorial should be shown on mount
+  useEffect(() => {
+    const hasSeenTutorial = localStorage.getItem('hasSeenBlockchainTutorial');
+    if (!hasSeenTutorial) {
+      setShowTutorial(true);
+    }
+  }, []);
 
   // Debounced search effect
   useEffect(() => {
@@ -388,11 +395,15 @@ const BlockchainAnalyzer: React.FC = () => {
       if (mentionDropdownRef.current && !mentionDropdownRef.current.contains(event.target as Node)) {
         setShowMentionDropdown(false);
       }
+      // Collapse input if clicking outside the form when expanded
+      if (isInputExpanded && inputRef.current && !inputRef.current.closest('form')?.contains(event.target as Node)) {
+        setIsInputExpanded(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isInputExpanded]);
 
   const toggleEndpoint = (endpointId: string) => {
     setSelectedEndpoints(prev => 
@@ -479,7 +490,7 @@ const BlockchainAnalyzer: React.FC = () => {
     return null;
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     const cursorPosition = e.target.selectionStart || 0;
     
@@ -494,6 +505,15 @@ const BlockchainAnalyzer: React.FC = () => {
       setShowMentionDropdown(false);
       setMentionQuery('');
     }
+  };
+
+  const handleInputFocus = () => {
+    setIsInputExpanded(true);
+  };
+
+  const handleInputBlur = () => {
+    // Don't collapse immediately, wait for send or explicit action
+    // This prevents collapse when clicking on buttons
   };
 
   const handleMentionSelect = (item: SearchResultItem) => {
@@ -513,11 +533,13 @@ const BlockchainAnalyzer: React.FC = () => {
     setTimeout(() => {
       inputRef.current?.focus();
       const newCursorPosition = mentionStartIndex + (item.symbol || item.name).length + item.address.length + 4; // +4 for " () "
-      inputRef.current?.setSelectionRange(newCursorPosition, newCursorPosition);
+      if (inputRef.current) {
+        inputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+      }
     }, 0);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (showMentionDropdown && mentionResults.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -537,6 +559,26 @@ const BlockchainAnalyzer: React.FC = () => {
         setMentionQuery('');
         setMentionStartIndex(-1);
       }
+    }
+    
+    // Handle Enter key for sending message (Shift+Enter for new line)
+    if (e.key === 'Enter' && !showMentionDropdown) {
+      if (e.shiftKey) {
+        // Allow Shift+Enter for new line
+        return;
+      } else {
+        // Enter without Shift sends the message
+        e.preventDefault();
+        if (!isLoading && inputValue.trim()) {
+          handleSendMessage(e as any);
+        }
+      }
+    }
+    
+    // Collapse input on Escape if no mention dropdown is open
+    if (e.key === 'Escape' && !showMentionDropdown && isInputExpanded) {
+      setIsInputExpanded(false);
+      inputRef.current?.blur();
     }
   };
 
@@ -958,6 +1000,7 @@ const BlockchainAnalyzer: React.FC = () => {
     
     const messageText = inputValue;
     setInputValue('');
+    setIsInputExpanded(false); // Collapse input after sending
     await sendMessage(messageText);
   }, [inputValue, sendMessage]);
 
@@ -1049,9 +1092,9 @@ const BlockchainAnalyzer: React.FC = () => {
           if (part.startsWith('- ')) {
             const text = part.substring(2);
             return (
-              <li key={key} className="flex items-start gap-2 my-0.5">
-                <span className="text-purple-400 mt-1.5 flex-shrink-0">•</span>
-                <span className="text-slate-300 text-sm">{text}</span>
+              <li key={key} className="flex items-start gap-2 my-0">
+                <span className="text-purple-400 mt-1 flex-shrink-0 text-xs">•</span>
+                <span className="text-slate-300 text-sm leading-relaxed">{text}</span>
               </li>
             );
           }
@@ -1234,7 +1277,14 @@ const BlockchainAnalyzer: React.FC = () => {
   };
 
     return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black relative">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/Mirage.jpg)' }}
+      />
+      {/* Dark overlay for readability */}
+      <div className="absolute inset-0 bg-black/50" />
       <motion.div
         initial={{ opacity: 0.0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -1243,283 +1293,121 @@ const BlockchainAnalyzer: React.FC = () => {
           duration: 0.8,
           ease: "easeInOut",
         }}
-        className="relative flex flex-col gap-4 items-center justify-start px-4 w-full min-h-screen pt-20"
+        className="relative flex flex-col gap-4 items-center justify-start px-4 w-full min-h-screen pt-4 z-10"
       >
         <div className="container mx-auto p-3 md:p-6 lg:p-8 max-w-7xl w-full pb-32 md:pb-16">
           
-          {/* Endpoint Picker */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <h3 className="text-lg font-semibold text-white">🔧 Data Sources</h3>
-                <button
-                  onClick={() => setShowEndpointPicker(!showEndpointPicker)}
-                  className="text-sm text-slate-400 hover:text-white transition-colors"
-                >
-                  {showEndpointPicker ? 'Hide' : 'Configure'}
-                </button>
-              </div>
-              <div className="text-sm text-slate-400">
-                {getEndpointDescription()}
-              </div>
-            </div>
+          {/* Help Button */}
+          <button
+            onClick={() => setShowTutorial(true)}
+            className="fixed top-20 right-6 bg-blue-500/10 backdrop-blur-sm border border-white/20 text-white p-2 rounded-full hover:bg-blue-500/20 transition-colors z-50"
+            title="Show Tutorial"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
 
-            <AnimatePresence>
-              {showEndpointPicker && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4 mb-4"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-sm font-semibold text-white">Select Data Sources</h4>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={selectAllEndpoints}
-                        className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-                      >
-                        Select All
-                      </button>
-                      <button
-                        onClick={clearAllEndpoints}
-                        className="text-xs px-2 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded transition-colors"
-                      >
-                        Clear All
-                      </button>
-                      <button
-                        onClick={loadEndpointData}
-                        disabled={isLoadingEndpoints || contextItems.length === 0}
-                        className="text-xs px-2 py-1 bg-green-600 hover:bg-green-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded transition-colors"
-                        title={contextItems.length === 0 ? 'Add tokens/addresses to context first' : 'Call selected endpoints for context items'}
-                      >
-                        {isLoadingEndpoints ? 'Loading...' : 'Load Data'}
-                      </button>
-                    </div>
-                  </div>
+          {/* Error Display */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg relative mb-6"
+            >
+              <strong className="font-bold">Error: </strong>
+              <span className="block sm:inline">{error}</span>
+            </motion.div>
+          )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {endpointOptions.map((option) => {
-                      const isSelected = selectedEndpoints.includes(option.id);
-                      return (
-                        <motion.button
-                          key={option.id}
-                          onClick={() => toggleEndpoint(option.id)}
-                          className={`p-3 rounded-lg border transition-all duration-200 text-left ${
-                            isSelected
-                              ? 'bg-gradient-to-br ' + option.color + ' border-transparent text-white'
-                              : 'bg-slate-700/50 border-slate-600/50 text-slate-300 hover:bg-slate-700 hover:border-slate-500'
-                          }`}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-lg">{option.icon}</span>
-                            <span className="font-medium text-sm">{option.name}</span>
-                            {isSelected && (
-                              <svg className="w-4 h-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </div>
-                          <div className="text-xs opacity-80">{option.description}</div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <div className="text-xs opacity-60">{option.category}</div>
-                            {option.isRealEndpoint && (
-                              <div className="text-xs font-mono opacity-50">
-                                {option.method} {option.path}
-                              </div>
-                            )}
-                          </div>
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-4 p-3 bg-slate-700/30 rounded-lg border border-slate-600/30">
-                    <p className="text-xs text-slate-400">
-                      <strong>Tip:</strong> Select specific endpoints to call, or leave empty to call only token-holders. Use "Load Data" to make actual API calls for items in your context.
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Endpoint Responses Display */}
-            {showEndpointResponses && endpointResponses.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4 mt-4"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-sm font-semibold text-white">API Responses</h4>
-                  <button
-                    onClick={() => setShowEndpointResponses(false)}
-                    className="text-xs px-2 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded transition-colors"
-                  >
-                    Hide
-                  </button>
-                </div>
-
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {endpointResponses.map((response, index) => {
-                    // Extract token/address info from response ID
-                    const [address, endpointId] = response.endpoint.split('-');
-                    const contextItem = contextItems.find(item => item.address === address);
-                    const endpointOption = endpointOptions.find(option => option.id === endpointId);
-                    
-                    return (
-                      <div
-                        key={index}
-                        className="p-3 rounded-lg border border-slate-600/30 bg-slate-700/30"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono bg-slate-600 px-2 py-1 rounded">
-                              {response.method}
-                            </span>
-                            <span className="text-xs text-slate-300 font-mono">
-                              {response.path}
-                            </span>
-                            {contextItem && (
-                              <span className="text-xs bg-purple-600 px-2 py-1 rounded">
-                                {contextItem.symbol || contextItem.name}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              response.status === 'loading' ? 'bg-yellow-600 text-yellow-100' :
-                              response.status === 'success' ? 'bg-green-600 text-green-100' :
-                              'bg-red-600 text-red-100'
-                            }`}>
-                              {response.status}
-                            </span>
-                            <span className="text-xs text-slate-400">
-                              {new Date(response.timestamp).toLocaleTimeString()}
-                            </span>
-                          </div>
-                        </div>
-
-                        {response.status === 'loading' && (
-                          <div className="flex items-center gap-2 text-slate-400">
-                            <LoadingSpinner className="w-4 h-4" />
-                            <span className="text-xs">Loading...</span>
-                          </div>
-                        )}
-
-                        {response.status === 'success' && response.data && (
-                          <div className="space-y-2">
-                            <div className="text-xs text-slate-400">
-                              Response Data:
-                            </div>
-                            <pre className="text-xs bg-slate-900 p-2 rounded border border-slate-600 overflow-x-auto max-h-32 overflow-y-auto">
-                              {JSON.stringify(response.data, null, 2)}
-                            </pre>
-                          </div>
-                        )}
-
-                        {response.status === 'error' && response.error && (
-                          <div className="text-xs text-red-400 bg-red-900/20 p-2 rounded border border-red-600/30">
-                            Error: {response.error}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-4 p-3 bg-slate-700/30 rounded-lg border border-slate-600/30">
-                  <p className="text-xs text-slate-400">
-                    <strong>API Info:</strong> Real API calls to PulseChain scan endpoints. Data is fetched for tokens and addresses in your context.
-                  </p>
-                </div>
-              </motion.div>
-            )}
-          </div>
-
-          {/* Context Adder */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <h3 className="text-lg font-semibold text-white">📋 Analysis Context</h3>
-                <button
-                  onClick={() => setShowContextAdder(!showContextAdder)}
-                  className="text-sm text-slate-400 hover:text-white transition-colors"
-                >
-                  {showContextAdder ? 'Hide' : 'Add Items'}
-                </button>
-              </div>
-              <div className="text-sm text-slate-400">
-                {getContextDescription()}
-              </div>
-            </div>
-
-            {/* Context Items Display */}
-            {contextItems.length > 0 && (
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-slate-400">Context Items:</span>
-                  <button
-                    onClick={clearAllContextItems}
-                    className="text-xs px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
-                  >
-                    Clear All
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {contextItems.map((item) => (
-                    <motion.div
-                      key={item.id}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      className="flex items-center gap-2 p-2 bg-slate-700/50 rounded-lg border border-slate-600/30"
-                    >
-                      <div className="flex items-center gap-2 flex-grow">
-                        {item.icon_url ? (
-                          <img src={item.icon_url} alt={item.name} className="w-4 h-4 rounded" />
-                        ) : (
-                          <div className="w-4 h-4 bg-slate-600 rounded flex items-center justify-center">
-                            <span className="text-xs text-slate-400">
-                              {item.type === 'token' ? '🪙' : item.type === 'address' ? '📍' : '⚡'}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex-grow min-w-0">
-                          <div className="text-sm font-medium text-white truncate">{item.name}</div>
-                          <div className="text-xs text-slate-400 truncate">{item.address}</div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeContextItem(item.id)}
-                        className="text-slate-400 hover:text-red-400 transition-colors"
-                        title="Remove item"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <AnimatePresence>
+          {/* Main Chat Interface */}
+          <div className="flex flex-col h-[calc(80vh)] md:min-h-[calc(70vh+25px)] bg-white/5 backdrop-blur-sm rounded-xl border border-slate-700/50 overflow-hidden relative" data-tutorial="ai-chat-container">
+            <GlowingEffect disabled={false} glow={true} />
+            <BackgroundBeams 
+              className="absolute inset-0"
+            />
+            
+            {/* Chat Messages */}
+            <div 
+              ref={chatContainerRef}
+              className="flex-grow p-4 overflow-y-auto space-y-4"
+              data-tutorial="chat-messages"
+            >
+              {/* Analysis Context Modal - Show inside chat */}
               {showContextAdder && (
                 <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.3 }}
-                  className="bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4 mb-4"
+                  className="bg-blue-500/10 backdrop-blur-sm rounded-xl border border-white/20 p-4 mb-4"
                 >
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-lg font-semibold text-white">📋 Analysis Context</h4>
+                    <button
+                      onClick={() => setShowContextAdder(false)}
+                      className="text-slate-400 hover:text-white transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Context Items Display */}
+                  {contextItems.length > 0 && (
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-lg text-slate-400">Context Items:</span>
+                        <button
+                          onClick={clearAllContextItems}
+                          className="text-xs px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+                        {contextItems.map((item) => (
+                          <motion.div
+                            key={item.id}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="flex items-center gap-2 p-2 bg-slate-700/50 rounded-lg border border-slate-600/30"
+                          >
+                            <div className="flex items-center gap-2 flex-grow">
+                              {item.icon_url ? (
+                                <img src={item.icon_url} alt={item.name} className="w-4 h-4 rounded" />
+                              ) : (
+                                <div className="w-4 h-4 bg-slate-600 rounded flex items-center justify-center">
+                                  <span className="text-xs text-slate-400">
+                                    {item.type === 'token' ? '🪙' : item.type === 'address' ? '📍' : '⚡'}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="flex-grow min-w-0">
+                                <div className="text-sm font-medium text-white truncate">{item.name}</div>
+                                <div className="text-xs text-slate-400 truncate">{item.address}</div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeContextItem(item.id)}
+                              className="text-slate-400 hover:text-red-400 transition-colors"
+                              title="Remove item"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="mb-4">
-                    <h4 className="text-sm font-semibold text-white mb-2">Add Tokens & Addresses</h4>
+                    <h5 className="text-sm font-semibold text-white mb-2">Add Tokens & Addresses</h5>
                     <p className="text-xs text-slate-400 mb-3">
                       Search for tokens, addresses, or contracts to include in your analysis context
                     </p>
@@ -1532,15 +1420,17 @@ const BlockchainAnalyzer: React.FC = () => {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onFocus={() => setIsSearchDropdownVisible(true)}
                       placeholder="Search for tokens, addresses, or contracts..."
-                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:outline-none transition text-sm"
+                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:ring-2 focus:ring-white focus:outline-none transition text-sm"
                       autoComplete="off"
                     />
                     
                     {isSearchDropdownVisible && (isSearching || searchResults.length > 0) && (
-                      <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/90 backdrop-blur-sm border border-slate-600/50 rounded-lg shadow-xl z-10 max-h-80 overflow-y-auto">
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/90 backdrop-blur-sm border border-slate-600/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto">
                         {isSearching && (
                           <div className="p-3 text-slate-400 flex items-center gap-2">
-                            <LoadingSpinner className="w-4 h-4" />
+                            <div className="scale-50">
+                              <LoaderOne />
+                            </div>
                             <span>Searching...</span>
                           </div>
                         )}
@@ -1582,67 +1472,98 @@ const BlockchainAnalyzer: React.FC = () => {
                   </div>
                 </motion.div>
               )}
-            </AnimatePresence>
-          </div>
 
-          {/* Error Display */}
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg relative mb-6"
-            >
-              <strong className="font-bold">Error: </strong>
-              <span className="block sm:inline">{error}</span>
-            </motion.div>
-          )}
-
-          {/* Main Chat Interface */}
-          <div className="flex flex-col h-[70vh] md:min-h-[70vh] bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/50 overflow-hidden">
-            <GlowingEffect disabled={false} glow={true} />
-            
-            {/* Chat Messages */}
-            <div 
-              ref={chatContainerRef}
-              className="flex-grow p-4 overflow-y-auto space-y-4"
-            >
-              {messages.length === 0 && (
-                <div className="text-center text-slate-400 h-full flex flex-col items-center justify-center gap-6">
-                  <div className="w-16 h-16 bg-slate-700/50 rounded-full flex items-center justify-center">
-                    <PulseChainLogo className="w-8 h-8 text-purple-400" />
-                  </div>
-                  
-                                                <div className="max-w-md">
-                                <h3 className="text-lg font-semibold text-white mb-2">Welcome to PulseChain AI Analyst</h3>
-                                <p className="text-sm text-slate-400 mb-6">
-                                  Ask me anything about PulseChain data. I can analyze tokens, addresses, transactions, and more.
-                                </p>
-                                
-                                {/* New Features Highlight */}
-                                <div className="bg-slate-700/30 rounded-lg p-3 mb-4 border border-slate-600/30">
-                                  <h4 className="text-sm font-semibold text-white mb-2">✨ New Features</h4>
-                                  <div className="space-y-1 text-xs text-slate-300">
-                                    <div>• Multi-token comparison analysis</div>
-                                    <div>• Time-based filtering (last week, month, etc.)</div>
-                                    <div>• Advanced search with criteria (e.g., &gt;1000 HEX)</div>
-                                    <div>• Interactive data visualizations</div>
-                                  </div>
-                                </div>
-                    
-                    {/* Quick Query Templates */}
-                    <div className="space-y-2">
-                      <p className="text-xs text-slate-500 mb-3">Quick Analysis Examples:</p>
-                      {quickQueries.map((query, index) => (
-                        <button
-                          key={index}
-                          onClick={() => handleQuickQuery(query)}
-                          className="w-full text-left p-3 rounded-lg transition-all duration-200 text-sm text-slate-300 hover:text-white bg-slate-700/50 hover:bg-slate-700 border border-slate-600/30 hover:border-slate-500/50"
-                        >
-                          {query}
-                        </button>
-                      ))}
+              {/* Data Sources Modal - Show inside chat */}
+              {showEndpointPicker && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="bg-blue-500/10 backdrop-blur-sm rounded-xl border border-slate-500/20 p-4 mb-4"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-lg font-semibold text-white">API Endpoints</h4>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={selectAllEndpoints}
+                        className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        onClick={clearAllEndpoints}
+                        className="text-xs px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                      >
+                        Clear All
+                      </button>
+                      <button
+                        onClick={loadEndpointData}
+                        disabled={isLoadingEndpoints || contextItems.length === 0}
+                        className="text-xs px-2 py-1 bg-green-600 hover:bg-green-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded transition-colors"
+                        title={contextItems.length === 0 ? 'Add tokens/addresses to context first' : 'Call selected endpoints for context items'}
+                      >
+                        {isLoadingEndpoints ? 'Loading...' : 'Load Data'}
+                      </button>
+                      <button
+                        onClick={() => setShowEndpointPicker(false)}
+                        className="text-slate-400 hover:text-white transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
+                  <p className="text-sm text-slate-400 mb-4">
+                    Select specific endpoints to call, or leave empty to call only token-holders. Use "Load Data" to make actual API calls for items in your context.
+                  </p>
+
+
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 max-h-80 overflow-y-auto border-2 border-white/50 rounded-lg p-3">
+                    {endpointOptions.map((option) => {
+                      const isSelected = selectedEndpoints.includes(option.id);
+                      return (
+                        <motion.button
+                          key={option.id}
+                          onClick={() => toggleEndpoint(option.id)}
+                          className={`p-2 rounded-lg border transition-all duration-200 text-left relative overflow-hidden ${
+                            isSelected
+                              ? 'bg-green-600 border-green-500 text-white'
+                              : 'border-slate-600/50 text-slate-500 hover:border-slate-500'
+                          }`}
+                          style={{
+                            backgroundImage: isSelected ? 'none' : 'url(/Mirage2\.jpg)',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat'
+                          }}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          {/* Dark overlay for better text readability when not selected */}
+                          {!isSelected && (
+                            <div className="absolute inset-0 bg-black/ rounded-lg"></div>
+                          )}
+                          
+                          <div className="flex items-center justify-between mb-1 relative z-10">
+                            <span className="font-medium text-base text-white truncate">{option.name}</span>
+                            {isSelected && (
+                              <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="text-sm font-bold text-white/80 justify-center text-center bg-black/10 rounded-lg p-2 line-clamp-2 leading-tight relative z-10">{option.description}</div>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+
+                </motion.div>
+              )}
+              {messages.length === 0 && (
+                <div className="h-full flex flex-col items-center justify-center">
                 </div>
               )}
 
@@ -1650,8 +1571,8 @@ const BlockchainAnalyzer: React.FC = () => {
                 <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] md:max-w-md lg:max-w-2xl rounded-xl px-4 py-3 ${
                     msg.sender === 'user' 
-                      ? 'bg-purple-700 text-white' 
-                      : 'bg-slate-700/80 backdrop-blur-sm text-slate-200 border border-slate-600/50'
+                      ? 'bg-blue-500/10 text-white border border-white/20' 
+                      : 'bg-blue-500/10 backdrop-blur-sm text-slate-200 border border-white/20'
                   }`}>
                     {msg.sender === 'user' ? (
                       <div className="text-white text-sm md:text-base">
@@ -1670,7 +1591,7 @@ const BlockchainAnalyzer: React.FC = () => {
                               <div className="flex space-x-2">
                                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                                 <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
-                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+                                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
                               </div>
                             </div>
                             
@@ -1683,7 +1604,9 @@ const BlockchainAnalyzer: React.FC = () => {
                                 >
                                   {isLoading ? (
                                     <>
-                                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                      <div className="scale-75">
+                                        <LoaderOne />
+                                      </div>
                                       Executing...
                                     </>
                                   ) : (
@@ -1729,13 +1652,8 @@ const BlockchainAnalyzer: React.FC = () => {
                     
                     {/* Progress Header with Animation */}
                     <div className="flex items-center gap-3 mb-4 relative z-10">
-                      <div className="relative">
-                        <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center animate-spin">
-                          <div className="w-6 h-6 bg-slate-800 rounded-full flex items-center justify-center">
-                            <div className="w-3 h-3 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full animate-pulse"></div>
-                          </div>
-                        </div>
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-ping"></div>
+                      <div className="scale-50">
+                        <LoaderOne />
                       </div>
                       <div className="flex-1">
                         <div className="text-sm font-medium text-white flex items-center gap-2">
@@ -1880,31 +1798,85 @@ const BlockchainAnalyzer: React.FC = () => {
             </div>
 
             {/* Input Form */}
-            <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-700/50 flex items-center gap-3 bg-slate-800/30 backdrop-blur-sm flex-shrink-0 relative">
-              <input 
-                ref={inputRef}
-                type="text" 
-                value={inputValue} 
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask about tokens, addresses, transactions, whale movements... Use @ to mention tokens" 
-                className="flex-grow bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:outline-none transition text-sm md:text-base" 
-                disabled={isLoading} 
-              />
-              <button 
-                type="submit" 
-                disabled={isLoading || !inputValue.trim()} 
-                className="bg-purple-600 text-white p-3 rounded-full hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors"
-                title="Send message"
-              >
-                <SendIcon className="w-5 h-5"/>
-              </button>
+            <form onSubmit={handleSendMessage} className="border-t border-slate-700/50 bg-slate-800/20 backdrop-blur-sm flex-shrink-0 relative p-3 flex flex-col gap-2">
+              {/* Input and Send Button Row */}
+              <div className="flex items-start gap-2">
+                <textarea 
+                  ref={inputRef}
+                  value={inputValue} 
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                  placeholder="Ask about tokens, addresses, transactions, whale movements... Use @ to mention tokens" 
+                  className="flex-grow bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/50 focus:outline-none transition text-sm resize-none min-h-[40px] max-h-[200px] overflow-y-auto" 
+                  disabled={isLoading}
+                  data-tutorial="chat-input"
+                  rows={3}
+                  style={{
+                    height: 'auto',
+                    minHeight: '72px' // 3 rows = ~72px
+                  }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = Math.max(Math.min(target.scrollHeight, 200), 72) + 'px';
+                  }}
+                />
+                <button 
+                  type="submit" 
+                  disabled={isLoading || !inputValue.trim()} 
+                  className="bg-purple-600/70 text-white p-2 rounded-full hover:bg-purple-700/70 disabled:bg-slate-600/50 disabled:cursor-not-allowed transition-colors backdrop-blur-sm mt-1"
+                  title="Send message"
+                >
+                  <SendIcon className="w-4 h-4"/>
+                </button>
+              </div>
+              
+              {/* Action Buttons Row - always shown below input */}
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setShowContextAdder(!showContextAdder);
+                    if (!showContextAdder) {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                  }}
+                  className="text-slate-300 hover:text-white transition-colors text-center px-2 py-1 border border-white/30 rounded-md hover:bg-slate-700/30"
+                  title="Add tokens and addresses to analysis context"
+                  data-tutorial="add-token-button"
+                >
+                  <div className="text-xs leading-tight">
+                    <div className="text-xl">+</div>
+                    <div className="text-xs">Token</div>
+                  </div>
+                </button>
+                
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setShowEndpointPicker(!showEndpointPicker);
+                    if (!showEndpointPicker) {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                  }}
+                  className="text-slate-300 hover:text-white transition-colors text-center px-2 py-1 border border-white/30 rounded-md hover:bg-slate-700/30"
+                  title="Add tokens and configure data sources"
+                  data-tutorial="add-endpoint-button"
+                >
+                  <div className="text-xs leading-tight">
+                    <div className="text-xl">+</div>
+                    <div className="text-xs">Endpoint</div>
+                  </div>
+                </button>
+              </div>
 
               {/* @mention dropdown */}
               {showMentionDropdown && mentionResults.length > 0 && (
                 <div 
                   ref={mentionDropdownRef}
-                  className="absolute bottom-full left-4 right-4 mb-2 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto"
+                  className="absolute bottom-full left-4 right-4 mb-2 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-[9999] max-h-60 overflow-y-auto"
                 >
                   <div className="p-2">
                     <div className="text-xs text-slate-400 mb-2 px-2">Search results for "@{mentionQuery}"</div>
@@ -1942,6 +1914,17 @@ const BlockchainAnalyzer: React.FC = () => {
       				
         </div>
       </motion.div>
+
+      {/* Tutorial Overlay */}
+      {showTutorial && (
+        <BlockchainAnalyzerTutorial
+          onClose={() => setShowTutorial(false)}
+          onComplete={() => {
+            setShowTutorial(false);
+            localStorage.setItem('hasSeenBlockchainTutorial', 'true');
+          }}
+        />
+      )}
     </div>
   );
 };

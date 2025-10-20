@@ -53,7 +53,6 @@ export default function Home() {
       <div
         className="min-h-screen relative w-full flex flex-col items-center justify-center"
       >
-        <div className="absolute inset-0 w-full h-full z-20 [mask-image:radial-gradient(transparent,white)] pointer-events-none" style={{ backgroundColor: '#0C2340' }} />
 
         <video
           className="absolute inset-0 w-full h-full object-cover z-0"
@@ -64,6 +63,9 @@ export default function Home() {
         >
           <source src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/hexx.mp4" type="video/mp4" />
         </video>
+        
+        {/* Black overlay */}
+        <div className="absolute inset-0 w-full h-full bg-black/50 z-10 pointer-events-none" />
 
         {/* <div className="relative z-30 text-center">
           <div className="flex flex-col items-center mb-6">
@@ -84,7 +86,7 @@ export default function Home() {
           </p>
         </div> */}
         {/* Search bar centered in hero */}
-        <div className="relative z-30 w-full flex justify-center -mt-[30px]">
+        <div className="absolute top-10 left-1/2 transform -translate-x-1/2 z-30 w-full flex justify-center">
           <div className="relative w-96 lg:w-[40rem] xl:w-[48rem]">
             <PlaceholdersAndVanishInput
               placeholders={placeholders}
