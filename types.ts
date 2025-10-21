@@ -263,3 +263,22 @@ export interface DexScreenerData {
         }>;
     } | null;
 }
+
+// Transaction Modal Types
+export interface TransactionData {
+    timestamp: string;
+    type: 'buy' | 'sell';
+    usdValue: number;
+    tokenAmount: number;
+    wplsAmount: number;
+    price: number;
+    makerAddress: string;
+    txHash: string;
+}
+
+export interface TransactionModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    tokenAddress: string;
+    tokenSymbol: string;
+}

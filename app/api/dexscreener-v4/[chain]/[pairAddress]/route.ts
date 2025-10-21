@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { chain: string; pairAddress: string } }
+  { params }: { params: Promise<{ chain: string; pairAddress: string }> }
 ) {
   try {
-    const { chain, pairAddress } = params;
+    const { chain, pairAddress } = await params;
     
     // Fetch from DexScreener v4 endpoint
     const url = `https://io.dexscreener.com/dex/pair-details/v4/${chain}/${pairAddress}`;
