@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect, Suspense } from 'react';
 // import { motion } from "framer-motion"; // Temporarily disabled due to TypeScript issues
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 import { LoaderThree } from "@/components/ui/loader";
 import { LoaderWithPercent } from "@/components/ui/loader-with-percent";
@@ -100,6 +100,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
 
   // Hooks
   const { getApiKey } = useApiKey();
+  const router = useRouter();
   const [showStickyBanner, setShowStickyBanner] = useState<boolean>(false);
   const [burnedLiquidityPct, setBurnedLiquidityPct] = useState<number | null>(null);
   const [lpHolders, setLpHolders] = useState<Array<{ address: string; value: number; pct: number }>>([]);
@@ -1017,23 +1018,8 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
   };
 
   const handleSelectSearchResult = (item: SearchResultItem) => {
-    setContractAddress(item.address);
-    setSearchQuery(item.address);
-    setSearchResults([]);
-    setShowSearchResults(false);
-    setIsSearchFocused(false);
-    setShowTutorial(false);
-
-    // Clear both search inputs
-    if (searchInputRef.current) {
-      searchInputRef.current.value = '';
-    }
-    if (headerSearchInputRef.current) {
-      headerSearchInputRef.current.value = '';
-    }
-
-    // Directly trigger contract loading with the address
-    handleLoadContract(item.address);
+    // Redirect to geicko page instead of loading contract in AI agent
+    router.push(`/geicko?address=${item.address}`);
   };
 
   const explainedReadFunctions = explainedFunctions?.filter(f => f.type === 'read') || [];
@@ -1591,20 +1577,20 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                       )}
                       <div className={`h-full bg-slate-950 w-full ${isDexUnavailable ? 'hidden' : ''}`}>
                          {/* Header Banner Image with Overlay Buttons */}
-                         <div className="relative w-full -mt-px">
-                             <div className="relative w-full overflow-hidden border-b-2 border-orange-500">
+                         <div className="relative w-full -mt-px h-24">
+                             <div className="absolute top-0 right-0 overflow-hidden">
                                <img
                                src={dexScreenerData?.profile?.headerImageUrl || '/app-pics/clean.png'}
                                  alt="Token header"
-                                 className="w-full h-auto object-cover"
-                                 style={{ maxHeight: '500px', aspectRatio: '3/1' }}
+                                 className="object-cover rounded-md"
+                                 style={{ width: '300px', height: '100px' }}
                                  onError={(e) => {
                                  e.currentTarget.src = '/app-pics/clean.png';
                                  }}
                                />
                              </div>
-                           
-                           {/* Social Links Row - Overlaying bottom of header */}
+
+                           {/* Social Links Row - Under header image on the left */}
                            {dexScreenerData?.profile?.cmsLinks && dexScreenerData.profile.cmsLinks.length > 0 && (() => {
                              // Filter for Website, Twitter, and Telegram only
                              const websiteLink = dexScreenerData.profile.cmsLinks.find((link: any) => {
@@ -1631,10 +1617,10 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                              const filteredLinks = [websiteLink, twitterLink, telegramLink].filter(Boolean);
                              
                              if (filteredLinks.length === 0) return null;
-                             
+
                              return (
-                               <div className="absolute bottom-0 left-0 right-0 transform translate-y-1/2 px-4 z-10">
-                                 <div className="flex items-center justify-center gap-2">
+                               <div className="absolute top-28 left-4 z-10">
+                                 <div className="flex items-center justify-start gap-2">
                                    {/* Website Button */}
                                    {websiteLink && (
                                      <a

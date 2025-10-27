@@ -3,9 +3,9 @@ import { neon } from '@neondatabase/serverless';
 // Load environment variables from .env.local for scripts (server-side only)
 if (typeof window === 'undefined' && typeof require !== 'undefined' && !process.env.DATABASE_URL) {
   try {
-    // Synchronous loading for immediate availability
-    const fs = require('fs');
-    const path = require('path');
+    // Dynamically import fs to avoid client-side bundling issues
+    const fs = eval('require')('fs');
+    const path = eval('require')('path');
     const envPath = path.join(process.cwd(), '.env.local');
     
     if (fs.existsSync(envPath)) {

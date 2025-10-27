@@ -17,11 +17,7 @@ export default function DexScreenerChart({ pairAddress }: DexScreenerChartProps)
     <div className="bg-slate-900/50 rounded overflow-hidden">
       <iframe
         src={`https://dexscreener.com/pulsechain/${pairAddress}?embed=1&theme=dark&trades=0&info=0`}
-        style={{
-          width: '100%',
-          height: '500px',
-          border: 'none',
-        }}
+        className="w-full h-[541px] sm:h-[773px] md:h-[805px] lg:h-[869px] xl:h-[935px] border-0"
         title="DexScreener Chart"
       />
     </div>

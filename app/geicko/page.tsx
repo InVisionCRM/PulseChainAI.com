@@ -1,24 +1,31 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import AdminStatsPanel from '@/components/AdminStatsPanel';
 import TokenAIChat from '@/components/TokenAIChat';
 import TokenContractView from '@/components/TokenContractView';
 import DexScreenerChart from '@/components/DexScreenerChart';
 import { LoaderThree } from "@/components/ui/loader";
-import type { ContractData, TokenInfo, DexScreenerData } from '../../types';
-import { fetchContract, fetchTokenInfo, fetchDexScreenerData } from '../../services/pulsechainService';
+import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
+import { Button as StatefulButton } from '@/components/ui/stateful-button';
+import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem } from '../../types';
+import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '../../services/pulsechainService';
 import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
 
-export default function GeickoPage() {
+function GeickoPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('transactions');
   const [tokenInfoTab, setTokenInfoTab] = useState<'token' | 'wpls'>('token');
   const [apiTokenAddress, setApiTokenAddress] = useState<string>('0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e');
   const [searchInput, setSearchInput] = useState<string>('');
+  const [searchResults, setSearchResults] = useState<SearchResultItem[] | null>(null);
+  const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [isTradeDropdownOpen, setIsTradeDropdownOpen] = useState(false);
   const [tokenAmount, setTokenAmount] = useState<string>('1');
   const [calculatorCurrency, setCalculatorCurrency] = useState<'usd' | 'wpls'>('usd');
@@ -461,7 +468,62 @@ export default function GeickoPage() {
     setHoldersPage(1); // Reset pagination when address changes
   }, [apiTokenAddress, loadTokenData, loadTransactions, loadHolders]);
 
-  // Handle search submission
+  // Search placeholders
+  const searchPlaceholders = [
+    "Search Any PulseChain Ticker",
+    "Search By Name, Ticker, or Address",
+    "Search for HEX...or HEX!",
+    "Search for PulseChain or PLS!",
+    "Try SuperStake or PSSH",
+    "Bringing AI To PulseChain",
+    "Bookmark PulseChainAI.com",
+  ];
+
+  // Handle search with name, ticker, or address
+  useEffect(() => {
+    if (searchInput.length < 2) {
+      setSearchResults([]);
+      setIsSearching(false);
+      setShowSearchResults(false);
+      return;
+    }
+
+    const isAddress = /^0x[a-fA-F0-9]{40}$/.test(searchInput);
+    if (isAddress) {
+      setSearchResults([]);
+      setIsSearching(false);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const results = await search(searchInput);
+        setSearchResults(results.slice(0, 10));
+        setSearchError(null);
+        setShowSearchResults(true);
+      } catch (error) {
+        console.error('Search error:', error);
+        setSearchResults([]);
+        setSearchError(error instanceof Error ? error.message : 'Search failed');
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const handleSelectSearchResult = (item: SearchResultItem) => {
+    setApiTokenAddress(item.address);
+    setSearchInput(item.address);
+    setSearchResults([]);
+    setShowSearchResults(false);
+    setError(null);
+  };
+
+  // Handle search submission (for direct address input)
   const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
 
@@ -471,10 +533,15 @@ export default function GeickoPage() {
     if (trimmedInput && /^0x[a-fA-F0-9]{40}$/.test(trimmedInput)) {
       setApiTokenAddress(trimmedInput);
       setError(null);
+      setSearchResults([]);
+      setShowSearchResults(false);
+    } else if (trimmedInput && searchResults && searchResults.length > 0) {
+      // If there are search results, select the first one
+      handleSelectSearchResult(searchResults[0]);
     } else if (trimmedInput) {
       setError('Invalid token address. Please enter a valid Ethereum address (0x...)');
     }
-  }, [searchInput]);
+  }, [searchInput, searchResults]);
 
   // Load top tokens on mount
   useEffect(() => {
@@ -622,22 +689,69 @@ export default function GeickoPage() {
       <header className="bg-gray-900 border-b border-gray-800">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 md:px-3 py-2 gap-2">
           {/* Search Bar */}
-          <div className="flex items-center w-full sm:w-auto">
-            <form onSubmit={handleSearch} className="relative w-full sm:w-auto">
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search by token address (0x...)"
-                className="bg-gray-800 text-white placeholder-gray-400 px-2 py-1 text-xs rounded border border-gray-700 w-full sm:w-60 pr-6"
+          <div className="hidden sm:flex items-center w-full">
+            <div className="relative w-full max-w-2xl" ref={searchInputRef}>
+              <PlaceholdersAndVanishInput
+                placeholders={searchPlaceholders}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearchInput(value);
+                  if (value.trim()) {
+                    setShowSearchResults(true);
+                  } else {
+                    setShowSearchResults(false);
+                  }
+                }}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (searchInput.trim()) {
+                    handleSearch(e);
+                    setShowSearchResults(false);
+                  }
+                }}
               />
-              <button type="submit" className="absolute right-1 top-1/2 transform -translate-y-1/2 p-0.5 hover:bg-gray-700 rounded transition-colors">
-                <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </button>
-            </form>
+              {showSearchResults && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-gray-900/95 backdrop-blur-sm border border-gray-800 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto">
+                  {isSearching && (
+                    <div className="flex items-center justify-center p-4">
+                      <div className="text-gray-400 text-sm">Searching...</div>
+                    </div>
+                  )}
+                  {!isSearching && searchError && (
+                    <div className="p-4 text-red-400 text-sm">{searchError}</div>
+                  )}
+                  {!isSearching && searchInput.length >= 2 && searchResults?.length === 0 && !searchError && (
+                    <div className="p-4 text-gray-400 text-sm">No tokens found for &quot;{searchInput}&quot;</div>
+                  )}
+                  {!isSearching && searchResults?.map(item => (
+                    <div key={item.address} className="group/item">
+                      <div
+                        onClick={() => handleSelectSearchResult(item)}
+                        className="flex items-center gap-3 p-3 hover:bg-gray-800/50 cursor-pointer transition-colors"
+                      >
+                        <div className="relative">
+                          {item.icon_url ? (
+                            <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-gray-800" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
+                          )}
+                          {item.is_smart_contract_verified && (
+                            <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white text-[10px]">
+                              ✓
+                            </span>
+                          )}
+                        </div>
+                        <div className="overflow-hidden flex-1">
+                          <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
+                          <div className="text-xs text-gray-400 capitalize">{item.type}</div>
+                          <div className="text-xs text-gray-500 font-mono truncate">{item.address}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             {error && (
               <div className="ml-2 text-xs text-red-400">
                 {error}
@@ -675,13 +789,143 @@ export default function GeickoPage() {
       </header>
 
       {/* Main Content */}
-      <div className="flex flex-col lg:flex-row items-start">
+      <div className="flex flex-col sm:flex-row items-start">
         {/* Left Panel - Chart Section */}
-        <div className="w-full lg:flex-1 bg-black">
-          {/* Chart Area */}
-          <div className="mx-2 md:mx-3 mb-2">
+        <div className="w-full sm:flex-[3] min-w-0 bg-black">
+          {/* Mobile Token Header - Only visible on single column layout */}
+          <div className="sm:hidden px-2 mb-2">
             {isLoadingData ? (
-              <div className="h-64 md:h-80 bg-gray-900 border border-gray-800 flex items-center justify-center">
+              <div className="flex items-center justify-center py-4">
+                <LoaderThree />
+              </div>
+            ) : dexScreenerData?.pairs?.[0] ? (
+              <div className="relative flex gap-2 min-h-[120px] pt-4">
+                {/* Left side: Token info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2 mb-1">
+                    {/* Token Logo */}
+                    {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? (
+                      <img
+                        src={dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl}
+                        alt={`${dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} logo`}
+                        className="w-6 h-6 rounded-full bg-gray-950 flex-shrink-0"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0 ${(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? 'hidden' : ''}`}>
+                      <span className="text-white font-bold text-xs">
+                        {dexScreenerData?.tokenInfo?.symbol?.charAt(0) || dexScreenerData.pairs[0].baseToken?.symbol?.charAt(0) || 'T'}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs text-white truncate">
+                        {dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} / {dexScreenerData.pairs[0].quoteToken?.symbol}
+                      </div>
+                      <div className="text-xs text-gray-400 truncate">
+                        {dexScreenerData?.tokenInfo?.name || tokenInfo?.name || dexScreenerData.pairs[0].baseToken?.name || 'Token'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Current Price */}
+                  <div className="absolute left-6 bottom-2">
+                    <div className="text-lg font-bold text-white">
+                      ${Number(dexScreenerData.pairs[0].priceUsd || 0).toFixed(6)}
+                    </div>
+                    <div className={`text-xs ${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '↑' : '↓'}
+                      {Math.abs(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
+                    </div>
+                    <div className="text-xs text-gray-300">
+                      {dexScreenerData.pairs[0].marketCap
+                        ? `$${(Number(dexScreenerData.pairs[0].marketCap) / 1000).toFixed(2)}K MCAP`
+                        : 'MCAP N/A'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right side: Header Image */}
+                {profileData?.profile?.headerImageUrl && (
+                  <div className="absolute top-4 right-0">
+                    <img
+                      src={profileData.profile.headerImageUrl}
+                      alt="Token Header"
+                      className="rounded-md border border-white/20"
+                      style={{ width: '300px', height: '100px', objectFit: 'cover' }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Social Icons - Under header image on the left */}
+                {(() => {
+                  const websiteLink = profileData?.profile?.websites?.[0];
+                  const twitterLink = profileData?.profile?.socials?.find((s: any) => s.type === 'twitter');
+                  const discordLink = profileData?.profile?.socials?.find((s: any) => s.type === 'discord');
+                  const telegramLink = profileData?.profile?.socials?.find((s: any) => s.type === 'telegram');
+
+                  if (!websiteLink && !twitterLink && !discordLink && !telegramLink) return null;
+
+                  return (
+                    <div className="absolute right-0 bottom-0 flex items-center gap-1 bg-black/10 backdrop-blur-sm rounded-md px-2 py-1">
+                      {websiteLink && (
+                        <a href={websiteLink.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-gray-800 rounded transition-colors" title="Website">
+                          <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                          </svg>
+                        </a>
+                      )}
+                      {twitterLink && (
+                        <a href={twitterLink.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-gray-800 rounded transition-colors" title="X.com">
+                          <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                          </svg>
+                        </a>
+                      )}
+                      {discordLink && (
+                        <a href={discordLink.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-gray-800 rounded transition-colors" title="Discord">
+                          <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
+                          </svg>
+                        </a>
+                      )}
+                      {telegramLink && (
+                        <a href={telegramLink.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-gray-800 rounded transition-colors" title="Telegram">
+                          <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                          </svg>
+                        </a>
+                      )}
+                      <button
+                        onClick={() => {
+                          const tokenSymbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData?.pairs?.[0]?.baseToken?.symbol || '';
+                          window.open(`https://x.com/search?q=%23${encodeURIComponent(tokenSymbol)}`, '_blank');
+                        }}
+                        className="p-1.5 hover:bg-gray-800 rounded transition-colors"
+                        title="Search on X"
+                      >
+                        <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-400 py-4">No token data available</div>
+            )}
+          </div>
+
+          {/* Chart Area */}
+          <div className="mx-2 md:mx-3 mb-2 min-w-0">
+            {isLoadingData ? (
+              <div className="h-[541px] sm:h-[773px] md:h-[805px] lg:h-[869px] xl:h-[935px] bg-gray-900 border border-gray-800 flex items-center justify-center">
                 <div className="text-center">
                   <LoaderThree />
                   <p className="text-gray-400 text-xs mt-2">Loading chart...</p>
@@ -692,7 +936,7 @@ export default function GeickoPage() {
                 <DexScreenerChart pairAddress={dexScreenerData.pairs[0].pairAddress} />
               </div>
             ) : (
-              <div className="h-64 md:h-80 bg-gray-900 border border-gray-800 flex items-center justify-center">
+              <div className="h-[541px] sm:h-[773px] md:h-[805px] lg:h-[869px] xl:h-[935px] bg-gray-900 border border-gray-800 flex items-center justify-center">
                 <div className="text-center text-gray-500">
                   <div className="text-xs mb-1"></div>
                   <div className="text-xs">No chart data available</div>
@@ -704,6 +948,13 @@ export default function GeickoPage() {
           {/* Bottom Tabs */}
           <div className="px-2 md:px-3 py-1 border-t border-gray-800">
             <div className="flex space-x-2 md:space-x-3 overflow-x-auto">
+              {/* Switch Tab - Only visible on mobile */}
+              <button
+                onClick={() => setActiveTab('switch')}
+                className={`sm:hidden text-xs pb-0.5 whitespace-nowrap ${activeTab === 'switch' ? 'text-lime-500 border-b border-lime-500' : 'text-gray-400 hover:text-lime-500'}`}
+              >
+                Switch
+              </button>
               <button
                 onClick={() => setActiveTab('transactions')}
                 className={`text-xs pb-0.5 whitespace-nowrap ${activeTab === 'transactions' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
@@ -744,21 +995,35 @@ export default function GeickoPage() {
           </div>
 
           {/* Content Tables */}
-          <div className="px-2 md:px-3 py-1">
-            <div className="bg-gray-900 rounded border border-gray-800 h-[400px] md:h-[500px] overflow-y-auto overflow-x-auto">
+          <div className="px-2 md:px-3 py-1 min-w-0">
+            <div className="bg-gray-900 rounded border border-gray-800 h-[400px] sm:h-[450px] md:h-[500px] lg:h-[550px] xl:h-[600px] overflow-y-auto overflow-x-auto min-w-0">
+              {/* Switch Tab - Only visible on mobile */}
+              {activeTab === 'switch' && (
+                <div className="h-full flex items-center justify-center p-4">
+                  <iframe
+                    src={`https://switch.win/widget?network=pulsechain&background_color=000000&font_color=ffffff&secondary_font_color=7a7a7a&border_color=01e401&backdrop_color=transparent&from=0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee&to=${dexScreenerData?.pairs?.[0]?.baseToken?.address || apiTokenAddress}`}
+                    allow="clipboard-read; clipboard-write"
+                    width="100%"
+                    height="100%"
+                    className="border-0 rounded"
+                    title="Token Swap Interface"
+                  />
+                </div>
+              )}
+
               {/* Transactions Tab */}
               {activeTab === 'transactions' && (
                 <>
                   {/* Table Header */}
-                  <div className="flex items-center px-2 py-1 border-b border-gray-700 text-xs text-gray-300 min-w-[800px]">
-                    <div className="w-28">Time</div>
-                    <div className="w-12">Type</div>
-                    <div className="w-20">Amount</div>
-                    <div className="w-16">Price USD</div>
-                    <div className="w-24">From</div>
-                    <div className="w-20">Token Balance</div>
-                    <div className="w-16">Total Txs</div>
-                    <div className="w-12">Tx</div>
+                  <div className="flex items-center px-2 py-1 border-b border-gray-700 text-xs text-gray-300">
+                    <div className="flex-[2] min-w-[80px]">Time</div>
+                    <div className="flex-[1] min-w-[50px]">Type</div>
+                    <div className="flex-[1.5] min-w-[60px]">Amount</div>
+                    <div className="flex-[1.5] min-w-[60px]">Price USD</div>
+                    <div className="flex-[2] min-w-[80px]">From</div>
+                    <div className="flex-[1.5] min-w-[70px]">Token Balance</div>
+                    <div className="flex-[1] min-w-[60px]">Total Txs</div>
+                    <div className="flex-[0.8] min-w-[40px]">Tx</div>
                   </div>
 
                   {/* Table Rows */}
@@ -772,18 +1037,18 @@ export default function GeickoPage() {
                       </div>
                     ) : transactions.length > 0 ? (
                       transactions.map((tx, index) => (
-                        <div key={index} className="flex items-center px-2 py-1 text-xs hover:bg-gray-800/50 transition-colors min-w-[800px]">
-                          <div className="w-28 text-white text-[10px]">{tx.time}</div>
-                          <div className={`w-12 ${tx.type === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
+                        <div key={index} className="flex items-center px-2 py-1 text-xs hover:bg-gray-800/50 transition-colors">
+                          <div className="flex-[2] min-w-[80px] text-white text-[10px] truncate">{tx.time}</div>
+                          <div className={`flex-[1] min-w-[50px] ${tx.type === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
                             {tx.type}
                           </div>
-                          <div className={`w-20 ${tx.type === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
+                          <div className={`flex-[1.5] min-w-[60px] truncate ${tx.type === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
                             {tx.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                           </div>
-                          <div className={`w-16 ${tx.type === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
+                          <div className={`flex-[1.5] min-w-[60px] truncate ${tx.type === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
                             ${tx.priceUsd.toFixed(6)}
                           </div>
-                          <div className="w-24">
+                          <div className="flex-[2] min-w-[80px] truncate">
                             <a
                               href={`https://scan.pulsechain.box/address/${tx.from}`}
                               target="_blank"
@@ -794,13 +1059,13 @@ export default function GeickoPage() {
                               {tx.from ? `${tx.from.slice(0, 6)}...${tx.from.slice(-4)}` : 'Unknown'}
                             </a>
                           </div>
-                          <div className={`w-20 ${tx.fromBalance === 0 ? 'text-gray-500' : 'text-white'} font-mono text-[10px]`}>
+                          <div className={`flex-[1.5] min-w-[70px] truncate ${tx.fromBalance === 0 ? 'text-gray-500' : 'text-white'} font-mono text-[10px]`}>
                             {tx.fromBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                           </div>
-                          <div className="w-16 text-white text-[10px]">
+                          <div className="flex-[1] min-w-[60px] text-white text-[10px]">
                             {tx.totalTxs || '-'}
                           </div>
-                          <div className="w-12">
+                          <div className="flex-[0.8] min-w-[40px]">
                             <a
                               href={`https://scan.pulsechain.box/tx/${tx.txHash}`}
                               target="_blank"
@@ -832,19 +1097,19 @@ export default function GeickoPage() {
                 <>
                   {/* Table Header */}
                   <div className="flex items-center px-2 py-1 border-b border-gray-700 text-xs text-gray-300">
-                    <div className="w-12">Rank</div>
-                    <div className="w-32">Trader</div>
-                    <div className="w-16">Txn</div>
-                    <div className="w-20">Volume</div>
+                    <div className="flex-[1] min-w-[50px]">Rank</div>
+                    <div className="flex-[3] min-w-[100px]">Trader</div>
+                    <div className="flex-[1] min-w-[60px]">Txn</div>
+                    <div className="flex-[2] min-w-[80px]">Volume</div>
                   </div>
 
                   {/* Table Rows */}
                   <div className="divide-y divide-gray-700">
                     <div className="flex items-center px-2 py-1 text-xs text-white">
-                      <div className="w-12">-</div>
-                      <div className="w-32">-</div>
-                      <div className="w-16">-</div>
-                      <div className="w-20">-</div>
+                      <div className="flex-[1] min-w-[50px]">-</div>
+                      <div className="flex-[3] min-w-[100px]">-</div>
+                      <div className="flex-[1] min-w-[60px]">-</div>
+                      <div className="flex-[2] min-w-[80px]">-</div>
                     </div>
                   </div>
                 </>
@@ -864,10 +1129,10 @@ export default function GeickoPage() {
                     <>
                       {/* Table Header */}
                       <div className="flex items-center px-2 py-1 border-b border-gray-700 text-xs text-gray-300">
-                        <div className="w-12">#</div>
-                        <div className="flex-1">Address</div>
-                        <div className="w-24">Balance</div>
-                        <div className="w-20">% Total</div>
+                        <div className="flex-[0.8] min-w-[40px]">#</div>
+                        <div className="flex-[3] min-w-[120px]">Address</div>
+                        <div className="flex-[2] min-w-[80px]">Balance</div>
+                        <div className="flex-[1.5] min-w-[70px]">% Total</div>
                       </div>
 
                       {/* Table Rows */}
@@ -888,17 +1153,17 @@ export default function GeickoPage() {
 
                             return (
                               <div key={holder.address || i} className="flex items-center px-2 py-1 text-xs hover:bg-gray-800/50 transition-colors">
-                                <div className="w-12 text-white">{globalIndex}</div>
-                                <div className="flex-1 flex items-center gap-1">
-                                  <span className="text-blue-400 hover:underline cursor-pointer font-mono">{formattedAddress}</span>
+                                <div className="flex-[0.8] min-w-[40px] text-white">{globalIndex}</div>
+                                <div className="flex-[3] min-w-[120px] flex items-center gap-1 truncate">
+                                  <span className="text-blue-400 hover:underline cursor-pointer font-mono truncate">{formattedAddress}</span>
                                   {holder.isContract && (
-                                    <span className="px-1 py-0.5 text-xs bg-purple-900/30 text-purple-300 rounded border border-purple-700/30">
+                                    <span className="px-1 py-0.5 text-xs bg-purple-900/30 text-purple-300 rounded border border-purple-700/30 whitespace-nowrap">
                                       {holder.isVerified ? '✓ Contract' : 'Contract'}
                                     </span>
                                   )}
                                 </div>
-                                <div className="w-24 text-white">{balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-                                <div className="w-20 text-green-400">{percentage.toFixed(4)}%</div>
+                                <div className="flex-[2] min-w-[80px] text-white truncate">{balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                                <div className="flex-[1.5] min-w-[70px] text-green-400">{percentage.toFixed(4)}%</div>
                               </div>
                             );
                           });
@@ -1296,9 +1561,9 @@ export default function GeickoPage() {
         </div>
 
         {/* Right Panel - Token Info */}
-        <div className="w-full lg:w-[370px] bg-gray-900 lg:border-l border-gray-800 mt-2 lg:mt-0">
-          {/* Token Header */}
-          <div className="px-2 md:px-3 mb-2">
+        <div className="w-full sm:flex-[2] min-w-0 bg-gray-900 sm:border-l border-gray-800 mt-2 sm:mt-0 overflow-hidden">
+          {/* Token Header - Hidden on mobile, shown on desktop */}
+          <div className="hidden sm:block px-0 mb-2">
             {isLoadingData ? (
               <div className="flex items-center justify-center py-4">
                 <LoaderThree />
@@ -1348,53 +1613,105 @@ export default function GeickoPage() {
                       ? `$${(Number(dexScreenerData.pairs[0].marketCap) / 1000).toFixed(2)}K MCAP`
                       : 'MCAP N/A'}
                   </div>
+
+                  {/* Social Icons - Directly under MCAP */}
+                  {(() => {
+                    // Find website, twitter, discord, and telegram links from profileData
+                    const websiteLink = profileData?.profile?.websites?.[0];
+                    const twitterLink = profileData?.profile?.socials?.find((s: any) => s.type === 'twitter');
+                    const discordLink = profileData?.profile?.socials?.find((s: any) => s.type === 'discord');
+                    const telegramLink = profileData?.profile?.socials?.find((s: any) => s.type === 'telegram');
+
+                    // Only show icons if we have at least one link
+                    if (!websiteLink && !twitterLink && !discordLink && !telegramLink) return null;
+
+                    return (
+                      <div className="flex items-center justify-center gap-1 mt-2">
+                        {/* Website Icon */}
+                        {websiteLink && (
+                          <a
+                            href={websiteLink.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 hover:bg-gray-800 rounded transition-colors"
+                            title="Website"
+                          >
+                            <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                          </a>
+                        )}
+
+                        {/* X.com Icon */}
+                        {twitterLink && (
+                          <a
+                            href={twitterLink.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 hover:bg-gray-800 rounded transition-colors"
+                            title="X.com"
+                          >
+                            <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                            </svg>
+                          </a>
+                        )}
+
+                        {/* Discord Icon */}
+                        {discordLink && (
+                          <a
+                            href={discordLink.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 hover:bg-gray-800 rounded transition-colors"
+                            title="Discord"
+                          >
+                            <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
+                            </svg>
+                          </a>
+                        )}
+
+                        {/* Telegram Icon */}
+                        {telegramLink && (
+                          <a
+                            href={telegramLink.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 hover:bg-gray-800 rounded transition-colors"
+                            title="Telegram"
+                          >
+                            <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                            </svg>
+                          </a>
+                        )}
+
+                        {/* Search on X Button - Always shown */}
+                        <button
+                          onClick={() => {
+                            const tokenSymbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData?.pairs?.[0]?.baseToken?.symbol || '';
+                            window.open(`https://x.com/search?q=%23${encodeURIComponent(tokenSymbol)}`, '_blank');
+                          }}
+                          className="p-1.5 hover:bg-gray-800 rounded transition-colors"
+                          title="Search on X"
+                        >
+                          <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               </>
             ) : (
               <div className="text-xs text-gray-400 py-4">No token data available</div>
             )}
 
-            {/* Social Icons */}
-            {dexScreenerData?.profile && (
-              <div className="flex items-center space-x-1 mb-2">
-                {/* Website */}
-                {dexScreenerData.profile.url && (
-                  <a href={dexScreenerData.profile.url} target="_blank" rel="noopener noreferrer" className="p-0.5 hover:text-white transition-colors">
-                    <svg className="w-3 h-3 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    </svg>
-                  </a>
-                )}
-                {/* Twitter/X */}
-                {dexScreenerData.profile.linkTwitter && (
-                  <a href={`https://twitter.com/${dexScreenerData.profile.linkTwitter}`} target="_blank" rel="noopener noreferrer" className="p-0.5 hover:text-white transition-colors">
-                    <svg className="w-3 h-3 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                    </svg>
-                  </a>
-                )}
-                {/* Telegram */}
-                {dexScreenerData.profile.linkTelegram && (
-                  <a href={dexScreenerData.profile.linkTelegram} target="_blank" rel="noopener noreferrer" className="p-0.5 hover:text-white transition-colors">
-                    <svg className="w-3 h-3 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-                    </svg>
-                  </a>
-                )}
-                {/* Discord */}
-                {dexScreenerData.profile.linkDiscord && (
-                  <a href={dexScreenerData.profile.linkDiscord} target="_blank" rel="noopener noreferrer" className="p-0.5 hover:text-white transition-colors">
-                    <svg className="w-3 h-3 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
-                    </svg>
-                  </a>
-                )}
-              </div>
-            )}
-
-            {/* Header Image */}
+            {/* Header Image - Hidden on mobile, shown on desktop */}
             {profileData?.profile?.headerImageUrl && (
-              <div className="px-2 md:px-3 mb-2">
+              <div className="hidden sm:block px-0 mb-2">
                 <img
                   src={profileData.profile.headerImageUrl}
                   alt="Token Header"
@@ -1407,7 +1724,7 @@ export default function GeickoPage() {
             )}
 
             {/* Trade Dropdown */}
-            <div className="mb-2 px-2 md:px-0">
+            <div className="mb-2 px-0">
               <button
                 onClick={() => setIsTradeDropdownOpen(!isTradeDropdownOpen)}
                 className="w-full bg-gray-800 text-white py-1 px-2 rounded text-xs flex items-center justify-center hover:bg-gray-700 transition-colors"
@@ -1440,9 +1757,9 @@ export default function GeickoPage() {
 
             {/* Price Performance */}
             {dexScreenerData?.pairs?.[0] && (
-              <div className="mb-2 px-2 md:px-0">
+              <div className="mb-2 px-0">
                 <div className="text-xs text-gray-300 mb-1">Price Performance</div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-xs">
+                <div className="grid grid-cols-2 gap-1 text-xs">
                   <div className="text-center">
                     <div className="text-gray-400">5M</div>
                     <div className={`${(dexScreenerData.pairs[0].priceChange?.m5 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
@@ -1477,7 +1794,7 @@ export default function GeickoPage() {
 
             {/* 24h Activity */}
             {dexScreenerData?.pairs?.[0] && (
-              <div className="mb-2 px-2 md:px-0">
+              <div className="mb-2 px-0">
                 <div className="text-xs text-gray-300 mb-1">24h Activity</div>
                 <div className="grid grid-cols-2 gap-1 text-xs">
                   <div>
@@ -1516,7 +1833,7 @@ export default function GeickoPage() {
             )}
 
             {/* Tokens Burned and Total Holders */}
-            <div className="mb-2 px-2 md:px-0">
+            <div className="mb-2 px-0">
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-gray-800 rounded p-2">
                   <div className="text-gray-400 mb-1">Tokens Burned</div>
@@ -1537,7 +1854,7 @@ export default function GeickoPage() {
             </div>
 
             {/* New vs Old Holders */}
-            <div className="mb-2 px-2 md:px-0">
+            <div className="mb-2 px-0">
               <div className="bg-gray-800 rounded p-2">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs text-gray-300 font-semibold">New vs Old Holders</div>
@@ -1599,7 +1916,7 @@ export default function GeickoPage() {
             </div>
 
             {/* Wallet Ad */}
-            <div className="mb-2 px-2 md:px-0">
+            <div className="mb-2 px-0">
               <div className="text-xs text-center text-white/50 mb-1">Advertise Here</div>
               <a
                 href="https://internetmoney.io"
@@ -1616,7 +1933,7 @@ export default function GeickoPage() {
             </div>
 
             {/* Get Crypto Section */}
-            <div className="mb-2 px-2 md:px-0">
+            <div className="mb-2 px-0">
               <div className="text-xs text-gray-300 mb-1">Get Crypto</div>
               <div className="space-y-1">
                 <div>
@@ -1707,7 +2024,7 @@ export default function GeickoPage() {
             </div>
 
             {/* Addresses Section */}
-            <div className="mb-2 px-2 md:px-0">
+            <div className="mb-2 px-0">
               <div className="text-xs text-gray-300 mb-1">Addresses</div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between px-2 py-1 bg-gray-800 rounded">
@@ -1762,7 +2079,7 @@ export default function GeickoPage() {
             </div>
 
             {/* Scan this pool on */}
-            <div className="mb-2 px-2 md:px-0">
+            <div className="mb-2 px-0">
               <div className="text-xs text-gray-300 mb-1">Scan this pool on</div>
               <div className="flex space-x-1">
                 <button className="px-2 py-1 bg-gray-800 text-white text-xs rounded">Quick Intel</button>
@@ -1770,7 +2087,7 @@ export default function GeickoPage() {
             </div>
 
             {/* Pool Details */}
-            <div className="mb-2 px-2 md:px-0">
+            <div className="mb-2 px-0">
               <div className="text-xs text-gray-300 mb-1">Pool Details</div>
               <div className="space-y-1">
                 <div className="px-2 py-1 bg-gray-800 rounded">
@@ -1788,7 +2105,7 @@ export default function GeickoPage() {
 
             {/* Quick Audit Section */}
             {profileData?.quickAudit && (
-              <div className="mb-2 px-2 md:px-0">
+              <div className="mb-2 px-0">
                 <div className="text-xs text-gray-300 mb-2 font-semibold">Quick Audit</div>
 
                 {(() => {
@@ -2023,5 +2340,17 @@ export default function GeickoPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function GeickoPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <LoaderThree />
+      </div>
+    }>
+      <GeickoPageContent />
+    </Suspense>
   );
 }
