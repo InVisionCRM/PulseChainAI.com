@@ -44,7 +44,7 @@ const TokenInfoCard: React.FC<{ tokenInfo: TokenInfo | null; dexScreenerData?: D
         ) : tokenInfo.icon_url ? (
           <Image src={tokenInfo.icon_url} alt={`${tokenInfo.name} logo`} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-700" width={48} height={48} />
         ) : (
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-lg md:text-xl hidden">?</div>
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-700 flex items-center justify-center text-blue-400 font-bold text-lg md:text-xl hidden">?</div>
         )}
         <div>
           <h3 className="text-lg md:text-xl font-bold text-white">{tokenInfo.name} ({tokenInfo.symbol})</h3>

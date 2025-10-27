@@ -519,7 +519,7 @@ export default function SimplePriceChart({
             onClick={() => setSelectedRange(range)}
             className={`px-4 py-1.5 text-xs font-medium transition-all ${
               selectedRange === range
-                ? 'bg-blue-600 text-white rounded-full'
+                ? 'bg-slate-950 text-white rounded-full'
                 : 'text-slate-400 hover:text-white'
             }`}
           >

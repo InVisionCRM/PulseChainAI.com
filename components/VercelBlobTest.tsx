@@ -31,7 +31,7 @@ export default function VercelBlobTest() {
         <input
           type="file"
           onChange={handleFileSelect}
-          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-slate-950 hover:file:bg-blue-100"
         />
       </div>
 
@@ -49,7 +49,7 @@ export default function VercelBlobTest() {
       <button
         onClick={handleUpload}
         disabled={!selectedFile || isUploading}
-        className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-slate-950 text-white py-2 px-4 rounded hover:bg-slate-950 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isUploading ? 'Uploading...' : 'Upload to Vercel Blob'}
       </button>
@@ -58,7 +58,7 @@ export default function VercelBlobTest() {
         <div className="mt-4">
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              className="bg-slate-950 h-2 rounded-full transition-all duration-300"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>

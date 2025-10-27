@@ -15,7 +15,7 @@ const DashboardActions: React.FC<DashboardActionsProps> = ({
       <button
         onClick={fetchData}
         disabled={isLoading}
-        className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-bold py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg flex items-center gap-2 text-xs sm:text-sm"
+        className="bg-slate-950 hover:bg-slate-950 disabled:bg-blue-400 text-white font-bold py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg flex items-center gap-2 text-xs sm:text-sm"
       >
         <RefreshCw className={`w-3 h-3 sm:w-4 sm:h-4 ${isLoading ? 'animate-spin' : ''}`} />
         <span className="hidden sm:inline">Refresh Data</span>

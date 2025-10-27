@@ -3,7 +3,7 @@
 > **Next-Generation Smart Contract Analysis & AI Learning Platform**  
 > *Powered by Gemini AI & PulseChain Integration*
 
-[![Next.js](https://img.shields.io/badge/Next.js-15.0.3-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15.0.3-slate-950?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
 [![Gemini AI](https://img.shields.io/badge/Gemini_AI-2.5_Flash-4285F4?style=for-the-badge&logo=google)](https://ai.google.dev/)
@@ -84,7 +84,7 @@ The **PulseChain AI Dashboard** is a cutting-edge smart contract analysis and AI
 
 ### 🎨 **User Experience**
 - **Responsive Design**: Mobile-first approach with adaptive layouts
-- **Dark Theme**: Eye-friendly dark interface with purple accents
+- **Dark Theme**: Eye-friendly dark interface with blue accents
 - **Smooth Animations**: Fluid transitions and loading states
 - **Accessibility**: ARIA labels, keyboard navigation, and screen reader support
 - **Interactive Elements**: Hover effects, glowing animations, and visual feedback
@@ -141,8 +141,8 @@ The **AI-Agent (Code Reader)** is the flagship feature of the PulseChain AI Dash
 ### 🎨 **User Interface**
 
 #### **Dark Theme Design**
-- **Consistent Dark Background**: Black backgrounds throughout the application
-- **Purple Accents**: PulseChain-themed purple color scheme
+- **Consistent Dark Background**: slate-950 backgrounds throughout the application
+- **blue Accents**: PulseChain-themed blue color scheme
 - **Glowing Effects**: Dynamic animations and visual feedback
 
 

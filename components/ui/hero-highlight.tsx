@@ -82,7 +82,7 @@ export const HeroHighlight = ({
   return (
     <div
       className={cn(
-        "group relative flex w-full items-center justify-center bg-white dark:bg-black",
+        "group relative flex w-full items-center justify-center bg-white dark:bg-slate-950",
         containerClassName,
       )}
       style={{
@@ -141,7 +141,7 @@ export const HeroHighlight = ({
                     <div className="relative">
                       {item.icon_url ?
                         <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
-                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
+                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-blue-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
                       }
                       {item.is_smart_contract_verified && (
                         <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white text-[10px]">
@@ -193,7 +193,7 @@ export const Highlight = ({
         display: "inline",
       }}
       className={cn(
-        `relative inline-block rounded-lg bg-gradient-to-r from-indigo-300 to-purple-300 from-cyan-300 to-cyan-800 px-1 pb-1 dark:from-indigo-500 dark:to-purple-500`,
+        `relative inline-block rounded-lg bg-gradient-to-r from-indigo-300 to-blue-300 from-cyan-300 to-cyan-800 px-1 pb-1 dark:from-indigo-500 dark:to-blue-500`,
         className,
       )}
     >

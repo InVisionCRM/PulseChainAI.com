@@ -278,7 +278,7 @@ export const MobileSidebar = ({
                       {item.icon_url ? (
                         <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-blue-400 font-bold text-sm flex-shrink-0">
                           {item.name?.[0] || '?'}
                         </div>
                       )}

@@ -64,8 +64,8 @@ export default function Home() {
           <source src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/hexx.mp4" type="video/mp4" />
         </video>
         
-        {/* Black overlay */}
-        <div className="absolute inset-0 w-full h-full bg-black/50 z-10 pointer-events-none" />
+        {/* slate-950 overlay */}
+        <div className="absolute inset-0 w-full h-full bg-slate-950/50 z-10 pointer-events-none" />
 
         {/* <div className="relative z-30 text-center">
           <div className="flex flex-col items-center mb-6">
@@ -76,7 +76,7 @@ export default function Home() {
               <div className="absolute inset-0 bg-white opacity-10 rounded-lg"></div>
             </div>
             <div className="bg-white z-10 rounded inline-block -mt-[15px] overflow-hidden relative" style={{ boxShadow: "0 -4px 8px 2px rgba(0, 0, 0, 0.8)" }}>
-              <div className="text-4xl md:text-6xl lg:text-7xl font-bold text-black">
+              <div className="text-4xl md:text-6xl lg:text-7xl font-bold text-slate-950">
                 AI
               </div>
             </div>
@@ -114,7 +114,7 @@ export default function Home() {
               onSubmit={handleSubmit}
             />
             {show && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-black/50 backdrop-blur-lg border border-white/50 rounded-lg shadow-2xl z-[9999] max-h-80 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-950/50 backdrop-blur-lg border border-white/50 rounded-lg shadow-2xl z-[9999] max-h-80 overflow-y-auto">
                 <div className="relative z-10">
                   {isSearching && (
                     <div className="p-3 text-white text-md">Searching...</div>
@@ -145,7 +145,7 @@ export default function Home() {
                       <div className="mt-2 flex items-center gap-2">
                         <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/ai-agent?address=${item.address}`); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-700 hover:ring-slate-700 opacity-100" skipLoader={true}>Info</StatefulButton>
                         <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/ai-agent?address=${item.address}`); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-orange-600 hover:ring-orange-600 opacity-100" skipLoader={true}>Ask AI</StatefulButton>
-                        <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/admin-stats?address=${item.address}`); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-purple-700 hover:ring-purple-700 opacity-100" skipLoader={true}>API</StatefulButton>
+                        <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/admin-stats?address=${item.address}`); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-950 hover:ring-slate-950 opacity-100" skipLoader={true}>API</StatefulButton>
                       </div>
                     </div>
                   ))}

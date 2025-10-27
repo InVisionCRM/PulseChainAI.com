@@ -32,10 +32,10 @@ export default function SellPressureAnalysisTab({
   return (
     <div className="w-full bg-white/5 backdrop-blur-xl border border-white/10 sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
       {/* Header with Network Tabs */}
-      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-b border-white/10">
+      <div className="bg-gradient-to-r from-blue-500/10 to-blue-500/10 border-b border-white/10">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-500/20 flex items-center justify-center">
               <TrendingDown className="w-5 h-5 text-slate-800" />
             </div>
             <div>
@@ -63,7 +63,7 @@ export default function SellPressureAnalysisTab({
               onClick={() => setActiveNetwork('pulsechain')}
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                 activeNetwork === 'pulsechain'
-                  ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
+                  ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25'
                   : 'text-slate-800 hover:text-slate-600 hover:bg-white/20'
               }`}
             >

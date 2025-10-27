@@ -209,14 +209,14 @@ export default function TokenSelector({
           onFocus={handleInputFocus}
           onBlur={handleInputBlur}
           placeholder="Search for a token by name, symbol, or address..."
-          className="w-full bg-white border border-gray-300 rounded-2xl px-8 py-6 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 text-lg font-medium transition-all duration-300 hover:bg-gray-50"
+          className="w-full bg-white border border-gray-300 rounded-2xl px-8 py-6 text-slate-950 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 text-lg font-medium transition-all duration-300 hover:bg-gray-50"
           disabled={isLoading || isSearching}
         />
         
         {/* Loading Indicator */}
         {(isLoading || isSearching) && (
           <div className="absolute right-6 top-1/2 transform -translate-y-1/2">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-lime-500/50 border-t-purple-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-lime-500/50 border-t-blue-500"></div>
           </div>
         )}
 

@@ -100,7 +100,7 @@ const endpointOptions: EndpointOption[] = [
     description: 'Track token transfer history and movements',
     category: 'Tokens',
     icon: '🔄',
-    color: 'from-purple-500 to-pink-500',
+    color: 'from-blue-500 to-pink-500',
     method: 'GET',
     path: '/tokens/{address_hash}/transfers',
     isRealEndpoint: true
@@ -155,7 +155,7 @@ const endpointOptions: EndpointOption[] = [
     description: 'Get token transfers for specific addresses',
     category: 'Addresses',
     icon: '🔄',
-    color: 'from-purple-500 to-pink-500',
+    color: 'from-blue-500 to-pink-500',
     method: 'GET',
     path: '/addresses/{address_hash}/token-transfers',
     isRealEndpoint: true
@@ -177,7 +177,7 @@ const endpointOptions: EndpointOption[] = [
     description: 'Get token transfers for specific transactions',
     category: 'Transactions',
     icon: '🔄',
-    color: 'from-purple-500 to-pink-500',
+    color: 'from-blue-500 to-pink-500',
     method: 'GET',
     path: '/transactions/{transaction_hash}/token-transfers',
     isRealEndpoint: true
@@ -210,7 +210,7 @@ const endpointOptions: EndpointOption[] = [
     description: 'Get overall network statistics and metrics',
     category: 'Network',
     icon: '📊',
-    color: 'from-violet-500 to-purple-500',
+    color: 'from-violet-500 to-blue-500',
     method: 'GET',
     path: '/stats',
     isRealEndpoint: true
@@ -1057,7 +1057,7 @@ const BlockchainAnalyzer: React.FC = () => {
           // Hashtags
           if (part.match(/^#[a-zA-Z]+$/)) {
             return (
-              <span key={key} className="inline-block bg-purple-600/20 text-purple-300 px-2 py-1 rounded-full text-xs font-medium mr-1 mb-1">
+              <span key={key} className="inline-block bg-slate-950/20 text-blue-300 px-2 py-1 rounded-full text-xs font-medium mr-1 mb-1">
                 {part}
               </span>
             );
@@ -1082,7 +1082,7 @@ const BlockchainAnalyzer: React.FC = () => {
           if (part.startsWith('> ')) {
             const text = part.substring(2);
             return (
-              <blockquote key={key} className="border-l-4 border-purple-500 bg-purple-900/20 pl-3 py-2 my-2 italic text-slate-300 text-sm">
+              <blockquote key={key} className="border-l-4 border-blue-500 bg-slate-950/20 pl-3 py-2 my-2 italic text-slate-300 text-sm">
                 {text}
               </blockquote>
             );
@@ -1093,7 +1093,7 @@ const BlockchainAnalyzer: React.FC = () => {
             const text = part.substring(2);
             return (
               <li key={key} className="flex items-start gap-2 my-0">
-                <span className="text-purple-400 mt-1 flex-shrink-0 text-xs">•</span>
+                <span className="text-blue-400 mt-1 flex-shrink-0 text-xs">•</span>
                 <span className="text-slate-300 text-sm leading-relaxed">{text}</span>
               </li>
             );
@@ -1173,7 +1173,7 @@ const BlockchainAnalyzer: React.FC = () => {
           {data.holders && (
             <div className="bg-slate-700/30 rounded-lg p-3 border border-slate-600/30">
               <div className="text-xs text-slate-400 mb-1">Holders</div>
-              <div className="text-lg font-bold text-purple-400">{data.holders.length}</div>
+              <div className="text-lg font-bold text-blue-400">{data.holders.length}</div>
               <div className="text-xs text-slate-300">Total holders</div>
             </div>
           )}
@@ -1277,14 +1277,14 @@ const BlockchainAnalyzer: React.FC = () => {
   };
 
     return (
-    <div className="min-h-screen bg-black relative">
+    <div className="min-h-screen bg-slate-950 relative">
       {/* Background Image */}
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: 'url(/Mirage.jpg)' }}
       />
       {/* Dark overlay for readability */}
-      <div className="absolute inset-0 bg-black/50" />
+      <div className="absolute inset-0 bg-slate-950/50" />
       <motion.div
         initial={{ opacity: 0.0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -1487,7 +1487,7 @@ const BlockchainAnalyzer: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={selectAllEndpoints}
-                        className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                        className="text-xs px-2 py-1 bg-slate-950 hover:bg-slate-950 text-white rounded transition-colors"
                       >
                         Select All
                       </button>
@@ -1543,7 +1543,7 @@ const BlockchainAnalyzer: React.FC = () => {
                         >
                           {/* Dark overlay for better text readability when not selected */}
                           {!isSelected && (
-                            <div className="absolute inset-0 bg-black/ rounded-lg"></div>
+                            <div className="absolute inset-0 bg-slate-950/ rounded-lg"></div>
                           )}
                           
                           <div className="flex items-center justify-between mb-1 relative z-10">
@@ -1554,7 +1554,7 @@ const BlockchainAnalyzer: React.FC = () => {
                               </svg>
                             )}
                           </div>
-                          <div className="text-sm font-bold text-white/80 justify-center text-center bg-black/10 rounded-lg p-2 line-clamp-2 leading-tight relative z-10">{option.description}</div>
+                          <div className="text-sm font-bold text-white/80 justify-center text-center bg-slate-950/10 rounded-lg p-2 line-clamp-2 leading-tight relative z-10">{option.description}</div>
                         </motion.button>
                       );
                     })}
@@ -1600,7 +1600,7 @@ const BlockchainAnalyzer: React.FC = () => {
                                 <button
                                   onClick={executePlan}
                                   disabled={isLoading}
-                                  className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-slate-600 disabled:to-slate-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2"
+                                  className="flex-1 bg-gradient-to-r from-slate-950 to-pink-600 hover:from-slate-950 hover:to-pink-700 disabled:from-slate-600 disabled:to-slate-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2"
                                 >
                                   {isLoading ? (
                                     <>
@@ -1647,8 +1647,8 @@ const BlockchainAnalyzer: React.FC = () => {
                 <div className="flex justify-start">
                   <div className="max-w-[85%] md:max-w-md lg:max-w-2xl rounded-xl px-4 py-3 bg-slate-700/90 backdrop-blur-sm text-slate-200 border border-slate-600/50 relative overflow-hidden">
                     {/* Animated Background */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10 animate-pulse"></div>
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 animate-pulse"></div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-pink-500/10 to-blue-500/10 animate-pulse"></div>
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-pink-500 to-blue-500 animate-pulse"></div>
                     
                     {/* Progress Header with Animation */}
                     <div className="flex items-center gap-3 mb-4 relative z-10">
@@ -1659,13 +1659,13 @@ const BlockchainAnalyzer: React.FC = () => {
                         <div className="text-sm font-medium text-white flex items-center gap-2">
                           <span className="animate-bounce">🤖</span>
                           {isAutoLoading ? 'AI Analysis in Progress' : 'Blockchain Analysis'}
-                          <span className="text-xs bg-purple-600 px-2 py-1 rounded-full animate-pulse">LIVE</span>
+                          <span className="text-xs bg-slate-950 px-2 py-1 rounded-full animate-pulse">LIVE</span>
                         </div>
                         <div className="text-xs text-slate-400 flex items-center gap-2">
                           <div className="flex space-x-1">
-                            <div className="w-1 h-1 bg-purple-400 rounded-full animate-bounce"></div>
+                            <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce"></div>
                             <div className="w-1 h-1 bg-pink-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                            <div className="w-1 h-1 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                            <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                           </div>
                           {currentStep || 'Initializing analysis...'}
                         </div>
@@ -1681,14 +1681,14 @@ const BlockchainAnalyzer: React.FC = () => {
                           <div className="flex space-x-1 ml-auto">
                             <div className="w-1 h-1 bg-green-400 rounded-full animate-ping"></div>
                             <div className="w-1 h-1 bg-blue-400 rounded-full animate-ping" style={{animationDelay: '0.2s'}}></div>
-                            <div className="w-1 h-1 bg-purple-400 rounded-full animate-ping" style={{animationDelay: '0.4s'}}></div>
+                            <div className="w-1 h-1 bg-blue-400 rounded-full animate-ping" style={{animationDelay: '0.4s'}}></div>
                           </div>
                         </div>
                         <div className="text-xs text-slate-400 leading-relaxed">
                           {progressDetails}
                         </div>
                         {dynamicProgress && (
-                          <div className="mt-2 text-xs text-purple-300 animate-pulse">
+                          <div className="mt-2 text-xs text-blue-300 animate-pulse">
                             {dynamicProgress}
                           </div>
                         )}
@@ -1731,20 +1731,20 @@ const BlockchainAnalyzer: React.FC = () => {
                     <div className="relative z-10">
                                               <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
                           <span>Progress</span>
-                          <span className="font-medium text-purple-400">
+                          <span className="font-medium text-blue-400">
                             {Math.round((progressSteps.length / 5) * 100)}% ({progressSteps.length}/5)
                           </span>
                         </div>
                       <div className="w-full bg-slate-800 rounded-full h-2 relative overflow-hidden">
                         <div 
-                          className="bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 h-2 rounded-full transition-all duration-700 ease-out relative"
+                          className="bg-gradient-to-r from-blue-500 via-pink-500 to-blue-500 h-2 rounded-full transition-all duration-700 ease-out relative"
                           style={{ 
                             width: `${Math.min((progressSteps.length / 5) * 100, 100)}%` 
                           }}
                         >
                           <div className="absolute inset-0 progress-shimmer"></div>
                         </div>
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-purple-500/20 animate-pulse"></div>
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-pink-500/20 to-blue-500/20 animate-pulse"></div>
                       </div>
                       
                                               {/* Progress Indicators */}
@@ -1765,7 +1765,7 @@ const BlockchainAnalyzer: React.FC = () => {
                     </div>
 
                     {/* Floating Animation Elements */}
-                    <div className="absolute top-2 right-2 w-2 h-2 bg-purple-400 rounded-full animate-ping"></div>
+                    <div className="absolute top-2 right-2 w-2 h-2 bg-blue-400 rounded-full animate-ping"></div>
                     <div className="absolute bottom-2 left-2 w-1 h-1 bg-pink-400 rounded-full animate-bounce"></div>
                     <div className="absolute top-1/2 right-4 w-1 h-1 bg-blue-400 rounded-full animate-pulse"></div>
                   </div>
@@ -1782,7 +1782,7 @@ const BlockchainAnalyzer: React.FC = () => {
                         {autoLoadedEndpoints.map((endpoint, index) => (
                           <span
                             key={index}
-                            className="text-xs bg-purple-600 text-white px-2 py-1 rounded"
+                            className="text-xs bg-slate-950 text-white px-2 py-1 rounded"
                           >
                             {endpoint}
                           </span>
@@ -1826,7 +1826,7 @@ const BlockchainAnalyzer: React.FC = () => {
                 <button 
                   type="submit" 
                   disabled={isLoading || !inputValue.trim()} 
-                  className="bg-purple-600/70 text-white p-2 rounded-full hover:bg-purple-700/70 disabled:bg-slate-600/50 disabled:cursor-not-allowed transition-colors backdrop-blur-sm mt-1"
+                  className="bg-slate-950/70 text-white p-2 rounded-full hover:bg-slate-950/70 disabled:bg-slate-600/50 disabled:cursor-not-allowed transition-colors backdrop-blur-sm mt-1"
                   title="Send message"
                 >
                   <SendIcon className="w-4 h-4"/>
@@ -1886,12 +1886,12 @@ const BlockchainAnalyzer: React.FC = () => {
                         onClick={() => handleMentionSelect(item)}
                         className={`w-full text-left p-2 rounded transition-colors ${
                           index === selectedMentionIndex 
-                            ? 'bg-purple-600 text-white' 
+                            ? 'bg-slate-950 text-white' 
                             : 'text-slate-300 hover:bg-slate-700'
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 bg-purple-500/20 rounded flex items-center justify-center text-xs">
+                          <div className="w-6 h-6 bg-blue-500/20 rounded flex items-center justify-center text-xs">
                             🪙
                           </div>
                           <div className="flex-1 min-w-0">

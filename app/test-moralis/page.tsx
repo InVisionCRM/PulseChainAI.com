@@ -55,7 +55,7 @@ export default function TestMoralisPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-950 to-indigo-900 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -107,7 +107,7 @@ export default function TestMoralisPage() {
             <button
               onClick={runTests}
               disabled={isTesting || !isInitialized}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors"
+              className="px-6 py-3 bg-slate-950 hover:bg-slate-950 disabled:bg-slate-950 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors"
             >
               {isTesting ? 'Running Tests...' : 'Run Moralis Tests'}
             </button>
@@ -126,21 +126,21 @@ export default function TestMoralisPage() {
             <div className="space-y-4">
               <div>
                 <h3 className="text-lg font-medium text-white mb-2">Token Search</h3>
-                <pre className="bg-black/20 rounded-lg p-4 text-sm text-gray-300 overflow-x-auto">
+                <pre className="bg-slate-950/20 rounded-lg p-4 text-sm text-gray-300 overflow-x-auto">
                   {JSON.stringify(testResults.search, null, 2)}
                 </pre>
               </div>
               
               <div>
                 <h3 className="text-lg font-medium text-white mb-2">Token Metadata</h3>
-                <pre className="bg-black/20 rounded-lg p-4 text-sm text-gray-300 overflow-x-auto">
+                <pre className="bg-slate-950/20 rounded-lg p-4 text-sm text-gray-300 overflow-x-auto">
                   {JSON.stringify(testResults.tokenMetadata, null, 2)}
                 </pre>
               </div>
               
               <div>
                 <h3 className="text-lg font-medium text-white mb-2">Native Balance</h3>
-                <pre className="bg-black/20 rounded-lg p-4 text-sm text-gray-300 overflow-x-auto">
+                <pre className="bg-slate-950/20 rounded-lg p-4 text-sm text-gray-300 overflow-x-auto">
                   {JSON.stringify(testResults.nativeBalance, null, 2)}
                 </pre>
               </div>

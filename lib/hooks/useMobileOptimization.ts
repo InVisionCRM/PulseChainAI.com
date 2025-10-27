@@ -45,7 +45,7 @@ export function useMobileOptimization(): MobileOptimizationConfig {
         (pixelRatio <= 1 && width <= 480) || // Low DPI + small screen
         (navigator.hardwareConcurrency <= 2) || // Very low CPU cores
         (navigator.deviceMemory && navigator.deviceMemory <= 2) || // Very low RAM
-        /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent); // Mobile user agent
+        /Android|iPhone|iPad|iPod|slate-950Berry|IEMobile|Opera Mini/i.test(navigator.userAgent); // Mobile user agent
       
       // Determine optimization settings - more conservative
       const shouldDisableHeavyAnimations = isMobile || (isLowEndDevice && width <= 768) || prefersReducedMotion;

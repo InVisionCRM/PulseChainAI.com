@@ -96,7 +96,7 @@ export default function TokenBalanceForm({ onConfirm, onCancel }: TokenBalanceFo
           </button>
           <button
             onClick={handleConfirm}
-            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+            className="flex-1 px-4 py-2 bg-slate-950 hover:bg-slate-950 text-white rounded-lg font-medium transition-colors"
           >
             Confirm
           </button>

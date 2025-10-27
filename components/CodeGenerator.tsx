@@ -388,7 +388,7 @@ ${jsCode}
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === tab.id
-                ? 'bg-purple-500 text-white'
+                ? 'bg-blue-500 text-white'
                 : 'text-gray-300 hover:text-white hover:bg-white/10'
             }`}
           >

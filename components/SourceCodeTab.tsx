@@ -257,7 +257,7 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode, readFunctions
           onClick={() => setActiveTab('files')}
           className={`px-4 py-2 text-sm font-medium transition-colors focus:outline-none ${
             activeTab === 'files' 
-              ? 'text-white bg-slate-700/50 border-b-2 border-purple-500' 
+              ? 'text-white bg-slate-700/50 border-b-2 border-blue-500' 
               : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -267,7 +267,7 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode, readFunctions
           onClick={() => setActiveTab('functions')}
           className={`px-4 py-2 text-sm font-medium transition-colors focus:outline-none ${
             activeTab === 'functions' 
-              ? 'text-white bg-slate-700/50 border-b-2 border-purple-500' 
+              ? 'text-white bg-slate-700/50 border-b-2 border-blue-500' 
               : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -277,7 +277,7 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode, readFunctions
           onClick={() => setActiveTab('addresses')}
           className={`px-4 py-2 text-sm font-medium transition-colors focus:outline-none ${
             activeTab === 'addresses' 
-              ? 'text-white bg-slate-700/50 border-b-2 border-purple-500' 
+              ? 'text-white bg-slate-700/50 border-b-2 border-blue-500' 
               : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -297,7 +297,7 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode, readFunctions
                   onClick={() => setActiveFileIndex(index)}
                   className={`px-4 py-2 text-sm font-medium transition-colors focus:outline-none ${
                     activeFileIndex === index 
-                      ? 'text-white bg-slate-700/50 border-b-2 border-purple-500' 
+                      ? 'text-white bg-slate-700/50 border-b-2 border-blue-500' 
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -425,9 +425,9 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode, readFunctions
                 <div key={index} className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-purple-400 font-mono text-sm">{addr.address}</span>
+                      <span className="text-blue-400 font-mono text-sm">{addr.address}</span>
                       {addr.contractName && (
-                        <span className="px-2 py-1 bg-purple-600/20 text-purple-300 text-xs rounded border border-purple-600/30">
+                        <span className="px-2 py-1 bg-slate-950/20 text-blue-300 text-xs rounded border border-slate-800/30">
                           {addr.contractName}
                         </span>
                       )}

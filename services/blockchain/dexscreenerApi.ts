@@ -57,7 +57,9 @@ export class DexScreenerApiClient {
         let pairDetails = null;
         if (mainPair.pairAddress) {
           try {
-            const v4Url = `/api/dexscreener-v4/pulsechain/${mainPair.pairAddress}`;
+            // Construct full URL for server-side fetch
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+            const v4Url = `${baseUrl}/api/dexscreener-v4/pulsechain/${mainPair.pairAddress}`;
             console.log('Fetching DexScreener V4 via proxy:', v4Url);
             const pairDetailsResponse = await fetch(v4Url);
             console.log('V4 Response Status:', pairDetailsResponse.status, pairDetailsResponse.statusText);
@@ -124,6 +126,9 @@ export class DexScreenerApiClient {
         const cms = pairDetails?.cms || null;
         const description = cms?.description || '';
         
+        // Extract Quick Audit data from v4 endpoint
+        const quickAudit = pairDetails?.qi?.quickiAudit || null;
+        
         // Extract header and icon image URLs
         const tokenAddress = address.toLowerCase();
         const headerImageUrl = cms?.header?.id 
@@ -142,7 +147,8 @@ export class DexScreenerApiClient {
           hasHeader: !!headerImageUrl,
           hasIcon: !!iconImageUrl,
           linksCount: cmsLinks.length,
-          descriptionPreview: description ? description.substring(0, 100) : 'EMPTY'
+          descriptionPreview: description ? description.substring(0, 100) : 'EMPTY',
+          hasQuickAudit: !!quickAudit
         });
 
         // Extract logo from multiple sources
@@ -184,7 +190,8 @@ export class DexScreenerApiClient {
             volume: mainPair.volume,
             fdv: mainPair.fdv,
             marketCap: mainPair.marketCap
-          }
+          },
+          quickAudit: quickAudit
         };
 
         console.log('Final Profile Data:', {

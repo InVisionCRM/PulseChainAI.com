@@ -6,6 +6,11 @@ export async function GET(
 ) {
   try {
     const { address } = await params;
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const priceUsd = parseFloat(searchParams.get('priceUsd') || '0');
+    const priceWpls = parseFloat(searchParams.get('priceWpls') || '0');
     
     if (!address) {
       return NextResponse.json(
@@ -14,78 +19,82 @@ export async function GET(
       );
     }
 
-    // First, get the token info from DexScreener to find the pair address
-    const searchResponse = await fetch(
-      `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(address)}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    console.log(`[token-transactions] Fetching transactions for token: ${address}, page: ${page}, limit: ${limit}`);
 
-    if (!searchResponse.ok) {
-      throw new Error(`DexScreener search failed: ${searchResponse.status}`);
-    }
-
-    const searchData = await searchResponse.json();
+    // Fetch token transfers directly from PulseScan API
+    const apiUrl = `https://api.scan.pulsechain.com/api/v2/tokens/${address}/transfers?page=${page}&limit=${limit}`;
+    console.log(`[token-transactions] Fetching from: ${apiUrl}`);
     
-    // Find the PulseChain pair for this token
-    const pulsechainPair = searchData.pairs?.find((pair: any) => 
-      pair.chainId === 'pulsechain' && 
-      (pair.baseToken.address.toLowerCase() === address.toLowerCase() || 
-       pair.quoteToken.address.toLowerCase() === address.toLowerCase())
-    );
+    const response = await fetch(apiUrl, {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
 
-    if (!pulsechainPair) {
+    console.log(`[token-transactions] PulseScan response status: ${response.status}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[token-transactions] PulseScan API error:`, response.status, response.statusText, errorText);
       return NextResponse.json(
-        { error: 'No PulseChain pair found for this token' },
-        { status: 404 }
+        { error: `Failed to fetch token transactions: ${response.statusText}` },
+        { status: response.status }
       );
     }
 
-    // Get pair details from DexScreener API (which provides transaction counts but not individual transactions)
-    const pairResponse = await fetch(
-      `https://api.dexscreener.com/latest/dex/pairs/pulsechain/${pulsechainPair.pairAddress}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const data = await response.json();
+    console.log(`[token-transactions] Data received, items count: ${data.items?.length || 0}`);
 
-    if (!pairResponse.ok) {
-      throw new Error(`DexScreener pair request failed: ${pairResponse.status}`);
-    }
-
-    const pairData = await pairResponse.json();
-    const pair = pairData.pair;
-    
-    // DexScreener API doesn't provide individual transaction data, only aggregated counts
-    // Return a message explaining this limitation along with available data
-    return NextResponse.json({
-      items: [],
-      message: 'DexScreener API does not provide individual transaction data. Only aggregated transaction counts are available.',
-      transactionCounts: {
-        last5Minutes: pair?.txns?.m5 || { buys: 0, sells: 0 },
-        last1Hour: pair?.txns?.h1 || { buys: 0, sells: 0 },
-        last6Hours: pair?.txns?.h6 || { buys: 0, sells: 0 },
-        last24Hours: pair?.txns?.h24 || { buys: 0, sells: 0 }
-      },
-      pairInfo: {
-        pairAddress: pair?.pairAddress,
-        baseToken: pair?.baseToken,
-        quoteToken: pair?.quoteToken,
-        priceUsd: pair?.priceUsd,
-        volume24h: pair?.volume?.h24
-      }
+    // Filter to only include 'token_transfer' type transactions (actual transfers between addresses)
+    const transferTransactions = (data.items || []).filter((transfer: any) => {
+      return transfer.type === 'token_transfer';
     });
+    
+    console.log(`[token-transactions] Filtered to token_transfer type only, count: ${transferTransactions.length}`);
+
+    // Transform the data to match the expected format
+    const transactions = transferTransactions.map((transfer: any) => {
+      const tokenAmount = parseFloat(transfer.total?.value || '0');
+      const decimals = parseInt(transfer.token?.decimals || '18');
+      const formattedAmount = tokenAmount / Math.pow(10, decimals);
+      
+      // Calculate USD and WPLS values
+      const usdValue = formattedAmount * priceUsd;
+      const wplsValue = formattedAmount * priceWpls;
+      
+      return {
+        txHash: transfer.tx_hash,
+        timestamp: transfer.timestamp,
+        type: transfer.type === 'token_transfer' ? 
+          (transfer.from?.hash?.toLowerCase() === address.toLowerCase() ? 'sell' : 'buy') :
+          transfer.type === 'token_minting' ? 'buy' :
+          transfer.type === 'token_burning' ? 'sell' : 'transfer',
+        from: transfer.from?.hash,
+        to: transfer.to?.hash,
+        amount: transfer.total?.value || '0',
+        tokenSymbol: transfer.token?.symbol || 'TOKEN',
+        tokenDecimals: transfer.token?.decimals || 18,
+        tokenAddress: transfer.token?.address || address,
+        value: usdValue, // Calculated USD value
+        wplsValue: wplsValue, // Calculated WPLS value
+        gasUsed: 0, // Not available in token transfers
+        gasPrice: 0, // Not available in token transfers
+        blockNumber: 0, // Not available in token transfers
+        confirmations: 0 // Not available in token transfers
+      };
+    });
+
+    return NextResponse.json({
+      success: true,
+      items: transactions,
+      pagination: data.pagination || null,
+      message: `Found ${transactions.length} token transactions`
+    });
+
   } catch (error) {
     console.error('Error fetching token transactions:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch transactions' },
+      { error: 'Failed to fetch token transactions' },
       { status: 500 }
     );
   }

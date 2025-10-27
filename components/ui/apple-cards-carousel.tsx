@@ -102,14 +102,14 @@ export const Carousel = ({ items, initialScroll = 0 }: CarouselProps) => {
           {/* Fade in effect at start */}
           <div
             className={cn(
-              "absolute left-0 z-[1000] h-auto w-[5%] overflow-hidden bg-gradient-to-r from-black to-transparent",
+              "absolute left-0 z-[1000] h-auto w-[5%] overflow-hidden bg-gradient-to-r from-slate-950 to-transparent",
             )}
           ></div>
 
           {/* Fade out effect at end */}
           <div
             className={cn(
-              "absolute right-0 z-[1000] h-auto w-[5%] overflow-hidden bg-gradient-to-l from-black to-transparent",
+              "absolute right-0 z-[1000] h-auto w-[5%] overflow-hidden bg-gradient-to-l from-slate-950 to-transparent",
             )}
           ></div>
 
@@ -252,7 +252,7 @@ export const Card = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 h-full w-full bg-black/80 backdrop-blur-lg"
+              className="fixed inset-0 h-full w-full bg-slate-950/80 backdrop-blur-lg"
             />
             <motion.div
               initial={{ opacity: 0 }}
@@ -263,7 +263,7 @@ export const Card = ({
               className="relative z-[60] mx-auto my-10 h-fit max-w-5xl rounded-3xl bg-white p-4 font-sans md:p-10 dark:bg-neutral-900"
             >
               <button
-                className="sticky top-4 right-0 ml-auto flex h-8 w-8 items-center justify-center rounded-full bg-black dark:bg-white"
+                className="sticky top-4 right-0 ml-auto flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 dark:bg-white"
                 onClick={handleClose}
                 title="Close"
                 aria-label="Close"
@@ -272,7 +272,7 @@ export const Card = ({
               </button>
               <motion.p
                 layoutId={layout ? `category-${card.title}` : undefined}
-                className="text-base font-medium text-black dark:text-white"
+                className="text-base font-medium text-slate-950 dark:text-white"
               >
                 {card.category}
               </motion.p>
@@ -311,8 +311,8 @@ export const Card = ({
         
         {/* Moving Gradient Background for cards without videos */}
         {!card.videoUrl && card.hasMovingGradient && (
-          <div className="absolute inset-0 z-10 bg-gradient-to-br from-purple-600 via-pink-600 to-blue-600 animate-pulse">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-pink-600 to-blue-600 animate-pulse" 
+          <div className="absolute inset-0 z-10 bg-gradient-to-br from-slate-950 via-pink-600 to-slate-950 animate-pulse">
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-pink-600 to-slate-950 animate-pulse" 
                  style={{
                    background: 'linear-gradient(-45deg, #9333ea, #ec4899, #3b82f6, #8b5cf6)',
                    backgroundSize: '400% 400%',
@@ -334,11 +334,11 @@ export const Card = ({
         )}
         
         {/* Subtle overlay for better text readability */}
-        <div className="absolute inset-0 z-15 bg-black/20" />
+        <div className="absolute inset-0 z-15 bg-slate-950/20" />
         
         {/* Coming Soon Overlay */}
         {card.isComingSoon && (
-          <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm rounded-3xl flex items-center justify-center">
+          <div className="absolute inset-0 z-20 bg-slate-950/60 backdrop-blur-sm rounded-3xl flex items-center justify-center">
             <div className="text-center">
               <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
               <div className="text-sm text-gray-300">This feature is under development</div>
@@ -347,7 +347,7 @@ export const Card = ({
         )}
         
         {/* Card Content - Simplified */}
-        <div className="absolute inset-x-0 bottom-0 z-40 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+        <div className="absolute inset-x-0 bottom-0 z-40 p-6 bg-gradient-to-t from-slate-950/80 via-slate-950/40 to-transparent">
           <motion.p
             layoutId={layout ? `title-${card.title}` : undefined}
             className="text-left font-sans text-lg font-semibold [text-wrap:balance] text-white md:text-2xl leading-tight"

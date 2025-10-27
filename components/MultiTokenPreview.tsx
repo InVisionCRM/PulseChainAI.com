@@ -283,7 +283,7 @@ export default function MultiTokenPreview({
 
       {/* Instructions */}
       {config.tokens.length > 0 && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-black/80 backdrop-blur-lg border border-white/20 rounded-lg px-4 py-2 text-white text-sm z-40">
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-slate-950/80 backdrop-blur-lg border border-white/20 rounded-lg px-4 py-2 text-white text-sm z-40">
           <span>💡 Drag cards to reposition • Cards snap to grid and align with others</span>
         </div>
       )}

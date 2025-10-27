@@ -219,7 +219,7 @@ export default function StatsDialog({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -258,7 +258,7 @@ export default function StatsDialog({
                   animate={{ opacity: 1, x: 0 }}
                   className={`p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
                     stat.enabled
-                      ? 'bg-blue-600/20 border-blue-500/50'
+                      ? 'bg-slate-950/20 border-blue-500/50'
                       : 'bg-white/5 border-white/10 hover:bg-white/10'
                   }`}
                   onClick={() => handleStatToggle(stat.id, !stat.enabled)}
@@ -270,7 +270,7 @@ export default function StatsDialog({
                           type="checkbox"
                           checked={stat.enabled}
                           onChange={() => handleStatToggle(stat.id, !stat.enabled)}
-                          className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2 transition-all duration-200 hover:scale-110"
+                          className="w-4 h-4 text-slate-950 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2 transition-all duration-200 hover:scale-110"
                           title={`Toggle ${stat.label} stat`}
                         />
                         <div>
@@ -298,7 +298,7 @@ export default function StatsDialog({
               </p>
               <button
                 onClick={onClose}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                className="bg-slate-950 hover:bg-slate-950 text-white px-6 py-2 rounded-lg font-medium transition-colors"
               >
                 Done
               </button>

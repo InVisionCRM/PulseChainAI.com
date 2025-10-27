@@ -96,7 +96,7 @@ types.ts                     # TypeScript type definitions
 
 ### Dark Theme
 - Consistent dark color scheme throughout
-- Purple accent colors for brand consistency
+- blue accent colors for brand consistency
 - High contrast for accessibility
 
 ### Animations
@@ -125,7 +125,7 @@ types.ts                     # TypeScript type definitions
 - Generic type support for API responses
 
 ### Tailwind Configuration
-- Custom color palette with purple theme
+- Custom color palette with blue theme
 - Responsive utility classes
 - Custom animations and transitions
 - Component-specific styling

@@ -263,7 +263,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
     }
     const endData = getStakeEndData(stake.stakeId);
     if (endData && parseFloat(endData.penalty || '0') > 0) return 'text-red-700';
-    return 'text-blue-700';
+    return 'text-slate-950';
   };
 
   const getStakeStatusIcon = (stake: HexStake) => {
@@ -292,8 +292,8 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-             <div className="relative w-full max-w-7xl max-h-[90vh] bg-black/75 backdrop-blur-2xl border border-white/30 rounded-3xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.8)] overflow-hidden transform transition-all duration-300 ease-out scale-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+             <div className="relative w-full max-w-7xl max-h-[90vh] bg-slate-950/75 backdrop-blur-2xl border border-white/30 rounded-3xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.8)] overflow-hidden transform transition-all duration-300 ease-out scale-100">
         {/* Grid Pattern Background */}
         <div className="absolute inset-0 z-0">
           <GridPattern 
@@ -351,7 +351,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                     onClick={() => setActiveNetwork('pulsechain')}
                     className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors backdrop-blur-sm ${
                       activeNetwork === 'pulsechain'
-                        ? 'bg-purple-500/90 text-white shadow-lg'
+                        ? 'bg-blue-500/90 text-white shadow-lg'
                         : 'bg-white/20 text-white/90 hover:bg-white/30 hover:text-white shadow-md'
                     }`}
                   >
@@ -378,7 +378,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
               href={`https://scan.mypinata.cloud/ipfs/bafybeih3olry3is4e4lzm7rus5l3h6zrphcal5a7ayfkhzm5oivjro2cp4/#/address/${stakerAddress}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-2 py-1 bg-purple-500/30 hover:bg-purple-500/40 text-white text-xs font-medium rounded transition-colors backdrop-blur-sm"
+              className="px-2 py-1 bg-blue-500/30 hover:bg-blue-500/40 text-white text-xs font-medium rounded transition-colors backdrop-blur-sm"
             >
               PulseScan
             </a>
@@ -391,7 +391,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
           {/* Loading State */}
           {isLoading && (
             <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
               <h3 className="text-xl font-semibold text-white mb-2">Loading Staker History...</h3>
               <p className="text-white">Fetching comprehensive staking data from The Graph</p>
             </div>
@@ -405,7 +405,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                 <p className="mb-4">{error}</p>
                 <button
                   onClick={fetchStakerHistory}
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg"
+                  className="bg-slate-950 hover:bg-slate-950 text-white font-bold py-2 px-4 rounded-lg"
                 >
                   Try Again
                 </button>
@@ -455,7 +455,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                       
                       {liquidHexBalances.ethereum !== null && liquidHexBalances.ethereum > 0 && (
                         <div className="flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg">
-                          <span className="text-blue-700 text-sm">eHEX</span>
+                          <span className="text-slate-950 text-sm">eHEX</span>
                           <span className="text-white font-semibold">
                             {isLoadingBalances ? (
                               <div className="animate-pulse bg-white/20 h-4 w-16 rounded"></div>
@@ -467,8 +467,8 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                       )}
                       
                       {liquidHexBalances.pulsechain !== null && liquidHexBalances.pulsechain > 0 && (
-                        <div className="flex items-center justify-between py-2 px-3 bg-purple-500/10 rounded-lg">
-                          <span className="text-purple-700 text-sm">pHEX</span>
+                        <div className="flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg">
+                          <span className="text-slate-950 text-sm">pHEX</span>
                           <span className="text-white font-semibold">
                             {isLoadingBalances ? (
                               <div className="animate-pulse bg-white/20 h-4 w-16 rounded"></div>
@@ -508,7 +508,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                   </div>
 
                         <div className="flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg">
-                          <span className="text-blue-700 text-sm">Avg APY</span>
+                          <span className="text-slate-950 text-sm">Avg APY</span>
                           <span className="text-white font-semibold">
                       {(() => {
                         if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0.0%';
@@ -578,8 +578,8 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between py-3 px-4 bg-purple-500/10 rounded-lg">
-                      <span className="text-purple-300 text-sm font-medium">Remaining to Earn</span>
+                    <div className="flex items-center justify-between py-3 px-4 bg-blue-500/10 rounded-lg">
+                      <span className="text-blue-300 text-sm font-medium">Remaining to Earn</span>
                       <span className="text-white font-bold">
                       {(() => {
                         if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
@@ -615,7 +615,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                       onClick={() => setActiveTab(key as any)}
                       className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                         activeTab === key
-                          ? 'border-purple-500 text-purple-700'
+                          ? 'border-blue-500 text-slate-950'
                           : 'border-transparent text-white hover:text-slate-300'
                       }`}
                     >
@@ -634,7 +634,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                   {/* Loading State for Transactions */}
                   {isLoadingTransactions && (
                     <div className="text-center py-12">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
                       <h3 className="text-xl font-semibold text-white mb-2">Loading Transactions...</h3>
                       <p className="text-white">Fetching all HEX-related transactions</p>
                     </div>
@@ -648,7 +648,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                         <p className="mb-4">{transactionError}</p>
                         <button
                           onClick={fetchTransactionData}
-                          className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg"
+                          className="bg-slate-950 hover:bg-slate-950 text-white font-bold py-2 px-4 rounded-lg"
                         >
                           Try Again
                         </button>
@@ -711,7 +711,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                                     href={hexTransactionService.getExplorerUrl(tx.hash, network)}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-purple-400 hover:text-purple-300 flex items-center gap-1 underline"
+                                    className="text-blue-400 hover:text-blue-300 flex items-center gap-1 underline"
                                     title={`View transaction: ${tx.hash}`}
                                   >
                                     <span>{tx.hash.slice(0, 10)}...</span>
@@ -746,7 +746,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                     {/* Loading State for HEX Swaps */}
                     {isLoadingHexSwaps && (
                       <div className="text-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
                         <h3 className="text-xl font-semibold text-white mb-2">Loading HEX Swaps...</h3>
                         <p className="text-white">Fetching swap transactions from Moralis API</p>
                       </div>
@@ -760,7 +760,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                           <p className="mb-4">{hexSwapsError}</p>
                           <button
                             onClick={() => fetchHexSwaps()}
-                            className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg"
+                            className="bg-slate-950 hover:bg-slate-950 text-white font-bold py-2 px-4 rounded-lg"
                           >
                             Try Again
                           </button>
@@ -847,7 +847,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                                       href={hexSwapService.getExplorerUrl(swap.transaction_hash, activeNetwork)}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-purple-400 hover:text-purple-300 flex items-center gap-1 underline"
+                                      className="text-blue-400 hover:text-blue-300 flex items-center gap-1 underline"
                                       title={`View transaction: ${swap.transaction_hash}`}
                                     >
                                       <span>{swap.transaction_hash.slice(0, 10)}...</span>
@@ -1001,7 +1001,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                                 <div className="w-16 bg-slate-700 rounded-full h-2">
                                   <div 
                                     className={`h-2 rounded-full transition-all ${
-                                      hasPenalty ? 'bg-red-500' : progress >= 100 ? 'bg-green-500' : 'bg-gradient-to-r from-purple-500 to-blue-500'
+                                      hasPenalty ? 'bg-red-500' : progress >= 100 ? 'bg-green-500' : 'bg-gradient-to-r from-blue-500 to-blue-500'
                                     }`}
                                     style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                                   />
@@ -1016,8 +1016,8 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                               <div className="flex items-center gap-1">
                                 <span className={`text-xs px-2 py-1 rounded ${
                                   activeNetwork === 'ethereum' 
-                                    ? 'bg-blue-500/20 text-blue-700' 
-                                    : 'bg-purple-500/20 text-purple-400'
+                                    ? 'bg-blue-500/20 text-slate-950' 
+                                    : 'bg-blue-500/20 text-blue-400'
                                 }`}>
                                   {activeNetwork === 'ethereum' ? 'Ethereum' : 'PulseChain'}
                                 </span>

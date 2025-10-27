@@ -306,7 +306,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-white">Loading liquidity data...</p>
         </div>
       </div>
@@ -369,7 +369,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
             </div>
             <div>
               <div className="text-sm text-slate-400 mb-1">Volume 24h</div>
-              <div className="text-2xl font-bold text-purple-400">{formatNumber(top3Pairs[0].volume?.h24 || 0)}</div>
+              <div className="text-2xl font-bold text-blue-400">{formatNumber(top3Pairs[0].volume?.h24 || 0)}</div>
             </div>
           </div>
 
@@ -425,7 +425,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
               </div>
               <div>
                 <div className="text-xs text-slate-400">Volume</div>
-                <div className="text-sm font-bold text-purple-400">{formatNumber(pair.volume?.h24 || 0)}</div>
+                <div className="text-sm font-bold text-blue-400">{formatNumber(pair.volume?.h24 || 0)}</div>
               </div>
             </div>
 
@@ -479,7 +479,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                 </div>
                 <div className="text-right ml-4">
                   <div className="text-sm text-white">{formatNumber(pair.volume?.h24 || 0)}</div>
-                  <div className="text-xs text-purple-300">Volume</div>
+                  <div className="text-xs text-blue-300">Volume</div>
                 </div>
                 <div className="ml-4 text-white">
                   {expandedPairs.has(pair.pairAddress) ? '▲' : '▼'}
@@ -500,7 +500,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   </div>
                   
                   <div>
-                    <div className="text-xs text-purple-300 mb-1">Price WPLS</div>
+                    <div className="text-xs text-blue-300 mb-1">Price WPLS</div>
                     <div className="text-white font-semibold">{parseFloat(pair.priceNative || '0').toFixed(8)}</div>
                   </div>
                   
@@ -524,7 +524,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   
                   {pairHoldersData[pair.pairAddress]?.isLoading && (
                     <div className="flex items-center justify-center py-6">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
                       <span className="ml-2 text-slate-400 text-sm">Loading holders...</span>
                     </div>
                   )}
@@ -553,7 +553,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                                 e.stopPropagation();
                                 handleHolderClick(holder.address, pair);
                               }}
-                              className="font-mono text-purple-300 hover:text-purple-200 underline cursor-pointer text-left transition-colors"
+                              className="font-mono text-blue-300 hover:text-blue-200 underline cursor-pointer text-left transition-colors"
                             >
                               {holder.address.slice(0, 8)}...{holder.address.slice(-6)}
                             </button>
@@ -603,7 +603,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   
                   {pairLiquidityEvents[pair.pairAddress]?.isLoading && (
                     <div className="flex items-center justify-center py-6">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
                       <span className="ml-2 text-slate-400 text-sm">Loading activity...</span>
                     </div>
                   )}
@@ -634,7 +634,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                               </div>
                               <div className="flex items-center gap-2 text-xs">
                                 <span className="text-slate-400">By:</span>
-                                <code className="font-mono text-purple-300">
+                                <code className="font-mono text-blue-300">
                                   {event.from ? `${event.from.slice(0, 8)}...${event.from.slice(-6)}` : 'Unknown'}
                                 </code>
                                 <a 
@@ -668,7 +668,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     href={pair.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 bg-blue-600/20 text-blue-300 px-3 py-2 text-center border border-blue-600/30 hover:bg-blue-600/30 transition-colors text-sm"
+                    className="flex-1 bg-slate-950/20 text-blue-300 px-3 py-2 text-center border border-slate-800/30 hover:bg-slate-950/30 transition-colors text-sm"
                   >
                     DexScreener
                   </a>
@@ -684,7 +684,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   
                   <button 
                     onClick={() => navigator.clipboard.writeText(pair.pairAddress || '')}
-                    className="flex-1 bg-purple-600/20 text-purple-300 px-3 py-2 text-center border border-purple-600/30 hover:bg-purple-600/30 transition-colors text-sm"
+                    className="flex-1 bg-slate-950/20 text-blue-300 px-3 py-2 text-center border border-slate-800/30 hover:bg-slate-950/30 transition-colors text-sm"
                     title="Copy pair address"
                   >
                     Copy

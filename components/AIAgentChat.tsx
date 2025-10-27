@@ -108,7 +108,7 @@ const AIAgentChat: React.FC<AIAgentChatProps> = ({
   }, [sendMessage]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-950 to-violet-900 p-4">
       <div className="w-full px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -117,7 +117,7 @@ const AIAgentChat: React.FC<AIAgentChatProps> = ({
           className="text-center mb-8"
         >
           <h1 className="text-4xl font-bold text-white mb-4">{title}</h1>
-          <p className="text-xl text-purple-200">{description}</p>
+          <p className="text-xl text-blue-200">{description}</p>
         </motion.div>
 
         <motion.div
@@ -133,7 +133,7 @@ const AIAgentChat: React.FC<AIAgentChatProps> = ({
                 <motion.button
                   key={index}
                   onClick={() => handleQuickQuestion(question)}
-                  className="text-left p-3 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-purple-100 hover:text-white transition-colors duration-200 border border-purple-400/20 hover:border-purple-400/40"
+                  className="text-left p-3 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-blue-100 hover:text-white transition-colors duration-200 border border-blue-400/20 hover:border-blue-400/40"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   disabled={isLoadingChat}
@@ -146,10 +146,10 @@ const AIAgentChat: React.FC<AIAgentChatProps> = ({
 
           <div
             ref={chatContainerRef}
-            className="h-96 overflow-y-auto mb-4 p-4 bg-black/20 rounded-lg border border-white/10"
+            className="h-96 overflow-y-auto mb-4 p-4 bg-slate-950/20 rounded-lg border border-white/10"
           >
             {messages.length === 0 && (
-              <div className="text-center text-purple-300 mt-16">
+              <div className="text-center text-blue-300 mt-16">
                 <p>Start a conversation by typing below or clicking a quick question!</p>
               </div>
             )}
@@ -161,7 +161,7 @@ const AIAgentChat: React.FC<AIAgentChatProps> = ({
                 <div
                   className={`max-w-[95%] px-4 py-2 rounded-lg ${
                     message.sender === 'user'
-                      ? 'bg-purple-600 text-white'
+                      ? 'bg-slate-950 text-white'
                       : 'bg-gray-700 text-white'
                   }`}
                 >
@@ -186,7 +186,7 @@ const AIAgentChat: React.FC<AIAgentChatProps> = ({
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Type your message here..."
-                className="w-full p-3 pr-12 bg-black/30 border border-white/30 rounded-lg text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                className="w-full p-3 pr-12 bg-slate-950/30 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 rows={2}
                 disabled={isLoadingChat}
               />
@@ -195,7 +195,7 @@ const AIAgentChat: React.FC<AIAgentChatProps> = ({
                 type="button"
                 onClick={handleSendMessage}
                 disabled={!chatInput.trim() || isLoadingChat}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-purple-400 hover:text-purple-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-blue-400 hover:text-blue-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
                 title="Send message"
               >
                 <SendIcon />

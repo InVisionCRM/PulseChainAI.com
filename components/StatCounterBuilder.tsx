@@ -352,7 +352,7 @@ export default function StatCounterBuilder() {
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: 'url(/Mirage.jpg)' }} /* eslint-disable-line react/forbid-dom-props */
           />
-          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-slate-950/40" />
         </div>
         {currentView === 'preview' ? (
           /* Preview View */
@@ -380,7 +380,7 @@ export default function StatCounterBuilder() {
             </div>
 
             {/* Zoom indicator */}
-            <div className="absolute bottom-3 right-4 bg-black/70 text-white text-xs px-2 py-1 rounded-md border border-white/10">
+            <div className="absolute bottom-3 right-4 bg-slate-950/70 text-white text-xs px-2 py-1 rounded-md border border-white/10">
               {Math.round(zoom * 100)}%
             </div>
           </div>
@@ -397,7 +397,7 @@ export default function StatCounterBuilder() {
               </p>
               <button
                 onClick={() => setCodeModalOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                className="bg-slate-950 hover:bg-slate-950 text-white px-6 py-3 rounded-lg font-medium transition-colors"
               >
                 Generate Code
               </button>
@@ -407,7 +407,7 @@ export default function StatCounterBuilder() {
       </div>
 
       {/* Search Bar at Bottom */}
-      <div className="p-4 bg-black/80 backdrop-blur-xl border-t border-white/20">
+      <div className="p-4 bg-slate-950/80 backdrop-blur-xl border-t border-white/20">
         <div className="max-w-2xl mx-auto relative">
           <div className="relative">
             <input
@@ -436,7 +436,7 @@ export default function StatCounterBuilder() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
-                className="absolute z-50 w-full bottom-full mb-2 bg-black/90 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl max-h-80 overflow-y-auto"
+                className="absolute z-50 w-full bottom-full mb-2 bg-slate-950/90 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl max-h-80 overflow-y-auto"
               >
                 {searchResults.map((token, index) => (
                   <motion.div
@@ -463,7 +463,7 @@ export default function StatCounterBuilder() {
                         </div>
                       </div>
                       <div 
-                        className="ml-4 bg-blue-600 hover:bg-blue-700 hover:scale-110 text-white p-3 rounded-lg transition-all duration-200 z-50 relative cursor-pointer border-2 border-blue-400"
+                        className="ml-4 bg-slate-950 hover:bg-slate-950 hover:scale-110 text-white p-3 rounded-lg transition-all duration-200 z-50 relative cursor-pointer border-2 border-blue-400"
                         style={{ 
                           pointerEvents: 'auto',
                           transform: 'translateZ(0)',

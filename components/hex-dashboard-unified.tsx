@@ -196,7 +196,7 @@ const UnifiedHEXDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-blue-50 p-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -212,7 +212,7 @@ const UnifiedHEXDashboard = () => {
           <button
             onClick={refreshAllData}
             disabled={isRefreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-slate-950 text-white rounded-lg hover:bg-slate-950 disabled:opacity-50 transition-colors"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
@@ -223,7 +223,7 @@ const UnifiedHEXDashboard = () => {
         {databaseStatus && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="flex items-center gap-3 mb-4">
-              <Database className="w-5 h-5 text-blue-600" />
+              <Database className="w-5 h-5 text-slate-950" />
               <h2 className="text-xl font-semibold">Database Status</h2>
               {databaseStatus.tablesExist ? (
                 <CheckCircle className="w-5 h-5 text-green-500" />
@@ -261,7 +261,7 @@ const UnifiedHEXDashboard = () => {
             onClick={() => setActiveTab('pulsechain')}
             className={`px-6 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'pulsechain'
-                ? 'bg-purple-600 text-white shadow-lg'
+                ? 'bg-slate-950 text-white shadow-lg'
                 : 'bg-white text-gray-600 hover:bg-gray-50'
             }`}
           >
@@ -271,7 +271,7 @@ const UnifiedHEXDashboard = () => {
             onClick={() => setActiveTab('ethereum')}
             className={`px-6 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'ethereum'
-                ? 'bg-blue-600 text-white shadow-lg'
+                ? 'bg-slate-950 text-white shadow-lg'
                 : 'bg-white text-gray-600 hover:bg-gray-50'
             }`}
           >
@@ -332,7 +332,7 @@ const UnifiedHEXDashboard = () => {
                   {/* Total Active Stakes */}
                   <div className="bg-white rounded-lg shadow-md p-6">
                     <div className="flex items-center gap-3 mb-2">
-                      <Lock className="w-5 h-5 text-blue-600" />
+                      <Lock className="w-5 h-5 text-slate-950" />
                       <h3 className="font-semibold text-gray-700">Active Stakes</h3>
                     </div>
                     <div className="text-2xl font-bold text-gray-900">
@@ -356,7 +356,7 @@ const UnifiedHEXDashboard = () => {
                   {/* Average Stake Length */}
                   <div className="bg-white rounded-lg shadow-md p-6">
                     <div className="flex items-center gap-3 mb-2">
-                      <Clock className="w-5 h-5 text-purple-600" />
+                      <Clock className="w-5 h-5 text-slate-950" />
                       <h3 className="font-semibold text-gray-700">Avg Length</h3>
                     </div>
                     <div className="text-2xl font-bold text-gray-900">

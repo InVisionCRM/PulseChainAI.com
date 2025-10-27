@@ -132,7 +132,7 @@ export function OptimizedVideo({
       {/* Play/Pause overlay for better UX */}
       {!isLoading && !error && !autoPlay && (
         <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200">
-          <div className="bg-black/50 rounded-full p-3">
+          <div className="bg-slate-950/50 rounded-full p-3">
             {isPlaying ? (
               <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />

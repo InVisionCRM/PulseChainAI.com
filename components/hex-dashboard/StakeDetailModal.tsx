@@ -38,7 +38,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
     : 'N/A';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
       <div className="relative w-full max-w-2xl bg-slate-800 border border-slate-600 rounded-xl shadow-xl overflow-hidden">
         
         {/* Header */}
@@ -46,7 +46,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {rank && (
-                <div className="px-3 py-1 bg-black/20 text-green-500 text-lg font-bold rounded">
+                <div className="px-3 py-1 bg-slate-950/20 text-green-500 text-lg font-bold rounded">
                   #{rank}
                 </div>
               )}

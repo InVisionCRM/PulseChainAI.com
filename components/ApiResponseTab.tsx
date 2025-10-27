@@ -25,7 +25,7 @@ const SubTabButton: React.FC<{ name: string; tabId: string; activeTab: string; o
         <button
             type="button"
             onClick={() => onClick(tabId)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus:outline-none flex-shrink-0 ${isActive ? 'text-white bg-purple-600' : 'text-slate-300 hover:bg-slate-700'}`}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus:outline-none flex-shrink-0 ${isActive ? 'text-white bg-slate-950' : 'text-slate-300 hover:bg-slate-700'}`}
         >
             {name}
         </button>

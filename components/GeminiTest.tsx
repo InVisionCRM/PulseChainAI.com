@@ -36,7 +36,7 @@ export default function GeminiTest() {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500">
+          <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-500">
             <IconBrain className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -74,7 +74,7 @@ export default function GeminiTest() {
           <motion.button
             onClick={runTest}
             disabled={isLoading || isTesting}
-            className="w-full bg-gradient-to-br from-blue-500 to-purple-500 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-br from-blue-500 to-blue-500 text-white py-3 rounded-lg font-semibold hover:from-slate-950 hover:to-slate-950 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >

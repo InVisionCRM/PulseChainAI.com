@@ -2,7 +2,7 @@ import GeminiTest from "@/components/GeminiTest";
 
 export default function TestGeminiPage() {
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-slate-950">
       <div className="container mx-auto py-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-4">Gemini 2.5 Flash API Test</h1>

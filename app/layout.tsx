@@ -17,6 +17,7 @@ import {
   IconMail,
   IconDeviceGamepad2,
   IconPhoneOutgoing,
+  IconWallet,
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -42,7 +43,9 @@ export default function RootLayout({
 }>) {
   const pathname = usePathname();
   const isAICodeReaderPage = pathname === "/ai-agent";
+  const isGeickoPage = pathname === "/geicko";
   const isStackerGamePage = pathname === "/stacker-game";
+  const isAdminStatsCleanPage = pathname === "/admin-stats-clean";
   const [open, setOpen] = useState(false);
 
   const links = [
@@ -54,10 +57,17 @@ export default function RootLayout({
       ),
     },
     {
-      label: "Token + AI",
-      href: "/ai-agent",
+      label: "Tokens",
+      href: "/geicko",
       icon: (
         <IconCode className="h-5 w-5 shrink-0 text-white" />
+      ),
+    },
+    {
+      label: "Portfolio",
+      href: "/portfolio",
+      icon: (
+        <IconWallet className="h-5 w-5 shrink-0 text-white" />
       ),
     },
     {
@@ -126,68 +136,70 @@ export default function RootLayout({
         style={{ backgroundColor: '#0C2340' }}
       >
         <div className="flex flex-col min-h-screen md:h-screen w-full md:overflow-hidden">
-          {!isStackerGamePage && <TopTickerBar />}
+          {!isStackerGamePage && !isAdminStatsCleanPage && <TopTickerBar />}
           <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
-            <Sidebar open={open} setOpen={setOpen}>
-              <SidebarBody className="justify-between gap-10">
-                <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-                  <div className="mt-8 flex flex-col gap-2">
-                    {links.map((link, idx) => (
-                      <SidebarLink key={idx} link={link} />
-                    ))}
+            {!isAdminStatsCleanPage && (
+              <Sidebar open={open} setOpen={setOpen}>
+                <SidebarBody className="justify-between gap-10">
+                  <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+                    <div className="mt-8 flex flex-col gap-2">
+                      {links.map((link, idx) => (
+                        <SidebarLink key={idx} link={link} />
+                      ))}
 
-                    {/* Search button - only visible on Token + AI page */}
-                    {isAICodeReaderPage && (
-                      <button
-                        type="button"
-                        onClick={handleOpenSearch}
-                        className="flex items-center justify-center gap-2 group/sidebar py-2 px-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-md transition duration-200"
-                        title="Search Token or Contract"
-                      >
-                        <IconSearch className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-                        {open && (
-                          <span className="text-sm text-neutral-700 dark:text-neutral-200 group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0">
-                            Search
-                          </span>
-                        )}
-                      </button>
-                    )}
+                      {/* Search button - visible on Token + AI and Tokens pages */}
+                      {(isAICodeReaderPage || isGeickoPage) && (
+                        <button
+                          type="button"
+                          onClick={handleOpenSearch}
+                          className="flex items-center justify-center gap-2 group/sidebar py-2 px-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-md transition duration-200"
+                          title="Search Token or Contract"
+                        >
+                          <IconSearch className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
+                          {open && (
+                            <span className="text-sm text-neutral-700 dark:text-neutral-200 group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0">
+                              Search
+                            </span>
+                          )}
+                        </button>
+                      )}
 
-                    {/* Games Section */}
+                      {/* Games Section */}
+                      <div className="mt-6">
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2 md:hidden group-hover/sidebar:md:block"
+                        >
+                          Games
+                        </motion.div>
+                        {gamesLinks.map((link, idx) => (
+                          <SidebarLink key={`game-${idx}`} link={link} />
+                        ))}
+                      </div>
+
+                    {/* Sponsored by Section */}
                     <div className="mt-6">
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2 md:hidden group-hover/sidebar:md:block"
                       >
-                        Games
+                        Sponsored by
                       </motion.div>
-                      {gamesLinks.map((link, idx) => (
-                        <SidebarLink key={`game-${idx}`} link={link} />
-                      ))}
+                      <SidebarLink
+                        link={{
+                          label: "SuperStake.Win",
+                          href: "https://superstake.win",
+                          icon: (<span className="h-5 w-5 shrink-0" />),
+                        }}
+                      />
                     </div>
-
-                  {/* Sponsored by Section */}
-                  <div className="mt-6">
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2 md:hidden group-hover/sidebar:md:block"
-                    >
-                      Sponsored by
-                    </motion.div>
-                    <SidebarLink
-                      link={{
-                        label: "SuperStake.Win",
-                        href: "https://superstake.win",
-                        icon: (<span className="h-5 w-5 shrink-0" />),
-                      }}
-                    />
+                    </div>
                   </div>
-                  </div>
-                </div>
-              </SidebarBody>
-            </Sidebar>
+                </SidebarBody>
+              </Sidebar>
+            )}
             <main className="flex-1 w-full overflow-y-auto">
               {children}
             </main>
@@ -203,13 +215,13 @@ const Logo = () => {
   return (
     <Link
       href="/"
-      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
+      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-slate-950"
     >
       <IconHexagon className="h-6 w-6 shrink-0 text-orange-500" />
       <motion.span
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="font-medium whitespace-pre text-black dark:text-white"
+        className="font-medium whitespace-pre text-slate-950 dark:text-white"
       >
         PulseChain AI
       </motion.span>
@@ -221,7 +233,7 @@ const LogoIcon = () => {
   return (
     <Link
       href="/"
-      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
+      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-slate-950"
     >
       <IconHexagon className="h-6 w-6 shrink-0 text-orange-500" />
     </Link>

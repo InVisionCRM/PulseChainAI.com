@@ -247,7 +247,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
     return out;
   }, []);
 
-  const getTransfersLastNDays = useCallback(async (address: string, days: number, maxPages = 200) => {
+  const getTransfersLastNDays = useCallback(async (address: string, days: number, maxPages = 10) => {
     const base = 'https://api.scan.pulsechain.com/api/v2';
     const limit = 1000; // larger page size to reduce round trips
     const out: any[] = [];
@@ -418,12 +418,13 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
   }, [contractAddress, getTransfersLastNDays]);
 
   // Auto-load: show 7d quickly, then upgrade to 30d in background
-  useEffect(() => {
-    if (activeTab === 'info' && contractAddress && contractData && holdersStats == null) {
-      setHoldersTimeframe('1');
-      loadNewVsOldHoldersProgressive();
-    }
-  }, [activeTab, contractAddress, contractData, holdersStats, loadNewVsOldHoldersProgressive]);
+  // DISABLED: Only load when user explicitly clicks timeframe buttons to avoid excessive API calls
+  // useEffect(() => {
+  //   if (activeTab === 'info' && contractAddress && contractData && holdersStats == null) {
+  //     setHoldersTimeframe('1');
+  //     loadNewVsOldHoldersProgressive();
+  //   }
+  // }, [activeTab, contractAddress, contractData, holdersStats, loadNewVsOldHoldersProgressive]);
 
   // Tokens Burned (uses exact endpoints as admin-stats page)
   useEffect(() => {
@@ -464,7 +465,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
         let nextParams: Record<string, string> | undefined = undefined;
         let deadValueRaw = 0;
         
-        for (let i = 0; i < 200; i += 1) {
+        for (let i = 0; i < 10; i += 1) {
           const qs = new URLSearchParams({ limit: String(limit) });
           if (nextParams) Object.entries(nextParams).forEach(([k, v]) => qs.set(k, String(v)));
           const data = await fetchJson(`${base}/tokens/${contractAddress}/holders?${qs.toString()}`);
@@ -610,7 +611,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
         }
 
         const [holders, tokenInfo] = await Promise.all([
-          pulsechainApiService.getTokenHolders(lpAddress, 1, 2000).catch(() => []),
+          pulsechainApiService.getTokenHolders(lpAddress, 1, 100).catch(() => []),
           pulsechainApiService.getTokenInfo(lpAddress).catch(() => null),
         ]);
 
@@ -836,14 +837,14 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
         
         return (
           <div key="tabbed-content" className="my-4">
-            <div className="flex border-b border-slate-600 mb-3">
+            <div className="flex border-b border-slate-900 mb-3">
               {tabs.map((tab, index) => (
                 <button
                   key={index}
                   onClick={() => setActiveTabbedContent(index)}
                   className={`px-3 py-2 text-sm font-medium transition-colors ${
                     activeTabbedContent === index 
-                      ? 'text-white border-b-2 border-purple-500' 
+                      ? 'text-white border-b-2 border-slate-500' 
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -851,7 +852,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                 </button>
               ))}
             </div>
-            <div className="p-3 bg-slate-800 rounded-lg border border-slate-600/30">
+            <div className="p-3 bg-slate-950 rounded-lg border border-slate-900/30">
               {renderMarkdown(tabs[activeTabbedContent].content)}
             </div>
           </div>
@@ -870,7 +871,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
           const codeContent = languageMatch ? code.substring(language.length + 1) : code;
           
           return (
-            <pre key={blockIndex} className="bg-slate-950 rounded-lg p-3 my-3 overflow-x-auto border border-slate-700/50">
+            <pre key={blockIndex} className="bg-slate-950 rounded-lg p-3 my-3 overflow-x-auto border border-slate-900/50">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-slate-400 font-mono uppercase">{language}</span>
                 <div className="flex space-x-1">
@@ -893,7 +894,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
           // Hashtags
           if (part.match(/^#[a-zA-Z]+$/)) {
             return (
-              <span key={key} className="inline-block bg-purple-600/20 text-purple-300 px-2 py-1 rounded-full text-xs font-medium mr-1 mb-1">
+              <span key={key} className="inline-block bg-slate-950/20 text-slate-300 px-2 py-1 rounded-full text-xs font-medium mr-1 mb-1">
                 {part}
               </span>
             );
@@ -904,7 +905,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
             const level = part.match(/^(#{1,6})/)?.[1].length || 1;
             const text = part.replace(/^#{1,6}\s+/, '');
             const headerClasses = {
-              1: 'text-xl font-bold text-white border-b border-slate-600 pb-2 mb-3',
+              1: 'text-xl font-bold text-white border-b border-slate-900 pb-2 mb-3',
               2: 'text-lg font-bold text-white mt-4 mb-2',
               3: 'text-base font-semibold text-white mt-3 mb-2',
               4: 'text-sm font-semibold text-slate-200 mt-2 mb-1',
@@ -918,7 +919,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
           if (part.startsWith('> ')) {
             const text = part.substring(2);
             return (
-              <blockquote key={key} className="border-l-4 border-purple-500 bg-purple-900/20 pl-3 py-2 my-2 italic text-slate-300 text-sm">
+              <blockquote key={key} className="border-l-4 border-slate-500 bg-slate-950/20 pl-3 py-2 my-2 italic text-slate-300 text-sm">
                 {text}
               </blockquote>
             );
@@ -929,7 +930,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
             const text = part.substring(2);
             return (
               <li key={key} className="flex items-start gap-2 my-0.5">
-                <span className="text-purple-400 mt-1.5 flex-shrink-0">•</span>
+                <span className="text-slate-400 mt-1.5 flex-shrink-0">•</span>
                 <span className="text-slate-300 text-sm">{text}</span>
               </li>
             );
@@ -951,7 +952,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
           if (part.startsWith('`') && part.endsWith('`')) {
             const text = part.slice(1, -1);
             return (
-              <code key={key} className="bg-slate-700 text-amber-300 rounded px-1.5 py-0.5 text-sm font-mono border border-slate-600">
+              <code key={key} className="bg-slate-950 text-amber-300 rounded px-1.5 py-0.5 text-sm font-mono border border-slate-900">
                 {text}
               </code>
             );
@@ -966,7 +967,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                 <button
                   key={key}
                   onClick={() => setContractAddress(contractName)}
-                  className="text-lg font-bold text-purple-400 hover:text-purple-300 underline transition-colors cursor-pointer"
+                  className="text-lg font-bold text-slate-400 hover:text-slate-300 underline transition-colors cursor-pointer"
                 >
                   {contractName}
                 </button>
@@ -985,7 +986,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                   href={url} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-300 underline transition-colors"
+                  className="text-slate-400 hover:text-slate-300 underline transition-colors"
                 >
                   {text}
                 </a>
@@ -1056,7 +1057,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
           }
         }
       `}</style>
-      <div className="min-h-screen w-full relative bg-gradient-to-br from-black via-slate-900 to-black">
+      <div className="min-h-screen w-full relative bg-gradient-to-br from-slate-950 via-slate-950 to-slate-950">
         {/* Hero-style video background */}
         <div className="absolute inset-0 w-full h-full -z-10 [mask-image:radial-gradient(transparent,white)] pointer-events-none" style={{ backgroundColor: '#0C2340' }} />
         {!addressSet && (
@@ -1082,8 +1083,8 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
       
       {/* Search Modal */}
       {showSearchModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-800 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-2xl max-w-2xl w-full p-6">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-950 backdrop-blur-sm border border-slate-900/50 rounded-xl shadow-2xl max-w-2xl w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white">Search Token or Contract</h2>
               <button
@@ -1120,7 +1121,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                 }}
               />
               {showSearchResults && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-black/50 text-white backdrop-blur-lg border border-white/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto relative">
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-950/50 text-white backdrop-blur-lg border border-white/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto relative">
                     <div 
                       className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-lg opacity-20"
                       style={{ backgroundImage: 'url(/Mirage.jpg)' }}
@@ -1144,12 +1145,12 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                         handleSelectSearchResult(item);
                         setShowSearchModal(false);
                       }}
-                          className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
+                          className="flex items-center gap-3 p-3 hover:bg-slate-950/50 cursor-pointer transition-colors"
                     >
                         <div className="relative">
                       {item.icon_url ?
-                        <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
-                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
+                        <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-950" /> :
+                        <div className="w-8 h-8 rounded-full bg-slate-950 flex items-center justify-center text-slate-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
                       }
                           {item.is_smart_contract_verified && (
                             <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white text-[10px]">
@@ -1164,9 +1165,9 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                         </div>
                       </div>
                       <div className="pl-11 pr-3 pb-3 -mt-1 flex items-center gap-2">
-                        <StatefulButton onClick={(e) => { e.stopPropagation(); handleSelectSearchResult(item); setShowSearchModal(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-700 hover:ring-slate-700 opacity-100" skipLoader={true}>Info</StatefulButton>
+                        <StatefulButton onClick={(e) => { e.stopPropagation(); handleSelectSearchResult(item); setShowSearchModal(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-950 hover:ring-slate-950 opacity-100" skipLoader={true}>Info</StatefulButton>
                         <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/ai-agent?address=${item.address}`); setShowSearchModal(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-orange-600 hover:ring-orange-600 opacity-100" skipLoader={true}>Ask AI</StatefulButton>
-                        <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/admin-stats?address=${item.address}`); setShowSearchModal(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-purple-700 hover:ring-purple-700 opacity-100" skipLoader={true}>API</StatefulButton>
+                        <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/admin-stats?address=${item.address}`); setShowSearchModal(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-950 hover:ring-slate-950 opacity-100" skipLoader={true}>API</StatefulButton>
                       </div>
                     </div>
                   ))}
@@ -1181,12 +1182,12 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
       {/* LP Holders Popover/Modal */}
       {showLpPopover && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={() => setShowLpPopover(false)}>
-          <div className="absolute inset-0 bg-black/50" />
+          <div className="absolute inset-0 bg-slate-950/50" />
           <div
-            className="relative bg-slate-900 text-white text-lg border border-slate-700 rounded-lg shadow-2xl w-[90vw] md:w-[45vw] max-h-[80vh] overflow-y-auto"
+            className="relative bg-slate-950 text-white text-lg border border-slate-900 rounded-lg shadow-2xl w-[90vw] md:w-[45vw] max-h-[80vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-slate-900 border-b border-slate-700 px-4 py-2 flex items-center justify-between">
+            <div className="sticky top-0 bg-slate-950 border-b border-slate-900 px-4 py-2 flex items-center justify-between">
               <h3 className="text-md font-semibold">LP Token Holders</h3>
               <button className="text-slate-300 hover:text-white" title="Close" onClick={() => setShowLpPopover(false)}>✕</button>
             </div>
@@ -1195,7 +1196,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                 <div className="text-slate-400 text-base">No data available.</div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 text-sm text-slate-400 border-b border-slate-700 pb-2">
+                  <div className="grid grid-cols-2 text-sm text-slate-400 border-b border-slate-900 pb-2">
                     <div>Address</div>
                     <div className="text-right">% of Pool</div>
                   </div>
@@ -1211,12 +1212,12 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                     const burns = lpHolders.filter(h => isBurn(h.address));
                     const rows = [...top, ...burns];
                     return rows.map((h, idx) => (
-                      <div key={`${h.address}-${idx}`} className="grid grid-cols-2 text-sm py-2 hover:bg-slate-800/50 rounded">
+                      <div key={`${h.address}-${idx}`} className="grid grid-cols-2 text-sm py-2 hover:bg-slate-950/50 rounded">
                         <a
                           href={`https://scan.pulsechain.box/address/${h.address}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-mono text-blue-300 hover:text-blue-200 underline truncate pr-1 flex items-center gap-1"
+                          className="font-mono text-slate-300 hover:text-slate-200 underline truncate pr-1 flex items-center gap-1"
                           title={h.address}
                         >
                           {isBurn(h.address) && <span className="text-base" title="Burn">🔥</span>}
@@ -1261,7 +1262,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                 }}
               />
               {showSearchResults && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto relative">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-950/95 backdrop-blur-sm border border-slate-900/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto relative">
                   <div 
                     className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-lg opacity-20"
                     style={{ backgroundImage: 'url(/Mirage.jpg)' }}
@@ -1282,12 +1283,12 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                     <div key={item.address} className="group/item">
                     <div
                       onClick={() => handleSelectSearchResult(item)}
-                        className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
+                        className="flex items-center gap-3 p-3 hover:bg-slate-950/50 cursor-pointer transition-colors"
                     >
                         {item.icon_url ? (
-                          <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" />
+                          <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-950" />
                         ) : (
-                          <img src="/LogoVector.svg" alt="token logo" className="w-8 h-8 rounded-full bg-slate-700" />
+                          <img src="/LogoVector.svg" alt="token logo" className="w-8 h-8 rounded-full bg-slate-950" />
                         )}
                       <div className="overflow-hidden flex-1">
                         <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
@@ -1306,9 +1307,9 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                         </div>
                       </div>
                       <div className="pl-11 pr-3 pb-3 -mt-1 flex items-center gap-2">
-                        <StatefulButton onClick={(e) => { e.stopPropagation(); handleSelectSearchResult(item); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-700 hover:ring-slate-700 opacity-100" skipLoader={true}>Info</StatefulButton>
+                        <StatefulButton onClick={(e) => { e.stopPropagation(); handleSelectSearchResult(item); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-950 hover:ring-slate-950 opacity-100" skipLoader={true}>Info</StatefulButton>
                         <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/ai-agent?address=${item.address}`); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-orange-600 hover:ring-orange-600 opacity-100" skipLoader={true}>Ask AI</StatefulButton>
-                        <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/admin-stats?address=${item.address}`); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-purple-700 hover:ring-purple-700 opacity-100" skipLoader={true}>API</StatefulButton>
+                        <StatefulButton onClick={(e) => { e.stopPropagation(); router.push(`/admin-stats?address=${item.address}`); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-950 hover:ring-slate-950 opacity-100" skipLoader={true}>API</StatefulButton>
                       </div>
                     </div>
                   ))}
@@ -1346,7 +1347,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
               {/* Sticky banner using shared component */}
               {showStickyBanner && (
                 <StickyBanner
-                  className="fixed inset-x-0 top-0 z-[100] text-black"
+                  className="fixed inset-x-0 top-0 z-[100] text-slate-950"
                   hideOnScroll={false}
                   style={{
                     background: 'rgb(48, 152, 187)',
@@ -1364,13 +1365,13 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                   <span>Contract is not verified. AI Agent will not be available.</span>
                 </StickyBanner>
               )}
-              <div className="relative flex-grow bg-black/20 backdrop-blur-xl border border-white/10 overflow-hidden h-full shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+              <div className="relative flex-grow bg-slate-950/20 backdrop-blur-xl border border-white/10 overflow-hidden h-full shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
                    <GlowingEffect disabled={false} glow={true} />
 
                    {/* Info-tab splash handles DexScreener unavailability; overlay removed to avoid duplication */}
 
                    {/* Header with Token Info and Search */}
-                   <div className="relative flex items-center justify-between px-4 py-3 bg-black/30 backdrop-blur-xl border-b border-white/10 z-50">
+                   <div className="relative flex items-center justify-between px-4 py-3 bg-slate-950/30 backdrop-blur-xl border-b border-white/10 z-50">
                      <div className="flex items-center gap-2">
                        {dexScreenerData?.tokenInfo?.name && (
                          <>
@@ -1382,7 +1383,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                      
                     {/* Expanded Search Bar for Medium+ Screens (always visible) */}
                      <div className="hidden md:block absolute right-4">
-                      <div className="relative flex items-center gap-2 bg-slate-800/90 backdrop-blur-sm border border-slate-600/50 rounded-lg px-3 py-2 shadow-2xl min-w-fit">
+                      <div className="relative flex items-center gap-2 bg-slate-950/90 backdrop-blur-sm border border-slate-900/50 rounded-lg px-3 py-2 shadow-2xl min-w-fit">
                            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                            </svg>
@@ -1415,7 +1416,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                              </div>
                            )}
                             {showSearchResults && (
-                          <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-2xl z-[99990] max-h-80 overflow-y-auto">
+                          <div className="absolute top-full left-0 right-0 mt-2 bg-slate-950/95 backdrop-blur-sm border border-slate-900/50 rounded-lg shadow-2xl z-[99990] max-h-80 overflow-y-auto">
                                 <div 
                                   className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-lg opacity-20"
                                   style={{ backgroundImage: 'url(/Mirage.jpg)' }}
@@ -1433,9 +1434,9 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                     <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
                                   )}
                                   {!isSearching && searchResults?.map(item => (
-                                <div key={item.address} className="p-3 hover:bg-slate-700/50 transition-colors">
+                                <div key={item.address} className="p-3 hover:bg-slate-950/50 transition-colors">
                                   <div className="flex items-center gap-3">
-                                    <img src={item.icon_url || '/LogoVector.svg'} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" />
+                                    <img src={item.icon_url || '/LogoVector.svg'} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-950" />
                                       <div className="overflow-hidden flex-1">
                                         <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
                                         <div className="text-xs text-slate-400 capitalize">{item.type}</div>
@@ -1446,9 +1447,9 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                     </div>
                                   </div>
                                   <div className="mt-2 flex items-center gap-2">
-                                    <StatefulButton onClick={() => { handleSelectSearchResult(item); setShowSearchResults(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-700 hover:ring-slate-700 opacity-100" skipLoader={true}>Info</StatefulButton>
+                                    <StatefulButton onClick={() => { handleSelectSearchResult(item); setShowSearchResults(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-950 hover:ring-slate-950 opacity-100" skipLoader={true}>Info</StatefulButton>
                                     <StatefulButton onClick={() => { router.push(`/ai-agent?address=${item.address}`); setShowSearchResults(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-orange-600 hover:ring-orange-600 opacity-100" skipLoader={true}>Ask AI</StatefulButton>
-                                    <StatefulButton onClick={() => { router.push(`/admin-stats?address=${item.address}`); setShowSearchResults(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-purple-700 hover:ring-purple-700 opacity-100" skipLoader={true}>API</StatefulButton>
+                                    <StatefulButton onClick={() => { router.push(`/admin-stats?address=${item.address}`); setShowSearchResults(false); }} className="min-w-0 w-auto px-2 py-0.5 text-xs bg-slate-950 hover:ring-slate-950 opacity-100" skipLoader={true}>API</StatefulButton>
                                       </div>
                                     </div>
                                   ))}
@@ -1462,7 +1463,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                      {true && (
                      <button
                        onClick={() => setShowSearchModal(true)}
-                       className="md:hidden p-2 bg-slate-500 hover:bg-slate-600 rounded-lg transition-colors"
+                       className="md:hidden p-2 bg-slate-500 hover:bg-slate-950 rounded-lg transition-colors"
                        title="Search new token"
                      >
                        <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1475,7 +1476,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                    {/* Simple shadcn/ui Tabs Component */}
                    <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col w-full">
                     {contractData && !(activeTab === 'info' && isDexUnavailable) && (
-                     <TabsList className="grid w-full grid-cols-5 bg-black/20 backdrop-blur-xl">
+                     <TabsList className="grid w-full grid-cols-5 bg-slate-950/20 backdrop-blur-xl">
                         <TabsTrigger value="code" className="relative text-xs text-white focus-visible:outline-none data-[state=active]:bg-transparent data-[state=active]:text-white after:content-[''] after:absolute after:left-2 after:right-2 after:-bottom-[1px] after:h-[2px] after:rounded-full after:bg-orange-500 data-[state=inactive]:after:bg-transparent border-r border-white/20 last:border-r-0">Code</TabsTrigger>
                         <TabsTrigger value="chat" className="relative text-xs text-white focus-visible:outline-none data-[state=active]:bg-transparent data-[state=active]:text-white after:content-[''] after:absolute after:left-2 after:right-2 after:-bottom-[1px] after:h-[2px] after:rounded-full after:bg-orange-500 data-[state=inactive]:after:bg-transparent border-r border-white/20 last:border-r-0">Chat</TabsTrigger>
                         <TabsTrigger value="info" className="relative text-xs text-white focus-visible:outline-none data-[state=active]:bg-transparent data-[state=active]:text-white after:content-[''] after:absolute after:left-2 after:right-2 after:-bottom-[1px] after:h-[2px] after:rounded-full after:bg-orange-500 data-[state=inactive]:after:bg-transparent border-r border-white/20 last:border-r-0">Info</TabsTrigger>
@@ -1517,8 +1518,8 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                   ].map((question, index) => {
                                      const colorClasses = [
                                        "bg-pink-900/20 hover:bg-pink-800/30 border-pink-700/30 hover:border-pink-600/40",
-                                       "bg-purple-900/20 hover:bg-purple-800/30 border-purple-700/30 hover:border-purple-600/40",
-                                       "bg-blue-900/20 hover:bg-blue-800/30 border-blue-700/30 hover:border-blue-600/40",
+                                       "bg-slate-950/20 hover:bg-slate-950/30 border-slate-900/30 hover:border-slate-900/40",
+                                       "bg-slate-950/20 hover:bg-slate-950/30 border-slate-900/30 hover:border-slate-900/40",
                                        "bg-cyan-900/20 hover:bg-cyan-800/30 border-cyan-700/30 hover:border-cyan-600/40",
                                        "bg-red-900/20 hover:bg-red-800/30 border-red-700/30 hover:border-red-600/40"
                                      ];
@@ -1540,7 +1541,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                          )}
                          {messages.map((msg) => (
                            <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} px-4`}>
-                             <div className={`max-w-[95%] rounded-xl px-3 md:px-4 py-2 md:py-3 ${msg.sender === 'user' ? 'bg-purple-700 text-white' : 'bg-slate-700 backdrop-blur-sm text-slate-200 border border-slate-600/50'}`}>
+                             <div className={`max-w-[95%] rounded-xl px-3 md:px-4 py-2 md:py-3 ${msg.sender === 'user' ? 'bg-slate-950 text-white' : 'bg-slate-950 backdrop-blur-sm text-slate-200 border border-slate-900/50'}`}>
                                {msg.sender === 'user' ? (
                                  <div className="text-white text-sm md:text-base">
                                    {msg.text}
@@ -1559,15 +1560,15 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                          ))}
                         {isLoadingChat && messages[messages.length - 1]?.sender === 'user' && (
                           <div className="flex justify-start px-4">
-                            <div className="max-w-[95%] rounded-xl px-3 md:px-4 py-2 bg-slate-700 text-slate-200">
+                            <div className="max-w-[95%] rounded-xl px-3 md:px-4 py-2 bg-slate-950 text-slate-200">
                               <LoaderThree />
                             </div>
                           </div>
                         )}
                        </div>
-                       <form onSubmit={handleSendMessage} className="border-t border-white/10 flex items-center gap-2 md:gap-3 bg-black/20 backdrop-blur-xl flex-shrink-0 p-4">
-                         <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask about the contract..." className="flex-grow bg-black/30 backdrop-blur-sm border border-white/20 rounded-lg px-3 md:px-4 py-2 text-white placeholder-slate-300 focus:ring-2 focus:ring-purple-500 focus:outline-none transition text-sm md:text-base" disabled={isLoadingChat} />
-                         <button type="submit" disabled={isLoadingChat || !chatInput.trim()} className="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors" title="Send message"><SendIcon className="w-4 h-4 md:w-5 md:h-5"/></button>
+                       <form onSubmit={handleSendMessage} className="border-t border-white/10 flex items-center gap-2 md:gap-3 bg-slate-950/20 backdrop-blur-xl flex-shrink-0 p-4">
+                         <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask about the contract..." className="flex-grow bg-slate-950/30 backdrop-blur-sm border border-white/20 rounded-lg px-3 md:px-4 py-2 text-white placeholder-slate-300 focus:ring-2 focus:ring-slate-500 focus:outline-none transition text-sm md:text-base" disabled={isLoadingChat} />
+                         <button type="submit" disabled={isLoadingChat || !chatInput.trim()} className="bg-slate-950 text-white p-2 rounded-full hover:bg-slate-950 disabled:bg-slate-950 disabled:cursor-not-allowed transition-colors" title="Send message"><SendIcon className="w-4 h-4 md:w-5 md:h-5"/></button>
                        </form>
                      </TabsContent>
                      
@@ -1581,14 +1582,14 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                               href={`https://scan.pulsechain.box/token/${contractAddress}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-300 hover:text-blue-200 underline"
+                              className="text-slate-300 hover:text-slate-200 underline"
                             >
                               Click Here to View on PulseScan
                             </a>
                           </div>
                         </div>
                       )}
-                      <div className={`h-full bg-slate-900 w-full ${isDexUnavailable ? 'hidden' : ''}`}>
+                      <div className={`h-full bg-slate-950 w-full ${isDexUnavailable ? 'hidden' : ''}`}>
                          {/* Header Banner Image with Overlay Buttons */}
                          <div className="relative w-full -mt-px">
                              <div className="relative w-full overflow-hidden border-b-2 border-orange-500">
@@ -1640,7 +1641,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                        href={websiteLink.url}
                                        target="_blank"
                                        rel="noopener noreferrer"
-                                       className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
+                                       className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
                                        style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
                                      >
                                        <span className="absolute inset-0 overflow-hidden rounded-full">
@@ -1659,7 +1660,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                        href={twitterLink.url}
                                        target="_blank"
                                        rel="noopener noreferrer"
-                                       className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
+                                       className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
                                        style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
                                      >
                                        <span className="absolute inset-0 overflow-hidden rounded-full">
@@ -1681,7 +1682,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                        href={telegramLink.url}
                                        target="_blank"
                                        rel="noopener noreferrer"
-                                       className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
+                                       className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
                                        style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
                                      >
                                        <span className="absolute inset-0 overflow-hidden rounded-full">
@@ -1703,7 +1704,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                        onClick={() => {
                                          document.getElementById('description-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                                        }}
-                                       className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
+                                       className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
                                        style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.5))' }}
                                        title="View all links"
                                      >
@@ -1734,7 +1735,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                   const tokenSymbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData?.pairs?.[0]?.baseToken?.symbol || '';
                                   window.open(`https://x.com/search?q=%23${encodeURIComponent(tokenSymbol)}`, '_blank');
                                 }}
-                                className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
+                                className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
                                 style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
                               >
                                 <span className="absolute inset-0 overflow-hidden rounded-full">
@@ -1751,7 +1752,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                               
                               <button
                                 onClick={() => setActiveTab('liquidity')}
-                                className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-sm font-semibold leading-6 text-white inline-block"
+                                className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-sm font-semibold leading-6 text-white inline-block"
                                 style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
                               >
                                 <span className="absolute inset-0 overflow-hidden rounded-full">
@@ -1769,7 +1770,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                               
                               <button
                                 onClick={() => setActiveTab('code')}
-                                className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
+                                className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
                                 style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
                               >
                                 <span className="absolute inset-0 overflow-hidden rounded-full">
@@ -1787,7 +1788,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                               
                               <button
                                 onClick={() => setShowTransactionModal(true)}
-                                className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
+                                className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
                                 style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
                               >
                                 <span className="absolute inset-0 overflow-hidden rounded-full">
@@ -1831,24 +1832,24 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                           </div>
                           
                           {/* Divider - Mobile Only */}
-                          <div className="md:hidden w-full h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent mb-4"></div>
+                          <div className="md:hidden w-full h-px bg-gradient-to-r from-transparent via-slate-950 to-transparent mb-4"></div>
                           
                           {/* Price Section */}
                           {dexScreenerData?.pairs?.[0] && (
                             <div className="grid grid-cols-3 gap-4 mb-4">
-                               <div className="p-2 rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
+                               <div className="p-2 rounded-xl bg-slate-950 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                  <div className="text-sm text-slate-200 uppercase mb-0.5">Price USD</div>
                                  <div className="text-md font-bold text-white">
                                    ${Number(dexScreenerData.pairs[0].priceUsd || 0).toFixed(6)}
                                  </div>
                                </div>
-                               <div className="p-2 rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
+                               <div className="p-2 rounded-xl bg-slate-950 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                  <div className="text-sm text-slate-200 uppercase mb-0.5">Price WPLS</div>
                                  <div className="text-md font-bold text-white">
                                    {Math.round(Number(dexScreenerData.pairs[0].priceNative || 0))}
                                  </div>
                                </div>
-                                <div className="p-2 rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
+                                <div className="p-2 rounded-xl bg-slate-950 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                   <div className="text-sm text-slate-200 uppercase mb-0.5">24h Volume</div>
                                   <div className="text-md font-bold text-white">
                                   ${Number(dexScreenerData.pairs[0].volume?.h24 || 0) >= 1000000 
@@ -1862,7 +1863,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                           {/* Key Metrics */}
                            {dexScreenerData?.pairs?.[0] && (
                              <div className="grid grid-cols-3 gap-4 mb-4">
-                               <div className="relative p-3 min-h-[86px] rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
+                               <div className="relative p-3 min-h-[86px] rounded-xl bg-slate-950 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                    <div className="text-sm text-slate-200 uppercase mb-0.5">Liquidity</div>
                                    <div className="text-md font-bold text-white">
                                    ${Number(dexScreenerData.pairs[0].liquidity?.usd || 0) >= 1000000 
@@ -1888,7 +1889,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                    ▶
                                  </button>
                                </div>
-                               <div className="p-3 min-h-[86px] rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
+                               <div className="p-3 min-h-[86px] rounded-xl bg-slate-950 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                   <div className="text-sm text-slate-200 uppercase mb-0.5">FDV</div>
                                   <div className="text-md font-bold text-white">
                                    {(() => {
@@ -1900,7 +1901,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                    })()}
                                  </div>
                                </div>
-                               <div className="p-3 min-h-[86px] rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
+                               <div className="p-3 min-h-[86px] rounded-xl bg-slate-950 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                   <div className="text-sm text-slate-200 uppercase mb-0.5">Mkt Cap</div>
                                   <div className="text-md font-bold text-white">
                                    {(() => {
@@ -1913,7 +1914,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                    })()}
                                  </div>
                                </div>
-                               <div className="p-3 min-h-[86px] rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
+                               <div className="p-3 min-h-[86px] rounded-xl bg-slate-950 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                  <div className="text-sm text-slate-200 uppercase mb-0.5">Tokens Burned</div>
                                  <div className="text-md font-bold text-white">
                                    {burnedTokens ? `${formatAbbrev(burnedTokens.amount)}` : '—'}
@@ -1922,14 +1923,14 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                    <div className="text-xs text-slate-400">{burnedTokens.percent.toFixed(2)}%</div>
                                  )}
                                </div>
-                               <div className="p-3 min-h-[86px] rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
+                               <div className="p-3 min-h-[86px] rounded-xl bg-slate-950 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                  <div className="text-sm text-slate-200 uppercase mb-0.5">Holders</div>
                                  <div className="text-md font-bold text-white">
                                    {holdersCount !== null ? holdersCount.toLocaleString() : '—'}
                                  </div>
                                </div>
                               {(ownerRenounce?.renounced || ownerAddress) && (
-                                <div className="p-3 min-h-[86px] rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
+                                <div className="p-3 min-h-[86px] rounded-xl bg-slate-950 border border-white/10 backdrop-blur-sm text-center shadow-2xl shadow-zinc-900 flex flex-col items-center justify-center" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                   <div className="text-sm text-slate-200 uppercase mb-0.5">Owner</div>
                                   {ownerRenounce?.renounced ? (
                                     <>
@@ -1939,7 +1940,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                           href={`https://scan.pulsechain.com/tx/${ownerRenounce.txHash}`}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="text-xs text-blue-300 hover:text-blue-200 underline mt-1 inline-block"
+                                          className="text-xs text-slate-300 hover:text-slate-200 underline mt-1 inline-block"
                                           title={ownerRenounce.txHash}
                                         >
                                           TX Hash
@@ -1952,7 +1953,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                         href={`https://scan.pulsechain.box/address/${ownerAddress}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-md font-bold text-blue-300 hover:text-blue-200 font-mono"
+                                        className="text-md font-bold text-slate-300 hover:text-slate-200 font-mono"
                                       >
                                         {ownerAddress ? `${ownerAddress.slice(0, 4)}...${ownerAddress.slice(-4)}` : 'Unknown'}
                                       </a>
@@ -1966,7 +1967,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
 
                            {/* New vs Old Holders card with tabs */}
                            <div className="grid grid-cols-1 gap-4 mb-4">
-                             <div className="p-2 rounded-xl bg-slate-800 border border-white/10 backdrop-blur-sm shadow-2xl shadow-zinc-900" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
+                             <div className="p-2 rounded-xl bg-slate-950 border border-white/10 backdrop-blur-sm shadow-2xl shadow-zinc-900" style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}>
                                <div className="flex items-center justify-between mb-2">
                                  <div className="text-sm text-slate-200 uppercase">New vs Old Holders</div>
                                  <div className="flex items-center gap-1">
@@ -1974,7 +1975,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                      <button
                                        key={tf}
                                        type="button"
-                                       className={`px-2 py-0.5 text-xs rounded ${holdersTimeframe===tf?'bg-orange-600 text-white':'bg-slate-700 text-slate-200 hover:bg-slate-600'}`}
+                                       className={`px-2 py-0.5 text-xs rounded ${holdersTimeframe===tf?'bg-orange-600 text-white':'bg-slate-950 text-slate-200 hover:bg-slate-950'}`}
                                        onClick={() => { setHoldersTimeframe(tf); loadNewVsOldHolders(tf); }}
                                        title={`${tf}d`}
                                      >
@@ -1983,7 +1984,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                    ))}
                                  </div>
                                </div>
-                               <div className="p-2 rounded bg-slate-900/40 border border-white/10">
+                               <div className="p-2 rounded bg-slate-950/40 border border-white/10">
                                 {holdersStatsLoading ? (
                                   <div className="flex items-center justify-center gap-2 py-6">
                                     <LoaderWithPercent label="Loading" small />
@@ -2006,7 +2007,10 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                      </div>
                                    </div>
                                  ) : (
-                                   <div className="text-xs text-slate-400">Select a timeframe to load stats</div>
+                                   <div className="text-center py-6">
+                                     <div className="text-slate-400 text-sm mb-2">Click a timeframe to load holder stats</div>
+                                     <div className="text-xs text-slate-500">This prevents excessive API calls</div>
+                                   </div>
                                  )}
                                </div>
                              </div>
@@ -2019,7 +2023,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                            
                            {/* Description Section */}
                            {dexScreenerData?.profile?.description && (
-                             <div id="description-section" className="bg-slate-800/50 border border-slate-700 rounded pt-4 px-4 pb-6 mb-6 scroll-mt-4 bg-cover bg-center relative mt-[15px]" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+                             <div id="description-section" className="bg-slate-950/50 border border-slate-900 rounded pt-4 px-4 pb-6 mb-6 scroll-mt-4 bg-cover bg-center relative mt-[15px]" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
                                {/* Token Logo - Centered with Overflow */}
                                <div className="flex justify-center mb-4 pt-1 mt-1">
                                  {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? (
@@ -2030,7 +2034,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                      style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
                                    />
                                  ) : (
-                                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-purple-600 to-orange-600 flex items-center justify-center shadow-lg">
+                                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-slate-950 to-orange-600 flex items-center justify-center shadow-lg">
                                      <span className="text-2xl sm:text-3xl font-bold text-white">
                                        {dexScreenerData?.tokenInfo?.symbol?.[0] || '?'}
                                      </span>
@@ -2096,7 +2100,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                          href={link.url}
                                          target="_blank"
                                          rel="noopener noreferrer"
-                                         className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
+                                         className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
                                          style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
                                        >
                                          <span className="absolute inset-0 overflow-hidden rounded-full">
@@ -2120,10 +2124,183 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                              </div>
                            )}
 
+                          {/* Token Analytics Dashboard - Admin Stats Iframe */}
+                          {dexScreenerData?.tokenInfo?.address && (
+                            <div className="bg-slate-950/50 border border-slate-900 rounded p-4 mb-6 bg-cover bg-center relative" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+                              <h3 className="text-xl font-bold text-white text-center mb-4" style={{ textShadow: '0 10px 4px rgba(0, 0, 0, 0.8)' }}>
+                                Token Analytics Dashboard
+                              </h3>
+                              
+                              <div className="relative w-full" style={{ height: '800px' }}>
+                                <iframe
+                                  src={`/admin-stats-clean?address=${dexScreenerData.tokenInfo.address}`}
+                                  className="w-full h-full border-0 rounded-lg"
+                                  title="Token Analytics Dashboard"
+                                  loading="lazy"
+                                  onLoad={() => {
+                                    console.log('Analytics dashboard loaded');
+                                    const loadingOverlay = document.getElementById('analytics-loading');
+                                    if (loadingOverlay) {
+                                      loadingOverlay.style.display = 'none';
+                                    }
+                                  }}
+                                  onError={() => {
+                                    console.log('Analytics dashboard failed to load');
+                                    const loadingOverlay = document.getElementById('analytics-loading');
+                                    if (loadingOverlay) {
+                                      loadingOverlay.innerHTML = '<div class="text-center"><div class="text-red-400 text-lg mb-2">Failed to load analytics</div><div class="text-slate-400 text-sm">Please try refreshing the page</div></div>';
+                                    }
+                                  }}
+                                />
+                                
+                                {/* Loading overlay */}
+                                <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 rounded-lg" id="analytics-loading">
+                                  <div className="text-center">
+                                    <div className="text-white text-lg mb-2">Loading Analytics Dashboard...</div>
+                                    <div className="text-slate-400 text-sm">Fetching token data and statistics</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Divider between token description and chart */}
                           <div className="w-full h-px bg-white/20 my-4 py-[2px]"></div>
                            
-                           {/* Price Chart */}
+                           {/* Quick Audit Section */}
+                           {(dexScreenerData?.quickAudit || dexScreenerData?.qi?.quickiAudit) && (
+                             <div className="bg-slate-950/50 border border-slate-900 rounded p-4 mb-6 bg-cover bg-center relative" style={{ backgroundImage: 'url(/Mirage2.jpg)' }}>
+                               <h3 className="text-xl font-bold text-white text-center mb-4" style={{ textShadow: '0 10px 4px rgba(0, 0, 0, 0.8)' }}>
+                                 Quick Audit
+                               </h3>
+                               
+                               {(() => {
+                                 const quickAudit = dexScreenerData?.quickAudit || dexScreenerData?.qi?.quickiAudit;
+                                 return (
+                                   <>
+                                     {/* Contract Information */}
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                       <div className="bg-slate-950/60 rounded-lg p-3">
+                                         <div className="text-sm text-slate-300 mb-2">Contract Information</div>
+                                         <div className="space-y-1 text-xs">
+                                           <div className="flex justify-between">
+                                             <span className="text-slate-400">Name:</span>
+                                             <span className="text-white font-mono">{quickAudit.contractName}</span>
+                                           </div>
+                                           <div className="flex justify-between">
+                                             <span className="text-slate-400">Creator:</span>
+                                             <span className="text-white font-mono">{quickAudit.contractCreator ? `${quickAudit.contractCreator.slice(0, 6)}...${quickAudit.contractCreator.slice(-4)}` : 'Unknown'}</span>
+                                           </div>
+                                           <div className="flex justify-between">
+                                             <span className="text-slate-400">Owner:</span>
+                                             <span className={`font-mono ${quickAudit.contractRenounced ? 'text-green-400' : 'text-red-400'}`}>
+                                               {quickAudit.contractRenounced ? 'Renounced' : (quickAudit.contractOwner ? `${quickAudit.contractOwner.slice(0, 6)}...${quickAudit.contractOwner.slice(-4)}` : 'Unknown')}
+                                             </span>
+                                           </div>
+                                         </div>
+                                       </div>
+                                 
+                                       <div className="bg-slate-950/60 rounded-lg p-3">
+                                         <div className="text-sm text-slate-300 mb-2">Security Flags</div>
+                                         <div className="space-y-1 text-xs">
+                                           <div className="flex justify-between">
+                                             <span className="text-slate-400">Proxy:</span>
+                                             <span className={quickAudit.isProxy ? 'text-red-400' : 'text-green-400'}>
+                                               {quickAudit.isProxy ? 'Yes' : 'No'}
+                                             </span>
+                                           </div>
+                                           <div className="flex justify-between">
+                                             <span className="text-slate-400">External Risk:</span>
+                                             <span className={quickAudit.hasExternalContractRisk ? 'text-red-400' : 'text-green-400'}>
+                                               {quickAudit.hasExternalContractRisk ? 'Yes' : 'No'}
+                                             </span>
+                                           </div>
+                                           <div className="flex justify-between">
+                                             <span className="text-slate-400">Suspicious:</span>
+                                             <span className={quickAudit.hasSuspiciousFunctions ? 'text-red-400' : 'text-green-400'}>
+                                               {quickAudit.hasSuspiciousFunctions ? 'Yes' : 'No'}
+                                             </span>
+                                           </div>
+                                         </div>
+                                       </div>
+                                     </div>
+                               
+                                     {/* Capabilities Grid */}
+                                     <div className="bg-slate-950/60 rounded-lg p-3 mb-4">
+                                       <div className="text-sm text-slate-300 mb-3">Contract Capabilities</div>
+                                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                                         <div className="flex items-center justify-between">
+                                           <span className="text-slate-400">Mint:</span>
+                                           <span className={quickAudit.canMint ? 'text-red-400' : 'text-green-400'}>
+                                             {quickAudit.canMint ? 'Yes' : 'No'}
+                                           </span>
+                                         </div>
+                                         <div className="flex items-center justify-between">
+                                           <span className="text-slate-400">Burn:</span>
+                                           <span className={quickAudit.canBurn ? 'text-yellow-400' : 'text-green-400'}>
+                                             {quickAudit.canBurn ? 'Yes' : 'No'}
+                                           </span>
+                                         </div>
+                                         <div className="flex items-center justify-between">
+                                           <span className="text-slate-400">Blacklist:</span>
+                                           <span className={quickAudit.canBlacklist ? 'text-red-400' : 'text-green-400'}>
+                                             {quickAudit.canBlacklist ? 'Yes' : 'No'}
+                                           </span>
+                                         </div>
+                                         <div className="flex items-center justify-between">
+                                           <span className="text-slate-400">Pause:</span>
+                                           <span className={quickAudit.canPauseTrading ? 'text-red-400' : 'text-green-400'}>
+                                             {quickAudit.canPauseTrading ? 'Yes' : 'No'}
+                                           </span>
+                                         </div>
+                                         <div className="flex items-center justify-between">
+                                           <span className="text-slate-400">Update Fees:</span>
+                                           <span className={quickAudit.canUpdateFees ? 'text-red-400' : 'text-green-400'}>
+                                             {quickAudit.canUpdateFees ? 'Yes' : 'No'}
+                                           </span>
+                                         </div>
+                                         <div className="flex items-center justify-between">
+                                           <span className="text-slate-400">Max Wallet:</span>
+                                           <span className={quickAudit.canUpdateMaxWallet ? 'text-red-400' : 'text-green-400'}>
+                                             {quickAudit.canUpdateMaxWallet ? 'Yes' : 'No'}
+                                           </span>
+                                         </div>
+                                         <div className="flex items-center justify-between">
+                                           <span className="text-slate-400">Max TX:</span>
+                                           <span className={quickAudit.canUpdateMaxTx ? 'text-red-400' : 'text-green-400'}>
+                                             {quickAudit.canUpdateMaxTx ? 'Yes' : 'No'}
+                                           </span>
+                                         </div>
+                                         <div className="flex items-center justify-between">
+                                           <span className="text-slate-400">Cooldown:</span>
+                                           <span className={quickAudit.hasTradingCooldown ? 'text-yellow-400' : 'text-green-400'}>
+                                             {quickAudit.hasTradingCooldown ? 'Yes' : 'No'}
+                                           </span>
+                                         </div>
+                                       </div>
+                                     </div>
+                               
+                                     {/* Functions List */}
+                                     {quickAudit.functions && quickAudit.functions.length > 0 && (
+                                       <div className="bg-slate-950/60 rounded-lg p-3">
+                                         <div className="text-sm text-slate-300 mb-2">Contract Functions</div>
+                                         <div className="flex flex-wrap gap-1">
+                                           {quickAudit.functions.map((func, index) => (
+                                             <span key={index} className="bg-slate-950 text-slate-300 text-xs px-2 py-1 rounded">
+                                               {func}
+                                             </span>
+                                           ))}
+                                         </div>
+                                       </div>
+                                     )}
+                                   </>
+                                 );
+                               })()}
+                             </div>
+                           )}
+
+                          {/* Divider between chart and pair information */}
+                          <div className="w-full h-px bg-white/20 my-4 py-[2px]"></div>
                            {dexScreenerData?.pairs?.[0] && (
                              <div className="mb-4">
                               <DexScreenerChart 
@@ -2137,20 +2314,20 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                            
                            {/* Time Period Performance */}
                            {dexScreenerData?.pairs?.[0]?.priceChange && (
-                             <div className="grid grid-cols-4 bg-slate-800/50 border border-slate-700 rounded overflow-hidden mb-0 bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
-                               <div className="p-3 text-center border-r border-slate-700">
+                             <div className="grid grid-cols-4 bg-slate-950/50 border border-slate-900 rounded overflow-hidden mb-0 bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+                               <div className="p-3 text-center border-r border-slate-900">
                                  <div className="text-xs text-slate-400 uppercase mb-1">5M</div>
                                  <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.m5 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                    {(dexScreenerData.pairs[0].priceChange.m5 || 0).toFixed(2)}%
                                  </div>
                                </div>
-                               <div className="p-3 text-center border-r border-slate-700">
+                               <div className="p-3 text-center border-r border-slate-900">
                                  <div className="text-xs text-slate-400 uppercase mb-1">1H</div>
                                  <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.h1 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                    {(dexScreenerData.pairs[0].priceChange.h1 || 0).toFixed(2)}%
                                  </div>
                                </div>
-                               <div className="p-3 text-center border-r border-slate-700">
+                               <div className="p-3 text-center border-r border-slate-900">
                                  <div className="text-xs text-slate-400 uppercase mb-1">6H</div>
                                  <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.h6 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                    {(dexScreenerData.pairs[0].priceChange.h6 || 0).toFixed(2)}%
@@ -2167,7 +2344,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                            
                            {/* Transaction, Volume, and Maker Stats - Two Column Layout */}
                            {dexScreenerData?.pairs?.[0]?.txns && dexScreenerData?.pairs?.[0]?.volume && (
-                             <div className="bg-slate-800/50 border border-slate-700 rounded p-4 mb-4 bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+                             <div className="bg-slate-950/50 border border-slate-900 rounded p-4 mb-4 bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
                                <div className="grid gap-0" style={{ gridTemplateColumns: '1fr 3fr' }}>
                                  {/* Left Column - Labels and Totals */}
                                  <div className="space-y-5 pr-4">
@@ -2200,7 +2377,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                  
                                  {/* Vertical Divider */}
                                  <div className="relative">
-                                   <div className="absolute left-0 top-0 bottom-0 w-px bg-slate-700" />
+                                   <div className="absolute left-0 top-0 bottom-0 w-px bg-slate-950" />
                                    
                                    {/* Right Column - Buys/Sells with Progress Bars */}
                                    <div className="space-y-5 pl-4">
@@ -2220,7 +2397,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                            </div>
                                          </div>
                                        </div>
-                                       <div className="w-full h-2 bg-slate-700 rounded-sm overflow-hidden flex">
+                                       <div className="w-full h-2 bg-slate-950 rounded-sm overflow-hidden flex">
                                          <div 
                                            className="h-full bg-green-500"
                                            style={{ 
@@ -2251,7 +2428,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                            </div>
                                          </div>
                                        </div>
-                                       <div className="w-full h-2 bg-slate-700 rounded-sm overflow-hidden flex">
+                                       <div className="w-full h-2 bg-slate-950 rounded-sm overflow-hidden flex">
                                          <div className="h-full bg-green-500" style={{ width: '55%' }} />
                                          <div className="h-full bg-red-500 flex-1" />
                                        </div>
@@ -2273,7 +2450,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                            </div>
                                          </div>
                                        </div>
-                                       <div className="w-full h-2 bg-slate-700 rounded-sm overflow-hidden flex">
+                                       <div className="w-full h-2 bg-slate-950 rounded-sm overflow-hidden flex">
                                          <div 
                                            className="h-full bg-green-500"
                                            style={{ 
@@ -2296,7 +2473,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                  const tokenSymbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData?.pairs?.[0]?.baseToken?.symbol || '';
                                  window.open(`https://x.com/search?q=%23${encodeURIComponent(tokenSymbol)}`, '_blank');
                                }}
-                               className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
+                               className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
                                style={{ filter: 'drop-shadow(0 10px 15px rgb(0, 0, 0))' }}
                              >
                                <span className="absolute inset-0 overflow-hidden rounded-full">
@@ -2313,7 +2490,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                              
                              <button
                                onClick={() => setActiveTab('liquidity')}
-                               className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
+                               className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
                                style={{ filter: 'drop-shadow(0 10px 15px rgb(0, 0, 0))' }}
                              >
                                <span className="absolute inset-0 overflow-hidden rounded-full">
@@ -2331,7 +2508,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                              
                              <button
                                onClick={() => setActiveTab('code')}
-                               className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
+                               className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
                                style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
                              >
                                <span className="absolute inset-0 overflow-hidden rounded-full">
@@ -2349,7 +2526,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                              
                              <button
                                onClick={() => setActiveTab('chat')}
-                               className="bg-slate-800 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
+                               className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-xs font-semibold leading-6 text-white inline-block"
                                style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
                              >
                                <span className="absolute inset-0 overflow-hidden rounded-full">
@@ -2367,7 +2544,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                            
                            {/* Pair Details */}
                            {dexScreenerData?.pairs?.[0] && (
-                             <div className="bg-slate-800/50 border border-slate-700 rounded p-4 relative bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)', marginBottom: '50px' }}>
+                             <div className="bg-slate-950/50 border border-slate-900 rounded p-4 relative bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)', marginBottom: '50px' }}>
                                <button
                                  onClick={() => setActiveTab('liquidity')}
                                  className="absolute top-4 right-4 px-3 py-1.5 text-xs font-medium text-white bg-orange-500 hover:bg-orange-600 rounded transition-colors"
@@ -2376,7 +2553,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                </button>
                               <h3 className="text-base font-semibold text-white mb-3 uppercase tracking-wider">Pair Information</h3>
                               <div className="space-y-2 text-base">
-                                 <div className="flex justify-between py-2 border-b border-slate-700">
+                                 <div className="flex justify-between py-2 border-b border-slate-900">
                                     <span className="text-slate-300">Pair created</span>
                                    <span className="text-white">
                                      {dexScreenerData.pairs[0].pairCreatedAt 
@@ -2393,7 +2570,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                  
                                  {dexScreenerData.pairs[0].liquidity && (
                                    <>
-                                     <div className="flex justify-between py-2 border-b border-slate-700">
+                                     <div className="flex justify-between py-2 border-b border-slate-900">
                                       <span className="text-slate-300">Pooled {dexScreenerData.pairs[0].baseToken?.symbol}</span>
                                        <span className="text-white">
                                          {Number(dexScreenerData.pairs[0].liquidity.base || 0).toLocaleString()} 
@@ -2403,7 +2580,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                        </span>
                                      </div>
                                      
-                                     <div className="flex justify-between py-2 border-b border-slate-700">
+                                     <div className="flex justify-between py-2 border-b border-slate-900">
                                       <span className="text-slate-300">Pooled {dexScreenerData.pairs[0].quoteToken?.symbol}</span>
                                        <span className="text-white">
                                          {Number(dexScreenerData.pairs[0].liquidity.quote || 0).toLocaleString()}
@@ -2415,14 +2592,14 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                    </>
                                  )}
                                  
-                                 <div className="flex justify-between py-2 border-b border-slate-700">
+                                 <div className="flex justify-between py-2 border-b border-slate-900">
                                     <span className="text-slate-300">Pair</span>
                                    <div className="flex items-center gap-2">
                                      <a
                                        href={`https://scan.pulsechain.box/token/${dexScreenerData.pairs[0].pairAddress}`}
                                        target="_blank"
                                        rel="noopener noreferrer"
-                                      className="text-blue-400 hover:text-blue-300 font-mono text-sm transition-colors"
+                                      className="text-slate-400 hover:text-slate-300 font-mono text-sm transition-colors"
                                      >
                                        {dexScreenerData.pairs[0].pairAddress?.slice(0, 4)}...{dexScreenerData.pairs[0].pairAddress?.slice(-4)}
                                      </a>
@@ -2436,14 +2613,14 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                    </div>
                                  </div>
                                  
-                                 <div className="flex justify-between py-2 border-b border-slate-700">
+                                 <div className="flex justify-between py-2 border-b border-slate-900">
                                     <span className="text-slate-300">{dexScreenerData.pairs[0].baseToken?.symbol}</span>
                                    <div className="flex items-center gap-2">
                                      <a
                                        href={`https://scan.pulsechain.box/token/${dexScreenerData.pairs[0].baseToken?.address}`}
                                        target="_blank"
                                        rel="noopener noreferrer"
-                                      className="text-blue-400 hover:text-blue-300 font-mono text-sm transition-colors"
+                                      className="text-slate-400 hover:text-slate-300 font-mono text-sm transition-colors"
                                      >
                                        {dexScreenerData.pairs[0].baseToken?.address?.slice(0, 4)}...{dexScreenerData.pairs[0].baseToken?.address?.slice(-4)}
                                      </a>
@@ -2464,7 +2641,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                        href={`https://scan.pulsechain.box/token/${dexScreenerData.pairs[0].quoteToken?.address}`}
                                        target="_blank"
                                        rel="noopener noreferrer"
-                                      className="text-blue-400 hover:text-blue-300 font-mono text-sm transition-colors"
+                                      className="text-slate-400 hover:text-slate-300 font-mono text-sm transition-colors"
                                      >
                                        {dexScreenerData.pairs[0].quoteToken?.address?.slice(0, 4)}...{dexScreenerData.pairs[0].quoteToken?.address?.slice(-4)}
                                      </a>
@@ -2484,7 +2661,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                            {/* Token Amount Calculator */}
                            {dexScreenerData?.pairs?.[0] && (
                             <div className="mb-4">
-                              <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+                              <div className="bg-slate-950 border border-slate-900 rounded-lg p-4 bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
                                 {/* Token Amount Input */}
                                 <div className="mb-3">
                                   <div className="relative">
@@ -2496,7 +2673,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                         setTokenAmount(value);
                                       }}
                                       placeholder="1"
-                                      className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 pr-20 text-white text-lg font-semibold focus:outline-none focus:border-orange-500 transition-colors"
+                                      className="w-full bg-slate-950 border border-slate-900 rounded-lg px-4 py-3 pr-20 text-white text-lg font-semibold focus:outline-none focus:border-orange-500 transition-colors"
                                     />
                                     <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium pointer-events-none">
                                       {dexScreenerData.pairs[0].baseToken?.symbol || 'TOKEN'}
@@ -2510,7 +2687,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                 </div>
 
                                 {/* Calculated Value Display */}
-                                <div className="bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 mb-3">
+                                <div className="bg-slate-950 border border-slate-900 rounded-lg px-4 py-3 mb-3">
                                   <div className="text-2xl font-bold text-white flex items-center justify-between">
                                     {(() => {
                                       const amount = Number(tokenAmount) || 0;
@@ -2577,6 +2754,20 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
 
                           {/* Divider between pair information and estimated token thing */}
                           <div className="w-full h-px bg-white/20 my-4 py-[2px]"></div>
+
+                          {/* Switch Widget Section */}
+                          <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-white mb-4 text-center">Token Swap</h3>
+                            <div className="bg-slate-950 rounded-lg p-4 border border-gray-700">
+                              <iframe 
+                                src="https://switch.win/widget?network=pulsechain&background_color=000000&font_color=ffffff&secondary_font_color=7a7a7a&border_color=01e401&backdrop_color=transparent&from=0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee&to=0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39" 
+                                allow="clipboard-read; clipboard-write" 
+                                width="100%" 
+                                height="900px"
+                                className="border-0 rounded-lg"
+                              />
+                            </div>
+                          </div>
                          </div>
                        </div>
                      </TabsContent>
@@ -2607,6 +2798,8 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
           onClose={() => setShowTransactionModal(false)}
           tokenAddress={contractAddress}
           tokenSymbol={tokenInfo?.symbol || dexScreenerData?.tokenInfo?.symbol || 'TOKEN'}
+          priceUsd={dexScreenerData?.pairs?.[0]?.priceUsd || 0}
+          priceWpls={dexScreenerData?.pairs?.[0]?.priceNative || 0}
         />
       </div>
     </div>
@@ -2629,6 +2822,15 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
   const [loading, setLoading] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
   const [showAddressModal, setShowAddressModal] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Reset pagination when contract address changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [contractAddress]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2636,6 +2838,7 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
       if (!contractAddress) return;
       setLoading(true);
       try {
+        // Fetch top 50 holders
         const res = await pulsechainApiService.getTokenHolders(contractAddress, 1, 50);
         const resData: any = res;
         
@@ -2653,15 +2856,15 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
           }))
           .filter((item: any) => item.address && item.value);
         
-        // Fetch contract info for top 10 holders (to avoid too many API calls)
-        const top10Addresses = items.slice(0, 10).map(h => h.address);
+        // Only fetch contract info for top 5 holders to reduce API calls
+        const top5Addresses = items.slice(0, 5).map(h => h.address);
         const contractChecks = await Promise.allSettled(
-          top10Addresses.map(addr => pulsechainApiService.getAddressInfo(addr))
+          top5Addresses.map(addr => pulsechainApiService.getAddressInfo(addr))
         );
         
         // Map contract info to holders
         const itemsWithContractInfo = items.map((item, idx) => {
-          if (idx < 10) {
+          if (idx < 5) {
             const checkResult = contractChecks[idx];
             if (checkResult.status === 'fulfilled' && checkResult.value) {
               return {
@@ -2726,6 +2929,12 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
     [list, formatAmount, percentOfSupply]
   );
 
+  // Pagination logic
+  const totalPages = Math.ceil(processedList.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentPageData = processedList.slice(startIndex, endIndex);
+
   // Calculate contract vs wallet stats
   const contractCount = React.useMemo(() =>
     processedList.filter(h => h.isContract === true).length,
@@ -2762,7 +2971,7 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
       ) : (
         <div className="overflow-x-auto rounded-lg border border-white/10">
           <table className="w-full text-sm">
-            <thead className="bg-black/30">
+            <thead className="bg-slate-950/30">
               <tr className="text-left text-slate-300">
                 <th className="px-4 py-2">#</th>
                 <th className="px-4 py-2">Address</th>
@@ -2771,21 +2980,21 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
               </tr>
             </thead>
             <tbody>
-              {processedList.map((holder) => (
+              {currentPageData.map((holder) => (
                 <tr key={holder.address || holder.index} className="border-t border-white/10 hover:bg-white/5">
                   <td className="px-4 py-2 text-slate-400">{holder.index}</td>
                   <td className="px-4 py-2">
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleAddressClick(holder.address)}
-                        className="font-mono text-purple-300 hover:text-purple-100 transition-colors cursor-pointer hover:underline"
+                        className="font-mono text-slate-300 hover:text-slate-950 transition-colors cursor-pointer hover:underline"
                         title="Click to view address details"
                       >
                         {holder.formattedAddress}
                       </button>
                       {holder.isContract && (
                         <div className="flex items-center gap-1">
-                          <span className="px-2 py-0.5 bg-blue-600/20 border border-blue-500/30 rounded text-xs text-blue-300 font-medium" title="This address is a smart contract (likely LP or other contract)">
+                          <span className="px-2 py-0.5 bg-slate-950/20 border border-slate-500/30 rounded text-xs text-slate-300 font-medium" title="This address is a smart contract (likely LP or other contract)">
                             📄 Contract
                           </span>
                           {holder.isVerified && (
@@ -2802,7 +3011,7 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
                     <div className="flex items-center gap-2">
                       <span className="text-white font-medium">{holder.percentage.toFixed(4)}%</span>
                       <div className="flex-1 h-2 bg-white/10 rounded-full">
-                        <div className="h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full" style={{ width: `${Math.min(100, holder.percentage)}%` }} />
+                        <div className="h-2 bg-gradient-to-r from-slate-500 to-pink-500 rounded-full" style={{ width: `${Math.min(100, holder.percentage)}%` }} />
                       </div>
                     </div>
                   </td>
@@ -2810,6 +3019,49 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {processedList.length > itemsPerPage && (
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-slate-400">
+            Showing {startIndex + 1}-{Math.min(endIndex, processedList.length)} of {processedList.length} holders
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 text-sm bg-slate-950 hover:bg-slate-950 disabled:bg-slate-950 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded border border-slate-900 transition-colors"
+            >
+              Previous
+            </button>
+            
+            {/* Page numbers */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-3 py-1 text-sm rounded border transition-colors ${
+                    currentPage === page
+                      ? 'bg-slate-950 text-white border-slate-500'
+                      : 'bg-slate-950 hover:bg-slate-950 text-white border-slate-900'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 text-sm bg-slate-950 hover:bg-slate-950 disabled:bg-slate-950 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded border border-slate-900 transition-colors"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
 

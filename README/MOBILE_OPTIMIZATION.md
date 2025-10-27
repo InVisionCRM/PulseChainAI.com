@@ -107,7 +107,7 @@ const isLowEndDevice =
   pixelRatio <= 1 || // Low DPI
   navigator.hardwareConcurrency <= 4 || // Low CPU cores
   navigator.deviceMemory <= 4 || // Low RAM
-  /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  /Android|iPhone|iPad|iPod|slate-950Berry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 ```
 
 ### **Accessibility Compliance**

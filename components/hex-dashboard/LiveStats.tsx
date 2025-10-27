@@ -106,7 +106,7 @@ const LiveStats: React.FC<LiveStatsProps> = ({
           </div>
           <button
             onClick={handleRefresh}
-            className="flex items-center gap-2 px-2 sm:px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm rounded-lg transition-colors self-start sm:self-auto"
+            className="flex items-center gap-2 px-2 sm:px-3 py-1 bg-slate-950 hover:bg-slate-950 text-white text-xs sm:text-sm rounded-lg transition-colors self-start sm:self-auto"
           >
             <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Refresh</span>
@@ -129,7 +129,7 @@ const LiveStats: React.FC<LiveStatsProps> = ({
           </div>
         </div>
         <div className="text-center bg-white/5 backdrop-blur rounded-lg p-2 sm:p-3 border border-white/10">
-          <div className="text-lg sm:text-2xl font-bold text-purple-400">
+          <div className="text-lg sm:text-2xl font-bold text-blue-400">
             {activeTab === 'ethereum' 
               ? formatPrice(liveData.tsharePrice, 2)
               : formatPrice(liveData.tsharePrice_Pulsechain, 2)
@@ -222,7 +222,7 @@ const LiveStats: React.FC<LiveStatsProps> = ({
             </div>
           </div>
           <div className="text-center bg-white/5 backdrop-blur rounded-lg p-2 border border-white/10">
-            <div className="text-sm sm:text-lg font-bold text-purple-300">
+            <div className="text-sm sm:text-lg font-bold text-blue-300">
               {activeTab === 'ethereum' 
                 ? formatNumber(liveData.liquidityETH, 0)
                 : formatNumber(liveData.liquidityEHEX_Pulsechain, 0)

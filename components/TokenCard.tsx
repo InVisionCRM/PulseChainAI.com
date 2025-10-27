@@ -90,7 +90,7 @@ export default function TokenCard({
                   }}
                 />
               ) : (
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-pink-500 rounded-lg flex items-center justify-center">
                   <span className="text-white font-bold text-sm">
                     {token.symbol?.charAt(0) || 'T'}
                   </span>
@@ -148,7 +148,7 @@ export default function TokenCard({
                 e.stopPropagation();
                 onAddStats();
               }}
-              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
+              className="bg-slate-950 hover:bg-slate-950 active:bg-slate-950 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

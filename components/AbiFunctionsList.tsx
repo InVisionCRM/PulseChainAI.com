@@ -23,7 +23,7 @@ const FunctionItem: React.FC<{ func: ExplainedFunction }> = ({ func }) => {
         className="w-full flex justify-between items-center text-left p-4 hover:bg-slate-700/50 transition-colors focus:outline-none focus:bg-slate-700/50"
       >
         <span className="font-mono break-all">
-          <span className="text-purple-400">{func.name}{formatParams(func.inputs)}</span>
+          <span className="text-blue-400">{func.name}{formatParams(func.inputs)}</span>
           <span className="text-cyan-400">{formatOutputs(func.outputs)}</span>
         </span>
         <svg

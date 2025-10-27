@@ -323,7 +323,7 @@ export default function StatCounterBuilderPage() {
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: 'url(/Mirage.jpg)' }} /* eslint-disable-line react/forbid-dom-props */
         />
-        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 bg-slate-950/40" />
       </div>
       {/* Header removed per request */}
 
@@ -408,7 +408,7 @@ export default function StatCounterBuilderPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -491,7 +491,7 @@ export default function StatCounterBuilderPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -609,7 +609,7 @@ export default function StatCounterBuilderPage() {
               onClick: () => resetView(),
             },
           ]}
-          desktopClassName="bg-black/70 border border-white/10"
+          desktopClassName="bg-slate-950/70 border border-white/10"
           mobileClassName=""
         />
       </div>
@@ -705,7 +705,7 @@ function TokenCardComponent({
               className="w-10 h-10 rounded-full"
             />
           ) : (
-            <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+            <div className="w-10 h-10 bg-slate-950 rounded-full flex items-center justify-center text-white font-bold">
               {card.token.symbol?.[0] || '?'}
             </div>
           )}

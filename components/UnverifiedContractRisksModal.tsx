@@ -10,7 +10,7 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -194,7 +194,7 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
 
               <section>
                 <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                  <span className="text-purple-400">🧪</span>
+                  <span className="text-blue-400">🧪</span>
                   Malicious Example: Decompiler Exploitation
                 </h3>
                 
@@ -203,22 +203,22 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
                   
                   <div className="space-y-3 text-sm">
                     <div className="flex items-start gap-2">
-                      <span className="text-purple-400 mt-1 font-bold">1.</span>
+                      <span className="text-blue-400 mt-1 font-bold">1.</span>
                       <span>A malicious developer writes a Solidity contract with hidden logic: standard <code className="bg-slate-600 px-1 rounded">transfer()</code> function appears to send tokens, but an inline assembly block checks <code className="bg-slate-600 px-1 rounded">msg.sender == 0xDeployerAddress</code> and transfers all funds if true.</span>
                     </div>
                     
                     <div className="flex items-start gap-2">
-                      <span className="text-purple-400 mt-1 font-bold">2.</span>
+                      <span className="text-blue-400 mt-1 font-bold">2.</span>
                       <span>Contract is compiled with high optimization and inline assembly, obfuscating branching logic and storing key opcodes in memory for indirect execution.</span>
                     </div>
                     
                     <div className="flex items-start gap-2">
-                      <span className="text-purple-400 mt-1 font-bold">3.</span>
+                      <span className="text-blue-400 mt-1 font-bold">3.</span>
                       <span>Contract is deployed but not verified. User inspects bytecode and runs a decompiler, but decompiled output shows opaque low-level operations that appear harmless.</span>
                     </div>
                     
                     <div className="flex items-start gap-2">
-                      <span className="text-purple-400 mt-1 font-bold">4.</span>
+                      <span className="text-blue-400 mt-1 font-bold">4.</span>
                       <span>User approves contract to move tokens. Malicious <code className="bg-slate-600 px-1 rounded">withdraw()</code> drains all assets when triggered by the attacker, with no warning visible in the ABI or frontend.</span>
                     </div>
                   </div>

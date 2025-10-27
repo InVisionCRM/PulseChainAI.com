@@ -22,7 +22,7 @@ const DexPairsModal: React.FC<DexPairsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-950/60" onClick={onClose} />
       <div className="relative w-full max-w-3xl bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_8px_40px_-12px_rgba(0,0,0,0.7)] overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/5">
           <h3 className="text-white font-semibold">PulseChain HEX Liquidity Pairs (DexScreener)</h3>

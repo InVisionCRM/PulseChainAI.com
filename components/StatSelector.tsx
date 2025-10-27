@@ -203,7 +203,7 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
   return (
     <div className="space-y-6">
       {/* Token Address Display */}
-      <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+      <div className="bg-slate-950/20 border border-blue-500/30 rounded-lg p-4">
         <h4 className="text-lg font-semibold text-blue-300 mb-2">Current Token Address</h4>
         <div className="bg-gray-800 rounded p-3 font-mono text-sm">
           {localStorage.getItem('selectedTokenAddress') || 'No token selected'}
@@ -245,7 +245,7 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
                           whileHover={{ scale: 1.02 }}
                           className={`p-4 rounded-xl cursor-pointer transition-all border ${
                             isSelected
-                              ? 'border-purple-500/60 bg-purple-900/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]'
+                              ? 'border-blue-500/60 bg-slate-950/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]'
                               : 'border-white/10 bg-white/5 hover:bg-white/10'
                           }`}
                           onClick={() => handleStatToggle(stat.id)}
@@ -258,7 +258,7 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
                                 <span className="text-[10px] uppercase tracking-wider text-white/60 bg-white/10 border border-white/10 rounded px-1.5 py-0.5">{stat.format}</span>
                               </div>
                               <p className="text-xs text-white/60 mt-1 line-clamp-2">{stat.description}</p>
-                              <div className="mt-3 bg-black/30 border border-white/10 rounded-lg p-3">
+                              <div className="mt-3 bg-slate-950/30 border border-white/10 rounded-lg p-3">
                                 <div className="text-xs text-white/60">Preview</div>
                                 <div className="mt-1 flex items-baseline justify-between">
                                   <span className="text-xs text-white/60">{stat.name}</span>
@@ -270,7 +270,7 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => handleStatToggle(stat.id)}
-                              className="mt-1 w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+                              className="mt-1 w-4 h-4 text-slate-950 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
                               title={`Select ${stat.name} stat`}
                             />
                           </div>
@@ -292,7 +292,7 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
           className={`w-full py-3 px-6 rounded-lg font-semibold transition-all mt-6 ${
             isLoading || !token?.address || selectedStats.length === 0
               ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-              : 'bg-purple-600 hover:bg-purple-700 text-white'
+              : 'bg-slate-950 hover:bg-slate-950 text-white'
           }`}
         >
           {isLoading ? 'Loading Stats...' : 'Load Selected Stats'}
@@ -312,7 +312,7 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
                 className={`p-4 rounded-lg border-2 ${
                   result.error
                     ? 'border-red-500 bg-red-900/20'
-                    : 'border-purple-500 bg-purple-900/20'
+                    : 'border-blue-500 bg-slate-950/20'
                 }`}
               >
                 <div className="text-center">
@@ -336,7 +336,7 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
 
       {/* Token Balance Form Modal */}
       {showTokenBalanceForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm">
           <TokenBalanceForm
             onConfirm={handleTokenBalanceConfirm}
             onCancel={handleTokenBalanceCancel}

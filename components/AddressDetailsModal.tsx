@@ -63,15 +63,19 @@ const TransferItem: React.FC<TransferItemProps> = ({
       actionType = '📤 SENT';
       actionColor = 'bg-orange-600/20 border-orange-500/30 text-orange-300';
     }
-  } else {
+  } else if (isReceived) {
     // User received tokens
     if (fromIsContract) {
       actionType = '📈 BUY';
       actionColor = 'bg-green-600/20 border-green-500/30 text-green-300';
     } else {
       actionType = '📥 RECEIVED';
-      actionColor = 'bg-blue-600/20 border-blue-500/30 text-blue-300';
+      actionColor = 'bg-slate-950/20 border-blue-500/30 text-blue-300';
     }
+  } else {
+    // Neither sent nor received (shouldn't happen, but fallback)
+    actionType = '🔄 TRANSFER';
+    actionColor = 'bg-gray-600/20 border-gray-500/30 text-gray-300';
   }
 
   // Determine the counterparty and token used
@@ -97,7 +101,7 @@ const TransferItem: React.FC<TransferItemProps> = ({
                   e.stopPropagation();
                   openInExplorer(`address/${address}`);
                 }}
-                className="text-purple-400 hover:text-purple-300 transition-colors font-medium underline"
+                className="text-blue-400 hover:text-blue-300 transition-colors font-medium underline"
               >
                 {formatAddress(address)}
               </button>
@@ -131,7 +135,7 @@ const TransferItem: React.FC<TransferItemProps> = ({
               {formatAmount(transfer.total?.value || transfer.value || '0')} {tokenSymbol}
             </span>
             {transfer.method && (
-              <span className="px-2 py-1 bg-purple-600/20 border border-purple-500/30 rounded text-xs text-purple-300 font-medium">
+              <span className="px-2 py-1 bg-slate-950/20 border border-blue-500/30 rounded text-xs text-blue-300 font-medium">
                 {transfer.method}
               </span>
             )}
@@ -141,15 +145,15 @@ const TransferItem: React.FC<TransferItemProps> = ({
               <span className="text-slate-500 w-12">From:</span>
               <button
                 onClick={() => openInExplorer(`address/${fromAddress}`)}
-                className="font-mono text-purple-400 hover:text-purple-300 transition-colors underline"
+                className="font-mono text-blue-400 hover:text-blue-300 transition-colors underline"
               >
                 {formatAddress(fromAddress || 'Unknown')}
               </button>
               {isSent && (
-                <span className="text-purple-400 font-medium">(You)</span>
+                <span className="text-blue-400 font-medium">(You)</span>
               )}
               {fromIsContract && !isSent && (
-                <span className="px-1.5 py-0.5 bg-blue-600/20 border border-blue-500/30 rounded text-xs text-blue-300">
+                <span className="px-1.5 py-0.5 bg-slate-950/20 border border-blue-500/30 rounded text-xs text-blue-300">
                   Contract
                 </span>
               )}
@@ -158,15 +162,15 @@ const TransferItem: React.FC<TransferItemProps> = ({
               <span className="text-slate-500 w-12">To:</span>
               <button
                 onClick={() => openInExplorer(`address/${toAddress}`)}
-                className="font-mono text-purple-400 hover:text-purple-300 transition-colors underline"
+                className="font-mono text-blue-400 hover:text-blue-300 transition-colors underline"
               >
                 {formatAddress(toAddress || 'Unknown')}
               </button>
               {isReceived && (
-                <span className="text-purple-400 font-medium">(You)</span>
+                <span className="text-blue-400 font-medium">(You)</span>
               )}
               {toIsContract && !isReceived && (
-                <span className="px-1.5 py-0.5 bg-blue-600/20 border border-blue-500/30 rounded text-xs text-blue-300">
+                <span className="px-1.5 py-0.5 bg-slate-950/20 border border-blue-500/30 rounded text-xs text-blue-300">
                   Contract
                 </span>
               )}
@@ -382,7 +386,7 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -394,13 +398,13 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 border-b border-slate-700/50 p-6">
+          <div className="bg-gradient-to-r from-slate-950/20 to-pink-600/20 border-b border-slate-700/50 p-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <h2 className="text-2xl font-bold text-white">Address Details</h2>
                   {addressInfo?.is_contract && (
-                    <span className="px-3 py-1 bg-blue-600/20 border border-blue-500/30 rounded-full text-xs text-blue-300 font-medium">
+                    <span className="px-3 py-1 bg-slate-950/20 border border-blue-500/30 rounded-full text-xs text-blue-300 font-medium">
                       📄 Contract
                     </span>
                   )}
@@ -460,7 +464,7 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
                     activeTab === tab.id
-                      ? 'bg-purple-600 text-white'
+                      ? 'bg-slate-950 text-white'
                       : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                   }`}
                 >
@@ -505,7 +509,7 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
                         <div className="space-y-2">
                           {tokenTransfers.map((transfer: any, index: number) => (
                             <TransferItem
-                              key={transfer.tx_hash || transfer.transaction_hash || index}
+                              key={`${transfer.tx_hash || transfer.transaction_hash || 'unknown'}-${transfer.log_index || index}-${transfer.from?.hash || 'no-from'}-${transfer.to?.hash || 'no-to'}`}
                               transfer={transfer}
                               address={address}
                               tokenSymbol={tokenSymbol}
@@ -563,7 +567,7 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
                                   {tx.status === 'success' || tx.status === 'ok' ? 'Success' : 'Failed'}
                                 </span>
                                 {tx.method && (
-                                  <span className="px-2 py-1 bg-blue-600/20 border border-blue-500/30 rounded text-xs text-blue-300 font-medium">
+                                  <span className="px-2 py-1 bg-slate-950/20 border border-blue-500/30 rounded text-xs text-blue-300 font-medium">
                                     {tx.method}
                                   </span>
                                 )}
@@ -756,7 +760,7 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -873,7 +877,7 @@ const DetailsTab: React.FC<{
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
     );
   }
@@ -1096,7 +1100,7 @@ const TransfersTab: React.FC<{
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
     );
   }
@@ -1178,7 +1182,7 @@ const InternalTab: React.FC<{
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
     );
   }
@@ -1205,7 +1209,7 @@ const InternalTab: React.FC<{
                 <div className="flex items-center gap-2">
                   <span className={`px-2 py-1 rounded text-xs font-medium ${
                     txn.type === 'delegatecall' ? 'bg-cyan-600/20 text-cyan-300' :
-                    txn.type === 'staticcall' ? 'bg-blue-600/20 text-blue-300' :
+                    txn.type === 'staticcall' ? 'bg-slate-950/20 text-blue-300' :
                     'bg-teal-600/20 text-teal-300'
                   }`}>
                     {txn.type === 'delegatecall' ? 'Delegate call' :

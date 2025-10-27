@@ -150,7 +150,7 @@ export default function CodeGenerationModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm"
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
@@ -176,7 +176,7 @@ export default function CodeGenerationModal({
                 onClick={() => setActiveTab('html')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === 'html' 
-                    ? 'bg-blue-600 text-white' 
+                    ? 'bg-slate-950 text-white' 
                     : 'bg-gray-800 text-gray-300 hover:text-white'
                 }`}
               >
@@ -186,7 +186,7 @@ export default function CodeGenerationModal({
                 onClick={() => setActiveTab('embed')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === 'embed' 
-                    ? 'bg-blue-600 text-white' 
+                    ? 'bg-slate-950 text-white' 
                     : 'bg-gray-800 text-gray-300 hover:text-white'
                 }`}
               >
@@ -203,7 +203,7 @@ export default function CodeGenerationModal({
                   </h3>
                   <button
                     onClick={() => copyToClipboard(activeTab === 'html' ? generateHTML() : generateEmbedCode())}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                    className="bg-slate-950 hover:bg-slate-950 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                   >
                     Copy Code
                   </button>

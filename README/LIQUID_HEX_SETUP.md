@@ -45,7 +45,7 @@ NEXT_PUBLIC_ETHERSCAN_API_KEY=your-etherscan-api-key
 ## Display Logic
 
 - **Liquid eHEX**: Green card showing Ethereum HEX balance (if > 0)
-- **Liquid pHEX**: Purple card showing PulseChain HEX balance (if > 0)
+- **Liquid pHEX**: blue card showing PulseChain HEX balance (if > 0)
 - **No Liquid HEX**: Gray card showing "No liquid HEX found" when address has no liquid balances
 - **Loading State**: Animated placeholder while fetching balances
 

@@ -99,7 +99,7 @@ export function PerformanceOptimizedTable<T extends Record<string, any>>({
     return (
       <div className={`bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden ${className}`}>
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           <span className="ml-3 text-white">Loading...</span>
         </div>
       </div>

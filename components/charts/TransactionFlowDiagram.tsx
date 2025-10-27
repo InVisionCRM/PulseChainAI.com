@@ -68,7 +68,7 @@ const TransactionFlowDiagram: React.FC<TransactionFlowDiagramProps> = ({
           transition={{ delay: 0.1 }}
           className="bg-slate-700/30 rounded-lg p-3 text-center"
         >
-          <div className="text-2xl font-bold text-purple-400">{transfers.length}</div>
+          <div className="text-2xl font-bold text-blue-400">{transfers.length}</div>
           <div className="text-xs text-slate-400">Total Transfers</div>
         </motion.div>
         
@@ -154,7 +154,7 @@ const TransactionFlowDiagram: React.FC<TransactionFlowDiagramProps> = ({
               className="flex items-center gap-3 p-2 bg-slate-700/30 rounded-lg"
             >
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-slate-950 rounded-full flex items-center justify-center">
                   <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>

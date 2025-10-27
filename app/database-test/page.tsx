@@ -384,11 +384,11 @@ const DatabaseTestPage = () => {
   const summary = getTestSummary();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-pink-400 bg-clip-text text-transparent">
             Database Integration Test Suite
           </h1>
           <p className="text-lg text-gray-300">
@@ -459,7 +459,7 @@ const DatabaseTestPage = () => {
             <button
               onClick={runAllTests}
               disabled={isRunningTests}
-              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-semibold transition-all duration-200 flex items-center gap-2"
+              className="px-6 py-3 bg-gradient-to-r from-slate-950 to-pink-600 hover:from-slate-950 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-semibold transition-all duration-200 flex items-center gap-2"
             >
               {isRunningTests ? (
                 <>
@@ -528,7 +528,7 @@ const DatabaseTestPage = () => {
                     <summary className="cursor-pointer text-sm text-gray-400 hover:text-white">
                       View Details
                     </summary>
-                    <pre className="mt-2 text-xs bg-black/20 p-3 rounded overflow-auto">
+                    <pre className="mt-2 text-xs bg-slate-950/20 p-3 rounded overflow-auto">
                       {JSON.stringify(test.details, null, 2)}
                     </pre>
                   </details>
@@ -548,7 +548,7 @@ const DatabaseTestPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="text-lg font-semibold mb-3 text-blue-400">Ethereum Data</h3>
-                <div className="bg-black/20 p-4 rounded-lg">
+                <div className="bg-slate-950/20 p-4 rounded-lg">
                   <div className="text-sm">
                     <div><strong>Total Active Stakes:</strong> {testData.ethereum?.totalActiveStakes || 'N/A'}</div>
                     <div><strong>Total Staked Hearts:</strong> {testData.ethereum?.totalStakedHearts || 'N/A'}</div>
@@ -558,8 +558,8 @@ const DatabaseTestPage = () => {
               </div>
               
               <div>
-                <h3 className="text-lg font-semibold mb-3 text-purple-400">PulseChain Data</h3>
-                <div className="bg-black/20 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold mb-3 text-blue-400">PulseChain Data</h3>
+                <div className="bg-slate-950/20 p-4 rounded-lg">
                   <div className="text-sm">
                     <div><strong>Total Active Stakes:</strong> {testData.pulsechain?.totalActiveStakes || 'N/A'}</div>
                     <div><strong>Total Staked Hearts:</strong> {testData.pulsechain?.totalStakedHearts || 'N/A'}</div>

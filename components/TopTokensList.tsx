@@ -81,7 +81,7 @@ export function TopTokensList() {
     if (rank === 1) return 'from-yellow-400 to-yellow-600';
     if (rank === 2) return 'from-gray-300 to-gray-500';
     if (rank === 3) return 'from-orange-400 to-orange-600';
-    return 'from-blue-500 to-purple-600';
+    return 'from-blue-500 to-slate-950';
   };
 
   if (isLoading) {
@@ -102,7 +102,7 @@ export function TopTokensList() {
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#FA4616]/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 relative z-10">

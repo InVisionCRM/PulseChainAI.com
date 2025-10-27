@@ -46,31 +46,31 @@ export const WobbleCard = ({
         transition: "transform 0.1s ease-out",
       }}
       className={cn(
-        "mx-auto w-full bg-black/20 backdrop-blur-xl border border-white/10 relative rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)] neon-cyan neon-purple",
+        "mx-auto w-full bg-slate-950/20 backdrop-blur-xl border border-white/10 relative rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)] neon-cyan neon-blue",
         "before:absolute before:inset-0 before:rounded-2xl before:border before:border-cyan-400/30 before:pointer-events-none",
-        "after:absolute after:inset-0 after:rounded-2xl after:border after:border-purple-400/20 after:pointer-events-none",
+        "after:absolute after:inset-0 after:rounded-2xl after:border after:border-blue-400/20 after:pointer-events-none",
         containerClassName
       )}
       style={{
         '--neon-cyan-shadow': `0 0 ${20 * neonIntensity}px rgba(34,211,238,${neonIntensity})`,
-        '--neon-purple-shadow': `0 0 ${15 * neonIntensity}px rgba(168,85,247,${neonIntensity * 0.7})`,
+        '--neon-blue-shadow': `0 0 ${15 * neonIntensity}px rgba(168,85,247,${neonIntensity * 0.7})`,
       } as React.CSSProperties}
     >
               <div
-          className="relative h-full bg-black/10 backdrop-blur-sm sm:mx-0 sm:rounded-2xl overflow-hidden"
+          className="relative h-full bg-slate-950/10 backdrop-blur-sm sm:mx-0 sm:rounded-2xl overflow-hidden"
           style={{
             boxShadow:
               "0 10px 32px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(255, 255, 255, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 6px rgba(0, 0, 0, 0.1), 0 24px 108px rgba(0, 0, 0, 0.15)",
             '--neon-cyan-shadow': `0 0 ${20 * neonIntensity}px rgba(34,211,238,${neonIntensity})`,
-            '--neon-purple-shadow': `0 0 ${15 * neonIntensity}px rgba(168,85,247,${neonIntensity * 0.7})`,
+            '--neon-blue-shadow': `0 0 ${15 * neonIntensity}px rgba(168,85,247,${neonIntensity * 0.7})`,
           } as React.CSSProperties}
         >
           <style jsx>{`
             .neon-cyan::before {
               box-shadow: var(--neon-cyan-shadow) !important;
             }
-            .neon-purple::after {
-              box-shadow: var(--neon-purple-shadow) !important;
+            .neon-blue::after {
+              box-shadow: var(--neon-blue-shadow) !important;
             }
           `}</style>
         <motion.div

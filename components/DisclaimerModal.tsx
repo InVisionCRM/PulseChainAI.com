@@ -12,7 +12,7 @@ export default function DisclaimerModal({ isOpen, onClose }: DisclaimerModalProp
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -136,7 +136,7 @@ export default function DisclaimerModal({ isOpen, onClose }: DisclaimerModalProp
           <div className="mt-8 pt-6 border-t border-slate-600/50 flex justify-end">
             <button
               onClick={onClose}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+              className="bg-gradient-to-r from-slate-950 to-slate-950 hover:from-slate-950 hover:to-slate-950 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
             >
               I Understand
             </button>

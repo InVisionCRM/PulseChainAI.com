@@ -223,7 +223,7 @@ export const BlockchainAnalyzerTutorial: React.FC<BlockchainAnalyzerTutorialProp
             </div>
             <button
               onClick={handleNext}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              className="px-6 py-2 bg-slate-950 hover:bg-slate-950 text-white rounded-lg font-medium transition-colors"
             >
               {currentStep === tutorialSteps.length - 1 ? 'Start Analyzing' : 'Next'}
             </button>

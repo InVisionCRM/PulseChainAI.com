@@ -101,7 +101,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onApiKeySet,
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -131,15 +131,15 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onApiKeySet,
               <h3 className="text-lg font-semibold text-white mb-3">📚 How to Get Your API Key</h3>
               <div className="space-y-3 text-sm text-slate-300">
                 <div className="flex items-start gap-3">
-                  <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">1</span>
+                  <span className="bg-slate-950 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">1</span>
                   <p>Visit <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">Google AI Studio</a> and sign in with your Google account</p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">2</span>
+                  <span className="bg-slate-950 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">2</span>
                   <p>Click "Create API Key" and select "Create API Key in new project"</p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">3</span>
+                  <span className="bg-slate-950 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">3</span>
                   <p>Copy your API key (starts with "AIza...") and paste it below</p>
                 </div>
               </div>
@@ -163,7 +163,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onApiKeySet,
             </div>
 
             {/* Storage Notice */}
-            <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4 mb-6">
+            <div className="bg-slate-950/20 border border-slate-800/30 rounded-lg p-4 mb-6">
               <div className="flex items-start gap-3">
                 <svg className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
@@ -191,7 +191,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onApiKeySet,
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="AIzaSy..."
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:outline-none transition pr-12"
+                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none transition pr-12"
                     disabled={isValidating}
                   />
                   <button
@@ -241,7 +241,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onApiKeySet,
                 <button
                   onClick={handleSave}
                   disabled={!apiKey.trim() || isValidating}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                  className="flex-1 bg-slate-950 hover:bg-slate-950 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
                 >
                   {isValidating ? (
                     <>

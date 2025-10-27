@@ -164,7 +164,7 @@ const DataTable: React.FC<DataTableProps> = ({
   }
 
   return (
-    <div className="bg-black/5 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
+    <div className="bg-slate-950/5 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
       <div className="overflow-auto max-h-[50vh] sm:max-h-[70vh]">
         <table className="min-w-full divide-y divide-white/10">
           <thead className="bg-slate-900 text-white">
@@ -175,7 +175,7 @@ const DataTable: React.FC<DataTableProps> = ({
                   <th
                     key={column.key}
                     onClick={() => handleSort(column.key as keyof HexRow)}
-                    className={`sticky top-0 z-10 bg-black/80 backdrop-blur px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-white/20 select-none ${!isMobileVisible ? 'hidden sm:table-cell' : ''}`}
+                    className={`sticky top-0 z-10 bg-slate-950/80 backdrop-blur px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-white/20 select-none ${!isMobileVisible ? 'hidden sm:table-cell' : ''}`}
                   >
                     <div className="flex items-center gap-1">
                       <span className="hidden sm:inline">{column.label}</span>
@@ -213,7 +213,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       case 'marketCap':
                         return <span className="text-white">{formatCurrency(row.marketCap, 0)}</span>;
                       case 'totalValueLocked':
-                        return <span className="text-purple-600 font-semibold">{formatCurrency(row.totalValueLocked, 0)}</span>;
+                        return <span className="text-slate-950 font-semibold">{formatCurrency(row.totalValueLocked, 0)}</span>;
                       case 'totalHEX':
                         return <span className="text-white">{formatHEX(row.totalHEX)}</span>;
                       case 'circulatingHEX':
@@ -226,7 +226,7 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'stakedHEX':
-                        return <span className="text-blue-600">{formatHEX(row.stakedHEX)}</span>;
+                        return <span className="text-slate-950">{formatHEX(row.stakedHEX)}</span>;
                       case 'stakedSupplyChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.stakedSupplyChange)}`}>
@@ -235,9 +235,9 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'stakedHEXPercent':
-                        return <span className="text-blue-700">{formatPercent(row.stakedHEXPercent)}</span>;
+                        return <span className="text-slate-950">{formatPercent(row.stakedHEXPercent)}</span>;
                       case 'totalTshares':
-                        return <span className="text-purple-700">{formatTShares(row.totalTshares)}</span>;
+                        return <span className="text-slate-950">{formatTShares(row.totalTshares)}</span>;
                       case 'totalTsharesChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.totalTsharesChange)}`}>
@@ -248,7 +248,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       case 'tshareRateHEX':
                         return <span className="text-orange-600">{formatNumber(row.tshareRateHEX, 1)} HEX</span>;
                       case 'tshareMarketCap':
-                        return <span className="text-purple-700">{formatCurrency(row.tshareMarketCap, 0)}</span>;
+                        return <span className="text-slate-950">{formatCurrency(row.tshareMarketCap, 0)}</span>;
                       case 'payoutPerTshareHEX':
                         return <span className="text-yellow-600">{formatNumber(row.payoutPerTshareHEX, 6)} HEX</span>;
                       case 'dailyPayoutHEX':
@@ -258,7 +258,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       case 'actualAPYRate':
                         return <span className="text-yellow-700 font-semibold">{formatPercent(row.actualAPYRate)}</span>;
                       case 'currentStakerCount':
-                        return <span className="text-blue-700">{formatNumber(row.currentStakerCount, 0, true)}</span>;
+                        return <span className="text-slate-950">{formatNumber(row.currentStakerCount, 0, true)}</span>;
                       case 'currentStakerCountChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.currentStakerCountChange)}`}>
@@ -286,7 +286,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       case 'priceBTC':
                         return <span className="text-orange-700">{formatCurrency(row.priceBTC, 2)}</span>;
                       case 'priceETH':
-                        return <span className="text-blue-700">{formatCurrency(row.priceETH, 2)}</span>;
+                        return <span className="text-slate-950">{formatCurrency(row.priceETH, 2)}</span>;
                       case 'pricePulseX':
                         return <span className="text-pink-700">{formatPrice(row.pricePulseX, 8)}</span>;
                       case 'pricePulseX_PLS':
@@ -360,7 +360,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       onClick={() => setCurrentPage(pageNum)}
                       className={`relative inline-flex items-center px-3 sm:px-4 py-2 border text-sm font-medium ${
                         currentPage === pageNum
-                          ? 'z-10 bg-purple-600 border-purple-600 text-white'
+                          ? 'z-10 bg-slate-950 border-slate-800 text-white'
                           : 'bg-slate-800 border-slate-600 text-white hover:bg-slate-700'
                       }`}
                     >

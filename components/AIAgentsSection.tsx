@@ -88,8 +88,8 @@ const agents: Agent[] = [
     name: "AI Code Reader/Chat Agent",
     description: "PulseChainAI's Most Powerful AI Agent which allows user to interact with Solidity Smart Contract like never before! (Warning: Still in Beta. Use with Caution)",
     icon: IconFileText,
-    color: "from-pink-500 to-purple-500",
-    src: "/api/placeholder/400/600/pink/purple",
+    color: "from-pink-500 to-blue-500",
+    src: "/api/placeholder/400/600/pink/blue",
     category: "AI Agent",
     videoUrl: "https://dvba8d38nfde7nic.public.blob.vercel-storage.com/Ai-code-reader",
     hasMovingGradient: false,
@@ -174,8 +174,8 @@ const agents: Agent[] = [
     name: "Debank",
     description: "Track Richard Heart's treasury movements and analyze transaction history from sacrifice wallets and alleged ETH purchases",
     icon: IconChartBar,
-    color: "from-purple-500 to-indigo-500",
-    src: "/api/placeholder/400/600/purple/indigo",
+    color: "from-blue-500 to-indigo-500",
+    src: "/api/placeholder/400/600/blue/indigo",
     category: "Analysis Tool",
     videoUrl: null,
     hasMovingGradient: true,
@@ -262,7 +262,7 @@ export default function AIAgentsSection() {
                     )}
                     
                     {/* Subtle overlay for better text readability */}
-                    <div className="absolute inset-0 z-15 bg-black/20" />
+                    <div className="absolute inset-0 z-15 bg-slate-950/20" />
                     
                     {/* Card Content - Simplified */}
                     <div className="relative z-40 flex flex-col h-full justify-between">
@@ -319,7 +319,7 @@ export default function AIAgentsSection() {
                 </div>
                 
                 {/* Subtle overlay for better text readability */}
-                <div className="absolute inset-0 z-15 bg-black/20" />
+                <div className="absolute inset-0 z-15 bg-slate-950/20" />
                 
                 {/* Content */}
                 <div className="relative z-40 flex flex-1 flex-col justify-between gap-3">
@@ -352,7 +352,7 @@ export default function AIAgentsSection() {
                   </div>
                 </div>
                 
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
                     <div className="text-sm text-gray-300">This game is under development</div>
@@ -380,7 +380,7 @@ export default function AIAgentsSection() {
                   </div>
                 </div>
                 
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
                     <div className="text-sm text-gray-300">This game is under development</div>

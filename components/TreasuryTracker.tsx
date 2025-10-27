@@ -509,7 +509,7 @@ const TreasuryTracker: React.FC = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800 mx-auto mb-4"></div>
           <div className="text-gray-700 text-lg font-medium">Loading Treasury…</div>
           <div className="text-gray-500 text-sm mt-1">Fetching balances</div>
         </div>
@@ -525,14 +525,14 @@ const TreasuryTracker: React.FC = () => {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-8">
               <div className="text-xl font-bold text-gray-900">
-                <span className="text-purple-600">Pulse</span>RH
+                <span className="text-slate-950">Pulse</span>RH
               </div>
               <nav className="hidden md:flex space-x-6">
-                <a href="#" className="text-gray-700 hover:text-purple-600 font-medium">Overview</a>
-                <a href="#" className="text-gray-700 hover:text-purple-600 font-medium">Treasury</a>
-                <a href="#" className="text-gray-700 hover:text-purple-600 font-medium">Addresses</a>
-                <a href="#" className="text-gray-700 hover:text-purple-600 font-medium">Activity</a>
-                <a href="#" className="text-gray-700 hover:text-purple-600 font-medium">More</a>
+                <a href="#" className="text-gray-700 hover:text-slate-950 font-medium">Overview</a>
+                <a href="#" className="text-gray-700 hover:text-slate-950 font-medium">Treasury</a>
+                <a href="#" className="text-gray-700 hover:text-slate-950 font-medium">Addresses</a>
+                <a href="#" className="text-gray-700 hover:text-slate-950 font-medium">Activity</a>
+                <a href="#" className="text-gray-700 hover:text-slate-950 font-medium">More</a>
               </nav>
             </div>
             
@@ -542,12 +542,12 @@ const TreasuryTracker: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Profile-like hero */}
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-8 mb-8 border border-purple-100">
+        <div className="bg-gradient-to-r from-blue-50 to-pink-50 rounded-2xl p-8 mb-8 border border-blue-100">
           <div className="flex items-start justify-between">
             {/* Profile Info */}
             <div className="flex items-center space-x-4">
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                <div className="w-16 h-16 bg-gradient-to-br from-slate-950 to-pink-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
                   TT
                 </div>
                 <div className="absolute -bottom-1 -right-1 bg-yellow-400 text-yellow-900 text-xs px-2 py-0.5 rounded-full font-bold">
@@ -570,9 +570,9 @@ const TreasuryTracker: React.FC = () => {
           </div>
 
           {/* Stats Row */}
-          <div className="grid grid-cols-2 gap-6 mt-8 pt-6 border-t border-purple-200">
+          <div className="grid grid-cols-2 gap-6 mt-8 pt-6 border-t border-blue-200">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">Ξ</div>
+              <div className="w-10 h-10 bg-slate-950 rounded-full flex items-center justify-center text-white font-bold">Ξ</div>
               <div>
                 <div className="text-gray-500 text-sm">ETH Price</div>
                 <div className="text-lg font-bold text-gray-900">${ethPrice.toLocaleString()}</div>
@@ -642,7 +642,7 @@ const TreasuryTracker: React.FC = () => {
                         >
                           <div className="flex items-center justify-between w-full pr-4">
                             <div className="flex items-center space-x-4">
-                              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                              <div className="w-10 h-10 bg-slate-950 rounded-full flex items-center justify-center text-white font-bold text-sm">
                                 {index + 1}
                               </div>
                               <div className="font-mono text-sm text-gray-700">{entry.address}</div>
@@ -695,7 +695,7 @@ const TreasuryTracker: React.FC = () => {
                               <TabsContent value="transactions" className="space-y-4">
                                 {loadingAddressData[entry.address] ? (
                                   <div className="flex items-center justify-center py-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-800"></div>
                                     <span className="ml-3 text-gray-600">Loading transactions...</span>
                                   </div>
                                 ) : entry.transactions && entry.transactions.length > 0 ? (
@@ -775,7 +775,7 @@ const TreasuryTracker: React.FC = () => {
                                                         </Button>
                                                       </div>
                                                       {fromContractName && (
-                                                        <div className="text-xs text-blue-600 font-medium mt-1">
+                                                        <div className="text-xs text-slate-950 font-medium mt-1">
                                                           {fromContractName}
                                                         </div>
                                                       )}
@@ -796,7 +796,7 @@ const TreasuryTracker: React.FC = () => {
                                                         </Button>
                                                       </div>
                                                       {toContractName && (
-                                                        <div className="text-xs text-blue-600 font-medium mt-1">
+                                                        <div className="text-xs text-slate-950 font-medium mt-1">
                                                           {toContractName}
                                                         </div>
                                                       )}
@@ -843,7 +843,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => loadAddressData(entry.address, (currentPages[entry.address]?.transactions || 1) + 1, 'transactions')}
                                           disabled={!entry.transactionHasMore}
-                                          className={`text-xs px-3 py-1 ${!entry.transactionHasMore ? 'text-gray-400' : 'text-blue-600 hover:text-blue-700'}`}
+                                          className={`text-xs px-3 py-1 ${!entry.transactionHasMore ? 'text-gray-400' : 'text-slate-950 hover:text-slate-950'}`}
                                         >
                                           &gt;
                                         </Button>
@@ -852,7 +852,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => entry.transactionTotalPages ? loadAddressData(entry.address, entry.transactionTotalPages, 'transactions') : undefined}
                                           disabled={!entry.transactionTotalPages || (currentPages[entry.address]?.transactions || 1) >= (entry.transactionTotalPages || 1)}
-                                          className={`text-xs px-3 py-1 ${!entry.transactionTotalPages || (currentPages[entry.address]?.transactions || 1) >= (entry.transactionTotalPages || 1) ? 'text-gray-400' : 'text-blue-600 hover:text-blue-700'}`}
+                                          className={`text-xs px-3 py-1 ${!entry.transactionTotalPages || (currentPages[entry.address]?.transactions || 1) >= (entry.transactionTotalPages || 1) ? 'text-gray-400' : 'text-slate-950 hover:text-slate-950'}`}
                                         >
                                           Last
                                         </Button>
@@ -885,7 +885,7 @@ const TreasuryTracker: React.FC = () => {
                                 
                                 {loadingAddressData[entry.address] ? (
                                   <div className="flex items-center justify-center py-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-800"></div>
                                     <span className="ml-3 text-gray-600">Loading internal transactions...</span>
                                   </div>
                                 ) : entry.internalTransactions && entry.internalTransactions.length > 0 ? (
@@ -953,7 +953,7 @@ const TreasuryTracker: React.FC = () => {
                                                   </td>
                                                   <td className="px-4 py-3 text-sm text-gray-600">{tx.type}</td>
                                                   <td className="px-4 py-3 text-sm">
-                                                    <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                    <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-slate-950">
                                                       {tx.traceId ? 'Transfer' : 'Call'}
                                                     </div>
                                                   </td>
@@ -971,7 +971,7 @@ const TreasuryTracker: React.FC = () => {
                                                         </Button>
                                                       </div>
                                                       {fromContractName && (
-                                                        <div className="text-xs text-blue-600 font-medium mt-1">
+                                                        <div className="text-xs text-slate-950 font-medium mt-1">
                                                           {fromContractName}
                                                         </div>
                                                       )}
@@ -992,7 +992,7 @@ const TreasuryTracker: React.FC = () => {
                                                         </Button>
                                                       </div>
                                                       {toContractName && (
-                                                        <div className="text-xs text-blue-600 font-medium mt-1">
+                                                        <div className="text-xs text-slate-950 font-medium mt-1">
                                                           {toContractName}
                                                         </div>
                                                       )}
@@ -1039,7 +1039,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => loadAddressData(entry.address, (currentPages[entry.address]?.internal || 1) + 1, 'internal')}
                                           disabled={!entry.internalHasMore}
-                                          className={`text-xs px-3 py-1 ${!entry.internalHasMore ? 'text-gray-400' : 'text-blue-600 hover:text-blue-700'}`}
+                                          className={`text-xs px-3 py-1 ${!entry.internalHasMore ? 'text-gray-400' : 'text-slate-950 hover:text-slate-950'}`}
                                         >
                                           &gt;
                                         </Button>
@@ -1048,7 +1048,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => entry.internalTotalPages ? loadAddressData(entry.address, entry.internalTotalPages, 'internal') : undefined}
                                           disabled={!entry.internalTotalPages || (currentPages[entry.address]?.internal || 1) >= (entry.internalTotalPages || 1)}
-                                          className={`text-xs px-3 py-1 ${!entry.internalTotalPages || (currentPages[entry.address]?.internal || 1) >= (entry.internalTotalPages || 1) ? 'text-gray-400' : 'text-blue-700'}`}
+                                          className={`text-xs px-3 py-1 ${!entry.internalTotalPages || (currentPages[entry.address]?.internal || 1) >= (entry.internalTotalPages || 1) ? 'text-gray-400' : 'text-slate-950'}`}
                                         >
                                           Last
                                         </Button>
@@ -1066,7 +1066,7 @@ const TreasuryTracker: React.FC = () => {
                               <TabsContent value="transfers" className="space-y-4">
                                 {loadingAddressData[entry.address] ? (
                                   <div className="flex items-center justify-center py-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-800"></div>
                                     <span className="ml-3 text-gray-600">Loading transfers...</span>
                                   </div>
                                 ) : entry.transfers && entry.transfers.length > 0 ? (
@@ -1151,7 +1151,7 @@ const TreasuryTracker: React.FC = () => {
                                                         </Button>
                                                       </div>
                                                       {fromContractName && (
-                                                        <div className="text-xs text-blue-600 font-medium mt-1">
+                                                        <div className="text-xs text-slate-950 font-medium mt-1">
                                                           {fromContractName}
                                                         </div>
                                                       )}
@@ -1172,7 +1172,7 @@ const TreasuryTracker: React.FC = () => {
                                                         </Button>
                                                       </div>
                                                       {toContractName && (
-                                                        <div className="text-xs text-blue-600 font-medium mt-1">
+                                                        <div className="text-xs text-slate-950 font-medium mt-1">
                                                           {toContractName}
                                                         </div>
                                                       )}
@@ -1219,7 +1219,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => loadAddressData(entry.address, (currentPages[entry.address]?.transfers || 1) + 1, 'transfers')}
                                           disabled={!entry.transferHasMore}
-                                          className={`text-xs px-3 py-1 ${!entry.transferHasMore ? 'text-gray-400' : 'text-blue-600 hover:text-blue-700'}`}
+                                          className={`text-xs px-3 py-1 ${!entry.transferHasMore ? 'text-gray-400' : 'text-slate-950 hover:text-slate-950'}`}
                                         >
                                           &gt;
                                         </Button>
@@ -1228,7 +1228,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => entry.transferTotalPages ? loadAddressData(entry.address, entry.transferTotalPages, 'transfers') : undefined}
                                           disabled={!entry.transferTotalPages || (currentPages[entry.address]?.transfers || 1) >= (entry.transferTotalPages || 1)}
-                                          className={`text-xs px-3 py-1 ${!entry.transferTotalPages || (currentPages[entry.address]?.transfers || 1) >= (entry.transferTotalPages || 1) ? 'text-gray-400' : 'text-blue-600 hover:text-blue-700'}`}
+                                          className={`text-xs px-3 py-1 ${!entry.transferTotalPages || (currentPages[entry.address]?.transfers || 1) >= (entry.transferTotalPages || 1) ? 'text-gray-400' : 'text-slate-950 hover:text-slate-950'}`}
                                         >
                                           Last
                                         </Button>
@@ -1319,7 +1319,7 @@ const TreasuryTracker: React.FC = () => {
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 md:col-span-2">
                       <div className="text-xs text-gray-500">Hash</div>
                       <div className="flex items-center justify-between">
-                        <a href={`https://etherscan.io/tx/${detailData.hash}`} target="_blank" rel="noreferrer" className="text-sm font-mono text-blue-600 hover:underline break-all">
+                        <a href={`https://etherscan.io/tx/${detailData.hash}`} target="_blank" rel="noreferrer" className="text-sm font-mono text-slate-950 hover:underline break-all">
                           {detailData.hash}
                         </a>
                         <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => navigator.clipboard.writeText(detailData.hash)}>📋</Button>
@@ -1330,7 +1330,7 @@ const TreasuryTracker: React.FC = () => {
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                       <div className="text-xs text-gray-500">From</div>
                       <div className="flex items-center justify-between">
-                        <a href={`https://etherscan.io/address/${detailData.from}`} target="_blank" rel="noreferrer" className="text-sm font-mono text-blue-600 hover:underline break-all">
+                        <a href={`https://etherscan.io/address/${detailData.from}`} target="_blank" rel="noreferrer" className="text-sm font-mono text-slate-950 hover:underline break-all">
                           {detailData.from}
                         </a>
                         <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => navigator.clipboard.writeText(detailData.from)}>📋</Button>
@@ -1341,7 +1341,7 @@ const TreasuryTracker: React.FC = () => {
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                       <div className="text-xs text-gray-500">To</div>
                       <div className="flex items-center justify-between">
-                        <a href={`https://etherscan.io/address/${detailData.to}`} target="_blank" rel="noreferrer" className="text-sm font-mono text-blue-600 hover:underline break-all">
+                        <a href={`https://etherscan.io/address/${detailData.to}`} target="_blank" rel="noreferrer" className="text-sm font-mono text-slate-950 hover:underline break-all">
                           {detailData.to}
                         </a>
                         <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => navigator.clipboard.writeText(detailData.to)}>📋</Button>

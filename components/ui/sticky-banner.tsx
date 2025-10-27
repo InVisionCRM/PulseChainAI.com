@@ -58,7 +58,7 @@ export const StickyBanner = ({
         className="absolute top-1/2 right-1 -translate-y-1/2 cursor-pointer"
         onClick={() => setOpen(!open)}
       >
-        <CloseIcon className="h-3 w-3 text-black" />
+        <CloseIcon className="h-3 w-3 text-slate-950" />
       </motion.button>
     </motion.div>
   );

@@ -24,7 +24,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
           }}
           className={`py-1.5 sm:py-2 px-2 sm:px-3 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
             activeTab === 'pulsechain'
-              ? 'border-purple-500 text-purple-400'
+              ? 'border-blue-500 text-blue-400'
               : 'border-transparent text-slate-400 hover:text-slate-300'
           }`}
         >

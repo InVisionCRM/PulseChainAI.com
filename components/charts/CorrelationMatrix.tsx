@@ -79,7 +79,7 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
           transition={{ delay: 0.1 }}
           className="bg-slate-700/30 rounded-lg p-3 text-center"
         >
-          <div className="text-2xl font-bold text-purple-400">{tokens.length}</div>
+          <div className="text-2xl font-bold text-blue-400">{tokens.length}</div>
           <div className="text-xs text-slate-400">Tokens Analyzed</div>
         </motion.div>
         
@@ -120,7 +120,7 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                     <span className="text-sm font-semibold text-white">{correlation.token1}</span>
                   </div>
                   <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

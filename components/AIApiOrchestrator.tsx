@@ -288,12 +288,12 @@ Please provide a clear, human-readable answer that directly addresses the user's
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg p-6 text-white">
+      <div className="bg-gradient-to-r from-slate-950 to-slate-950 rounded-lg p-6 text-white">
         <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
           <IconBrain className="h-6 w-6" />
           AI-Powered Blockchain Analysis
         </h2>
-        <p className="text-purple-100">
+        <p className="text-blue-100">
           Ask questions about blockchain data and let AI determine which APIs to call for you.
         </p>
       </div>
@@ -316,7 +316,7 @@ Please provide a clear, human-readable answer that directly addresses the user's
                     value={currentSearch}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     placeholder="Search for tokens, addresses, or names..."
-                    className="w-full px-4 py-3 pl-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-3 pl-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <IconSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 </div>
@@ -339,7 +339,7 @@ Please provide a clear, human-readable answer that directly addresses the user's
                               {result.address}
                             </div>
                           </div>
-                          <div className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded">
+                          <div className="text-xs bg-blue-100 dark:bg-slate-950 text-slate-950 dark:text-blue-200 px-2 py-1 rounded">
                             {result.token_type || "Address"}
                           </div>
                         </div>
@@ -352,7 +352,7 @@ Please provide a clear, human-readable answer that directly addresses the user's
                 <button
                   onClick={handleAddAddress}
                   disabled={!currentSearch.trim() || selectedAddresses.length >= 5 || isSearching}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-950 text-white rounded-lg hover:bg-slate-950 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <IconPlus className="h-4 w-4" />
                   Add Address ({selectedAddresses.length}/5)
@@ -398,13 +398,13 @@ Please provide a clear, human-readable answer that directly addresses the user's
               value={userQuestion}
               onChange={(e) => setUserQuestion(e.target.value)}
               placeholder="e.g., How many holders does HEX have? What tokens do these addresses hold in common?"
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               rows={4}
             />
             <button
               onClick={handleSubmitQuestion}
               disabled={!userQuestion.trim() || selectedAddresses.length === 0 || loading}
-              className="mt-4 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mt-4 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-slate-950 to-slate-950 text-white rounded-lg hover:from-slate-950 hover:to-slate-950 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <IconBrain className="h-5 w-5" />
               {loading ? "Analyzing..." : "Analyze with AI"}
@@ -428,7 +428,7 @@ Please provide a clear, human-readable answer that directly addresses the user's
                     type="checkbox"
                     checked={selectedApis.has(api.endpoint)}
                     onChange={() => handleToggleApi(api.endpoint)}
-                    className="h-4 w-4 text-purple-600 focus:ring-purple-500"
+                    className="h-4 w-4 text-slate-950 focus:ring-blue-500"
                     title={`Select ${api.endpoint}`}
                   />
                   <div className="flex-1">
@@ -471,7 +471,7 @@ Please provide a clear, human-readable answer that directly addresses the user's
             
             {loading ? (
               <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-800 mx-auto"></div>
                 <p className="mt-2 text-gray-600 dark:text-gray-400">Generating analysis...</p>
               </div>
             ) : (
@@ -493,7 +493,7 @@ Please provide a clear, human-readable answer that directly addresses the user's
             <div className="mt-6 flex gap-3">
               <button
                 onClick={resetOrchestrator}
-                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                className="px-6 py-3 bg-slate-950 text-white rounded-lg hover:bg-slate-950"
               >
                 Start New Analysis
               </button>

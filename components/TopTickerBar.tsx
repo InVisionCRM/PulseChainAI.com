@@ -75,7 +75,7 @@ export function TopTickerBar() {
 
   return (
     <div className="relative">
-      <div className="h-12 flex items-center w-full overflow-hidden relative border-b-2 border-[#FA4616] bg-black/20">
+      <div className="h-12 flex items-center w-full overflow-hidden relative border-b-2 border-[#FA4616] bg-slate-950/20">
         <div
           ref={scrollerRef}
           className="flex gap-1 animate-scroll-ticker"

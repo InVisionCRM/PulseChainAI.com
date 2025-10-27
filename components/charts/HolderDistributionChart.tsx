@@ -35,7 +35,7 @@ const HolderDistributionChart: React.FC<HolderDistributionChartProps> = ({
   
   // Create distribution buckets
   const buckets = [
-    { name: 'Whales', min: maxValue * 0.01, color: 'bg-purple-500' },
+    { name: 'Whales', min: maxValue * 0.01, color: 'bg-blue-500' },
     { name: 'Large', min: maxValue * 0.001, color: 'bg-blue-500' },
     { name: 'Medium', min: maxValue * 0.0001, color: 'bg-green-500' },
     { name: 'Small', min: 0, color: 'bg-yellow-500' }

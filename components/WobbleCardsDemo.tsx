@@ -22,7 +22,7 @@ export default function WobbleCardsDemo({ showTutorial, onClose }: WobbleCardsDe
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-7xl mx-auto w-full h-full px-4 pb-8">
         <WobbleCard
-          containerClassName="col-span-1 md:col-span-2 h-full bg-black/20 backdrop-blur-xl border border-white/10 min-h-[200px] shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
+          containerClassName="col-span-1 md:col-span-2 h-full bg-slate-950/20 backdrop-blur-xl border border-white/10 min-h-[200px] shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
           className=""
         >
           <div className="max-w-xs">
@@ -34,15 +34,15 @@ export default function WobbleCardsDemo({ showTutorial, onClose }: WobbleCardsDe
             </p>
           </div>
           <div className="absolute -right-4 lg:-right-[40%] -bottom-10 flex items-center justify-center">
-            <div className="w-24 h-24 bg-purple-600/20 rounded-full flex items-center justify-center">
-              <svg className="w-12 h-12 text-purple-300" fill="currentColor" viewBox="0 0 24 24">
+            <div className="w-24 h-24 bg-slate-950/20 rounded-full flex items-center justify-center">
+              <svg className="w-12 h-12 text-blue-300" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
               </svg>
             </div>
           </div>
         </WobbleCard>
         
-        <WobbleCard containerClassName="col-span-1 min-h-[200px] bg-black/20 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+        <WobbleCard containerClassName="col-span-1 min-h-[200px] bg-slate-950/20 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
           <h2 className="max-w-80 text-left text-balance text-base md:text-xl lg:text-2xl font-semibold tracking-[-0.015em] text-white">
             Smart Contract Intelligence
           </h2>
@@ -51,7 +51,7 @@ export default function WobbleCardsDemo({ showTutorial, onClose }: WobbleCardsDe
           </p>
         </WobbleCard>
         
-        <WobbleCard containerClassName="col-span-1 md:col-span-3 bg-black/20 backdrop-blur-xl border border-white/10 min-h-[200px] shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+        <WobbleCard containerClassName="col-span-1 md:col-span-3 bg-slate-950/20 backdrop-blur-xl border border-white/10 min-h-[200px] shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
           <div className="max-w-sm">
             <h2 className="max-w-sm md:max-w-lg text-left text-balance text-base md:text-xl lg:text-2xl font-semibold tracking-[-0.015em] text-white">
               Ready to analyze your first contract?
@@ -61,14 +61,14 @@ export default function WobbleCardsDemo({ showTutorial, onClose }: WobbleCardsDe
             </p>
             <button
               onClick={onClose}
-              className="mt-6 bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200"
+              className="mt-6 bg-slate-950 hover:bg-slate-950 text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200"
             >
               Get Started →
             </button>
           </div>
           <div className="absolute -right-10 md:-right-[40%] lg:-right-[20%] -bottom-10 flex items-center justify-center">
-            <div className="w-32 h-32 bg-purple-600/20 rounded-full flex items-center justify-center">
-              <svg className="w-16 h-16 text-purple-300" fill="currentColor" viewBox="0 0 24 24">
+            <div className="w-32 h-32 bg-slate-950/20 rounded-full flex items-center justify-center">
+              <svg className="w-16 h-16 text-blue-300" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
               </svg>
             </div>

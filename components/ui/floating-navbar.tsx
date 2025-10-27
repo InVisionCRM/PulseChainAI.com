@@ -47,7 +47,7 @@ export function FloatingNav({ navItems, className }: FloatingNavProps) {
           exit={{ y: -100, opacity: 0 }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
           className={cn(
-            "fixed top-4 left-4 right-4 z-50 bg-black/80 backdrop-blur-md border border-gray-700 rounded-xl shadow-2xl",
+            "fixed top-4 left-4 right-4 z-50 bg-slate-950/80 backdrop-blur-md border border-gray-700 rounded-xl shadow-2xl",
             className
           )}
         >
@@ -55,7 +55,7 @@ export function FloatingNav({ navItems, className }: FloatingNavProps) {
             <div className="flex items-center justify-between h-16">
               {/* Logo/Brand */}
               <a href="/" className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-pink-500 rounded-lg flex items-center justify-center">
                   <span className="text-white font-bold text-sm">P</span>
                 </div>
                 <span className="text-white font-bold text-lg hidden sm:block">PulseChain AI</span>

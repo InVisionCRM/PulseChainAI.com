@@ -806,7 +806,7 @@ const LookIntoRHClone = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800 mx-auto mb-4"></div>
           <div className="text-gray-700 text-lg font-medium">Loading Portfolio...</div>
           <div className="text-gray-500 text-sm mt-1">Fetching Richard Heart's treasury data</div>
         </div>
@@ -823,14 +823,14 @@ const LookIntoRHClone = () => {
             {/* Logo */}
             <div className="flex items-center space-x-8">
               <div className="text-xl font-bold text-gray-900">
-                <span className="text-purple-600">Pulse</span>RH
+                <span className="text-slate-950">Pulse</span>RH
           </div>
               <nav className="hidden md:flex space-x-6">
-                <a href="#" className="text-gray-700 hover:text-purple-600 font-medium">Portfolio</a>
-                <a href="#" className="text-gray-700 hover:text-purple-600 font-medium">Treasury</a>
-                <a href="#" className="text-gray-700 hover:text-purple-600 font-medium">Community</a>
-                <a href="#" className="text-gray-700 hover:text-purple-600 font-medium">Protocols</a>
-                <a href="#" className="text-gray-700 hover:text-purple-600 font-medium">More</a>
+                <a href="#" className="text-gray-700 hover:text-slate-950 font-medium">Portfolio</a>
+                <a href="#" className="text-gray-700 hover:text-slate-950 font-medium">Treasury</a>
+                <a href="#" className="text-gray-700 hover:text-slate-950 font-medium">Community</a>
+                <a href="#" className="text-gray-700 hover:text-slate-950 font-medium">Protocols</a>
+                <a href="#" className="text-gray-700 hover:text-slate-950 font-medium">More</a>
               </nav>
         </div>
 
@@ -842,16 +842,16 @@ const LookIntoRHClone = () => {
                   value={searchAddress}
                   onChange={(e) => setSearchAddress(e.target.value)}
                   placeholder="Search wallet address (0x...)"
-                  className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   onKeyPress={(e) => e.key === 'Enter' && searchWallet()}
                   />
                   <button
                   onClick={searchWallet}
                   disabled={isSearching}
-                  className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 hover:text-purple-600 disabled:opacity-50"
+                  className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 hover:text-slate-950 disabled:opacity-50"
                 >
                   {isSearching ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                   ) : (
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -874,12 +874,12 @@ const LookIntoRHClone = () => {
 
         <div className="max-w-7xl mx-auto px-4 py-8">
           {/* Profile Section - Exact DeBank Layout */}
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-8 mb-8 border border-purple-100">
+          <div className="bg-gradient-to-r from-blue-50 to-pink-50 rounded-2xl p-8 mb-8 border border-blue-100">
           <div className="flex items-start justify-between">
             {/* Profile Info */}
             <div className="flex items-center space-x-4">
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                <div className="w-16 h-16 bg-gradient-to-br from-slate-950 to-pink-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
                   RH
               </div>
                 <div className="absolute -bottom-1 -right-1 bg-yellow-400 text-yellow-900 text-xs px-2 py-0.5 rounded-full font-bold">
@@ -913,7 +913,7 @@ const LookIntoRHClone = () => {
         </div>
 
           {/* Stats Row */}
-          <div className="grid grid-cols-5 gap-6 mt-8 pt-6 border-t border-purple-200">
+          <div className="grid grid-cols-5 gap-6 mt-8 pt-6 border-t border-blue-200">
             <div className="text-center">
               <div className="text-gray-500 text-sm">TVF</div>
               <div className="text-lg font-bold text-gray-900">${(portfolioValue / 1000000).toFixed(1)}M</div>
@@ -943,7 +943,7 @@ const LookIntoRHClone = () => {
                 <Button className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg">
                   Follow
                 </Button>
-                <Button variant="outline" className="border-purple-300 text-purple-600 hover:bg-purple-50 px-6 py-2 rounded-lg">
+                <Button variant="outline" className="border-blue-300 text-slate-950 hover:bg-blue-50 px-6 py-2 rounded-lg">
                   Say Hi
                 </Button>
                 <Button className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2 rounded-lg">
@@ -958,14 +958,14 @@ const LookIntoRHClone = () => {
                     setCurrentAddress(RICHARD_HEART_ADDRESS);
                     initializeData();
                   }}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg"
+                  className="bg-blue-500 hover:bg-slate-950 text-white px-6 py-2 rounded-lg"
                 >
                   Back to Richard Heart
                 </Button>
                 <Button 
                   onClick={() => window.open(`https://etherscan.io/address/${currentAddress}`, '_blank')}
                   variant="outline" 
-                  className="border-blue-300 text-blue-600 hover:bg-blue-50 px-6 py-2 rounded-lg"
+                  className="border-blue-300 text-slate-950 hover:bg-blue-50 px-6 py-2 rounded-lg"
                 >
                   View on Etherscan
                 </Button>
@@ -1008,7 +1008,7 @@ const LookIntoRHClone = () => {
                   onClick={() => setExpandedChain('ethereum')}
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                    <div className="w-10 h-10 bg-slate-950 rounded-full flex items-center justify-center text-white font-bold">
                       Ξ
             </div>
             <div>
@@ -1114,7 +1114,7 @@ const LookIntoRHClone = () => {
                           <tr className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
-                                <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xs mr-3">
+                                <div className="w-6 h-6 bg-slate-950 rounded-full flex items-center justify-center text-white font-bold text-xs mr-3">
                                   Ξ
         </div>
                                 <span className="text-sm font-medium text-gray-900">ETH</span>
@@ -1364,7 +1364,7 @@ const LookIntoRHClone = () => {
                         <tr className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xs mr-3">
+                              <div className="w-6 h-6 bg-slate-950 rounded-full flex items-center justify-center text-white font-bold text-xs mr-3">
                                 Ξ
         </div>
                               <span className="text-sm font-medium text-gray-900">ETH</span>
@@ -1417,7 +1417,7 @@ const LookIntoRHClone = () => {
                             {getTransactionDirection(tx)}
                           </Badge>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-blue-600">{truncateAddress(tx.hash)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-950">{truncateAddress(tx.hash)}</td>
                         <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-gray-600">
                           {isIncomingTransaction(tx) ? truncateAddress(tx.from) : truncateAddress(tx.to)}
                         </td>
@@ -1471,7 +1471,7 @@ const LookIntoRHClone = () => {
                             {getTransactionDirection(tx)}
                           </Badge>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-blue-600">{truncateAddress(tx.hash)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-950">{truncateAddress(tx.hash)}</td>
                         <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-gray-600">
                           {isIncomingTransaction(tx) ? truncateAddress(tx.from) : truncateAddress(tx.to)}
                         </td>
@@ -1493,9 +1493,9 @@ const LookIntoRHClone = () => {
             <Card className="bg-white border border-gray-200 rounded-xl overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                  <span className="w-6 h-6 bg-purple-100 rounded mr-2 flex items-center justify-center">🪙</span>
+                  <span className="w-6 h-6 bg-blue-100 rounded mr-2 flex items-center justify-center">🪙</span>
                   Token Transfers ({tokenTransfers.length})
-                  {transfersLoading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500 ml-2"></div>}
+                  {transfersLoading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 ml-2"></div>}
                 </h3>
               </div>
               
@@ -1523,9 +1523,9 @@ const LookIntoRHClone = () => {
                             {getTransactionDirection(tx)}
                           </Badge>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-blue-600">{truncateAddress(tx.hash)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-950">{truncateAddress(tx.hash)}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge className="bg-blue-100 text-blue-800">{tx.tokenSymbol}</Badge>
+                          <Badge className="bg-blue-100 text-slate-950">{tx.tokenSymbol}</Badge>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-gray-600">
                           {isIncomingTransaction(tx) ? truncateAddress(tx.from) : truncateAddress(tx.to)}
@@ -1581,7 +1581,7 @@ const LookIntoRHClone = () => {
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="text-xs text-gray-500">Address</div>
-                              <div className="font-mono text-sm text-blue-600">{truncateAddress(addr)}</div>
+                              <div className="font-mono text-sm text-slate-950">{truncateAddress(addr)}</div>
                             </div>
                             <div className="text-right">
                               <div className="text-xs text-gray-500">Balance</div>
@@ -1673,7 +1673,7 @@ const LookIntoRHClone = () => {
                               href={`https://etherscan.io/address/${addr}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-blue-600 hover:text-blue-700 text-sm underline"
+                              className="text-slate-950 hover:text-slate-950 text-sm underline"
                             >
                               View on Etherscan →
                             </a>
@@ -1703,7 +1703,7 @@ const LookIntoRHClone = () => {
                                               {(tx.to?.toLowerCase() === addr.toLowerCase()) ? 'IN' : 'OUT'}
                                             </Badge>
                                           </td>
-                                          <td className="px-3 py-2 font-mono text-xs text-blue-600">{truncateAddress(tx.hash)}</td>
+                                          <td className="px-3 py-2 font-mono text-xs text-slate-950">{truncateAddress(tx.hash)}</td>
                                           <td className="px-3 py-2">{formatETHValue(tx.value)}</td>
                                           <td className="px-3 py-2 text-gray-500">{formatTimestamp(tx.timeStamp)}</td>
                                         </tr>
@@ -1734,7 +1734,7 @@ const LookIntoRHClone = () => {
                                               {(tx.to?.toLowerCase() === addr.toLowerCase()) ? 'IN' : 'OUT'}
                                             </Badge>
                                           </td>
-                                          <td className="px-3 py-2 font-mono text-xs text-blue-600">{truncateAddress(tx.hash)}</td>
+                                          <td className="px-3 py-2 font-mono text-xs text-slate-950">{truncateAddress(tx.hash)}</td>
                                           <td className="px-3 py-2">{formatETHValue(tx.value)}</td>
                                           <td className="px-3 py-2 text-gray-500">{formatTimestamp(tx.timeStamp)}</td>
                                         </tr>
@@ -1770,7 +1770,7 @@ const LookIntoRHClone = () => {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="space-y-1">
                     <span className="text-gray-500 font-medium">Hash:</span>
-                    <div className="font-mono text-blue-600 break-all text-xs">{selectedTransaction.hash}</div>
+                    <div className="font-mono text-slate-950 break-all text-xs">{selectedTransaction.hash}</div>
                   </div>
                   <div className="space-y-1">
                     <span className="text-gray-500 font-medium">Block:</span>
@@ -1818,7 +1818,7 @@ const LookIntoRHClone = () => {
                     href={`https://etherscan.io/tx/${selectedTransaction.hash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-700 underline font-medium"
+                    className="text-slate-950 hover:text-slate-950 underline font-medium"
                   >
                     View on Etherscan →
                   </a>

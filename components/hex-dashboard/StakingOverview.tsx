@@ -246,7 +246,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
   if (isLoadingStaking) {
     return (
       <div className="text-center py-8 sm:py-12 px-4">
-        <RefreshCw className="w-8 h-8 sm:w-12 sm:h-12 animate-spin text-purple-500 mx-auto mb-3 sm:mb-4" />
+        <RefreshCw className="w-8 h-8 sm:w-12 sm:h-12 animate-spin text-blue-500 mx-auto mb-3 sm:mb-4" />
         <h2 className="text-lg sm:text-xl font-semibold text-white mb-2">
           <span className="hidden sm:inline">Loading Multi-Network HEX Staking Data...</span>
           <span className="sm:hidden">Loading Staking Data...</span>
@@ -311,7 +311,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
           <p className="mb-4">{stakingError}</p>
           <button
             onClick={loadStakingData}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
+            className="bg-slate-950 hover:bg-slate-950 text-white font-bold py-2 px-4 rounded"
           >
             Try Again
           </button>
@@ -333,13 +333,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
     <div className="space-y-6">
       {/* Mobile-optimized Cache & Database Status Display */}
       <div className="bg-white/5 backdrop-blur border border-white/10 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
-        <h4 className="text-xs sm:text-sm font-semibold text-purple-400 mb-2 sm:mb-3">
+        <h4 className="text-xs sm:text-sm font-semibold text-blue-400 mb-2 sm:mb-3">
           <span className="hidden sm:inline">🔧 PulseChain Data Status</span>
           <span className="sm:hidden">🔧 Data Status</span>
         </h4>
         
         {/* Database Status - Mobile Compact */}
-        <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-lg">
+        <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-gradient-to-r from-blue-500/10 to-blue-500/10 border border-blue-500/20 rounded-lg">
           <div className="flex items-center justify-between mb-1 sm:mb-2">
             <span className="text-xs sm:text-sm font-semibold text-blue-400">
               <span className="hidden sm:inline">📊 Database Integration</span>
@@ -413,7 +413,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
       </div>
 
       {/* Pagination Info */}
-      <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+      <div className="bg-slate-950/20 border border-blue-500/30 rounded-lg p-4 mb-6">
         <h4 className="text-sm font-semibold text-blue-400 mb-2">📄 Pagination Features</h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div>
@@ -450,7 +450,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
               </div>
               <div>
                 <span className="text-slate-300">PulseChain:</span>
-                <span className="ml-2 text-purple-400">
+                <span className="ml-2 text-blue-400">
                   {cacheStatus.totalStakeStarts > 0 ? `${cacheStatus.totalStakeStarts} total stakes` : 'Not loaded'}
                 </span>
               </div>
@@ -466,7 +466,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
             onClick={() => handleTabChange('overview')}
             className={`py-1.5 sm:py-2 px-2 sm:px-3 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
               stakingSubTab === 'overview'
-                ? 'border-purple-500 text-purple-400'
+                ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-300'
             }`}
           >
@@ -482,7 +482,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
             }}
             className={`py-1.5 sm:py-2 px-2 sm:px-3 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
               stakingSubTab === 'all-stakes'
-                ? 'border-purple-500 text-purple-400'
+                ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-300'
             }`}
           >
@@ -498,7 +498,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
             }}
             className={`py-1.5 sm:py-2 px-2 sm:px-3 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 whitespace-nowrap ${
               stakingSubTab === 'active-stakes'
-                ? 'border-purple-500 text-purple-400'
+                ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-300'
             }`}
           >
@@ -522,7 +522,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
               <button
                 onClick={loadStakingData}
                 disabled={isLoadingStaking}
-                className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-bold py-2 px-3 sm:px-4 rounded-lg flex items-center gap-2 text-sm sm:text-base"
+                className="bg-slate-950 hover:bg-slate-950 disabled:bg-blue-400 text-white font-bold py-2 px-3 sm:px-4 rounded-lg flex items-center gap-2 text-sm sm:text-base"
               >
                 <RefreshCw className={`w-3 h-3 sm:w-4 sm:h-4 ${isLoadingStaking ? 'animate-spin' : ''}`} />
                 <span className="hidden sm:inline">Refresh</span>
@@ -542,7 +542,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
               </div>
                 </div>
               <div className="text-center bg-white/5 backdrop-blur rounded-lg p-3 sm:p-4 border border-white/10">
-                <div className="text-lg sm:text-2xl font-bold text-purple-400">
+                <div className="text-lg sm:text-2xl font-bold text-blue-400">
                   {combinedData.totalActiveStakes.toLocaleString()}
               </div>
                 <div className="text-xs sm:text-sm text-slate-400">
@@ -596,10 +596,10 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                 </div>
                 
                 {/* PulseChain Network */}
-                <div className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border border-purple-500/20 rounded-xl p-4">
+                <div className="bg-gradient-to-br from-blue-500/10 to-violet-500/10 border border-blue-500/20 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-3 h-3 bg-purple-400 rounded-full"></div>
-                    <span className="font-semibold text-purple-400">PulseChain Network</span>
+                    <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
+                    <span className="font-semibold text-blue-400">PulseChain Network</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
@@ -607,7 +607,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                       <div className="text-slate-400">Active Stakes</div>
                     </div>
                     <div>
-                      <div className="text-purple-400 font-bold">
+                      <div className="text-blue-400 font-bold">
                         {pulsechainData ? hexStakingService.formatHexAmount(pulsechainData.totalStakedHearts) : '0 HEX'}
                       </div>
                       <div className="text-slate-400">Total Staked</div>
@@ -658,13 +658,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
             <h4 className="text-lg font-semibold text-white">All HEX Stake Start Events (Ethereum)</h4>
             {isLoadingAllStakes && (
-              <RefreshCw className="w-5 h-5 animate-spin text-purple-400" />
+              <RefreshCw className="w-5 h-5 animate-spin text-blue-400" />
             )}
           </div>
           
           {isLoadingAllStakes ? (
             <div className="p-8 text-center">
-              <RefreshCw className="w-8 h-8 animate-spin text-purple-400 mx-auto mb-4" />
+              <RefreshCw className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-4" />
               <p className="text-white">Loading all Ethereum stake start events...</p>
               <p className="text-sm text-slate-400">This may take a moment...</p>
             </div>
@@ -733,7 +733,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-green-400 font-semibold">
                         {hexStakingService.formatHexAmount(stake.stakedHearts)}
                       </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
                         {hexStakingService.formatTShareAmount(stake.stakeTShares || stake.stakeShares)}
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
@@ -769,7 +769,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
               <p className="text-white mb-2">No Ethereum stake start events loaded</p>
               <button
                 onClick={loadAllStakeStarts}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
+                className="bg-slate-950 hover:bg-slate-950 text-white font-bold py-2 px-4 rounded"
               >
                 Load Ethereum Stakes
               </button>
@@ -784,13 +784,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
             <h4 className="text-lg font-semibold text-white">All HEX Stake Start Events (PulseChain)</h4>
             {isLoadingPulsechainStakes && (
-              <RefreshCw className="w-5 h-5 animate-spin text-purple-400" />
+              <RefreshCw className="w-5 h-5 animate-spin text-blue-400" />
             )}
           </div>
           
           {isLoadingPulsechainStakes ? (
             <div className="p-8 text-center">
-              <RefreshCw className="w-8 h-8 animate-spin text-purple-400 mx-auto mb-4" />
+              <RefreshCw className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-4" />
               <p className="text-white">Loading all PulseChain stake start events...</p>
               <p className="text-sm text-slate-400">This may take a moment...</p>
             </div>
@@ -827,7 +827,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-green-400 font-semibold">
                         {hexStakingService.formatHexAmount(stake.stakedHearts)}
                       </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
                         {hexStakingService.formatTShareAmount(stake.stakeTShares || stake.stakeShares)}
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
@@ -863,7 +863,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
               <p className="text-white mb-2">No PulseChain stake start events loaded</p>
               <button
                 onClick={loadPulsechainStakeStarts}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
+                className="bg-slate-950 hover:bg-slate-950 text-white font-bold py-2 px-4 rounded"
               >
                 Load PulseChain Stakes
               </button>
@@ -880,13 +880,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
               <p className="text-sm text-slate-400">Stakes that have not yet ended</p>
             </div>
             {isLoadingActiveStakes && (
-              <RefreshCw className="w-5 h-5 animate-spin text-purple-400" />
+              <RefreshCw className="w-5 h-5 animate-spin text-blue-400" />
             )}
           </div>
           
           {isLoadingActiveStakes ? (
             <div className="p-8 text-center">
-              <RefreshCw className="w-8 h-8 animate-spin text-purple-400 mx-auto mb-4" />
+              <RefreshCw className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-4" />
               <p className="text-white">Loading all Ethereum active stakes...</p>
               <p className="text-sm text-slate-400">Fetching and cross-referencing stake data...</p>
             </div>
@@ -969,7 +969,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-green-400 font-semibold">
                           {hexStakingService.formatHexAmount(stake.stakedHearts)}
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-400">
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
                           {hexStakingService.formatTShareAmount(stake.stakeTShares || stake.stakeShares)}
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
@@ -985,7 +985,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                           <div className="flex items-center gap-2">
                             <div className="w-16 bg-slate-700 rounded-full h-2">
                               <div 
-                                className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all"
+                                className="bg-gradient-to-r from-blue-500 to-blue-500 h-2 rounded-full transition-all"
                                 style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                               ></div>
                             </div>
@@ -1018,7 +1018,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
               <p className="text-white mb-2">No Ethereum active stakes loaded</p>
               <button
                 onClick={loadActiveStakes}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
+                className="bg-slate-950 hover:bg-slate-950 text-white font-bold py-2 px-4 rounded"
               >
                 Load Ethereum Active Stakes
               </button>
@@ -1036,13 +1036,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
               <p className="text-sm text-slate-400">Stakes that have not yet ended</p>
             </div>
             {isLoadingPulsechainStakes && (
-              <RefreshCw className="w-5 h-5 animate-spin text-purple-400" />
+              <RefreshCw className="w-5 h-5 animate-spin text-blue-400" />
             )}
           </div>
           
           {isLoadingPulsechainStakes ? (
             <div className="p-8 text-center">
-              <RefreshCw className="w-8 h-8 animate-spin text-purple-400 mx-auto mb-4" />
+              <RefreshCw className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-4" />
               <p className="text-white">Loading all PulseChain active stakes...</p>
               <p className="text-sm text-slate-400">Fetching and cross-referencing stake data...</p>
             </div>
@@ -1096,7 +1096,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                           <span className="hidden sm:inline">{hexStakingService.formatHexAmount(stake.stakedHearts)}</span>
                           <span className="sm:hidden">{hexStakingService.formatHexAmount(stake.stakedHearts, true)}</span>
                         </td>
-                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-purple-400 hidden sm:table-cell">
+                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-blue-400 hidden sm:table-cell">
                           {hexStakingService.formatTShareAmount(stake.stakeTShares || stake.stakeShares)}
                         </td>
                         <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-blue-400">
@@ -1113,7 +1113,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                           <div className="flex items-center gap-1 sm:gap-2">
                             <div className="w-8 sm:w-16 bg-slate-700 rounded-full h-1.5 sm:h-2">
                               <div 
-                                className="bg-gradient-to-r from-purple-500 to-blue-500 h-1.5 sm:h-2 rounded-full transition-all"
+                                className="bg-gradient-to-r from-blue-500 to-blue-500 h-1.5 sm:h-2 rounded-full transition-all"
                                 style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                               ></div>
                             </div>
@@ -1155,7 +1155,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
               </p>
               <button
                 onClick={loadPulsechainActiveStakes}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-3 sm:px-4 rounded text-sm sm:text-base"
+                className="bg-slate-950 hover:bg-slate-950 text-white font-bold py-2 px-3 sm:px-4 rounded text-sm sm:text-base"
               >
                 <span className="hidden sm:inline">Load PulseChain Active Stakes</span>
                 <span className="sm:hidden">Load Stakes</span>

@@ -61,7 +61,7 @@ JsonObjectComponent = ({ data }) => {
             <div className="pl-4 border-l border-slate-700">
                 {keys.map((key, index) => (
                     <div key={key} className="flex">
-                        <span className="text-purple-400 shrink-0">&quot;{key}&quot;:&nbsp;</span>
+                        <span className="text-blue-400 shrink-0">&quot;{key}&quot;:&nbsp;</span>
                         <div className="flex-grow">
                             <JsonValue value={data[key]} />
                             {index < keys.length - 1 && <span className="text-slate-200">,</span>}

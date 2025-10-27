@@ -92,8 +92,8 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
   const getProgressColor = (progress: number) => {
     if (progress < 25) return 'from-red-500 to-orange-700';
     if (progress < 50) return 'from-orange-500 to-yellow-700';
-    if (progress < 75) return 'from-yellow-500 to-blue-700';
-    return 'from-blue-700 to-green-700';
+    if (progress < 75) return 'from-yellow-500 to-slate-950';
+    return 'from-slate-950 to-green-700';
   };
 
   const getRankIcon = (index: number) => {
@@ -110,10 +110,10 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
   };
 
   return (
-    <div className="bg-gradient-to-b from-slate-900 to-slate-900/90 via-slate-900/90 to-purple-500/30  bg-opacity-50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg overflow-hidden">
-      <div className="px-6 py-4 border-b border-white/10 relative overflow-hidden bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 via-pink-500 to-blue-500">
+    <div className="bg-gradient-to-b from-slate-900 to-slate-900/90 via-slate-900/90 to-blue-500/30  bg-opacity-50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg overflow-hidden">
+      <div className="px-6 py-4 border-b border-white/10 relative overflow-hidden bg-gradient-to-r from-orange-500 via-red-500 to-slate-950 via-pink-500 to-blue-500">
         {/* Simplified background with CSS gradient instead of heavy image */}
-        <div className="absolute inset-0 -z-10 bg-black/10"></div>
+        <div className="absolute inset-0 -z-10 bg-slate-950/10"></div>
         
         <div className="relative z-10">
           <div className="text-left">
@@ -136,7 +136,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                 onClick={() => handleStakeClick(stake)}
                 className="cursor-pointer group"
               >
-                <div className="relative bg-gradient-to-b from-slate-900/60 to-purple-500/10 via-slate-900/50 to-purple-900/25 bg-opacity-50 backdrop-blur border border-black rounded-xl transition-all duration-300 hover:bg-black/80 hover:border-lime-400/80 hover:scale-105">
+                <div className="relative bg-gradient-to-b from-slate-900/60 to-blue-500/10 via-slate-900/50 to-slate-950/25 bg-opacity-50 backdrop-blur border border-slate-800 rounded-xl transition-all duration-300 hover:bg-slate-950/80 hover:border-lime-400/80 hover:scale-105">
                   <div className="p-4">
                     {/* Rank Badge */}
                     <div className="absolute -top-2 -left-2 flex items-center justify-center w-8 h-8 bg-slate-800/10 bg-opacity-50 bg-transparent border border-lime-400 rounded-full">
@@ -145,7 +145,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
 
                     {/* Top 3 Glow Effect */}
                     {index < 3 && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/5 to-purple-400/5 rounded-xl -z-10" />
+                      <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/5 to-blue-400/5 rounded-xl -z-10" />
                     )}
 
                     {/* Header - Staker Address */}
@@ -177,8 +177,8 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                       {stake.network && (
                         <div className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${
                           stake.network === 'ethereum' 
-                            ? 'bg-blue-500/20 bg-opacity-50 text-blue-700 border border-blue-500/30' 
-                            : 'bg-purple-500/20 bg-opacity-50 text-purple-700 border border-purple-500/30'
+                            ? 'bg-blue-500/20 bg-opacity-50 text-slate-950 border border-blue-500/30' 
+                            : 'bg-blue-500/20 bg-opacity-50 text-slate-950 border border-blue-500/30'
                         }`}>
                           <Globe className="w-3 h-3" />
                           {stake.network === 'ethereum' ? 'ETH' : 'PLS'}
@@ -250,7 +250,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                     onClick={() => handleStakeClick(stake)}
                     className="cursor-pointer group"
                   >
-                    <div className="bg-gradient-to-b from-slate-900/60 via-slate-900/10 to-purple-600/10 bg-opacity-50 backdrop-blur border border-purple-500/30 border-1 rounded-lg p-3 transition-all duration-300 hover:bg-slate-700/50 hover:border-white/20">
+                    <div className="bg-gradient-to-b from-slate-900/60 via-slate-900/10 to-slate-950/10 bg-opacity-50 backdrop-blur border border-blue-500/30 border-1 rounded-lg p-3 transition-all duration-300 hover:bg-slate-700/50 hover:border-white/20">
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center font-bold gap-5">
                           <div className="text-lg font-bold text-white">#{index + 9}</div>
@@ -260,8 +260,8 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                           {stake.network && (
                             <div className={`text-xs px-2 py-1 rounded ${
                               stake.network === 'ethereum' 
-                                ? 'bg-blue-500/20 bg-opacity-50 text-blue-700' 
-                                : 'bg-purple-500/20 bg-opacity-50 text-purple-700'
+                                ? 'bg-blue-500/20 bg-opacity-50 text-slate-950' 
+                                : 'bg-blue-500/20 bg-opacity-50 text-slate-950'
                             }`}>
                               {stake.network === 'ethereum' ? 'ETH' : 'PLS'}
                             </div>

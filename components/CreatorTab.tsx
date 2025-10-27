@@ -40,7 +40,7 @@ const InfoRow: React.FC<{ label: string; value: string; link: string; }> = ({ la
     <div className="flex justify-between items-center text-sm py-2 border-b border-slate-700/50">
         <span className="text-slate-400">{label}</span>
         <div className="flex items-center">
-        <a href={link} target="_blank" rel="noopener noreferrer" title={value} className="font-mono text-purple-400 hover:text-purple-300 transition-colors break-all text-right">
+        <a href={link} target="_blank" rel="noopener noreferrer" title={value} className="font-mono text-blue-400 hover:text-blue-300 transition-colors break-all text-right">
             {truncateHash(value)}
         </a>
             <CopyButton text={value} />
@@ -60,7 +60,7 @@ const CreatorTab: React.FC<{
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center text-center p-8 h-full">
-                <LoadingSpinner className="w-8 h-8 text-purple-400" />
+                <LoadingSpinner className="w-8 h-8 text-blue-400" />
                 <p className="mt-3 text-slate-300">Loading creator details...</p>
             </div>
         );
@@ -104,7 +104,7 @@ const CreatorTab: React.FC<{
                     <h3 className="text-lg font-bold text-white mb-2">Token Holdings</h3>
                      <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700 text-sm">
                         {formattedBalance ? (
-                            <p>Creator holds <span className="font-bold text-purple-400">{formattedBalance}</span> {tokenInfo.symbol}.</p>
+                            <p>Creator holds <span className="font-bold text-blue-400">{formattedBalance}</span> {tokenInfo.symbol}.</p>
                         ) : (
                             <p className="text-slate-400">Creator does not hold any {tokenInfo.symbol}.</p>
                         )}
@@ -122,7 +122,7 @@ const CreatorTab: React.FC<{
                                    <div className="flex justify-between items-center text-sm">
                                        <div>
                                            <span className="text-slate-400 mr-2">Tx:</span>
-                                           <a href={`https://scan.pulsechain.com/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" className="font-mono text-purple-400 hover:underline">{truncateHash(tx.hash)}</a>
+                                           <a href={`https://scan.pulsechain.com/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" className="font-mono text-blue-400 hover:underline">{truncateHash(tx.hash)}</a>
                                        </div>
                                        <span className="text-slate-500 text-xs">
                                            {new Date(tx.timestamp).toLocaleString()}

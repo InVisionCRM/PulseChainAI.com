@@ -23,7 +23,7 @@ export const OptimizedDataLoader = memo<OptimizedDataLoaderProps>(({
     return (
       <div className={`bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 ${className}`}>
         <div className="flex flex-col items-center justify-center py-8">
-          <div className="animate-pulse rounded-full h-8 w-8 bg-purple-500/50 mb-3"></div>
+          <div className="animate-pulse rounded-full h-8 w-8 bg-blue-500/50 mb-3"></div>
           <p className="text-white/80 text-sm">{loadingMessage}</p>
         </div>
       </div>

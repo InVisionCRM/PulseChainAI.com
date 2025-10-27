@@ -12,7 +12,7 @@ export default function StatBuilderHeader({
   currentView = 'preview' 
 }: StatBuilderHeaderProps) {
   return (
-    <div className="bg-black/80 backdrop-blur-xl border-b border-white/20 p-4">
+    <div className="bg-slate-950/80 backdrop-blur-xl border-b border-white/20 p-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Left side - Title and Tabs */}
         <div className="flex items-center space-x-6">
@@ -27,7 +27,7 @@ export default function StatBuilderHeader({
               onClick={() => onViewToggle?.('preview')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 currentView === 'preview'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-slate-950 text-white'
                   : 'text-gray-300 hover:text-white hover:bg-white/10'
               }`}
             >
@@ -37,7 +37,7 @@ export default function StatBuilderHeader({
               onClick={() => onViewToggle?.('code')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 currentView === 'code'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-slate-950 text-white'
                   : 'text-gray-300 hover:text-white hover:bg-white/10'
               }`}
             >

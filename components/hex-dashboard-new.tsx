@@ -99,7 +99,7 @@ const HEXDataDashboard = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-12">
             <div className="bg-red-900/20 border border-red-500/50 text-red-300 px-4 py-3 rounded mb-4">
@@ -107,7 +107,7 @@ const HEXDataDashboard = () => {
               <p className="mb-4">{error}</p>
               <button
                 onClick={fetchData}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
+                className="bg-slate-950 hover:bg-slate-950 text-white font-bold py-2 px-4 rounded"
               >
                 Try Again
               </button>
@@ -119,7 +119,7 @@ const HEXDataDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-3 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-3 sm:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-4 sm:mb-8">

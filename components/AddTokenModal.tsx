@@ -39,7 +39,7 @@ export default function AddTokenModal({ open, onClose, onAdd, onMinimize, compac
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm"
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
@@ -152,7 +152,7 @@ export default function AddTokenModal({ open, onClose, onAdd, onMinimize, compac
             <div className={`pt-4 border-t border-white/20 ${compact ? 'mt-4' : 'mt-6'}`}>
               <button
                 onClick={handleAdd}
-                className={`w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 ${
+                className={`w-full bg-slate-950 hover:bg-slate-950 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 ${
                   compact ? 'py-2 px-4 text-sm' : 'py-3 px-6 text-lg'
                 }`}
                 disabled={!selectedToken || selectedStats.length === 0}

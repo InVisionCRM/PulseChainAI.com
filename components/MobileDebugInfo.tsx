@@ -10,7 +10,7 @@ export default function MobileDebugInfo() {
   }
   
   return (
-    <div className="fixed top-4 right-4 bg-black/80 text-white p-4 rounded-lg text-xs z-50 max-w-xs">
+    <div className="fixed top-4 right-4 bg-slate-950/80 text-white p-4 rounded-lg text-xs z-50 max-w-xs">
       <h3 className="font-bold mb-2">Mobile Debug Info</h3>
       <div className="space-y-1">
         <div>Screen: {config.screenWidth} × {config.screenHeight}</div>

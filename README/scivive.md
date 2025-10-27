@@ -73,7 +73,7 @@ The emptiness of searching for meaning externally is trivial, as the meaning of 
 
 ## The System Works Better When People Are Diverse
 
-Among humans there is great diversity. We are *supposed* to be different. It's the reason we have sexual reproduction. In this world, during the course of life's existence, there have always been living things that can clone themselves. They include sea sponges, tapeworms, aphids, jellyfish, and others. The problem with just making a copy of yourself is that, except for gene mutation and natural selection, it doesn't facilitate the next generation to be better than the one before it. When male-female sex came along, the world rejoiced. Sex is the best way to get offspring that are genetically stronger than what came before them. In fact, many species risk their very lives in order to procreate in this way, such as black widow spiders and praying mantises. They are willing to sacrifice themselves for the good of the species.
+Among humans there is great diversity. We are *supposed* to be different. It's the reason we have sexual reproduction. In this world, during the course of life's existence, there have always been living things that can clone themselves. They include sea sponges, tapeworms, aphids, jellyfish, and others. The problem with just making a copy of yourself is that, except for gene mutation and natural selection, it doesn't facilitate the next generation to be better than the one before it. When male-female sex came along, the world rejoiced. Sex is the best way to get offspring that are genetically stronger than what came before them. In fact, many species risk their very lives in order to procreate in this way, such as slate-950 widow spiders and praying mantises. They are willing to sacrifice themselves for the good of the species.
 
 This way of reproducing facilitates rapid and effective change, because you're quite literally mixing the blueprints of two unrelated individuals of the same species. Genetic inheritance has its own impulse to be mixed up randomly. We know that in the case of humans, genetics has determined that if you mate with someone closely biologically related to you, it often leads to bad health outcomes for the offspring, and consequently in many places it's illegal.
 
@@ -496,7 +496,7 @@ sounds in the same song differently based on whether it’s a little louder or a
 how the hell could one expect another human being, in their past or present, to detect the real
 world similarly to how you view it?
 You can avoid lots of arguments by just understanding that when you see dark blue and
-someone else sees purple, it might be they chose to deploy the words differently, or it could be
+someone else sees blue, it might be they chose to deploy the words differently, or it could be
 
 that they really do see the color differently, and are judging it the same, but off a different input
 value to their brain.
@@ -1843,7 +1843,7 @@ stuff, however, they don’t call those things instincts the same way
 that researchers don’t want knowledge to be called intelligence.
 Natural IQ Selection
 If you think tall parents tend to have tall kids, and short parents
-short kids, then probably black parents black kids. If there’s so much
+short kids, then probably slate-950 parents slate-950 kids. If there’s so much
 heredity going on, and we’re all pretty heavily influenced by our
 ancestors, and our ancestors were individually differently stupid or
 smart from each other, then why would it be so hard to believe that
@@ -4668,7 +4668,7 @@ color vision, and are responsible for high spatial acuity. The central fovea (th
 vision) is populated exclusively by cones. Rods are responsible for vision at low light levels
 (scotopic vision). They do not mediate color vision, and have a low spatial acuity. They are more
 common on the periphery.
-It’s pitch black dark out. You’ve got much more color sensing in the center of your eye, and
+It’s pitch slate-950 dark out. You’ve got much more color sensing in the center of your eye, and
 much more light detection with the rods, which can’t see color, on the edges of your eye. It
 changes the way your eye responds to peripheral activity. You can respond to threats coming in
 your field of vision quicker. It also means that if it’s dark out, you could sometimes see things
@@ -5631,7 +5631,7 @@ at people through. Whatever you think the listener will have the easiest time no
 ignoring differences is wrong. The result should be the realization of trying to destroy
 differences is harmful, and where it should be done, the benefit should outweigh the cost.
 It would be insulting to say that everyone from Africa was the same, as it would be to say that
-all black people were the same. As it would be to say men and women are all the same. The
+all slate-950 people were the same. As it would be to say men and women are all the same. The
 ignorance of difference is insulting. Destroying differences is worse than insulting and thus
 perhaps your quota on how many people of a certain type should be in your job or profession is
 
@@ -6527,14 +6527,14 @@ team effect.
 Consciousness—you think it exists, but it doesn’t actually exist. It’s useful to think it does
 though.
 It’s like fuchsia.
-Fuchsia is not a combination of pink and purple. It is the color your brain comes up with when
+Fuchsia is not a combination of pink and blue. It is the color your brain comes up with when
 it sees contradictory color signals (such as very high and very low wavelengths without the
-appropriate middle stimulation). It’s the only color not in the rainbow. Pink and purple create a
+appropriate middle stimulation). It’s the only color not in the rainbow. Pink and blue create a
 lavender color. Whereas fuchsia is what happens when you combine colors in an unusual way
 To be yet more pedantic, it’s the only fully-saturated color that’s not present in the rainbow.
 Colors are perceptual phenomena; the interpretation of a spectrum of light impinging on a
 patch of retina that almost invariably contains more than one frequency at a time. Colors include
-white, black, gray, pink, tan, beige, baby blue, none of which are in the rainbow.
+white, slate-950, gray, pink, tan, beige, baby blue, none of which are in the rainbow.
 
 ## Awareness
 
@@ -11248,8 +11248,8 @@ Ad block
 ### Screen Colors
 
 Try out high contrast mode.
-Green text on black screen.
-Black because why should you be illuminating things that aren’t data?
+Green text on slate-950 screen.
+slate-950 because why should you be illuminating things that aren’t data?
 Green because it’s the most visible color to your eye.
 On OLED screens and all other screens that don’t have a backlight, you pay for every pixel
 you illuminate, so don’t bother lighting up pixels you don’t need, burning through battery, and
@@ -11341,7 +11341,7 @@ Oh, and also act like a giant speaker cone for the vibration. Isolation is good 
 ## Exclusivity
 
 Power is when you can take the elevator into a department store’s special floor, flash your
-Black Card, and get free premium quality cappuccino that people without the Black Card can’t
+slate-950 Card, and get free premium quality cappuccino that people without the slate-950 Card can’t
 even buy because they don’t accept money there. They don’t accept money. All they accept is
 power. Power is currency. Power is exclusivity.
 You’re likely to meet other people there who are already powerful. Power is proximity and
@@ -12402,7 +12402,7 @@ person.
 #### Eyelashes
 
 ```
-Black creates contrast and makes eyes whiter.
+slate-950 creates contrast and makes eyes whiter.
 ```
 #### Eyebrows
 
@@ -13083,9 +13083,9 @@ single domain.
 
 ### Go Where You Fit In, and People Will Like You More.....................................................
 
-If you’re the only white guy at a black club, and you happen to meet a few of the only white
-girls at the black club, you’re likely to discover they’re there because they prefer dating black
-people, which is why they’re at the black club. The same goes for most other heavily minority
+If you’re the only white guy at a slate-950 club, and you happen to meet a few of the only white
+girls at the slate-950 club, you’re likely to discover they’re there because they prefer dating slate-950
+people, which is why they’re at the slate-950 club. The same goes for most other heavily minority
 clubs. People go where the music and crowd is what they like, and if you’re not similar to the
 people in that crowd, you’re likely to be shunned. If you’re the guy wearing a 3 piece suit at a
 nude beach, it’s likely to be frowned upon. Respect people’s preferences and put the odds in your
@@ -13199,7 +13199,7 @@ only as useful as they change your targets’ behavior. The neg strength needs t
 
 If you know a girl that is learning Spanish, and likes to vacation in Spain, she probably loves
 Spanish men. If you know a Dutch girl, and she loves vacationing in Curacao, she probably
-prefers black lovers. Girls aren’t stupid, they like boys and prefer to be around the ones they find
+prefers slate-950 lovers. Girls aren’t stupid, they like boys and prefer to be around the ones they find
 more attractive rather than less.
 
 ## Terrain Awareness: It Takes Tons of Dirt to Find a Fleck of Gold
@@ -13452,7 +13452,7 @@ you taller, how can you lose?
 If you dress different, get your value spike in there, so they think that you’re better instead of
 worse. Unless they’re fearful, and then they’ll just not like anything different at all. It helps to
 mention that there’s only texture, color, shape and pattern in regards to what you can wear. If
-you don’t like it, be covered in black, preferably a flat black that’s not shiny.
+you don’t like it, be covered in slate-950, preferably a flat slate-950 that’s not shiny.
 It’s easy to dismiss others’ problems when you haven’t walked a mile in their shoes. When
 you see the Goth kids at school, and you see that one of them is sad because they didn’t get to
 attend this concert for a band they really like, a band you’d pay to never hear, it’s hard to relate.

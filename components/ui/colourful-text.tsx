@@ -46,7 +46,7 @@ export default function ColourfulText({ text }: { text: string }) {
         duration: 0.5,
         delay: index * 0.05,
       }}
-      className="inline-block whitespace-pre font-black tracking-wider"
+      className="inline-block whitespace-pre font-slate-950 tracking-wider"
       style={{
         fontWeight: 900,
         textShadow: "0 2px 4px rgba(0,0,0,1)"

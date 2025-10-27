@@ -206,6 +206,35 @@ export interface DexScreenerPair {
     };
 }
 
+export interface QuickAudit {
+    contractCreator: string;
+    contractOwner: string;
+    contractName: string;
+    contractChain: string;
+    contractAddress: string;
+    contractRenounced: boolean;
+    hiddenOwner: boolean;
+    isProxy: boolean;
+    hasExternalContractRisk: boolean;
+    canMint: boolean;
+    canBurn: boolean;
+    canslate-950list: boolean;
+    canMultislate-950list: boolean;
+    canWhitelist: boolean;
+    canUpdateFees: boolean;
+    canUpdateMaxWallet: boolean;
+    canUpdateMaxTx: boolean;
+    canPauseTrading: boolean;
+    cantPauseTradingRenounced: boolean;
+    hasTradingCooldown: boolean;
+    canUpdateWallets: boolean;
+    hasSuspiciousFunctions: boolean;
+    hasExternalFunctions: boolean;
+    hasModifiedTransferWarning: boolean;
+    hasScams: boolean;
+    functions: string[];
+}
+
 export interface DexScreenerData {
     pairs: DexScreenerPair[];
     totalPairs: number;
@@ -262,18 +291,51 @@ export interface DexScreenerData {
             url: string;
         }>;
     } | null;
+    quickAudit?: QuickAudit | null;
 }
 
 // Transaction Modal Types
+export interface TransactionAsset {
+    symbol: string;
+    amount: string;
+    value: number;
+    tokenAddress: string;
+    logoUrl?: string;
+}
+
+export interface SwapTransactionData {
+    id: string;
+    type: 'swap';
+    from: string;
+    to: string;
+    sentAssets: TransactionAsset[];
+    receivedAssets: TransactionAsset[];
+    status: 'success' | 'failed';
+    timestamp: string;
+    gasUsed: string;
+    gasSymbol: string;
+    gasValue: number;
+    txHash: string;
+}
+
 export interface TransactionData {
     timestamp: string;
-    type: 'buy' | 'sell';
+    type: 'buy' | 'sell' | 'swap' | 'transfer';
     usdValue: number;
     tokenAmount: number;
     wplsAmount: number;
     price: number;
     makerAddress: string;
     txHash: string;
+    // Swap-specific fields
+    from?: string;
+    to?: string;
+    sentAssets?: TransactionAsset[];
+    receivedAssets?: TransactionAsset[];
+    status?: 'success' | 'failed';
+    gasUsed?: string;
+    gasSymbol?: string;
+    gasValue?: number;
 }
 
 export interface TransactionModalProps {
@@ -281,4 +343,7 @@ export interface TransactionModalProps {
     onClose: () => void;
     tokenAddress: string;
     tokenSymbol: string;
+    priceUsd?: number;
+    priceWpls?: number;
+    pairAddress?: string;
 }

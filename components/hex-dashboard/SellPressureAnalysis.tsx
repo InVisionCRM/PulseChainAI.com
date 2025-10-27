@@ -103,7 +103,7 @@ export default function SellPressureAnalysis({
 
   const totalStakes = stakesEnding.length;
 
-  const networkColor = network === 'ethereum' ? 'blue' : 'purple';
+  const networkColor = network === 'ethereum' ? 'blue' : 'blue';
   const networkName = network === 'ethereum' ? 'Ethereum' : 'PulseChain';
 
   // Helper function to format dates
@@ -302,13 +302,13 @@ export default function SellPressureAnalysis({
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-green-600 font-semibold">
                           ${calculateUSDValue(stake.stakedHearts).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-purple-700">
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-950">
                           {formatTShareAmount(stake.stakeTShares || stake.stakeShares)}
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-orange-700 font-semibold">
                           {calculateEstimatedAPY(stake).toFixed(1)}%
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-700">
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-950">
                           {parseInt(stake.stakedDays).toLocaleString()} days
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-orange-700">
@@ -319,7 +319,7 @@ export default function SellPressureAnalysis({
                             <div className="w-16 bg-slate-700 rounded-full h-2">
                               <div 
                                 className={`h-2 rounded-full transition-all ${
-                                  progress >= 100 ? 'bg-green-500' : 'bg-gradient-to-r from-purple-500 to-blue-500'
+                                  progress >= 100 ? 'bg-green-500' : 'bg-gradient-to-r from-blue-500 to-blue-500'
                                 }`}
                                 style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                               />
@@ -381,7 +381,7 @@ export default function SellPressureAnalysis({
                     <td className="px-3 py-4 whitespace-nowrap text-sm font-bold text-green-600">
                       ${stakesEnding.reduce((sum, stake) => sum + calculateUSDValue(stake.stakedHearts), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </td>
-                    <td className="px-3 py-4 whitespace-nowrap text-sm font-bold text-purple-700">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm font-bold text-slate-950">
                       {formatTShareAmount(stakesEnding.reduce((sum, stake) => sum + parseFloat(stake.stakeTShares || stake.stakeShares), 0))}
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-800">

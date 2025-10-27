@@ -530,8 +530,8 @@ class PulseChainApiService {
     try {
       // Get holders for both tokens
       const [token1Holders, token2Holders] = await Promise.all([
-        this.getTokenHolders(token1Address, 1, 1000), // Get more holders for better analysis
-        this.getTokenHolders(token2Address, 1, 1000)
+        this.getTokenHolders(token1Address, 1, 50), // Reduced from 1000 to 50
+        this.getTokenHolders(token2Address, 1, 50)  // Reduced from 1000 to 50
       ]);
 
       // Find overlapping addresses

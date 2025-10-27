@@ -52,7 +52,7 @@ export default function SidebarBuilder({ onConfigChange, onStatResultsChange }: 
       <div className="space-y-4">
         <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4">
           <div className="flex items-center space-x-3">
-            <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin"></div>
+            <div className="w-4 h-4 border-2 border-blue-300 border-t-slate-950 rounded-full animate-spin"></div>
             <p className="text-blue-300 text-sm">
               Initializing builder...
             </p>
