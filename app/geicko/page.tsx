@@ -587,7 +587,7 @@ function GeickoPageContent() {
 
     const isBurnAddress = (addr: string): boolean => {
       const lower = (addr || '').toLowerCase();
-      return (
+  return (
         lower.endsWith('dead') ||
         lower.endsWith('0000') ||
         lower.endsWith('0369') ||
@@ -802,46 +802,58 @@ function GeickoPageContent() {
               <div className="relative flex gap-2 min-h-[120px] pt-4">
                 {/* Left side: Token info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 mb-1">
-                    {/* Token Logo */}
+                  {/* Ticker and Name */}
+                  <div className="absolute z-10 left-0 top-4 text-left mb-2">
+                    <div className="bg-black/10 backdrop-blur-lg rounded-xs p-2">
+                      <div className="text-md font-bold text-white">
+                        {dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} / {dexScreenerData.pairs[0].quoteToken?.symbol}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {dexScreenerData?.tokenInfo?.name || tokenInfo?.name || dexScreenerData.pairs[0].baseToken?.name || 'Token'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Token Logo - Centered below ticker/name */}
+                  <div className="absolute z-20 left-6 bottom-0 bg-black/10 backdrop-blur-xs rounded-full p-2 mb-1">
                     {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? (
                       <img
                         src={dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl}
                         alt={`${dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} logo`}
-                        className="w-6 h-6 rounded-full bg-gray-950 flex-shrink-0"
+                        className="w-10 h-10 rounded-full bg-gray-950"
                         onError={(e) => {
                           e.currentTarget.style.display = 'none';
                           e.currentTarget.nextElementSibling?.classList.remove('hidden');
                         }}
                       />
                     ) : null}
-                    <div className={`w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0 ${(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? 'hidden' : ''}`}>
-                      <span className="text-white font-bold text-xs">
+                    <div className={`w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center ${(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? 'hidden' : ''}`}>
+                      <span className="text-white font-bold text-sm">
                         {dexScreenerData?.tokenInfo?.symbol?.charAt(0) || dexScreenerData.pairs[0].baseToken?.symbol?.charAt(0) || 'T'}
                       </span>
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs text-white truncate">
-                        {dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} / {dexScreenerData.pairs[0].quoteToken?.symbol}
-                      </div>
-                      <div className="text-xs text-gray-400 truncate">
-                        {dexScreenerData?.tokenInfo?.name || tokenInfo?.name || dexScreenerData.pairs[0].baseToken?.name || 'Token'}
-                      </div>
                     </div>
                   </div>
 
                   {/* Current Price */}
-                  <div className="absolute left-6 bottom-2">
-                    <div className="text-lg font-bold text-white">
+                  <div className="absolute right-4 top-4">
+                    <div className="text-xl font-bold text-white">
                       ${Number(dexScreenerData.pairs[0].priceUsd || 0).toFixed(6)}
                     </div>
-                    <div className={`text-xs ${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    <div className={`text-md ${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '↑' : '↓'}
                       {Math.abs(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
                     </div>
-                    <div className="text-xs text-gray-300">
+                    <div className="text-lg font-bold text-gray-300">
                       {dexScreenerData.pairs[0].marketCap
-                        ? `$${(Number(dexScreenerData.pairs[0].marketCap) / 1000).toFixed(2)}K MCAP`
+                        ? (() => {
+                            const marketCap = Number(dexScreenerData.pairs[0].marketCap);
+                            if (marketCap >= 1000000) {
+                              return `${(marketCap / 1000000).toFixed(2)}M MCAP`;
+                            } else {
+                              const rounded = Math.round(marketCap / 1000) * 1000;
+                              return `$${(rounded / 1000).toFixed(0)}k MCAP`;
+                            }
+                          })()
                         : 'MCAP N/A'}
                     </div>
                   </div>
@@ -922,10 +934,106 @@ function GeickoPageContent() {
             )}
           </div>
 
+          {/* Price Performance & 24h Activity - Mobile Only (Above Chart) */}
+          <div className="sm:hidden px-2 mb-2">
+            <div className="grid grid-cols-2 gap-2">
+              {/* Left Column: Price Performance & 24h Activity */}
+              <div>
+                {/* Price Performance */}
+                {dexScreenerData?.pairs?.[0] && (
+                  <div className="mb-2">
+                    <div className="text-xs text-gray-300 mb-1 text-center">Price Performance</div>
+                    <div className="grid grid-cols-4 gap-0.5 text-xs">
+                      <div className="text-center">
+                        <div className="text-gray-400">5M</div>
+                        <div className={`${(dexScreenerData.pairs[0].priceChange?.m5 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {(dexScreenerData.pairs[0].priceChange?.m5 || 0) >= 0 ? '+' : ''}
+                          {(dexScreenerData.pairs[0].priceChange?.m5 || 0).toFixed(2)}%
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-gray-400">1H</div>
+                        <div className={`${(dexScreenerData.pairs[0].priceChange?.h1 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {(dexScreenerData.pairs[0].priceChange?.h1 || 0) >= 0 ? '+' : ''}
+                          {(dexScreenerData.pairs[0].priceChange?.h1 || 0).toFixed(2)}%
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-gray-400">6H</div>
+                        <div className={`${(dexScreenerData.pairs[0].priceChange?.h6 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {(dexScreenerData.pairs[0].priceChange?.h6 || 0) >= 0 ? '+' : ''}
+                          {(dexScreenerData.pairs[0].priceChange?.h6 || 0).toFixed(2)}%
+                        </div>
+                      </div>
+                      <div className="text-center bg-gray-800 rounded p-0.5">
+                        <div className="text-gray-400">24H</div>
+                        <div className={`${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '+' : ''}
+                          {(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 24h Activity */}
+                {dexScreenerData?.pairs?.[0] && (
+                  <div className="mb-2">
+                    <div className="text-xs text-gray-300 mb-1 text-center">24h Activity</div>
+                    <div className="grid grid-cols-3 gap-0.5 text-xs">
+                      <div className="text-center">
+                        <div className="text-gray-400">Txn</div>
+                        <div className="text-white">
+                          {((dexScreenerData.pairs[0].txns?.h24?.buys || 0) + (dexScreenerData.pairs[0].txns?.h24?.sells || 0))}
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-gray-400">BUY</div>
+                        <div className="text-green-400">{dexScreenerData.pairs[0].txns?.h24?.buys || 0}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-gray-400">SELL</div>
+                        <div className="text-red-400">{dexScreenerData.pairs[0].txns?.h24?.sells || 0}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Price, Change, MCAP */}
+              <div className="flex items-center justify-center">
+                {dexScreenerData?.pairs?.[0] && (
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-white">
+                      ${Number(dexScreenerData.pairs[0].priceUsd || 0).toFixed(6)}
+                    </div>
+                    <div className={`text-md font-bold ${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '↑' : '↓'}
+                      {Math.abs(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
+                    </div>
+                    <div className="text-lg text-gray-300">
+                      {dexScreenerData.pairs[0].marketCap
+                        ? (() => {
+                            const marketCap = Number(dexScreenerData.pairs[0].marketCap);
+                            if (marketCap >= 1000000) {
+                              return `${(marketCap / 1000000).toFixed(2)}M MCAP`;
+                            } else {
+                              const rounded = Math.round(marketCap / 1000) * 1000;
+                              return `$${(rounded / 1000).toFixed(0)}k MCAP`;
+                            }
+                          })()
+                        : 'MCAP N/A'}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Chart Area */}
           <div className="mx-2 md:mx-3 mb-2 min-w-0">
             {isLoadingData ? (
-              <div className="h-[541px] sm:h-[773px] md:h-[805px] lg:h-[869px] xl:h-[935px] bg-gray-900 border border-gray-800 flex items-center justify-center">
+              <div className="h-[550px] bg-gray-900 border border-gray-800 flex items-center justify-center">
                 <div className="text-center">
                   <LoaderThree />
                   <p className="text-gray-400 text-xs mt-2">Loading chart...</p>
@@ -936,7 +1044,7 @@ function GeickoPageContent() {
                 <DexScreenerChart pairAddress={dexScreenerData.pairs[0].pairAddress} />
               </div>
             ) : (
-              <div className="h-[541px] sm:h-[773px] md:h-[805px] lg:h-[869px] xl:h-[935px] bg-gray-900 border border-gray-800 flex items-center justify-center">
+              <div className="h-[550px] bg-gray-900 border border-gray-800 flex items-center justify-center">
                 <div className="text-center text-gray-500">
                   <div className="text-xs mb-1"></div>
                   <div className="text-xs">No chart data available</div>
@@ -946,50 +1054,44 @@ function GeickoPageContent() {
           </div>
 
           {/* Bottom Tabs */}
-          <div className="px-2 md:px-3 py-1 border-t border-gray-800">
-            <div className="flex space-x-2 md:space-x-3 overflow-x-auto">
-              {/* Switch Tab - Only visible on mobile */}
-              <button
-                onClick={() => setActiveTab('switch')}
-                className={`sm:hidden text-xs pb-0.5 whitespace-nowrap ${activeTab === 'switch' ? 'text-lime-500 border-b border-lime-500' : 'text-gray-400 hover:text-lime-500'}`}
-              >
-                Switch
-              </button>
+          <div className="px-2 md:px-3 py-3 border-t border-gray-800 -mt-[50px] relative z-50">
+            <div className="flex bg-black gap-1 overflow-x-auto">
               <button
                 onClick={() => setActiveTab('transactions')}
-                className={`text-xs pb-0.5 whitespace-nowrap ${activeTab === 'transactions' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
+                className={`text-sm pb-1 whitespace-nowrap border-r border-white/20 pr-2 ${activeTab === 'transactions' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
               >
-                Transactions
-              </button>
-              <button
-                onClick={() => setActiveTab('traders')}
-                className={`text-xs pb-0.5 whitespace-nowrap ${activeTab === 'traders' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
-              >
-                Traders
+                Txns
               </button>
               <button
                 onClick={() => setActiveTab('holders')}
-                className={`text-xs pb-0.5 whitespace-nowrap ${activeTab === 'holders' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
+                className={`text-sm pb-0.5 whitespace-nowrap border-r border-white/20 pr-2 ${activeTab === 'holders' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
               >
                 Holders
               </button>
               <button
                 onClick={() => setActiveTab('apis')}
-                className={`text-xs pb-0.5 whitespace-nowrap ${activeTab === 'apis' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
+                className={`text-sm pb-0.5 whitespace-nowrap border-r border-white/20 pr-2 ${activeTab === 'apis' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
               >
                 APIs
               </button>
               <button
                 onClick={() => setActiveTab('askai')}
-                className={`text-xs pb-0.5 whitespace-nowrap ${activeTab === 'askai' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
+                className={`text-sm pb-0.5 whitespace-nowrap border-r border-white/20 pr-2 ${activeTab === 'askai' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
               >
                 Ask AI
               </button>
               <button
                 onClick={() => setActiveTab('contract')}
-                className={`text-xs pb-0.5 whitespace-nowrap ${activeTab === 'contract' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
+                className={`text-sm pb-0.5 whitespace-nowrap border-r border-white/20 pr-2 ${activeTab === 'contract' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
               >
-                Contract
+                Code
+              </button>
+              {/* Switch Tab - Visible on all layouts, moved to last */}
+              <button
+                onClick={() => setActiveTab('switch')}
+                className={`text-sm pb-0.5 whitespace-nowrap bg-lime-500/80 text-white px-2 rounded ${activeTab === 'switch' ? 'border-b border-lime-500' : 'hover:bg-lime-500'}`}
+              >
+                Switch
               </button>
             </div>
           </div>
@@ -1088,29 +1190,6 @@ function GeickoPageContent() {
                         </div>
                       </div>
                     )}
-                  </div>
-                </>
-              )}
-
-              {/* Traders Tab */}
-              {activeTab === 'traders' && (
-                <>
-                  {/* Table Header */}
-                  <div className="flex items-center px-2 py-1 border-b border-gray-700 text-xs text-gray-300">
-                    <div className="flex-[1] min-w-[50px]">Rank</div>
-                    <div className="flex-[3] min-w-[100px]">Trader</div>
-                    <div className="flex-[1] min-w-[60px]">Txn</div>
-                    <div className="flex-[2] min-w-[80px]">Volume</div>
-                  </div>
-
-                  {/* Table Rows */}
-                  <div className="divide-y divide-gray-700">
-                    <div className="flex items-center px-2 py-1 text-xs text-white">
-                      <div className="flex-[1] min-w-[50px]">-</div>
-                      <div className="flex-[3] min-w-[100px]">-</div>
-                      <div className="flex-[1] min-w-[60px]">-</div>
-                      <div className="flex-[2] min-w-[80px]">-</div>
-                    </div>
                   </div>
                 </>
               )}
@@ -1263,7 +1342,7 @@ function GeickoPageContent() {
 
           {/* Token Information Tabs */}
           <div className="px-2 md:px-3 py-2 border-t border-gray-800">
-            <div className="flex space-x-2 md:space-x-4 mb-3 overflow-x-auto">
+            <div className="flex space-x-2 md:space-x-4 mb-1 pt-4 border-t border-gray-800 overflow-x-auto">
               <button
                 onClick={() => setTokenInfoTab('token')}
                 className={`text-xs pb-1 ${tokenInfoTab === 'token' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
@@ -1276,11 +1355,25 @@ function GeickoPageContent() {
               >
                 WPLS token info
               </button>
-            </div>
+        </div>
 
             {/* Token Info Content */}
             {tokenInfoTab === 'token' && (
               <>
+                {/* Header Image */}
+                {profileData?.profile?.headerImageUrl && (
+                  <div className="mb-2 pt-1 pb-1 flex justify-center border-b border-slate-800">
+                    <img
+                      src={profileData.profile.headerImageUrl}
+                      alt="Token Header"
+                      className="w-full aspect-[3/1] object-cover rounded-lg"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+
                 {/* About Token Section - Dynamic from DexScreener V4 */}
                 <div className="mb-4">
                   <h2 className="text-sm font-semibold text-white mb-2">
@@ -1294,7 +1387,7 @@ function GeickoPageContent() {
                   ) : (
                     <p className="text-xs text-gray-400 mb-2">No description available</p>
                   )}
-                </div>
+          </div>
               </>
             )}
 
@@ -1407,6 +1500,122 @@ function GeickoPageContent() {
                       );
                     })}
                 </div>
+              </div>
+            )}
+
+            {/* Quick Audit Section */}
+            {tokenInfoTab === 'token' && profileData?.quickAudit && (
+              <div className="mb-4">
+                <h2 className="text-sm font-semibold text-white mb-2">Quick Audit</h2>
+
+                {(() => {
+                  const quickAudit = profileData?.quickAudit;
+                  return (
+                    <>
+                      {/* Contract Information */}
+                      <div className="grid grid-cols-1 gap-2 mb-2">
+                        <div className="bg-gray-800 rounded p-2">
+                          <div className="text-xs text-gray-400 mb-1">Contract Info</div>
+                          <div className="space-y-1 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Name:</span>
+                              <span className="text-white font-mono text-xs truncate ml-2">{quickAudit.contractName}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Creator:</span>
+                              <span className="text-white font-mono text-xs">{quickAudit.contractCreator ? `${quickAudit.contractCreator.slice(0, 6)}...${quickAudit.contractCreator.slice(-4)}` : 'Unknown'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Owner:</span>
+                              <span className={`font-mono text-xs ${quickAudit.contractRenounced ? 'text-green-400' : 'text-red-400'}`}>
+                                {quickAudit.contractRenounced ? 'Renounced' : (quickAudit.contractOwner ? `${quickAudit.contractOwner.slice(0, 6)}...${quickAudit.contractOwner.slice(-4)}` : 'Unknown')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-gray-800 rounded p-2">
+                          <div className="text-xs text-gray-400 mb-1">Security</div>
+                          <div className="space-y-1 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Proxy:</span>
+                              <span className={quickAudit.isProxy ? 'text-red-400' : 'text-green-400'}>
+                                {quickAudit.isProxy ? 'Yes' : 'No'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">External Risk:</span>
+                              <span className={quickAudit.hasExternalContractRisk ? 'text-red-400' : 'text-green-400'}>
+                                {quickAudit.hasExternalContractRisk ? 'Yes' : 'No'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Suspicious:</span>
+                              <span className={quickAudit.hasSuspiciousFunctions ? 'text-red-400' : 'text-green-400'}>
+                                {quickAudit.hasSuspiciousFunctions ? 'Yes' : 'No'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Capabilities Grid */}
+                      <div className="bg-gray-800 rounded p-2 mb-2">
+                        <div className="text-xs text-gray-400 mb-2">Capabilities</div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Mint:</span>
+                            <span className={quickAudit.canMint ? 'text-red-400' : 'text-green-400'}>
+                              {quickAudit.canMint ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Burn:</span>
+                            <span className={quickAudit.canBurn ? 'text-yellow-400' : 'text-green-400'}>
+                              {quickAudit.canBurn ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Blacklist:</span>
+                            <span className={quickAudit.canBlacklist ? 'text-red-400' : 'text-green-400'}>
+                              {quickAudit.canBlacklist ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Pause:</span>
+                            <span className={quickAudit.canPauseTrading ? 'text-red-400' : 'text-green-400'}>
+                              {quickAudit.canPauseTrading ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Fees:</span>
+                            <span className={quickAudit.canUpdateFees ? 'text-red-400' : 'text-green-400'}>
+                              {quickAudit.canUpdateFees ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Max Wallet:</span>
+                            <span className={quickAudit.canUpdateMaxWallet ? 'text-red-400' : 'text-green-400'}>
+                              {quickAudit.canUpdateMaxWallet ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Max TX:</span>
+                            <span className={quickAudit.canUpdateMaxTx ? 'text-red-400' : 'text-green-400'}>
+                              {quickAudit.canUpdateMaxTx ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Cooldown:</span>
+                            <span className={quickAudit.hasCooldown ? 'text-yellow-400' : 'text-green-400'}>
+                              {quickAudit.hasCooldown ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
 
@@ -1569,64 +1778,89 @@ function GeickoPageContent() {
                 <LoaderThree />
               </div>
             ) : dexScreenerData?.pairs?.[0] ? (
-              <>
-                <div className="flex items-center space-x-2 mb-1">
-                  {/* Token Logo - Fallback hierarchy */}
+              <div className="px-2 mb-2 pt-2">
+                <div className="flex items-start gap-3">
+                  {/* Token Logo */}
                   {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? (
                     <img
                       src={dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl}
                       alt={`${dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} logo`}
-                      className="w-6 h-6 rounded-full bg-gray-950"
+                      className="w-24 h-24 bg-slate-950 bg-cover rounded-full flex-shrink-0"
                       onError={(e) => {
-                        // Fallback to generated logo on error
                         e.currentTarget.style.display = 'none';
                         e.currentTarget.nextElementSibling?.classList.remove('hidden');
                       }}
                     />
                   ) : null}
-                  <div className={`w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center ${(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? 'hidden' : ''}`}>
-                    <span className="text-white font-bold text-xs">
+                  <div className={`w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0 ${(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? 'hidden' : ''}`}>
+                    <span className="text-white font-bold text-lg">
                       {dexScreenerData?.tokenInfo?.symbol?.charAt(0) || dexScreenerData.pairs[0].baseToken?.symbol?.charAt(0) || 'T'}
                     </span>
                   </div>
-                  <div>
-                    <div className="text-xs text-white">
-                      {dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} / {dexScreenerData.pairs[0].quoteToken?.symbol}
+
+                  {/* Token Info and Price */}
+                  <div className="flex-1 min-w-0">
+                    {/* Ticker and Name */}
+                    <div className="mb-1 pt-2">
+                      <div className="text-base font-bold text-white inline-flex items-center gap-1">
+                        {dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol}
+                        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        / {dexScreenerData.pairs[0].quoteToken?.symbol}
+                        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {dexScreenerData?.tokenInfo?.name || tokenInfo?.name || dexScreenerData.pairs[0].baseToken?.name || 'Token'}
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-400">
-                      {dexScreenerData?.tokenInfo?.name || tokenInfo?.name || dexScreenerData.pairs[0].baseToken?.name || 'Token'}
+
+                    {/* Price and Change */}
+                    <div className="flex items-baseline gap-2">
+                      <div className="text-2xl font-bold text-white">
+                        ${Number(dexScreenerData.pairs[0].priceUsd || 0).toFixed(4)}
+                      </div>
+                      <div className={`text-sm font-medium ${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '↑' : '↓'}
+                        {Math.abs(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
+                      </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* Current Price */}
-                <div className="mb-2">
-                  <div className="text-lg font-bold text-white">
-                    ${Number(dexScreenerData.pairs[0].priceUsd || 0).toFixed(6)}
-                  </div>
-                  <div className={`text-xs ${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '↑' : '↓'}
-                    {Math.abs(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
-                  </div>
-                  <div className="text-xs text-gray-300">
-                    {dexScreenerData.pairs[0].marketCap
-                      ? `$${(Number(dexScreenerData.pairs[0].marketCap) / 1000).toFixed(2)}K MCAP`
-                      : 'MCAP N/A'}
-                  </div>
+                    {/* MCAP */}
+                    <div className="flex items-center gap-1 mt-1">
+                      <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21l4-4m0 0l4-4m-4 4V9a8 8 0 018-8h.5" />
+                      </svg>
+                      <div className="text-sm text-gray-300">
+                        {dexScreenerData.pairs[0].marketCap
+                          ? (() => {
+                              const marketCap = Number(dexScreenerData.pairs[0].marketCap);
+                              if (marketCap >= 1000000) {
+                                // Show in millions for values >= 1M
+                                return `${(marketCap / 1000000).toFixed(2)}M MCAP`;
+                              } else {
+                                // Show in thousands for values < 1M, rounded to nearest thousand
+                                const rounded = Math.round(marketCap / 1000) * 1000;
+                                return `$${(rounded / 1000).toFixed(0)}k MCAP`;
+                              }
+                            })()
+                          : 'MCAP N/A'}
+                      </div>
+                    </div>
 
-                  {/* Social Icons - Directly under MCAP */}
-                  {(() => {
-                    // Find website, twitter, discord, and telegram links from profileData
-                    const websiteLink = profileData?.profile?.websites?.[0];
-                    const twitterLink = profileData?.profile?.socials?.find((s: any) => s.type === 'twitter');
-                    const discordLink = profileData?.profile?.socials?.find((s: any) => s.type === 'discord');
-                    const telegramLink = profileData?.profile?.socials?.find((s: any) => s.type === 'telegram');
+                    {/* Social Icons - Below MCAP */}
+                    {(() => {
+                      const websiteLink = profileData?.profile?.websites?.[0];
+                      const twitterLink = profileData?.profile?.socials?.find((s: any) => s.type === 'twitter');
+                      const discordLink = profileData?.profile?.socials?.find((s: any) => s.type === 'discord');
+                      const telegramLink = profileData?.profile?.socials?.find((s: any) => s.type === 'telegram');
 
-                    // Only show icons if we have at least one link
-                    if (!websiteLink && !twitterLink && !discordLink && !telegramLink) return null;
+                      if (!websiteLink && !twitterLink && !discordLink && !telegramLink) return null;
 
-                    return (
-                      <div className="flex items-center justify-center gap-1 mt-2">
+                      return (
+                        <div className="flex items-center gap-1 mt-2">
                         {/* Website Icon */}
                         {websiteLink && (
                           <a
@@ -1637,10 +1871,10 @@ function GeickoPageContent() {
                             title="Website"
                           >
                             <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                            </svg>
-                          </a>
-                        )}
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                  </a>
+                )}
 
                         {/* X.com Icon */}
                         {twitterLink && (
@@ -1652,10 +1886,10 @@ function GeickoPageContent() {
                             title="X.com"
                           >
                             <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                            </svg>
-                          </a>
-                        )}
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                  </a>
+                )}
 
                         {/* Discord Icon */}
                         {discordLink && (
@@ -1668,9 +1902,9 @@ function GeickoPageContent() {
                           >
                             <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
-                            </svg>
-                          </a>
-                        )}
+                    </svg>
+                  </a>
+                )}
 
                         {/* Telegram Icon */}
                         {telegramLink && (
@@ -1683,9 +1917,9 @@ function GeickoPageContent() {
                           >
                             <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-                            </svg>
-                          </a>
-                        )}
+                    </svg>
+                  </a>
+                )}
 
                         {/* Search on X Button - Always shown */}
                         <button
@@ -1700,17 +1934,18 @@ function GeickoPageContent() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                           </svg>
                         </button>
-                      </div>
-                    );
-                  })()}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
-              </>
+              </div>
             ) : (
               <div className="text-xs text-gray-400 py-4">No token data available</div>
             )}
 
             {/* Header Image - Hidden on mobile, shown on desktop */}
-            {profileData?.profile?.headerImageUrl && (
+            {/* {profileData?.profile?.headerImageUrl && (
               <div className="hidden sm:block px-0 mb-2">
                 <img
                   src={profileData.profile.headerImageUrl}
@@ -1721,7 +1956,7 @@ function GeickoPageContent() {
                   }}
                 />
               </div>
-            )}
+            )} */}
 
             {/* Trade Dropdown */}
             <div className="mb-2 px-0">
@@ -1742,12 +1977,12 @@ function GeickoPageContent() {
 
               {/* Trade Dropdown Content - Switch Widget */}
               {isTradeDropdownOpen && (
-                <div className="bg-black rounded-lg border border-black overflow-hidden">
+                <div className="bg-black/10 backdrop-blur-lg rounded-lg border border-black overflow-hidden">
                   <iframe
                     src={`https://switch.win/widget?network=pulsechain&background_color=000000&font_color=ffffff&secondary_font_color=7a7a7a&border_color=01e401&backdrop_color=transparent&from=0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee&to=${dexScreenerData?.pairs?.[0]?.baseToken?.address || apiTokenAddress}`}
                     allow="clipboard-read; clipboard-write"
                     width="100%"
-                    height="700px"
+                    height="100%"
                     className="border-0"
                     title="Token Swap Interface"
                   />
@@ -1757,9 +1992,9 @@ function GeickoPageContent() {
 
             {/* Price Performance */}
             {dexScreenerData?.pairs?.[0] && (
-              <div className="mb-2 px-0">
+              <div className="hidden sm:block mb-2 px-0">
                 <div className="text-xs text-gray-300 mb-1">Price Performance</div>
-                <div className="grid grid-cols-2 gap-1 text-xs">
+                <div className="grid grid-cols-4 gap-0.5 text-xs">
                   <div className="text-center">
                     <div className="text-gray-400">5M</div>
                     <div className={`${(dexScreenerData.pairs[0].priceChange?.m5 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
@@ -1794,30 +2029,30 @@ function GeickoPageContent() {
 
             {/* 24h Activity */}
             {dexScreenerData?.pairs?.[0] && (
-              <div className="mb-2 px-0">
-                <div className="text-xs text-gray-300 mb-1">24h Activity</div>
+              <div className="hidden sm:block mb-2 px-0">
+                <div className="text-xs text-gray-300 mb-1 text-center">24h Activity</div>
                 <div className="grid grid-cols-2 gap-1 text-xs">
-                  <div>
+                  <div className="text-center">
                     <div className="text-gray-400">24h Txn</div>
                     <div className="text-white">
                       {((dexScreenerData.pairs[0].txns?.h24?.buys || 0) + (dexScreenerData.pairs[0].txns?.h24?.sells || 0))}
                     </div>
                   </div>
-                  <div>
+                  <div className="text-center">
                     <div className="text-gray-400">24h Vol</div>
                     <div className="text-white">
                       ${Number(dexScreenerData.pairs[0].volume?.h24 || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </div>
                   </div>
-                  <div>
+                  <div className="text-center">
                     <div className="text-gray-400">BUY</div>
                     <div className="text-green-400">{dexScreenerData.pairs[0].txns?.h24?.buys || 0}</div>
                   </div>
-                  <div>
+                  <div className="text-center">
                     <div className="text-gray-400">SELL</div>
                     <div className="text-red-400">{dexScreenerData.pairs[0].txns?.h24?.sells || 0}</div>
                   </div>
-                  <div>
+                  <div className="text-center">
                     <div className="text-gray-400">Liquidity</div>
                     <div className="text-white">
                       ${Number(dexScreenerData.pairs[0].liquidity?.usd || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
@@ -1835,23 +2070,23 @@ function GeickoPageContent() {
             {/* Tokens Burned and Total Holders */}
             <div className="mb-2 px-0">
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-gray-800 rounded p-2">
+                <div className="bg-gray-800 rounded p-2 text-center">
                   <div className="text-gray-400 mb-1">Tokens Burned</div>
                   <div className="text-white font-semibold">
                     {burnedTokens ? formatAbbrev(burnedTokens.amount) : '—'}
-                  </div>
+                    </div>
                   {burnedTokens && (
                     <div className="text-xs text-gray-400">{burnedTokens.percent.toFixed(2)}%</div>
                   )}
-                </div>
-                <div className="bg-gray-800 rounded p-2">
+                  </div>
+                <div className="bg-gray-800 rounded p-2 text-center">
                   <div className="text-gray-400 mb-1">Total Holders</div>
                   <div className="text-white font-semibold">
                     {holdersCount !== null ? holdersCount.toLocaleString() : '—'}
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
+                  </div>
+                  </div>
 
             {/* New vs Old Holders */}
             <div className="mb-2 px-0">
@@ -2213,38 +2448,38 @@ function GeickoPageContent() {
                           </div>
                         </div>
                       </div>
-
-                      {/* Video Ad */}
-                      <div className="mb-2 relative group">
-                        <a
-                          href="https://pulsegame.vercel.app/"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block cursor-pointer relative"
-                        >
-                          <video
-                            autoPlay
-                            loop
-                            muted
-                            playsInline
-                            className="w-full rounded-lg group-hover:brightness-50 transition-all duration-300"
-                          >
-                            <source src="/SP.mp4" type="video/mp4" />
-                            Your browser does not support the video tag.
-                          </video>
-                          {/* Hover Overlay */}
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg">
-                            <div className="bg-black/50 px-4 py-2 rounded-lg border border-white/20">
-                              <span className="text-white font-bold text-sm">Play Now!</span>
-                            </div>
-                          </div>
-                        </a>
-                      </div>
                     </>
                   );
                 })()}
               </div>
             )}
+
+            {/* Video Ad - Always Show */}
+            <div className="mb-2 px-0 relative group">
+              <a
+                href="https://pulsegame.vercel.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block cursor-pointer relative"
+              >
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full rounded-lg group-hover:brightness-50 transition-all duration-300"
+                >
+                  <source src="/SP.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                {/* Hover Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg">
+                  <div className="bg-black/50 px-4 py-2 rounded-lg border border-white/20">
+                    <span className="text-white font-bold text-sm">Play Now!</span>
+                  </div>
+                </div>
+              </a>
+            </div>
 
             {/* Token Amount Calculator */}
             {dexScreenerData?.pairs?.[0] && (
@@ -2339,16 +2574,16 @@ function GeickoPageContent() {
           </div>
         </div>
       </div>
-    </div>
+          </div>
   );
 }
 
 export default function GeickoPage() {
-  return (
+                    return (
     <Suspense fallback={
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <LoaderThree />
-      </div>
+                              <LoaderThree />
+                            </div>
     }>
       <GeickoPageContent />
     </Suspense>

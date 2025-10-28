@@ -57,11 +57,28 @@ export class DexScreenerApiClient {
         let pairDetails = null;
         if (mainPair.pairAddress) {
           try {
-            // Construct full URL for server-side fetch
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+            // Construct full URL - use window location if available (client-side)
+            let baseUrl: string;
+            if (typeof window !== 'undefined') {
+              baseUrl = window.location.origin;
+            } else {
+              baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+            }
+            
             const v4Url = `${baseUrl}/api/dexscreener-v4/pulsechain/${mainPair.pairAddress}`;
             console.log('Fetching DexScreener V4 via proxy:', v4Url);
-            const pairDetailsResponse = await fetch(v4Url);
+            
+            // Add timeout and better error handling
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            
+            const pairDetailsResponse = await fetch(v4Url, { 
+              signal: controller.signal,
+              cache: 'no-store'
+            });
+            
+            clearTimeout(timeoutId);
+            
             console.log('V4 Response Status:', pairDetailsResponse.status, pairDetailsResponse.statusText);
             if (pairDetailsResponse.ok) {
               pairDetails = await pairDetailsResponse.json();
@@ -70,8 +87,15 @@ export class DexScreenerApiClient {
             } else {
               console.warn('V4 endpoint returned error:', pairDetailsResponse.status);
             }
-          } catch (error) {
-            console.error('Failed to fetch pair details v4:', error);
+          } catch (error: any) {
+            // Handle specific error types
+            if (error.name === 'AbortError') {
+              console.warn('V4 endpoint request timed out');
+            } else if (error.message?.includes('Failed to fetch')) {
+              console.warn('V4 endpoint unavailable:', error.message);
+            } else {
+              console.error('Failed to fetch pair details v4:', error);
+            }
           }
         } else {
           console.warn('No pair address found for v4 fetch');
