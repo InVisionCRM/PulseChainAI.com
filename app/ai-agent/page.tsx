@@ -1054,7 +1054,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
             muted={true}
             playsInline
           >
-            <source src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/ai-agentbackground.mp4" type="video/mp4" />
+            <source src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/Video/PulseChainAI%20Videos.mp4" type="video/mp4" />
           </video>
         )}
 
@@ -1712,7 +1712,45 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                          </div>
                          
                         {/* Main Content */}
-                        <div className="pt-8 px-4 pb-4">
+                        <div className="pt-8 px-4 pb-4 md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] md:gap-8">
+                        <div className="md:w-2/3 flex flex-col gap-6">
+                          {dexScreenerData && (
+                            <div className="hidden md:flex flex-col gap-4">
+                              <div className="w-full h-24">
+                                <img
+                                  src={dexScreenerData?.profile?.headerImageUrl || '/app-pics/clean.png'}
+                                  alt="Token header"
+                                  className="w-full h-full object-cover rounded-md"
+                                  onError={(e) => {
+                                    e.currentTarget.src = '/app-pics/clean.png';
+                                  }}
+                                />
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {renderPrimarySocialLinks()}
+                              </div>
+                            </div>
+                          )}
+                          {/* Divider between pair information and estimated token thing */}
+                          <div className="w-full h-px bg-white/20 my-4 py-[2px]"></div>
+
+                          {/* Switch Widget Section */}
+                          <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-white mb-4 text-center">Token Swap</h3>
+                            <div className="bg-slate-950 rounded-lg p-4 border border-gray-700">
+                              <iframe 
+                                src="https://switch.win/widget?network=pulsechain&background_color=000000&font_color=ffffff&secondary_font_color=7a7a7a&border_color=01e401&backdrop_color=transparent&from=0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee&to=0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39" 
+                                allow="clipboard-read; clipboard-write" 
+                                width="100%" 
+                                height="900px"
+                                className="border-0 rounded-lg"
+                              />
+                            </div>
+                          </div>
+                         </div>
+                       </div>
+                        </div>
+                        <div className="md:w-1/3 flex flex-col gap-6">
                           {/* Action Buttons */}
                           <div className="flex flex-col items-center justify-center gap-1 md:gap-2 mb-4">
                             <div className="flex items-center justify-center gap-1 md:gap-2">
@@ -2737,25 +2775,8 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                               </div>
                             </div>
                           )}
-
-                          {/* Divider between pair information and estimated token thing */}
-                          <div className="w-full h-px bg-white/20 my-4 py-[2px]"></div>
-
-                          {/* Switch Widget Section */}
-                          <div className="mb-6">
-                            <h3 className="text-lg font-semibold text-white mb-4 text-center">Token Swap</h3>
-                            <div className="bg-slate-950 rounded-lg p-4 border border-gray-700">
-                              <iframe 
-                                src="https://switch.win/widget?network=pulsechain&background_color=000000&font_color=ffffff&secondary_font_color=7a7a7a&border_color=01e401&backdrop_color=transparent&from=0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee&to=0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39" 
-                                allow="clipboard-read; clipboard-write" 
-                                width="100%" 
-                                height="900px"
-                                className="border-0 rounded-lg"
-                              />
-                            </div>
-                          </div>
-                         </div>
-                       </div>
+                        </div>
+                        </div>
                      </TabsContent>
                       
                       {/* Holders Tab */}
@@ -3068,4 +3089,94 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
     </div>
   );
 };
+
+  const renderPrimarySocialLinks = () => {
+    const links = dexScreenerData?.profile?.cmsLinks;
+    if (!links || links.length === 0) return null;
+
+    const websiteLink = links.find((link: any) => {
+      const urlLower = (link.url || '').toLowerCase();
+      const labelLower = (link.label || '').toLowerCase();
+      return !urlLower.includes('twitter.com') && !urlLower.includes('x.com') &&
+        !urlLower.includes('t.me') && !labelLower.includes('telegram') &&
+        !urlLower.includes('instagram.com') && !urlLower.includes('discord');
+    });
+
+    const twitterLink = links.find((link: any) => {
+      const urlLower = (link.url || '').toLowerCase();
+      const labelLower = (link.label || '').toLowerCase();
+      return urlLower.includes('twitter.com') || urlLower.includes('x.com') ||
+        labelLower.includes('twitter') || labelLower === 'x';
+    });
+
+    const telegramLink = links.find((link: any) => {
+      const urlLower = (link.url || '').toLowerCase();
+      const labelLower = (link.label || '').toLowerCase();
+      return urlLower.includes('t.me') || labelLower.includes('telegram');
+    });
+
+    const filteredLinks = [websiteLink, twitterLink, telegramLink].filter(Boolean);
+    if (filteredLinks.length === 0) return null;
+
+    return (
+      <>
+        {websiteLink && (
+          <a
+            href={websiteLink.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
+            style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
+          >
+            <span className="absolute inset-0 overflow-hidden rounded-full">
+              <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+            </span>
+            <div className="relative flex items-center gap-2 z-10 rounded-full bg-zinc-950 py-0.5 px-4 ring-1 ring-white/10">
+              <span>Website</span>
+            </div>
+            <span className="absolute -bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-orange-400/0 via-orange-400/90 to-orange-400/0 transition-opacity duration-500 group-hover:opacity-40" />
+          </a>
+        )}
+        {twitterLink && (
+          <a
+            href={twitterLink.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
+            style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
+          >
+            <span className="absolute inset-0 overflow-hidden rounded-full">
+              <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+            </span>
+            <div className="relative flex items-center gap-2 z-10 rounded-full bg-zinc-950 py-0.5 px-4 ring-1 ring-white/10">
+              <span>X.com</span>
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            </div>
+            <span className="absolute -bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-orange-400/0 via-orange-400/90 to-orange-400/0 transition-opacity duration-500 group-hover:opacity-40" />
+          </a>
+        )}
+        {telegramLink && (
+          <a
+            href={telegramLink.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-slate-950 no-underline group cursor-pointer relative shadow-2xl shadow-zinc-900 rounded-full p-px text-md font-semibold leading-6 text-white inline-block"
+            style={{ filter: 'drop-shadow(0 10px 4px rgba(0, 0, 0, 0.8))' }}
+          >
+            <span className="absolute inset-0 overflow-hidden rounded-full">
+              <span className="absolute inset-0 rounded-full bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+            </span>
+            <div className="relative flex items-center gap-2 z-10 rounded-full bg-zinc-950 py-0.5 px-4 ring-1 ring-white/10">
+              <span>Telegram</span>
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
+            </div>
+            <span className="absolute -bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-orange-400/0 via-orange-400/90 to-orange-400/0 transition-opacity duration-500 group-hover:opacity-40" />
+          </a>
+        )}
+      </>
+    );
+  };
 

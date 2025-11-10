@@ -9,6 +9,7 @@ import { LoaderWithPercent } from '@/components/ui/loader-with-percent';
 import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import { ProgressiveBlur } from '@/components/ui/progressive-blur';
 import { BackgroundGradient } from '@/components/ui/background-gradient';
+import RichardHeartChatCard from '@/components/RichardHeartChatCard';
 
 type TransferItem = {
   timestamp?: string;
@@ -753,7 +754,7 @@ export default function AdminStatsPage(): JSX.Element {
           netChangeRaw: netChange,
         }));
       }},
-      { id: 'avgBuySellSize24h', label: 'Avg Buy/Sell Size (24h)', run: async () => {
+      { id: 'avgBuySellSize24h', label: 'Avg Buy/Sell Size (24h)', description: 'Average USD size of buys and sells over the last 24h based on Dex volume/txn mix', run: async () => {
         const dex = await ensureDex();
         const pairs = dex?.pairs || [];
         if (pairs.length === 0) return { avgBuy: 0, avgSell: 0 };
@@ -777,7 +778,7 @@ export default function AdminStatsPage(): JSX.Element {
           avgSellUSD: formatNumber2(avgSell),
         };
       }},
-      { id: 'contractAgeInDays', label: 'Contract Age (Days)', run: async () => {
+      { id: 'contractAgeInDays', label: 'Contract Age (Days)', description: 'Days since the contract creation transaction was mined', run: async () => {
         const { addressInfo } = await ensureCoreCaches();
         const txHash = addressInfo?.creation_tx_hash;
         if (!txHash) return 'N/A';
@@ -792,7 +793,7 @@ export default function AdminStatsPage(): JSX.Element {
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return diffDays;
       }},
-      { id: 'liquidityConcentration', label: 'Liquidity Concentration', run: async () => {
+      { id: 'liquidityConcentration', label: 'Liquidity Concentration', description: 'Share of total liquidity held by the largest pool versus all pools combined', run: async () => {
         const dex = await ensureDex();
         const pairs = dex?.pairs || [];
         if (pairs.length < 2) return { concentration: '100%', topPoolLiquidity: 'N/A', totalLiquidity: 'N/A' };
@@ -809,7 +810,7 @@ export default function AdminStatsPage(): JSX.Element {
           totalLiquidity: formatNumber2(totalLiquidity),
         };
       }},
-      { id: 'dexDiversityScore', label: 'DEX Diversity Score', run: async () => {
+      { id: 'dexDiversityScore', label: 'DEX Diversity Score', description: 'How widely liquidity is distributed across different DEXes for this token', run: async () => {
         const dex = await ensureDex();
         const pairs = dex?.pairs || [];
         const dexIds = new Set(pairs.map(p => p.dexId));
@@ -818,7 +819,7 @@ export default function AdminStatsPage(): JSX.Element {
           dexs: Array.from(dexIds),
         };
       }},
-      { id: 'holderToLiquidityRatio', label: 'Holder-to-Liquidity Ratio', run: async () => {
+      { id: 'holderToLiquidityRatio', label: 'Holder-to-Liquidity Ratio', description: 'Compares holder count to total liquidity to gauge depth per wallet', run: async () => {
         const { tokenCounters } = await ensureCoreCaches();
         const holders = Number(tokenCounters?.token_holders_count ?? 0);
 
@@ -834,7 +835,7 @@ export default function AdminStatsPage(): JSX.Element {
           totalLiquidityUSD: formatNumber2(totalLiquidity),
         };
       }},
-      { id: 'definitiveTotalLiquidity', label: 'Definitive Total Liquidity', run: async () => {
+      { id: 'definitiveTotalLiquidity', label: 'Definitive Total Liquidity', description: 'Consolidated USD and token liquidity across all known pools', run: async () => {
         // Step 1: Fetch logs from PulseChain Scan API to find all pair creation events.
         const logs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}/logs`);
         const pairAddresses = (logs?.items || []).map((log: unknown) => (log as { address?: { hash: string } })?.address?.hash).filter(Boolean);
@@ -867,7 +868,7 @@ export default function AdminStatsPage(): JSX.Element {
           failedPairs,
         };
       }},
-      { id: 'liquidityDepth', label: 'Liquidity Depth & Slippage', run: async () => {
+      { id: 'liquidityDepth', label: 'Liquidity Depth & Slippage', description: 'Estimates slippage for preset trade sizes using pool reserves', run: async () => {
         const dex = await ensureDex();
         const pairs = dex?.pairs || [];
 
@@ -920,7 +921,7 @@ export default function AdminStatsPage(): JSX.Element {
           };
         });
       }},
-      { id: 'lp_holder_analysis', label: 'LP Holder Analysis', run: async () => {
+      { id: 'lp_holder_analysis', label: 'LP Holder Analysis', description: 'Lists the largest LP token holders with their supply share and mint details', run: async () => {
         const BURN_ADDRESSES = new Set([
           DEAD_ADDRESS,
           '0x0000000000000000000000000000000000000000',
@@ -1011,7 +1012,7 @@ export default function AdminStatsPage(): JSX.Element {
               balance: tokenBalance ? formatTokenAmount2(Number(tokenBalance.value), Number(tokenInfo.decimals)) : '0',
             };
           }},
-          { id: 'ownershipStatus', label: 'Ownership Status', run: async () => {
+          { id: 'ownershipStatus', label: 'Ownership Status', description: 'Summarizes whether ownership is renounced plus owner metadata', run: async () => {
             const { addressInfo } = await ensureCoreCaches();
             const creatorAddress = addressInfo?.creator_address_hash;
             if (!creatorAddress) return { error: 'No creator address found' };
@@ -1044,35 +1045,35 @@ export default function AdminStatsPage(): JSX.Element {
       {
         title: 'On-Chain Activity',
         stats: [
-          { id: 'transfersTotal', label: 'Total Transfers', run: async () => {
+          { id: 'transfersTotal', label: 'Total Transfers', description: 'Cumulative number of token transfers recorded on-chain', run: async () => {
         const count = Number((await ensureCoreCaches()).tokenCounters?.transfers_count ?? 0);
         return {
           raw: count,
           formatted: formatNumber2(count)
         };
       } },
-      { id: 'transfers24h', label: 'transfers24h', run: async () => {
+      { id: 'transfers24h', label: 'transfers24h', description: 'Number of token transfers observed in the last 24 hours', run: async () => {
         const count = (await ensureTransfers24h()).length;
         return {
           raw: count,
           formatted: formatNumber2(count)
         };
       } },
-      { id: 'uniqueSenders24h', label: 'uniqueSenders24h', run: async () => {
+      { id: 'uniqueSenders24h', label: 'uniqueSenders24h', description: 'Distinct addresses that sent tokens in the last 24 hours', run: async () => {
         const count = new Set((await ensureTransfers24h()).map(t => (t.from?.hash || '').toLowerCase())).size;
         return {
           raw: count,
           formatted: formatNumber2(count)
         };
       } },
-      { id: 'uniqueReceivers24h', label: 'uniqueReceivers24h', run: async () => {
+      { id: 'uniqueReceivers24h', label: 'uniqueReceivers24h', description: 'Distinct addresses that received tokens in the last 24 hours', run: async () => {
         const count = new Set((await ensureTransfers24h()).map(t => (t.to?.hash || '').toLowerCase())).size;
         return {
           raw: count,
           formatted: formatNumber2(count)
         };
       } },
-      { id: 'avgTransferValue24h', label: 'avgTransferValue24h', run: async () => {
+      { id: 'avgTransferValue24h', label: 'avgTransferValue24h', description: 'Average transfer amount (raw token units) over the last 24 hours', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
         const decimals = Number(tokenInfo?.decimals ?? 18);
         const vals = (await ensureTransfers24h()).map(t => Number(t.total?.value || 0));
@@ -1082,7 +1083,7 @@ export default function AdminStatsPage(): JSX.Element {
           formatted: formatTokenAmount2(avg, decimals)
         };
       } },
-      { id: 'medianTransferValue24h', label: 'medianTransferValue24h', run: async () => {
+      { id: 'medianTransferValue24h', label: 'medianTransferValue24h', description: 'Median transfer amount over the last 24 hours', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
         const decimals = Number(tokenInfo?.decimals ?? 18);
         const vals = (await ensureTransfers24h()).map(t => Number(t.total?.value || 0)).sort((a,b)=>a-b);
@@ -1094,21 +1095,21 @@ export default function AdminStatsPage(): JSX.Element {
       } },
 
       // Price/market (DEXScreener)
-      { id: 'priceUsd', label: 'priceUsd', run: async () => (await ensureDex()).pairs?.[0]?.priceUsd },
-      { id: 'priceNative', label: 'priceNative', run: async () => (await ensureDex()).pairs?.[0]?.priceNative },
-      { id: 'priceChange6h', label: 'priceChange6h', run: async () => (await ensureDex()).pairs?.[0]?.priceChange?.h6 },
-      { id: 'priceChange24h', label: 'priceChange24h', run: async () => (await ensureDex()).pairs?.[0]?.priceChange?.h24 },
-      { id: 'volume1h', label: 'volume1h', run: async () => (await ensureDex()).pairs?.[0]?.volume?.h1 },
-      { id: 'volume6h', label: 'volume6h', run: async () => (await ensureDex()).pairs?.[0]?.volume?.h6 },
-      { id: 'volume24h', label: 'volume24h', run: async () => (await ensureDex()).pairs?.[0]?.volume?.h24 },
-      { id: 'liquidityUsd', label: 'liquidityUsd', run: async () => {
+      { id: 'priceUsd', label: 'priceUsd', description: 'Latest USD price reported by the leading Dex pair', run: async () => (await ensureDex()).pairs?.[0]?.priceUsd },
+      { id: 'priceNative', label: 'priceNative', description: 'Price denominated in native PLS from the main pair', run: async () => (await ensureDex()).pairs?.[0]?.priceNative },
+      { id: 'priceChange6h', label: 'priceChange6h', description: 'Percent price change during the last 6 hours', run: async () => (await ensureDex()).pairs?.[0]?.priceChange?.h6 },
+      { id: 'priceChange24h', label: 'priceChange24h', description: 'Percent price change during the last 24 hours', run: async () => (await ensureDex()).pairs?.[0]?.priceChange?.h24 },
+      { id: 'volume1h', label: 'volume1h', description: 'Trading volume generated in the past 1 hour', run: async () => (await ensureDex()).pairs?.[0]?.volume?.h1 },
+      { id: 'volume6h', label: 'volume6h', description: 'Trading volume generated in the past 6 hours', run: async () => (await ensureDex()).pairs?.[0]?.volume?.h6 },
+      { id: 'volume24h', label: 'volume24h', description: 'Trading volume generated in the past 24 hours', run: async () => (await ensureDex()).pairs?.[0]?.volume?.h24 },
+      { id: 'liquidityUsd', label: 'liquidityUsd', description: 'Current USD liquidity for the primary Dex pair', run: async () => {
         const dex = await ensureDex();
         const p = dex?.pairs?.[0];
         const usd = Number(p?.liquidity?.usd || 0);
         const pair = p ? `${p.baseToken?.symbol}/${p.quoteToken?.symbol}` : null;
         return { usd, usdFormatted: formatNumber2(usd), pair };
       } },
-      { id: 'totalLiquidityUsd', label: 'Total Liquidity (USD)', run: async () => {
+      { id: 'totalLiquidityUsd', label: 'Total Liquidity (USD)', description: 'Sum of USD liquidity across every discovered pair', run: async () => {
         const dex = await ensureDex();
         const pairs = dex?.pairs || [];
         const totalUsd = pairs.reduce((s: number, x: unknown) => s + Number((x as { liquidity?: { usd?: string | number } })?.liquidity?.usd || 0), 0);
@@ -1138,7 +1139,7 @@ export default function AdminStatsPage(): JSX.Element {
           pairCount: pairs.length
         };
       } },
-      { id: 'totalTokensInLiquidity', label: 'Total Tokens in Liquidity', run: async () => {
+      { id: 'totalTokensInLiquidity', label: 'Total Tokens in Liquidity', description: 'Breakdown of base and quote token balances locked in liquidity', run: async () => {
         const dex = await ensureDex();
         const { tokenInfo } = await ensureCoreCaches();
         const decimals = Number(tokenInfo?.decimals ?? 18);
@@ -1161,11 +1162,11 @@ export default function AdminStatsPage(): JSX.Element {
           pairCount: pairs.length
         };
       } },
-      { id: 'fdv', label: 'fdv', run: async () => (await ensureDex()).pairs?.[0]?.fdv },
-      { id: 'marketCap', label: 'marketCap', run: async () => (await ensureDex()).pairs?.[0]?.marketCap },
-      { id: 'trades24hBuys', label: 'trades24hBuys', run: async () => (await ensureDex()).pairs?.[0]?.txns?.h24?.buys },
-      { id: 'trades24hSells', label: 'trades24hSells', run: async () => (await ensureDex()).pairs?.[0]?.txns?.h24?.sells },
-      { id: 'buySellRatio24h', label: 'buySellRatio24h', run: async () => {
+      { id: 'fdv', label: 'fdv', description: 'Fully diluted valuation derived from Dex data', run: async () => (await ensureDex()).pairs?.[0]?.fdv },
+      { id: 'marketCap', label: 'marketCap', description: 'Reported market capitalization from DexScreener', run: async () => (await ensureDex()).pairs?.[0]?.marketCap },
+      { id: 'trades24hBuys', label: 'trades24hBuys', description: 'Number of buy-side transactions over the last 24 hours', run: async () => (await ensureDex()).pairs?.[0]?.txns?.h24?.buys },
+      { id: 'trades24hSells', label: 'trades24hSells', description: 'Number of sell-side transactions over the last 24 hours', run: async () => (await ensureDex()).pairs?.[0]?.txns?.h24?.sells },
+      { id: 'buySellRatio24h', label: 'buySellRatio24h', description: 'Buy versus sell ratio computed from 24h trade counts', run: async () => {
         const p = (await ensureDex()).pairs?.[0];
         const b = Number(p?.txns?.h24?.buys || 0);
         const s = Number(p?.txns?.h24?.sells || 0);
@@ -1177,12 +1178,12 @@ export default function AdminStatsPage(): JSX.Element {
           sells: s
         };
       } },
-      { id: 'pairCount', label: 'pairCount', run: async () => ((await ensureDex()).pairs || []).length },
-      { id: 'mainPairDex', label: 'mainPairDex', run: async () => (await ensureDex()).pairs?.[0]?.dexId },
-      { id: 'mainPairAddress', label: 'mainPairAddress', run: async () => (await ensureDex()).pairs?.[0]?.pairAddress },
+      { id: 'pairCount', label: 'pairCount', description: 'How many Dex pairs were returned for this token', run: async () => ((await ensureDex()).pairs || []).length },
+      { id: 'mainPairDex', label: 'mainPairDex', description: 'Name of the DEX hosting the primary liquidity pair', run: async () => (await ensureDex()).pairs?.[0]?.dexId },
+      { id: 'mainPairAddress', label: 'mainPairAddress', description: 'Contract address of the leading liquidity pair', run: async () => (await ensureDex()).pairs?.[0]?.pairAddress },
 
       // All Liquidity Pools
-      { id: 'allPools', label: 'All Liquidity Pools', run: async () => {
+      { id: 'allPools', label: 'All Liquidity Pools', description: 'Detailed table of all pools with liquidity and volume stats', run: async () => {
         const dex = await ensureDex();
         const pairs = dex?.pairs || [];
         // Sort by liquidity
@@ -1191,10 +1192,10 @@ export default function AdminStatsPage(): JSX.Element {
       }},
 
       // Contract/address
-      { id: 'contractVerified', label: 'contractVerified', run: async () => !!(await ensureCoreCaches()).addressInfo?.is_verified },
-      { id: 'creatorAddress', label: 'creatorAddress', run: async () => (await ensureCoreCaches()).addressInfo?.creator_address_hash },
-      { id: 'creationTxHash', label: 'creationTxHash', run: async () => (await ensureCoreCaches()).addressInfo?.creation_tx_hash },
-      { id: 'creationDate', label: 'Creation Date', run: async () => {
+      { id: 'contractVerified', label: 'contractVerified', description: 'Indicates whether the contract is verified on PulseScan', run: async () => !!(await ensureCoreCaches()).addressInfo?.is_verified },
+      { id: 'creatorAddress', label: 'creatorAddress', description: 'Address that deployed the contract per PulseScan', run: async () => (await ensureCoreCaches()).addressInfo?.creator_address_hash },
+      { id: 'creationTxHash', label: 'creationTxHash', description: 'Hash of the deployment transaction', run: async () => (await ensureCoreCaches()).addressInfo?.creation_tx_hash },
+      { id: 'creationDate', label: 'Creation Date', description: 'UTC date the contract was deployed', run: async () => {
         const { addressInfo } = await ensureCoreCaches();
         const txHash = addressInfo?.creation_tx_hash;
         if (!txHash) return 'N/A';
@@ -1211,23 +1212,23 @@ export default function AdminStatsPage(): JSX.Element {
 
         return `${year}-${month}-${day}`;
       }},
-      { id: 'transactionsCount', label: 'transactionsCount', run: async () => Number((await ensureCoreCaches()).addressCounters?.transactions_count || 0) },
-      { id: 'tokenTransfersCount', label: 'tokenTransfersCount', run: async () => Number((await ensureCoreCaches()).addressCounters?.token_transfers_count || 0) },
-      { id: 'gasUsageCount', label: 'gasUsageCount', run: async () => Number((await ensureCoreCaches()).addressCounters?.gas_usage_count || 0) },
-      { id: 'validationsCount', label: 'Validations Count', run: async () => Number((await ensureCoreCaches()).addressCounters?.validations_count || 0) },
-          { id: 'firstPageTxs', label: '1st Page Transactions', run: async () => {
+      { id: 'transactionsCount', label: 'transactionsCount', description: 'Total on-chain transactions associated with this address', run: async () => Number((await ensureCoreCaches()).addressCounters?.transactions_count || 0) },
+      { id: 'tokenTransfersCount', label: 'tokenTransfersCount', description: 'Total token transfer entries counted on PulseScan', run: async () => Number((await ensureCoreCaches()).addressCounters?.token_transfers_count || 0) },
+      { id: 'gasUsageCount', label: 'gasUsageCount', description: 'Number of gas usage records tied to the address', run: async () => Number((await ensureCoreCaches()).addressCounters?.gas_usage_count || 0) },
+      { id: 'validationsCount', label: 'Validations Count', description: 'Validator/validation count attributed to the address', run: async () => Number((await ensureCoreCaches()).addressCounters?.validations_count || 0) },
+          { id: 'firstPageTxs', label: '1st Page Transactions', description: 'Raw payload of the first page of transactions from the API', run: async () => {
             const data = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${tokenAddress}/transactions`);
             return data?.items || [];
           }},
-          { id: 'firstPageTransfers', label: '1st Page Transfers', run: async () => {
+          { id: 'firstPageTransfers', label: '1st Page Transfers', description: 'Raw payload of the first page of token transfers', run: async () => {
             const data = await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}/transfers`);
             return data?.items || [];
           }},
-          { id: 'firstPageInternalTxs', label: '1st Page Internal Txs', run: async () => {
+          { id: 'firstPageInternalTxs', label: '1st Page Internal Txs', description: 'Raw payload of the first page of internal transactions', run: async () => {
             const data = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${tokenAddress}/internal-transactions`);
             return data?.items || [];
           }},
-          { id: 'transactionVelocity', label: 'Transaction Velocity (24h)', run: async () => {
+          { id: 'transactionVelocity', label: 'Transaction Velocity (24h)', description: 'Velocity metric measuring transfer volume vs circulating supply over 24h', run: async () => {
             const transfers = await ensureTransfers24h();
             const { tokenInfo } = await ensureCoreCaches();
             const holders = await ensureHolders();
@@ -1245,11 +1246,11 @@ export default function AdminStatsPage(): JSX.Element {
       {
         title: 'Contract Metadata',
         stats: [
-          { id: 'address', label: 'Token Address', run: async () => tokenAddress },
-      { id: 'symbol', label: 'symbol', run: async () => (await ensureCoreCaches()).tokenInfo?.symbol },
-      { id: 'name', label: 'name', run: async () => (await ensureCoreCaches()).tokenInfo?.name },
-      { id: 'iconUrl', label: 'Icon URL', run: async () => (await ensureDex()).pairs?.[0]?.info?.imageUrl || (await ensureCoreCaches()).tokenInfo?.icon_url },
-          { id: 'abiComplexity', label: 'ABI Complexity Score', run: async () => {
+          { id: 'address', label: 'Token Address', description: 'Currently selected token address for the panel', run: async () => tokenAddress },
+      { id: 'symbol', label: 'symbol', description: 'Token symbol fetched from token metadata', run: async () => (await ensureCoreCaches()).tokenInfo?.symbol },
+      { id: 'name', label: 'name', description: 'Token name fetched from token metadata', run: async () => (await ensureCoreCaches()).tokenInfo?.name },
+      { id: 'iconUrl', label: 'Icon URL', description: 'Primary icon/logo URL when available', run: async () => (await ensureDex()).pairs?.[0]?.info?.imageUrl || (await ensureCoreCaches()).tokenInfo?.icon_url },
+          { id: 'abiComplexity', label: 'ABI Complexity Score', description: 'Count of ABI functions as a quick complexity proxy', run: async () => {
             const { addressInfo } = await ensureCoreCaches();
             const contract = await fetchJson(`https://api.scan.pulsechain.com/api/v2/smart-contracts/${addressInfo.creator_address_hash}`);
             const abi = contract?.abi || [];
@@ -1393,6 +1394,9 @@ export default function AdminStatsPage(): JSX.Element {
         <div>
           <h1 className="text-3xl font-bold">API Endpoints</h1>
           <p className="text-slate-400 mt-1">PulseChain API Endpoint Library</p>
+        </div>
+        <div className="flex justify-center">
+          <RichardHeartChatCard variant="compact" className="w-full max-w-xs" />
         </div>
         
         {/* Token Address Search */}
@@ -1605,8 +1609,26 @@ export default function AdminStatsPage(): JSX.Element {
                     >
                       <div className="text-white font-mono text-sm bg-slate-800 px-2 py-3 rounded-lg max-h-96 overflow-y-auto">
                         {busyStat ? (
-                          <div className="flex flex-col items-center justify-center py-6 gap-2">
-                            <LoaderWithPercent label="Loading API" />
+                          <div className="space-y-2 text-xs text-slate-200 py-2">
+                            <p className="font-semibold text-white">Network activity</p>
+                            {currentRequest?.apiCalls && currentRequest.apiCalls.length > 0 ? (
+                              <div className="space-y-2">
+                                {currentRequest.apiCalls.map((call, index) => (
+                                  <div key={`${call.endpoint}-${index}`} className="border border-slate-700 rounded-lg p-2 bg-slate-900/60">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-orange-400 font-semibold">{call.method}</span>
+                                      <span className="text-slate-500 text-[11px]">Call {index + 1}</span>
+                                    </div>
+                                    <div className="text-slate-300 text-[11px] mb-1 truncate">{call.endpoint}</div>
+                                    {call.description && (
+                                      <div className="text-slate-400 text-[11px]">{call.description}</div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-slate-400">Waiting for network response…</p>
+                            )}
                           </div>
                         ) : (
                           <pre className="whitespace-pre-wrap text-xs">
@@ -1637,4 +1659,3 @@ export default function AdminStatsPage(): JSX.Element {
     </div>
   );
 }
-

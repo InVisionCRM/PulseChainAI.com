@@ -4,6 +4,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { LoaderThree } from "@/components/ui/loader";
 import type { Message, ContractData, TokenInfo, DexScreenerData } from '../types';
 import SendIcon from '@/components/icons/SendIcon';
+import { fetchContract, fetchTokenInfo, fetchDexScreenerData } from '@/services/pulsechainService';
 
 interface TokenAIChatProps {
   contractAddress?: string;
@@ -13,6 +14,11 @@ interface TokenAIChatProps {
 export default function TokenAIChat({ contractAddress, compact = false }: TokenAIChatProps): JSX.Element {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingChat, setIsLoadingChat] = useState<boolean>(false);
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState<boolean>(false);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
+  const [contractData, setContractData] = useState<ContractData | null>(null);
+  const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
+  const [dexData, setDexData] = useState<DexScreenerData | null>(null);
   const [chatInput, setChatInput] = useState<string>('');
   const [activeTabbedContent, setActiveTabbedContent] = useState<number>(0);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -24,6 +30,52 @@ export default function TokenAIChat({ contractAddress, compact = false }: TokenA
     }
   }, [messages]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadMetadata = async () => {
+      if (!contractAddress) {
+        setContractData(null);
+        setTokenInfo(null);
+        setDexData(null);
+        return;
+      }
+
+      setIsLoadingMetadata(true);
+      setMetadataError(null);
+
+      try {
+        const [contractRes, tokenRes, dexRes] = await Promise.all([
+          fetchContract(contractAddress).catch(() => null),
+          fetchTokenInfo(contractAddress).catch(() => null),
+          fetchDexScreenerData(contractAddress).catch(() => null),
+        ]);
+
+        if (cancelled) return;
+
+        setContractData(contractRes?.data || null);
+        setTokenInfo(tokenRes?.data || null);
+        setDexData(dexRes?.data || null);
+      } catch (error) {
+        if (!cancelled) {
+          setMetadataError(
+            error instanceof Error ? error.message : 'Failed to load token metadata'
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingMetadata(false);
+        }
+      }
+    };
+
+    loadMetadata();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [contractAddress]);
+
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim()) return;
 
@@ -32,12 +84,35 @@ export default function TokenAIChat({ contractAddress, compact = false }: TokenA
     setIsLoadingChat(true);
 
     try {
+      const payloadContractData: (ContractData & { address_hash?: string }) | null = contractData
+        ? { ...contractData }
+        : contractAddress
+        ? {
+            name: 'Unknown Contract',
+            source_code: '',
+            compiler_version: '',
+            optimization_enabled: false,
+            is_verified: false,
+            abi: [],
+            creator_address_hash: null,
+            creation_tx_hash: null,
+            address_hash: contractAddress,
+          }
+        : null;
+
+      if (payloadContractData && contractAddress) {
+        payloadContractData.address_hash = contractAddress;
+      }
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
           contractAddress: contractAddress || null,
+          contractData: payloadContractData,
+          tokenInfo,
+          dexScreenerData: dexData,
         })
       });
 
@@ -54,7 +129,7 @@ export default function TokenAIChat({ contractAddress, compact = false }: TokenA
     } finally {
       setIsLoadingChat(false);
     }
-  }, [contractAddress]);
+  }, [contractAddress, contractData, tokenInfo, dexData]);
 
   const handleSendMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,6 +250,16 @@ export default function TokenAIChat({ contractAddress, compact = false }: TokenA
 
   return (
     <div className={`flex flex-col h-full ${compact ? 'text-xs' : 'text-sm'}`}>
+      {(isLoadingMetadata || metadataError) && (
+        <div className="mb-2 text-[11px]">
+          {isLoadingMetadata && (
+            <p className="text-white/60">Loading token context&hellip;</p>
+          )}
+          {metadataError && (
+            <p className="text-red-400">{metadataError}</p>
+          )}
+        </div>
+      )}
       <div ref={chatContainerRef} className="flex-grow overflow-y-auto space-y-2 p-3">
         {messages.length === 0 && (
           <div className="text-center text-gray-400 h-full flex flex-col items-center justify-center gap-2">

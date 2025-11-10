@@ -33,6 +33,8 @@ export interface AbiItem {
 }
 
 export interface ContractData {
+  address_hash?: string;
+  address?: string;
   name: string;
   source_code: string;
   compiler_version: string;

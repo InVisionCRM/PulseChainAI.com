@@ -1,21 +1,10 @@
-import AIAgentChat from '@/components/AIAgentChat';
+import RichardHeartChatCard from '@/components/RichardHeartChatCard';
 
 const RichardHeartPage: React.FC = () => {
-  const quickQuestions = [
-    "What's your take on the current crypto market?",
-    "Tell me about PulseChain and its vision",
-    "What's your philosophy on life and success?",
-    "How do you stay motivated in tough times?",
-    "What's your advice for crypto newcomers?"
-  ];
-
   return (
-    <AIAgentChat
-      agentEndpoint="richard-heart"
-      title="Talk to Richard Heart!"
-      description="AI-powered conversation with the crypto legend and PulseChain founder"
-      quickQuestions={quickQuestions}
-    />
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-900 to-fuchsia-800 flex items-center justify-center p-6">
+      <RichardHeartChatCard className="w-full max-w-md" />
+    </div>
   );
 };
 

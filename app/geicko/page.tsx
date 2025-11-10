@@ -8,15 +8,102 @@ import TokenContractView from '@/components/TokenContractView';
 import DexScreenerChart from '@/components/DexScreenerChart';
 import { LoaderThree } from "@/components/ui/loader";
 import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
-import { Button as StatefulButton } from '@/components/ui/stateful-button';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem } from '../../types';
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '../../services/pulsechainService';
 import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
 
+const normalizeLabel = (value?: string | null) => {
+  if (!value) return '';
+  return value
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+};
+
+const formatChainLabel = (value?: string | null) => {
+  if (!value) return 'PulseChain';
+  const normalized = value.toLowerCase();
+  if (normalized === 'pulsechain') return 'PulseChain';
+  return normalizeLabel(value);
+};
+
+const formatDexLabel = (value?: string | null) => {
+  if (!value) return 'PulseX';
+  const normalized = value.toLowerCase();
+  if (normalized.includes('pulsex')) {
+    if (normalized.includes('v3')) return 'PulseX V3';
+    if (normalized.includes('v2')) return 'PulseX V2';
+    return 'PulseX';
+  }
+  return normalizeLabel(value);
+};
+
+const formatWebsiteDisplay = (url?: string | null) => {
+  if (!url) return '';
+  try {
+    const normalized = url.startsWith('http') ? url : `https://${url}`;
+    const parsed = new URL(normalized);
+    const host = parsed.hostname.replace(/^www\./, '');
+    const path = parsed.pathname && parsed.pathname !== '/' ? parsed.pathname.replace(/\/$/, '') : '';
+    return `${host}${path}`;
+  } catch {
+    return url.replace(/^https?:\/\//, '');
+  }
+};
+
+const formatMarketCapLabel = (value?: number) => {
+  if (!value || !Number.isFinite(value) || value <= 0) return 'MCAP N/A';
+  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(2)}B MCAP`;
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M MCAP`;
+  if (value >= 1_000) return `$${Math.round(value / 1_000)}k MCAP`;
+  return `$${Math.round(value).toLocaleString()} MCAP`;
+};
+
+const truncateAddress = (value: string) => `${value.slice(0, 6)}...${value.slice(-4)}`;
+
+const formatCurrencyCompact = (value?: number | null, options: Intl.NumberFormatOptions = {}) => {
+  if (!Number.isFinite(value ?? NaN)) return '—';
+  const num = Number(value);
+  if (Math.abs(num) >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(2)}B`;
+  if (Math.abs(num) >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`;
+  if (Math.abs(num) >= 1_000) return `$${(num / 1_000).toFixed(1)}K`;
+  return `$${num.toLocaleString('en-US', { maximumFractionDigits: 2, ...options })}`;
+};
+
+const formatNumberCompact = (value?: number | null) => {
+  if (!Number.isFinite(value ?? NaN)) return '—';
+  const num = Number(value);
+  if (Math.abs(num) >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B`;
+  if (Math.abs(num) >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
+  if (Math.abs(num) >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+  return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+};
+
+const formatPercentChange = (value?: number | null) => {
+  if (!Number.isFinite(value ?? NaN)) return '0.00%';
+  const num = Number(value);
+  return `${num >= 0 ? '+' : ''}${num.toFixed(2)}%`;
+};
+
+const formatDateUTC = (value: string | number | Date) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('en-US', {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 function GeickoPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const addressFromQuery = searchParams.get('address');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('transactions');
   const [tokenInfoTab, setTokenInfoTab] = useState<'token' | 'wpls'>('token');
@@ -36,6 +123,8 @@ function GeickoPageContent() {
   const [isGamingDropdownOpen, setIsGamingDropdownOpen] = useState(false);
   const [burnedTokens, setBurnedTokens] = useState<{ amount: number; percent: number } | null>(null);
   const [holdersCount, setHoldersCount] = useState<number | null>(null);
+  const [activeSocialTab, setActiveSocialTab] = useState<string | null>(null);
+  const [uiPreset, setUiPreset] = useState<'classic' | 'rabby1'>('classic');
 
   // Data state
   const [contractData, setContractData] = useState<ContractData | null>(null);
@@ -52,8 +141,7 @@ function GeickoPageContent() {
     amount: number;
     txHash: string;
     from: string;
-    fromBalance: number;
-    totalTxs: number;
+    valueUsd: number;
   }>>([]);
 
   // Loading state
@@ -283,44 +371,6 @@ function GeickoPageContent() {
 
       console.log(`Using ${decimals} decimals from PulseScan API response`);
 
-      // Collect unique "from" addresses
-      const uniqueFromAddresses = new Set<string>();
-      transfers.forEach((transfer: any) => {
-        const fromAddr = transfer.from?.hash || transfer.from || '';
-        if (fromAddr) uniqueFromAddresses.add(fromAddr.toLowerCase());
-      });
-
-      console.log(`Fetching balances for ${uniqueFromAddresses.size} unique addresses`);
-
-      // Fetch token balances for all unique "from" addresses in parallel
-      const addressBalances = new Map<string, number>();
-      const balanceFetches = Array.from(uniqueFromAddresses).map(async (addr) => {
-        try {
-          const tokens = await pulsechainApiService.getAddressTokens(addr, 1, 100);
-          const tokensArray = Array.isArray(tokens) ? tokens
-                            : (tokens as any)?.items || [];
-
-          const tokenBalance = tokensArray.find((t: any) =>
-            t.token?.address?.toLowerCase() === address.toLowerCase()
-          );
-
-          if (tokenBalance) {
-            const balance = Number(tokenBalance.value || 0) / Math.pow(10, decimals);
-            addressBalances.set(addr.toLowerCase(), balance);
-          } else {
-            addressBalances.set(addr.toLowerCase(), 0);
-          }
-        } catch (error) {
-          console.warn(`Failed to fetch balance for ${addr}:`, error);
-          addressBalances.set(addr.toLowerCase(), 0);
-        }
-      });
-
-      // Wait for all balance fetches to complete
-      await Promise.all(balanceFetches);
-
-      console.log(`Fetched balances for ${addressBalances.size} addresses`);
-
       // Process transfers into transaction format
       const processedTransactions = transfers.map((transfer: any) => {
         const txTime = new Date(transfer.timestamp);
@@ -368,8 +418,7 @@ function GeickoPageContent() {
           type = 'BUY';
         }
 
-        // Get balance for this "from" address
-        const fromBalance = addressBalances.get(fromAddress.toLowerCase()) || 0;
+        const valueUsd = amount * currentPriceUsd;
 
         return {
           time: timeStr,
@@ -380,8 +429,7 @@ function GeickoPageContent() {
           amount: amount,
           txHash: transfer.tx_hash || transfer.transaction_hash || '',
           from: fromAddress,
-          fromBalance: fromBalance,
-          totalTxs: 0 // Placeholder for total transaction count
+          valueUsd
         };
       });
 
@@ -587,7 +635,7 @@ function GeickoPageContent() {
 
     const isBurnAddress = (addr: string): boolean => {
       const lower = (addr || '').toLowerCase();
-  return (
+      return (
         lower.endsWith('dead') ||
         lower.endsWith('0000') ||
         lower.endsWith('0369') ||
@@ -676,15 +724,611 @@ function GeickoPageContent() {
 
   // Handle URL parameters - load token when address is in URL
   useEffect(() => {
-    const addressParam = searchParams.get('address');
-    if (addressParam && /^0x[a-fA-F0-9]{40}$/.test(addressParam)) {
-      setApiTokenAddress(addressParam);
-      setSearchInput(addressParam);
+    if (addressFromQuery && /^0x[a-fA-F0-9]{40}$/.test(addressFromQuery)) {
+      setApiTokenAddress(addressFromQuery);
+      setSearchInput(addressFromQuery);
     }
-  }, [searchParams]);
+  }, [addressFromQuery]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem('geicko-ui-preset');
+    if (stored === 'rabby1' || stored === 'classic') {
+      setUiPreset(stored);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('geicko-ui-preset', uiPreset);
+  }, [uiPreset]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleCustomPresetChange = (event: Event) => {
+      const customEvent = event as CustomEvent<'classic' | 'rabby1'>;
+      const preset = customEvent.detail;
+      if (preset === 'classic' || preset === 'rabby1') {
+        setUiPreset(preset);
+      }
+    };
+
+    const handleStoragePresetChange = (event: StorageEvent) => {
+      if (event.key === 'geicko-ui-preset' && (event.newValue === 'classic' || event.newValue === 'rabby1')) {
+        setUiPreset(event.newValue);
+      }
+    };
+
+    window.addEventListener('geicko-ui-preset-change', handleCustomPresetChange as EventListener);
+    window.addEventListener('storage', handleStoragePresetChange);
+
+    return () => {
+      window.removeEventListener('geicko-ui-preset-change', handleCustomPresetChange as EventListener);
+      window.removeEventListener('storage', handleStoragePresetChange);
+    };
+  }, []);
+
+  const websiteCandidates = [
+    ...(profileData?.profile?.websites || []),
+    ...(profileData?.profile?.cmsLinks || []),
+    ...(dexScreenerData?.pairs?.[0]?.info?.websites || []),
+  ] as Array<{ label?: string; url?: string }>;
+
+  const socialSources = [
+    ...(profileData?.profile?.socials || []),
+    ...(dexScreenerData?.pairs?.[0]?.info?.socials || []),
+  ] as Array<{ type?: string; label?: string; url?: string }>;
+
+  const websiteLink = websiteCandidates.find((link) => link?.url)?.url || null;
+
+  const findSocialLink = (keywords: string[]): string | null => {
+    const lowered = keywords.map((keyword) => keyword.toLowerCase());
+    const match = socialSources.find((source) => {
+      const values = [
+        (source?.type || '').toLowerCase(),
+        (source?.label || '').toLowerCase(),
+        (source?.url || '').toLowerCase(),
+      ];
+      return values.some((value) => lowered.some((keyword) => value.includes(keyword)));
+    });
+    return match?.url || null;
+  };
+
+  const twitterLink = findSocialLink(['twitter', 'x.com']);
+  const telegramLink = findSocialLink(['telegram', 't.me']);
+
+  useEffect(() => {
+    if (activeSocialTab === 'Website' && !websiteLink) {
+      if (twitterLink) {
+        setActiveSocialTab('Twitter');
+        return;
+      }
+      if (telegramLink) {
+        setActiveSocialTab('Telegram');
+        return;
+      }
+      if (activeSocialTab !== null) {
+        setActiveSocialTab(null);
+      }
+      return;
+    }
+    if (activeSocialTab === 'Twitter' && !twitterLink) {
+      if (telegramLink) {
+        setActiveSocialTab('Telegram');
+        return;
+      }
+      if (websiteLink) {
+        setActiveSocialTab('Website');
+        return;
+      }
+      if (activeSocialTab !== null) {
+        setActiveSocialTab(null);
+      }
+      return;
+    }
+    if (activeSocialTab === 'Telegram' && !telegramLink) {
+      if (websiteLink) {
+        setActiveSocialTab('Website');
+        return;
+      }
+      if (twitterLink) {
+        setActiveSocialTab('Twitter');
+        return;
+      }
+      if (activeSocialTab !== null) {
+        setActiveSocialTab(null);
+      }
+      return;
+    }
+    if (!activeSocialTab) {
+      if (websiteLink) {
+        setActiveSocialTab('Website');
+      } else if (twitterLink) {
+        setActiveSocialTab('Twitter');
+      } else if (telegramLink) {
+        setActiveSocialTab('Telegram');
+      } else if (activeSocialTab !== null) {
+        setActiveSocialTab(null);
+      }
+    }
+  }, [websiteLink, twitterLink, telegramLink, activeSocialTab]);
+
+  const isRabbyUI = uiPreset === 'rabby1';
+  const primaryPair = dexScreenerData?.pairs?.[0] || null;
+  const baseSymbol = primaryPair?.baseToken?.symbol || dexScreenerData?.tokenInfo?.symbol || tokenInfo?.symbol || 'Token';
+  const quoteSymbol = primaryPair?.quoteToken?.symbol || 'WPLS';
+  const tokenNameDisplay = dexScreenerData?.tokenInfo?.name || tokenInfo?.name || primaryPair?.baseToken?.name || 'Token';
+  const headerImageUrl = profileData?.profile?.headerImageUrl || primaryPair?.info?.imageUrl || '/app-pics/clean.png';
+  const tokenLogoSrc =
+    profileData?.profile?.logo ||
+    profileData?.profile?.iconImageUrl ||
+    dexScreenerData?.tokenInfo?.logoURI ||
+    primaryPair?.baseToken?.logoURI ||
+    primaryPair?.info?.imageUrl ||
+    '';
+  const priceUsd = Number(primaryPair?.priceUsd || 0);
+  const priceChange = Number(primaryPair?.priceChange?.h24 || 0);
+  const formattedPrice = priceUsd >= 1 ? priceUsd.toFixed(4) : priceUsd.toFixed(6);
+  const marketCapValue = Number(primaryPair?.marketCap ?? primaryPair?.fdv ?? 0);
+  const formattedMarketCap = formatMarketCapLabel(marketCapValue);
+  const heroTagline = formatWebsiteDisplay(websiteLink) || profileData?.profile?.header || primaryPair?.info?.header || tokenNameDisplay;
+  const socialTabs: Array<{ label: string; url: string | null }> = [
+    { label: 'Website', url: websiteLink },
+    { label: 'Twitter', url: twitterLink },
+    { label: 'Telegram', url: telegramLink },
+  ];
+  const hasSocialLinks = socialTabs.some((tab) => Boolean(tab.url));
+  const addressItems: Array<{ label: string; address: string }> = primaryPair
+    ? [
+        { label: 'POOL', address: primaryPair.pairAddress },
+        { label: (baseSymbol || 'TOKEN').toUpperCase(), address: primaryPair.baseToken?.address || '' },
+        { label: (quoteSymbol || 'QUOTE').toUpperCase(), address: primaryPair.quoteToken?.address || '' },
+      ].filter((item): item is { label: string; address: string } => Boolean(item.address))
+    : [];
+
+  const handleSocialTabClick = useCallback((label: string, url?: string | null) => {
+    if (!url) return;
+    setActiveSocialTab(label);
+    if (typeof window !== 'undefined') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }, []);
+
+  const handleCopyAddress = useCallback((value?: string) => {
+    if (!value) return;
+    if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(value);
+    }
+  }, []);
+
+  const openExternalLink = useCallback((url: string) => {
+    if (typeof window === 'undefined') return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, []);
+
+  const openPortfolioSettings = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('open-portfolio-settings', '1');
+    }
+    router.push('/portfolio');
+  }, [router]);
+
+  const tabOptions: Array<{ id: typeof activeTab; label: string }> = [
+    { id: 'transactions', label: 'Txns' },
+    { id: 'holders', label: 'Holders' },
+    { id: 'contract', label: 'Code' },
+    { id: 'switch', label: 'Switch' },
+  ];
+
+  const tabIconMap: Record<string, string> = {
+    transactions: '🧾',
+    holders: '👥',
+    contract: '💻',
+    switch: '⇄',
+  };
+
+  const renderOtherLiquiditySection = () => {
+    const tokenTitle = profileData?.tokenInfo?.name || tokenInfo?.name || 'Token';
+
+    if (!dexScreenerData?.pairs || dexScreenerData.pairs.length === 0) {
+      return (
+        <div className="mt-4">
+          <h3 className="text-sm font-semibold text-white mb-2">
+            Other Liquidity Pairs Trading {tokenTitle}
+          </h3>
+          <div className="text-xs text-gray-400 py-4 text-center">No pools available</div>
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+          <span className="inline-flex items-center justify-center rounded-full bg-green-500/20 text-green-300 text-[11px] font-bold h-6 w-6">LP</span>
+          <span>Other Liquidity Pairs Trading {tokenTitle}</span>
+        </h3>
+        <div className="space-y-2">
+          {dexScreenerData.pairs.slice(0, 5).map((pair) => (
+            <div key={pair.pairAddress} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+              <div
+                className="p-3 cursor-pointer hover:bg-gray-800/60 transition-colors"
+                onClick={() => togglePairExpansion(pair.pairAddress)}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-xs text-white font-semibold">
+                    {pair.baseToken.symbol}/{pair.quoteToken.symbol}
+                  </div>
+                  <div className="flex items-center space-x-1 text-[11px] text-gray-300">
+                    <span className="uppercase">{pair.dexId}</span>
+                    <span className="text-white">
+                      {expandedPairs.has(pair.pairAddress) ? '▲' : '▼'}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <div>
+                    <span className="text-gray-400">LIQ </span>
+                    <span className="text-green-400">
+                      ${parseFloat(String(pair.liquidity?.usd || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">VOL </span>
+                    <span className="text-blue-400">
+                      ${parseFloat(String(pair.volume?.h24 || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {expandedPairs.has(pair.pairAddress) && (
+                <div className="border-t border-gray-800 p-3 space-y-3 bg-gray-950/60">
+                  <div>
+                    <div className="text-xs text-white font-semibold mb-1">LP Token Holders (Top 10)</div>
+
+                    {pairHoldersData[pair.pairAddress]?.isLoading && (
+                      <div className="flex items-center justify-center py-2">
+                        <LoaderThree />
+                      </div>
+                    )}
+
+                    {pairHoldersData[pair.pairAddress]?.error && (
+                      <div className="text-xs text-red-400">{pairHoldersData[pair.pairAddress].error}</div>
+                    )}
+
+                    {pairHoldersData[pair.pairAddress]?.holders && pairHoldersData[pair.pairAddress].holders.length > 0 && (
+                      <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                        {pairHoldersData[pair.pairAddress].holders.slice(0, 10).map((holder: any, idx: number) => (
+                          <div key={holder.address} className="flex items-center justify-between text-xs bg-gray-800/50 rounded px-1 py-0.5">
+                            <span className="text-gray-400">#{idx + 1}</span>
+                            <span className="text-blue-400 font-mono text-[10px]">
+                              {holder.address.slice(0, 6)}...{holder.address.slice(-4)}
+                            </span>
+                            <span className={`font-medium ${
+                              holder.percentage >= 10 ? 'text-red-400' :
+                              holder.percentage >= 5 ? 'text-yellow-400' : 'text-green-400'
+                            }`}>
+                              {holder.percentage >= 1 ? holder.percentage.toFixed(2) :
+                               holder.percentage >= 0.01 ? holder.percentage.toFixed(4) : '<0.01'}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {pairHoldersData[pair.pairAddress]?.holders?.length === 0 && !pairHoldersData[pair.pairAddress]?.isLoading && (
+                      <div className="text-xs text-gray-400">LP token holder data not available</div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="text-xs text-white font-semibold mb-1">Recent Activity (Last 5)</div>
+                    {pairLiquidityEvents[pair.pairAddress]?.isLoading && (
+                      <div className="flex items-center justify-center py-2">
+                        <LoaderThree />
+                      </div>
+                    )}
+
+                    {pairLiquidityEvents[pair.pairAddress]?.events && pairLiquidityEvents[pair.pairAddress].events.length > 0 && (
+                      <div className="space-y-1 max-h-24 overflow-y-auto">
+                        {pairLiquidityEvents[pair.pairAddress].events.slice(0, 5).map((event: any, idx: number) => (
+                          <div key={`${event.txHash}-${idx}`} className="flex items-center gap-1 text-xs bg-gray-800/50 rounded px-1 py-0.5">
+                            <span className={event.type === 'add' ? 'text-green-400' : 'text-red-400'}>
+                              {event.type === 'add' ? '🟢' : '🔴'}
+                            </span>
+                            <span className={event.type === 'add' ? 'text-green-400' : 'text-red-400'}>
+                              {event.type === 'add' ? 'Add' : 'Remove'}
+                            </span>
+                            <a
+                              href={`https://scan.pulsechain.box/tx/${event.txHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              🔗
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {pairLiquidityEvents[pair.pairAddress]?.events && pairLiquidityEvents[pair.pairAddress].events.length === 0 && (
+                      <div className="text-xs text-gray-400">No recent activity</div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 text-xs">
+                    <a
+                      href={pair.url || `https://dexscreener.com/pulsechain/${pair.pairAddress}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-blue-400 px-2 py-1 text-center rounded transition-colors"
+                    >
+                      DexScreener
+                    </a>
+                    <a
+                      href={`https://scan.pulsechain.box/address/${pair.pairAddress}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-green-400 px-2 py-1 text-center rounded transition-colors"
+                    >
+                      Scan
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const rabbyActions = [
+    {
+      label: 'Swap',
+      icon: '⇄',
+      description: 'Trade instantly',
+      onClick: () => setActiveTab('switch'),
+    },
+    {
+      label: 'Transactions',
+      icon: '🕒',
+      description: 'Latest activity',
+      onClick: () => setActiveTab('transactions'),
+    },
+    {
+      label: 'Holders',
+      icon: '👥',
+      description: 'Top wallets',
+      onClick: () => setActiveTab('holders'),
+    },
+    {
+      label: 'Code',
+      icon: '{ }',
+      description: 'Contract view',
+      onClick: () => setActiveTab('contract'),
+    },
+    {
+      label: 'Bridge',
+      icon: '🌉',
+      description: 'PulseChain hub',
+      onClick: () => openExternalLink('https://bridge.pulsechain.com/'),
+    },
+    // {
+    //   label: 'Settings',
+    //   icon: '⚙️',
+    //   description: 'Personalize UI',
+    //   onClick: openPortfolioSettings,
+    // },
+  ];
+
+  if (isRabbyUI) {
+    const walletAddress = apiTokenAddress;
+    const displayAddress = walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : '0x—';
+    const heroPrice = Number(primaryPair?.priceUsd || 0);
+    const heroPriceDisplay = heroPrice ? `$${heroPrice.toFixed(heroPrice >= 1 ? 2 : 4)}` : '$0.0000';
+    const heroChangeDisplay = formatPercentChange(priceChange);
+    const heroVolumeDisplay = formatCurrencyCompact(primaryPair?.volume?.h24);
+    const heroLiquidityDisplay = formatCurrencyCompact(primaryPair?.liquidity?.usd);
+    const limitedTransactions = transactions.slice(0, 4);
+    const sparklinePath = 'M0 80 C80 20 160 110 240 50 C320 90 400 30 480 70';
+
+    return (
+      <>
+        <div className="min-h-screen bg-[#eef2ff] text-[#0f172a]">
+          <header className="bg-[#1c2cf8] text-white px-4 py-5 sm:px-8 sm:py-7 shadow-[0_20px_60px_rgba(28,44,248,0.35)]">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center text-lg font-semibold">
+                  <span role="img" aria-label="ledger">👛</span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold tracking-wide">Ledger 1</p>
+                  <button
+                    onClick={() => handleCopyAddress(walletAddress)}
+                    className="text-xs text-white/70 hover:text-white transition-colors inline-flex items-center gap-1"
+                  >
+                    {displayAddress}
+                    <span className="text-white/60">⧉</span>
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* <button
+                  onClick={openPortfolioSettings}
+                  className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-lg"
+                  title="Settings"
+                >
+                  ⚙️
+                </button> */}
+                <button
+                  onClick={() => setActiveTab('transactions')}
+                  className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-lg"
+                  title="History"
+                >
+                  ⟳
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-[24px] bg-[#2334ff] border border-white/15 p-5 shadow-[0_15px_40px_rgba(15,15,40,0.35)]">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/70">Portfolio</p>
+                  <p className="text-4xl font-black tracking-tight mt-1">{heroPriceDisplay}</p>
+                  <p className={`text-sm font-semibold ${priceChange >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>
+                    {heroChangeDisplay}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setActiveTab('switch')}
+                  className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center"
+                  title="Open chart"
+                >
+                  →
+                </button>
+              </div>
+              <div className="mt-5 h-24 rounded-3xl bg-white/5 border border-white/10 overflow-hidden">
+                <svg viewBox="0 0 500 120" className="w-full h-full" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="rabbyLine" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#8bf7ff" />
+                      <stop offset="100%" stopColor="#4de88d" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d={sparklinePath}
+                    fill="none"
+                    stroke="url(#rabbyLine)"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    opacity="0.9"
+                  />
+                </svg>
+              </div>
+              <div className="mt-5 grid grid-cols-2 gap-3 text-xs text-white/80">
+                <div className="rounded-2xl bg-white/10 px-3 py-2 flex items-center justify-between">
+                  <span>Liquidity</span>
+                  <span className="font-semibold text-white">{heroLiquidityDisplay}</span>
+                </div>
+                <div className="rounded-2xl bg-white/10 px-3 py-2 flex items-center justify-between">
+                  <span>Volume 24h</span>
+                  <span className="font-semibold text-white">{heroVolumeDisplay}</span>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main className="px-4 sm:px-8 -mt-10 pb-12 space-y-5">
+            <section className="bg-white rounded-[28px] shadow-[0_20px_60px_rgba(15,23,42,0.08)] p-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {rabbyActions.map((action) => (
+                  <button
+                    key={action.label}
+                    onClick={action.onClick}
+                    className="flex items-center gap-3 rounded-2xl border border-slate-100 px-3 py-3 text-left hover:border-indigo-200 hover:bg-indigo-50 transition-colors"
+                  >
+                    <span className="text-lg text-indigo-500">{action.icon}</span>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{action.label}</p>
+                      <p className="text-xs text-slate-500">{action.description}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="bg-white rounded-2xl shadow-[0_12px_40px_rgba(15,23,42,0.08)] px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-sm text-slate-600">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-semibold">
+                  $
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-slate-400">PLS price</p>
+                  <p className="text-base font-semibold text-slate-900">{heroPriceDisplay}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-semibold">
+                  ⛽
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Gas</p>
+                  <p className="text-base font-semibold text-slate-900">
+                    {(Math.max(0.001, (primaryPair?.txns?.m5?.buys || 0) / 1000) + 0.0028).toFixed(4)} Gwei
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className="bg-white rounded-2xl shadow-[0_12px_40px_rgba(15,23,42,0.08)] px-4 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500">📦</div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">No Dapp found</p>
+                  <p className="text-xs text-slate-500">Connect a dapp to get started.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push('/apps')}
+                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+              >
+                Explore →
+              </button>
+            </section>
+
+            <section className="bg-white rounded-2xl shadow-[0_18px_50px_rgba(15,23,42,0.08)] px-4 py-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-slate-900">Recent Transactions</h3>
+                <button
+                  onClick={() => setActiveTab('transactions')}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                >
+                  View all
+                </button>
+              </div>
+              <div className="mt-3 space-y-3">
+                {limitedTransactions.length > 0 ? (
+                  limitedTransactions.map((tx, idx) => (
+                    <div key={`${tx.txHash}-${idx}`} className="flex items-center justify-between rounded-2xl border border-slate-100 px-3 py-2">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">{tx.type.toUpperCase()}</p>
+                        <p className="text-xs text-slate-500">{formatDateUTC(tx.timestamp)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-slate-900">
+                          ${tx.usdValue?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '—'}
+                        </p>
+                        <a
+                          href={`https://scan.pulsechain.box/tx/${tx.txHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-indigo-500 hover:text-indigo-700"
+                        >
+                          View →
+                        </a>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-200 px-3 py-6 text-center text-xs text-slate-500">
+                    No transactions yet. Perform a swap to see history here.
+                  </div>
+                )}
+              </div>
+            </section>
+          </main>
+        </div>
+      </>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans px-2 md:px-3">
+    <>
+      <div className="min-h-screen bg-black text-white font-sans px-2 md:px-3">
       {/* Header Section */}
       <header className="bg-gray-900 border-b border-gray-800">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 md:px-3 py-2 gap-2">
@@ -752,11 +1396,20 @@ function GeickoPageContent() {
                 </div>
               )}
             </div>
-            {error && (
-              <div className="ml-2 text-xs text-red-400">
+            <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
+              <div className="text-xs text-red-400 min-h-[1rem]">
                 {error}
               </div>
-            )}
+          {/* <button
+            type="button"
+            onClick={openPortfolioSettings}
+            className="inline-flex items-center gap-2 self-end sm:self-auto px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-xs text-white hover:bg-white/10 transition-colors"
+            title="Open settings"
+          >
+                <span>⚙️</span>
+                <span>Settings</span>
+              </button> */}
+            </div>
           </div>
 
         </div>
@@ -1053,47 +1706,75 @@ function GeickoPageContent() {
             )}
           </div>
 
+          {/* Subtle Divider */}
+          <div className="px-2 md:px-3">
+            <div className="h-px bg-white/10 rounded-full" />
+          </div>
+
           {/* Bottom Tabs */}
-          <div className="px-2 md:px-3 py-3 border-t border-gray-800 -mt-[50px] relative z-50">
-            <div className="flex bg-black gap-1 overflow-x-auto">
-              <button
-                onClick={() => setActiveTab('transactions')}
-                className={`text-sm pb-1 whitespace-nowrap border-r border-white/20 pr-2 ${activeTab === 'transactions' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
-              >
-                Txns
-              </button>
-              <button
-                onClick={() => setActiveTab('holders')}
-                className={`text-sm pb-0.5 whitespace-nowrap border-r border-white/20 pr-2 ${activeTab === 'holders' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
-              >
-                Holders
-              </button>
-              <button
-                onClick={() => setActiveTab('apis')}
-                className={`text-sm pb-0.5 whitespace-nowrap border-r border-white/20 pr-2 ${activeTab === 'apis' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
-              >
-                APIs
-              </button>
-              <button
-                onClick={() => setActiveTab('askai')}
-                className={`text-sm pb-0.5 whitespace-nowrap border-r border-white/20 pr-2 ${activeTab === 'askai' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
-              >
-                Ask AI
-              </button>
-              <button
-                onClick={() => setActiveTab('contract')}
-                className={`text-sm pb-0.5 whitespace-nowrap border-r border-white/20 pr-2 ${activeTab === 'contract' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
-              >
-                Code
-              </button>
-              {/* Switch Tab - Visible on all layouts, moved to last */}
-              <button
-                onClick={() => setActiveTab('switch')}
-                className={`text-sm pb-0.5 whitespace-nowrap bg-lime-500/80 text-white px-2 rounded ${activeTab === 'switch' ? 'border-b border-lime-500' : 'hover:bg-lime-500'}`}
-              >
-                Switch
-              </button>
-            </div>
+          <div className="px-2 md:px-3 pt-4 pb-3 border-t border-gray-800 mt-4 relative z-30">
+            {isRabbyUI ? (
+              <div className="flex flex-wrap gap-2 overflow-x-auto bg-gray-950/70 border border-white/5 rounded-2xl px-2 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
+                {tabOptions.map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  const accent = tab.id === 'transactions'
+                    ? 'from-violet-500 to-pink-500'
+                    : tab.id === 'holders'
+                      ? 'from-emerald-400 to-teal-500'
+                        : tab.id === 'contract'
+                          ? 'from-slate-300 to-slate-500'
+                          : 'from-lime-400 to-emerald-500';
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`relative flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-xl border transition-colors duration-200 ${
+                        isActive
+                          ? 'text-white border-white/30 bg-white/5 shadow-[0_0_15px_rgba(255,255,255,0.12)]'
+                          : 'text-slate-400 border-transparent hover:border-white/10 hover:bg-white/5'
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${accent} shadow-[0_0_10px_currentColor]`}
+                      />
+                      {tab.label}
+                      {isActive && (
+                        <span
+                          className={`absolute inset-x-2 -bottom-1 h-0.5 rounded-full bg-gradient-to-r ${accent}`}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 overflow-x-auto text-[11px] sm:text-xs">
+                {tabOptions.map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  const accent = tab.id === 'transactions'
+                    ? 'from-violet-500/70 to-indigo-500/80'
+                    : tab.id === 'holders'
+                      ? 'from-emerald-400/70 to-teal-500/80'
+                    : tab.id === 'contract'
+                      ? 'from-slate-300/70 to-slate-500/80'
+                      : 'from-lime-400/70 to-emerald-500/80';
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-200 ${
+                        isActive
+                          ? `text-white border-white/40 bg-gradient-to-r ${accent} shadow-[0_0_25px_rgba(255,255,255,0.25)]`
+                          : 'text-slate-300 border-white/10 bg-white/5 hover:border-white/30 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-base leading-none">{tabIconMap[tab.id] ?? '•'}</span>
+                      <span className="font-semibold tracking-wide uppercase">{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Content Tables */}
@@ -1122,10 +1803,9 @@ function GeickoPageContent() {
                     <div className="flex-[1] min-w-[50px]">Type</div>
                     <div className="flex-[1.5] min-w-[60px]">Amount</div>
                     <div className="flex-[1.5] min-w-[60px]">Price USD</div>
+                    <div className="flex-[1.5] min-w-[70px]">Value USD</div>
                     <div className="flex-[2] min-w-[80px]">From</div>
-                    <div className="flex-[1.5] min-w-[70px]">Token Balance</div>
-                    <div className="flex-[1] min-w-[60px]">Total Txs</div>
-                    <div className="flex-[0.8] min-w-[40px]">Tx</div>
+                    <div className="flex-[0.8] min-w-[40px] text-center">Tx</div>
                   </div>
 
                   {/* Table Rows */}
@@ -1150,6 +1830,9 @@ function GeickoPageContent() {
                           <div className={`flex-[1.5] min-w-[60px] truncate ${tx.type === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
                             ${tx.priceUsd.toFixed(6)}
                           </div>
+                          <div className={`flex-[1.5] min-w-[70px] truncate ${tx.type === 'BUY' ? 'text-green-300' : 'text-red-300'} font-semibold`}>
+                            ${tx.valueUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          </div>
                           <div className="flex-[2] min-w-[80px] truncate">
                             <a
                               href={`https://scan.pulsechain.box/address/${tx.from}`}
@@ -1161,13 +1844,7 @@ function GeickoPageContent() {
                               {tx.from ? `${tx.from.slice(0, 6)}...${tx.from.slice(-4)}` : 'Unknown'}
                             </a>
                           </div>
-                          <div className={`flex-[1.5] min-w-[70px] truncate ${tx.fromBalance === 0 ? 'text-gray-500' : 'text-white'} font-mono text-[10px]`}>
-                            {tx.fromBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                          </div>
-                          <div className="flex-[1] min-w-[60px] text-white text-[10px]">
-                            {tx.totalTxs || '-'}
-                          </div>
-                          <div className="flex-[0.8] min-w-[40px]">
+                          <div className="flex-[0.8] min-w-[40px] flex justify-center">
                             <a
                               href={`https://scan.pulsechain.box/tx/${tx.txHash}`}
                               target="_blank"
@@ -1315,20 +1992,6 @@ function GeickoPageContent() {
                     </div>
                   )}
                 </>
-              )}
-
-              {/* APIs Tab */}
-              {activeTab === 'apis' && (
-                <div className="p-3">
-                  <AdminStatsPanel initialAddress={apiTokenAddress} compact={true} />
-                </div>
-              )}
-
-              {/* Ask AI Tab */}
-              {activeTab === 'askai' && (
-                <div>
-                  <TokenAIChat contractAddress={apiTokenAddress} compact={true} />
-                </div>
               )}
 
               {/* Contract Tab */}
@@ -1503,6 +2166,17 @@ function GeickoPageContent() {
               </div>
             )}
 
+            {/* Ask AI */}
+            <div className="hidden sm:block mb-3 px-0">
+              <div className="text-xs text-gray-300 mb-1 flex items-center justify-between">
+                <span>Ask AI</span>
+                <span className="text-[10px] text-gray-500">Powered by TokenAIChat</span>
+              </div>
+              <div className="bg-gray-800 rounded-lg p-2 border border-gray-700/60">
+                <TokenAIChat contractAddress={apiTokenAddress} compact />
+              </div>
+            </div>
+
             {/* Quick Audit Section */}
             {tokenInfoTab === 'token' && profileData?.quickAudit && (
               <div className="mb-4">
@@ -1618,346 +2292,110 @@ function GeickoPageContent() {
                 })()}
               </div>
             )}
-
-            {/* Other Pools Section - Dynamic from DexScreener */}
-            <div>
-              <h3 className="text-sm font-semibold text-white mb-2">
-                Other Pools Trading {profileData?.tokenInfo?.name || tokenInfo?.name || 'Token'}
-              </h3>
-
-              {dexScreenerData?.pairs && dexScreenerData.pairs.length > 0 ? (
-                <div className="space-y-2">
-                  {dexScreenerData.pairs.slice(0, 5).map((pair, index) => (
-                    <div key={pair.pairAddress} className="bg-gray-900 border border-gray-800 rounded overflow-hidden">
-                      {/* Collapsed View */}
-                      <div
-                        className="p-2 cursor-pointer hover:bg-gray-800/50 transition-colors"
-                        onClick={() => togglePairExpansion(pair.pairAddress)}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="text-xs text-white font-semibold">
-                            {pair.baseToken.symbol}/{pair.quoteToken.symbol}
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span className="text-xs text-gray-300">{pair.dexId}</span>
-                            <span className="text-xs text-white">
-                              {expandedPairs.has(pair.pairAddress) ? '▲' : '▼'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <div>
-                            <span className="text-gray-400">LIQ </span>
-                            <span className="text-green-400">
-                              ${parseFloat(String(pair.liquidity?.usd || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-gray-400">VOL </span>
-                            <span className="text-blue-400">
-                              ${parseFloat(String(pair.volume?.h24 || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Expanded View */}
-                      {expandedPairs.has(pair.pairAddress) && (
-                        <div className="border-t border-gray-800 p-2 space-y-2">
-                          {/* LP Token Holders */}
-                          <div>
-                            <div className="text-xs text-white font-semibold mb-1">LP Token Holders (Top 10)</div>
-
-                            {pairHoldersData[pair.pairAddress]?.isLoading && (
-                              <div className="flex items-center justify-center py-2">
-                                <LoaderThree />
-                              </div>
-                            )}
-
-                            {pairHoldersData[pair.pairAddress]?.error && (
-                              <div className="text-xs text-red-400">{pairHoldersData[pair.pairAddress].error}</div>
-                            )}
-
-                            {pairHoldersData[pair.pairAddress]?.holders && pairHoldersData[pair.pairAddress].holders.length > 0 && (
-                              <div className="space-y-1 max-h-32 overflow-y-auto">
-                                {pairHoldersData[pair.pairAddress].holders.slice(0, 10).map((holder: any, idx: number) => (
-                                  <div key={holder.address} className="flex items-center justify-between text-xs bg-gray-800/50 rounded px-1 py-0.5">
-                                    <span className="text-gray-400">#{idx + 1}</span>
-                                    <span className="text-blue-400 font-mono text-[10px]">
-                                      {holder.address.slice(0, 6)}...{holder.address.slice(-4)}
-                                    </span>
-                                    <span className={`font-medium ${
-                                      holder.percentage >= 10 ? 'text-red-400' :
-                                      holder.percentage >= 5 ? 'text-yellow-400' : 'text-green-400'
-                                    }`}>
-                                      {holder.percentage >= 1 ? holder.percentage.toFixed(2) :
-                                       holder.percentage >= 0.01 ? holder.percentage.toFixed(4) : '<0.01'}%
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Recent Liquidity Activity */}
-                          <div>
-                            <div className="text-xs text-white font-semibold mb-1">Recent Activity (Last 5)</div>
-
-                            {pairLiquidityEvents[pair.pairAddress]?.isLoading && (
-                              <div className="flex items-center justify-center py-2">
-                                <LoaderThree />
-                              </div>
-                            )}
-
-                            {pairLiquidityEvents[pair.pairAddress]?.events && pairLiquidityEvents[pair.pairAddress].events.length > 0 && (
-                              <div className="space-y-1 max-h-24 overflow-y-auto">
-                                {pairLiquidityEvents[pair.pairAddress].events.slice(0, 5).map((event: any, idx: number) => (
-                                  <div key={`${event.txHash}-${idx}`} className="flex items-center gap-1 text-xs bg-gray-800/50 rounded px-1 py-0.5">
-                                    <span className={event.type === 'add' ? 'text-green-400' : 'text-red-400'}>
-                                      {event.type === 'add' ? '🟢' : '🔴'}
-                                    </span>
-                                    <span className={event.type === 'add' ? 'text-green-400' : 'text-red-400'}>
-                                      {event.type === 'add' ? 'Add' : 'Remove'}
-                                    </span>
-                                    <a
-                                      href={`https://scan.pulsechain.box/tx/${event.txHash}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-400 hover:text-blue-300"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      🔗
-                                    </a>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {pairLiquidityEvents[pair.pairAddress]?.events && pairLiquidityEvents[pair.pairAddress].events.length === 0 && (
-                              <div className="text-xs text-gray-400">No recent activity</div>
-                            )}
-                          </div>
-
-                          {/* Actions */}
-                          <div className="flex gap-1">
-                            <a
-                              href={pair.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex-1 bg-gray-800 hover:bg-gray-700 text-blue-400 px-2 py-1 text-center text-xs rounded transition-colors"
-                            >
-                              DexScreener
-                            </a>
-                            <a
-                              href={`https://scan.pulsechain.box/address/${pair.pairAddress}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex-1 bg-gray-800 hover:bg-gray-700 text-green-400 px-2 py-1 text-center text-xs rounded transition-colors"
-                            >
-                              Scan
-                            </a>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-xs text-gray-400 py-4 text-center">No pools available</div>
-              )}
-            </div>
           </div>
         </div>
 
         {/* Right Panel - Token Info */}
         <div className="w-full sm:flex-[2] min-w-0 bg-gray-900 sm:border-l border-gray-800 mt-2 sm:mt-0 overflow-hidden">
           {/* Token Header - Hidden on mobile, shown on desktop */}
-          <div className="hidden sm:block px-0 mb-2">
+          <div className="hidden sm:block px-0 mb-3">
             {isLoadingData ? (
               <div className="flex items-center justify-center py-4">
                 <LoaderThree />
               </div>
-            ) : dexScreenerData?.pairs?.[0] ? (
+            ) : primaryPair ? (
               <div className="px-2 mb-2 pt-2">
-                <div className="flex items-start gap-3">
-                  {/* Token Logo */}
-                  {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? (
-                    <img
-                      src={dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl}
-                      alt={`${dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} logo`}
-                      className="w-24 h-24 bg-slate-950 bg-cover rounded-full flex-shrink-0"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                      }}
-                    />
-                  ) : null}
-                  <div className={`w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0 ${(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? 'hidden' : ''}`}>
-                    <span className="text-white font-bold text-lg">
-                      {dexScreenerData?.tokenInfo?.symbol?.charAt(0) || dexScreenerData.pairs[0].baseToken?.symbol?.charAt(0) || 'T'}
-                    </span>
-                  </div>
-
-                  {/* Token Info and Price */}
-                  <div className="flex-1 min-w-0">
-                    {/* Ticker and Name */}
-                    <div className="mb-1 pt-2">
-                      <div className="text-base font-bold text-white inline-flex items-center gap-1">
-                        {dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol}
-                        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        / {dexScreenerData.pairs[0].quoteToken?.symbol}
-                        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                        </svg>
-                      </div>
-                      <div className="text-xs text-gray-400 mt-0.5">
-                        {dexScreenerData?.tokenInfo?.name || tokenInfo?.name || dexScreenerData.pairs[0].baseToken?.name || 'Token'}
-                      </div>
-                    </div>
-
-                    {/* Price and Change */}
-                    <div className="flex items-baseline gap-2">
-                      <div className="text-2xl font-bold text-white">
-                        ${Number(dexScreenerData.pairs[0].priceUsd || 0).toFixed(4)}
-                      </div>
-                      <div className={`text-sm font-medium ${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '↑' : '↓'}
-                        {Math.abs(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
-                      </div>
-                    </div>
-
-                    {/* MCAP */}
-                    <div className="flex items-center gap-1 mt-1">
-                      <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21l4-4m0 0l4-4m-4 4V9a8 8 0 018-8h.5" />
-                      </svg>
-                      <div className="text-sm text-gray-300">
-                        {dexScreenerData.pairs[0].marketCap
-                          ? (() => {
-                              const marketCap = Number(dexScreenerData.pairs[0].marketCap);
-                              if (marketCap >= 1000000) {
-                                // Show in millions for values >= 1M
-                                return `${(marketCap / 1000000).toFixed(2)}M MCAP`;
-                              } else {
-                                // Show in thousands for values < 1M, rounded to nearest thousand
-                                const rounded = Math.round(marketCap / 1000) * 1000;
-                                return `$${(rounded / 1000).toFixed(0)}k MCAP`;
-                              }
-                            })()
-                          : 'MCAP N/A'}
-                      </div>
-                    </div>
-
-                    {/* Social Icons - Below MCAP */}
-                    {(() => {
-                      const websiteLink = profileData?.profile?.websites?.[0];
-                      const twitterLink = profileData?.profile?.socials?.find((s: any) => s.type === 'twitter');
-                      const discordLink = profileData?.profile?.socials?.find((s: any) => s.type === 'discord');
-                      const telegramLink = profileData?.profile?.socials?.find((s: any) => s.type === 'telegram');
-
-                      if (!websiteLink && !twitterLink && !discordLink && !telegramLink) return null;
-
-                      return (
-                        <div className="flex items-center gap-1 mt-2">
-                        {/* Website Icon */}
-                        {websiteLink && (
-                          <a
-                            href={websiteLink.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 hover:bg-gray-800 rounded transition-colors"
-                            title="Website"
-                          >
-                            <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    </svg>
-                  </a>
-                )}
-
-                        {/* X.com Icon */}
-                        {twitterLink && (
-                          <a
-                            href={twitterLink.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 hover:bg-gray-800 rounded transition-colors"
-                            title="X.com"
-                          >
-                            <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                    </svg>
-                  </a>
-                )}
-
-                        {/* Discord Icon */}
-                        {discordLink && (
-                          <a
-                            href={discordLink.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 hover:bg-gray-800 rounded transition-colors"
-                            title="Discord"
-                          >
-                            <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
-                    </svg>
-                  </a>
-                )}
-
-                        {/* Telegram Icon */}
-                        {telegramLink && (
-                          <a
-                            href={telegramLink.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 hover:bg-gray-800 rounded transition-colors"
-                            title="Telegram"
-                          >
-                            <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-                    </svg>
-                  </a>
-                )}
-
-                        {/* Search on X Button - Always shown */}
-                        <button
-                          onClick={() => {
-                            const tokenSymbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData?.pairs?.[0]?.baseToken?.symbol || '';
-                            window.open(`https://x.com/search?q=%23${encodeURIComponent(tokenSymbol)}`, '_blank');
-                          }}
-                          className="p-1.5 hover:bg-gray-800 rounded transition-colors"
-                          title="Search on X"
-                        >
-                          <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                        </button>
+                <div className="bg-gray-900/80 border border-gray-800 rounded-2xl overflow-hidden shadow-[0_12px_35px_rgba(0,0,0,0.45)]">
+                  <div className="px-4 pt-4 pb-3 border-b border-gray-800/70">
+                    <div className="mt-1 flex items-end justify-between gap-4">
+                      <div>
+                        <div className="text-2xl font-bold text-white tracking-tight">
+                          {baseSymbol} <span className="text-gray-500">/</span> {quoteSymbol}
                         </div>
-                      );
-                    })()}
+                        <div className="text-xs text-gray-400 mt-1 truncate">
+                          {tokenNameDisplay}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xl font-semibold text-white">
+                          ${formattedPrice}
+                        </div>
+                        <div className={`text-xs font-semibold ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {priceChange >= 0 ? '↑' : '↓'}
+                          {Math.abs(priceChange).toFixed(2)}%
+                        </div>
+                        <div className="text-[11px] text-gray-400 mt-1">
+                          {formattedMarketCap}
+                        </div>
+                      </div>
+                    </div>
                   </div>
+                  <div className="relative h-40 border-b border-gray-800/70 bg-gradient-to-r from-gray-900 via-gray-800 to-black">
+                    {headerImageUrl ? (
+                      <img
+                        src={headerImageUrl}
+                        alt={`${tokenNameDisplay} header`}
+                        className="w-full h-full object-cover"
+                        data-fallback="false"
+                        onError={(e) => {
+                          if (e.currentTarget.dataset.fallback === 'true') return;
+                          e.currentTarget.dataset.fallback = 'true';
+                          e.currentTarget.src = '/app-pics/clean.png';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    <div className="absolute left-4 bottom-3 flex items-center gap-3">
+                      {tokenLogoSrc ? (
+                        <img
+                          src={tokenLogoSrc}
+                          alt={`${tokenNameDisplay} logo`}
+                          className="w-10 h-10 rounded-full border border-white/20 bg-black/30 object-cover"
+                          data-fallback="false"
+                          onError={(e) => {
+                            if (e.currentTarget.dataset.fallback === 'true') {
+                              e.currentTarget.style.display = 'none';
+                              return;
+                            }
+                            e.currentTarget.dataset.fallback = 'true';
+                            e.currentTarget.src = '/LogoVector.svg';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gray-900/80 border border-white/10 flex items-center justify-center text-white font-bold">
+                          {baseSymbol.charAt(0)}
+                        </div>
+                      )}
+                      <div className="text-sm font-semibold text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.9)] truncate max-w-[220px]">
+                        {heroTagline}
+                      </div>
+                    </div>
+                  </div>
+                  {hasSocialLinks && (
+                    <div className="flex divide-x divide-gray-800 bg-gray-900/70">
+                      {socialTabs.map((tab) => (
+                        <button
+                          key={tab.label}
+                          type="button"
+                          onClick={() => handleSocialTabClick(tab.label, tab.url)}
+                          disabled={!tab.url}
+                          className={`flex-1 text-center text-xs font-semibold px-3 py-2 transition-colors ${
+                            activeSocialTab === tab.label ? 'text-white bg-gray-800' : 'text-gray-400'
+                          } ${tab.url ? 'hover:text-white hover:bg-gray-800/60' : 'opacity-40 cursor-not-allowed'}`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
-              <div className="text-xs text-gray-400 py-4">No token data available</div>
+              <div className="text-xs text-gray-400 py-4 text-center">No token data available</div>
             )}
-
-            {/* Header Image - Hidden on mobile, shown on desktop */}
-            {/* {profileData?.profile?.headerImageUrl && (
-              <div className="hidden sm:block px-0 mb-2">
-                <img
-                  src={profileData.profile.headerImageUrl}
-                  alt="Token Header"
-                  className="w-full rounded-lg"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              </div>
-            )} */}
-
+          </div>
             {/* Trade Dropdown */}
             <div className="mb-2 px-0">
               <button
@@ -2150,6 +2588,16 @@ function GeickoPageContent() {
               </div>
             </div>
 
+            {/* API Catalog */}
+            <div className="mb-3 px-0">
+              <div className="bg-gray-800 rounded p-2">
+                <div className="text-xs text-gray-300 font-semibold mb-2">API Catalog</div>
+                <div className="bg-gray-950/70 rounded-lg p-2 max-h-[460px] overflow-y-auto">
+                  <AdminStatsPanel key={apiTokenAddress} initialAddress={apiTokenAddress} compact />
+                </div>
+              </div>
+            </div>
+
             {/* Wallet Ad */}
             <div className="mb-2 px-0">
               <div className="text-xs text-center text-white/50 mb-1">Advertise Here</div>
@@ -2259,67 +2707,35 @@ function GeickoPageContent() {
             </div>
 
             {/* Addresses Section */}
-            <div className="mb-2 px-0">
-              <div className="text-xs text-gray-300 mb-1">Addresses</div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between px-2 py-1 bg-gray-800 rounded">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs text-white">POOL</span>
-                    <span className="text-xs text-gray-300">0x997...5289</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <button className="p-0.5">
-                      <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </button>
-                    <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between px-2 py-1 bg-gray-800 rounded">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs text-white">PSSH</span>
-                    <span className="text-xs text-gray-300">0xb5c...292e</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <button className="p-0.5">
-                      <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </button>
-                    <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                    <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between px-2 py-1 bg-gray-800 rounded">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs text-white">WPLS</span>
-                    <span className="text-xs text-gray-300">0xa10...9a27</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <button className="p-0.5">
-                      <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </button>
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                    <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  </div>
+            {addressItems.length > 0 && (
+              <div className="mb-2 px-0">
+                <div className="text-xs text-gray-300 mb-1">Addresses</div>
+                <div className="space-y-1">
+                  {addressItems.map((item) => (
+                    <div key={`${item.label}-${item.address}`} className="flex items-center justify-between px-2 py-1 bg-gray-800 rounded">
+                      <div>
+                        <div className="text-[11px] text-gray-400 uppercase tracking-wide">{item.label}</div>
+                        <a
+                          href={`https://scan.pulsechain.box/address/${item.address}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-white font-mono hover:text-blue-300 transition-colors"
+                        >
+                          {truncateAddress(item.address)}
+                        </a>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyAddress(item.address)}
+                        className="px-2 py-1 text-[11px] text-gray-200 bg-gray-900/60 rounded border border-gray-700 hover:bg-gray-700 transition-colors"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-
-            {/* Scan this pool on */}
-            <div className="mb-2 px-0">
-              <div className="text-xs text-gray-300 mb-1">Scan this pool on</div>
-              <div className="flex space-x-1">
-                <button className="px-2 py-1 bg-gray-800 text-white text-xs rounded">Quick Intel</button>
-              </div>
-            </div>
+            )}
 
             {/* Pool Details */}
             <div className="mb-2 px-0">
@@ -2338,121 +2754,10 @@ function GeickoPageContent() {
               </div>
             </div>
 
-            {/* Quick Audit Section */}
-            {profileData?.quickAudit && (
-              <div className="mb-2 px-0">
-                <div className="text-xs text-gray-300 mb-2 font-semibold">Quick Audit</div>
-
-                {(() => {
-                  const quickAudit = profileData?.quickAudit;
-                  return (
-                    <>
-                      {/* Contract Information */}
-                      <div className="grid grid-cols-1 gap-2 mb-2">
-                        <div className="bg-gray-800 rounded p-2">
-                          <div className="text-xs text-gray-400 mb-1">Contract Info</div>
-                          <div className="space-y-1 text-xs">
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Name:</span>
-                              <span className="text-white font-mono text-xs truncate ml-2">{quickAudit.contractName}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Creator:</span>
-                              <span className="text-white font-mono text-xs">{quickAudit.contractCreator ? `${quickAudit.contractCreator.slice(0, 6)}...${quickAudit.contractCreator.slice(-4)}` : 'Unknown'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Owner:</span>
-                              <span className={`font-mono text-xs ${quickAudit.contractRenounced ? 'text-green-400' : 'text-red-400'}`}>
-                                {quickAudit.contractRenounced ? 'Renounced' : (quickAudit.contractOwner ? `${quickAudit.contractOwner.slice(0, 6)}...${quickAudit.contractOwner.slice(-4)}` : 'Unknown')}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="bg-gray-800 rounded p-2">
-                          <div className="text-xs text-gray-400 mb-1">Security</div>
-                          <div className="space-y-1 text-xs">
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Proxy:</span>
-                              <span className={quickAudit.isProxy ? 'text-red-400' : 'text-green-400'}>
-                                {quickAudit.isProxy ? 'Yes' : 'No'}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">External Risk:</span>
-                              <span className={quickAudit.hasExternalContractRisk ? 'text-red-400' : 'text-green-400'}>
-                                {quickAudit.hasExternalContractRisk ? 'Yes' : 'No'}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Suspicious:</span>
-                              <span className={quickAudit.hasSuspiciousFunctions ? 'text-red-400' : 'text-green-400'}>
-                                {quickAudit.hasSuspiciousFunctions ? 'Yes' : 'No'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Capabilities Grid */}
-                      <div className="bg-gray-800 rounded p-2 mb-2">
-                        <div className="text-xs text-gray-400 mb-2">Capabilities</div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Mint:</span>
-                            <span className={quickAudit.canMint ? 'text-red-400' : 'text-green-400'}>
-                              {quickAudit.canMint ? 'Yes' : 'No'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Burn:</span>
-                            <span className={quickAudit.canBurn ? 'text-yellow-400' : 'text-green-400'}>
-                              {quickAudit.canBurn ? 'Yes' : 'No'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Blacklist:</span>
-                            <span className={quickAudit.canBlacklist ? 'text-red-400' : 'text-green-400'}>
-                              {quickAudit.canBlacklist ? 'Yes' : 'No'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Pause:</span>
-                            <span className={quickAudit.canPauseTrading ? 'text-red-400' : 'text-green-400'}>
-                              {quickAudit.canPauseTrading ? 'Yes' : 'No'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Fees:</span>
-                            <span className={quickAudit.canUpdateFees ? 'text-red-400' : 'text-green-400'}>
-                              {quickAudit.canUpdateFees ? 'Yes' : 'No'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Max Wallet:</span>
-                            <span className={quickAudit.canUpdateMaxWallet ? 'text-red-400' : 'text-green-400'}>
-                              {quickAudit.canUpdateMaxWallet ? 'Yes' : 'No'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Max TX:</span>
-                            <span className={quickAudit.canUpdateMaxTx ? 'text-red-400' : 'text-green-400'}>
-                              {quickAudit.canUpdateMaxTx ? 'Yes' : 'No'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Cooldown:</span>
-                            <span className={quickAudit.hasTradingCooldown ? 'text-yellow-400' : 'text-green-400'}>
-                              {quickAudit.hasTradingCooldown ? 'Yes' : 'No'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            )}
+            {/* Other Liquidity Pairs */}
+            <div className="mb-2 px-0">
+              {renderOtherLiquiditySection()}
+            </div>
 
             {/* Video Ad - Always Show */}
             <div className="mb-2 px-0 relative group">
@@ -2574,17 +2879,19 @@ function GeickoPageContent() {
           </div>
         </div>
       </div>
-          </div>
+    </>
   );
 }
 
 export default function GeickoPage() {
-                    return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-                              <LoaderThree />
-                            </div>
-    }>
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-black text-white flex items-center justify-center">
+          <LoaderThree />
+        </div>
+      }
+    >
       <GeickoPageContent />
     </Suspense>
   );

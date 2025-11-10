@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -93,6 +93,8 @@ const PortfolioTracker: React.FC = () => {
   const [isLoadingTransactions, setIsLoadingTransactions] = useState<boolean>(false);
   const [transactionsError, setTransactionsError] = useState<string | null>(null);
   const [tokenLogos, setTokenLogos] = useState<Record<string, string>>({});
+  const [uiPreset, setUiPresetState] = useState<'classic' | 'rabby1'>('classic');
+  const [showSettingsDrawer, setShowSettingsDrawer] = useState<boolean>(false);
   
   // Transaction filtering
   const [transactionFilter, setTransactionFilter] = useState<'all' | 'receives' | 'sends'>('all');
@@ -109,6 +111,120 @@ const PortfolioTracker: React.FC = () => {
   const [isLoadingApprovals, setIsLoadingApprovals] = useState<boolean>(false);
   const [approvalsError, setApprovalsError] = useState<string | null>(null);
   const [spenderNames, setSpenderNames] = useState<Record<string, string>>({});
+  const [holdersTimeframe, setHoldersTimeframe] = useState<'1' | '7' | '30' | '90'>('30');
+  const [holdersStatsLoading, setHoldersStatsLoading] = useState<boolean>(false);
+  const [holdersStats, setHoldersStats] = useState<{ newHolders: number; lostHolders: number; netChange: number } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storedPreset = window.localStorage.getItem('geicko-ui-preset');
+    if (storedPreset === 'classic' || storedPreset === 'rabby1') {
+      setUiPresetState(storedPreset);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const shouldOpenFromSession = window.sessionStorage.getItem('open-portfolio-settings') === '1';
+    const urlSearchParams = new URLSearchParams(window.location.search);
+    const shouldOpenFromQuery = urlSearchParams.get('settings') === '1';
+
+    if (shouldOpenFromSession || shouldOpenFromQuery) {
+      setShowSettingsDrawer(true);
+      window.sessionStorage.removeItem('open-portfolio-settings');
+      if (shouldOpenFromQuery) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('settings');
+        window.history.replaceState(null, '', url.toString());
+      }
+    }
+  }, []);
+
+  const updateUiPreset = useCallback((preset: 'classic' | 'rabby1') => {
+    setUiPresetState(preset);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('geicko-ui-preset', preset);
+      const customEvent = new CustomEvent<'classic' | 'rabby1'>('geicko-ui-preset-change', {
+        detail: preset,
+      });
+      window.dispatchEvent(customEvent);
+    }
+    setShowSettingsDrawer(false);
+  }, []);
+
+  const isRabbyUI = uiPreset === 'rabby1';
+
+  const settingsDrawer = showSettingsDrawer ? (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={() => setShowSettingsDrawer(false)}
+      />
+      <div className="relative w-full max-w-md space-y-4 rounded-3xl border border-white/10 bg-slate-950 p-5 shadow-[0_20px_80px_rgba(0,0,0,0.65)]">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-white">Interface Settings</p>
+            <p className="text-xs text-slate-400">Choose your preferred layout for Geicko</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSettingsDrawer(false)}
+            className="text-slate-400 transition-colors hover:text-white"
+            title="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="space-y-2">
+          <label
+            className={`flex items-center justify-between rounded-2xl border px-3 py-2 ${
+              uiPreset === 'classic'
+                ? 'border-white/30 bg-white/5'
+                : 'border-white/10 transition-colors hover:border-white/20'
+            }`}
+          >
+            <div>
+              <p className="text-sm font-semibold text-white">Classic Layout</p>
+              <p className="text-xs text-slate-400">Minimal tabs and analytics</p>
+            </div>
+            <input
+              type="radio"
+              name="uiPreset"
+              value="classic"
+              checked={uiPreset === 'classic'}
+              onChange={() => updateUiPreset('classic')}
+              className="accent-white"
+            />
+          </label>
+          <label
+            className={`flex items-center justify-between rounded-2xl border px-3 py-2 ${
+              uiPreset === 'rabby1'
+                ? 'border-indigo-300 bg-indigo-500/10'
+                : 'border-white/10 transition-colors hover:border-white/20'
+            }`}
+          >
+            <div>
+              <p className="text-sm font-semibold text-white">Rabby 1</p>
+              <p className="text-xs text-slate-400">Carded dashboard + action grid</p>
+            </div>
+            <input
+              type="radio"
+              name="uiPreset"
+              value="rabby1"
+              checked={uiPreset === 'rabby1'}
+              onChange={() => updateUiPreset('rabby1')}
+              className="accent-indigo-400"
+            />
+          </label>
+        </div>
+        <p className="text-[11px] text-slate-500">
+          Preferences are saved locally in your browser so your favorite layout loads automatically the next time you
+          visit Geicko.
+        </p>
+      </div>
+    </div>
+  ) : null;
 
   // Fetch spender contract names from PulseChain API
   const fetchSpenderNames = async (spenderAddresses: string[]): Promise<Record<string, string>> => {
@@ -323,17 +439,19 @@ const PortfolioTracker: React.FC = () => {
   // LP token detection and calculation function
   const getLPTokenPairInfo = async (tokenAddress: string, tokenSymbol: string, tokenName: string, walletBalance: string): Promise<{isLP: boolean, pairInfo?: {token0: string, token1: string, token0Symbol: string, token1Symbol: string, token0Amount: string, token1Amount: string, token0Logo?: string, token1Logo?: string}}> => {
     // Check if this is an LP token by symbol/name patterns
-    const isLPBySymbol = tokenSymbol.includes('LP') || 
-                        tokenSymbol.includes('UNI-V2') || 
-                        tokenSymbol.includes('CAKE-LP') ||
-                        tokenSymbol.includes('PLSX-LP') ||
-                        tokenSymbol.includes('PULSEX-LP') ||
-                        tokenSymbol.includes('V2');
+    const normalizedSymbol = (tokenSymbol || '').toUpperCase();
+    const normalizedName = (tokenName || '').toLowerCase();
+    const isLPBySymbol = normalizedSymbol.includes('LP') ||
+                        normalizedSymbol.includes('UNI-V2') ||
+                        normalizedSymbol.includes('CAKE-LP') ||
+                        normalizedSymbol.includes('PLSX-LP') ||
+                        normalizedSymbol.includes('PULSEX-LP') ||
+                        normalizedSymbol.includes('V2');
     
-    const isLPByName = tokenName.toLowerCase().includes('liquidity') ||
-                      tokenName.toLowerCase().includes('lp token') ||
-                      tokenName.toLowerCase().includes('pair') ||
-                      tokenName.toLowerCase().includes('liquidity pool');
+    const isLPByName = normalizedName.includes('liquidity') ||
+                      normalizedName.includes('lp token') ||
+                      normalizedName.includes('pair') ||
+                      normalizedName.includes('liquidity pool');
     
     if (!isLPBySymbol && !isLPByName) {
       return { isLP: false };
@@ -1527,8 +1645,345 @@ const PortfolioTracker: React.FC = () => {
     );
   };
 
+  if (isRabbyUI) {
+    const sortedTokens = [...plsData.tokens].sort((a, b) => {
+      const priceA = parseFloat(a.token.exchange_rate || '0');
+      const amountA = parseFloat(a.value) / Math.pow(10, a.token.decimals || 18);
+      const priceB = parseFloat(b.token.exchange_rate || '0');
+      const amountB = parseFloat(b.value) / Math.pow(10, b.token.decimals || 18);
+      return amountB * priceB - amountA * priceA;
+    }).slice(0, 6);
+
+    const topTransactions = transactions.slice(0, 5);
+    const approvalsPreview = approvals.slice(0, 4);
+
+    return (
+      <>
+        <div className="min-h-screen bg-[#eef2ff] text-[#0f172a]">
+          <header className="bg-[#1c2cf8] px-4 py-6 text-white shadow-[0_24px_60px_rgba(28,44,248,0.35)]">
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleSearch();
+                }}
+                className="flex w-full flex-col gap-2 sm:flex-row sm:items-center"
+              >
+                <div className="relative flex-1">
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Enter PulseChain address..."
+                    value={address}
+                    onChange={(event) => setAddress(event.target.value)}
+                    onKeyPress={handleKeyPress}
+                    className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white placeholder-white/70 shadow-[0_8px_25px_rgba(15,23,42,0.25)] focus:border-white focus:outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={loading || !address.trim()}
+                    className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-[#1c2cf8] shadow-[0_12px_25px_rgba(15,23,42,0.25)] transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:bg-white/70"
+                  >
+                    {loading ? 'Loading...' : 'Search'}
+                  </button>
+                  {/* <button
+                    type="button"
+                    onClick={() => setShowSettingsDrawer(true)}
+                    className="rounded-2xl border border-white/30 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                  >
+                    UI Settings
+                  </button> */}
+                </div>
+              </form>
+            </div>
+          </header>
+
+          <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
+            {!currentAddress ? (
+              <div className="rounded-[32px] border border-white/60 bg-white/80 px-6 py-12 text-center shadow-[0_30px_80px_rgba(15,23,42,0.18)] backdrop-blur-xl sm:px-10">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-2xl">
+                  👛
+                </div>
+                <h2 className="text-2xl font-bold text-[#0f172a] sm:text-3xl">Track Your PulseChain Portfolio</h2>
+                <p className="mt-3 text-sm text-slate-500 sm:text-base">
+                  Enter any PulseChain address to view real-time balances, transactions, approvals, and analytics in the
+                  Rabby-inspired view.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                <section className="rounded-[32px] border border-white/50 bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.2)] sm:p-8">
+                  <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.35em] text-indigo-400">Portfolio Value</p>
+                      <p className="mt-2 text-4xl font-black tracking-tight text-[#0f172a] sm:text-5xl">
+                        {formatUSDValue(totalPortfolioValue)}
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500 sm:text-sm">
+                        <span className="rounded-full bg-indigo-50 px-3 py-1 font-semibold text-indigo-600">
+                          {plsData.tokenCount} Tokens
+                        </span>
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-600">
+                          {transactions.length} Transactions
+                        </span>
+                        <span className="rounded-full bg-amber-50 px-3 py-1 font-semibold text-amber-600">
+                          {approvals.length} Approvals
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid w-full gap-3 sm:grid-cols-3 lg:w-auto">
+                      <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm shadow">
+                        <p className="text-xs uppercase tracking-wide text-indigo-400">Native Balance</p>
+                        <p className="mt-1 text-lg font-semibold text-[#1c2cf8]">
+                          {formatETHValue(plsData.nativeBalance)} PLS
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 text-sm shadow">
+                        <p className="text-xs uppercase tracking-wide text-emerald-500">PLS Price</p>
+                        <p className="mt-1 text-lg font-semibold text-emerald-600">
+                          {plsPrice ? formatUSDValue(plsPrice) : '$0.00'}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm shadow">
+                        <p className="text-xs uppercase tracking-wide text-slate-500">Watching</p>
+                        <div className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                          <code className="rounded-full bg-slate-100 px-3 py-1 font-mono text-xs">
+                            {truncateAddress(currentAddress)}
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(currentAddress)}
+                            className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold hover:bg-slate-50"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+                  <div className="space-y-6">
+                    <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-[#0f172a]">Token Holdings</h3>
+                        <span className="text-xs font-medium text-slate-500">
+                          Showing {sortedTokens.length} of {plsData.tokenCount}
+                        </span>
+                      </div>
+                      <div className="mt-4 divide-y divide-slate-100">
+                        {sortedTokens.length > 0 ? (
+                          sortedTokens.map((token, index) => {
+                            const price = parseFloat(token.token.exchange_rate || '0');
+                            const amount = parseFloat(token.value) / Math.pow(10, token.token.decimals || 18);
+                            const usdValue = amount * price;
+                            return (
+                              <div
+                                key={`${token.token.address}-${index}`}
+                                className="flex items-center justify-between py-3"
+                              >
+                                <div>
+                                  <p className="text-sm font-semibold text-[#0f172a]">
+                                    {token.token.name || 'Unknown Token'}
+                                    <span className="ml-2 text-xs font-medium text-slate-400">
+                                      {token.token.symbol}
+                                    </span>
+                                  </p>
+                                  <p className="text-xs text-slate-400">
+                                    {formatTokenValue(token.value, token.token.decimals)} {token.token.symbol}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm font-semibold text-[#0f172a]">
+                                    {formatUSDValue(usdValue)}
+                                  </p>
+                                  <p className="text-xs text-slate-400">${price.toFixed(6)} each</p>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="py-6 text-center text-sm text-slate-400">
+                            No token balances detected for this address.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-[#0f172a]">Token Approvals</h3>
+                        <span className="text-xs font-medium text-slate-500">Latest {approvalsPreview.length}</span>
+                      </div>
+                      <div className="mt-4 space-y-3">
+                        {approvalsPreview.length > 0 ? (
+                          approvalsPreview.map((approval, index) => (
+                            <div
+                              key={`${approval.transaction_hash}-${index}`}
+                              className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm font-semibold text-[#0f172a]">
+                                    {approval.token.name || approval.token.symbol || 'Token'}
+                                  </p>
+                                  <p className="text-xs text-slate-400">
+                                    Allowance: {formatApprovalAmount(approval.value_formatted)}
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(approval.token.address)}
+                                  className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold hover:bg-slate-100"
+                                >
+                                  Copy
+                                </button>
+                              </div>
+                              <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                                <span>{new Date(approval.block_timestamp).toLocaleDateString()}</span>
+                                <a
+                                  href={`https://scan.pulsechain.com/address/${approval.spender.address}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-medium text-indigo-600 hover:text-indigo-500"
+                                >
+                                  View Spender →
+                                </a>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="py-6 text-center text-sm text-slate-400">
+                            No approvals fetched for this wallet yet.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-[#0f172a]">Recent Transactions</h3>
+                        <span className="text-xs font-medium text-slate-500">Last {topTransactions.length}</span>
+                      </div>
+                      <div className="mt-4 space-y-3">
+                        {topTransactions.length > 0 ? (
+                          topTransactions.map((tx, index) => (
+                            <div
+                              key={`${tx.txHash}-${index}`}
+                              className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3"
+                            >
+                              <div className="flex items-center justify-between text-sm font-semibold text-[#0f172a]">
+                                <span>{tx.type}</span>
+                                <span>{formatUSDValue(tx.amount * tx.priceUsd)}</span>
+                              </div>
+                              <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
+                                <span>{formatDetailedTimeAgo(tx.timestamp)}</span>
+                                <a
+                                  href={`https://scan.pulsechain.com/tx/${tx.txHash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-medium text-indigo-600 hover:text-indigo-500"
+                                >
+                                  View →
+                                </a>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="py-6 text-center text-sm text-slate-400">
+                            No recent transactions for this wallet.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-[#0f172a]">Holder Metrics</h3>
+                        <div className="flex items-center gap-1 text-xs font-medium text-indigo-500">
+                          {(['1', '7', '30', '90'] as const).map((tf) => (
+                            <button
+                              key={tf}
+                              type="button"
+                              onClick={async () => {
+                                setHoldersTimeframe(tf);
+                                const days = tf === '1' ? 1 : tf === '7' ? 7 : tf === '30' ? 30 : 90;
+                                setHoldersStatsLoading(true);
+                                try {
+                                  const apiRes = await fetch(`/api/holders-metrics?address=${encodeURIComponent(apiTokenAddress)}&days=${days}`);
+                                  if (apiRes.ok) {
+                                    const data = await apiRes.json();
+                                    if (data && typeof data.newHolders === 'number') {
+                                      setHoldersStats({
+                                        newHolders: data.newHolders,
+                                        lostHolders: data.lostHolders,
+                                        netChange: data.netChange,
+                                      });
+                                    }
+                                  }
+                                } catch (error) {
+                                  console.error('Failed to load holders stats:', error);
+                                } finally {
+                                  setHoldersStatsLoading(false);
+                                }
+                              }}
+                              className={`rounded-full px-2 py-1 ${holdersTimeframe === tf ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                            >
+                              {tf}d
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-5">
+                        {holdersStatsLoading ? (
+                          <div className="flex items-center justify-center py-4 text-sm text-slate-500">Loading…</div>
+                        ) : holdersStats ? (
+                          <div className="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-emerald-500">New</p>
+                              <p className="mt-1 text-xl font-semibold text-[#0f172a]">
+                                {holdersStats.newHolders.toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-rose-500">Lost</p>
+                              <p className="mt-1 text-xl font-semibold text-[#0f172a]">
+                                {holdersStats.lostHolders.toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-indigo-500">Net</p>
+                              <p className="mt-1 text-xl font-semibold text-[#0f172a]">
+                                {holdersStats.netChange.toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center py-4 text-sm text-slate-500">
+                            Select a timeframe to populate holder metrics.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            )}
+          </main>
+        </div>
+        {settingsDrawer}
+      </>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950">
+    <>
+      <div className="min-h-screen bg-slate-950">
       {/* Header */}
       <div className="border-b border-gray-700 bg-slate-950/80 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1562,6 +2017,13 @@ const PortfolioTracker: React.FC = () => {
               >
                 {loading ? 'Loading...' : 'Search'}
               </Button>
+              {/* <Button
+                type="button"
+                onClick={() => setShowSettingsDrawer(true)}
+                className="bg-gray-800 text-white hover:bg-gray-700"
+              >
+                UI Settings
+              </Button> */}
             </div>
           </div>
         </div>
@@ -1713,7 +2175,9 @@ const PortfolioTracker: React.FC = () => {
         )}
       </div>
 
-    </div>
+      </div>
+      {settingsDrawer}
+    </>
   );
 };
 

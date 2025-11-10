@@ -45,7 +45,6 @@ export default function RootLayout({
   const isAICodeReaderPage = pathname === "/ai-agent";
   const isGeickoPage = pathname === "/geicko";
   const isStackerGamePage = pathname === "/stacker-game";
-  const isAdminStatsCleanPage = pathname === "/admin-stats-clean";
   const [open, setOpen] = useState(false);
 
   const links = [
@@ -136,47 +135,46 @@ export default function RootLayout({
         style={{ backgroundColor: '#0C2340' }}
       >
         <div className="flex flex-col min-h-screen md:h-screen w-full md:overflow-hidden">
-          {!isStackerGamePage && !isAdminStatsCleanPage && <TopTickerBar />}
+          {!isStackerGamePage && <TopTickerBar />}
           <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
-            {!isAdminStatsCleanPage && (
-              <Sidebar open={open} setOpen={setOpen}>
-                <SidebarBody className="justify-between gap-10">
-                  <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-                    <div className="mt-8 flex flex-col gap-2">
-                      {links.map((link, idx) => (
-                        <SidebarLink key={idx} link={link} />
+            <Sidebar open={open} setOpen={setOpen}>
+              <SidebarBody className="justify-between gap-10">
+                <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+                  <div className="mt-8 flex flex-col gap-2">
+                    {links.map((link, idx) => (
+                      <SidebarLink key={idx} link={link} />
+                    ))}
+
+                    {/* Search button - visible on Token + AI and Tokens pages */}
+                    {(isAICodeReaderPage || isGeickoPage) && (
+                      <button
+                        type="button"
+                        onClick={handleOpenSearch}
+                        className="flex items-center justify-center gap-2 group/sidebar py-2 px-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-md transition duration-200"
+                        title="Search Token or Contract"
+                      >
+                        <IconSearch className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
+                        {open && (
+                          <span className="text-sm text-neutral-700 dark:text-neutral-200 group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0">
+                            Search
+                          </span>
+                        )}
+                      </button>
+                    )}
+
+                    {/* Games Section */}
+                    <div className="mt-6">
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2 md:hidden group-hover/sidebar:md:block"
+                      >
+                        Games
+                      </motion.div>
+                      {gamesLinks.map((link, idx) => (
+                        <SidebarLink key={`game-${idx}`} link={link} />
                       ))}
-
-                      {/* Search button - visible on Token + AI and Tokens pages */}
-                      {(isAICodeReaderPage || isGeickoPage) && (
-                        <button
-                          type="button"
-                          onClick={handleOpenSearch}
-                          className="flex items-center justify-center gap-2 group/sidebar py-2 px-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-md transition duration-200"
-                          title="Search Token or Contract"
-                        >
-                          <IconSearch className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-                          {open && (
-                            <span className="text-sm text-neutral-700 dark:text-neutral-200 group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0">
-                              Search
-                            </span>
-                          )}
-                        </button>
-                      )}
-
-                      {/* Games Section */}
-                      <div className="mt-6">
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2 md:hidden group-hover/sidebar:md:block"
-                        >
-                          Games
-                        </motion.div>
-                        {gamesLinks.map((link, idx) => (
-                          <SidebarLink key={`game-${idx}`} link={link} />
-                        ))}
-                      </div>
+                    </div>
 
                     {/* Sponsored by Section */}
                     <div className="mt-6">
@@ -195,11 +193,10 @@ export default function RootLayout({
                         }}
                       />
                     </div>
-                    </div>
                   </div>
-                </SidebarBody>
-              </Sidebar>
-            )}
+                </div>
+              </SidebarBody>
+            </Sidebar>
             <main className="flex-1 w-full overflow-y-auto">
               {children}
             </main>
