@@ -18,25 +18,19 @@ export function ProgressiveBlur({
   position = "bottom",
   blurLevels = [0.5, 1, 2, 4, 8, 16, 32, 64],
 }: ProgressiveBlurProps) {
-  // Create array with length equal to blurLevels.length - 2 (for before/after pseudo elements)
   const divElements = Array(blurLevels.length - 2).fill(null)
 
-  return (
+  const renderEdge = (edge: "top" | "bottom") => (
     <div
       className={cn(
         "gradient-blur pointer-events-none absolute inset-x-0 z-10",
         className,
-        position === "top"
-          ? "top-0"
-          : position === "bottom"
-            ? "bottom-0"
-            : "inset-y-0"
+        edge === "top" ? "top-0" : "bottom-0"
       )}
       style={{
-        height: position === "both" ? "100%" : height,
+        height,
       }}
     >
-      {/* First blur layer (pseudo element) */}
       <div
         className="absolute inset-0"
         style={{
@@ -44,21 +38,16 @@ export function ProgressiveBlur({
           backdropFilter: `blur(${blurLevels[0]}px)`,
           WebkitBackdropFilter: `blur(${blurLevels[0]}px)`,
           maskImage:
-            position === "bottom"
+            edge === "bottom"
               ? `linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 12.5%, rgba(0,0,0,1) 25%, rgba(0,0,0,0) 37.5%)`
-              : position === "top"
-                ? `linear-gradient(to top, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 12.5%, rgba(0,0,0,1) 25%, rgba(0,0,0,0) 37.5%)`
-                : `linear-gradient(rgba(0,0,0,0) 0%, rgba(0,0,0,1) 5%, rgba(0,0,0,1) 95%, rgba(0,0,0,0) 100%)`,
+              : `linear-gradient(to top, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 12.5%, rgba(0,0,0,1) 25%, rgba(0,0,0,0) 37.5%)`,
           WebkitMaskImage:
-            position === "bottom"
+            edge === "bottom"
               ? `linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 12.5%, rgba(0,0,0,1) 25%, rgba(0,0,0,0) 37.5%)`
-              : position === "top"
-                ? `linear-gradient(to top, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 12.5%, rgba(0,0,0,1) 25%, rgba(0,0,0,0) 37.5%)`
-                : `linear-gradient(rgba(0,0,0,0) 0%, rgba(0,0,0,1) 5%, rgba(0,0,0,1) 95%, rgba(0,0,0,0) 100%)`,
+              : `linear-gradient(to top, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 12.5%, rgba(0,0,0,1) 25%, rgba(0,0,0,0) 37.5%)`,
         }}
       />
 
-      {/* Middle blur layers */}
       {divElements.map((_, index) => {
         const blurIndex = index + 1
         const startPercent = blurIndex * 12.5
@@ -66,15 +55,13 @@ export function ProgressiveBlur({
         const endPercent = (blurIndex + 2) * 12.5
 
         const maskGradient =
-          position === "bottom"
+          edge === "bottom"
             ? `linear-gradient(to bottom, rgba(0,0,0,0) ${startPercent}%, rgba(0,0,0,1) ${midPercent}%, rgba(0,0,0,1) ${endPercent}%, rgba(0,0,0,0) ${endPercent + 12.5}%)`
-            : position === "top"
-              ? `linear-gradient(to top, rgba(0,0,0,0) ${startPercent}%, rgba(0,0,0,1) ${midPercent}%, rgba(0,0,0,1) ${endPercent}%, rgba(0,0,0,0) ${endPercent + 12.5}%)`
-              : `linear-gradient(rgba(0,0,0,0) 0%, rgba(0,0,0,1) 5%, rgba(0,0,0,1) 95%, rgba(0,0,0,0) 100%)`
+            : `linear-gradient(to top, rgba(0,0,0,0) ${startPercent}%, rgba(0,0,0,1) ${midPercent}%, rgba(0,0,0,1) ${endPercent}%, rgba(0,0,0,0) ${endPercent + 12.5}%)`
 
         return (
           <div
-            key={`blur-${index}`}
+            key={`blur-${edge}-${index}`}
             className="absolute inset-0"
             style={{
               zIndex: index + 2,
@@ -87,7 +74,6 @@ export function ProgressiveBlur({
         )
       })}
 
-      {/* Last blur layer (pseudo element) */}
       <div
         className="absolute inset-0"
         style={{
@@ -95,19 +81,26 @@ export function ProgressiveBlur({
           backdropFilter: `blur(${blurLevels[blurLevels.length - 1]}px)`,
           WebkitBackdropFilter: `blur(${blurLevels[blurLevels.length - 1]}px)`,
           maskImage:
-            position === "bottom"
+            edge === "bottom"
               ? `linear-gradient(to bottom, rgba(0,0,0,0) 87.5%, rgba(0,0,0,1) 100%)`
-              : position === "top"
-                ? `linear-gradient(to top, rgba(0,0,0,0) 87.5%, rgba(0,0,0,1) 100%)`
-                : `linear-gradient(rgba(0,0,0,0) 0%, rgba(0,0,0,1) 5%, rgba(0,0,0,1) 95%, rgba(0,0,0,0) 100%)`,
+              : `linear-gradient(to top, rgba(0,0,0,0) 87.5%, rgba(0,0,0,1) 100%)`,
           WebkitMaskImage:
-            position === "bottom"
+            edge === "bottom"
               ? `linear-gradient(to bottom, rgba(0,0,0,0) 87.5%, rgba(0,0,0,1) 100%)`
-              : position === "top"
-                ? `linear-gradient(to top, rgba(0,0,0,0) 87.5%, rgba(0,0,0,1) 100%)`
-                : `linear-gradient(rgba(0,0,0,0) 0%, rgba(0,0,0,1) 5%, rgba(0,0,0,1) 95%, rgba(0,0,0,0) 100%)`,
+              : `linear-gradient(to top, rgba(0,0,0,0) 87.5%, rgba(0,0,0,1) 100%)`,
         }}
       />
     </div>
   )
+
+  if (position === "both") {
+    return (
+      <>
+        {renderEdge("top")}
+        {renderEdge("bottom")}
+      </>
+    )
+  }
+
+  return renderEdge(position ?? "bottom")
 }

@@ -57,15 +57,7 @@ export class DexScreenerApiClient {
         let pairDetails = null;
         if (mainPair.pairAddress) {
           try {
-            // Construct full URL - use window location if available (client-side)
-            let baseUrl: string;
-            if (typeof window !== 'undefined') {
-              baseUrl = window.location.origin;
-            } else {
-              baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-            }
-            
-            const v4Url = `${baseUrl}/api/dexscreener-v4/pulsechain/${mainPair.pairAddress}`;
+            const v4Url = `/api/dexscreener-v4/pulsechain/${mainPair.pairAddress}`;
             console.log('Fetching DexScreener V4 via proxy:', v4Url);
             
             // Add timeout and better error handling
@@ -99,6 +91,22 @@ export class DexScreenerApiClient {
           }
         } else {
           console.warn('No pair address found for v4 fetch');
+        }
+
+        // Even if v4 data could not be retrieved, keep a lightweight fallback structure
+        const fallbackInfo = mainPair.info || {};
+        if (!pairDetails) {
+          pairDetails = {
+            cms: null,
+            profile: {
+              socials: fallbackInfo.socials || [],
+              websites: fallbackInfo.websites || [],
+              description: fallbackInfo.description || '',
+              logo: fallbackInfo.imageUrl || mainPair.baseToken?.logoURI || null,
+              headerImageUrl: fallbackInfo.header || null,
+            },
+            info: fallbackInfo,
+          };
         }
 
         // Get the most complete token info
@@ -148,7 +156,7 @@ export class DexScreenerApiClient {
 
         // Extract CMS data from v4 endpoint
         const cms = pairDetails?.cms || null;
-        const description = cms?.description || '';
+        const description = cms?.description || pairDetails?.profile?.description || fallbackInfo.description || '';
         
         // Extract Quick Audit data from v4 endpoint
         const quickAudit = pairDetails?.qi?.quickiAudit || null;
@@ -157,10 +165,10 @@ export class DexScreenerApiClient {
         const tokenAddress = address.toLowerCase();
         const headerImageUrl = cms?.header?.id 
           ? `https://dd.dexscreener.com/ds-data/tokens/pulsechain/${tokenAddress}/header.png?key=${cms.header.id}`
-          : null;
+          : (pairDetails?.profile?.headerImageUrl || fallbackInfo.header || null);
         const iconImageUrl = cms?.icon?.id
           ? `https://dd.dexscreener.com/ds-data/tokens/pulsechain/${tokenAddress}/icon.png?key=${cms.icon.id}`
-          : null;
+          : (pairDetails?.profile?.iconImageUrl || fallbackInfo.imageUrl || null);
         
         // Extract links from CMS
         const cmsLinks = cms?.links || [];
@@ -180,7 +188,7 @@ export class DexScreenerApiClient {
                     pairDetails?.info?.imageUrl ||
                     tokenInfo?.logoURI || 
                     mainPair.baseToken?.logoURI ||
-                    mainPair.info?.imageUrl;
+                    fallbackInfo.imageUrl;
 
         const profileData = {
           pairs: combinedPairs,

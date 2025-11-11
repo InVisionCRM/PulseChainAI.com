@@ -306,6 +306,18 @@ export default function HeroTokenAiChat(): JSX.Element {
     primaryPair?.baseToken?.links
   );
 
+  const analyzingLogo =
+    tokenProfile?.profile?.logo ||
+    tokenProfile?.profile?.imageUrl ||
+    tokenProfile?.info?.logo ||
+    tokenProfile?.info?.imageUrl ||
+    tokenProfile?.tokenInfo?.iconUrl ||
+    tokenProfile?.cms?.logo ||
+    primaryPair?.info?.imageUrl ||
+    primaryPair?.baseToken?.logoURI ||
+    selectedToken?.logoURI ||
+    selectedToken?.image;
+
   const renderSearchSection = (withAnalyzingCard = false) => (
     <div className="space-y-3">
       <form onSubmit={handleManualSubmit} className="space-y-2">
@@ -314,6 +326,7 @@ export default function HeroTokenAiChat(): JSX.Element {
             value={query}
             onChange={(e) => handleInputChange(e.target.value)}
             placeholder={activePlaceholder}
+            inputMode="text"
             className="w-full rounded-2xl bg-white/5 border border-white/20 px-4 py-2 text-xs placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/40"
           />
           <button
@@ -363,13 +376,22 @@ export default function HeroTokenAiChat(): JSX.Element {
         <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">
           Now analyzing
         </p>
-        <div className="text-base font-semibold text-white truncate max-w-full">
-          {selectedToken.name}{' '}
-          {selectedToken.symbol && (
-            <span className="text-white/70 text-sm">
-              ({selectedToken.symbol})
-            </span>
+        <div className="text-base font-semibold text-white truncate max-w-full flex items-center gap-2">
+          {analyzingLogo && (
+            <img
+              src={analyzingLogo}
+              alt={`${selectedToken.name ?? 'Token'} logo`}
+              className="w-6 h-6 rounded-full object-cover"
+            />
           )}
+          <span className="truncate">
+            {selectedToken.name}{' '}
+            {selectedToken.symbol && (
+              <span className="text-white/70 text-sm">
+                ({selectedToken.symbol})
+              </span>
+            )}
+          </span>
         </div>
         <div className="text-[11px] font-mono text-white/70 truncate max-w-full">
           {selectedToken.address}
@@ -476,8 +498,10 @@ export default function HeroTokenAiChat(): JSX.Element {
   return (
     <div className="relative z-20 w-full px-4 pt-24 pb-16 flex justify-center">
       <div
-        className={`w-full rounded-[32px] border border-white/15 bg-white/4 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[40px] p-5 sm:p-7 text-white space-y-5 ${
-          isCollapsed ? 'max-w-[40rem]' : 'w-[75vw] max-w-[75vw]'
+        className={`w-full rounded-[32px] border border-white/15 bg-white/4 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[40px] p-4 sm:p-7 text-white space-y-5 ${
+          isCollapsed
+            ? 'max-w-full sm:max-w-[40rem]'
+            : 'max-w-full sm:max-w-[60rem]'
         }`}
       >
         <div className="flex items-center justify-between">

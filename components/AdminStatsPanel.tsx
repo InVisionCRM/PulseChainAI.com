@@ -6,6 +6,7 @@ import { fetchDexScreenerData, search } from '@/services/pulsechainService';
 import { Button } from '@/components/ui/stateful-button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import { ProgressiveBlur } from '@/components/ui/progressive-blur';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const MAX_SNIPPET_CHARS = 400;
 
@@ -225,6 +226,7 @@ export default function AdminStatsPanel({
   const [selectedStat, setSelectedStat] = useState<string>('');
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [showAllEndpoints, setShowAllEndpoints] = useState<boolean>(false);
+  const [activeCategory, setActiveCategory] = useState<string>('');
 
   useEffect(() => {
     if (networkEvents.length === 0) return;
@@ -332,6 +334,7 @@ export default function AdminStatsPanel({
     requestSessionMapRef.current.clear();
     sessionIdRef.current = null;
     setSelectedStat('');
+    setActiveCategory('');
     setCache({});
     setError(null);
     setShowAllEndpoints(false);
@@ -1407,8 +1410,69 @@ export default function AdminStatsPanel({
     ];
   }, [ensureCoreCaches, ensureDex, ensureHolders, ensureTransfers24h, tokenAddress]);
 
+  const flatStatList = useMemo(
+    () => statCategories.flatMap(category => category.stats),
+    [statCategories]
+  );
+
+  const selectedStatMeta = useMemo(
+    () => flatStatList.find(stat => stat.id === selectedStat) ?? null,
+    [flatStatList, selectedStat]
+  );
+
+  const selectedStatCategory = useMemo(() => {
+    if (!selectedStatMeta) return null;
+    return (
+      statCategories.find(category =>
+        category.stats.some(stat => stat.id === selectedStatMeta.id)
+      ) ?? null
+    );
+  }, [statCategories, selectedStatMeta]);
+
+  const resolvedCategoryTitle = useMemo(() => {
+    if (activeCategory) return activeCategory;
+    return statCategories[0]?.title ?? '';
+  }, [activeCategory, statCategories]);
+
+  const activeStats = useMemo(() => {
+    if (!resolvedCategoryTitle) return [];
+    const category = statCategories.find(item => item.title === resolvedCategoryTitle);
+    return category ? category.stats : [];
+  }, [resolvedCategoryTitle, statCategories]);
+
+  useEffect(() => {
+    if (statCategories.length === 0) return;
+    if (!activeCategory) {
+      setActiveCategory(statCategories[0].title);
+      return;
+    }
+    if (!statCategories.some(category => category.title === activeCategory)) {
+      setActiveCategory(statCategories[0].title);
+    }
+  }, [statCategories, activeCategory]);
+
+  useEffect(() => {
+    if (!selectedStatCategory) return;
+    if (selectedStatCategory.title !== activeCategory) {
+      setActiveCategory(selectedStatCategory.title);
+    }
+  }, [selectedStatCategory, activeCategory]);
+
+  const handleCategorySelect = useCallback(
+    (nextCategory: string) => {
+      setActiveCategory(nextCategory);
+      const category = statCategories.find(item => item.title === nextCategory);
+      if (!category) return;
+      const containsSelected = category.stats.some(stat => stat.id === selectedStat);
+      if (!containsSelected) {
+        setSelectedStat('');
+      }
+    },
+    [statCategories, selectedStat]
+  );
+
   const runOneStat = useCallback(async (id: string) => {
-    const item = statCategories.flatMap(c => c.stats).find(s => s.id === id);
+    const item = flatStatList.find(stat => stat.id === id);
     if (!item) return;
 
     startNetworkSession();
@@ -1591,7 +1655,7 @@ export default function AdminStatsPanel({
       stopNetworkSession();
       setNetworkEvents([]);
     }
-  }, [statCategories, tokenAddress, startNetworkSession, stopNetworkSession]);
+  }, [flatStatList, tokenAddress, startNetworkSession, stopNetworkSession]);
 
   const clearCurrentRequest = useCallback(() => {
     setCurrentRequest(null);
@@ -1649,53 +1713,139 @@ export default function AdminStatsPanel({
       )}
 
       {/* Stat Selector */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <label className="text-gray-400 block text-sm lg:text-base">{statLabelText}</label>
-        <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-          <DrawerTrigger asChild>
-            <button className={`w-full bg-gray-800 border border-gray-700 rounded-full px-4 text-left text-sm ${compact ? 'py-2 text-sm' : 'py-3 text-base'}`}>
-              {selectedStat
-                ? statCategories.flatMap(c => c.stats).find(s => s.id === selectedStat)?.label
-                : statLabelText}
-            </button>
-          </DrawerTrigger>
-          <DrawerContent className="bg-gray-900 border-gray-700">
-            <DrawerHeader>
-              <DrawerTitle className="text-white">Select Stat</DrawerTitle>
-            </DrawerHeader>
-            <div className="relative">
-              <div className="max-h-[60vh] overflow-y-auto px-4 pb-32">
+
+        {statCategories.length > 0 && (
+          <div className="hidden md:flex flex-col gap-4" aria-label="Stat selector">
+            <Tabs value={resolvedCategoryTitle} onValueChange={handleCategorySelect} className="w-full space-y-3">
+              <TabsList
+                aria-label="Stat categories"
+                className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-gray-700/70 bg-gray-900/70 p-1 text-gray-300"
+              >
                 {statCategories.map(category => (
-                  <div key={category.title} className="mb-4">
-                    <div className="bg-gray-800/60 text-white font-semibold px-3 py-2 rounded-t">
-                      {category.title}
-                    </div>
-                    <div className="bg-gray-800 rounded-b">
-                      {category.stats.map(stat => (
-                        <button
-                          key={stat.id}
-                          onClick={() => {
-                            setSelectedStat(stat.id);
-                            setDrawerOpen(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 border-b border-gray-700 last:border-b-0 hover:bg-gray-700 transition-colors ${
-                            selectedStat === stat.id ? 'bg-gray-700 text-white' : 'text-gray-400'
-                          }`}
-                        >
-                          <div>{stat.label}</div>
-                          {stat.description && (
-                            <div className="text-xs text-gray-500 mt-0.5">{stat.description}</div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <TabsTrigger
+                    key={category.title}
+                    value={category.title}
+                    className={`whitespace-nowrap rounded-md border border-transparent font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 ${
+                      compact ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-sm'
+                    } data-[state=active]:border-orange-500 data-[state=active]:bg-orange-600 data-[state=active]:text-white hover:bg-gray-800/70 hover:text-white`}
+                  >
+                    {category.title}
+                  </TabsTrigger>
                 ))}
+              </TabsList>
+
+              <TabsContent
+                value={resolvedCategoryTitle}
+                className="focus-visible:outline-none focus-visible:ring-0"
+              >
+                <div className="rounded-lg border border-gray-700/70 bg-gray-900/60">
+                  {statCategories
+                    .find(category => category.title === resolvedCategoryTitle)
+                    ?.stats.length ? (
+                      <div className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {statCategories
+                          .find(category => category.title === resolvedCategoryTitle)
+                          ?.stats.map(stat => {
+                            const isActive = selectedStat === stat.id;
+                            return (
+                              <button
+                                key={stat.id}
+                                type="button"
+                                onClick={() => setSelectedStat(stat.id)}
+                                className={`text-left rounded-xl border px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 ${
+                                  isActive
+                                    ? 'border-orange-500/80 bg-orange-600 text-white shadow-[0_0_25px_rgba(249,115,22,0.35)]'
+                                    : 'border-gray-700/70 bg-gray-800 text-gray-200 hover:border-orange-400/40 hover:bg-gray-700/70'
+                                }`}
+                                aria-pressed={isActive}
+                              >
+                                <p className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>
+                                  {stat.label}
+                                </p>
+                                {stat.description && (
+                                  <p className={`${compact ? 'text-[10px]' : 'text-xs'} text-gray-400 mt-1 line-clamp-2`}>
+                                    {stat.description}
+                                  </p>
+                                )}
+                              </button>
+                            );
+                          })}
+                      </div>
+                    ) : (
+                      <span className={`${compact ? 'text-[11px]' : 'text-sm'} block p-4 text-gray-400`}>
+                        No stats available.
+                      </span>
+                    )}
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            {selectedStatMeta?.description && (
+              <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-gray-400`}>
+                {selectedStatMeta.description}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Mobile Drawer */}
+        <div className="md:hidden">
+          <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+            <DrawerTrigger asChild>
+              <button
+                className={`w-full bg-gray-800 border border-gray-700 rounded-full px-4 text-left ${
+                  compact ? 'py-2 text-xs' : 'py-3 text-sm'
+                }`}
+              >
+                {selectedStat ? selectedStatMeta?.label ?? statLabelText : statLabelText}
+              </button>
+            </DrawerTrigger>
+            <DrawerContent className="bg-gray-900 border-gray-700">
+              <DrawerHeader>
+                <DrawerTitle className="text-white">Select Stat</DrawerTitle>
+              </DrawerHeader>
+              <div className="relative">
+                <div className="max-h-[60vh] overflow-y-auto px-4 pb-32">
+                  {statCategories.map(category => (
+                    <div key={category.title} className="mb-4">
+                      <div className="bg-gray-800/60 text-white font-semibold px-3 py-2 rounded-t">
+                        {category.title}
+                      </div>
+                      <div className="bg-gray-800 rounded-b">
+                        {category.stats.map(stat => (
+                          <button
+                            key={stat.id}
+                            onClick={() => {
+                              setSelectedStat(stat.id);
+                              setDrawerOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 border-b border-gray-700 last:border-b-0 hover:bg-gray-700 transition-colors ${
+                              selectedStat === stat.id ? 'bg-gray-700 text-white' : 'text-gray-400'
+                            }`}
+                          >
+                            <div>{stat.label}</div>
+                            {stat.description && (
+                              <div className="text-xs text-gray-500 mt-0.5">{stat.description}</div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <ProgressiveBlur position="bottom" height="25%" className="pointer-events-none" />
               </div>
-              <ProgressiveBlur position="bottom" height="25%" className="pointer-events-none" />
-            </div>
-          </DrawerContent>
-        </Drawer>
+            </DrawerContent>
+          </Drawer>
+        </div>
+
+        {selectedStatMeta?.description && (
+          <p className={`md:hidden ${compact ? 'text-[11px]' : 'text-xs'} text-gray-400`}>
+            {selectedStatMeta.description}
+          </p>
+        )}
       </div>
 
       {/* Test Button */}
@@ -1724,10 +1874,10 @@ export default function AdminStatsPanel({
             {networkEvents.length > 0 && (
               <div>
                 <div className="text-gray-400 mb-1">Network Activity</div>
-                <div className="relative rounded-2xl border border-white/5 bg-black/30 w-full overflow-hidden max-w-[65%]">
+                <div className="relative rounded-2xl border border-white/5 bg-black/30 w-full overflow-hidden">
                   <div
                     ref={networkListRef}
-                    className="space-y-2 max-h-72 overflow-y-auto p-3 pr-4 text-[11px] w-full"
+                    className="space-y-2 max-h-36 overflow-y-auto p-3 pr-4 text-[11px] w-full"
                   >
                     {networkEvents.map((event) => {
                       const statusColor =
@@ -1785,8 +1935,7 @@ export default function AdminStatsPanel({
                       );
                     })}
                   </div>
-                  <ProgressiveBlur position="top" height="20%" blurLevels={[0.5,1,2,3]} className="pointer-events-none" />
-                  <ProgressiveBlur position="bottom" height="20%" blurLevels={[0.5,1,2,3]} className="pointer-events-none" />
+                  <ProgressiveBlur position="both" height="15%" blurLevels={[0.5,1.5,2.5]} className="pointer-events-none" />
                 </div>
               </div>
             )}

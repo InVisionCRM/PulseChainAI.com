@@ -9,6 +9,7 @@ import { LoaderWithPercent } from '@/components/ui/loader-with-percent';
 import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import { ProgressiveBlur } from '@/components/ui/progressive-blur';
 import { BackgroundGradient } from '@/components/ui/background-gradient';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import RichardHeartChatCard from '@/components/RichardHeartChatCard';
 
 type TransferItem = {
@@ -61,6 +62,7 @@ export default function AdminStatsPage(): JSX.Element {
   const [selectedStat, setSelectedStat] = useState<string>('');
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [showAllEndpoints, setShowAllEndpoints] = useState<boolean>(false);
+  const [activeCategory, setActiveCategory] = useState<string>('');
 
   // Load a new token and reset dependent state
   const handleLoadNewToken = useCallback((addr: string) => {
@@ -1261,8 +1263,64 @@ export default function AdminStatsPage(): JSX.Element {
     ];
   }, [ensureCoreCaches, ensureDex, ensureHolders, ensureTransfers24h, tokenAddress]);
 
+  const flatStatList = useMemo(
+    () => statCategories.flatMap(category => category.stats),
+    [statCategories]
+  );
+
+  const selectedStatMeta = useMemo(
+    () => flatStatList.find(stat => stat.id === selectedStat) ?? null,
+    [flatStatList, selectedStat]
+  );
+
+  const selectedStatCategory = useMemo(() => {
+    if (!selectedStatMeta) return null;
+    return (
+      statCategories.find(category =>
+        category.stats.some(stat => stat.id === selectedStatMeta.id)
+      ) ?? null
+    );
+  }, [statCategories, selectedStatMeta]);
+
+  const activeStats = useMemo(() => {
+    if (!activeCategory) return [];
+    const category = statCategories.find(item => item.title === activeCategory);
+    return category ? category.stats : [];
+  }, [activeCategory, statCategories]);
+
+  useEffect(() => {
+    if (statCategories.length === 0) return;
+    if (!activeCategory) {
+      setActiveCategory(statCategories[0].title);
+      return;
+    }
+    if (!statCategories.some(category => category.title === activeCategory)) {
+      setActiveCategory(statCategories[0].title);
+    }
+  }, [statCategories, activeCategory]);
+
+  useEffect(() => {
+    if (!selectedStatCategory) return;
+    if (selectedStatCategory.title !== activeCategory) {
+      setActiveCategory(selectedStatCategory.title);
+    }
+  }, [selectedStatCategory, activeCategory]);
+
+  const handleCategorySelect = useCallback(
+    (nextCategory: string) => {
+      setActiveCategory(nextCategory);
+      const category = statCategories.find(item => item.title === nextCategory);
+      if (!category) return;
+      const containsSelected = category.stats.some(stat => stat.id === selectedStat);
+      if (!containsSelected) {
+        setSelectedStat('');
+      }
+    },
+    [statCategories, selectedStat]
+  );
+
   const runOneStat = useCallback(async (id: string) => {
-    const item = statCategories.flatMap(c => c.stats).find(s => s.id === id);
+    const item = flatStatList.find(s => s.id === id);
     if (!item) return;
 
     setBusyStat(id);
@@ -1367,7 +1425,7 @@ export default function AdminStatsPage(): JSX.Element {
     } finally {
       setBusyStat(null);
     }
-  }, [statCategories, tokenAddress]);
+  }, [flatStatList, tokenAddress]);
 
   const clearOneStat = useCallback((id: string) => {
     setStatResult(prev => {
@@ -1439,27 +1497,65 @@ export default function AdminStatsPage(): JSX.Element {
         <div className="bg-slate-900/70 border border-orange-500/30 rounded-xl p-4 bg-cover bg-center relative" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
           <h2 className="font-semibold text-lg text-white mb-4">Test API Endpoint</h2>
           
-          {/* Desktop Dropdown */}
-          <div className="mb-4 hidden md:block">
-            <label htmlFor="stat" className="text-sm text-slate-300 mb-2 block">Select Stat</label>
-            <select
-              id="stat"
-              value={selectedStat}
-              onChange={(e) => setSelectedStat(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700/30 rounded-lg px-3 py-2 text-sm max-h-[400px] overflow-auto"
-              size={1}
-            >
-              <option value="">Select a stat...</option>
-              {statCategories.map(category => (
-                <optgroup key={category.title} label={category.title} className="bg-white text-slate-950 text-lg font-semibold">
-                  {category.stats.map(stat => (
-                    <option key={stat.id} value={stat.id} className="text-slate-500 text-md font-normal">
-                      {stat.label}
-                    </option>
+          {/* Desktop Selector */}
+          <div className="mb-6 hidden md:flex flex-col gap-4" aria-label="Stat selector">
+            <div>
+              <span className="mb-2 block text-sm text-slate-300">Stat Category</span>
+              <Tabs value={activeCategory} onValueChange={handleCategorySelect} className="w-full">
+                <TabsList
+                  aria-label="Stat categories"
+                  className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-slate-800/60 bg-slate-900/70 p-1 text-slate-300"
+                >
+                  {statCategories.map(category => (
+                    <TabsTrigger
+                      key={category.title}
+                      value={category.title}
+                      className="rounded-md border border-transparent px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 data-[state=active]:border-orange-500 data-[state=active]:bg-orange-600 data-[state=active]:text-white"
+                    >
+                      {category.title}
+                    </TabsTrigger>
                   ))}
-                </optgroup>
-              ))}
-            </select>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            <div>
+              <span className="mb-2 block text-sm text-slate-300">Available Stats</span>
+              <div className="relative overflow-hidden rounded-lg border border-slate-800/60 bg-slate-900/60">
+                <div className="flex w-full overflow-x-auto">
+                  <div className="flex w-max items-center gap-2 p-3">
+                    {activeStats.map(stat => {
+                      const isActive = selectedStat === stat.id;
+                      return (
+                        <button
+                          key={stat.id}
+                          type="button"
+                          onClick={() => setSelectedStat(stat.id)}
+                          className={`flex-shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+                            isActive
+                              ? 'border-orange-500 bg-orange-600 text-white'
+                              : 'border-slate-700/50 bg-slate-800 text-slate-200 hover:bg-slate-700/80'
+                          }`}
+                          aria-pressed={isActive}
+                        >
+                          {stat.label}
+                        </button>
+                      );
+                    })}
+                    {activeStats.length === 0 && (
+                      <span className="text-sm text-slate-400">No stats available in this category.</span>
+                    )}
+                  </div>
+                </div>
+                <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-16 bg-gradient-to-l from-slate-900/90 to-transparent md:block" aria-hidden="true" />
+              </div>
+            </div>
+
+            {selectedStatMeta?.description && (
+              <p className="text-xs text-slate-400">
+                {selectedStatMeta.description}
+              </p>
+            )}
           </div>
 
           {/* Mobile Drawer */}
@@ -1469,7 +1565,7 @@ export default function AdminStatsPage(): JSX.Element {
               <DrawerTrigger asChild>
                 <button className="w-full bg-slate-800 border border-slate-700/30 rounded-lg px-3 py-2 text-sm text-left">
                   {selectedStat 
-                    ? statCategories.flatMap(c => c.stats).find(s => s.id === selectedStat)?.label 
+                    ? selectedStatMeta?.label 
                     : 'Select a stat...'}
                 </button>
               </DrawerTrigger>
@@ -1511,6 +1607,12 @@ export default function AdminStatsPage(): JSX.Element {
               </DrawerContent>
             </Drawer>
           </div>
+
+          {selectedStatMeta?.description && (
+            <p className="text-xs text-slate-400 md:hidden">
+              {selectedStatMeta.description}
+            </p>
+          )}
 
           {/* Test Button */}
           <Button
