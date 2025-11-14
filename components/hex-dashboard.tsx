@@ -1633,6 +1633,11 @@ const HEXDataDashboard = () => {
     return (value as number) >= 0 ? 'text-green-700' : 'text-red-600';
   };
 
+  const normalizeHistoricalTextColor = (color?: string) => {
+    const allowedShades = ['red', 'green', 'blue', 'yellow', 'orange', 'cyan'];
+    if (!color) return 'text-white';
+    return allowedShades.some((shade) => color.includes(`text-${shade}`)) ? color : 'text-white';
+  };
 
 
   // Sorting function
@@ -1733,41 +1738,52 @@ const HEXDataDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#E6E6FA]">
-      <div className="w-full mx-auto">
-        <div className="relative overflow-hidden sm:rounded-2xl p-[1px] bg-gradient-to-br from-white/10 via-white/5 to-white/10 shadow-xl">
-          <div className="relative bg-white/5 backdrop-blur-sm sm:rounded-2xl border border-white/10 p-3 sm:p-6 shadow-lg">
-            <div className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-slate-950/20 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-16 -right-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+    <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#050312] via-[#120531] to-[#1b0f3d] text-white">
+      <div className="absolute inset-0">
+        <FlickeringGrid
+          color="rgba(255,255,255,0.12)"
+          squareSize={6}
+          gridGap={10}
+          maxOpacity={0.12}
+          flickerChance={0.3}
+          className="w-full h-full opacity-70"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/40" />
+      </div>
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+        <div className="rounded-[32px] border border-white/15 bg-white/5 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[45px] p-[1px]">
+          <div className="rounded-[28px] border border-white/10 bg-white/5 p-3 sm:p-4 lg:p-5 space-y-4">
+            <div className="pointer-events-none absolute -top-24 left-10 h-64 w-64 rounded-full bg-purple-500/20 blur-[120px]" />
+            <div className="pointer-events-none absolute -bottom-16 right-10 h-72 w-72 rounded-full bg-blue-500/10 blur-[120px]" />
 
             {/* Header */}
             <div className="mb-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 rounded-xl bg-slate-900 text-white px-3 sm:px-4 py-3 border border-white/10 shadow-lg relative overflow-hidden">
+              <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 rounded-[28px] border border-white/15 bg-white/5 px-4 sm:px-6 py-4 shadow-[0_20px_80px_rgba(0,0,0,0.45)] overflow-hidden">
                 {/* Background Image - Only for PulseChain tabs */}
                 {(activeTab === 'pulsechain' || activeTab === 'pulsechain-staking') && (
-                  <div className="absolute inset-0 z-10 bg-gradient-to-r from-slate-950/20 via-blue-500/10 to-slate-950/20">
-                    <div className="absolute inset-0 bg-slate-950/5"></div>
+                  <div className="absolute inset-0 z-10 bg-gradient-to-r from-purple-600/10 via-blue-500/10 to-slate-950/30">
+                    <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-3xl" />
                   </div>
                 )}
                 
                 {/* Background Image - Only for Ethereum tabs */}
                 {(activeTab === 'ethereum' || activeTab === 'ethereum-staking') && (
-                  <div className="absolute inset-0 z-10 bg-gradient-to-r from-slate-950/20 via-blue-500/10 to-slate-950/20">
-                    <div className="absolute inset-0 bg-slate-950/5"></div>
+                  <div className="absolute inset-0 z-10 bg-gradient-to-r from-blue-600/10 via-cyan-500/10 to-slate-950/30">
+                    <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-3xl" />
                   </div>
                 )}
                 
-                <div className="flex items-center justify-between w-full">
+                <div className="flex items-center justify-between w-full relative z-20">
                   {/* Home Button - Far Left */}
                   <button
                     onClick={() => window.location.href = '/'}
-                    className="px-3 py-1.5 text-sm text-white border border-white/30 rounded-lg hover:border-white/50 hover:text-white/90 transition-colors z-20"
+                    className="px-4 py-1.5 text-xs sm:text-sm rounded-full border border-white/30 bg-white/10 text-white/80 hover:bg-white/20 transition"
                   >
                     Home
                   </button>
                   
                   {/* Header Text - Centered */}
-                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white z-20 mb-1 absolute left-1/2 transform -translate-x-1/2">
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-white drop-shadow-lg absolute left-1/2 transform -translate-x-1/2">
                     {activeTab === 'pulsechain' && 'PULSECHAIN'}
                     {activeTab === 'ethereum' && 'ETHEREUM'}
                 {activeTab === 'ethereum-staking' && 'ETH Staking'}
@@ -1776,7 +1792,7 @@ const HEXDataDashboard = () => {
               </h1>
                   
                   {/* Database Status Indicator - Far Right */}
-                  <div className="flex items-center gap-2 z-20">
+                  <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${
                       databaseStatus === 'checking' ? 'bg-yellow-500 animate-pulse' :
                       databaseStatus === 'available' ? 'bg-green-500 animate-pulse' :
@@ -1785,7 +1801,7 @@ const HEXDataDashboard = () => {
                     <span className={`text-xs font-medium hidden sm:inline ${
                       databaseStatus === 'checking' ? 'text-yellow-400' :
                       databaseStatus === 'available' ? 'text-green-400' :
-                      'text-red-400'
+                      'text-red-300'
                     }`}>
                       {databaseStatus === 'checking' ? 'Checking DB...' :
                        databaseStatus === 'available' ? '🗄️ Database' :
@@ -1793,7 +1809,7 @@ const HEXDataDashboard = () => {
                     </span>
                     
                     {/* Data Flow Status Indicators */}
-                    <div className="hidden lg:flex items-center gap-3 ml-4">
+                    <div className="hidden lg:flex items-center gap-3 pl-3 border-l border-white/20">
                       <div className="flex items-center gap-1">
                         <div className={`w-2 h-2 rounded-full ${
                           dataFlowStatus.ethereum === 'database' ? 'bg-green-500' :
@@ -1801,7 +1817,7 @@ const HEXDataDashboard = () => {
                           dataFlowStatus.ethereum === 'transitioning' ? 'bg-yellow-500 animate-pulse' :
                           'bg-red-500'
                         }`}></div>
-                        <span className="text-xs text-white/70">ETH</span>
+                        <span className="text-xs text-white/70 tracking-[0.2em]">ETH</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <div className={`w-2 h-2 rounded-full ${
@@ -1810,12 +1826,12 @@ const HEXDataDashboard = () => {
                           dataFlowStatus.pulsechain === 'transitioning' ? 'bg-yellow-500 animate-pulse' :
                           'bg-red-500'
                         }`}></div>
-                        <span className="text-xs text-white/70">PLS</span>
+                        <span className="text-xs text-white/70 tracking-[0.2em]">PLS</span>
                       </div>
                       
                       {/* Loading Legend */}
-                      <div className="flex items-center gap-2 ml-2 border-l border-white/20 pl-2">
-                        <span className="text-xs text-white/50">Loading:</span>
+                      <div className="flex items-center gap-2 border-l border-white/20 pl-3">
+                        <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">Loading</span>
                         <div className="flex items-center gap-1">
                           <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
                           <span className="text-xs text-white/60">Overview</span>
@@ -1844,10 +1860,10 @@ const HEXDataDashboard = () => {
                   setActiveTab('pulsechain');
                   setCurrentPage(1);
                 }}
-                  className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-shrink-0 ${
+                className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-xs sm:text-sm tracking-[0.2em] uppercase whitespace-nowrap flex-shrink-0 transition ${
                   activeTab === 'pulsechain'
-                    ? 'border-blue-500 text-blue-500'
-                    : 'border-transparent text-gray-700 hover:text-green-600'
+                    ? 'border-white text-white'
+                    : 'border-transparent text-white/50 hover:text-white'
                 }`}
               >
                 <span className="hidden sm:inline">PulseChain HEX</span>
@@ -1858,10 +1874,10 @@ const HEXDataDashboard = () => {
                   setActiveTab('ethereum');
                   setCurrentPage(1);
                 }}
-                  className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-shrink-0 ${
+                className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-xs sm:text-sm tracking-[0.2em] uppercase whitespace-nowrap flex-shrink-0 transition ${
                   activeTab === 'ethereum'
-                    ? 'border-blue-500 text-blue-500'
-                    : 'border-transparent text-gray-700 hover:text-green-600'
+                    ? 'border-white text-white'
+                    : 'border-transparent text-white/50 hover:text-white'
                 }`}
               >
                 <span className="hidden sm:inline">Ethereum HEX</span>
@@ -1872,10 +1888,10 @@ const HEXDataDashboard = () => {
                   setActiveTab('ethereum-staking');
                   setCurrentPage(1);
                 }}
-                  className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-shrink-0 ${
+                className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-xs sm:text-sm tracking-[0.2em] uppercase whitespace-nowrap flex-shrink-0 transition ${
                   activeTab === 'ethereum-staking'
-                    ? 'border-blue-500 text-blue-500'
-                    : 'border-transparent text-gray-700 hover:text-green-600'
+                    ? 'border-white text-white'
+                    : 'border-transparent text-white/50 hover:text-white'
                 }`}
               >
                 <span className="hidden sm:inline">Ethereum HEX Staking</span>
@@ -1886,10 +1902,10 @@ const HEXDataDashboard = () => {
                   setActiveTab('pulsechain-staking');
                   setCurrentPage(1);
                 }}
-                  className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-shrink-0 ${
+                className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-xs sm:text-sm tracking-[0.2em] uppercase whitespace-nowrap flex-shrink-0 transition ${
                   activeTab === 'pulsechain-staking'
-                    ? 'border-pink-700 text-pink-700'
-                    : 'border-transparent text-gray-700 hover:text-green-600'
+                    ? 'border-white text-white'
+                    : 'border-transparent text-white/50 hover:text-white'
                 }`}
               >
                 <span className="hidden sm:inline">PulseChain HEX Staking</span>
@@ -1900,10 +1916,10 @@ const HEXDataDashboard = () => {
                     setActiveTab('sell-pressure');
                     setCurrentPage(1);
                   }}
-                  className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-sm sm:text-base whitespace-nowrap flex-shrink-0 ${
+                  className={`py-2 sm:py-3 px-4 sm:px-6 border-b-2 font-semibold text-xs sm:text-sm tracking-[0.2em] uppercase whitespace-nowrap flex-shrink-0 transition ${
                     activeTab === 'sell-pressure'
-                      ? 'border-orange-500 text-orange-600'
-                      : 'border-transparent text-slate-600 hover:text-green-600'
+                      ? 'border-white text-white'
+                      : 'border-transparent text-white/50 hover:text-white'
                   }`}
                 >
                   <span className="hidden sm:inline">Ending Soon</span>
@@ -1914,71 +1930,44 @@ const HEXDataDashboard = () => {
           </div>
 
           {/* Wallet Address Search */}
-          <div className="mb-6 p-4 bg-white/50 backdrop-blur-sm border border-white/10 rounded-xl shadow-lg relative overflow-hidden">
-            {/* Background Image */}
-            <div className="absolute inset-0 -z-10">
-              <img 
-                src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/hexgradient" 
-                alt="Search Background" 
-                className="w-full h-full object-cover opacity-80"
-                onError={(e) => {
-                  console.error('Failed to load search background image:', e);
-                  console.error('Image path attempted:', 'https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/hexgradient');
-                  e.currentTarget.style.display = 'none';
-                }}
-                onLoad={(e) => {
-                  console.log('Search background image loaded successfully');
-                  console.log('Image dimensions:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight);
-                }}
-                style={{ 
-                  display: 'block',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%'
-                }}
-              />
-              {/* Overlay for better text contrast */}
-              <div className="absolute inset-0 bg-slate-950/5"></div>
-            </div>
-            
+          <div className="mb-6 rounded-[28px] border border-white/15 bg-white/5 backdrop-blur-2xl p-4 sm:p-6 shadow-[0_25px_80px_rgba(0,0,0,0.45)] relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-white/5 opacity-60" />
             <div className="relative z-10">
-              <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+              <h3 className="text-sm uppercase tracking-[0.4em] text-white/70 mb-3 flex items-center gap-2">
                 <Search className="w-5 h-5" />
                 Search Wallet Address
               </h3>
-            <form onSubmit={handleSearchSubmit} className="space-y-3">
-              <div className="flex gap-3">
-                <div className="flex-1">
-                <input
-                    type="text"
-                    value={searchAddress}
-                    onChange={(e) => setSearchAddress(e.target.value)}
-                    placeholder="Enter wallet address (0x...)"
-                    className="w-full px-4 py-2 bg-white/50 border border-white/20 rounded-lg text-slate-950 placeholder-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <button
-                  type="submit"
-                  disabled={isSearching || !searchAddress.trim()}
-                  className="px-6 py-2 bg-slate-950 hover:bg-slate-950 disabled:bg-gray-600/15 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
-                >
-                  {isSearching ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Search className="w-4 h-4" />
-                  )}
-                  {isSearching ? 'Searching...' : 'Search'}
-              </button>
-            </div>
-            </form>
+              <form onSubmit={handleSearchSubmit} className="space-y-3">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      value={searchAddress}
+                      onChange={(e) => setSearchAddress(e.target.value)}
+                      placeholder="Enter wallet address (0x...)"
+                      className="w-full px-4 py-3 rounded-2xl border border-white/20 bg-white/10 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isSearching || !searchAddress.trim()}
+                    className="px-6 py-3 rounded-2xl border border-white/30 bg-white/10 text-white font-medium uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-white/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {isSearching ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Search className="w-4 h-4" />
+                    )}
+                    {isSearching ? 'Searching…' : 'Search'}
+                  </button>
+                </div>
+              </form>
 
-            {searchError && (
-              <div className="mt-3 p-3 bg-red-900/20 border border-red-500/50 text-red-700 rounded-lg">
-                {searchError}
-            </div>
-          )}
+              {searchError && (
+                <div className="mt-3 p-3 rounded-2xl border border-red-500/30 bg-red-500/10 text-red-100 text-sm">
+                  {searchError}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1988,248 +1977,169 @@ const HEXDataDashboard = () => {
 
                 {/* Live Stats Section */}
         {!activeTab.includes('staking') && liveData ? (
-          <div className="w-full border border-white/10 rounded-2xl shadow-lg p-3 sm:p-6 relative overflow-hidden">
-            {/* Background Image - Only for Ethereum */}
+          <div className="relative overflow-hidden rounded-[32px] border border-white/15 bg-white/5 backdrop-blur-2xl shadow-[0_25px_80px_rgba(0,0,0,0.45)] p-4 sm:p-6">
+            {/* Background Image */}
             {activeTab === 'ethereum' && (
-              <div className="absolute inset-0 -z-10 bg-slate-950/30 rounded-2xl">
-                <img 
-                  src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/minimalhexeth" 
-                  alt="Ethereum Background" 
-                  className="w-full h-full object-cover opacity-100"
+              <div className="absolute inset-0 -z-10 rounded-[32px] overflow-hidden">
+                <img
+                  src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/minimalhexeth"
+                  alt="Ethereum Background"
+                  className="w-full h-full object-cover opacity-60"
                   onError={(e) => {
                     console.error('Failed to load background image:', e);
-                    console.error('Image path attempted:', 'https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/minimalhexeth');
                     e.currentTarget.style.display = 'none';
                   }}
-                  onLoad={(e) => {
-                    console.log('Background image loaded successfully');
-                    console.log('Image dimensions:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight);
-                  }}
-                  style={{ 
-                    display: 'block',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%'
-                  }}
                 />
-                {/* slate-950 overlay for better text contrast */}
-                <div className="absolute inset-0 bg-slate-950/5"></div>
-                {/* Fallback background color for debugging */}
-                <div className="absolute inset-0 bg-slate-950/20"></div>
+                <div className="absolute inset-0 bg-slate-950/70" />
               </div>
             )}
-            
-            {/* Background Image - Only for PulseChain */}
             {activeTab === 'pulsechain' && (
-              <div className="absolute inset-0 -z-10 bg-slate-950/30 rounded-2xl">
-                <img 
-                  src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/HEX-pattern" 
-                  alt="PulseChain Background" 
-                  className="w-full h-full object-cover opacity-100"
+              <div className="absolute inset-0 -z-10 rounded-[32px] overflow-hidden">
+                <img
+                  src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/HEX-pattern"
+                  alt="PulseChain Background"
+                  className="w-full h-full object-cover opacity-60"
                   onError={(e) => {
                     console.error('Failed to load PulseChain background image:', e);
-                    console.error('Image path attempted:', 'https://dvba8d38nfde7nic.public.blob.vercel-storage.com/images/HEX-pattern');
                     e.currentTarget.style.display = 'none';
                   }}
-                  onLoad={(e) => {
-                    console.log('PulseChain background image loaded successfully');
-                    console.log('Image dimensions:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight);
-                  }}
-                  style={{ 
-                    display: 'block',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%'
-                  }}
                 />
-                {/* slate-950 overlay for better text contrast */}
-                <div className="absolute inset-0 bg-white/10"></div>
+                <div className="absolute inset-0 bg-slate-950/70" />
               </div>
             )}
             
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-4">
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-900 rounded-full animate-pulse"></div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm uppercase tracking-[0.4em] text-white/70 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                   Live {activeTab === 'ethereum' ? 'Ethereum' : 'PulseChain'} HEX Stats
                 </h3>
-              
-                  {/* Chart Button */}
-                  <button
-                    onClick={() => setIsChartModalOpen(true)}
-                    className="p-2 text-white border border-white/30 rounded-lg hover:border-white/50 hover:text-white/90 transition-colors"
-                    title={`View ${activeTab === 'ethereum' ? 'Ethereum' : 'PulseChain'} HEX Chart`}
-                  >
-                    <BarChart3 className="w-5 h-5" />
-                  </button>
-                </div>
-            </div>
+                <button
+                  onClick={() => setIsChartModalOpen(true)}
+                  className="px-4 py-2 rounded-2xl border border-white/30 bg-white/10 text-white/80 hover:bg-white/20 transition"
+                  title={`View ${activeTab === 'ethereum' ? 'Ethereum' : 'PulseChain'} HEX Chart`}
+                >
+                  <div className="flex items-center gap-2 text-xs font-semibold tracking-widest uppercase">
+                    <BarChart3 className="w-4 h-4" />
+                    View Chart
+                  </div>
+                </button>
+              </div>
             
             {/* Key Metrics Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-              <div className="text-center p-3">
-                  <div className="text-xl sm:text-2xl font-bold text-green-800">
-                  {activeTab === 'ethereum' 
-                      ? <NumberTicker value={liveData.price || 0} decimalPlaces={4} />
-                      : <NumberTicker value={liveData.price_Pulsechain || liveData.pricePulseX || 0} decimalPlaces={4} />
-                  }
-                </div>
-                  <div className="text-sm text-white text-center">
-                  HEX Price
-                </div>
-              </div>
-              <div className="text-center p-3">
-                  <div className="text-xl sm:text-2xl font-bold text-blue-300">
-                  {activeTab === 'ethereum' 
-                      ? <NumberTicker value={liveData.tsharePrice || 0} decimalPlaces={0} />
-                      : <NumberTicker value={liveData.tsharePrice_Pulsechain || 0} decimalPlaces={0} />
-                  }
-                </div>
-                  <div className="text-sm text-white text-center">
-                  T-Share Price
-                </div>
-              </div>
-              <div className="text-center p-3">
-                  <div className="text-xl sm:text-2xl font-bold text-blue-300">
-                  {activeTab === 'ethereum' 
-                      ? <NumberTicker value={liveData.tshareRateHEX || 0} decimalPlaces={0} />
-                      : <NumberTicker value={liveData.tshareRateHEX_Pulsechain || 0} decimalPlaces={0} />
-                  }
-                </div>
-                  <div className="text-sm text-white text-center">
-                  T-Share Rate (HEX)
-                </div>
-              </div>
-              <div className="text-center p-3">
-                  <div className="text-xl sm:text-2xl font-bold text-indigo-300">
-                  {activeTab === 'ethereum' 
-                      ? <NumberTicker value={liveData.stakedHEX || 0} decimalPlaces={0} />
-                      : <NumberTicker value={liveData.stakedHEX_Pulsechain || 0} decimalPlaces={0} />
-                  }
-                </div>
-                  <div className="text-sm text-white">
-                    <span className="hidden sm:inline">Staked HEX</span>
-                    <span className="sm:hidden">Staked</span>
+                {[
+                  {
+                    label: 'HEX Price',
+                    value:
+                      activeTab === 'ethereum'
+                        ? <NumberTicker value={liveData.price || 0} decimalPlaces={4} />
+                        : <NumberTicker value={liveData.price_Pulsechain || liveData.pricePulseX || 0} decimalPlaces={4} />,
+                  },
+                  {
+                    label: 'T-Share Price',
+                    value:
+                      activeTab === 'ethereum'
+                        ? <NumberTicker value={liveData.tsharePrice || 0} decimalPlaces={0} />
+                        : <NumberTicker value={liveData.tsharePrice_Pulsechain || 0} decimalPlaces={0} />,
+                  },
+                  {
+                    label: 'T-Share Rate',
+                    value:
+                      activeTab === 'ethereum'
+                        ? <NumberTicker value={liveData.tshareRateHEX || 0} decimalPlaces={0} />
+                        : <NumberTicker value={liveData.tshareRateHEX_Pulsechain || 0} decimalPlaces={0} />,
+                  },
+                  {
+                    label: 'Staked HEX',
+                    value:
+                      activeTab === 'ethereum'
+                        ? <NumberTicker value={liveData.stakedHEX || 0} decimalPlaces={0} />
+                        : <NumberTicker value={liveData.stakedHEX_Pulsechain || 0} decimalPlaces={0} />,
+                  },
+                  {
+                    label: 'Circulating HEX',
+                    value:
+                      activeTab === 'ethereum'
+                        ? formatNumber(liveData.circulatingHEX, 0)
+                        : formatNumber(liveData.circulatingHEX_Pulsechain, 0),
+                  },
+                  {
+                    label: 'Payout / T-Share',
+                    value:
+                      activeTab === 'ethereum'
+                        ? <NumberTicker value={liveData.payoutPerTshare || 0} decimalPlaces={2} />
+                        : <NumberTicker value={liveData.payoutPerTshare_Pulsechain || 0} decimalPlaces={2} />,
+                  },
+                ].map((metric) => (
+                  <div
+                    key={metric.label}
+                    className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center space-y-2 shadow-inner shadow-white/5"
+                  >
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-white/60">{metric.label}</p>
+                    <div className="text-xl sm:text-2xl font-semibold text-white">{metric.value}</div>
                   </div>
+                ))}
               </div>
-              <div className="text-center p-3">
-                  <div className="text-xl sm:text-2xl font-bold text-white">
-                  {activeTab === 'ethereum' 
-                    ? formatNumber(liveData.circulatingHEX, 0)
-                      : formatNumber(liveData.circulatingHEX_Pulsechain, 0)
-                  }
-                </div>
-                  <div className="text-sm text-white">
-                    <span className="hidden sm:inline">Circulating HEX</span>
-                    <span className="sm:hidden">Circulating HEX</span>
-                  </div>
-              </div>
-              <div className="text-center p-3">
-                  <div className="text-xl sm:text-2xl font-bold text-amber-700">
-                  {activeTab === 'ethereum' 
-                      ? <NumberTicker value={liveData.payoutPerTshare || 0} decimalPlaces={2} />
-                      : <NumberTicker value={liveData.payoutPerTshare_Pulsechain || 0} decimalPlaces={2} />
-                  }
-                </div>
-                  <div className="text-sm text-white text-center">
-                  Payout/T-Share
+
+            {/* Network-Specific Liquidity Metrics */}
+              <div className="border-t border-white/10 pt-4">
+                <h4 className="text-[10px] uppercase tracking-[0.4em] text-white/60 mb-3">Liquidity Metrics ({activeTab === 'ethereum' ? 'Ethereum' : 'PulseChain'})</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                  {[
+                    {
+                      label: 'Liquidity HEX',
+                      value:
+                        activeTab === 'ethereum'
+                          ? formatNumber(liveData.liquidityHEX, 0)
+                          : formatNumber(liveData.liquidityHEX_Pulsechain, 0),
+                      icon: '/HEXagon (1).svg',
+                    },
+                    {
+                      label: activeTab === 'ethereum' ? 'Liquidity USDC' : 'Liquidity PLS',
+                      value:
+                        activeTab === 'ethereum'
+                          ? <NumberTicker value={liveData.liquidityUSDC || 0} decimalPlaces={0} />
+                          : <NumberTicker value={liveData.liquidityPLS_Pulsechain || 0} decimalPlaces={0} />,
+                      icon: activeTab === 'ethereum' ? '/ethlogo.svg' : '/LogoVector.svg',
+                    },
+                    {
+                      label: activeTab === 'ethereum' ? 'Liquidity ETH' : 'Liquidity EHEX',
+                      value:
+                        activeTab === 'ethereum'
+                          ? <NumberTicker value={liveData.liquidityETH || 0} decimalPlaces={0} />
+                          : <NumberTicker value={liveData.liquidityEHEX_Pulsechain || 0} decimalPlaces={0} />,
+                      icon: activeTab === 'ethereum' ? '/ethlogo.svg' : '/HEXagon (1).svg',
+                    },
+                    {
+                      label: 'Penalties HEX',
+                      value:
+                        activeTab === 'ethereum'
+                          ? <NumberTicker value={liveData.penaltiesHEX || 0} decimalPlaces={0} />
+                          : <NumberTicker value={liveData.penaltiesHEX_Pulsechain || 0} decimalPlaces={0} />,
+                      icon: '/HEXagon (1).svg',
+                    },
+                  ].map((metric) => (
+                    <div key={metric.label} className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center space-y-2">
+                      <p className="text-xs text-white flex items-center justify-center gap-2">
+                        <OptimizedImage src={metric.icon} alt={metric.label} width={12} height={12} className="w-3 h-3" />
+                        {metric.label}
+                      </p>
+                      <div className="text-lg sm:text-xl font-semibold text-white">{metric.value}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-
-            {/* Network-Specific Liquidity Metrics */}
-              <div className="border-t border-white/20 pt-4">
-                <h4 className="text-md font-semibold text-white mb-3">💧 Liquidity Metrics ({activeTab === 'ethereum' ? 'Ethereum' : 'PulseChain'})</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                <div className="text-center p-2">
-                    <div className="text-lg sm:text-xl font-bold text-red-700">
-                    {activeTab === 'ethereum' 
-                        ? <NumberTicker value={liveData.liquidityHEX || 0} decimalPlaces={0} />
-                        : <NumberTicker value={liveData.liquidityHEX_Pulsechain || 0} decimalPlaces={0} />
-                    }
-                  </div>
-                    <div className="text-xs text-white flex items-center justify-center gap-1">
-                    <OptimizedImage src="/HEXagon (1).svg" alt="HEX" width={12} height={12} className="w-3 h-3" />
-                    Liquidity HEX
-                  </div>
-                </div>
-                <div className="text-center p-2">
-                    <div className="text-lg sm:text-xl font-bold text-violet-700">
-                    {activeTab === 'ethereum' 
-                        ? <NumberTicker value={liveData.liquidityUSDC || 0} decimalPlaces={0} />
-                        : <NumberTicker value={liveData.liquidityPLS_Pulsechain || 0} decimalPlaces={0} />
-                    }
-                  </div>
-                    <div className="text-xs text-white flex items-center justify-center gap-1">
-                    {activeTab === 'ethereum' ? (
-                      <>
-                        <OptimizedImage src="/ethlogo.svg" alt="Ethereum" width={12} height={12} className="w-3 h-3" />
-                        Liquidity USDC
-                      </>
-                    ) : (
-                      <>
-                        <OptimizedImage src="/LogoVector.svg" alt="PulseChain" width={12} height={12} className="w-3 h-3" />
-                        Liquidity PLS
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="text-center p-2">
-                    <div className="text-lg sm:text-xl font-bold text-emerald-700">
-                    {activeTab === 'ethereum' 
-                        ? <NumberTicker value={liveData.liquidityETH || 0} decimalPlaces={0} />
-                        : <NumberTicker value={liveData.liquidityEHEX_Pulsechain || 0} decimalPlaces={0} />
-                    }
-                  </div>
-                    <div className="text-xs text-white flex items-center justify-center gap-1">
-                    {activeTab === 'ethereum' ? (
-                      <>
-                        <OptimizedImage src="/ethlogo.svg" alt="Ethereum" width={12} height={12} className="w-3 h-3" />
-                        Liquidity ETH
-                      </>
-                    ) : (
-                      <>
-                        <OptimizedImage src="/HEXagon (1).svg" alt="HEX" width={12} height={12} className="w-3 h-3" />
-                        Liquidity EHEX
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="text-center p-2">
-                    <div className="text-lg sm:text-xl font-bold text-rose-700">
-                    {activeTab === 'ethereum' 
-                        ? <NumberTicker value={liveData.penaltiesHEX || 0} decimalPlaces={0} />
-                        : <NumberTicker value={liveData.penaltiesHEX_Pulsechain || 0} decimalPlaces={0} />
-                    }
-                  </div>
-                    <div className="text-xs text-white flex items-center justify-center gap-1">
-                    <OptimizedImage src="/HEXagon (1).svg" alt="HEX" width={12} height={12} className="w-3 h-3" />
-                    Penalties HEX
-                </div>
-              </div>
-              
-               {/* PulseChain-specific token prices removed per request */}
-                 </div>
-               </div>
-             </div>
-           </div>
+          </div>
          ) : !activeTab.includes('staking') && (
-            <div className="mb-6 bg-white/5 backdrop-blur-sm border border-white/10 sm:rounded-2xl shadow-lg p-3 sm:p-6">
-             <div className="flex items-center justify-between mb-4">
-               <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                 <div className="w-3 h-3 bg-yellow-400 rounded-full animate-spin"></div>
-                 Loading Live Stats...
-               </h3>
-             </div>
-             <div className="text-center text-slate-700">
-               <p>Fetching latest live data...</p>
-             </div>
-           </div>
+            <div className="mb-6 rounded-[28px] border border-white/10 bg-white/5 backdrop-blur-2xl p-4 sm:p-6 flex items-center justify-between">
+              <h3 className="text-sm uppercase tracking-[0.4em] text-white/70 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 bg-yellow-400 rounded-full animate-spin" />
+                Loading Live Stats
+              </h3>
+              <p className="text-white/60 text-sm">Fetching latest live data…</p>
+            </div>
          )}
 
         {/* AI Analysis Section - COMMENTED OUT */}
@@ -3716,27 +3626,27 @@ const HEXDataDashboard = () => {
         {!activeTab.includes('staking') && (
           <div className="w-full bg-slate-950/5 backdrop-blur-xl border border-white/10 sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
             {/* Date Filter and Historical Data Title */}
-            <div className="pt-6 pb-1 px-6 rounded-t-2xl bg-gray-50/10 shadow-[0_8px_20px_-2px_rgba(0,0,0,0.5)]">
+            <div className="pt-6 pb-1 px-6 rounded-t-2xl bg-white/5 backdrop-blur-xl border-b border-white/10 shadow-[0_8px_20px_-2px_rgba(0,0,0,0.5)]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <h3 className="text-md font-medium text-slate-800">Historical Data</h3>
+                  <h3 className="text-sm uppercase tracking-[0.4em] text-white/70">Historical Data</h3>
                   
                   {/* Home Button */}
                   <button
                     onClick={() => window.location.href = '/'}
-                    className="px-3 py-1.5 text-sm text-slate-700 border border-slate-300 rounded-lg hover:border-slate-400 hover:text-slate-800 transition-colors"
+                    className="px-3 py-1.5 text-xs sm:text-sm rounded-full border border-white/25 bg-white/10 text-white/80 hover:bg-white/20 transition"
                   >
                     Home
                   </button>
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-slate-400" />
+                  <Calendar className="w-4 h-4 text-white/60" />
                   <input
                     type="date"
                     value={filterDate}
                     onChange={(e) => setFilterDate(e.target.value)}
-                    className="border border-white/10 bg-white/5 backdrop-blur text-gray-700 rounded-lg px-3 py-1 text-sm"
+                    className="border border-white/15 bg-white/5 backdrop-blur rounded-2xl px-3 py-1 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/40"
                     placeholder="Filter by date"
                   />
                 </div>
@@ -3780,33 +3690,34 @@ const HEXDataDashboard = () => {
                       { key: 'priceETH', label: 'ETH Price', width: 'w-28', color: 'text-slate-950' },
                     ] : []),
                     ...(activeTab === 'pulsechain' ? [
-                      { key: 'pricePulseX', label: 'PulseX Price', width: 'w-28', color: 'text-pink-700' },
-                      { key: 'pricePulseX_PLS', label: 'PLS Price', width: 'w-28', color: 'text-pink-700' },
-                    ] : [])
-                  ].map((column) => {
-                    return (
-                      <th
-                        key={column.key}
-                        onClick={() => handleSort(column.key as keyof HexRow)}
-                        className={`sticky top-0 z-10 bg-gray-800/60 backdrop-blur-xl border border-gray-300 px-3 py-3 text-center text-sm font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-700/60 transition-colors select-none ${column.color}`}
-                      >
-                        <div className="flex items-center gap-1">
-                          {column.label}
-                        </div>
-                      </th>
+                  { key: 'pricePulseX', label: 'PulseX Price', width: 'w-28', color: 'text-pink-700' },
+                  { key: 'pricePulseX_PLS', label: 'PLS Price', width: 'w-28', color: 'text-pink-700' },
+                ] : [])
+              ].map((column) => {
+                const headerColorClass = normalizeHistoricalTextColor(column.color);
+                return (
+                  <th
+                    key={column.key}
+                    onClick={() => handleSort(column.key as keyof HexRow)}
+                    className={`sticky top-0 z-10 bg-gray-800/60 backdrop-blur-xl border border-gray-300 px-3 py-3 text-center text-sm font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-700/60 transition-colors select-none ${headerColorClass}`}
+                  >
+                    <div className="flex items-center gap-1">
+                      {column.label}
+                    </div>
+                  </th>
                     );
                   })}
                 </tr>
               </thead>
               <tbody className="bg-transparent divide-y divide-gray-200">
                 {paginatedData.map((row, index) => (
-                  <tr key={row._id || index} className="hover:bg-gray-100">
+                  <tr key={row._id || index} className="hover:bg-white/5 transition">
                     {/* Date */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-700">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white/80">
                       {formatDate(row.date)}
                     </td>
                     {/* Current Day */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-white/80">
                       {formatNumber(row.currentDay, 0, true)}
                     </td>
                     {/* HEX Price */}
@@ -3820,19 +3731,19 @@ const HEXDataDashboard = () => {
                       </div>
                     </td>
                     {/* Market Cap */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-white/80">
                       {formatCurrency(row.marketCap, 0)}
                     </td>
                     {/* Total Value Locked */}
-                    <td className="px-3 py-4 bg-slate-950/5 text-sm text-slate-950 font-semibold">
+                    <td className="px-3 py-4 bg-white/10 text-sm text-white font-semibold">
                       {formatCurrency(row.totalValueLocked, 0)}
                     </td>
                     {/* Total Supply */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-white/80">
                       {formatHEX(row.totalHEX)}
                     </td>
                     {/* Circulating Supply */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-white/80">
                       {formatHEX(row.circulatingHEX)}
                     </td>
                     {/* Circulation Change */}
@@ -3842,7 +3753,7 @@ const HEXDataDashboard = () => {
                       </div>
                     </td>
                     {/* Staked Supply */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-950">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                       {formatHEX(row.stakedHEX)}
                     </td>
                     {/* Staked Change */}
@@ -3852,11 +3763,11 @@ const HEXDataDashboard = () => {
                       </div>
                     </td>
                     {/* Staked Percentage */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-950">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                       {formatPercent(row.stakedHEXPercent)}
                     </td>
                     {/* Total T-Shares */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-950">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                       {formatTShares(row.totalTshares)}
                     </td>
                     {/* T-Shares Change */}
@@ -3870,7 +3781,7 @@ const HEXDataDashboard = () => {
                       {formatPrice(row.tshareRateHEX, 8)}
                     </td>
                     {/* T-Share Market Cap */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-950">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                       {formatCurrency(row.tshareMarketCap, 0)}
                     </td>
                     {/* Payout per T-Share */}
@@ -3890,7 +3801,7 @@ const HEXDataDashboard = () => {
                       {formatPercent(row.actualAPYRate)}
                     </td>
                     {/* Active Stakers */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-950">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                       {formatNumber(row.currentStakerCount, 0)}
                     </td>
                     {/* Staker Change */}
@@ -3900,7 +3811,7 @@ const HEXDataDashboard = () => {
                       </div>
                     </td>
                     {/* Current Holders */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-950">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                       {formatNumber(row.currentHolders, 0)}
                     </td>
                     {/* Holder Change */}
@@ -3910,7 +3821,7 @@ const HEXDataDashboard = () => {
                       </div>
                     </td>
                     {/* Total Holders */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-950">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                       {formatNumber(row.numberOfHolders, 0)}
                     </td>
                     {/* Average Stake Length */}
@@ -3922,7 +3833,7 @@ const HEXDataDashboard = () => {
                       {formatHEX(row.penaltiesHEX)}
                     </td>
                     {/* ROI from ATL */}
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-emerald-800">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-green-500">
                       {formatPercent(row.roiMultiplierFromATL)}
                     </td>
                     {/* Network-specific columns */}
@@ -3931,17 +3842,17 @@ const HEXDataDashboard = () => {
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-orange-800">
                           {formatCurrency(row.priceBTC, 2)}
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-950">
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-white">
                           {formatCurrency(row.priceETH, 2)}
                         </td>
                       </>
                     )}
                     {activeTab === 'pulsechain' && (
                       <>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-pink-800">
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-cyan-400">
                           {formatPrice(row.pricePulseX, 8)}
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-pink-800">
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-cyan-400">
                           {formatPrice(row.pricePulseX_PLS, 8)}
                         </td>
                       </>

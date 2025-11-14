@@ -82,8 +82,8 @@ const formatDate = (dateString: string) => {
 
 const getChangeColor = (value: unknown) => {
   const num = Number(value);
-  if (isNaN(num) || num === 0) return 'text-slate-400';
-  return num > 0 ? 'text-green-400' : 'text-red-400';
+  if (isNaN(num) || num === 0) return 'text-white';
+  return num > 0 ? 'text-green-500' : 'text-red-500';
 };
 
 const getChangeIcon = (value: unknown) => {
@@ -180,7 +180,7 @@ const DataTable: React.FC<DataTableProps> = ({
                     <div className="flex items-center gap-1">
                       <span className="hidden sm:inline">{column.label}</span>
                       <span className="sm:hidden">{column.shortLabel || column.label}</span>
-                      <span className="text-slate-300 text-xs">{getSortIcon(column.key as keyof HexRow)}</span>
+                      <span className="text-white text-xs">{getSortIcon(column.key as keyof HexRow)}</span>
                     </div>
                   </th>
                 );
@@ -192,7 +192,7 @@ const DataTable: React.FC<DataTableProps> = ({
               <tr key={row._id || index} className="hover:bg-white/5">
                 {columns.map((column) => {
                   const isMobileVisible = column.mobile;
-                  const cellClass = `px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm ${!isMobileVisible ? 'hidden sm:table-cell' : ''}`;
+                  const cellClass = `px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-white ${!isMobileVisible ? 'hidden sm:table-cell' : ''}`;
                   
                   // Get cell content based on column key
                   const getCellContent = () => {
@@ -202,7 +202,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       case 'currentDay':
                         return <span className="text-white">{formatNumber(row.currentDay, 0, true)}</span>;
                       case 'priceUV2UV3':
-                        return <span className="text-green-600 font-semibold">{formatPrice(row.priceUV2UV3, 8)}</span>;
+                        return <span className="text-green-500 font-semibold">{formatPrice(row.priceUV2UV3, 8)}</span>;
                       case 'priceChangeUV2UV3':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.priceChangeUV2UV3)}`}>
@@ -213,7 +213,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       case 'marketCap':
                         return <span className="text-white">{formatCurrency(row.marketCap, 0)}</span>;
                       case 'totalValueLocked':
-                        return <span className="text-slate-950 font-semibold">{formatCurrency(row.totalValueLocked, 0)}</span>;
+                        return <span className="text-white font-semibold">{formatCurrency(row.totalValueLocked, 0)}</span>;
                       case 'totalHEX':
                         return <span className="text-white">{formatHEX(row.totalHEX)}</span>;
                       case 'circulatingHEX':
@@ -226,7 +226,7 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'stakedHEX':
-                        return <span className="text-slate-950">{formatHEX(row.stakedHEX)}</span>;
+                        return <span className="text-white">{formatHEX(row.stakedHEX)}</span>;
                       case 'stakedSupplyChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.stakedSupplyChange)}`}>
@@ -235,9 +235,9 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'stakedHEXPercent':
-                        return <span className="text-slate-950">{formatPercent(row.stakedHEXPercent)}</span>;
+                        return <span className="text-white">{formatPercent(row.stakedHEXPercent)}</span>;
                       case 'totalTshares':
-                        return <span className="text-slate-950">{formatTShares(row.totalTshares)}</span>;
+                        return <span className="text-white">{formatTShares(row.totalTshares)}</span>;
                       case 'totalTsharesChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.totalTsharesChange)}`}>
@@ -246,19 +246,19 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'tshareRateHEX':
-                        return <span className="text-orange-600">{formatNumber(row.tshareRateHEX, 1)} HEX</span>;
+                        return <span className="text-orange-500">{formatNumber(row.tshareRateHEX, 1)} HEX</span>;
                       case 'tshareMarketCap':
-                        return <span className="text-slate-950">{formatCurrency(row.tshareMarketCap, 0)}</span>;
+                        return <span className="text-white">{formatCurrency(row.tshareMarketCap, 0)}</span>;
                       case 'payoutPerTshareHEX':
-                        return <span className="text-yellow-600">{formatNumber(row.payoutPerTshareHEX, 6)} HEX</span>;
+                        return <span className="text-yellow-500">{formatNumber(row.payoutPerTshareHEX, 6)} HEX</span>;
                       case 'dailyPayoutHEX':
-                        return <span className="text-green-700">{formatHEX(row.dailyPayoutHEX)}</span>;
+                        return <span className="text-green-500">{formatHEX(row.dailyPayoutHEX)}</span>;
                       case 'dailyMintedInflationTotal':
-                        return <span className="text-green-600">{formatHEX(row.dailyMintedInflationTotal)}</span>;
+                        return <span className="text-green-500">{formatHEX(row.dailyMintedInflationTotal)}</span>;
                       case 'actualAPYRate':
-                        return <span className="text-yellow-700 font-semibold">{formatPercent(row.actualAPYRate)}</span>;
+                        return <span className="text-yellow-500 font-semibold">{formatPercent(row.actualAPYRate)}</span>;
                       case 'currentStakerCount':
-                        return <span className="text-slate-950">{formatNumber(row.currentStakerCount, 0, true)}</span>;
+                        return <span className="text-white">{formatNumber(row.currentStakerCount, 0, true)}</span>;
                       case 'currentStakerCountChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.currentStakerCountChange)}`}>
@@ -267,7 +267,7 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'currentHolders':
-                        return <span className="text-orange-700">{formatNumber(row.currentHolders, 0, true)}</span>;
+                        return <span className="text-orange-500">{formatNumber(row.currentHolders, 0, true)}</span>;
                       case 'currentHoldersChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.currentHoldersChange)}`}>
@@ -276,21 +276,21 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'numberOfHolders':
-                        return <span className="text-red-600">{formatNumber(row.numberOfHolders, 0, true)}</span>;
+                        return <span className="text-red-500">{formatNumber(row.numberOfHolders, 0, true)}</span>;
                       case 'averageStakeLength':
-                        return <span className="text-yellow-700">{formatNumber(row.averageStakeLength, 2)} years</span>;
+                        return <span className="text-yellow-500">{formatNumber(row.averageStakeLength, 2)} years</span>;
                       case 'penaltiesHEX':
-                        return <span className="text-red-700">{formatHEX(row.penaltiesHEX)}</span>;
+                        return <span className="text-red-500">{formatHEX(row.penaltiesHEX)}</span>;
                       case 'roiMultiplierFromATL':
-                        return <span className="text-emerald-700 font-semibold">{formatNumber(row.roiMultiplierFromATL, 0)}x</span>;
+                        return <span className="text-green-500 font-semibold">{formatNumber(row.roiMultiplierFromATL, 0)}x</span>;
                       case 'priceBTC':
-                        return <span className="text-orange-700">{formatCurrency(row.priceBTC, 2)}</span>;
+                        return <span className="text-orange-500">{formatCurrency(row.priceBTC, 2)}</span>;
                       case 'priceETH':
-                        return <span className="text-slate-950">{formatCurrency(row.priceETH, 2)}</span>;
+                        return <span className="text-white">{formatCurrency(row.priceETH, 2)}</span>;
                       case 'pricePulseX':
-                        return <span className="text-pink-700">{formatPrice(row.pricePulseX, 8)}</span>;
+                        return <span className="text-cyan-500">{formatPrice(row.pricePulseX, 8)}</span>;
                       case 'pricePulseX_PLS':
-                        return <span className="text-pink-600">{formatPrice(row.pricePulseX_PLS, 8)}</span>;
+                        return <span className="text-cyan-500">{formatPrice(row.pricePulseX_PLS, 8)}</span>;
                       default:
                         return <span className="text-white">{formatNumber(row[column.key as keyof HexRow])}</span>;
                     }
@@ -320,7 +320,7 @@ const DataTable: React.FC<DataTableProps> = ({
             >
               Prev
             </button>
-            <span className="text-xs text-slate-400 self-center">
+            <span className="text-xs text-white self-center">
               {currentPage} / {totalPages}
             </span>
             <button
@@ -334,7 +334,7 @@ const DataTable: React.FC<DataTableProps> = ({
           </div>
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-white">
                 Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
                 <span className="font-medium">{Math.min(startIndex + itemsPerPage, data.length)}</span> of{' '}
                 <span className="font-medium">{data.length}</span> results

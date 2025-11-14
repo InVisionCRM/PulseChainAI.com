@@ -534,10 +534,7 @@ export default function StackerGamePage() {
 		<>
 			<style jsx global>{`
 				body {
-					background-image: url("/Mirage.jpg");
-					background-size: cover;
-					background-position: center;
-					background-repeat: no-repeat;
+					background-color: #000;
 					color: white;
 					font-family: Arial, sans-serif;
 					text-align: center;
@@ -547,15 +544,29 @@ export default function StackerGamePage() {
 				}
 
 				#stacker-page-container {
-					background-image: url("/Mirage.jpg");
-					background-size: cover;
-					background-position: center;
-					background-repeat: no-repeat;
+					position: relative;
 					display: center;
 					justify-content: center;
 					align-items: center;
 					min-height: 100vh;
 					padding-top: 5vh;
+					overflow: hidden;
+				}
+
+				#bg-video {
+					position: fixed;
+					top: 0;
+					left: 0;
+					width: 100%;
+					height: 100%;
+					object-fit: cover;
+					z-index: -2;
+					background: #000;
+				}
+
+				#stacker-page-container > *:not(#bg-video) {
+					position: relative;
+					z-index: 1;
 				}
 
 				#stacker-game {
@@ -567,6 +578,16 @@ export default function StackerGamePage() {
 					justify-content: center;
 					align-items: center;
 					border: 1px solid white;
+					overflow: hidden;
+				}
+
+				#stacker-game::before {
+					content: "";
+					position: absolute;
+					inset: 0;
+					background: rgba(0, 0, 0, 0.4);
+					backdrop-filter: blur(4px);
+					z-index: 0;
 				}
 
 				#stacker-game table {
@@ -574,12 +595,14 @@ export default function StackerGamePage() {
 					border-collapse: separate;
 					width: 100%;
 					height: 100%;
+					position: relative;
+					z-index: 1;
 				}
 
 				#stacker-game td {
 					width: 27px;
 					height: 27px;
-					border: 1px solid #111;
+					border: 2px solid rgba(255, 255, 255, 0.4);
 					padding: 0;
 					position: relative;
 				}
@@ -840,6 +863,15 @@ export default function StackerGamePage() {
 			/>
 
 			<div id="stacker-page-container">
+				<video
+					id="bg-video"
+					autoPlay
+					muted
+					loop
+					playsInline
+					poster="/Mirage.jpg"
+					src="https://dvba8d38nfde7nic.public.blob.vercel-storage.com/Video/pulsechain-a2.mp4"
+				/>
 				<div id="game-container-wrapper">
 					<div id="stacker-header">
 						<img

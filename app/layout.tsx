@@ -18,11 +18,13 @@ import {
   IconDeviceGamepad2,
   IconPhoneOutgoing,
   IconWallet,
+  IconChevronDown,
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -36,6 +38,64 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 });
 
+type NavLink = {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+};
+
+const SidebarGroup = ({
+  label,
+  icon,
+  links,
+  initiallyOpen = false,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  links: NavLink[];
+  initiallyOpen?: boolean;
+}) => {
+  const [expanded, setExpanded] = useState(initiallyOpen);
+
+  return (
+    <div className="mt-6">
+      <button
+        type="button"
+        onClick={() => setExpanded((prev) => !prev)}
+        className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-2 transition duration-200 hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50"
+      >
+        <span className="flex items-center gap-2">
+          {icon}
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-neutral-200 text-lg transition duration-150 whitespace-pre inline-block !p-0 !m-0 md:opacity-0 md:w-0 md:overflow-hidden md:translate-x-0 group-hover/sidebar:opacity-100 group-hover/sidebar:w-auto group-hover/sidebar:overflow-visible group-hover/sidebar:translate-x-1 md:ml-0"
+          >
+            {label}
+          </motion.span>
+        </span>
+        <IconChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-white transition-transform duration-200 md:opacity-0 group-hover/sidebar:md:opacity-100",
+            expanded ? "rotate-180" : "rotate-0"
+          )}
+        />
+      </button>
+      {expanded && (
+        <div className="mt-2 space-y-1">
+          {links.map((link, idx) => (
+            <SidebarLink
+              key={`${label.toLowerCase()}-${idx}`}
+              link={link}
+              className="md:pl-6"
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -47,7 +107,7 @@ export default function RootLayout({
   const isStackerGamePage = pathname === "/stacker-game";
   const [open, setOpen] = useState(false);
 
-  const links = [
+  const primaryLinks: NavLink[] = [
     {
       label: "Home",
       href: "/",
@@ -69,6 +129,16 @@ export default function RootLayout({
         <IconWallet className="h-5 w-5 shrink-0 text-white" />
       ),
     },
+    {
+      label: "Hex Dashboard",
+      href: "/hex-dashboard",
+      icon: (
+        <IconHexagon className="h-5 w-5 shrink-0 text-white" />
+      ),
+    },
+  ];
+
+  const toolsLinks: NavLink[] = [
     {
       label: "Blockchain Analyzer",
       href: "/blockchain-analyzer",
@@ -106,7 +176,7 @@ export default function RootLayout({
     },
   ];
 
-  const gamesLinks = [
+  const gamesLinks: NavLink[] = [
     {
       label: "Hextroids",
       href: "https://pulsegame.vercel.app",
@@ -141,7 +211,7 @@ export default function RootLayout({
               <SidebarBody className="justify-between gap-10">
                 <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
                   <div className="mt-8 flex flex-col gap-2">
-                    {links.map((link, idx) => (
+                    {primaryLinks.map((link, idx) => (
                       <SidebarLink key={idx} link={link} />
                     ))}
 
@@ -162,19 +232,17 @@ export default function RootLayout({
                       </button>
                     )}
 
-                    {/* Games Section */}
-                    <div className="mt-6">
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2 md:hidden group-hover/sidebar:md:block"
-                      >
-                        Games
-                      </motion.div>
-                      {gamesLinks.map((link, idx) => (
-                        <SidebarLink key={`game-${idx}`} link={link} />
-                      ))}
-                    </div>
+                    <SidebarGroup
+                      label="Tools"
+                      icon={<IconSettings className="h-5 w-5 shrink-0 text-white" />}
+                      links={toolsLinks}
+                    />
+
+                    <SidebarGroup
+                      label="Games"
+                      icon={<IconDeviceGamepad2 className="h-5 w-5 shrink-0 text-white" />}
+                      links={gamesLinks}
+                    />
 
                     {/* Sponsored by Section */}
                     <div className="mt-6">

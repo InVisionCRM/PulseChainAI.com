@@ -6,7 +6,6 @@ import { fetchDexScreenerData, search } from '@/services/pulsechainService';
 import { Button } from '@/components/ui/stateful-button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import { ProgressiveBlur } from '@/components/ui/progressive-blur';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const MAX_SNIPPET_CHARS = 400;
 
@@ -1718,28 +1717,28 @@ export default function AdminStatsPanel({
 
         {statCategories.length > 0 && (
           <div className="hidden md:flex flex-col gap-4" aria-label="Stat selector">
-            <Tabs value={resolvedCategoryTitle} onValueChange={handleCategorySelect} className="w-full space-y-3">
-              <TabsList
-                aria-label="Stat categories"
-                className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-gray-700/70 bg-gray-900/70 p-1 text-gray-300"
-              >
-                {statCategories.map(category => (
-                  <TabsTrigger
-                    key={category.title}
-                    value={category.title}
-                    className={`whitespace-nowrap rounded-md border border-transparent font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 ${
-                      compact ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-sm'
-                    } data-[state=active]:border-orange-500 data-[state=active]:bg-orange-600 data-[state=active]:text-white hover:bg-gray-800/70 hover:text-white`}
-                  >
-                    {category.title}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+            <div className="w-full space-y-3 overflow-hidden">
+              <div className="relative">
+                <div className="flex w-full items-center gap-2 rounded-lg border border-white/15 bg-white/10 p-1 text-white overflow-x-auto scrollbar-hide">
+                  {statCategories.map(category => (
+                    <button
+                      key={category.title}
+                      onClick={() => handleCategorySelect(category.title)}
+                      className={`whitespace-nowrap rounded-full border font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 ${
+                        compact ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm'
+                      } ${
+                        resolvedCategoryTitle === category.title
+                          ? 'border-white bg-white/30 text-white shadow-[0_10px_40px_rgba(255,255,255,0.2)]'
+                          : 'border-transparent text-white/70 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      {category.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-              <TabsContent
-                value={resolvedCategoryTitle}
-                className="focus-visible:outline-none focus-visible:ring-0"
-              >
+              <div className="focus-visible:outline-none focus-visible:ring-0">
                 <div className="rounded-lg border border-gray-700/70 bg-gray-900/60">
                   {statCategories
                     .find(category => category.title === resolvedCategoryTitle)
@@ -1779,8 +1778,8 @@ export default function AdminStatsPanel({
                       </span>
                     )}
                 </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+            </div>
 
             {selectedStatMeta?.description && (
               <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-gray-400`}>
