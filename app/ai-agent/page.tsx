@@ -512,7 +512,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
     "Search for PulseChain or PLS!",
     "Try SuperStake or PSSH",
     "Bringing AI To PulseChain",
-    "Bookmark PulseChainAI.com",
+    "Bookmark Morbius.io",
   ];
   
   // AI Analysis

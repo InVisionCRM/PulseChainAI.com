@@ -6,6 +6,7 @@ import AdminStatsPanel from '@/components/AdminStatsPanel';
 import TokenAIChat from '@/components/TokenAIChat';
 import TokenContractView from '@/components/TokenContractView';
 import DexScreenerChart from '@/components/DexScreenerChart';
+import LiquidityTab from '@/components/LiquidityTab';
 import { LoaderThree } from "@/components/ui/loader";
 import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem } from '../../types';
@@ -62,6 +63,7 @@ const formatMarketCapLabel = (value?: number) => {
 };
 
 const truncateAddress = (value: string) => `${value.slice(0, 6)}...${value.slice(-4)}`;
+const formatLpHolderAddress = (value?: string) => (value ? `...${value.slice(-4)}` : 'Unknown');
 
 const formatCurrencyCompact = (value?: number | null, options: Intl.NumberFormatOptions = {}) => {
   if (!Number.isFinite(value ?? NaN)) return '—';
@@ -125,6 +127,36 @@ function GeickoPageContent() {
   const [holdersCount, setHoldersCount] = useState<number | null>(null);
   const [activeSocialTab, setActiveSocialTab] = useState<string | null>(null);
   const [uiPreset, setUiPreset] = useState<'classic' | 'rabby1'>('classic');
+  
+  // Ownership state
+  const [ownershipData, setOwnershipData] = useState<{
+    creatorAddress: string | null;
+    ownerAddress: string | null;
+    isRenounced: boolean;
+    renounceTxHash: string | null;
+    isLoading: boolean;
+  }>({
+    creatorAddress: null,
+    ownerAddress: null,
+    isRenounced: false,
+    renounceTxHash: null,
+    isLoading: false,
+  });
+
+  // Additional metrics state
+  const [contractAge, setContractAge] = useState<string | null>(null);
+  const [totalSupply, setTotalSupply] = useState<{ supply: string; decimals: number } | null>(null);
+  const [supplyHeld, setSupplyHeld] = useState<{
+    top10: number;
+    top20: number;
+    top50: number;
+    isLoading: boolean;
+  }>({
+    top10: 0,
+    top20: 0,
+    top50: 0,
+    isLoading: false,
+  });
 
   // Data state
   const [contractData, setContractData] = useState<ContractData | null>(null);
@@ -528,7 +560,7 @@ function GeickoPageContent() {
     "Search for PulseChain or PLS!",
     "Try SuperStake or PSSH",
     "Bringing AI To PulseChain",
-    "Bookmark PulseChainAI.com",
+    "Bookmark Morbius",
   ];
 
   // Handle search with name, ticker, or address
@@ -573,6 +605,7 @@ function GeickoPageContent() {
     setSearchResults([]);
     setShowSearchResults(false);
     setError(null);
+    router.push(`/geicko?address=${encodeURIComponent(item.address)}`);
   };
 
   // Handle search submission (for direct address input)
@@ -587,6 +620,7 @@ function GeickoPageContent() {
       setError(null);
       setSearchResults([]);
       setShowSearchResults(false);
+      router.push(`/geicko?address=${encodeURIComponent(trimmedInput)}`);
     } else if (trimmedInput && searchResults && searchResults.length > 0) {
       // If there are search results, select the first one
       handleSelectSearchResult(searchResults[0]);
@@ -705,6 +739,189 @@ function GeickoPageContent() {
     };
 
     load();
+    return () => { cancelled = true; };
+  }, [apiTokenAddress]);
+
+  // Fetch contract ownership data
+  useEffect(() => {
+    let cancelled = false;
+    const base = 'https://api.scan.pulsechain.com/api/v2';
+
+    const fetchJson = async (url: string) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    };
+
+    const loadOwnership = async () => {
+      try {
+        if (!apiTokenAddress) return;
+        
+        setOwnershipData(prev => ({ ...prev, isLoading: true }));
+
+        // Fetch address info to get creator and creation tx
+        const addressInfo = await fetchJson(`${base}/addresses/${apiTokenAddress}`);
+        const creatorAddress = addressInfo?.creator_address_hash || null;
+        const creationTxHash = addressInfo?.creation_tx_hash || null;
+
+        let ownerAddress: string | null = null;
+        let isRenounced = false;
+        let renounceTxHash: string | null = null;
+
+        if (creationTxHash) {
+          // Fetch creation transaction to get owner (from address)
+          const creationTx = await fetchJson(`${base}/transactions/${creationTxHash}`);
+          ownerAddress = creationTx?.from?.hash || creationTx?.from || null;
+        }
+
+        // Check if ownership was renounced by checking creator's transactions
+        if (creatorAddress) {
+          try {
+            const creatorTxs = await fetchJson(`${base}/addresses/${creatorAddress}/transactions?limit=100`);
+            const renounceTx = (creatorTxs?.items || []).find((tx: any) => 
+              (tx?.method || '').toLowerCase() === 'renounceownership'
+            );
+            
+            if (renounceTx) {
+              isRenounced = true;
+              renounceTxHash = renounceTx.hash || null;
+            }
+          } catch (error) {
+            console.error('Failed to check renounce status:', error);
+          }
+        }
+
+        if (!cancelled) {
+          setOwnershipData({
+            creatorAddress,
+            ownerAddress: ownerAddress || creatorAddress,
+            isRenounced,
+            renounceTxHash,
+            isLoading: false,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch ownership data:', error);
+        if (!cancelled) {
+          setOwnershipData(prev => ({ ...prev, isLoading: false }));
+        }
+      }
+    };
+
+    loadOwnership();
+    return () => { cancelled = true; };
+  }, [apiTokenAddress]);
+
+  // Fetch contract age, total pairs, and supply held
+  useEffect(() => {
+    let cancelled = false;
+    const base = 'https://api.scan.pulsechain.com/api/v2';
+
+    const fetchJson = async (url: string) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    };
+
+    const loadMetrics = async () => {
+      try {
+        if (!apiTokenAddress) return;
+
+        // Fetch contract age
+        try {
+          const addressInfo = await fetchJson(`${base}/addresses/${apiTokenAddress}`);
+          const creationTxHash = addressInfo?.creation_tx_hash;
+          
+          if (creationTxHash) {
+            const creationTx = await fetchJson(`${base}/transactions/${creationTxHash}`);
+            const timestamp = creationTx?.timestamp || creationTx?.block_timestamp;
+            
+            if (timestamp) {
+              const creationDate = new Date(timestamp);
+              const now = new Date();
+              const ageMs = now.getTime() - creationDate.getTime();
+              const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
+              
+              let ageStr = '';
+              if (ageDays < 1) {
+                const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
+                ageStr = ageHours < 1 ? '<1h' : `${ageHours}h`;
+              } else if (ageDays < 30) {
+                ageStr = `${ageDays}d`;
+              } else if (ageDays < 365) {
+                const ageMonths = Math.floor(ageDays / 30);
+                ageStr = `${ageMonths}mo`;
+              } else {
+                const ageYears = Math.floor(ageDays / 365);
+                ageStr = `${ageYears}y`;
+              }
+              
+              if (!cancelled) setContractAge(ageStr);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch contract age:', error);
+        }
+
+        // Fetch total supply
+        try {
+          const tokenInfo = await fetchJson(`${base}/tokens/${apiTokenAddress}`);
+          const supply = tokenInfo?.total_supply || null;
+          const decimals = Number(tokenInfo?.decimals || 18);
+          if (supply && !cancelled) {
+            setTotalSupply({ supply, decimals });
+          }
+        } catch (error) {
+          console.error('Failed to fetch total supply:', error);
+        }
+
+        // Fetch supply held by top holders
+        try {
+          setSupplyHeld(prev => ({ ...prev, isLoading: true }));
+          
+          const tokenInfo = await fetchJson(`${base}/tokens/${apiTokenAddress}`);
+          const totalSupply = Number(tokenInfo?.total_supply || 0);
+          const decimals = Number(tokenInfo?.decimals || 18);
+
+          if (totalSupply > 0) {
+            // Fetch top 50 holders
+            const holdersResponse = await fetchJson(`${base}/tokens/${apiTokenAddress}/holders?limit=50`);
+            const holders = Array.isArray(holdersResponse?.items) ? holdersResponse.items : [];
+
+            // Calculate supply held by top 10, 20, and 50
+            const top10Value = holders.slice(0, 10).reduce((sum: number, h: any) => sum + Number(h.value || 0), 0);
+            const top20Value = holders.slice(0, 20).reduce((sum: number, h: any) => sum + Number(h.value || 0), 0);
+            const top50Value = holders.slice(0, 50).reduce((sum: number, h: any) => sum + Number(h.value || 0), 0);
+
+            const top10Percent = (top10Value / totalSupply) * 100;
+            const top20Percent = (top20Value / totalSupply) * 100;
+            const top50Percent = (top50Value / totalSupply) * 100;
+
+            if (!cancelled) {
+              setSupplyHeld({
+                top10: top10Percent,
+                top20: top20Percent,
+                top50: top50Percent,
+                isLoading: false,
+              });
+            }
+          } else {
+            if (!cancelled) {
+              setSupplyHeld(prev => ({ ...prev, isLoading: false }));
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch supply held:', error);
+          if (!cancelled) {
+            setSupplyHeld(prev => ({ ...prev, isLoading: false }));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load metrics:', error);
+      }
+    };
+
+    loadMetrics();
     return () => { cancelled = true; };
   }, [apiTokenAddress]);
 
@@ -941,6 +1158,7 @@ function GeickoPageContent() {
   const tabOptions: Array<{ id: typeof activeTab; label: string }> = [
     { id: 'transactions', label: 'Txns' },
     { id: 'holders', label: 'Holders' },
+    { id: 'liquidity', label: 'Liquidity' },
     { id: 'contract', label: 'Code' },
     { id: 'switch', label: 'Switch' },
   ];
@@ -948,6 +1166,7 @@ function GeickoPageContent() {
   const tabIconMap: Record<string, string> = {
     transactions: '🧾',
     holders: '👥',
+    liquidity: '💧',
     contract: '💻',
     switch: '⇄',
   };
@@ -1004,6 +1223,20 @@ function GeickoPageContent() {
                     </span>
                   </div>
                 </div>
+                <div className="mt-1 grid grid-cols-2 gap-2 text-[11px] text-gray-300">
+                  <div className="flex items-center justify-between bg-gray-800/40 px-2 py-1 rounded">
+                    <span className="text-gray-400">{pair.baseToken.symbol}</span>
+                    <span className="text-white font-semibold">
+                      {parseFloat(String(pair.liquidity?.base || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between bg-gray-800/40 px-2 py-1 rounded">
+                    <span className="text-gray-400">{pair.quoteToken.symbol}</span>
+                    <span className="text-white font-semibold">
+                      {parseFloat(String(pair.liquidity?.quote || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {expandedPairs.has(pair.pairAddress) && (
@@ -1024,15 +1257,20 @@ function GeickoPageContent() {
                     {pairHoldersData[pair.pairAddress]?.holders && pairHoldersData[pair.pairAddress].holders.length > 0 && (
                       <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
                         {pairHoldersData[pair.pairAddress].holders.slice(0, 10).map((holder: any, idx: number) => (
-                          <div key={holder.address} className="flex items-center justify-between text-xs bg-gray-800/50 rounded px-1 py-0.5">
-                            <span className="text-gray-400">#{idx + 1}</span>
-                            <span className="text-blue-400 font-mono text-[10px]">
-                              {holder.address.slice(0, 6)}...{holder.address.slice(-4)}
+                          <div
+                            key={holder.address}
+                            className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 text-xs bg-gray-800/50 rounded px-1 py-0.5"
+                          >
+                            <span className="text-gray-400 leading-none">#{idx + 1}</span>
+                            <span className="text-blue-400 font-mono text-[10px] leading-none">
+                              {formatLpHolderAddress(holder.address)}
                             </span>
-                            <span className={`font-medium ${
-                              holder.percentage >= 10 ? 'text-red-400' :
-                              holder.percentage >= 5 ? 'text-yellow-400' : 'text-green-400'
-                            }`}>
+                            <span
+                              className={`font-medium ${
+                                holder.percentage >= 10 ? 'text-red-400' :
+                                holder.percentage >= 5 ? 'text-yellow-400' : 'text-green-400'
+                              }`}
+                            >
                               {holder.percentage >= 1 ? holder.percentage.toFixed(2) :
                                holder.percentage >= 0.01 ? holder.percentage.toFixed(4) : '<0.01'}%
                             </span>
@@ -1357,7 +1595,17 @@ function GeickoPageContent() {
       <header className="bg-gray-900 border-b border-gray-800">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 md:px-3 py-2 gap-2">
           {/* Search Bar */}
-          <div className="hidden sm:flex items-center w-full">
+          <div className="hidden sm:flex flex-col items-start w-full gap-2">
+            {/* Title with Logo */}
+            <div className="flex items-center gap-2">
+              <img
+                src="/LogoVector.svg"
+                alt="Morbius Logo"
+                className="w-6 h-6"
+              />
+              <h1 className="text-white text-lg font-semibold">Morbius Token Analyzer</h1>
+            </div>
+
             <div className="relative w-full max-w-2xl" ref={searchInputRef}>
               <PlaceholdersAndVanishInput
                 placeholders={searchPlaceholders}
@@ -1536,22 +1784,39 @@ function GeickoPageContent() {
                   </div>
                 </div>
 
-                {/* Right side: Header Image */}
-                {profileData?.profile?.headerImageUrl && (
-                  <div className="absolute top-4 right-0 w-[300px] h-[100px] rounded-md border border-white/20 overflow-hidden">
+                {/* Right side: Header Image - Background */}
+                {headerImageUrl && (
+                  <div className="absolute inset-0 w-full h-full overflow-hidden -z-10">
                     <img
-                      src={profileData.profile.headerImageUrl}
+                      src={headerImageUrl}
                       alt="Token Header"
-                      className="w-full h-full object-cover blur-3xl scale-110"
+                      className="w-full h-full object-cover blur-2xl scale-110 opacity-40"
+                      data-fallback="false"
                       onError={(e) => {
-                        e.currentTarget.style.display = 'none';
+                        if (e.currentTarget.dataset.fallback === 'true') {
+                          e.currentTarget.style.display = 'none';
+                          return;
+                        }
+                        e.currentTarget.dataset.fallback = 'true';
+                        e.currentTarget.src = '/app-pics/clean.png';
                       }}
                     />
-                    <div className="absolute inset-0 bg-black/30" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/80" />
                   </div>
                 )}
 
-                {/* Social Icons - Under header image on the left */}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-400 py-4">No token data available</div>
+            )}
+          </div>
+
+          {/* Price Performance & 24h Activity - Mobile Only (Above Chart) */}
+          <div className="sm:hidden px-2 mb-2">
+            <div className="grid grid-cols-2 gap-1">
+              {/* Left Column: Price Performance & 24h Activity */}
+              <div>
+                {/* Social Icons */}
                 {(() => {
                   const websiteLink = profileData?.profile?.websites?.[0];
                   const twitterLink = profileData?.profile?.socials?.find((s: any) => s.type === 'twitter');
@@ -1561,97 +1826,73 @@ function GeickoPageContent() {
                   if (!websiteLink && !twitterLink && !discordLink && !telegramLink) return null;
 
                   return (
-                    <div className="absolute right-0 bottom-0 flex items-center gap-1 bg-black/10 backdrop-blur-sm rounded-md px-2 py-1">
-                      {websiteLink && (
-                        <a href={websiteLink.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-gray-800 rounded transition-colors" title="Website">
-                          <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                          </svg>
-                        </a>
-                      )}
-                      {twitterLink && (
-                        <a href={twitterLink.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-gray-800 rounded transition-colors" title="X.com">
-                          <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                          </svg>
-                        </a>
-                      )}
-                      {discordLink && (
-                        <a href={discordLink.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-gray-800 rounded transition-colors" title="Discord">
-                          <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
-                          </svg>
-                        </a>
-                      )}
-                      {telegramLink && (
-                        <a href={telegramLink.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-gray-800 rounded transition-colors" title="Telegram">
-                          <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-                          </svg>
-                        </a>
-                      )}
-                      <button
-                        onClick={() => {
-                          const tokenSymbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData?.pairs?.[0]?.baseToken?.symbol || '';
-                          window.open(`https://x.com/search?q=%23${encodeURIComponent(tokenSymbol)}`, '_blank');
-                        }}
-                        className="p-1.5 hover:bg-gray-800 rounded transition-colors"
-                        title="Search on X"
-                      >
-                        <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                      </button>
+                    <div className="mb-2">
+                      <div className="text-xs text-gray-300 mb-1 text-center">Socials</div>
+                      <div className="grid grid-cols-4 gap-0.5 text-xs">
+                        {websiteLink && (
+                          <div className="text-center bg-gradient-to-b from-purple-500/30 to-purple-500/30 backdrop-blur-sm rounded p-1">
+                            <a
+                              href={websiteLink.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-white hover:text-white/80"
+                              title="Website"
+                            >
+                              <svg className="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                              </svg>
+                            </a>
+                          </div>
+                        )}
+                        {twitterLink && (
+                          <div className="text-center bg-gradient-to-b from-purple-500/30 to-purple-500/30 backdrop-blur-sm rounded p-1">
+                            <a
+                              href={twitterLink.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-white hover:text-white/80"
+                              title="X.com"
+                            >
+                              <svg className="w-4 h-4 mx-auto" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                              </svg>
+                            </a>
+                          </div>
+                        )}
+                        {telegramLink && (
+                          <div className="text-center bg-gradient-to-b from-purple-500/30 to-purple-500/30 backdrop-blur-sm rounded p-1">
+                            <a
+                              href={telegramLink.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-white hover:text-white/80"
+                              title="Telegram"
+                            >
+                              <svg className="w-4 h-4 mx-auto" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                              </svg>
+                            </a>
+                          </div>
+                        )}
+                        {discordLink && (
+                          <div className="text-center bg-gradient-to-b from-purple-500/30 to-purple-500/30 backdrop-blur-sm rounded p-1">
+                            <a
+                              href={discordLink.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-white hover:text-white/80"
+                              title="Discord"
+                            >
+                              <svg className="w-4 h-4 mx-auto" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
+                              </svg>
+                            </a>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })()}
-              </div>
-            ) : (
-              <div className="text-xs text-gray-400 py-4">No token data available</div>
-            )}
-          </div>
-
-          {/* Price Performance & 24h Activity - Mobile Only (Above Chart) */}
-          <div className="sm:hidden px-2 mb-2">
-            <div className="grid grid-cols-2 gap-2">
-              {/* Left Column: Price Performance & 24h Activity */}
-              <div>
-                {/* Price Performance */}
-                {dexScreenerData?.pairs?.[0] && (
-                  <div className="mb-2">
-                    <div className="text-xs text-gray-300 mb-1 text-center">Price Performance</div>
-                    <div className="grid grid-cols-4 gap-0.5 text-xs">
-                      <div className="text-center">
-                        <div className="text-gray-400">5M</div>
-                        <div className={`${(dexScreenerData.pairs[0].priceChange?.m5 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {(dexScreenerData.pairs[0].priceChange?.m5 || 0) >= 0 ? '+' : ''}
-                          {(dexScreenerData.pairs[0].priceChange?.m5 || 0).toFixed(2)}%
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-gray-400">1H</div>
-                        <div className={`${(dexScreenerData.pairs[0].priceChange?.h1 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {(dexScreenerData.pairs[0].priceChange?.h1 || 0) >= 0 ? '+' : ''}
-                          {(dexScreenerData.pairs[0].priceChange?.h1 || 0).toFixed(2)}%
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-gray-400">6H</div>
-                        <div className={`${(dexScreenerData.pairs[0].priceChange?.h6 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {(dexScreenerData.pairs[0].priceChange?.h6 || 0) >= 0 ? '+' : ''}
-                          {(dexScreenerData.pairs[0].priceChange?.h6 || 0).toFixed(2)}%
-                        </div>
-                      </div>
-                      <div className="text-center bg-gray-800 rounded p-0.5">
-                        <div className="text-gray-400">24H</div>
-                        <div className={`${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '+' : ''}
-                          {(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* 24h Activity */}
                 {dexScreenerData?.pairs?.[0] && (
@@ -1677,31 +1918,188 @@ function GeickoPageContent() {
                 )}
               </div>
 
-              {/* Right Column: Price, Change, MCAP */}
-              <div className="flex items-center justify-center">
+              {/* Right Column: Contract Age, Supply Held, and other stats */}
+              <div className="grid grid-cols-3 gap-0 text-center px-0.5 py-0 rounded bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 relative overflow-hidden">
                 {dexScreenerData?.pairs?.[0] && (
-                  <div className="text-center">
-                    <div className="text-xl font-bold text-white">
-                      ${Number(dexScreenerData.pairs[0].priceUsd || 0).toFixed(6)}
+                  <>
+                    {/* Column 1: Contract Ownership */}
+                    <div className="py-0 space-y-0">
+                      {ownershipData.isLoading ? (
+                        <div className="text-[10px] text-gray-500 leading-none">Loading...</div>
+                      ) : (
+                        <>
+                          {ownershipData.isRenounced ? (
+                            <>
+                              <div className="text-[10px] text-green-400 font-semibold flex items-center justify-center gap-0 leading-none">
+                                <span>Renounced ✓</span>
+                                {ownershipData.renounceTxHash && (
+                                  <a
+                                    href={`https://scan.pulsechain.box/tx/${ownershipData.renounceTxHash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-400 hover:text-blue-300 ml-0.5"
+                                    title="View renounce transaction"
+                                  >
+                                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="8 8 8 8">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                  </a>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-gray-400 leading-none">No Owner</div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-[10px] text-red-400 font-semibold flex items-center justify-center gap-0 leading-none">
+                                <span>Not Renounced</span>
+                                {ownershipData.ownerAddress && (
+                                  <a
+                                    href={`https://scan.pulsechain.box/address/${ownershipData.ownerAddress}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-400 hover:text-blue-300 ml-0.5"
+                                    title="View owner address"
+                                  >
+                                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="8 8 8 8">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                  </a>
+                                )}
+                              </div>
+                              {ownershipData.ownerAddress ? (
+                                <a
+                                  href={`https://scan.pulsechain.box/address/${ownershipData.ownerAddress}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-blue-400 hover:text-blue-300 font-mono block leading-none"
+                                  title={ownershipData.ownerAddress}
+                                >
+                                  ...{ownershipData.ownerAddress.slice(-4)}
+                                </a>
+                              ) : (
+                                <div className="text-[10px] text-gray-500 leading-none">N/A</div>
+                              )}
+                            </>
+                          )}
+                        </>
+                      )}
                     </div>
-                    <div className={`text-md font-bold ${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '↑' : '↓'}
-                      {Math.abs(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
+
+                    {/* Column 2: Supply */}
+                    <div className="py-0 space-y-0">
+                      <div className="text-[10px] text-gray-400 leading-none">Supply</div>
+                      <div className="text-[10px] font-semibold text-white leading-none">
+                        {totalSupply ? (() => {
+                          const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
+                          return formatAbbrev(supply);
+                        })() : '—'}
+                      </div>
                     </div>
-                    <div className="text-lg text-gray-300">
-                      {dexScreenerData.pairs[0].marketCap
-                        ? (() => {
-                            const marketCap = Number(dexScreenerData.pairs[0].marketCap);
-                            if (marketCap >= 1000000) {
-                              return `${(marketCap / 1000000).toFixed(2)}M MCAP`;
-                            } else {
-                              const rounded = Math.round(marketCap / 1000) * 1000;
-                              return `$${(rounded / 1000).toFixed(0)}k MCAP`;
-                            }
-                          })()
-                        : 'MCAP N/A'}
+
+                    {/* Column 3: Total Holders */}
+                    <div className="py-0 space-y-0">
+                      <div className="text-[10px] text-gray-400 leading-none">Total Holders</div>
+                      <div className="text-[10px] font-semibold text-white leading-none">
+                        {holdersCount !== null ? holdersCount.toLocaleString() : '—'}
+                      </div>
                     </div>
-                  </div>
+
+                    {/* Column 1: Contract Age */}
+                    <div className="py-0 space-y-0">
+                      <div className="text-[10px] text-gray-400 leading-none">Contract Age</div>
+                      <div className="text-[10px] font-semibold text-white leading-none">
+                        {contractAge || '—'}
+                      </div>
+                    </div>
+
+                    {/* Column 2: Burned */}
+                    <div className="py-0 space-y-0">
+                      <div className="text-[10px] text-gray-400 leading-none">Burned</div>
+                      {burnedTokens ? (
+                        <div className="space-y-0">
+                          <div className="text-[10px] font-semibold text-white leading-none">
+                            {formatAbbrev(burnedTokens.amount)}
+                          </div>
+                          <div className="text-[9px] text-green-400 leading-none">
+                            {burnedTokens.percent.toFixed(2)}%
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] font-semibold text-white leading-none">—</div>
+                      )}
+                    </div>
+
+                    {/* Column 3: Supply Held */}
+                    <div className="py-0 space-y-0">
+                      <div className="text-[10px] text-gray-400 leading-none">Supply Held</div>
+                      {supplyHeld.isLoading ? (
+                        <div className="text-[10px] text-gray-500 leading-none">Loading...</div>
+                      ) : (
+                        <div className="space-y-0">
+                          <div className="text-[9px] text-white leading-none">
+                            Top 10: {supplyHeld.top10 > 0 ? `${Math.round(supplyHeld.top10)}%` : '—'}
+                          </div>
+                          <div className="text-[9px] text-white leading-none">
+                            Top 20: {supplyHeld.top20 > 0 ? `${Math.round(supplyHeld.top20)}%` : '—'}
+                          </div>
+                          <div className="text-[9px] text-white leading-none">
+                            Top 50: {supplyHeld.top50 > 0 ? `${Math.round(supplyHeld.top50)}%` : '—'}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Column 1: Creator Address */}
+                    {ownershipData.creatorAddress && (
+                      <div className="py-0 space-y-0">
+                        <div className="text-[10px] text-white/80 font-bold flex items-center justify-center gap-0 leading-none">
+                          <span>Creator</span>
+                          <a
+                            href={`https://scan.pulsechain.box/address/${ownershipData.creatorAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300 ml-0.5"
+                            title={ownershipData.creatorAddress}
+                          >
+                            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="4 4 16 16">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Column 2: Liquidity to Market Cap Ratio */}
+                    <div className="py-0 space-y-0">
+                      <div className="text-[10px] text-gray-400 leading-none">Liq/MCAP</div>
+                      <div className="text-[10px] font-semibold text-white leading-none">
+                        {(() => {
+                          const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                          const marketCap = Number(dexScreenerData.pairs[0].marketCap || 0);
+                          if (marketCap > 0) {
+                            const ratio = (liquidity / marketCap) * 100;
+                            return `${ratio.toFixed(2)}%`;
+                          }
+                          return '—';
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Column 3: More Button */}
+                    <div className="py-0 space-y-0">
+                      <button
+                        onClick={() => {
+                          const apiCatalog = document.getElementById('api-catalog');
+                          if (apiCatalog) {
+                            apiCatalog.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }
+                        }}
+                        className="text-[9px] text-blue-400 hover:text-blue-300 font-semibold leading-none"
+                      >
+                        More →
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -2016,6 +2414,11 @@ function GeickoPageContent() {
                     </div>
                   )}
                 </>
+              )}
+
+              {/* Liquidity Tab */}
+              {activeTab === 'liquidity' && (
+                <LiquidityTab dexScreenerData={dexScreenerData} isLoading={isLoadingData} />
               )}
 
               {/* Contract Tab */}
@@ -2517,26 +2920,190 @@ function GeickoPageContent() {
               </div>
             )}
 
-            {/* Tokens Burned and Total Holders */}
-            <div className="mb-2 px-0">
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-gray-800 rounded p-2 text-center">
-                  <div className="text-gray-400 mb-1">Tokens Burned</div>
-                  <div className="text-white font-semibold">
-                    {burnedTokens ? formatAbbrev(burnedTokens.amount) : '—'}
+            {/* Contract Stats Grid - Same layout as left column */}
+            {dexScreenerData?.pairs?.[0] && (
+              <div className="hidden sm:block mb-2 px-0">
+                <div className="grid grid-cols-3 gap-0 text-center px-1 py-2 rounded bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 relative overflow-hidden">
+                  {/* Column 1: Contract Ownership */}
+                  <div className="py-1.5 space-y-1">
+                    {ownershipData.isLoading ? (
+                      <div className="text-[10px] text-gray-500 leading-none">Loading...</div>
+                    ) : (
+                      <>
+                        {ownershipData.isRenounced ? (
+                          <>
+                            <div className="text-[10px] text-green-400 font-semibold flex items-center justify-center gap-0 leading-none">
+                              <span>Renounced ✓</span>
+                              {ownershipData.renounceTxHash && (
+                                <a
+                                  href={`https://scan.pulsechain.box/tx/${ownershipData.renounceTxHash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:text-blue-300 ml-0.5"
+                                  title="View renounce transaction"
+                                >
+                                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="8 8 8 8">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                </a>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-gray-400 leading-none">No Owner</div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-[10px] text-red-400 font-semibold flex items-center justify-center gap-0 leading-none">
+                              <span>Not Renounced</span>
+                              {ownershipData.ownerAddress && (
+                                <a
+                                  href={`https://scan.pulsechain.box/address/${ownershipData.ownerAddress}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:text-blue-300 ml-0.5"
+                                  title="View owner address"
+                                >
+                                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="8 8 8 8">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                </a>
+                              )}
+                            </div>
+                            {ownershipData.ownerAddress ? (
+                              <a
+                                href={`https://scan.pulsechain.box/address/${ownershipData.ownerAddress}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] text-blue-400 hover:text-blue-300 font-mono block leading-none"
+                                title={ownershipData.ownerAddress}
+                              >
+                                ...{ownershipData.ownerAddress.slice(-4)}
+                              </a>
+                            ) : (
+                              <div className="text-[10px] text-gray-500 leading-none">N/A</div>
+                            )}
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Column 2: Supply */}
+                  <div className="py-1.5 space-y-1">
+                    <div className="text-[10px] text-gray-400 leading-none">Supply</div>
+                    <div className="text-[10px] font-semibold text-white leading-none">
+                      {totalSupply ? (() => {
+                        const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
+                        return formatAbbrev(supply);
+                      })() : '—'}
                     </div>
-                  {burnedTokens && (
-                    <div className="text-xs text-gray-400">{burnedTokens.percent.toFixed(2)}%</div>
+                  </div>
+
+                  {/* Column 3: Total Holders */}
+                  <div className="py-1.5 space-y-1">
+                    <div className="text-[10px] text-gray-400 leading-none">Total Holders</div>
+                    <div className="text-[10px] font-semibold text-white leading-none">
+                      {holdersCount !== null ? holdersCount.toLocaleString() : '—'}
+                    </div>
+                  </div>
+
+                  {/* Column 1: Contract Age */}
+                  <div className="py-1.5 space-y-1">
+                    <div className="text-[10px] text-gray-400 leading-none">Contract Age</div>
+                    <div className="text-[10px] font-semibold text-white leading-none">
+                      {contractAge || '—'}
+                    </div>
+                  </div>
+
+                  {/* Column 2: Burned */}
+                  <div className="py-1.5 space-y-1">
+                    <div className="text-[10px] text-gray-400 leading-none">Burned</div>
+                    {burnedTokens ? (
+                      <div className="space-y-0.5">
+                        <div className="text-[10px] font-semibold text-white leading-none">
+                          {formatAbbrev(burnedTokens.amount)}
+                        </div>
+                        <div className="text-[9px] text-green-400 leading-none">
+                          {burnedTokens.percent.toFixed(2)}%
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-[10px] font-semibold text-white leading-none">—</div>
+                    )}
+                  </div>
+
+                  {/* Column 3: Supply Held */}
+                  <div className="py-1.5 space-y-1">
+                    <div className="text-[10px] text-gray-400 leading-none">Supply Held</div>
+                    {supplyHeld.isLoading ? (
+                      <div className="text-[10px] text-gray-500 leading-none">Loading...</div>
+                    ) : (
+                      <div className="space-y-0.5">
+                        <div className="text-[9px] text-white leading-none">
+                          Top 10: {supplyHeld.top10 > 0 ? `${Math.round(supplyHeld.top10)}%` : '—'}
+                        </div>
+                        <div className="text-[9px] text-white leading-none">
+                          Top 20: {supplyHeld.top20 > 0 ? `${Math.round(supplyHeld.top20)}%` : '—'}
+                        </div>
+                        <div className="text-[9px] text-white leading-none">
+                          Top 50: {supplyHeld.top50 > 0 ? `${Math.round(supplyHeld.top50)}%` : '—'}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Column 1: Creator Address */}
+                  {ownershipData.creatorAddress && (
+                    <div className="py-1.5 space-y-1">
+                      <div className="text-[10px] text-white/80 font-bold flex items-center justify-center gap-0 leading-none">
+                        <span>Creator</span>
+                        <a
+                          href={`https://scan.pulsechain.box/address/${ownershipData.creatorAddress}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-400 hover:text-blue-300 ml-0.5"
+                          title={ownershipData.creatorAddress}
+                        >
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="4 4 16 16">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
+                      </div>
+                    </div>
                   )}
-                  </div>
-                <div className="bg-gray-800 rounded p-2 text-center">
-                  <div className="text-gray-400 mb-1">Total Holders</div>
-                  <div className="text-white font-semibold">
-                    {holdersCount !== null ? holdersCount.toLocaleString() : '—'}
+
+                  {/* Column 2: Liquidity to Market Cap Ratio */}
+                  <div className="py-1.5 space-y-1">
+                    <div className="text-[10px] text-gray-400 leading-none">Liq/MCAP</div>
+                    <div className="text-[10px] font-semibold text-white leading-none">
+                      {(() => {
+                        const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                        const marketCap = Number(dexScreenerData.pairs[0].marketCap || 0);
+                        if (marketCap > 0) {
+                          const ratio = (liquidity / marketCap) * 100;
+                          return `${ratio.toFixed(2)}%`;
+                        }
+                        return '—';
+                      })()}
                     </div>
                   </div>
+
+                  {/* Column 3: More Button */}
+                  <div className="py-1.5 space-y-1">
+                    <button
+                      onClick={() => {
+                        const apiCatalog = document.getElementById('api-catalog');
+                        if (apiCatalog) {
+                          apiCatalog.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }}
+                      className="text-[9px] text-blue-400 hover:text-blue-300 font-semibold leading-none"
+                    >
+                      More →
+                    </button>
                   </div>
-                  </div>
+                </div>
+              </div>
+            )}
 
             {/* New vs Old Holders */}
             <div className="mb-2 px-0">
@@ -2601,7 +3168,7 @@ function GeickoPageContent() {
             </div>
 
             {/* API Catalog */}
-            <div className="mb-3 px-0">
+            <div id="api-catalog" className="mb-3 px-0">
               <div className="bg-gray-800 rounded p-2">
                 <div className="text-xs text-gray-300 font-semibold mb-2">API Catalog</div>
                 <div className="bg-gray-950/70 rounded-lg p-2 max-h-[460px] overflow-y-auto">
@@ -2701,7 +3268,7 @@ function GeickoPageContent() {
 
                       {/* Stacker */}
                       <a
-                        href="https://www.pulsechainai.com/stacker-game"
+                        href="https://www.morbius.io/stacker-game"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block"

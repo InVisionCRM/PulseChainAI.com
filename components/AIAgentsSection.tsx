@@ -86,7 +86,7 @@ const agents: Agent[] = [
   {
     id: 1,
     name: "AI Code Reader/Chat Agent",
-    description: "PulseChainAI's Most Powerful AI Agent which allows user to interact with Solidity Smart Contract like never before! (Warning: Still in Beta. Use with Caution)",
+    description: "Morbius.io's Most Powerful AI Agent which allows user to interact with Solidity Smart Contract like never before! (Warning: Still in Beta. Use with Caution)",
     icon: IconFileText,
     color: "from-pink-500 to-blue-500",
     src: "/api/placeholder/400/600/pink/blue",

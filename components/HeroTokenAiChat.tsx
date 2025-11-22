@@ -507,7 +507,7 @@ export default function HeroTokenAiChat(): JSX.Element {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-white/70">
-              Pulsechain AI
+              Morbius.io Token Analyzer
             </p>
             <h1 className="text-3xl sm:text-4xl font-semibold leading-tight">
               Analyze any token in seconds.

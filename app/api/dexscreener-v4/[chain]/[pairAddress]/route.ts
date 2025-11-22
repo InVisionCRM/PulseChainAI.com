@@ -10,11 +10,15 @@ export async function GET(
     // Fetch from DexScreener v4 endpoint
     const url = `https://io.dexscreener.com/dex/pair-details/v4/${chain}/${pairAddress}`;
     console.log('Proxying DexScreener V4 request:', url);
-    
+
     const response = await fetch(url, {
       headers: {
-        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://dexscreener.com/',
       },
+      cache: 'no-store',
     });
 
     if (!response.ok) {

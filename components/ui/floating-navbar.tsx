@@ -55,10 +55,12 @@ export function FloatingNav({ navItems, className }: FloatingNavProps) {
             <div className="flex items-center justify-between h-16">
               {/* Logo/Brand */}
               <a href="/" className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-pink-500 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">P</span>
-                </div>
-                <span className="text-white font-bold text-lg hidden sm:block">PulseChain AI</span>
+                <img 
+                  src="/MobiusLogoClean.png" 
+                  alt="Mobius Logo" 
+                  className="w-8 h-8 object-contain"
+                />
+                <span className="text-white font-bold text-lg hidden sm:block">Morbius.io</span>
               </a>
 
               {/* Navigation Items */}

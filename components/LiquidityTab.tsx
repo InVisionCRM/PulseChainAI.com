@@ -75,6 +75,8 @@ const formatHolderPercentage = (percentage: number): string => {
   return `<0.01%`;
 };
 
+const formatLpAddress = (address: string): string => (address ? `...${address.slice(-4)}` : 'Unknown');
+
 const formatTimeAgo = (timestamp: string): string => {
   if (!timestamp) return 'Unknown';
   const date = new Date(timestamp);
@@ -464,7 +466,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
               className="p-4 cursor-pointer hover:bg-slate-700/30 transition-colors"
               onClick={() => togglePairExpansion(pair.pairAddress)}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex-1">
                   <div className="font-semibold text-white">
                     {pair.baseToken.symbol}/{pair.quoteToken.symbol} • {pair.dexId}
@@ -472,16 +474,30 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   <div className="text-sm text-blue-300">
                     Rank #{index + 1} • ${parseFloat(pair.priceUsd || '0').toFixed(6)}
                   </div>
+                  <div className="mt-1 grid grid-cols-2 gap-2 text-[11px] text-slate-300">
+                    <div className="flex items-center justify-between bg-slate-900/60 px-2 py-1 rounded">
+                      <span className="text-slate-400">{pair.baseToken.symbol}</span>
+                      <span className="text-white font-semibold">
+                        {parseFloat(String(pair.liquidity?.base || '0')).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between bg-slate-900/60 px-2 py-1 rounded">
+                      <span className="text-slate-400">{pair.quoteToken.symbol}</span>
+                      <span className="text-white font-semibold">
+                        {parseFloat(String(pair.liquidity?.quote || '0')).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-white">{formatNumber(pair.liquidity?.usd || 0)}</div>
                   <div className="text-xs text-green-300">Liquidity</div>
                 </div>
-                <div className="text-right ml-4">
+                <div className="text-right ml-2">
                   <div className="text-sm text-white">{formatNumber(pair.volume?.h24 || 0)}</div>
                   <div className="text-xs text-blue-300">Volume</div>
                 </div>
-                <div className="ml-4 text-white">
+                <div className="ml-2 text-white">
                   {expandedPairs.has(pair.pairAddress) ? '▲' : '▼'}
                 </div>
               </div>
@@ -515,6 +531,21 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  <div className="bg-slate-900/50 border border-slate-800/60 rounded-lg p-2">
+                    <div className="text-xs text-slate-400">{pair.baseToken.symbol} in Pool</div>
+                    <div className="text-sm font-semibold text-white">
+                      {parseFloat(String(pair.liquidity?.base || '0')).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="bg-slate-900/50 border border-slate-800/60 rounded-lg p-2">
+                    <div className="text-xs text-slate-400">{pair.quoteToken.symbol} in Pool</div>
+                    <div className="text-sm font-semibold text-white">
+                      {parseFloat(String(pair.liquidity?.quote || '0')).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Liquidity Holders Section */}
                 <div className="mb-4">
                   <h5 className="text-white font-semibold mb-3 flex items-center gap-2">
@@ -537,7 +568,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   
                   {pairHoldersData[pair.pairAddress]?.holders && pairHoldersData[pair.pairAddress].holders.length > 0 && (
                     <div className="space-y-2">
-                      <div className="grid grid-cols-4 gap-2 text-xs text-slate-400 pb-2 border-b border-slate-700/50">
+                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 text-xs text-slate-400 pb-2 border-b border-slate-700/50">
                         <div>Rank</div>
                         <div>Address</div>
                         <div>LP Tokens</div>
@@ -546,16 +577,16 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                       
                       <div className="max-h-60 overflow-y-auto space-y-1">
                         {pairHoldersData[pair.pairAddress].holders.map((holder, holderIndex) => (
-                          <div key={holder.address} className="grid grid-cols-4 gap-2 text-xs py-2 hover:bg-slate-700/30 rounded transition-colors">
-                            <div className="text-slate-400 flex items-center gap-1">#{holderIndex + 1}{isBurnAddress(holder.address) && (<span title="Burn address" aria-label="Burn address">🔥</span>)}</div>
+                          <div key={holder.address} className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 text-xs py-1.5 hover:bg-slate-700/30 rounded transition-colors">
+                            <div className="text-slate-400 flex items-center gap-1 leading-none">#{holderIndex + 1}{isBurnAddress(holder.address) && (<span title="Burn address" aria-label="Burn address">🔥</span>)}</div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleHolderClick(holder.address, pair);
                               }}
-                              className="font-mono text-blue-300 hover:text-blue-200 underline cursor-pointer text-left transition-colors"
+                              className="font-mono text-blue-300 hover:text-blue-200 underline cursor-pointer text-left transition-colors leading-none"
                             >
-                              {holder.address.slice(0, 8)}...{holder.address.slice(-6)}
+                              {formatLpAddress(holder.address)}
                             </button>
                             <div className="text-white font-medium">
                               {formatHolderBalance(holder.value)}

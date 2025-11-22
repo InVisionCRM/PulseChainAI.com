@@ -2,7 +2,7 @@
 import { cn } from "@/lib/utils";
 import React, { useState, createContext, useContext, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { IconMenu2, IconX, IconSearch, IconHexagon } from "@tabler/icons-react";
+import { IconMenu2, IconX, IconSearch } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import { search } from "@/services/pulsechainService";
 import type { SearchResultItem } from "@/types";
@@ -125,13 +125,17 @@ export const DesktopSidebar = ({
 const Logo = () => {
   return (
     <div className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal">
-      <IconHexagon className="h-6 w-6 shrink-0 text-orange-500" />
+      <img 
+        src="/MobiusLogoClean.png" 
+        alt="Mobius Logo" 
+        className="h-6 w-6 shrink-0 object-contain"
+      />
       <motion.span
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="font-medium whitespace-pre text-white"
       >
-        PulseChain AI
+        Morbius.io
       </motion.span>
     </div>
   );
@@ -140,7 +144,11 @@ const Logo = () => {
 const LogoIcon = () => {
   return (
     <div className="relative z-20 flex items-center justify-center py-1">
-      <IconHexagon className="h-6 w-6 shrink-0 text-orange-500" />
+      <img 
+        src="/MobiusLogoClean.png" 
+        alt="Mobius Logo" 
+        className="h-6 w-6 shrink-0 object-contain"
+      />
     </div>
   );
 };
@@ -212,14 +220,14 @@ export const MobileSidebar = ({
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchValue.trim()) {
-      router.push(`/ai-agent?address=${searchValue.trim()}`);
+      router.push(`/geicko?address=${searchValue.trim()}`);
       setSearchValue("");
       setShowResults(false);
     }
   };
 
   const handleSelectResult = (item: SearchResultItem) => {
-    router.push(`/ai-agent?address=${item.address}`);
+    router.push(`/geicko?address=${item.address}`);
     setSearchValue("");
     setShowResults(false);
     setSearchResults([]);

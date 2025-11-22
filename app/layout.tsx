@@ -288,7 +288,7 @@ const Logo = () => {
         animate={{ opacity: 1 }}
         className="font-medium whitespace-pre text-slate-950 dark:text-white"
       >
-        PulseChain AI
+        Morbius.io
       </motion.span>
     </Link>
   );

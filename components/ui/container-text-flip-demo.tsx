@@ -3,7 +3,7 @@ import { ContainerTextFlip } from "@/components/ui/container-text-flip";
 export default function ContainerTextFlipDemo() {
   return (
     <ContainerTextFlip
-      words={["AI Contract Agent", "Every Stat", "Every Token", "Every Holder", "Every Liquidity Pool", "Every Function", "Every Line Of Code", "Everything YOU Need To Know", "Making Blockchain Easy", "Only On PulseChain", "PulseChainAI.com"]}
+      words={["AI Contract Agent", "Every Stat", "Every Token", "Every Holder", "Every Liquidity Pool", "Every Function", "Every Line Of Code", "Everything YOU Need To Know", "Making Blockchain Easy", "Only On PulseChain", "Morbius.io"]}
       wordColors={[
         "rgba(255, 107, 107, 0.3)", // AI Contract Agent - Coral Red
         "rgba(78, 205, 196, 0.3)", // Every Stat - Turquoise

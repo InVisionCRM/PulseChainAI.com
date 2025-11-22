@@ -20,7 +20,7 @@ export interface ContainerTextFlipProps {
   wordColors?: string[];
 }
 export function ContainerTextFlip({
-  words = ["AI Contract Agent", "Every Stat", "Every Token", "Every Holder", " All LPs ", "Every Function", "Every Line Of Code", "Everything YOU Need To Know", "Any Time YOU Need","Making Blockchain Easy", "Only On PulseChain", "PulseChainAI.com"],
+  words = ["AI Contract Agent", "Every Stat", "Every Token", "Every Holder", " All LPs ", "Every Function", "Every Line Of Code", "Everything YOU Need To Know", "Any Time YOU Need","Making Blockchain Easy", "Only On PulseChain", "Morbius.io"],
   interval = 2200,
   className,
   textClassName,

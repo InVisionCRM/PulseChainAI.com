@@ -1872,7 +1872,10 @@ export default function AdminStatsPanel({
           <div className="space-y-4">
             {networkEvents.length > 0 && (
               <div>
-                <div className="text-gray-400 mb-1">Network Activity</div>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-gray-400">Network Activity</div>
+                  <div className="text-[10px] text-gray-500 italic">Click 📋 to copy</div>
+                </div>
                 <div className="relative rounded-2xl border border-white/5 bg-black/30 w-full overflow-hidden">
                   <div
                     ref={networkListRef}
@@ -1895,7 +1898,7 @@ export default function AdminStatsPanel({
                       return (
                         <div
                           key={event.id}
-                          className="rounded-lg border border-white/10 bg-black/10 p-2 text-white/80 space-y-1 break-words max-w-full"
+                          className="rounded-lg border border-white/10 bg-black/10 p-2 text-white/80 space-y-1 break-words max-w-full group"
                         >
                           <div className="flex items-center justify-between text-[10px] uppercase tracking-widest">
                             <span>{event.method}</span>
@@ -1907,8 +1910,29 @@ export default function AdminStatsPanel({
                                 : 'Error'}
                             </span>
                           </div>
-                          <div className="text-[10px] text-gray-300 break-all whitespace-pre-wrap">
-                            {event.url}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="text-[10px] text-gray-300 break-all whitespace-pre-wrap flex-1">
+                              {event.url}
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(event.url);
+                                // Show brief feedback
+                                const btn = e.currentTarget;
+                                const originalText = btn.textContent;
+                                btn.textContent = '✓';
+                                btn.classList.add('text-green-400');
+                                setTimeout(() => {
+                                  btn.textContent = originalText;
+                                  btn.classList.remove('text-green-400');
+                                }, 1000);
+                              }}
+                              className="md:opacity-0 md:group-hover:opacity-100 transition-opacity text-[10px] px-1.5 py-0.5 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 hover:text-white flex-shrink-0"
+                              title="Copy endpoint"
+                            >
+                              📋
+                            </button>
                           </div>
                           <div className="text-[10px] text-gray-500 flex flex-wrap gap-3">
                             {started && <span>{started}</span>}

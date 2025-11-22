@@ -35,7 +35,7 @@ export const HeroHighlight = ({
     "Search for PulseChain or PLS!",
     "Try SuperStake or PSSH",
     "Bringing AI To PulseChain",
-    "Bookmark PulseChainAI.com",
+    "Bookmark Morbius.io",
   ];
 
   // Token search with debouncing
