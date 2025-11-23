@@ -2830,7 +2830,7 @@ function GeickoPageContent() {
 
               {/* Trade Dropdown Content - Switch Widget */}
               {isTradeDropdownOpen && (
-                <div className="bg-black/10 backdrop-blur-lg rounded-lg border border-black overflow-hidden">
+                <div className="bg-black/10 backdrop-blur-lg rounded-lg border border-black overflow-hidden h-[600px]">
                   <iframe
                     src={`https://switch.win/widget?network=pulsechain&background_color=000000&font_color=ffffff&secondary_font_color=7a7a7a&border_color=01e401&backdrop_color=transparent&from=0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee&to=${dexScreenerData?.pairs?.[0]?.baseToken?.address || apiTokenAddress}`}
                     allow="clipboard-read; clipboard-write"

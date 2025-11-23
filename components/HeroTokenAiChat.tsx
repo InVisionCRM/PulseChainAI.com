@@ -505,9 +505,14 @@ export default function HeroTokenAiChat(): JSX.Element {
         }`}
       >
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex items-center gap-2">
+            <img 
+              src="/MobiusLogoClean.png" 
+              alt="Morbius Logo" 
+              className="h-6 w-6 object-contain"
+            />
             <p className="text-xs uppercase tracking-[0.4em] text-white/70">
-              Morbius.io Token Analyzer
+              Morbius Token Analyzer
             </p>
             <h1 className="text-3xl sm:text-4xl font-semibold leading-tight">
               Analyze any token in seconds.

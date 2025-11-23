@@ -299,17 +299,41 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
     [sortedPairs]
   );
   
-  const zeroLiquidityPairs = useMemo(() => 
+  const zeroLiquidityPairs = useMemo(() =>
     sortedPairs.filter(pair => parseFloat(String(pair.liquidity?.usd || 0)) === 0),
     [sortedPairs]
   );
+
+  // Find the reference WPLS pair (highest liquidity WPLS pair)
+  const wplsReferencePair = useMemo(() => {
+    const wplsPairs = sortedPairs.filter(pair =>
+      pair.quoteToken?.symbol?.toUpperCase() === 'WPLS' ||
+      pair.quoteToken?.symbol?.toUpperCase() === 'PLS'
+    );
+    return wplsPairs[0]; // First one is highest liquidity due to sortedPairs
+  }, [sortedPairs]);
+
+  // Calculate price difference compared to WPLS pair
+  const calculatePriceDifference = useCallback((pair: any) => {
+    if (!wplsReferencePair || pair.pairAddress === wplsReferencePair.pairAddress) {
+      return null; // No comparison for WPLS pair itself
+    }
+
+    const currentPrice = parseFloat(pair.priceUsd || '0');
+    const referencePrice = parseFloat(wplsReferencePair.priceUsd || '0');
+
+    if (referencePrice === 0 || currentPrice === 0) return null;
+
+    const percentDifference = ((currentPrice - referencePrice) / referencePrice) * 100;
+    return percentDifference;
+  }, [wplsReferencePair]);
 
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-white">Loading liquidity data...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+          <p className="text-xs text-gray-400">Loading liquidity data...</p>
         </div>
       </div>
     );
@@ -319,73 +343,73 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <div className="text-6xl mb-4">💧</div>
-          <h3 className="text-xl font-semibold text-white mb-2">No Liquidity Pairs Found</h3>
-          <p className="text-white">This token doesn't have any active liquidity pairs on DEXScreener.</p>
+          <div className="text-4xl mb-2">💧</div>
+          <h3 className="text-sm font-semibold text-white mb-1">No Liquidity Pairs Found</h3>
+          <p className="text-xs text-gray-400">This token doesn't have any active liquidity pairs on DEXScreener.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto space-y-6">
+    <div className="h-full overflow-y-auto space-y-2">
       {/* TOP BANNER */}
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-2xl font-bold text-white">Liquidity</h3>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-slate-400">Total:</span>
-          <span className="text-xl font-bold text-green-400">{formatNumber(totalLiquidity)}</span>
+      <div className="flex items-center justify-between mb-2 px-2">
+        <h3 className="text-sm font-semibold text-white">Liquidity</h3>
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-gray-400">Total:</span>
+          <span className="text-sm font-bold text-green-400">{formatNumber(totalLiquidity)}</span>
         </div>
       </div>
 
       {/* MAIN PAIR CARD */}
       {top3Pairs[0] && (
-        <div className="w-full bg-gradient-to-r from-slate-800/50 to-slate-700/50 border border-slate-600/50 rounded-xl p-6 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
+        <div className="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg p-2 px-2">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
               <img 
                 src={top3Pairs[0].baseToken.logoURI || '/LogoVector.svg'} 
                 alt={top3Pairs[0].baseToken.symbol}
-                className="w-8 h-8 rounded-full"
+                className="w-6 h-6 rounded-full"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = '/LogoVector.svg';
                 }}
               />
               <div>
-                <div className="text-xl font-bold text-white">
+                <div className="text-xs font-semibold text-white">
                   {top3Pairs[0].baseToken.symbol}/{top3Pairs[0].quoteToken.symbol}
                 </div>
-                <div className="text-sm text-slate-400">{top3Pairs[0].dexId}</div>
+                <div className="text-[10px] text-gray-400">{top3Pairs[0].dexId}</div>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-sm text-slate-400">Price</div>
-              <div className="text-lg font-bold text-white">${parseFloat(top3Pairs[0].priceUsd || '0').toFixed(6)}</div>
+              <div className="text-[10px] text-gray-400">Price</div>
+              <div className="text-xs font-semibold text-white">${parseFloat(top3Pairs[0].priceUsd || '0').toFixed(6)}</div>
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-2 mb-2">
             <div>
-              <div className="text-sm text-slate-400 mb-1">Liquidity</div>
-              <div className="text-2xl font-bold text-green-400">{formatNumber(top3Pairs[0].liquidity?.usd || 0)}</div>
+              <div className="text-[10px] text-gray-400 mb-0.5">Liquidity</div>
+              <div className="text-sm font-bold text-green-400">{formatNumber(top3Pairs[0].liquidity?.usd || 0)}</div>
             </div>
             <div>
-              <div className="text-sm text-slate-400 mb-1">Volume 24h</div>
-              <div className="text-2xl font-bold text-blue-400">{formatNumber(top3Pairs[0].volume?.h24 || 0)}</div>
+              <div className="text-[10px] text-gray-400 mb-0.5">Volume 24h</div>
+              <div className="text-sm font-bold text-blue-400">{formatNumber(top3Pairs[0].volume?.h24 || 0)}</div>
             </div>
           </div>
 
           {/* Token Amounts */}
-          <div className="mt-6 grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <div className="text-sm text-slate-400 mb-1">{top3Pairs[0].baseToken.symbol} Amount</div>
-              <div className="text-lg font-semibold text-blue-400">
+              <div className="text-[10px] text-gray-400 mb-0.5">{top3Pairs[0].baseToken.symbol} Amount</div>
+              <div className="text-xs font-semibold text-blue-400">
                 {parseFloat(String(top3Pairs[0].liquidity?.base || '0')).toLocaleString()}
               </div>
             </div>
             <div>
-              <div className="text-sm text-slate-400 mb-1">{top3Pairs[0].quoteToken.symbol} Amount</div>
-              <div className="text-lg font-semibold text-cyan-400">
+              <div className="text-[10px] text-gray-400 mb-0.5">{top3Pairs[0].quoteToken.symbol} Amount</div>
+              <div className="text-xs font-semibold text-cyan-400">
                 {parseFloat(String(top3Pairs[0].liquidity?.quote || '0')).toLocaleString()}
               </div>
             </div>
@@ -394,54 +418,54 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
       )}
 
       {/* ADDITIONAL PAIRS GRID */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-2 px-2">
         {top3Pairs.slice(1, 5).map((pair, index) => (
-          <div key={pair.pairAddress} className="bg-slate-800/50 border border-slate-600/50 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
+          <div key={pair.pairAddress} className="bg-gray-800/50 border border-gray-700/50 rounded p-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5">
                 <img 
                   src={pair.baseToken.logoURI || '/LogoVector.svg'} 
                   alt={pair.baseToken.symbol}
-                  className="w-6 h-6 rounded-full"
+                  className="w-5 h-5 rounded-full"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = '/LogoVector.svg';
                   }}
                 />
                 <div>
-                  <div className="text-sm font-semibold text-white">
+                  <div className="text-[11px] font-semibold text-white">
                     {pair.baseToken.symbol}/{pair.quoteToken.symbol}
                   </div>
-                  <div className="text-xs text-slate-400">{pair.dexId}</div>
+                  <div className="text-[9px] text-gray-400">{pair.dexId}</div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs text-slate-400">Price</div>
-                <div className="text-sm font-semibold text-white">${parseFloat(pair.priceUsd || '0').toFixed(6)}</div>
+                <div className="text-[9px] text-gray-400">Price</div>
+                <div className="text-[11px] font-semibold text-white">${parseFloat(pair.priceUsd || '0').toFixed(6)}</div>
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="grid grid-cols-2 gap-1.5 mb-1.5">
               <div>
-                <div className="text-xs text-slate-400">Liquidity</div>
-                <div className="text-sm font-bold text-green-400">{formatNumber(pair.liquidity?.usd || 0)}</div>
+                <div className="text-[9px] text-gray-400">Liquidity</div>
+                <div className="text-[11px] font-bold text-green-400">{formatNumber(pair.liquidity?.usd || 0)}</div>
               </div>
               <div>
-                <div className="text-xs text-slate-400">Volume</div>
-                <div className="text-sm font-bold text-blue-400">{formatNumber(pair.volume?.h24 || 0)}</div>
+                <div className="text-[9px] text-gray-400">Volume</div>
+                <div className="text-[11px] font-bold text-blue-400">{formatNumber(pair.volume?.h24 || 0)}</div>
               </div>
             </div>
 
             {/* Token Amounts */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-1.5">
               <div>
-                <div className="text-xs text-slate-400">{pair.baseToken.symbol}</div>
-                <div className="text-xs font-semibold text-blue-400">
+                <div className="text-[9px] text-gray-400">{pair.baseToken.symbol}</div>
+                <div className="text-[10px] font-semibold text-blue-400">
                   {parseFloat(String(pair.liquidity?.base || '0')).toLocaleString()}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-slate-400">{pair.quoteToken.symbol}</div>
-                <div className="text-xs font-semibold text-cyan-400">
+                <div className="text-[9px] text-gray-400">{pair.quoteToken.symbol}</div>
+                <div className="text-[10px] font-semibold text-cyan-400">
                   {parseFloat(String(pair.liquidity?.quote || '0')).toLocaleString()}
                 </div>
               </div>
@@ -452,37 +476,50 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
 
       {/* All Pairs List */}
-      <div className="space-y-4">
-        <h4 className="text-lg font-semibold text-white">All Trading Pairs</h4>
+      <div className="space-y-2 px-2">
+        <h4 className="text-xs font-semibold text-white mb-1">Trading Pairs</h4>
         
         {/* Active Pairs */}
         {activePairs.map((pair, index) => (
           <div
             key={pair.pairAddress}
-            className="bg-slate-800 border border-slate-700/50 rounded-lg overflow-hidden"
+            className="bg-gray-800 border border-gray-700/50 rounded overflow-hidden"
           >
             {/* Collapsed View */}
-            <div 
-              className="p-4 cursor-pointer hover:bg-slate-700/30 transition-colors"
+            <div
+              className="relative py-1.5 px-2 cursor-pointer hover:bg-gray-700/30 transition-colors"
               onClick={() => togglePairExpansion(pair.pairAddress)}
             >
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex-1">
-                  <div className="font-semibold text-white">
-                    {pair.baseToken.symbol}/{pair.quoteToken.symbol} • {pair.dexId}
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs font-semibold text-white">
+                      {pair.baseToken.symbol}/{pair.quoteToken.symbol} • {pair.dexId}
+                    </div>
+                    <div className="text-[11px] text-blue-300">
+                      ${parseFloat(pair.priceUsd || '0').toFixed(6)}
+                    </div>
+                    {(() => {
+                      const priceDiff = calculatePriceDifference(pair);
+                      if (priceDiff === null) return null;
+                      const isPositive = priceDiff >= 0;
+                      return (
+                        <div className={`text-[10px] font-medium flex items-center gap-0.5 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                          {isPositive ? '↑' : '↓'}
+                          {Math.abs(priceDiff).toFixed(2)}%
+                        </div>
+                      );
+                    })()}
                   </div>
-                  <div className="text-sm text-blue-300">
-                    Rank #{index + 1} • ${parseFloat(pair.priceUsd || '0').toFixed(6)}
-                  </div>
-                  <div className="mt-1 grid grid-cols-2 gap-2 text-[11px] text-slate-300">
-                    <div className="flex items-center justify-between bg-slate-900/60 px-2 py-1 rounded">
-                      <span className="text-slate-400">{pair.baseToken.symbol}</span>
+                  <div className="mt-1 grid grid-cols-2 gap-1 text-[10px] text-gray-300">
+                    <div className="flex items-center justify-between bg-gray-900/60 px-1.5 py-0.5 rounded">
+                      <span className="text-gray-400">{pair.baseToken.symbol}</span>
                       <span className="text-white font-semibold">
                         {parseFloat(String(pair.liquidity?.base || '0')).toLocaleString()}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between bg-slate-900/60 px-2 py-1 rounded">
-                      <span className="text-slate-400">{pair.quoteToken.symbol}</span>
+                    <div className="flex items-center justify-between bg-gray-900/60 px-1.5 py-0.5 rounded">
+                      <span className="text-gray-400">{pair.quoteToken.symbol}</span>
                       <span className="text-white font-semibold">
                         {parseFloat(String(pair.liquidity?.quote || '0')).toLocaleString()}
                       </span>
@@ -490,14 +527,14 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-white">{formatNumber(pair.liquidity?.usd || 0)}</div>
-                  <div className="text-xs text-green-300">Liquidity</div>
+                  <div className="text-xs text-white">{formatNumber(pair.liquidity?.usd || 0)}</div>
+                  <div className="text-[10px] text-green-300">Liquidity</div>
                 </div>
-                <div className="text-right ml-2">
-                  <div className="text-sm text-white">{formatNumber(pair.volume?.h24 || 0)}</div>
-                  <div className="text-xs text-blue-300">Volume</div>
+                <div className="text-right ml-1">
+                  <div className="text-xs text-white">{formatNumber(pair.volume?.h24 || 0)}</div>
+                  <div className="text-[10px] text-blue-300">Volume</div>
                 </div>
-                <div className="ml-2 text-white">
+                <div className="ml-1 text-white text-xs">
                   {expandedPairs.has(pair.pairAddress) ? '▲' : '▼'}
                 </div>
               </div>
@@ -505,80 +542,101 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
             {/* Expanded View */}
             {expandedPairs.has(pair.pairAddress) && (
-              <div className="border-t border-slate-700/50 p-4"
+              <div className="border-t border-gray-700/50 p-2"
               >
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
                   <div>
-                    <div className="text-xs text-blue-300 mb-1">Liquidity USD</div>
-                    <div className="text-white font-semibold">
-                      <span className="text-green-400">$</span>{formatNumber(pair.liquidity?.usd || 0).replace('$', '')}
+                    <div className="text-[10px] text-blue-300 mb-0.5">Price USD</div>
+                    <div className="text-xs text-white font-semibold">
+                      ${parseFloat(pair.priceUsd || '0').toFixed(6)}
                     </div>
                   </div>
-                  
+
                   <div>
-                    <div className="text-xs text-blue-300 mb-1">Price WPLS</div>
-                    <div className="text-white font-semibold">{parseFloat(pair.priceNative || '0').toFixed(8)}</div>
+                    <div className="text-[10px] text-blue-300 mb-0.5">Price WPLS</div>
+                    <div className="text-xs text-white font-semibold">{parseFloat(pair.priceNative || '0').toFixed(8)}</div>
                   </div>
-                  
-                  <div>
-                    <div className="text-xs text-orange-300 mb-1">FDV</div>
-                    <div className="text-white font-semibold">{formatNumber((pair as any).fdv || 0)}</div>
-                  </div>
-                  
-                  <div>
-                    <div className="text-xs text-cyan-300 mb-1">Market Cap</div>
-                    <div className="text-white font-semibold">{formatNumber((pair as any).marketCap || 0)}</div>
-                  </div>
+
+                  {(() => {
+                    const priceDiff = calculatePriceDifference(pair);
+                    if (priceDiff === null) return (
+                      <>
+                        <div>
+                          <div className="text-[10px] text-orange-300 mb-0.5">FDV</div>
+                          <div className="text-xs text-white font-semibold">{formatNumber((pair as any).fdv || 0)}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-cyan-300 mb-0.5">Market Cap</div>
+                          <div className="text-xs text-white font-semibold">{formatNumber((pair as any).marketCap || 0)}</div>
+                        </div>
+                      </>
+                    );
+                    const isPositive = priceDiff >= 0;
+                    return (
+                      <>
+                        <div>
+                          <div className="text-[10px] text-gray-400 mb-0.5">vs WPLS Pair</div>
+                          <div className={`text-xs font-semibold flex items-center gap-1 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                            {isPositive ? '↑' : '↓'}
+                            {Math.abs(priceDiff).toFixed(2)}%
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-cyan-300 mb-0.5">Market Cap</div>
+                          <div className="text-xs text-white font-semibold">{formatNumber((pair as any).marketCap || 0)}</div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  <div className="bg-slate-900/50 border border-slate-800/60 rounded-lg p-2">
-                    <div className="text-xs text-slate-400">{pair.baseToken.symbol} in Pool</div>
-                    <div className="text-sm font-semibold text-white">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                  <div className="p-1">
+                    <div className="text-[10px] text-gray-400">{pair.baseToken.symbol} in Pool</div>
+                    <div className="text-xs font-semibold text-white">
                       {parseFloat(String(pair.liquidity?.base || '0')).toLocaleString()}
                     </div>
                   </div>
-                  <div className="bg-slate-900/50 border border-slate-800/60 rounded-lg p-2">
-                    <div className="text-xs text-slate-400">{pair.quoteToken.symbol} in Pool</div>
-                    <div className="text-sm font-semibold text-white">
+                  <div className="p-1">
+                    <div className="text-[10px] text-gray-400">{pair.quoteToken.symbol} in Pool</div>
+                    <div className="text-xs font-semibold text-white">
                       {parseFloat(String(pair.liquidity?.quote || '0')).toLocaleString()}
                     </div>
                   </div>
                 </div>
 
                 {/* Liquidity Holders Section */}
-                <div className="mb-4">
-                  <h5 className="text-white font-semibold mb-3 flex items-center gap-2">
-                    <span>🏦</span>
-                    LP Token Holders (Top 25)
+                <div className="mb-2">
+                  <h5 className="text-xs text-white font-semibold mb-1.5">
+                    LP Holders
                   </h5>
                   
                   {pairHoldersData[pair.pairAddress]?.isLoading && (
-                    <div className="flex items-center justify-center py-6">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                      <span className="ml-2 text-slate-400 text-sm">Loading holders...</span>
+                    <div className="flex items-center justify-center py-3">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                      <span className="ml-2 text-gray-400 text-xs">Loading holders...</span>
                     </div>
                   )}
                   
                   {pairHoldersData[pair.pairAddress]?.error && (
-                    <div className="bg-red-900/20 border border-red-500/30 text-red-300 px-3 py-2 rounded text-sm">
+                    <div className="bg-red-900/20 border border-red-500/30 text-red-300 px-2 py-1 rounded text-xs">
                       Failed to load holders: {pairHoldersData[pair.pairAddress].error}
                     </div>
                   )}
                   
                   {pairHoldersData[pair.pairAddress]?.holders && pairHoldersData[pair.pairAddress].holders.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 text-xs text-slate-400 pb-2 border-b border-slate-700/50">
+                    <div className="space-y-1">
+                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-1.5 text-[10px] text-gray-400 pb-1 border-b border-gray-700/50">
                         <div>Rank</div>
                         <div>Address</div>
                         <div>LP Tokens</div>
                         <div>% of Pool</div>
                       </div>
                       
-                      <div className="max-h-60 overflow-y-auto space-y-1">
+                      <div className="max-h-48 overflow-y-auto space-y-0.5">
                         {pairHoldersData[pair.pairAddress].holders.map((holder, holderIndex) => (
-                          <div key={holder.address} className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 text-xs py-1.5 hover:bg-slate-700/30 rounded transition-colors">
-                            <div className="text-slate-400 flex items-center gap-1 leading-none">#{holderIndex + 1}{isBurnAddress(holder.address) && (<span title="Burn address" aria-label="Burn address">🔥</span>)}</div>
+                          <div key={holder.address} className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-1.5 text-[10px] py-1 hover:bg-gray-700/30 rounded transition-colors">
+                            <div className="text-gray-400 flex items-center gap-0.5 leading-none">#{holderIndex + 1}{isBurnAddress(holder.address) && (<span title="Burn address" aria-label="Burn address">🔥</span>)}</div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -588,19 +646,19 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                             >
                               {formatLpAddress(holder.address)}
                             </button>
-                            <div className="text-white font-medium">
+                            <div className="text-white font-medium text-[10px]">
                               {formatHolderBalance(holder.value)}
                             </div>
                             <div className="text-right">
-                              <div className="flex items-center gap-2">
-                                <span className={`font-medium ${
+                              <div className="flex items-center gap-1">
+                                <span className={`font-medium text-[10px] ${
                                   holder.percentage >= 10 ? 'text-red-400' : 
                                   holder.percentage >= 5 ? 'text-yellow-400' : 
                                   'text-green-400'
                                 }`}>
                                   {formatHolderPercentage(holder.percentage)}
                                 </span>
-                                <div className="w-8 h-1 bg-slate-700 rounded-full overflow-hidden">
+                                <div className="w-6 h-0.5 bg-gray-700 rounded-full overflow-hidden">
                                   <div 
                                     className={`h-full transition-all duration-300 ${
                                       holder.percentage >= 10 ? 'bg-red-500' : 
@@ -619,52 +677,51 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   )}
                   
                   {pairHoldersData[pair.pairAddress]?.holders && pairHoldersData[pair.pairAddress].holders.length === 0 && !pairHoldersData[pair.pairAddress].isLoading && (
-                    <div className="text-center text-slate-400 py-4 text-sm">
+                    <div className="text-center text-gray-400 py-2 text-xs">
                       No holders data available for this pair
                     </div>
                   )}
                 </div>
 
                 {/* Recent Liquidity Activity Section */}
-                <div className="mb-4">
-                  <h5 className="text-white font-semibold mb-3 flex items-center gap-2">
-                    <span>📊</span>
-                    Recent Liquidity Activity (Last 10)
+                <div className="mb-2">
+                  <h5 className="text-xs text-white font-semibold mb-1.5">
+                    Recent Activity
                   </h5>
                   
                   {pairLiquidityEvents[pair.pairAddress]?.isLoading && (
-                    <div className="flex items-center justify-center py-6">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                      <span className="ml-2 text-slate-400 text-sm">Loading activity...</span>
+                    <div className="flex items-center justify-center py-3">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                      <span className="ml-2 text-gray-400 text-xs">Loading activity...</span>
                     </div>
                   )}
                   
                   {pairLiquidityEvents[pair.pairAddress]?.error && (
-                    <div className="bg-red-900/20 border border-red-500/30 text-red-300 px-3 py-2 rounded text-sm">
+                    <div className="bg-red-900/20 border border-red-500/30 text-red-300 px-2 py-1 rounded text-xs">
                       Failed to load activity: {pairLiquidityEvents[pair.pairAddress].error}
                     </div>
                   )}
                   
                   {pairLiquidityEvents[pair.pairAddress]?.events && pairLiquidityEvents[pair.pairAddress].events.length > 0 && (
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       {pairLiquidityEvents[pair.pairAddress].events.map((event, eventIndex) => (
                         <div 
                           key={`${event.txHash}-${eventIndex}`}
-                          className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:bg-slate-700/50 transition-colors"
+                          className="flex items-center justify-between p-1.5 bg-gray-800/50 rounded border border-gray-700/50 hover:bg-gray-700/50 transition-colors"
                         >
-                          <div className="flex items-center gap-3 flex-1">
-                            <div className={`text-2xl ${event.type === 'add' ? 'text-green-400' : 'text-red-400'}`}>
+                          <div className="flex items-center gap-1.5 flex-1">
+                            <div className={`text-base ${event.type === 'add' ? 'text-green-400' : 'text-red-400'}`}>
                               {event.type === 'add' ? '🟢' : '🔴'}
                             </div>
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className={`font-medium ${event.type === 'add' ? 'text-green-400' : 'text-red-400'}`}>
+                              <div className="flex items-center gap-1 mb-0.5">
+                                <span className={`font-medium text-[10px] ${event.type === 'add' ? 'text-green-400' : 'text-red-400'}`}>
                                   {event.type === 'add' ? 'Added' : 'Removed'}
                                 </span>
-                                <span className="text-xs text-slate-400">{formatTimeAgo(event.timestamp)}</span>
+                                <span className="text-[9px] text-gray-400">{formatTimeAgo(event.timestamp)}</span>
                               </div>
-                              <div className="flex items-center gap-2 text-xs">
-                                <span className="text-slate-400">By:</span>
+                              <div className="flex items-center gap-1 text-[9px]">
+                                <span className="text-gray-400">By:</span>
                                 <code className="font-mono text-blue-300">
                                   {event.from ? `${event.from.slice(0, 8)}...${event.from.slice(-6)}` : 'Unknown'}
                                 </code>
@@ -672,7 +729,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                                   href={`https://scan.pulsechain.com/tx/${event.txHash}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-blue-400 hover:text-blue-300 ml-2"
+                                  className="text-blue-400 hover:text-blue-300 ml-1"
                                   title="View transaction"
                                   onClick={(e) => e.stopPropagation()}
                                 >
@@ -687,19 +744,19 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   )}
                   
                   {pairLiquidityEvents[pair.pairAddress]?.events && pairLiquidityEvents[pair.pairAddress].events.length === 0 && !pairLiquidityEvents[pair.pairAddress].isLoading && (
-                    <div className="text-center text-slate-400 py-4 text-sm">
+                    <div className="text-center text-gray-400 py-2 text-xs">
                       No recent liquidity activity found
                     </div>
                   )}
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-px">
+                <div className="flex gap-0.5">
                   <a 
                     href={pair.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 bg-slate-950/20 text-blue-300 px-3 py-2 text-center border border-slate-800/30 hover:bg-slate-950/30 transition-colors text-sm"
+                    className="flex-1 bg-gray-950/20 text-blue-300 px-2 py-1 text-center border border-gray-800/30 hover:bg-gray-950/30 transition-colors text-xs"
                   >
                     DexScreener
                   </a>
@@ -708,14 +765,14 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     href={`https://scan.pulsechain.com/address/${pair.pairAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 bg-green-600/20 text-green-300 px-3 py-2 text-center border border-green-600/30 hover:bg-green-600/30 transition-colors text-sm"
+                    className="flex-1 bg-green-600/20 text-green-300 px-2 py-1 text-center border border-green-600/30 hover:bg-green-600/30 transition-colors text-xs"
                   >
                     Code
                   </a>
                   
                   <button 
                     onClick={() => navigator.clipboard.writeText(pair.pairAddress || '')}
-                    className="flex-1 bg-slate-950/20 text-blue-300 px-3 py-2 text-center border border-slate-800/30 hover:bg-slate-950/30 transition-colors text-sm"
+                    className="flex-1 bg-gray-950/20 text-blue-300 px-2 py-1 text-center border border-gray-800/30 hover:bg-gray-950/30 transition-colors text-xs"
                     title="Copy pair address"
                   >
                     Copy
@@ -728,20 +785,20 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
         {/* Zero Liquidity Pairs - Collapsed */}
         {zeroLiquidityPairs.length > 0 && (
-          <div className="bg-slate-800 border border-slate-700/50 rounded-lg p-4"
+          <div className="bg-gray-800 border border-gray-700/50 rounded p-2 px-2"
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <div className="font-semibold text-white">
-                  Zero Liquidity Pairs ({zeroLiquidityPairs.length})
+                <div className="text-xs font-semibold text-white">
+                  Zero Liquidity ({zeroLiquidityPairs.length})
                 </div>
-                <div className="text-sm text-slate-400">
+                <div className="text-[10px] text-gray-400">
                   Pairs with $0 liquidity
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-sm text-white">$0</div>
-                <div className="text-xs text-slate-400">Liquidity</div>
+                <div className="text-xs text-white">$0</div>
+                <div className="text-[10px] text-gray-400">Liquidity</div>
               </div>
             </div>
           </div>
