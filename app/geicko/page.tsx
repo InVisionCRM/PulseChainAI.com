@@ -41,6 +41,9 @@ const formatDexLabel = (value?: string | null) => {
   return normalizeLabel(value);
 };
 
+// Pump.Tires creator address
+const PUMP_TIRES_CREATOR = '0x6538A83a81d855B965983161AF6a83e616D16fD5';
+
 const formatWebsiteDisplay = (url?: string | null) => {
   if (!url) return '';
   try {
@@ -107,7 +110,7 @@ function GeickoPageContent() {
   const router = useRouter();
   const addressFromQuery = searchParams.get('address');
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState('transactions');
+  const [activeTab, setActiveTab] = useState('chart');
   const [tokenInfoTab, setTokenInfoTab] = useState<'token' | 'wpls'>('token');
   const [apiTokenAddress, setApiTokenAddress] = useState<string>('0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e');
   const [searchInput, setSearchInput] = useState<string>('');
@@ -115,19 +118,15 @@ function GeickoPageContent() {
   const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [isTradeDropdownOpen, setIsTradeDropdownOpen] = useState(false);
   const [tokenAmount, setTokenAmount] = useState<string>('1');
   const [calculatorCurrency, setCalculatorCurrency] = useState<'usd' | 'wpls'>('usd');
-  const [holdersTimeframe, setHoldersTimeframe] = useState<'1' | '7' | '30' | '90'>('30');
-  const [holdersStatsLoading, setHoldersStatsLoading] = useState<boolean>(false);
-  const [holdersStats, setHoldersStats] = useState<{ newHolders: number; lostHolders: number; netChange: number } | null>(null);
-  const [isWalletDropdownOpen, setIsWalletDropdownOpen] = useState(false);
-  const [isGamingDropdownOpen, setIsGamingDropdownOpen] = useState(false);
   const [burnedTokens, setBurnedTokens] = useState<{ amount: number; percent: number } | null>(null);
   const [holdersCount, setHoldersCount] = useState<number | null>(null);
+  const [creationDate, setCreationDate] = useState<string | null>(null);
   const [activeSocialTab, setActiveSocialTab] = useState<string | null>(null);
   const [uiPreset, setUiPreset] = useState<'classic' | 'rabby1'>('classic');
-  
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+
   // Ownership state
   const [ownershipData, setOwnershipData] = useState<{
     creatorAddress: string | null;
@@ -144,7 +143,6 @@ function GeickoPageContent() {
   });
 
   // Additional metrics state
-  const [contractAge, setContractAge] = useState<string | null>(null);
   const [totalSupply, setTotalSupply] = useState<{ supply: string; decimals: number } | null>(null);
   const [supplyHeld, setSupplyHeld] = useState<{
     top10: number;
@@ -187,121 +185,6 @@ function GeickoPageContent() {
   const [holdersPage, setHoldersPage] = useState<number>(1);
   const holdersPerPage = 25;
 
-  // Liquidity pools state
-  const [expandedPairs, setExpandedPairs] = useState<Set<string>>(new Set());
-  const [pairHoldersData, setPairHoldersData] = useState<Record<string, any>>({});
-  const [pairLiquidityEvents, setPairLiquidityEvents] = useState<Record<string, any>>({});
-
-  // Fetch pair holders
-  const fetchPairHolders = useCallback(async (pairAddress: string) => {
-    if (pairHoldersData[pairAddress]) return;
-
-    setPairHoldersData(prev => ({
-      ...prev,
-      [pairAddress]: { holders: [], isLoading: true, error: null, totalSupply: '0' }
-    }));
-
-    try {
-      const [holdersResult, tokenInfoResult] = await Promise.all([
-        pulsechainApiService.getTokenHolders(pairAddress, 1, 25).catch(() => null),
-        pulsechainApiService.getTokenInfo(pairAddress).catch(() => null)
-      ]);
-
-      let holders: any[] = [];
-      const totalSupply = tokenInfoResult?.total_supply || '0';
-
-      if (holdersResult && Array.isArray(holdersResult)) {
-        holders = holdersResult.map((h: any) => {
-          const value = h.value || '0';
-          const percentage = totalSupply !== '0' ? (Number(value) / Number(totalSupply)) * 100 : 0;
-          return {
-            address: h.address?.hash || '',
-            value,
-            percentage
-          };
-        }).filter(h => h.address);
-      }
-
-      setPairHoldersData(prev => ({
-        ...prev,
-        [pairAddress]: {
-          holders,
-          isLoading: false,
-          error: holders.length === 0 && !holdersResult ? 'LP token holder data not available' : null,
-          totalSupply
-        }
-      }));
-    } catch (error) {
-      setPairHoldersData(prev => ({
-        ...prev,
-        [pairAddress]: { holders: [], isLoading: false, error: 'Failed to fetch holders', totalSupply: '0' }
-      }));
-    }
-  }, [pairHoldersData]);
-
-  // Fetch liquidity events
-  const fetchLiquidityEvents = useCallback(async (pairAddress: string) => {
-    if (pairLiquidityEvents[pairAddress]) return;
-
-    setPairLiquidityEvents(prev => ({
-      ...prev,
-      [pairAddress]: { events: [], isLoading: true, error: null }
-    }));
-
-    try {
-      const response = await pulsechainApiService.getAddressTransactions(pairAddress, 1, 50);
-
-      const transactions = Array.isArray(response) ? response
-                         : (response as any).data && Array.isArray((response as any).data) ? (response as any).data
-                         : (response as any).items && Array.isArray((response as any).items) ? (response as any).items
-                         : [];
-
-      const liquidityEvents = transactions
-        .filter((tx: any) => {
-          const method = (tx.method || '').toLowerCase();
-          return method.includes('addliquidity') || method.includes('removeliquidity') ||
-                 method.includes('add_liquidity') || method.includes('remove_liquidity');
-        })
-        .slice(0, 10)
-        .map((tx: any) => {
-          const method = (tx.method || '').toLowerCase();
-          const isAdd = method.includes('add');
-
-          return {
-            type: isAdd ? 'add' : 'remove',
-            timestamp: tx.timestamp || tx.block_timestamp || '',
-            txHash: tx.hash || '',
-            from: tx.from?.hash || tx.from || '',
-            method: tx.method || 'Unknown'
-          };
-        });
-
-      setPairLiquidityEvents(prev => ({
-        ...prev,
-        [pairAddress]: { events: liquidityEvents, isLoading: false, error: null }
-      }));
-    } catch (error) {
-      setPairLiquidityEvents(prev => ({
-        ...prev,
-        [pairAddress]: { events: [], isLoading: false, error: 'Failed to fetch activity' }
-      }));
-    }
-  }, [pairLiquidityEvents]);
-
-  // Toggle pair expansion
-  const togglePairExpansion = useCallback(async (pairAddress: string) => {
-    const newExpanded = new Set(expandedPairs);
-    if (newExpanded.has(pairAddress)) {
-      newExpanded.delete(pairAddress);
-    } else {
-      newExpanded.add(pairAddress);
-      await Promise.all([
-        fetchPairHolders(pairAddress),
-        fetchLiquidityEvents(pairAddress)
-      ]);
-    }
-    setExpandedPairs(newExpanded);
-  }, [expandedPairs, fetchPairHolders, fetchLiquidityEvents]);
 
   // Load token data function
   const loadTokenData = useCallback(async (address: string) => {
@@ -826,8 +709,9 @@ function GeickoPageContent() {
     const loadMetrics = async () => {
       try {
         if (!apiTokenAddress) return;
+        setCreationDate(null);
 
-        // Fetch contract age
+        // Fetch contract age and creation date
         try {
           const addressInfo = await fetchJson(`${base}/addresses/${apiTokenAddress}`);
           const creationTxHash = addressInfo?.creation_tx_hash;
@@ -838,25 +722,11 @@ function GeickoPageContent() {
             
             if (timestamp) {
               const creationDate = new Date(timestamp);
-              const now = new Date();
-              const ageMs = now.getTime() - creationDate.getTime();
-              const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
+              const creationDateStr = `${creationDate.getUTCFullYear()}-${String(creationDate.getUTCMonth() + 1).padStart(2, '0')}-${String(creationDate.getUTCDate()).padStart(2, '0')}`;
               
-              let ageStr = '';
-              if (ageDays < 1) {
-                const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
-                ageStr = ageHours < 1 ? '<1h' : `${ageHours}h`;
-              } else if (ageDays < 30) {
-                ageStr = `${ageDays}d`;
-              } else if (ageDays < 365) {
-                const ageMonths = Math.floor(ageDays / 30);
-                ageStr = `${ageMonths}mo`;
-              } else {
-                const ageYears = Math.floor(ageDays / 365);
-                ageStr = `${ageYears}y`;
+              if (!cancelled) {
+                setCreationDate(creationDateStr);
               }
-              
-              if (!cancelled) setContractAge(ageStr);
             }
           }
         } catch (error) {
@@ -1156,6 +1026,7 @@ function GeickoPageContent() {
   }, [router]);
 
   const tabOptions: Array<{ id: typeof activeTab; label: string }> = [
+    { id: 'chart', label: 'Chart' },
     { id: 'transactions', label: 'Txns' },
     { id: 'holders', label: 'Holders' },
     { id: 'liquidity', label: 'Liquidity' },
@@ -1163,190 +1034,6 @@ function GeickoPageContent() {
     { id: 'switch', label: 'Switch' },
   ];
 
-  const tabIconMap: Record<string, string> = {
-    transactions: '🧾',
-    holders: '👥',
-    liquidity: '💧',
-    contract: '💻',
-    switch: '⇄',
-  };
-
-  const renderOtherLiquiditySection = () => {
-    const tokenTitle = profileData?.tokenInfo?.name || tokenInfo?.name || 'Token';
-
-    if (!dexScreenerData?.pairs || dexScreenerData.pairs.length === 0) {
-      return (
-        <div className="mt-4">
-          <h3 className="text-sm font-semibold text-white mb-2">
-            Other Liquidity Pairs Trading {tokenTitle}
-          </h3>
-          <div className="text-xs text-gray-400 py-4 text-center">No pools available</div>
-        </div>
-      );
-    }
-
-    return (
-      <div>
-        <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-          <span className="inline-flex items-center justify-center rounded-full bg-green-500/20 text-green-300 text-[11px] font-bold h-6 w-6">LP</span>
-          <span>Other Liquidity Pairs Trading {tokenTitle}</span>
-        </h3>
-        <div className="space-y-2">
-          {dexScreenerData.pairs.slice(0, 5).map((pair) => (
-            <div key={pair.pairAddress} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div
-                className="p-3 cursor-pointer hover:bg-gray-800/60 transition-colors"
-                onClick={() => togglePairExpansion(pair.pairAddress)}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="text-xs text-white font-semibold">
-                    {pair.baseToken.symbol}/{pair.quoteToken.symbol}
-                  </div>
-                  <div className="flex items-center space-x-1 text-[11px] text-gray-300">
-                    <span className="uppercase">{pair.dexId}</span>
-                    <span className="text-white">
-                      {expandedPairs.has(pair.pairAddress) ? '▲' : '▼'}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <div>
-                    <span className="text-gray-400">LIQ </span>
-                    <span className="text-green-400">
-                      ${parseFloat(String(pair.liquidity?.usd || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">VOL </span>
-                    <span className="text-blue-400">
-                      ${parseFloat(String(pair.volume?.h24 || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                </div>
-                <div className="mt-1 grid grid-cols-2 gap-2 text-[11px] text-gray-300">
-                  <div className="flex items-center justify-between bg-gray-800/40 px-2 py-1 rounded">
-                    <span className="text-gray-400">{pair.baseToken.symbol}</span>
-                    <span className="text-white font-semibold">
-                      {parseFloat(String(pair.liquidity?.base || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-800/40 px-2 py-1 rounded">
-                    <span className="text-gray-400">{pair.quoteToken.symbol}</span>
-                    <span className="text-white font-semibold">
-                      {parseFloat(String(pair.liquidity?.quote || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {expandedPairs.has(pair.pairAddress) && (
-                <div className="border-t border-gray-800 p-3 space-y-3 bg-gray-950/60">
-                  <div>
-                    <div className="text-xs text-white font-semibold mb-1">LP Token Holders (Top 10)</div>
-
-                    {pairHoldersData[pair.pairAddress]?.isLoading && (
-                      <div className="flex items-center justify-center py-2">
-                        <LoaderThree />
-                      </div>
-                    )}
-
-                    {pairHoldersData[pair.pairAddress]?.error && (
-                      <div className="text-xs text-red-400">{pairHoldersData[pair.pairAddress].error}</div>
-                    )}
-
-                    {pairHoldersData[pair.pairAddress]?.holders && pairHoldersData[pair.pairAddress].holders.length > 0 && (
-                      <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
-                        {pairHoldersData[pair.pairAddress].holders.slice(0, 10).map((holder: any, idx: number) => (
-                          <div
-                            key={holder.address}
-                            className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 text-xs bg-gray-800/50 rounded px-1 py-0.5"
-                          >
-                            <span className="text-gray-400 leading-none">#{idx + 1}</span>
-                            <span className="text-blue-400 font-mono text-[10px] leading-none">
-                              {formatLpHolderAddress(holder.address)}
-                            </span>
-                            <span
-                              className={`font-medium ${
-                                holder.percentage >= 10 ? 'text-red-400' :
-                                holder.percentage >= 5 ? 'text-yellow-400' : 'text-green-400'
-                              }`}
-                            >
-                              {holder.percentage >= 1 ? holder.percentage.toFixed(2) :
-                               holder.percentage >= 0.01 ? holder.percentage.toFixed(4) : '<0.01'}%
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {pairHoldersData[pair.pairAddress]?.holders?.length === 0 && !pairHoldersData[pair.pairAddress]?.isLoading && (
-                      <div className="text-xs text-gray-400">LP token holder data not available</div>
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="text-xs text-white font-semibold mb-1">Recent Activity (Last 5)</div>
-                    {pairLiquidityEvents[pair.pairAddress]?.isLoading && (
-                      <div className="flex items-center justify-center py-2">
-                        <LoaderThree />
-                      </div>
-                    )}
-
-                    {pairLiquidityEvents[pair.pairAddress]?.events && pairLiquidityEvents[pair.pairAddress].events.length > 0 && (
-                      <div className="space-y-1 max-h-24 overflow-y-auto">
-                        {pairLiquidityEvents[pair.pairAddress].events.slice(0, 5).map((event: any, idx: number) => (
-                          <div key={`${event.txHash}-${idx}`} className="flex items-center gap-1 text-xs bg-gray-800/50 rounded px-1 py-0.5">
-                            <span className={event.type === 'add' ? 'text-green-400' : 'text-red-400'}>
-                              {event.type === 'add' ? '🟢' : '🔴'}
-                            </span>
-                            <span className={event.type === 'add' ? 'text-green-400' : 'text-red-400'}>
-                              {event.type === 'add' ? 'Add' : 'Remove'}
-                            </span>
-                            <a
-                              href={`https://scan.pulsechain.box/tx/${event.txHash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-400 hover:text-blue-300"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              🔗
-                            </a>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {pairLiquidityEvents[pair.pairAddress]?.events && pairLiquidityEvents[pair.pairAddress].events.length === 0 && (
-                      <div className="text-xs text-gray-400">No recent activity</div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2 text-xs">
-                    <a
-                      href={pair.url || `https://dexscreener.com/pulsechain/${pair.pairAddress}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-blue-400 px-2 py-1 text-center rounded transition-colors"
-                    >
-                      DexScreener
-                    </a>
-                    <a
-                      href={`https://scan.pulsechain.box/address/${pair.pairAddress}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-green-400 px-2 py-1 text-center rounded transition-colors"
-                    >
-                      Scan
-                    </a>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
 
   const rabbyActions = [
     {
@@ -1590,7 +1277,12 @@ function GeickoPageContent() {
 
   return (
     <>
-      <div className="min-h-screen bg-black text-white font-sans px-2 md:px-3">
+      <div className="min-h-screen bg-gradient-to-br from-black via-[#0b0b14] to-black text-white font-sans px-2 md:px-3 relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-24 -left-16 h-64 w-64 bg-gradient-to-br from-blue-700/30 via-cyan-500/10 to-transparent blur-3xl" />
+          <div className="absolute top-10 right-0 h-72 w-72 bg-gradient-to-bl from-purple-700/25 via-fuchsia-500/10 to-transparent blur-3xl" />
+          <div className="absolute -bottom-24 left-1/3 h-56 w-56 bg-gradient-to-tr from-emerald-600/20 via-teal-500/10 to-transparent blur-3xl" />
+        </div>
       {/* Header Section */}
       <header className="bg-gray-900 border-b border-gray-800">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 md:px-3 py-2 gap-2">
@@ -1685,137 +1377,109 @@ function GeickoPageContent() {
           </div>
 
         </div>
+      </header>
 
-        {/* Top Tickers Bar */}
-        <div className="bg-gray-800 px-3 py-0.5">
-          <div className="flex space-x-3 overflow-x-auto">
-            {topTokens.length > 0 ? (
-              topTokens.map((token, index) => (
-                <div key={index} className="flex items-center space-x-1 whitespace-nowrap">
-                  <span className="text-xs text-gray-300">{index + 1}</span>
-                  <span className="text-xs text-white">{token.symbol}</span>
-                  <span className={`text-xs ${token.priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {token.priceChange >= 0 ? '+' : ''}{token.priceChange.toFixed(2)}%
+      {/* Mobile Token Header - Top Position */}
+      <div className="sm:hidden px-2 mb-2 mt-0">
+        {isLoadingData ? (
+          <div className="flex items-center justify-center py-4">
+            <LoaderThree />
+          </div>
+        ) : dexScreenerData?.pairs?.[0] ? (
+          <div className="relative flex gap-2 min-h-[140px] pt-0 rounded-lg overflow-hidden">
+            {/* Left side: Token info */}
+            <div className="flex-1 min-w-0">
+              {/* Ticker and Name */}
+              <div className="absolute z-10 left-0 top-0 text-left mb-0">
+                <div className="bg-black/10 backdrop-blur-lg rounded-xs p-2">
+                  <div className="text-md font-bold text-white">
+                    {dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} / {dexScreenerData.pairs[0].quoteToken?.symbol}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {dexScreenerData?.tokenInfo?.name || tokenInfo?.name || dexScreenerData.pairs[0].baseToken?.name || 'Token'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Token Logo - Centered below ticker/name */}
+              <div className="absolute z-20 left-6 bottom-0 bg-black/30 backdrop-blur-xs rounded-full p-2 mb-1">
+                {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? (
+                  <img
+                    src={dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl}
+                    alt={`${dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} logo`}
+                    className="w-16 h-16 rounded-full bg-gray-950"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                ) : null}
+                <div className={`w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center ${(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? 'hidden' : ''}`}>
+                  <span className="text-white font-bold text-xl">
+                    {dexScreenerData?.tokenInfo?.symbol?.charAt(0) || dexScreenerData.pairs[0].baseToken?.symbol?.charAt(0) || 'T'}
                   </span>
                 </div>
-              ))
-            ) : (
-              // Loading placeholder
-              Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex items-center space-x-1 whitespace-nowrap">
-                  <span className="text-xs text-gray-300">{i + 1}</span>
-                  <span className="text-xs text-gray-500">...</span>
-                  <span className="text-xs text-gray-500">...</span>
+              </div>
+
+              {/* Current Price */}
+              <div className="absolute right-4 top-2">
+                <div className="text-xl font-bold text-white">
+                  ${Number(dexScreenerData.pairs[0].priceUsd || 0).toFixed(6)}
                 </div>
-              ))
-            )}
+                <div className={`text-md ${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '↑' : '↓'}
+                  {Math.abs(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
+                </div>
+                <div className="text-lg font-bold text-gray-300">
+                  {dexScreenerData.pairs[0].marketCap
+                    ? (() => {
+                        const marketCap = Number(dexScreenerData.pairs[0].marketCap);
+                        if (marketCap >= 1000000) {
+                          return `${(marketCap / 1000000).toFixed(2)}M MCAP`;
+                        } else {
+                          const rounded = Math.round(marketCap / 1000) * 1000;
+                          return `$${(rounded / 1000).toFixed(0)}k MCAP`;
+                        }
+                      })()
+                    : 'MCAP N/A'}
+                </div>
+              </div>
+            </div>
+
+            {/* Background - Zoomed Logo with Overlay */}
+            <div className="absolute inset-0 w-full h-full overflow-hidden -z-10">
+              {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? (
+                <>
+                  <img
+                    src={dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl}
+                    alt="Background Logo"
+                    className="w-full h-full object-cover blur-xl scale-150 opacity-50"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/70" />
+                </>
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" />
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        ) : (
+          <div className="text-xs text-gray-400 py-4">No token data available</div>
+        )}
+      </div>
 
       {/* Main Content */}
       <div className="flex flex-col sm:flex-row items-start">
         {/* Left Panel - Chart Section */}
         <div className="w-full sm:flex-[3] min-w-0 bg-black">
-          {/* Mobile Token Header - Only visible on single column layout */}
-          <div className="sm:hidden px-2 mb-2">
-            {isLoadingData ? (
-              <div className="flex items-center justify-center py-4">
-                <LoaderThree />
-              </div>
-            ) : dexScreenerData?.pairs?.[0] ? (
-              <div className="relative flex gap-2 min-h-[120px] pt-4">
-                {/* Left side: Token info */}
-                <div className="flex-1 min-w-0">
-                  {/* Ticker and Name */}
-                  <div className="absolute z-10 left-0 top-4 text-left mb-2">
-                    <div className="bg-black/10 backdrop-blur-lg rounded-xs p-2">
-                      <div className="text-md font-bold text-white">
-                        {dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} / {dexScreenerData.pairs[0].quoteToken?.symbol}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {dexScreenerData?.tokenInfo?.name || tokenInfo?.name || dexScreenerData.pairs[0].baseToken?.name || 'Token'}
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Token Logo - Centered below ticker/name */}
-                  <div className="absolute z-20 left-6 bottom-0 bg-black/10 backdrop-blur-xs rounded-full p-2 mb-1">
-                    {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? (
-                      <img
-                        src={dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl}
-                        alt={`${dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} logo`}
-                        className="w-10 h-10 rounded-full bg-gray-950"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                        }}
-                      />
-                    ) : null}
-                    <div className={`w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center ${(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? 'hidden' : ''}`}>
-                      <span className="text-white font-bold text-sm">
-                        {dexScreenerData?.tokenInfo?.symbol?.charAt(0) || dexScreenerData.pairs[0].baseToken?.symbol?.charAt(0) || 'T'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Current Price */}
-                  <div className="absolute right-4 top-4">
-                    <div className="text-xl font-bold text-white">
-                      ${Number(dexScreenerData.pairs[0].priceUsd || 0).toFixed(6)}
-                    </div>
-                    <div className={`text-md ${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '↑' : '↓'}
-                      {Math.abs(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
-                    </div>
-                    <div className="text-lg font-bold text-gray-300">
-                      {dexScreenerData.pairs[0].marketCap
-                        ? (() => {
-                            const marketCap = Number(dexScreenerData.pairs[0].marketCap);
-                            if (marketCap >= 1000000) {
-                              return `${(marketCap / 1000000).toFixed(2)}M MCAP`;
-                            } else {
-                              const rounded = Math.round(marketCap / 1000) * 1000;
-                              return `$${(rounded / 1000).toFixed(0)}k MCAP`;
-                            }
-                          })()
-                        : 'MCAP N/A'}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right side: Header Image - Background */}
-                {headerImageUrl && (
-                  <div className="absolute inset-0 w-full h-full overflow-hidden -z-10">
-                    <img
-                      src={headerImageUrl}
-                      alt="Token Header"
-                      className="w-full h-full object-cover blur-2xl scale-110 opacity-40"
-                      data-fallback="false"
-                      onError={(e) => {
-                        if (e.currentTarget.dataset.fallback === 'true') {
-                          e.currentTarget.style.display = 'none';
-                          return;
-                        }
-                        e.currentTarget.dataset.fallback = 'true';
-                        e.currentTarget.src = '/app-pics/clean.png';
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/80" />
-                  </div>
-                )}
-
-              </div>
-            ) : (
-              <div className="text-xs text-gray-400 py-4">No token data available</div>
-            )}
-          </div>
-
-          {/* Price Performance & 24h Activity - Mobile Only (Above Chart) */}
-          <div className="sm:hidden px-2 mb-2">
-            <div className="grid grid-cols-2 gap-1">
-              {/* Left Column: Price Performance & 24h Activity */}
-              <div>
+          {/* Token Stats - Mobile Only (Above Chart) */}
+          <div className="sm:hidden px-2 mb-3">
+            <div className="grid grid-cols-2 gap-3">
+              {/* Left Column */}
+              <div className="space-y-3">
                 {/* Social Icons */}
                 {(() => {
                   const websiteLink = profileData?.profile?.websites?.[0];
@@ -1826,253 +1490,194 @@ function GeickoPageContent() {
                   if (!websiteLink && !twitterLink && !discordLink && !telegramLink) return null;
 
                   return (
-                    <div className="mb-2">
-                      <div className="text-xs text-gray-300 mb-1 text-center">Socials</div>
-                      <div className="grid grid-cols-4 gap-0.5 text-xs">
+                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Socials</div>
+                      <div className="grid grid-cols-4 gap-2">
                         {websiteLink && (
-                          <div className="text-center bg-gradient-to-b from-purple-500/30 to-purple-500/30 backdrop-blur-sm rounded p-1">
-                            <a
-                              href={websiteLink.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-white hover:text-white/80"
-                              title="Website"
-                            >
-                              <svg className="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                              </svg>
-                            </a>
-                          </div>
+                          <a
+                            href={websiteLink.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-lg p-2.5 transition-all"
+                            title="Website"
+                          >
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                          </a>
                         )}
                         {twitterLink && (
-                          <div className="text-center bg-gradient-to-b from-purple-500/30 to-purple-500/30 backdrop-blur-sm rounded p-1">
-                            <a
-                              href={twitterLink.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-white hover:text-white/80"
-                              title="X.com"
-                            >
-                              <svg className="w-4 h-4 mx-auto" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                              </svg>
-                            </a>
-                          </div>
+                          <a
+                            href={twitterLink.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-lg p-2.5 transition-all"
+                            title="X.com"
+                          >
+                            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                            </svg>
+                          </a>
                         )}
                         {telegramLink && (
-                          <div className="text-center bg-gradient-to-b from-purple-500/30 to-purple-500/30 backdrop-blur-sm rounded p-1">
-                            <a
-                              href={telegramLink.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-white hover:text-white/80"
-                              title="Telegram"
-                            >
-                              <svg className="w-4 h-4 mx-auto" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-                              </svg>
-                            </a>
-                          </div>
+                          <a
+                            href={telegramLink.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-lg p-2.5 transition-all"
+                            title="Telegram"
+                          >
+                            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                            </svg>
+                          </a>
                         )}
                         {discordLink && (
-                          <div className="text-center bg-gradient-to-b from-purple-500/30 to-purple-500/30 backdrop-blur-sm rounded p-1">
-                            <a
-                              href={discordLink.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-white hover:text-white/80"
-                              title="Discord"
-                            >
-                              <svg className="w-4 h-4 mx-auto" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
-                              </svg>
-                            </a>
-                          </div>
+                          <a
+                            href={discordLink.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-lg p-2.5 transition-all"
+                            title="Discord"
+                          >
+                            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
+                            </svg>
+                          </a>
                         )}
                       </div>
                     </div>
                   );
                 })()}
 
-                {/* 24h Activity */}
                 {dexScreenerData?.pairs?.[0] && (
-                  <div className="mb-2">
-                    <div className="text-xs text-gray-300 mb-1 text-center">24h Activity</div>
-                    <div className="grid grid-cols-3 gap-0.5 text-xs">
-                      <div className="text-center">
-                        <div className="text-gray-400">Txn</div>
-                        <div className="text-white">
-                          {((dexScreenerData.pairs[0].txns?.h24?.buys || 0) + (dexScreenerData.pairs[0].txns?.h24?.sells || 0))}
+                  <>
+                    {/* Supply & Token Info */}
+                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Supply Info</div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400 font-medium">Total Supply</span>
+                          <span className="text-sm text-white font-semibold">
+                            {totalSupply ? (() => {
+                              const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
+                              return formatAbbrev(supply);
+                            })() : '—'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400 font-medium">Circulating</span>
+                          <span className="text-sm text-white font-semibold">
+                            {totalSupply ? (() => {
+                              const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
+                              const burned = burnedTokens?.amount ?? 0;
+                              const circulating = Math.max(0, supply - burned);
+                              return formatAbbrev(circulating);
+                            })() : '—'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400 font-medium">Holders</span>
+                          <span className="text-sm text-white font-semibold">
+                            {holdersCount !== null ? (holdersCount >= 1000 ? `${(holdersCount / 1000).toFixed(1)}k` : holdersCount) : '—'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400 font-medium">Creation Date</span>
+                          <span className="text-sm text-white font-semibold">{creationDate || '—'}</span>
                         </div>
                       </div>
-                      <div className="text-center">
-                        <div className="text-gray-400">BUY</div>
-                        <div className="text-green-400">{dexScreenerData.pairs[0].txns?.h24?.buys || 0}</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-gray-400">SELL</div>
-                        <div className="text-red-400">{dexScreenerData.pairs[0].txns?.h24?.sells || 0}</div>
-                      </div>
                     </div>
-                  </div>
+
+                    {/* Supply Held */}
+                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Supply Held</div>
+                      {supplyHeld.isLoading ? (
+                        <div className="text-center text-gray-500 text-sm">Loading...</div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Top 10</span>
+                            <span className="text-sm text-white font-semibold">
+                              {supplyHeld.top10 > 0 ? `${Math.round(supplyHeld.top10)}%` : '—'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Top 20</span>
+                            <span className="text-sm text-white font-semibold">
+                              {supplyHeld.top20 > 0 ? `${Math.round(supplyHeld.top20)}%` : '—'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Top 50</span>
+                            <span className="text-sm text-white font-semibold">
+                              {supplyHeld.top50 > 0 ? `${Math.round(supplyHeld.top50)}%` : '—'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
 
-              {/* Right Column: Contract Age, Supply Held, and other stats */}
-              <div className="grid grid-cols-3 gap-0 text-center px-0.5 py-0 rounded bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 relative overflow-hidden">
+              {/* Right Column */}
+              <div className="space-y-3">
                 {dexScreenerData?.pairs?.[0] && (
                   <>
-                    {/* Column 1: Contract Ownership */}
-                    <div className="py-0 space-y-0">
+                    {/* Ownership Status */}
+                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Ownership</div>
                       {ownershipData.isLoading ? (
-                        <div className="text-[10px] text-gray-500 leading-none">Loading...</div>
+                        <div className="text-center text-gray-500 text-sm">Loading...</div>
+                      ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
+                        <div className="text-center">
+                          <div className="text-base text-green-400 font-semibold">Renounced ✓</div>
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
+                          </div>
+                        </div>
                       ) : (
-                        <>
-                          {ownershipData.isRenounced ? (
-                            <>
-                              <div className="text-[10px] text-green-400 font-semibold flex items-center justify-center gap-0 leading-none">
-                                <span>Renounced ✓</span>
-                                {ownershipData.renounceTxHash && (
-                                  <a
-                                    href={`https://scan.pulsechain.box/tx/${ownershipData.renounceTxHash}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-400 hover:text-blue-300 ml-0.5"
-                                    title="View renounce transaction"
-                                  >
-                                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="8 8 8 8">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                    </svg>
-                                  </a>
-                                )}
-                              </div>
-                              <div className="text-[10px] text-gray-400 leading-none">No Owner</div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="text-[10px] text-red-400 font-semibold flex items-center justify-center gap-0 leading-none">
-                                <span>Not Renounced</span>
-                                {ownershipData.ownerAddress && (
-                                  <a
-                                    href={`https://scan.pulsechain.box/address/${ownershipData.ownerAddress}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-400 hover:text-blue-300 ml-0.5"
-                                    title="View owner address"
-                                  >
-                                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="8 8 8 8">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                    </svg>
-                                  </a>
-                                )}
-                              </div>
-                              {ownershipData.ownerAddress ? (
-                                <a
-                                  href={`https://scan.pulsechain.box/address/${ownershipData.ownerAddress}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] text-blue-400 hover:text-blue-300 font-mono block leading-none"
-                                  title={ownershipData.ownerAddress}
-                                >
-                                  ...{ownershipData.ownerAddress.slice(-4)}
-                                </a>
-                              ) : (
-                                <div className="text-[10px] text-gray-500 leading-none">N/A</div>
-                              )}
-                            </>
+                        <div className="text-center">
+                          <div className="text-base text-red-400 font-semibold">Not Renounced</div>
+                          {ownershipData.ownerAddress && (
+                            <a
+                              href={`https://scan.pulsechain.box/address/${ownershipData.ownerAddress}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
+                              title={ownershipData.ownerAddress}
+                            >
+                              ...{ownershipData.ownerAddress.slice(-6)}
+                            </a>
                           )}
-                        </>
+                        </div>
                       )}
                     </div>
 
-                    {/* Column 2: Supply */}
-                    <div className="py-0 space-y-0">
-                      <div className="text-[10px] text-gray-400 leading-none">Supply</div>
-                      <div className="text-[10px] font-semibold text-white leading-none">
-                        {totalSupply ? (() => {
-                          const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
-                          return formatAbbrev(supply);
-                        })() : '—'}
+                    {/* Burned Tokens */}
+                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
+                        {burnedTokens && (
+                          <div className="flex items-center justify-center w-9 h-9 rounded-full border-2 border-green-400">
+                            <span className="text-[10px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
+                          </div>
+                        )}
                       </div>
-                    </div>
-
-                    {/* Column 3: Total Holders */}
-                    <div className="py-0 space-y-0">
-                      <div className="text-[10px] text-gray-400 leading-none">Total Holders</div>
-                      <div className="text-[10px] font-semibold text-white leading-none">
-                        {holdersCount !== null ? holdersCount.toLocaleString() : '—'}
-                      </div>
-                    </div>
-
-                    {/* Column 1: Contract Age */}
-                    <div className="py-0 space-y-0">
-                      <div className="text-[10px] text-gray-400 leading-none">Contract Age</div>
-                      <div className="text-[10px] font-semibold text-white leading-none">
-                        {contractAge || '—'}
-                      </div>
-                    </div>
-
-                    {/* Column 2: Burned */}
-                    <div className="py-0 space-y-0">
-                      <div className="text-[10px] text-gray-400 leading-none">Burned</div>
                       {burnedTokens ? (
-                        <div className="space-y-0">
-                          <div className="text-[10px] font-semibold text-white leading-none">
-                            {formatAbbrev(burnedTokens.amount)}
-                          </div>
-                          <div className="text-[9px] text-green-400 leading-none">
-                            {burnedTokens.percent.toFixed(2)}%
-                          </div>
+                        <div className="text-center">
+                          <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
                         </div>
                       ) : (
-                        <div className="text-[10px] font-semibold text-white leading-none">—</div>
+                        <div className="text-center text-base text-white font-semibold">—</div>
                       )}
                     </div>
 
-                    {/* Column 3: Supply Held */}
-                    <div className="py-0 space-y-0">
-                      <div className="text-[10px] text-gray-400 leading-none">Supply Held</div>
-                      {supplyHeld.isLoading ? (
-                        <div className="text-[10px] text-gray-500 leading-none">Loading...</div>
-                      ) : (
-                        <div className="space-y-0">
-                          <div className="text-[9px] text-white leading-none">
-                            Top 10: {supplyHeld.top10 > 0 ? `${Math.round(supplyHeld.top10)}%` : '—'}
-                          </div>
-                          <div className="text-[9px] text-white leading-none">
-                            Top 20: {supplyHeld.top20 > 0 ? `${Math.round(supplyHeld.top20)}%` : '—'}
-                          </div>
-                          <div className="text-[9px] text-white leading-none">
-                            Top 50: {supplyHeld.top50 > 0 ? `${Math.round(supplyHeld.top50)}%` : '—'}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Column 1: Creator Address */}
-                    {ownershipData.creatorAddress && (
-                      <div className="py-0 space-y-0">
-                        <div className="text-[10px] text-white/80 font-bold flex items-center justify-center gap-0 leading-none">
-                          <span>Creator</span>
-                          <a
-                            href={`https://scan.pulsechain.box/address/${ownershipData.creatorAddress}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-400 hover:text-blue-300 ml-0.5"
-                            title={ownershipData.creatorAddress}
-                          >
-                            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="4 4 16 16">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                          </a>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Column 2: Liquidity to Market Cap Ratio */}
-                    <div className="py-0 space-y-0">
-                      <div className="text-[10px] text-gray-400 leading-none">Liq/MCAP</div>
-                      <div className="text-[10px] font-semibold text-white leading-none">
+                    {/* Liq/MCAP Ratio */}
+                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Liq/MCAP</div>
+                      <div className="text-center text-base text-white font-semibold">
                         {(() => {
                           const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
                           const marketCap = Number(dexScreenerData.pairs[0].marketCap || 0);
@@ -2085,61 +1690,65 @@ function GeickoPageContent() {
                       </div>
                     </div>
 
-                    {/* Column 3: More Button */}
-                    <div className="py-0 space-y-0">
-                      <button
-                        onClick={() => {
-                          const apiCatalog = document.getElementById('api-catalog');
-                          if (apiCatalog) {
-                            apiCatalog.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                          }
-                        }}
-                        className="text-[9px] text-blue-400 hover:text-blue-300 font-semibold leading-none"
-                      >
-                        More →
-                      </button>
-                    </div>
+                    {/* Creator Address */}
+                    {ownershipData.creatorAddress && (
+                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Creator</div>
+                        <div className="text-center">
+                          {ownershipData.creatorAddress.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? (
+                            <a
+                              href={`https://pump.tires/token/${apiTokenAddress}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-400 hover:text-blue-300 font-semibold"
+                              title="View on Pump.Tires"
+                            >
+                              Pump.Tires
+                            </a>
+                          ) : (
+                            <a
+                              href={`https://scan.pulsechain.box/address/${ownershipData.creatorAddress}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-400 hover:text-blue-300 font-mono"
+                              title={ownershipData.creatorAddress}
+                            >
+                              {ownershipData.creatorAddress.slice(0, 6)}...{ownershipData.creatorAddress.slice(-4)}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Chart Area */}
-          <div className="mx-2 md:mx-3 mb-2 min-w-0">
-            {isLoadingData ? (
-              <div className="h-[550px] bg-gray-900 border border-gray-800 flex items-center justify-center">
-                <div className="text-center">
-                  <LoaderThree />
-                  <p className="text-gray-400 text-xs mt-2">Loading chart...</p>
-                </div>
-              </div>
-            ) : dexScreenerData?.pairs?.[0]?.pairAddress ? (
-              <div className="relative">
-                <DexScreenerChart pairAddress={dexScreenerData.pairs[0].pairAddress} />
-              </div>
-            ) : (
-              <div className="h-[550px] bg-gray-900 border border-gray-800 flex items-center justify-center">
-                <div className="text-center text-gray-500">
-                  <div className="text-xs mb-1"></div>
-                  <div className="text-xs">No chart data available</div>
-                </div>
+            {/* More Info Button */}
+            {dexScreenerData?.pairs?.[0] && (
+              <div className="mt-3">
+                <button
+                  onClick={() => setIsStatsModalOpen(true)}
+                  className="relative w-full overflow-hidden text-xs text-blue-200 hover:text-white font-semibold py-2 rounded-lg border border-cyan-400/40 bg-gradient-to-r from-blue-900/40 via-purple-900/30 to-cyan-900/40 shadow-[0_0_15px_rgba(59,130,246,0.6),0_0_25px_rgba(168,85,247,0.45)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(59,130,246,0.85),0_0_40px_rgba(168,85,247,0.7)]"
+                >
+                  <span className="absolute inset-0 bg-gradient-to-r from-cyan-400/10 via-transparent to-purple-400/10 blur-md" aria-hidden="true" />
+                  <span className="pointer-events-none relative">View More Stats →</span>
+                  <span className="pointer-events-none absolute -left-10 top-0 h-0.5 w-2/3 bg-gradient-to-r from-transparent via-cyan-300 to-transparent animate-pulse" aria-hidden="true" />
+                  <span className="pointer-events-none absolute -right-10 bottom-0 h-0.5 w-2/3 bg-gradient-to-r from-transparent via-purple-400 to-transparent animate-pulse" aria-hidden="true" />
+                </button>
               </div>
             )}
-          </div>
-
-          {/* Subtle Divider */}
-          <div className="px-2 md:px-3">
-            <div className="h-px bg-white/10 rounded-full" />
           </div>
 
           {/* Bottom Tabs */}
           <div className="px-2 md:px-3 pt-4 pb-3 border-t border-gray-800 mt-4 relative z-30">
             {isRabbyUI ? (
-              <div className="flex flex-wrap gap-2 overflow-x-auto bg-gray-950/70 border border-white/5 rounded-2xl px-2 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
+              <div className="flex flex-wrap gap-2 overflow-x-auto bg-gray-950/70 border border-white/5 rounded-2xl px-2 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.6)] scrollbar-hide">
                 {tabOptions.map((tab) => {
                   const isActive = activeTab === tab.id;
-                  const accent = tab.id === 'transactions'
+                  const accent = tab.id === 'chart'
+                    ? 'from-blue-500 to-cyan-500'
+                    : tab.id === 'transactions'
                     ? 'from-violet-500 to-pink-500'
                     : tab.id === 'holders'
                       ? 'from-emerald-400 to-teal-500'
@@ -2150,15 +1759,12 @@ function GeickoPageContent() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`relative flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-xl border transition-colors duration-200 ${
+                      className={`relative flex items-center px-3 py-1.5 text-xs font-semibold rounded-xl border transition-colors duration-200 ${
                         isActive
                           ? 'text-white border-white/30 bg-white/5 shadow-[0_0_15px_rgba(255,255,255,0.12)]'
                           : 'text-slate-400 border-transparent hover:border-white/10 hover:bg-white/5'
                       }`}
                     >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${accent} shadow-[0_0_10px_currentColor]`}
-                      />
                       {tab.label}
                       {isActive && (
                         <span
@@ -2170,10 +1776,12 @@ function GeickoPageContent() {
                 })}
               </div>
             ) : (
-              <div className="flex items-center gap-2 overflow-x-auto text-[11px] sm:text-xs">
+              <div className="flex items-center gap-2 overflow-x-auto text-[11px] sm:text-xs scrollbar-hide">
                 {tabOptions.map((tab) => {
                   const isActive = activeTab === tab.id;
-                  const accent = tab.id === 'transactions'
+                  const accent = tab.id === 'chart'
+                    ? 'from-blue-500/70 to-cyan-500/80'
+                    : tab.id === 'transactions'
                     ? 'from-violet-500/70 to-indigo-500/80'
                     : tab.id === 'holders'
                       ? 'from-emerald-400/70 to-teal-500/80'
@@ -2184,13 +1792,12 @@ function GeickoPageContent() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-200 ${
+                      className={`flex items-center px-3 py-1.5 rounded-full border transition-all duration-200 ${
                         isActive
                           ? `text-white border-white/40 bg-gradient-to-r ${accent} shadow-[0_0_25px_rgba(255,255,255,0.25)]`
                           : 'text-slate-300 border-white/10 bg-white/5 hover:border-white/30 hover:text-white'
                       }`}
                     >
-                      <span className="text-base leading-none">{tabIconMap[tab.id] ?? '•'}</span>
                       <span className="font-semibold tracking-wide uppercase">{tab.label}</span>
                     </button>
                   );
@@ -2202,6 +1809,27 @@ function GeickoPageContent() {
           {/* Content Tables */}
           <div className="px-2 md:px-3 py-1 min-w-0">
             <div className="bg-gray-900 rounded border border-gray-800 h-[400px] sm:h-[450px] md:h-[500px] lg:h-[550px] xl:h-[600px] overflow-y-auto overflow-x-auto min-w-0">
+              {/* Chart Tab */}
+              {activeTab === 'chart' && (
+                <div className="h-full flex items-center justify-center">
+                  {isLoadingData ? (
+                    <div className="text-center">
+                      <LoaderThree />
+                      <p className="text-gray-400 text-xs mt-2">Loading chart...</p>
+                    </div>
+                  ) : dexScreenerData?.pairs?.[0]?.pairAddress ? (
+                    <div className="w-full h-full">
+                      <DexScreenerChart pairAddress={dexScreenerData.pairs[0].pairAddress} />
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-500">
+                      <div className="text-xs mb-1"></div>
+                      <div className="text-xs">No chart data available</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Switch Tab - Only visible on mobile */}
               {activeTab === 'switch' && (
                 <div className="h-full flex items-center justify-center p-4">
@@ -2811,38 +2439,6 @@ function GeickoPageContent() {
               <div className="text-xs text-gray-400 py-4 text-center">No token data available</div>
             )}
           </div>
-            {/* Trade Dropdown */}
-            <div className="mb-2 px-0">
-              <button
-                onClick={() => setIsTradeDropdownOpen(!isTradeDropdownOpen)}
-                className="w-full bg-gray-800 text-white py-1 px-2 rounded text-xs flex items-center justify-center hover:bg-gray-700 transition-colors"
-              >
-                Trade
-                <svg
-                  className={`w-3 h-3 ml-1 transition-transform ${isTradeDropdownOpen ? 'rotate-180' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {/* Trade Dropdown Content - Switch Widget */}
-              {isTradeDropdownOpen && (
-                <div className="bg-black/10 backdrop-blur-lg rounded-lg border border-black overflow-hidden h-[600px]">
-                  <iframe
-                    src={`https://switch.win/widget?network=pulsechain&background_color=000000&font_color=ffffff&secondary_font_color=7a7a7a&border_color=01e401&backdrop_color=transparent&from=0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee&to=${dexScreenerData?.pairs?.[0]?.baseToken?.address || apiTokenAddress}`}
-                    allow="clipboard-read; clipboard-write"
-                    width="100%"
-                    height="100%"
-                    className="border-0"
-                    title="Token Swap Interface"
-                  />
-                </div>
-              )}
-            </div>
-
             {/* Price Performance */}
             {dexScreenerData?.pairs?.[0] && (
               <div className="hidden sm:block mb-2 px-0">
@@ -3006,11 +2602,11 @@ function GeickoPageContent() {
                     </div>
                   </div>
 
-                  {/* Column 1: Contract Age */}
+                  {/* Column 1: Creation Date */}
                   <div className="py-1.5 space-y-1">
-                    <div className="text-[10px] text-gray-400 leading-none">Contract Age</div>
+                    <div className="text-[10px] text-gray-400 leading-none">Creation Date</div>
                     <div className="text-[10px] font-semibold text-white leading-none">
-                      {contractAge || '—'}
+                      {creationDate || '—'}
                     </div>
                   </div>
 
@@ -3105,77 +2701,7 @@ function GeickoPageContent() {
               </div>
             )}
 
-            {/* New vs Old Holders */}
-            <div className="mb-2 px-0">
-              <div className="bg-gray-800 rounded p-2">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs text-gray-300 font-semibold">New vs Old Holders</div>
-                  <div className="flex items-center gap-1">
-                    {(['1','7','30','90'] as const).map(tf => (
-                      <button
-                        key={tf}
-                        type="button"
-                        className={`px-1.5 py-0.5 text-xs rounded ${holdersTimeframe===tf?'bg-orange-600 text-white':'bg-gray-950 text-gray-300 hover:bg-gray-700'}`}
-                        onClick={async () => {
-                          setHoldersTimeframe(tf);
-                          const days = tf === '1' ? 1 : tf === '7' ? 7 : tf === '30' ? 30 : 90;
-                          setHoldersStatsLoading(true);
-                          try {
-                            const apiRes = await fetch(`/api/holders-metrics?address=${encodeURIComponent(apiTokenAddress)}&days=${days}`);
-                            if (apiRes.ok) {
-                              const data = await apiRes.json();
-                              if (data && typeof data.newHolders === 'number') {
-                                setHoldersStats({ newHolders: data.newHolders, lostHolders: data.lostHolders, netChange: data.netChange });
-                              }
-                            }
-                          } catch (e) {
-                            console.error('Failed to load holders stats:', e);
-                          } finally {
-                            setHoldersStatsLoading(false);
-                          }
-                        }}
-                      >
-                        {tf}d
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="bg-gray-950 rounded p-2">
-                  {holdersStatsLoading ? (
-                    <div className="flex items-center justify-center py-4 text-xs text-gray-400">
-                      Loading...
-                    </div>
-                  ) : holdersStats ? (
-                    <div className="grid grid-cols-3 text-center gap-2 text-xs">
-                      <div>
-                        <div className="text-gray-400">New</div>
-                        <div className="font-bold text-green-400">{holdersStats.newHolders.toLocaleString()}</div>
-                      </div>
-                      <div>
-                        <div className="text-gray-400">Lost</div>
-                        <div className="font-bold text-red-400">{holdersStats.lostHolders.toLocaleString()}</div>
-                      </div>
-                      <div>
-                        <div className="text-gray-400">Net</div>
-                        <div className="font-bold text-white">{holdersStats.netChange.toLocaleString()}</div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-xs text-gray-400 text-center py-2">Click a timeframe to load</div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* API Catalog */}
-            <div id="api-catalog" className="mb-3 px-0">
-              <div className="bg-gray-800 rounded p-2">
-                <div className="text-xs text-gray-300 font-semibold mb-2">API Catalog</div>
-                <div className="bg-gray-950/70 rounded-lg p-2 max-h-[460px] overflow-y-auto">
-                  <AdminStatsPanel key={apiTokenAddress} initialAddress={apiTokenAddress} compact />
-                </div>
-              </div>
-            </div>
+            {/* API Catalog - Hidden, now shown in modal */}
 
             {/* Wallet Ad */}
             <div className="mb-2 px-0">
@@ -3194,149 +2720,9 @@ function GeickoPageContent() {
               </a>
             </div>
 
-            {/* Get Crypto Section */}
-            <div className="mb-2 px-0">
-              <div className="text-xs text-gray-300 mb-1">Get Crypto</div>
-              <div className="space-y-1">
-                <div>
-                  <button
-                    onClick={() => setIsWalletDropdownOpen(!isWalletDropdownOpen)}
-                    className="w-full flex items-center justify-between px-2 py-1 bg-gray-800 text-white text-xs rounded hover:bg-gray-700 transition-colors"
-                  >
-                    <span>Wallet</span>
-                    <svg
-                      className={`w-3 h-3 transition-transform ${isWalletDropdownOpen ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-
-                  {/* Wallet Dropdown Content */}
-                  {isWalletDropdownOpen && (
-                    <div className="mt-1">
-                      <a
-                        href="https://internetmoney.io"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block"
-                      >
-                        <img
-                          src="/wallet.jpeg"
-                          alt="InternetMoney.io Wallet"
-                          className="w-full rounded cursor-pointer hover:opacity-90 transition-opacity"
-                        />
-                      </a>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <button
-                    onClick={() => setIsGamingDropdownOpen(!isGamingDropdownOpen)}
-                    className="w-full flex items-center justify-between px-2 py-1 bg-gray-800 text-white text-xs rounded hover:bg-gray-700 transition-colors"
-                  >
-                    <span>Gaming</span>
-                    <svg
-                      className={`w-3 h-3 transition-transform ${isGamingDropdownOpen ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-
-                  {/* Gaming Dropdown Content */}
-                  {isGamingDropdownOpen && (
-                    <div className="mt-1 space-y-2">
-                      {/* SpacePulse */}
-                      <a
-                        href="https://pulsegame.vercel.app/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block"
-                      >
-                        <img
-                          src="/spheader.png"
-                          alt="SpacePulse Game"
-                          className="w-full rounded cursor-pointer hover:opacity-90 transition-opacity"
-                        />
-                      </a>
-
-                      {/* Stacker */}
-                      <a
-                        href="https://www.morbius.io/stacker-game"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block"
-                      >
-                        <img
-                          src="/stacker-header.png"
-                          alt="Stacker Game"
-                          className="w-full rounded cursor-pointer hover:opacity-90 transition-opacity"
-                        />
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            {/* Addresses Section */}
 
             {/* Addresses Section */}
-            {addressItems.length > 0 && (
-              <div className="mb-2 px-0">
-                <div className="text-xs text-gray-300 mb-1">Addresses</div>
-                <div className="space-y-1">
-                  {addressItems.map((item) => (
-                    <div key={`${item.label}-${item.address}`} className="flex items-center justify-between px-2 py-1 bg-gray-800 rounded">
-                      <div>
-                        <div className="text-[11px] text-gray-400 uppercase tracking-wide">{item.label}</div>
-                        <a
-                          href={`https://scan.pulsechain.box/address/${item.address}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-white font-mono hover:text-blue-300 transition-colors"
-                        >
-                          {truncateAddress(item.address)}
-                        </a>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyAddress(item.address)}
-                        className="px-2 py-1 text-[11px] text-gray-200 bg-gray-900/60 rounded border border-gray-700 hover:bg-gray-700 transition-colors"
-                      >
-                        Copy
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Pool Details */}
-            <div className="mb-2 px-0">
-              <div className="text-xs text-gray-300 mb-1">Pool Details</div>
-              <div className="space-y-1">
-                <div className="px-2 py-1 bg-gray-800 rounded">
-                  <div className="text-xs text-white">PSSH</div>
-                  <div className="text-xs text-white">1,490,030.39</div>
-                  <div className="text-xs text-gray-400">~$2.43K</div>
-                </div>
-                <div className="px-2 py-1 bg-gray-800 rounded">
-                  <div className="text-xs text-white">WPLS</div>
-                  <div className="text-xs text-white">79,602,576.07</div>
-                  <div className="text-xs text-gray-400">~$2.43K</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Other Liquidity Pairs */}
-            <div className="mb-2 px-0">
-              {renderOtherLiquiditySection()}
-            </div>
 
             {/* Video Ad - Always Show */}
             <div className="mb-2 px-0 relative group">
@@ -3368,7 +2754,7 @@ function GeickoPageContent() {
             {/* Token Amount Calculator */}
             {dexScreenerData?.pairs?.[0] && (
               <div className="mb-2">
-                <div className="bg-gray-800 rounded p-2">
+                <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-2 shadow-[0_10px_35px_rgba(0,0,0,0.35)]">
                   <div className="mb-2">
                     <div className="relative">
                       <input
@@ -3379,7 +2765,7 @@ function GeickoPageContent() {
                           setTokenAmount(value);
                         }}
                         placeholder="1"
-                        className="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 pr-16 text-white text-sm font-semibold focus:outline-none focus:border-orange-500 transition-colors"
+                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 pr-16 text-white text-sm font-semibold focus:outline-none focus:border-orange-500 transition-colors backdrop-blur"
                       />
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium pointer-events-none">
                         {dexScreenerData.pairs[0].baseToken?.symbol || 'TOKEN'}
@@ -3392,7 +2778,7 @@ function GeickoPageContent() {
                     </div>
                   </div>
 
-                  <div className="bg-gray-950 border border-gray-700 rounded px-3 py-2 mb-2">
+                  <div className="bg-black/40 border border-white/10 rounded px-3 py-2 mb-2 backdrop-blur">
                     <div className="text-lg font-bold text-white flex items-center justify-between">
                       {(() => {
                         const amount = Number(tokenAmount) || 0;
@@ -3458,6 +2844,33 @@ function GeickoPageContent() {
           </div>
         </div>
       </div>
+
+      {/* Stats Modal */}
+      {isStatsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setIsStatsModalOpen(false)}>
+          <div className="relative w-full max-w-6xl max-h-[90vh] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-gradient-to-r from-gray-800/95 via-gray-800/90 to-gray-800/95 backdrop-blur-sm border-b border-gray-700">
+              <h2 className="text-base font-semibold text-white uppercase tracking-wider">Advanced Stats</h2>
+              <button
+                onClick={() => setIsStatsModalOpen(false)}
+                className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="overflow-y-auto max-h-[calc(90vh-70px)] p-4 bg-gray-900">
+              <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-4">
+                <AdminStatsPanel key={apiTokenAddress} initialAddress={apiTokenAddress} compact />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

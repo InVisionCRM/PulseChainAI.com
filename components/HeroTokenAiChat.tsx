@@ -137,7 +137,6 @@ export default function HeroTokenAiChat(): JSX.Element {
   const [isSearching, setIsSearching] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [selectedToken, setSelectedToken] = useState<TokenMeta | null>(null);
-  const [isCollapsed, setIsCollapsed] = useState(true);
   const [dexData, setDexData] = useState<DexScreenerData | null>(null);
   const [dexLoading, setDexLoading] = useState(false);
   const [dexError, setDexError] = useState<string | null>(null);
@@ -498,19 +497,10 @@ export default function HeroTokenAiChat(): JSX.Element {
   return (
     <div className="relative z-20 w-full px-4 pt-24 pb-16 flex justify-center">
       <div
-        className={`w-full rounded-[32px] border border-white/15 bg-white/4 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[40px] p-4 sm:p-7 text-white space-y-5 ${
-          isCollapsed
-            ? 'max-w-full sm:max-w-[40rem]'
-            : 'max-w-full sm:max-w-[60rem]'
-        }`}
+        className="w-full rounded-[32px] border border-white/15 bg-white/4 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[40px] p-4 sm:p-7 text-white space-y-5 max-w-full sm:max-w-[60rem]"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img 
-              src="/MobiusLogoClean.png" 
-              alt="Morbius Logo" 
-              className="h-6 w-6 object-contain"
-            />
             <p className="text-xs uppercase tracking-[0.4em] text-white/70">
               Morbius Token Analyzer
             </p>
@@ -518,48 +508,37 @@ export default function HeroTokenAiChat(): JSX.Element {
               Analyze any token in seconds.
             </h1>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsCollapsed((prev) => !prev)}
-            className="px-4 py-2 rounded-xl bg-white/10 border border-white/30 text-sm hover:bg-white/20 transition"
-          >
-            {isCollapsed ? 'Expand' : 'Collapse'}
-          </button>
         </div>
 
-        {isCollapsed ? (
-          renderSearchSection(false)
-        ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="space-y-4">
-              {renderSearchSection(false)}
-              <div className="rounded-2xl border border-white/15 bg-white/5 backdrop-blur-2xl p-3">
-                <AdminStatsPanel
-                  initialAddress={selectedToken?.address || DEFAULT_ADDRESS}
-                  compact
-                  variant="hero"
-                  tokenSymbol={selectedToken?.symbol}
-                />
-              </div>
-            </div>
-            <div className="rounded-[28px] border border-white/15 bg-white/4 backdrop-blur-2xl p-4 sm:p-5 flex flex-col items-center gap-4">
-              {renderAnalyzingCard()}
-              <div className="w-full">
-                {selectedToken ? (
-                  <TokenAIChat
-                    key={selectedToken.address}
-                    contractAddress={selectedToken.address}
-                    compact
-                  />
-                ) : (
-                  <div className="rounded-2xl bg-white/5 border border-white/10 p-6 text-center text-white/70">
-                    Select a token to load the AI assistant.
-                  </div>
-                )}
-              </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-4">
+            {renderSearchSection(false)}
+            <div className="rounded-2xl border border-white/15 bg-white/5 backdrop-blur-2xl p-3">
+              <AdminStatsPanel
+                initialAddress={selectedToken?.address || DEFAULT_ADDRESS}
+                compact
+                variant="hero"
+                tokenSymbol={selectedToken?.symbol}
+              />
             </div>
           </div>
-        )}
+          <div className="rounded-[28px] border border-white/15 bg-white/4 backdrop-blur-2xl p-4 sm:p-5 flex flex-col items-center gap-4">
+            {renderAnalyzingCard()}
+            <div className="w-full">
+              {selectedToken ? (
+                <TokenAIChat
+                  key={selectedToken.address}
+                  contractAddress={selectedToken.address}
+                  compact
+                />
+              ) : (
+                <div className="rounded-2xl bg-white/5 border border-white/10 p-6 text-center text-white/70">
+                  Select a token to load the AI assistant.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

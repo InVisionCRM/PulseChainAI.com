@@ -166,6 +166,33 @@ type HoldersPage = {
 };
 
 const DEAD_ADDRESS = '0x000000000000000000000000000000000000dead';
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+const BURN_ADDRESSES = new Set([
+  DEAD_ADDRESS,
+  ZERO_ADDRESS,
+  '0x0000000000000000000000000000000000000001',
+  '0x0000000000000000000000000000000000000002',
+  '0x0000000000000000000000000000000000000369',
+  '0x0000000000000000000000000000000000000dEaD',
+]);
+
+const ROUTER_ADDRESSES = new Set([
+  '0x165C3410fC91EF562C50559f7d2289fEbed552d9', // PulseX V2
+  '0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02', // PulseX V1
+  '0x9977e170c9b6e544302e8db0cf01d12d55555289', // Common pair/router
+]);
+
+const BRIDGE_ADDRESSES = new Set([
+  '0xE592427A0AEce92De3Edee1F18E0157C05861564', // Example bridge
+  '0x1111111111111111111111111111111111111111', // Placeholder; extend with real bridge list
+]);
+
+const BLUE_CHIP_ADDRESSES = new Set([
+  '0xa1077a294dde1b09bb078844df40758a5d0f9a27', // WPLS
+  '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39', // HEX
+  '0x15d38573d2feeb82e7ad5187ab8c1d52810b1f07', // USDC
+  '0xefd766ccb38eaf1dfd701853bfce31359239f305', // DAI
+]);
 
 interface AdminStatsPanelProps {
   initialAddress?: string;
@@ -472,6 +499,11 @@ export default function AdminStatsPanel({
     return out.filter(t => t.timestamp && new Date(t.timestamp).toISOString() >= cutoffIso);
   }, []);
 
+  const getTokenInfoByAddress = useCallback(async (address: string): Promise<any> => {
+    const base = 'https://api.scan.pulsechain.com/api/v2';
+    return fetchJson(`${base}/tokens/${address}`);
+  }, [fetchJson]);
+
   const getWalletTokenTransfers = useCallback(async (address: string, maxPages = 200): Promise<TransferItem[]> => {
     const base = 'https://api.scan.pulsechain.com/api/v2';
     const limit = 200;
@@ -540,6 +572,89 @@ export default function AdminStatsPanel({
     return dex;
   }, [cache.dex, tokenAddress]);
 
+  const getMainPair = useCallback(async () => {
+    const dex = await ensureDex();
+    return (dex?.pairs || [])[0] || null;
+  }, [ensureDex]);
+
+  const calcSlippagePct = (reserveIn: number, reserveOut: number, tradeIn: number): number => {
+    if (reserveIn <= 0 || reserveOut <= 0 || tradeIn <= 0) return 0;
+    const k = reserveIn * reserveOut;
+    const newReserveIn = reserveIn + tradeIn;
+    const newReserveOut = k / newReserveIn;
+    const outAmount = reserveOut - newReserveOut;
+    const priceBefore = reserveOut / reserveIn;
+    const priceAfter = newReserveOut / newReserveIn;
+    const impact = ((priceAfter - priceBefore) / priceBefore) * 100;
+    return isFinite(impact) ? impact : 0;
+  };
+
+  const computePearson = (x: number[], y: number[]): number | null => {
+    if (x.length !== y.length || x.length < 2) return null;
+    const n = x.length;
+    const meanX = x.reduce((s, v) => s + v, 0) / n;
+    const meanY = y.reduce((s, v) => s + v, 0) / n;
+    let num = 0;
+    let denomX = 0;
+    let denomY = 0;
+    for (let i = 0; i < n; i += 1) {
+      const dx = x[i] - meanX;
+      const dy = y[i] - meanY;
+      num += dx * dy;
+      denomX += dx * dx;
+      denomY += dy * dy;
+    }
+    if (denomX === 0 || denomY === 0) return null;
+    return num / Math.sqrt(denomX * denomY);
+  };
+
+  const derivePriceVolumePoints = useCallback(async () => {
+    const pair = await getMainPair();
+    if (!pair) return { prices: [], volumes: [] };
+    // Approximate hourly series using h1/h6/h24 slices.
+    const priceNow = Number(pair.priceUsd || 0);
+    const vol24 = Number(pair.volume?.h24 || 0);
+    const vol6 = Number(pair.volume?.h6 || 0);
+    const vol1 = Number(pair.volume?.h1 || 0);
+    const change24 = Number(pair.priceChange?.h24 || 0) / 100;
+    const change6 = Number(pair.priceChange?.h6 || change24) / 100;
+    const change1 = Number(pair.priceChange?.h1 || change6) / 100;
+
+    const price24 = priceNow / (1 + change24 || 1);
+    const price6 = priceNow / (1 + change6 || 1);
+    const price1 = priceNow / (1 + change1 || 1);
+
+    return {
+      prices: [price24, price6, price1, priceNow].filter(v => Number.isFinite(v) && v > 0),
+      volumes: [vol24, vol6, vol1].filter(v => Number.isFinite(v) && v > 0),
+    };
+  }, [getMainPair]);
+
+  const computeLogReturns = (series: number[]): number[] => {
+    const out: number[] = [];
+    for (let i = 1; i < series.length; i += 1) {
+      if (series[i - 1] > 0 && series[i] > 0) {
+        out.push(Math.log(series[i] / series[i - 1]));
+      }
+    }
+    return out;
+  };
+
+  const hoursSince = (iso?: string): number | null => {
+    if (!iso) return null;
+    const ts = new Date(iso).getTime();
+    if (Number.isNaN(ts)) return null;
+    const diff = Date.now() - ts;
+    return diff / (1000 * 60 * 60);
+  };
+
+  const groupByDay = (ts: string | undefined): string | null => {
+    if (!ts) return null;
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString().slice(0, 10);
+  };
+
   const statCategories: Array<{ title: string; stats: Array<{ id: string; label: string; description: string; run: () => Promise<any> }> }> = useMemo(() => {
     return [
       {
@@ -596,6 +711,21 @@ export default function AdminStatsPanel({
         return {
           raw: sum,
           formatted: formatTokenAmount2(sum, decimals)
+        };
+      } },
+      { id: 'circulatingExBurn', label: 'Circulating Supply (ex-burn)', description: 'Total supply minus balances held by burn addresses', run: async () => {
+        const { tokenInfo } = await ensureCoreCaches();
+        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const holders = await ensureHolders();
+        const burnBalance = holders
+          .filter(h => BURN_ADDRESSES.has(h.hash?.toLowerCase?.()))
+          .reduce((s, h) => s + Number(h.value || 0), 0);
+        const supply = Number(tokenInfo?.total_supply ?? 0);
+        const circulating = supply - burnBalance;
+        return {
+          raw: circulating,
+          formatted: formatTokenAmount2(circulating, decimals),
+          burnFormatted: formatTokenAmount2(burnBalance, decimals),
         };
       } },
         ]
@@ -750,6 +880,151 @@ export default function AdminStatsPanel({
 
         const avgBalance = circulatingSupply / holderCount;
         return formatTokenAmount2(avgBalance, Number(tokenInfo.decimals));
+      }},
+      { id: 'medianHolderBalance', label: 'Median Holder Balance (Top 200)', description: 'Median balance among the top 200 holders', run: async () => {
+        const { tokenInfo } = await ensureCoreCaches();
+        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const holders = await ensureHolders();
+        const top = holders.sort((a, b) => Number(b.value) - Number(a.value)).slice(0, 200);
+        const values = top.map(h => Number(h.value)).sort((a, b) => a - b);
+        const mid = values.length ? values[Math.floor(values.length / 2)] : 0;
+        return {
+          raw: mid,
+          formatted: formatTokenAmount2(mid, decimals),
+          sampleSize: values.length,
+        };
+      }},
+      { id: 'holderTierCounts', label: 'Holder Tier Counts', description: 'Addresses holding ≥1%, ≥0.1%, and ≥0.01% of supply', run: async () => {
+        const { tokenInfo } = await ensureCoreCaches();
+        const total = Number(tokenInfo?.total_supply ?? 0);
+        if (!total) return { onePct: 0, pointOnePct: 0, pointZeroOnePct: 0 };
+        const thresholds = {
+          onePct: total * 0.01,
+          pointOnePct: total * 0.001,
+          pointZeroOnePct: total * 0.0001,
+        };
+        const holders = await ensureHolders();
+        const counts = {
+          onePct: holders.filter(h => Number(h.value) >= thresholds.onePct).length,
+          pointOnePct: holders.filter(h => Number(h.value) >= thresholds.pointOnePct).length,
+          pointZeroOnePct: holders.filter(h => Number(h.value) >= thresholds.pointZeroOnePct).length,
+        };
+        return counts;
+      }},
+      { id: 'smartContractHolderShare', label: 'Smart-Contract Holder Share', description: 'Percent of top 20 holders that are smart contracts', run: async () => {
+        const { tokenInfo } = await ensureCoreCaches();
+        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const holders = await ensureHolders();
+        const top20 = holders.sort((a, b) => Number(b.value) - Number(a.value)).slice(0, 20);
+        const results = await Promise.allSettled(
+          top20.map(h => pulsechainApi.getAddressInfo(h.hash).catch(() => null))
+        );
+        let contractCount = 0;
+        let contractBalance = 0;
+        results.forEach((res, idx) => {
+          if (res.status === 'fulfilled' && res.value?.data?.is_contract) {
+            contractCount += 1;
+            contractBalance += Number(top20[idx].value || 0);
+          }
+        });
+        const total = Number(tokenInfo?.total_supply ?? 0);
+        const pct = total ? (contractBalance / total) * 100 : 0;
+        return {
+          contracts: contractCount,
+          percentSupply: formatPct2(pct),
+          balanceFormatted: formatTokenAmount2(contractBalance, decimals),
+        };
+      }},
+      { id: 'routerHolderShare', label: 'Router/DEX Holder Share', description: 'Percent of supply held by known router or pair addresses', run: async () => {
+        const { tokenInfo } = await ensureCoreCaches();
+        const total = Number(tokenInfo?.total_supply ?? 0);
+        const holders = await ensureHolders();
+        const dex = await ensureDex();
+        const pairAddresses = new Set((dex?.pairs || []).map((p: any) => p?.pairAddress?.toLowerCase?.()).filter(Boolean));
+        let sum = 0;
+        holders.forEach(h => {
+          const addr = h.hash?.toLowerCase?.();
+          if (addr && (ROUTER_ADDRESSES.has(addr) || pairAddresses.has(addr))) {
+            sum += Number(h.value || 0);
+          }
+        });
+        const pct = total ? (sum / total) * 100 : 0;
+        const decimals = Number(tokenInfo?.decimals ?? 18);
+        return {
+          percent: formatPct2(pct),
+          balanceFormatted: formatTokenAmount2(sum, decimals),
+        };
+      }},
+      { id: 'bridgeExposure', label: 'Bridge Exposure', description: 'Supply percentage held by official bridge addresses', run: async () => {
+        const { tokenInfo } = await ensureCoreCaches();
+        const total = Number(tokenInfo?.total_supply ?? 0);
+        const holders = await ensureHolders();
+        const bridgeBalance = holders
+          .filter(h => BRIDGE_ADDRESSES.has(h.hash?.toLowerCase?.()))
+          .reduce((s, h) => s + Number(h.value || 0), 0);
+        const pct = total ? (bridgeBalance / total) * 100 : 0;
+        const decimals = Number(tokenInfo?.decimals ?? 18);
+        return {
+          percent: formatPct2(pct),
+          balanceFormatted: formatTokenAmount2(bridgeBalance, decimals),
+        };
+      }},
+      { id: 'holderChurn7d', label: 'Holder Churn (7d)', description: 'New + lost holders as a share of current holders', run: async () => {
+        const transfers = await getTransfersLastNDays(tokenAddress, 7);
+        const holders = await ensureHolders();
+        const currentHolderSet = new Set(holders.map(h => h.hash?.toLowerCase?.()));
+        const received = new Set<string>();
+        const sent = new Set<string>();
+        transfers.forEach(t => {
+          if (t.to?.hash) received.add(t.to.hash.toLowerCase());
+          if (t.from?.hash) sent.add(t.from.hash.toLowerCase());
+        });
+        const newHolders = Array.from(received).filter(addr => !currentHolderSet.has(addr)).length;
+        const lostHolders = Array.from(sent).filter(addr => !received.has(addr)).length;
+        const denom = currentHolderSet.size || 1;
+        return {
+          churnRate: formatPct2(((newHolders + lostHolders) / denom) * 100),
+          newHolders,
+          lostHolders,
+          current: currentHolderSet.size,
+        };
+      }},
+      { id: 'dormantSupply30d', label: 'Dormant Supply (30d)', description: 'Balance held by wallets absent from transfers in the last 30 days', run: async () => {
+        const transfers = await getTransfersLastNDays(tokenAddress, 30);
+        const active = new Set<string>();
+        transfers.forEach(t => {
+          if (t.from?.hash) active.add(t.from.hash.toLowerCase());
+          if (t.to?.hash) active.add(t.to.hash.toLowerCase());
+        });
+        const { tokenInfo } = await ensureCoreCaches();
+        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const holders = await ensureHolders();
+        const dormant = holders.filter(h => !active.has(h.hash?.toLowerCase?.()));
+        const dormantSum = dormant.reduce((s, h) => s + Number(h.value || 0), 0);
+        const total = Number(tokenInfo?.total_supply ?? 0);
+        const pct = total ? (dormantSum / total) * 100 : 0;
+        return {
+          percent: formatPct2(pct),
+          balanceFormatted: formatTokenAmount2(dormantSum, decimals),
+        };
+      }},
+      { id: 'stickyHolders90d', label: 'Sticky Holders 90d', description: 'Percent of top 100 holders who never sold in the last 90 days', run: async () => {
+        const transfers = await getTransfersLastNDays(tokenAddress, 90);
+        const senders = new Set(transfers.map(t => t.from?.hash?.toLowerCase?.()).filter(Boolean) as string[]);
+        const holders = await ensureHolders();
+        const top100 = holders.sort((a, b) => Number(b.value) - Number(a.value)).slice(0, 100);
+        const { tokenInfo } = await ensureCoreCaches();
+        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const safeBalances = top100
+          .filter(h => !senders.has(h.hash?.toLowerCase?.()))
+          .reduce((s, h) => s + Number(h.value || 0), 0);
+        const total = Number(tokenInfo?.total_supply ?? 0);
+        const pct = total ? (safeBalances / total) * 100 : 0;
+        return {
+          percent: formatPct2(pct),
+          balanceFormatted: formatTokenAmount2(safeBalances, decimals),
+          top100Safe: top100.filter(h => !senders.has(h.hash?.toLowerCase?.())).length,
+        };
       }},
       { id: 'newVsLostHolders1d', label: 'New vs Lost Holders (1d)', description: 'Holder growth/decline in the last 24 hours', run: async () => {
         const transfers = await getTransfersLastNDays(tokenAddress, 1);
@@ -1106,6 +1381,165 @@ export default function AdminStatsPanel({
 
         return Promise.all(analysisPromises);
       }},
+      { id: 'crossDexPriceSpread', label: 'Cross-DEX Price Spread', description: 'Difference between best and worst price across all pairs', run: async () => {
+        const dex = await ensureDex();
+        const prices = (dex?.pairs || []).map((p: any) => Number(p?.priceUsd || 0)).filter(v => v > 0);
+        if (prices.length < 2) return { spreadPct: '0%', best: null, worst: null };
+        const best = Math.max(...prices);
+        const worst = Math.min(...prices);
+        const spread = ((best - worst) / worst) * 100;
+        return { spreadPct: formatPct2(spread), best, worst };
+      }},
+      { id: 'stablecoinLiquidityShare', label: 'Stablecoin Liquidity Share', description: 'Liquidity paired with USDC/DAI as a percent of total', run: async () => {
+        const dex = await ensureDex();
+        const pairs = dex?.pairs || [];
+        const stableAddrs = new Set([
+          '0x15d38573d2feeb82e7ad5187ab8c1d52810b1f07',
+          '0xefd766ccb38eaf1dfd701853bfce31359239f305',
+        ]);
+        const total = pairs.reduce((s: number, p: any) => s + Number(p?.liquidity?.usd || 0), 0);
+        const stable = pairs
+          .filter((p: any) => stableAddrs.has(p?.quoteToken?.address?.toLowerCase?.()))
+          .reduce((s: number, p: any) => s + Number(p?.liquidity?.usd || 0), 0);
+        const pct = total ? (stable / total) * 100 : 0;
+        return { percent: formatPct2(pct), total: formatNumber2(total), stable: formatNumber2(stable) };
+      }},
+      { id: 'intradayVolumeSkew', label: 'Intra-day Volume Skew', description: 'volume.h6 divided by volume.h24 for the main pair', run: async () => {
+        const pair = await getMainPair();
+        const h6 = Number(pair?.volume?.h6 || 0);
+        const h24 = Number(pair?.volume?.h24 || 0);
+        const skew = h24 ? h6 / h24 : 0;
+        return { skew: formatNumber2(skew), h6, h24 };
+      }},
+      { id: 'avgTradeSize5m', label: 'Avg Trade Size (5m)', description: 'Average trade size in the last 5 minutes on the main pair', run: async () => {
+        const pair = await getMainPair();
+        const volume = Number(pair?.volume?.m5 || 0);
+        const buys = Number(pair?.txns?.m5?.buys || 0);
+        const sells = Number(pair?.txns?.m5?.sells || 0);
+        const trades = buys + sells;
+        const avg = trades ? volume / trades : 0;
+        return { avgUSD: formatNumber2(avg), trades };
+      }},
+      { id: 'perDexSlippage500', label: 'Per-DEX Slippage @ $500', description: 'Estimated slippage for a $500 buy across each DEX grouping', run: async () => {
+        const dex = await ensureDex();
+        const pairs = dex?.pairs || [];
+        const groups = pairs.reduce((acc: Record<string, any>, p: any) => {
+          const id = p.dexId;
+          if (!acc[id]) acc[id] = { base: 0, quote: 0, samplePrice: Number(p.priceUsd || 0) };
+          acc[id].base += Number(p.liquidity?.base || 0);
+          acc[id].quote += Number(p.liquidity?.quote || 0);
+          if (!acc[id].samplePrice) acc[id].samplePrice = Number(p.priceUsd || 0);
+          return acc;
+        }, {});
+        return Object.entries(groups).map(([dexId, data]) => {
+          const price = data.samplePrice || 0;
+          const tradeIn = price ? 500 / price : 0;
+          const slippage = calcSlippagePct(data.base, data.quote, tradeIn);
+          return { dex: dexId, slippage: formatPct2(slippage) };
+        });
+      }},
+      { id: 'priceImpactLadderPerPool', label: 'Price Impact Ladder per Pool', description: 'Slippage estimates at $1k/$5k/$10k per pool', run: async () => {
+        const dex = await ensureDex();
+        const pairs = dex?.pairs || [];
+        const trades = [1000, 5000, 10000];
+        return pairs.map((p: any) => {
+          const price = Number(p?.priceUsd || 0);
+          const baseRes = Number(p?.liquidity?.base || 0);
+          const quoteRes = Number(p?.liquidity?.quote || 0);
+          const ladder = trades.map(size => {
+            const tradeIn = price ? size / price : 0;
+            const slip = calcSlippagePct(baseRes, quoteRes, tradeIn);
+            return { size, slippage: formatPct2(slip) };
+          });
+          return { pair: `${p.baseToken?.symbol}/${p.quoteToken?.symbol}`, pairAddress: p.pairAddress, ladder };
+        });
+      }},
+      { id: 'largestHolderExitStress', label: 'Largest-Holder Exit Stress Test', description: 'Estimated price impact if top holder sells 50% into main pool', run: async () => {
+        const holders = await ensureHolders();
+        const { tokenInfo } = await ensureCoreCaches();
+        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const top = holders.sort((a, b) => Number(b.value) - Number(a.value))[0];
+        const pair = await getMainPair();
+        if (!top || !pair) return { error: 'Missing data' };
+        const baseRes = Number(pair?.liquidity?.base || 0);
+        const quoteRes = Number(pair?.liquidity?.quote || 0);
+        const holderTokens = Number(top.value || 0) / Math.pow(10, decimals);
+        const tradeIn = holderTokens * 0.5;
+        const slippage = calcSlippagePct(baseRes, quoteRes, tradeIn);
+        return { holder: top.hash, tradeTokens: tradeIn, slippage: formatPct2(slippage) };
+      }},
+      { id: 'lpTop3Concentration', label: 'LP Top3 Concentration', description: 'Percent of LP token supply owned by the top 3 holders of the main pool', run: async () => {
+        const pair = await getMainPair();
+        if (!pair) return { error: 'No main pool' };
+        const lpAddress = pair.pairAddress;
+        const lpInfo = await getTokenInfoByAddress(lpAddress);
+        const totalSupply = Number(lpInfo?.total_supply || 0);
+        const decimals = Number(lpInfo?.decimals ?? 18);
+        const holders = await getHoldersPaged(lpAddress, 10);
+        const top3 = holders.sort((a, b) => Number(b.value) - Number(a.value)).slice(0, 3);
+        const sum = top3.reduce((s, h) => s + Number(h.value || 0), 0);
+        const pct = totalSupply ? (sum / totalSupply) * 100 : 0;
+        return { percent: formatPct2(pct), balanceFormatted: formatTokenAmount2(sum, decimals) };
+      }},
+      { id: 'lpLockDurationHint', label: 'LP Lock Duration Hint', description: 'Hours since last LP transfer to a burn address', run: async () => {
+        const pair = await getMainPair();
+        if (!pair) return { error: 'No main pool' };
+        const lpAddress = pair.pairAddress;
+        const transfers = await getTransfersLastNDays(lpAddress, 365, 20);
+        const burnTransfer = transfers.find(t => BURN_ADDRESSES.has(t.to?.hash?.toLowerCase?.() || ''));
+        const hrs = burnTransfer?.timestamp ? hoursSince(burnTransfer.timestamp) : null;
+        return { hoursSinceBurn: hrs ? Number(hrs.toFixed(1)) : null };
+      }},
+      { id: 'lpUnlockRiskScore', label: 'LP Unlock Risk Score', description: 'Heuristic risk score based on LP concentration and recent non-burn movements', run: async () => {
+        const pair = await getMainPair();
+        if (!pair) return { error: 'No main pool' };
+        const lpAddress = pair.pairAddress;
+        const lpInfo = await getTokenInfoByAddress(lpAddress);
+        const totalSupply = Number(lpInfo?.total_supply || 0);
+        const holders = await getHoldersPaged(lpAddress, 20);
+        const topHolder = holders.sort((a, b) => Number(b.value) - Number(a.value))[0];
+        const topPct = totalSupply ? (Number(topHolder?.value || 0) / totalSupply) * 100 : 0;
+        const transfers = await getTransfersLastNDays(lpAddress, 30, 30);
+        const recentNonBurn = transfers.some(t => {
+          const to = t.to?.hash?.toLowerCase?.();
+          return to && !BURN_ADDRESSES.has(to);
+        });
+        const score = Math.min(100, topPct + (recentNonBurn ? 30 : 0));
+        return { score: Math.round(score), topHolderPct: formatPct2(topPct), recentNonBurn };
+      }},
+      { id: 'liquidityMigrationTracker', label: 'Liquidity Migration Tracker', description: 'Timeline of pair creations/removals using token logs and Dex data', run: async () => {
+        const logs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}/logs`);
+        const items: any[] = Array.isArray((logs as any)?.items) ? (logs as any).items : [];
+        const dex = await ensureDex();
+        const pairsByAddr = new Map<string, any>();
+        (dex?.pairs || []).forEach((p: any) => pairsByAddr.set(p.pairAddress?.toLowerCase?.(), p));
+        return items.slice(0, 50).map((log: any) => {
+          const addr = log?.address?.hash?.toLowerCase?.();
+          const pair = addr ? pairsByAddr.get(addr) : null;
+          return {
+            address: addr,
+            timestamp: log.timestamp,
+            event: log.event_name || 'log',
+            liquidityUsd: pair ? pair.liquidity?.usd : null,
+          };
+        });
+      }},
+      { id: 'priceVolumeCorrelation7d', label: 'Price/Volume Correlation 7d', description: 'Pearson r using coarse hourly buckets over ~24h/6h/1h slices', run: async () => {
+        const points = await derivePriceVolumePoints();
+        const prices = points.prices;
+        const vols = points.volumes.slice(-prices.length);
+        const r = computePearson(prices.slice(0, vols.length), vols);
+        return { r };
+      }},
+      { id: 'realizedVolatility24h', label: 'Realized Volatility 24h', description: 'Sqrt variance of log returns based on derived price points', run: async () => {
+        const { prices } = await derivePriceVolumePoints();
+        const logs = computeLogReturns(prices);
+        if (!logs.length) return { vol: 0 };
+        const mean = logs.reduce((s, v) => s + v, 0) / logs.length;
+        const variance = logs.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / logs.length;
+        const vol = Math.sqrt(variance);
+        return { vol: Number(vol.toFixed(4)) };
+      }},
         ]
       },
       {
@@ -1160,6 +1594,47 @@ export default function AdminStatsPanel({
               balance: tokenBalance ? formatTokenAmount2(Number(tokenBalance.value), Number(tokenInfo.decimals)) : '0',
             };
           }},
+          { id: 'creatorNetflow30d', label: 'Creator Netflow (30d)', description: 'Inbound vs outbound token totals for creator over 30 days', run: async () => {
+            const { addressInfo, tokenInfo } = await ensureCoreCaches();
+            const creatorAddress = addressInfo?.creator_address_hash;
+            if (!creatorAddress) return { error: 'No creator address found' };
+            const transfers = await getWalletTokenTransfers(creatorAddress, 100);
+            const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+            let inbound = 0;
+            let outbound = 0;
+            transfers.forEach(t => {
+              const ts = t.timestamp ? new Date(t.timestamp).getTime() : 0;
+              if (!ts || ts < cutoff) return;
+              const val = Number(t.total?.value || 0);
+              if (t.to?.hash?.toLowerCase?.() === creatorAddress.toLowerCase()) inbound += val;
+              if (t.from?.hash?.toLowerCase?.() === creatorAddress.toLowerCase()) outbound += val;
+            });
+            const decimals = Number(tokenInfo?.decimals ?? 18);
+            return {
+              inbound: formatTokenAmount2(inbound, decimals),
+              outbound: formatTokenAmount2(outbound, decimals),
+              net: formatTokenAmount2(inbound - outbound, decimals),
+            };
+          }},
+          { id: 'teamClusterShare', label: 'Team Cluster Share', description: 'Supply held by creator + first 5 outbound recipients', run: async () => {
+            const { addressInfo, tokenInfo } = await ensureCoreCaches();
+            const creatorAddress = addressInfo?.creator_address_hash;
+            if (!creatorAddress) return { error: 'No creator address found' };
+            const txs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${creatorAddress}/transactions`);
+            const outbound = (txs?.items || []).filter((tx: any) => tx?.from?.hash?.toLowerCase?.() === creatorAddress.toLowerCase());
+            const firstRecipients = Array.from(new Set(outbound.map((tx: any) => tx.to?.hash?.toLowerCase?.()).filter(Boolean))).slice(0, 5);
+            const holders = await ensureHolders();
+            const teamSet = new Set([creatorAddress.toLowerCase(), ...firstRecipients]);
+            const teamBalance = holders.filter(h => teamSet.has(h.hash?.toLowerCase?.())).reduce((s, h) => s + Number(h.value || 0), 0);
+            const total = Number(tokenInfo?.total_supply ?? 0);
+            const pct = total ? (teamBalance / total) * 100 : 0;
+            const decimals = Number(tokenInfo?.decimals ?? 18);
+            return {
+              percent: formatPct2(pct),
+              balanceFormatted: formatTokenAmount2(teamBalance, decimals),
+              members: Array.from(teamSet),
+            };
+          }},
           { id: 'ownershipStatus', label: 'Ownership Status', description: 'Summarizes whether ownership is renounced plus owner metadata', run: async () => {
             const { addressInfo } = await ensureCoreCaches();
             const creatorAddress = addressInfo?.creator_address_hash;
@@ -1172,6 +1647,11 @@ export default function AdminStatsPanel({
               return { status: 'Renounced', transaction: renouncedTx.hash };
             }
             return { status: 'Not Renounced' };
+          }},
+          { id: 'ownershipTransferHistoryCount', label: 'Ownership Transfer History Count', description: 'Number of ownership transfer style calls on the contract', run: async () => {
+            const txs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${tokenAddress}/transactions`);
+            const count = (txs?.items || []).filter((tx: any) => (tx.method || '').toLowerCase().includes('ownership')).length;
+            return count;
           }},
           { id: 'creatorTokenHistory', label: "Creator's Full Token History", run: async () => {
             const { addressInfo, tokenInfo } = await ensureCoreCaches();
@@ -1187,6 +1667,112 @@ export default function AdminStatsPanel({
               counterparty: t.from.hash.toLowerCase() === creatorAddress.toLowerCase() ? t.to.hash : t.from.hash,
               value: formatTokenAmount2(Number(t.total.value), Number(tokenInfo.decimals)),
             }));
+          }},
+          { id: 'creatorCrossTokenFootprint', label: 'Creator Cross-Token Footprint', description: 'Number of other tokens the creator has deployed or interacted with', run: async () => {
+            const { addressInfo } = await ensureCoreCaches();
+            const creatorAddress = addressInfo?.creator_address_hash;
+            if (!creatorAddress) return { error: 'No creator address found' };
+            const txs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${creatorAddress}/transactions`);
+            const items: any[] = Array.isArray(txs?.items) ? txs.items : [];
+            const touchedTokens = new Set<string>();
+            let creations = 0;
+            items.forEach(tx => {
+              if ((tx.method || '').toLowerCase().includes('create')) creations += 1;
+              (tx.token_transfers || []).forEach((tr: any) => {
+                const addr = tr.token?.address?.toLowerCase?.();
+                if (addr && addr !== tokenAddress.toLowerCase()) touchedTokens.add(addr);
+              });
+            });
+            return { otherTokens: touchedTokens.size, creations };
+          }},
+        ]
+      },
+      {
+        title: 'Cross-Token & Time Series',
+        stats: [
+          { id: 'crossTokenHolderOverlap', label: 'Cross-Token Holder Overlap', description: 'Overlap counts with HEX, WPLS, and DAI top holders', run: async () => {
+            const tokens = [
+              { id: 'HEX', address: '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39' },
+              { id: 'WPLS', address: '0xA1077a294dDE1B09bB078844df40758a5D0f9a27' },
+              { id: 'DAI', address: '0xefD766cCb38EaF1dfd701853BFCe31359239F305' },
+            ];
+            const targetHolders = new Set((await ensureHolders()).map(h => h.hash?.toLowerCase?.()));
+            const overlaps: Record<string, number> = {};
+            for (const t of tokens) {
+              const list = await getHoldersPaged(t.address, 5);
+              const count = list.filter(h => targetHolders.has(h.hash?.toLowerCase?.())).length;
+              overlaps[t.id] = count;
+            }
+            return overlaps;
+          }},
+          { id: 'holderRetentionCohorts', label: 'Holder Retention Cohorts (30/60/90d)', description: 'Addresses still holding after first receiving within each window', run: async () => {
+            const transfers = await getTransfersLastNDays(tokenAddress, 90);
+            const holders = await ensureHolders();
+            const current = new Set(holders.map(h => h.hash?.toLowerCase?.()));
+            const firstReceive: Record<string, number> = {};
+            transfers.forEach(t => {
+              const to = t.to?.hash?.toLowerCase?.();
+              const ts = t.timestamp ? new Date(t.timestamp).getTime() : null;
+              if (!to || !ts) return;
+              if (!(to in firstReceive)) firstReceive[to] = ts;
+            });
+            const now = Date.now();
+            const cohorts = { d30: 0, d60: 0, d90: 0 };
+            Object.entries(firstReceive).forEach(([addr, ts]) => {
+              if (!current.has(addr)) return;
+              const ageDays = (now - ts) / (1000 * 60 * 60 * 24);
+              if (ageDays <= 30) cohorts.d30 += 1;
+              if (ageDays <= 60) cohorts.d60 += 1;
+              if (ageDays <= 90) cohorts.d90 += 1;
+            });
+            return cohorts;
+          }},
+          { id: 'dailyHolderDelta30d', label: 'Daily Holder Delta (30d)', description: 'Per-day new vs lost holder counts', run: async () => {
+            const transfers = await getTransfersLastNDays(tokenAddress, 30);
+            const byDay: Record<string, { new: Set<string>; lost: Set<string> }> = {};
+            const lastSend: Record<string, string> = {};
+            const firstReceive: Record<string, string> = {};
+            transfers.forEach(t => {
+              const day = groupByDay(t.timestamp);
+              if (!day) return;
+              if (!byDay[day]) byDay[day] = { new: new Set(), lost: new Set() };
+              const to = t.to?.hash?.toLowerCase?.();
+              const from = t.from?.hash?.toLowerCase?.();
+              if (to && !firstReceive[to]) firstReceive[to] = day;
+              if (from) lastSend[from] = day;
+            });
+            Object.entries(firstReceive).forEach(([addr, day]) => {
+              byDay[day]?.new.add(addr);
+            });
+            Object.entries(lastSend).forEach(([addr, day]) => {
+              byDay[day]?.lost.add(addr);
+            });
+            return Object.entries(byDay)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([day, data]) => ({ day, new: data.new.size, lost: data.lost.size, net: data.new.size - data.lost.size }));
+          }},
+          { id: 'dailyBurnMintSeries30d', label: 'Daily Burn/Mint Series (30d)', description: 'Per-day totals sent to burn address or minted from zero', run: async () => {
+            const transfers = await getTransfersLastNDays(tokenAddress, 30);
+            const { tokenInfo } = await ensureCoreCaches();
+            const decimals = Number(tokenInfo?.decimals ?? 18);
+            const series: Record<string, { burned: number; minted: number }> = {};
+            transfers.forEach(t => {
+              const day = groupByDay(t.timestamp);
+              if (!day) return;
+              if (!series[day]) series[day] = { burned: 0, minted: 0 };
+              const val = Number(t.total?.value || 0);
+              const to = t.to?.hash?.toLowerCase?.();
+              const from = t.from?.hash?.toLowerCase?.();
+              if (to && BURN_ADDRESSES.has(to)) series[day].burned += val;
+              if (from && from === ZERO_ADDRESS.toLowerCase()) series[day].minted += val;
+            });
+            return Object.entries(series)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([day, data]) => ({
+                day,
+                burned: formatTokenAmount2(data.burned, decimals),
+                minted: formatTokenAmount2(data.minted, decimals),
+              }));
           }},
         ]
       },
@@ -1241,6 +1827,130 @@ export default function AdminStatsPanel({
           formatted: formatTokenAmount2(median, decimals)
         };
       } },
+      { id: 'activeWallets24h', label: 'Active Wallets 24h', description: 'Unique senders and receivers in the last 24 hours', run: async () => {
+        const transfers = await ensureTransfers24h();
+        const active = new Set<string>();
+        transfers.forEach(t => {
+          if (t.from?.hash) active.add(t.from.hash.toLowerCase());
+          if (t.to?.hash) active.add(t.to.hash.toLowerCase());
+        });
+        return { count: active.size };
+      }},
+      { id: 'transferVolume24hTokens', label: 'Transfer Volume 24h (tokens)', description: 'Total token units moved in last 24h', run: async () => {
+        const transfers = await ensureTransfers24h();
+        const { tokenInfo } = await ensureCoreCaches();
+        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const total = transfers.reduce((s, t) => s + Number(t.total?.value || 0), 0);
+        return { raw: total, formatted: formatTokenAmount2(total, decimals) };
+      }},
+      { id: 'transferVolume24hUsd', label: 'Transfer Volume 24h (USD)', description: 'Token transfer volume converted using current price', run: async () => {
+        const transfers = await ensureTransfers24h();
+        const pair = await getMainPair();
+        const price = Number(pair?.priceUsd || 0);
+        const { tokenInfo } = await ensureCoreCaches();
+        const decimals = Number(tokenInfo?.decimals ?? pair?.baseToken?.decimals ?? 18);
+        const totalRaw = transfers.reduce((s, t) => s + Number(t.total?.value || 0), 0);
+        const usd = price ? (totalRaw / Math.pow(10, decimals)) * price : 0;
+        return { usd: formatNumber2(usd) };
+      }},
+      { id: 'whaleNetflow24h', label: 'Whale Netflow 24h', description: 'Net token change for current top 10 holders over 24h', run: async () => {
+        const holders = await ensureHolders();
+        const top10 = holders.sort((a, b) => Number(b.value) - Number(a.value)).slice(0, 10).map(h => h.hash.toLowerCase());
+        const transfers = await ensureTransfers24h();
+        const changes: Record<string, number> = {};
+        top10.forEach(addr => { changes[addr] = 0; });
+        transfers.forEach(t => {
+          const from = t.from?.hash?.toLowerCase();
+          const to = t.to?.hash?.toLowerCase();
+          const val = Number(t.total?.value || 0);
+          if (from && top10.includes(from)) changes[from] -= val;
+          if (to && top10.includes(to)) changes[to] += val;
+        });
+        return changes;
+      }},
+      { id: 'meanTimeToSell', label: 'Mean Time-to-Sell (30d)', description: 'Average hours between first receive and first send per wallet in last 30 days', run: async () => {
+        const transfers = await getTransfersLastNDays(tokenAddress, 30, 50);
+        const firstIn: Record<string, number> = {};
+        const firstOut: Record<string, number> = {};
+        transfers.forEach(t => {
+          const ts = t.timestamp ? new Date(t.timestamp).getTime() : null;
+          if (!ts) return;
+          const to = t.to?.hash?.toLowerCase?.();
+          const from = t.from?.hash?.toLowerCase?.();
+          if (to && !(to in firstIn)) firstIn[to] = ts;
+          if (from && !(from in firstOut)) firstOut[from] = ts;
+        });
+        const diffs: number[] = [];
+        Object.keys(firstOut).forEach(addr => {
+          if (firstIn[addr]) {
+            const diffMs = firstOut[addr] - firstIn[addr];
+            if (diffMs > 0) diffs.push(diffMs / (1000 * 60 * 60));
+          }
+        });
+        const avg = diffs.length ? diffs.reduce((s, v) => s + v, 0) / diffs.length : 0;
+        return { hours: Number(avg.toFixed(2)), sample: diffs.length };
+      }},
+      { id: 'washTradingHeuristic', label: 'Wash-Trading Heuristic', description: '% of 24h volume from quick ping-pong transfers between the same pair of addresses', run: async () => {
+        const transfers = await ensureTransfers24h();
+        transfers.sort((a, b) => new Date(a.timestamp || '').getTime() - new Date(b.timestamp || '').getTime());
+        const { tokenInfo } = await ensureCoreCaches();
+        const decimals = Number(tokenInfo?.decimals ?? 18);
+        let pingPongVolume = 0;
+        let totalVolume = 0;
+        const lastByPair = new Map<string, { ts: number; dir: string }>();
+        for (const t of transfers) {
+          const ts = t.timestamp ? new Date(t.timestamp).getTime() : 0;
+          const from = t.from?.hash?.toLowerCase?.() || '';
+          const to = t.to?.hash?.toLowerCase?.() || '';
+          const key = `${from}->${to}`;
+          const rev = `${to}->${from}`;
+          const value = Number(t.total?.value || 0);
+          totalVolume += value;
+          const last = lastByPair.get(rev);
+          if (last && ts - last.ts <= 60_000) {
+            pingPongVolume += value;
+          }
+          lastByPair.set(key, { ts, dir: key });
+        }
+        const pct = totalVolume ? (pingPongVolume / totalVolume) * 100 : 0;
+        return {
+          percent: formatPct2(pct),
+          pingPongFormatted: formatTokenAmount2(pingPongVolume, decimals),
+        };
+      }},
+      { id: 'sandwichBurstRate', label: 'Sandwich/Bot Burst Rate', description: 'Count of sub-5s bursts of 3+ transfers from the same sender in 24h', run: async () => {
+        const transfers = await ensureTransfers24h();
+        const grouped: Record<string, number[]> = {};
+        transfers.forEach(t => {
+          const from = t.from?.hash?.toLowerCase?.();
+          const ts = t.timestamp ? new Date(t.timestamp).getTime() : null;
+          if (!from || ts === null) return;
+          if (!grouped[from]) grouped[from] = [];
+          grouped[from].push(ts);
+        });
+        let bursts = 0;
+        Object.values(grouped).forEach(times => {
+          times.sort((a, b) => a - b);
+          for (let i = 0; i < times.length - 2; i += 1) {
+            if (times[i + 2] - times[i] <= 5000) bursts += 1;
+          }
+        });
+        return { bursts };
+      }},
+      { id: 'toxicFlowRate', label: 'Toxic Flow Rate', description: 'Sell share of 24h trades', run: async () => {
+        const pair = await getMainPair();
+        const buys = Number(pair?.txns?.h24?.buys || 0);
+        const sells = Number(pair?.txns?.h24?.sells || 0);
+        const total = buys + sells;
+        const pct = total ? (sells / total) * 100 : 0;
+        return { percent: formatPct2(pct), buys, sells };
+      }},
+      { id: 'gasSpent100tx', label: 'Gas Spent (last 100 tx)', description: 'Sum of gas_used * gas_price over the first page of transactions', run: async () => {
+        const data = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${tokenAddress}/transactions`);
+        const items: any[] = Array.isArray((data as any)?.items) ? (data as any).items.slice(0, 100) : [];
+        const total = items.reduce((s, tx) => s + Number(tx.gas_used || 0) * Number(tx.gas_price || 0), 0);
+        return { raw: total, formatted: total.toLocaleString() };
+      }},
 
       // Price/market (DEXScreener)
       { id: 'priceUsd', label: 'priceUsd', description: 'Latest USD price reported by the leading Dex pair', run: async () => (await ensureDex()).pairs?.[0]?.priceUsd },
@@ -1677,29 +2387,29 @@ export default function AdminStatsPanel({
       {/* Token Address Search */}
       {variant === 'default' && (
         <div className="space-y-2">
-          <label htmlFor="token" className="text-gray-400 block">Token Address</label>
+          <label htmlFor="token" className="text-white block">Token Address</label>
           <div className="relative flex items-center gap-2">
             <input
               id="token"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className={`w-full bg-gray-800 border border-gray-700 rounded px-2 ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+              className={`w-full bg-black border border-gray-700 rounded px-2 text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
               placeholder="Search by address..."
             />
             <button
               type="button"
               onClick={() => handleLoadNewToken(searchInput)}
-              className={`shrink-0 px-3 rounded bg-orange-600 hover:bg-orange-700 text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+              className={`shrink-0 px-3 rounded bg-purple-700 hover:bg-purple-800 text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
             >
               Load
             </button>
-            {isSearching && <div className="absolute top-full mt-1 w-full bg-gray-800 border border-gray-700 rounded p-2 text-gray-400">Searching...</div>}
+            {isSearching && <div className="absolute top-full mt-1 w-full bg-black border border-gray-700 rounded p-2 text-white">Searching...</div>}
             {searchResults.length > 0 && (
-              <div className="absolute top-full mt-1 w-full bg-gray-800 border border-gray-700 rounded z-10">
+              <div className="absolute top-full mt-1 w-full bg-black border border-gray-700 rounded z-10">
                 {searchResults.map((item: any) => (
                   <div
                     key={item.address}
-                    className="p-2 hover:bg-gray-700 cursor-pointer"
+                    className="p-2 hover:bg-gray-900 cursor-pointer text-white"
                     onClick={() => handleLoadNewToken(item.address)}
                   >
                     {item.name} ({item.symbol})
@@ -1713,13 +2423,13 @@ export default function AdminStatsPanel({
 
       {/* Stat Selector */}
       <div className="space-y-3">
-        <label className="text-gray-400 block text-sm lg:text-base">{statLabelText}</label>
+        <label className="text-white block text-sm lg:text-base">{statLabelText}</label>
 
         {statCategories.length > 0 && (
           <div className="hidden md:flex flex-col gap-4" aria-label="Stat selector">
             <div className="w-full space-y-3 overflow-hidden">
               <div className="relative">
-                <div className="flex w-full items-center gap-2 rounded-lg border border-white/15 bg-white/10 p-1 text-white overflow-x-auto scrollbar-hide">
+                <div className="flex w-full items-center gap-2 rounded-lg border border-white/15 bg-black p-1 text-white overflow-x-auto scrollbar-hide">
                   {statCategories.map(category => (
                     <button
                       key={category.title}
@@ -1728,7 +2438,7 @@ export default function AdminStatsPanel({
                         compact ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm'
                       } ${
                         resolvedCategoryTitle === category.title
-                          ? 'border-white bg-white/30 text-white shadow-[0_10px_40px_rgba(255,255,255,0.2)]'
+                          ? 'border-purple-700 bg-purple-700 text-white shadow-[0_10px_40px_rgba(126,34,206,0.3)]'
                           : 'border-transparent text-white/70 hover:text-white hover:bg-white/10'
                       }`}
                     >
@@ -1739,7 +2449,7 @@ export default function AdminStatsPanel({
               </div>
 
               <div className="focus-visible:outline-none focus-visible:ring-0">
-                <div className="rounded-lg border border-gray-700/70 bg-gray-900/60">
+                <div className="rounded-lg border border-gray-700/70 bg-black">
                   {statCategories
                     .find(category => category.title === resolvedCategoryTitle)
                     ?.stats.length ? (
@@ -1753,10 +2463,10 @@ export default function AdminStatsPanel({
                                 key={stat.id}
                                 type="button"
                                 onClick={() => setSelectedStat(stat.id)}
-                                className={`text-left rounded-xl border px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 ${
+                                className={`text-left rounded-xl border px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-700 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                                   isActive
-                                    ? 'border-orange-500/80 bg-orange-600 text-white shadow-[0_0_25px_rgba(249,115,22,0.35)]'
-                                    : 'border-gray-700/70 bg-gray-800 text-gray-200 hover:border-orange-400/40 hover:bg-gray-700/70'
+                                    ? 'border-purple-700 bg-purple-700 text-white shadow-[0_0_25px_rgba(126,34,206,0.4)]'
+                                    : 'border-gray-700/70 bg-black text-white hover:border-purple-700/40 hover:bg-gray-900/70'
                                 }`}
                                 aria-pressed={isActive}
                               >
@@ -1764,7 +2474,7 @@ export default function AdminStatsPanel({
                                   {stat.label}
                                 </p>
                                 {stat.description && (
-                                  <p className={`${compact ? 'text-[10px]' : 'text-xs'} text-gray-400 mt-1 line-clamp-2`}>
+                                  <p className={`${compact ? 'text-[10px]' : 'text-xs'} text-white/70 mt-1 line-clamp-2`}>
                                     {stat.description}
                                   </p>
                                 )}
@@ -1773,7 +2483,7 @@ export default function AdminStatsPanel({
                           })}
                       </div>
                     ) : (
-                      <span className={`${compact ? 'text-[11px]' : 'text-sm'} block p-4 text-gray-400`}>
+                      <span className={`${compact ? 'text-[11px]' : 'text-sm'} block p-4 text-white/70`}>
                         No stats available.
                       </span>
                     )}
@@ -1782,7 +2492,7 @@ export default function AdminStatsPanel({
             </div>
 
             {selectedStatMeta?.description && (
-              <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-gray-400`}>
+              <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-white/70`}>
                 {selectedStatMeta.description}
               </p>
             )}
@@ -1794,14 +2504,14 @@ export default function AdminStatsPanel({
           <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
             <DrawerTrigger asChild>
               <button
-                className={`w-full bg-gray-800 border border-gray-700 rounded-full px-4 text-left ${
+                className={`w-full bg-black border border-gray-700 rounded-full px-4 text-left text-white ${
                   compact ? 'py-2 text-xs' : 'py-3 text-sm'
                 }`}
               >
                 {selectedStat ? selectedStatMeta?.label ?? statLabelText : statLabelText}
               </button>
             </DrawerTrigger>
-            <DrawerContent className="bg-gray-900 border-gray-700">
+            <DrawerContent className="bg-black border-gray-700">
               <DrawerHeader>
                 <DrawerTitle className="text-white">Select Stat</DrawerTitle>
               </DrawerHeader>
@@ -1809,10 +2519,10 @@ export default function AdminStatsPanel({
                 <div className="max-h-[60vh] overflow-y-auto px-4 pb-32">
                   {statCategories.map(category => (
                     <div key={category.title} className="mb-4">
-                      <div className="bg-gray-800/60 text-white font-semibold px-3 py-2 rounded-t">
+                      <div className="bg-gray-900 text-white font-semibold px-3 py-2 rounded-t">
                         {category.title}
                       </div>
-                      <div className="bg-gray-800 rounded-b">
+                      <div className="bg-black rounded-b">
                         {category.stats.map(stat => (
                           <button
                             key={stat.id}
@@ -1820,13 +2530,13 @@ export default function AdminStatsPanel({
                               setSelectedStat(stat.id);
                               setDrawerOpen(false);
                             }}
-                            className={`w-full text-left px-3 py-2 border-b border-gray-700 last:border-b-0 hover:bg-gray-700 transition-colors ${
-                              selectedStat === stat.id ? 'bg-gray-700 text-white' : 'text-gray-400'
+                            className={`w-full text-left px-3 py-2 border-b border-gray-700 last:border-b-0 hover:bg-gray-900 transition-colors ${
+                              selectedStat === stat.id ? 'bg-gray-900 text-white' : 'text-white'
                             }`}
                           >
                             <div>{stat.label}</div>
                             {stat.description && (
-                              <div className="text-xs text-gray-500 mt-0.5">{stat.description}</div>
+                              <div className="text-xs text-white/70 mt-0.5">{stat.description}</div>
                             )}
                           </button>
                         ))}
@@ -1841,7 +2551,7 @@ export default function AdminStatsPanel({
         </div>
 
         {selectedStatMeta?.description && (
-          <p className={`md:hidden ${compact ? 'text-[11px]' : 'text-xs'} text-gray-400`}>
+          <p className={`md:hidden ${compact ? 'text-[11px]' : 'text-xs'} text-white/70`}>
             {selectedStatMeta.description}
           </p>
         )}
@@ -1851,7 +2561,7 @@ export default function AdminStatsPanel({
       <Button
         onClick={handleTestStat}
         disabled={!selectedStat || busyStat === selectedStat}
-        className={`px-4 bg-orange-600 hover:ring-orange-600 disabled:opacity-50 disabled:cursor-not-allowed ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+        className={`px-4 bg-purple-700 hover:bg-purple-800 hover:ring-purple-700 disabled:opacity-50 disabled:cursor-not-allowed ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
       >
         {busyStat === selectedStat ? 'Testing...' : actionText}
       </Button>
@@ -1873,10 +2583,10 @@ export default function AdminStatsPanel({
             {networkEvents.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <div className="text-gray-400">Network Activity</div>
-                  <div className="text-[10px] text-gray-500 italic">Click 📋 to copy</div>
+                  <div className="text-white">Network Activity</div>
+                  <div className="text-[10px] text-white/70 italic">Click 📋 to copy</div>
                 </div>
-                <div className="relative rounded-2xl border border-white/5 bg-black/30 w-full overflow-hidden">
+                <div className="relative rounded-2xl border border-white/5 bg-black w-full overflow-hidden">
                   <div
                     ref={networkListRef}
                     className="space-y-2 max-h-36 overflow-y-auto p-3 pr-4 text-[11px] w-full"
