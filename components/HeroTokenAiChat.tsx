@@ -495,12 +495,12 @@ export default function HeroTokenAiChat(): JSX.Element {
   );
 
   return (
-    <div className="relative z-20 w-full px-4 pt-24 pb-16 flex justify-center">
+    <div className="relative z-20 w-full px-4 pt-24 pb-16 flex justify-center overflow-hidden">
       <div
-        className="w-full rounded-[32px] border border-white/15 bg-white/4 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[40px] p-4 sm:p-7 text-white space-y-5 max-w-full sm:max-w-[60rem]"
+        className="w-full rounded-[32px] border border-white/15 bg-white/4 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[40px] p-4 sm:p-7 text-white space-y-5 max-w-full sm:max-w-[60rem] overflow-hidden"
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 min-w-0">
             <p className="text-xs uppercase tracking-[0.4em] text-white/70">
               Morbius Token Analyzer
             </p>
@@ -510,8 +510,8 @@ export default function HeroTokenAiChat(): JSX.Element {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="space-y-4">
+        <div className="grid gap-4 lg:grid-cols-2 items-start">
+          <div className="space-y-4 min-w-0">
             {renderSearchSection(false)}
             <div className="rounded-2xl border border-white/15 bg-white/5 backdrop-blur-2xl p-3">
               <AdminStatsPanel
@@ -522,9 +522,9 @@ export default function HeroTokenAiChat(): JSX.Element {
               />
             </div>
           </div>
-          <div className="rounded-[28px] border border-white/15 bg-white/4 backdrop-blur-2xl p-4 sm:p-5 flex flex-col items-center gap-4">
+          <div className="rounded-[28px] border border-white/15 bg-white/4 backdrop-blur-2xl p-4 sm:p-5 flex flex-col items-center gap-4 min-w-0 w-full">
             {renderAnalyzingCard()}
-            <div className="w-full">
+            <div className="w-full min-w-0">
               {selectedToken ? (
                 <TokenAIChat
                   key={selectedToken.address}

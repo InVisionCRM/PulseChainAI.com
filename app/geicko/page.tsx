@@ -1286,19 +1286,19 @@ function GeickoPageContent() {
       {/* Header Section */}
       <header className="bg-gray-900 border-b border-gray-800">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 md:px-3 py-2 gap-2">
-          {/* Search Bar */}
-          <div className="hidden sm:flex flex-col items-start w-full gap-2">
-            {/* Title with Logo */}
-            <div className="flex items-center gap-2">
-              <img
-                src="/LogoVector.svg"
-                alt="Morbius Logo"
-                className="w-6 h-6"
-              />
-              <h1 className="text-white text-lg font-semibold">Morbius Token Analyzer</h1>
-            </div>
+          {/* Title with Logo */}
+          <div className="flex items-center gap-2">
+            <img
+              src="/LogoVector.svg"
+              alt="Morbius Logo"
+              className="w-6 h-6"
+            />
+            <h1 className="text-white text-lg font-semibold">Morbius Token Analyzer</h1>
+          </div>
 
-            <div className="relative w-full max-w-2xl" ref={searchInputRef}>
+          {/* Search Bar - Right side on desktop */}
+          <div className="hidden sm:flex flex-col top-4 items-end w-full max-w-2xl gap-2">
+            <div className="relative w-full top-4" ref={searchInputRef}>
               <PlaceholdersAndVanishInput
                 placeholders={searchPlaceholders}
                 onChange={(e) => {
@@ -1360,7 +1360,7 @@ function GeickoPageContent() {
                 </div>
               )}
             </div>
-            <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
+            <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
               <div className="text-xs text-red-400 min-h-[1rem]">
                 {error}
               </div>
@@ -1471,9 +1471,9 @@ function GeickoPageContent() {
       </div>
 
       {/* Main Content */}
-      <div className="flex flex-col sm:flex-row items-start">
+      <div className="flex flex-col md:flex-row items-start">
         {/* Left Panel - Chart Section */}
-        <div className="w-full sm:flex-[3] min-w-0 bg-black">
+        <div className="w-full md:flex-[3] min-w-0 bg-black">
 
           {/* Token Stats - Mobile Only (Above Chart) */}
           <div className="sm:hidden px-2 mb-3">
@@ -2210,7 +2210,7 @@ function GeickoPageContent() {
             )}
 
             {/* Ask AI */}
-            <div className="hidden sm:block mb-3 px-0">
+            <div className="hidden md:block mb-3 px-0">
               <div className="text-xs text-gray-300 mb-1 flex items-center justify-between">
                 <span>Ask AI</span>
                 <span className="text-[10px] text-gray-500">Powered by TokenAIChat</span>
@@ -2339,18 +2339,18 @@ function GeickoPageContent() {
         </div>
 
         {/* Right Panel - Token Info */}
-        <div className="w-full sm:flex-[2] min-w-0 bg-gray-900 sm:border-l border-gray-800 mt-2 sm:mt-0 overflow-hidden">
+        <div className="w-full md:flex-[2] min-w-0 bg-gray-900 md:border-l border-gray-800 mt-2 md:mt-0 overflow-hidden">
           {/* Token Header - Hidden on mobile, shown on desktop */}
-          <div className="hidden sm:block px-0 mb-3">
+          <div className="hidden md:block px-0 mb-1">
             {isLoadingData ? (
               <div className="flex items-center justify-center py-4">
                 <LoaderThree />
               </div>
             ) : primaryPair ? (
-              <div className="px-2 mb-2 pt-2">
+              <div className="px-2 mb-2 pt-0">
                 <div className="bg-gray-900/80 border border-gray-800 rounded-2xl overflow-hidden shadow-[0_12px_35px_rgba(0,0,0,0.45)]">
-                  <div className="px-4 pt-4 pb-3 border-b border-gray-800/70">
-                    <div className="mt-1 flex items-end justify-between gap-4">
+                  <div className="px-4 pt-2 pb-3 border-b border-gray-800/70">
+                    <div className="mt-0 flex items-end justify-between gap-4">
                       <div>
                         <div className="text-2xl font-bold text-white tracking-tight">
                           {baseSymbol} <span className="text-gray-500">/</span> {quoteSymbol}
@@ -2439,263 +2439,175 @@ function GeickoPageContent() {
               <div className="text-xs text-gray-400 py-4 text-center">No token data available</div>
             )}
           </div>
-            {/* Price Performance */}
+            {/* Stats Grid - Same layout as mobile single panel */}
             {dexScreenerData?.pairs?.[0] && (
-              <div className="hidden sm:block mb-2 px-0">
-                <div className="text-xs text-gray-300 mb-1">Price Performance</div>
-                <div className="grid grid-cols-4 gap-0.5 text-xs">
-                  <div className="text-center">
-                    <div className="text-gray-400">5M</div>
-                    <div className={`${(dexScreenerData.pairs[0].priceChange?.m5 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {(dexScreenerData.pairs[0].priceChange?.m5 || 0) >= 0 ? '+' : ''}
-                      {(dexScreenerData.pairs[0].priceChange?.m5 || 0).toFixed(2)}%
+              <div className="hidden md:block mb-2 px-2">
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Left Column */}
+                  <div className="space-y-3">
+                    {/* Supply & Token Info */}
+                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Supply Info</div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400 font-medium">Total Supply</span>
+                          <span className="text-sm text-white font-semibold">
+                            {totalSupply ? (() => {
+                              const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
+                              return formatAbbrev(supply);
+                            })() : '—'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400 font-medium">Circulating</span>
+                          <span className="text-sm text-white font-semibold">
+                            {totalSupply ? (() => {
+                              const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
+                              const burned = burnedTokens?.amount ?? 0;
+                              const circulating = Math.max(0, supply - burned);
+                              return formatAbbrev(circulating);
+                            })() : '—'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400 font-medium">Holders</span>
+                          <span className="text-sm text-white font-semibold">
+                            {holdersCount !== null ? (holdersCount >= 1000 ? `${(holdersCount / 1000).toFixed(1)}k` : holdersCount) : '—'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400 font-medium">Creation Date</span>
+                          <span className="text-sm text-white font-semibold">{creationDate || '—'}</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-gray-400">1H</div>
-                    <div className={`${(dexScreenerData.pairs[0].priceChange?.h1 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {(dexScreenerData.pairs[0].priceChange?.h1 || 0) >= 0 ? '+' : ''}
-                      {(dexScreenerData.pairs[0].priceChange?.h1 || 0).toFixed(2)}%
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-gray-400">6H</div>
-                    <div className={`${(dexScreenerData.pairs[0].priceChange?.h6 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {(dexScreenerData.pairs[0].priceChange?.h6 || 0) >= 0 ? '+' : ''}
-                      {(dexScreenerData.pairs[0].priceChange?.h6 || 0).toFixed(2)}%
-                    </div>
-                  </div>
-                  <div className="text-center bg-gray-800 rounded p-0.5">
-                    <div className="text-gray-400">24H</div>
-                    <div className={`${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '+' : ''}
-                      {(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {/* 24h Activity */}
-            {dexScreenerData?.pairs?.[0] && (
-              <div className="hidden sm:block mb-2 px-0">
-                <div className="text-xs text-gray-300 mb-1 text-center">24h Activity</div>
-                <div className="grid grid-cols-2 gap-1 text-xs">
-                  <div className="text-center">
-                    <div className="text-gray-400">24h Txn</div>
-                    <div className="text-white">
-                      {((dexScreenerData.pairs[0].txns?.h24?.buys || 0) + (dexScreenerData.pairs[0].txns?.h24?.sells || 0))}
+                    {/* Supply Held */}
+                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Supply Held</div>
+                      {supplyHeld.isLoading ? (
+                        <div className="text-center text-gray-500 text-sm">Loading...</div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Top 10</span>
+                            <span className="text-sm text-white font-semibold">
+                              {supplyHeld.top10 > 0 ? `${Math.round(supplyHeld.top10)}%` : '—'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Top 20</span>
+                            <span className="text-sm text-white font-semibold">
+                              {supplyHeld.top20 > 0 ? `${Math.round(supplyHeld.top20)}%` : '—'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Top 50</span>
+                            <span className="text-sm text-white font-semibold">
+                              {supplyHeld.top50 > 0 ? `${Math.round(supplyHeld.top50)}%` : '—'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-gray-400">24h Vol</div>
-                    <div className="text-white">
-                      ${Number(dexScreenerData.pairs[0].volume?.h24 || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-gray-400">BUY</div>
-                    <div className="text-green-400">{dexScreenerData.pairs[0].txns?.h24?.buys || 0}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-gray-400">SELL</div>
-                    <div className="text-red-400">{dexScreenerData.pairs[0].txns?.h24?.sells || 0}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-gray-400">Liquidity</div>
-                    <div className="text-white">
-                      ${Number(dexScreenerData.pairs[0].liquidity?.usd || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-center">
-                    <div className={`w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center`}>
-                      <div className={`w-3 h-3 rounded-full ${(dexScreenerData.pairs[0].txns?.h24?.buys || 0) > (dexScreenerData.pairs[0].txns?.h24?.sells || 0) ? 'bg-green-400' : 'bg-red-400'}`}></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {/* Contract Stats Grid - Same layout as left column */}
-            {dexScreenerData?.pairs?.[0] && (
-              <div className="hidden sm:block mb-2 px-0">
-                <div className="grid grid-cols-3 gap-0 text-center px-1 py-2 rounded bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 relative overflow-hidden">
-                  {/* Column 1: Contract Ownership */}
-                  <div className="py-1.5 space-y-1">
-                    {ownershipData.isLoading ? (
-                      <div className="text-[10px] text-gray-500 leading-none">Loading...</div>
-                    ) : (
-                      <>
-                        {ownershipData.isRenounced ? (
-                          <>
-                            <div className="text-[10px] text-green-400 font-semibold flex items-center justify-center gap-0 leading-none">
-                              <span>Renounced ✓</span>
-                              {ownershipData.renounceTxHash && (
-                                <a
-                                  href={`https://scan.pulsechain.box/tx/${ownershipData.renounceTxHash}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-400 hover:text-blue-300 ml-0.5"
-                                  title="View renounce transaction"
-                                >
-                                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="8 8 8 8">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                  </svg>
-                                </a>
-                              )}
-                            </div>
-                            <div className="text-[10px] text-gray-400 leading-none">No Owner</div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-[10px] text-red-400 font-semibold flex items-center justify-center gap-0 leading-none">
-                              <span>Not Renounced</span>
-                              {ownershipData.ownerAddress && (
-                                <a
-                                  href={`https://scan.pulsechain.box/address/${ownershipData.ownerAddress}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-400 hover:text-blue-300 ml-0.5"
-                                  title="View owner address"
-                                >
-                                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="8 8 8 8">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                  </svg>
-                                </a>
-                              )}
-                            </div>
-                            {ownershipData.ownerAddress ? (
-                              <a
-                                href={`https://scan.pulsechain.box/address/${ownershipData.ownerAddress}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[10px] text-blue-400 hover:text-blue-300 font-mono block leading-none"
-                                title={ownershipData.ownerAddress}
-                              >
-                                ...{ownershipData.ownerAddress.slice(-4)}
-                              </a>
-                            ) : (
-                              <div className="text-[10px] text-gray-500 leading-none">N/A</div>
-                            )}
-                          </>
+                  {/* Right Column */}
+                  <div className="space-y-3">
+                    {/* Ownership Status */}
+                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Ownership</div>
+                      {ownershipData.isLoading ? (
+                        <div className="text-center text-gray-500 text-sm">Loading...</div>
+                      ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
+                        <div className="text-center">
+                          <div className="text-base text-green-400 font-semibold">Renounced ✓</div>
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <div className="text-base text-red-400 font-semibold">Not Renounced</div>
+                          {ownershipData.ownerAddress && (
+                            <a
+                              href={`https://scan.pulsechain.box/address/${ownershipData.ownerAddress}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
+                              title={ownershipData.ownerAddress}
+                            >
+                              ...{ownershipData.ownerAddress.slice(-6)}
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Burned Tokens */}
+                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
+                        {burnedTokens && (
+                          <div className="flex items-center justify-center w-9 h-9 rounded-full border-2 border-green-400">
+                            <span className="text-[10px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
+                          </div>
                         )}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Column 2: Supply */}
-                  <div className="py-1.5 space-y-1">
-                    <div className="text-[10px] text-gray-400 leading-none">Supply</div>
-                    <div className="text-[10px] font-semibold text-white leading-none">
-                      {totalSupply ? (() => {
-                        const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
-                        return formatAbbrev(supply);
-                      })() : '—'}
-                    </div>
-                  </div>
-
-                  {/* Column 3: Total Holders */}
-                  <div className="py-1.5 space-y-1">
-                    <div className="text-[10px] text-gray-400 leading-none">Total Holders</div>
-                    <div className="text-[10px] font-semibold text-white leading-none">
-                      {holdersCount !== null ? holdersCount.toLocaleString() : '—'}
-                    </div>
-                  </div>
-
-                  {/* Column 1: Creation Date */}
-                  <div className="py-1.5 space-y-1">
-                    <div className="text-[10px] text-gray-400 leading-none">Creation Date</div>
-                    <div className="text-[10px] font-semibold text-white leading-none">
-                      {creationDate || '—'}
-                    </div>
-                  </div>
-
-                  {/* Column 2: Burned */}
-                  <div className="py-1.5 space-y-1">
-                    <div className="text-[10px] text-gray-400 leading-none">Burned</div>
-                    {burnedTokens ? (
-                      <div className="space-y-0.5">
-                        <div className="text-[10px] font-semibold text-white leading-none">
-                          {formatAbbrev(burnedTokens.amount)}
-                        </div>
-                        <div className="text-[9px] text-green-400 leading-none">
-                          {burnedTokens.percent.toFixed(2)}%
-                        </div>
                       </div>
-                    ) : (
-                      <div className="text-[10px] font-semibold text-white leading-none">—</div>
-                    )}
-                  </div>
+                      {burnedTokens ? (
+                        <div className="text-center">
+                          <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
+                        </div>
+                      ) : (
+                        <div className="text-center text-base text-white font-semibold">—</div>
+                      )}
+                    </div>
 
-                  {/* Column 3: Supply Held */}
-                  <div className="py-1.5 space-y-1">
-                    <div className="text-[10px] text-gray-400 leading-none">Supply Held</div>
-                    {supplyHeld.isLoading ? (
-                      <div className="text-[10px] text-gray-500 leading-none">Loading...</div>
-                    ) : (
-                      <div className="space-y-0.5">
-                        <div className="text-[9px] text-white leading-none">
-                          Top 10: {supplyHeld.top10 > 0 ? `${Math.round(supplyHeld.top10)}%` : '—'}
-                        </div>
-                        <div className="text-[9px] text-white leading-none">
-                          Top 20: {supplyHeld.top20 > 0 ? `${Math.round(supplyHeld.top20)}%` : '—'}
-                        </div>
-                        <div className="text-[9px] text-white leading-none">
-                          Top 50: {supplyHeld.top50 > 0 ? `${Math.round(supplyHeld.top50)}%` : '—'}
+                    {/* Liq/MCAP Ratio */}
+                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Liq/MCAP</div>
+                      <div className="text-center text-base text-white font-semibold">
+                        {(() => {
+                          const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                          const marketCap = Number(dexScreenerData.pairs[0].marketCap || 0);
+                          if (marketCap > 0) {
+                            const ratio = (liquidity / marketCap) * 100;
+                            return `${ratio.toFixed(2)}%`;
+                          }
+                          return '—';
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Creator Address */}
+                    {ownershipData.creatorAddress && (
+                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Creator</div>
+                        <div className="text-center">
+                          {ownershipData.creatorAddress.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? (
+                            <a
+                              href={`https://pump.tires/token/${apiTokenAddress}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-400 hover:text-blue-300 font-semibold"
+                              title="View on Pump.Tires"
+                            >
+                              Pump.Tires
+                            </a>
+                          ) : (
+                            <a
+                              href={`https://scan.pulsechain.box/address/${ownershipData.creatorAddress}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-400 hover:text-blue-300 font-mono"
+                              title={ownershipData.creatorAddress}
+                            >
+                              {ownershipData.creatorAddress.slice(0, 6)}...{ownershipData.creatorAddress.slice(-4)}
+                            </a>
+                          )}
                         </div>
                       </div>
                     )}
-                  </div>
-
-                  {/* Column 1: Creator Address */}
-                  {ownershipData.creatorAddress && (
-                    <div className="py-1.5 space-y-1">
-                      <div className="text-[10px] text-white/80 font-bold flex items-center justify-center gap-0 leading-none">
-                        <span>Creator</span>
-                        <a
-                          href={`https://scan.pulsechain.box/address/${ownershipData.creatorAddress}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-400 hover:text-blue-300 ml-0.5"
-                          title={ownershipData.creatorAddress}
-                        >
-                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="4 4 16 16">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </a>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Column 2: Liquidity to Market Cap Ratio */}
-                  <div className="py-1.5 space-y-1">
-                    <div className="text-[10px] text-gray-400 leading-none">Liq/MCAP</div>
-                    <div className="text-[10px] font-semibold text-white leading-none">
-                      {(() => {
-                        const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
-                        const marketCap = Number(dexScreenerData.pairs[0].marketCap || 0);
-                        if (marketCap > 0) {
-                          const ratio = (liquidity / marketCap) * 100;
-                          return `${ratio.toFixed(2)}%`;
-                        }
-                        return '—';
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Column 3: More Button */}
-                  <div className="py-1.5 space-y-1">
-                    <button
-                      onClick={() => {
-                        const apiCatalog = document.getElementById('api-catalog');
-                        if (apiCatalog) {
-                          apiCatalog.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                      }}
-                      className="text-[9px] text-blue-400 hover:text-blue-300 font-semibold leading-none"
-                    >
-                      More →
-                    </button>
                   </div>
                 </div>
               </div>
@@ -2855,6 +2767,7 @@ function GeickoPageContent() {
               <button
                 onClick={() => setIsStatsModalOpen(false)}
                 className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                title="Close"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
