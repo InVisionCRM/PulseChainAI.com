@@ -58,6 +58,17 @@ const formatPercentage = (value: number | string): string => {
   return `${num >= 0 ? '+' : ''}${num.toFixed(2)}%`;
 };
 
+const formatTokenAmount = (value: number | string): string => {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num) || num === 0) return '0.00';
+  
+  const abs = Math.abs(num);
+  if (abs >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
+  return num.toFixed(2);
+};
+
 const formatHolderBalance = (value: string, decimals: number = 18): string => {
   const num = Number(value);
   if (isNaN(num)) return 'N/A';
@@ -364,7 +375,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
       {/* MAIN PAIR CARD */}
       {top3Pairs[0] && (
-        <div className="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg p-2 px-2">
+        <div className="w-full bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 border border-gray-700/50 rounded-lg p-3">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <img 
@@ -379,38 +390,38 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                 <div className="text-xs font-semibold text-white">
                   {top3Pairs[0].baseToken.symbol}/{top3Pairs[0].quoteToken.symbol}
                 </div>
-                <div className="text-[10px] text-gray-400">{top3Pairs[0].dexId}</div>
+                <div className="text-xs text-gray-400">{top3Pairs[0].dexId}</div>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-[10px] text-gray-400">Price</div>
-              <div className="text-xs font-semibold text-white">${parseFloat(top3Pairs[0].priceUsd || '0').toFixed(6)}</div>
+              <div className="text-xs text-gray-400">Price</div>
+              <div className="text-sm font-semibold text-white">${parseFloat(top3Pairs[0].priceUsd || '0').toFixed(6)}</div>
             </div>
           </div>
           
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div>
-              <div className="text-[10px] text-gray-400 mb-0.5">Liquidity</div>
-              <div className="text-sm font-bold text-green-400">{formatNumber(top3Pairs[0].liquidity?.usd || 0)}</div>
+              <div className="text-xs text-gray-400 mb-0.5">Liquidity</div>
+              <div className="text-sm font-semibold text-green-400">{formatNumber(top3Pairs[0].liquidity?.usd || 0)}</div>
             </div>
             <div>
-              <div className="text-[10px] text-gray-400 mb-0.5">Volume 24h</div>
-              <div className="text-sm font-bold text-blue-400">{formatNumber(top3Pairs[0].volume?.h24 || 0)}</div>
+              <div className="text-xs text-gray-400 mb-0.5">Volume 24h</div>
+              <div className="text-sm font-semibold text-blue-400">{formatNumber(top3Pairs[0].volume?.h24 || 0)}</div>
             </div>
           </div>
 
           {/* Token Amounts */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <div className="text-[10px] text-gray-400 mb-0.5">{top3Pairs[0].baseToken.symbol} Amount</div>
+              <div className="text-xs text-gray-400 mb-0.5">{top3Pairs[0].baseToken.symbol} Amount</div>
               <div className="text-xs font-semibold text-blue-400">
-                {parseFloat(String(top3Pairs[0].liquidity?.base || '0')).toLocaleString()}
+                {formatTokenAmount(parseFloat(String(top3Pairs[0].liquidity?.base || '0')))}
               </div>
             </div>
             <div>
-              <div className="text-[10px] text-gray-400 mb-0.5">{top3Pairs[0].quoteToken.symbol} Amount</div>
+              <div className="text-xs text-gray-400 mb-0.5">{top3Pairs[0].quoteToken.symbol} Amount</div>
               <div className="text-xs font-semibold text-cyan-400">
-                {parseFloat(String(top3Pairs[0].liquidity?.quote || '0')).toLocaleString()}
+                {formatTokenAmount(parseFloat(String(top3Pairs[0].liquidity?.quote || '0')))}
               </div>
             </div>
           </div>
@@ -420,8 +431,8 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
       {/* ADDITIONAL PAIRS GRID */}
       <div className="grid grid-cols-2 gap-2 px-2">
         {top3Pairs.slice(1, 5).map((pair, index) => (
-          <div key={pair.pairAddress} className="bg-gray-800/50 border border-gray-700/50 rounded p-2">
-            <div className="flex items-center justify-between mb-1.5">
+          <div key={pair.pairAddress} className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 border border-gray-700/50 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5">
                 <img 
                   src={pair.baseToken.logoURI || '/LogoVector.svg'} 
@@ -432,41 +443,41 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   }}
                 />
                 <div>
-                  <div className="text-[11px] font-semibold text-white">
+                  <div className="text-xs font-semibold text-white">
                     {pair.baseToken.symbol}/{pair.quoteToken.symbol}
                   </div>
-                  <div className="text-[9px] text-gray-400">{pair.dexId}</div>
+                  <div className="text-xs text-gray-400">{pair.dexId}</div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-[9px] text-gray-400">Price</div>
-                <div className="text-[11px] font-semibold text-white">${parseFloat(pair.priceUsd || '0').toFixed(6)}</div>
+                <div className="text-xs text-gray-400">Price</div>
+                <div className="text-xs font-semibold text-white">${parseFloat(pair.priceUsd || '0').toFixed(6)}</div>
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+            <div className="grid grid-cols-2 gap-2 mb-2">
               <div>
-                <div className="text-[9px] text-gray-400">Liquidity</div>
-                <div className="text-[11px] font-bold text-green-400">{formatNumber(pair.liquidity?.usd || 0)}</div>
+                <div className="text-xs text-gray-400">Liquidity</div>
+                <div className="text-xs font-semibold text-green-400">{formatNumber(pair.liquidity?.usd || 0)}</div>
               </div>
               <div>
-                <div className="text-[9px] text-gray-400">Volume</div>
-                <div className="text-[11px] font-bold text-blue-400">{formatNumber(pair.volume?.h24 || 0)}</div>
+                <div className="text-xs text-gray-400">Volume</div>
+                <div className="text-xs font-semibold text-blue-400">{formatNumber(pair.volume?.h24 || 0)}</div>
               </div>
             </div>
 
             {/* Token Amounts */}
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <div className="text-[9px] text-gray-400">{pair.baseToken.symbol}</div>
-                <div className="text-[10px] font-semibold text-blue-400">
-                  {parseFloat(String(pair.liquidity?.base || '0')).toLocaleString()}
+                <div className="text-xs text-gray-400">{pair.baseToken.symbol}</div>
+                <div className="text-xs font-semibold text-blue-400">
+                  {formatTokenAmount(parseFloat(String(pair.liquidity?.base || '0')))}
                 </div>
               </div>
               <div>
-                <div className="text-[9px] text-gray-400">{pair.quoteToken.symbol}</div>
-                <div className="text-[10px] font-semibold text-cyan-400">
-                  {parseFloat(String(pair.liquidity?.quote || '0')).toLocaleString()}
+                <div className="text-xs text-gray-400">{pair.quoteToken.symbol}</div>
+                <div className="text-xs font-semibold text-cyan-400">
+                  {formatTokenAmount(parseFloat(String(pair.liquidity?.quote || '0')))}
                 </div>
               </div>
             </div>
@@ -483,11 +494,11 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
         {activePairs.map((pair, index) => (
           <div
             key={pair.pairAddress}
-            className="bg-gray-800 border border-gray-700/50 rounded overflow-hidden"
+            className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 border border-gray-700/50 rounded-lg overflow-hidden"
           >
             {/* Collapsed View */}
             <div
-              className="relative py-1.5 px-2 cursor-pointer hover:bg-gray-700/30 transition-colors"
+              className="relative py-2 px-3 cursor-pointer hover:bg-gray-800/50 transition-colors"
               onClick={() => togglePairExpansion(pair.pairAddress)}
             >
               <div className="flex items-center justify-between gap-2">
@@ -496,7 +507,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     <div className="text-xs font-semibold text-white">
                       {pair.baseToken.symbol}/{pair.quoteToken.symbol} • {pair.dexId}
                     </div>
-                    <div className="text-[11px] text-blue-300">
+                    <div className="text-xs text-blue-400">
                       ${parseFloat(pair.priceUsd || '0').toFixed(6)}
                     </div>
                     {(() => {
@@ -504,35 +515,35 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                       if (priceDiff === null) return null;
                       const isPositive = priceDiff >= 0;
                       return (
-                        <div className={`text-[10px] font-medium flex items-center gap-0.5 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                        <div className={`text-xs font-medium flex items-center gap-0.5 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
                           {isPositive ? '↑' : '↓'}
                           {Math.abs(priceDiff).toFixed(2)}%
                         </div>
                       );
                     })()}
                   </div>
-                  <div className="mt-1 grid grid-cols-2 gap-1 text-[10px] text-gray-300">
-                    <div className="flex items-center justify-between bg-gray-900/60 px-1.5 py-0.5 rounded">
-                      <span className="text-gray-400">{pair.baseToken.symbol}</span>
-                      <span className="text-white font-semibold">
-                        {parseFloat(String(pair.liquidity?.base || '0')).toLocaleString()}
+                  <div className="mt-1 grid grid-cols-2 gap-2">
+                    <div className="flex items-center justify-between bg-black/40 backdrop-blur px-2 py-1 rounded">
+                      <span className="text-xs text-gray-400">{pair.baseToken.symbol}</span>
+                      <span className="text-xs text-white font-semibold">
+                        {formatTokenAmount(parseFloat(String(pair.liquidity?.base || '0')))}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between bg-gray-900/60 px-1.5 py-0.5 rounded">
-                      <span className="text-gray-400">{pair.quoteToken.symbol}</span>
-                      <span className="text-white font-semibold">
-                        {parseFloat(String(pair.liquidity?.quote || '0')).toLocaleString()}
+                    <div className="flex items-center justify-between bg-black/40 backdrop-blur px-2 py-1 rounded">
+                      <span className="text-xs text-gray-400">{pair.quoteToken.symbol}</span>
+                      <span className="text-xs text-white font-semibold">
+                        {formatTokenAmount(parseFloat(String(pair.liquidity?.quote || '0')))}
                       </span>
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs text-white">{formatNumber(pair.liquidity?.usd || 0)}</div>
-                  <div className="text-[10px] text-green-300">Liquidity</div>
+                  <div className="text-xs text-white font-semibold">{formatNumber(pair.liquidity?.usd || 0)}</div>
+                  <div className="text-xs text-gray-400">Liquidity</div>
                 </div>
                 <div className="text-right ml-1">
-                  <div className="text-xs text-white">{formatNumber(pair.volume?.h24 || 0)}</div>
-                  <div className="text-[10px] text-blue-300">Volume</div>
+                  <div className="text-xs text-white font-semibold">{formatNumber(pair.volume?.h24 || 0)}</div>
+                  <div className="text-xs text-gray-400">Volume</div>
                 </div>
                 <div className="ml-1 text-white text-xs">
                   {expandedPairs.has(pair.pairAddress) ? '▲' : '▼'}
@@ -542,19 +553,21 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
             {/* Expanded View */}
             {expandedPairs.has(pair.pairAddress) && (
-              <div className="border-t border-gray-700/50 p-2"
+              <div className="border-t border-gray-700/50 p-3"
               >
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
                   <div>
-                    <div className="text-[10px] text-blue-300 mb-0.5">Price USD</div>
+                    <div className="text-xs text-gray-400 mb-0.5">Price USD</div>
                     <div className="text-xs text-white font-semibold">
                       ${parseFloat(pair.priceUsd || '0').toFixed(6)}
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-[10px] text-blue-300 mb-0.5">Price WPLS</div>
-                    <div className="text-xs text-white font-semibold">{parseFloat(pair.priceNative || '0').toFixed(8)}</div>
+                    <div className="text-xs text-gray-400 mb-0.5">Price WPLS</div>
+                    <div className="text-xs text-white font-semibold">
+                      {parseFloat(pair.priceNative || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
                   </div>
 
                   {(() => {
@@ -562,11 +575,11 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     if (priceDiff === null) return (
                       <>
                         <div>
-                          <div className="text-[10px] text-orange-300 mb-0.5">FDV</div>
+                          <div className="text-xs text-gray-400 mb-0.5">FDV</div>
                           <div className="text-xs text-white font-semibold">{formatNumber((pair as any).fdv || 0)}</div>
                         </div>
                         <div>
-                          <div className="text-[10px] text-cyan-300 mb-0.5">Market Cap</div>
+                          <div className="text-xs text-gray-400 mb-0.5">Market Cap</div>
                           <div className="text-xs text-white font-semibold">{formatNumber((pair as any).marketCap || 0)}</div>
                         </div>
                       </>
@@ -575,14 +588,14 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     return (
                       <>
                         <div>
-                          <div className="text-[10px] text-gray-400 mb-0.5">vs WPLS Pair</div>
+                          <div className="text-xs text-gray-400 mb-0.5">vs WPLS Pair</div>
                           <div className={`text-xs font-semibold flex items-center gap-1 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
                             {isPositive ? '↑' : '↓'}
                             {Math.abs(priceDiff).toFixed(2)}%
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] text-cyan-300 mb-0.5">Market Cap</div>
+                          <div className="text-xs text-gray-400 mb-0.5">Market Cap</div>
                           <div className="text-xs text-white font-semibold">{formatNumber((pair as any).marketCap || 0)}</div>
                         </div>
                       </>
@@ -591,16 +604,16 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                  <div className="p-1">
-                    <div className="text-[10px] text-gray-400">{pair.baseToken.symbol} in Pool</div>
+                  <div>
+                    <div className="text-xs text-gray-400">{pair.baseToken.symbol} in Pool</div>
                     <div className="text-xs font-semibold text-white">
-                      {parseFloat(String(pair.liquidity?.base || '0')).toLocaleString()}
+                      {formatTokenAmount(parseFloat(String(pair.liquidity?.base || '0')))}
                     </div>
                   </div>
-                  <div className="p-1">
-                    <div className="text-[10px] text-gray-400">{pair.quoteToken.symbol} in Pool</div>
+                  <div>
+                    <div className="text-xs text-gray-400">{pair.quoteToken.symbol} in Pool</div>
                     <div className="text-xs font-semibold text-white">
-                      {parseFloat(String(pair.liquidity?.quote || '0')).toLocaleString()}
+                      {formatTokenAmount(parseFloat(String(pair.liquidity?.quote || '0')))}
                     </div>
                   </div>
                 </div>
@@ -626,32 +639,32 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   
                   {pairHoldersData[pair.pairAddress]?.holders && pairHoldersData[pair.pairAddress].holders.length > 0 && (
                     <div className="space-y-1">
-                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-1.5 text-[10px] text-gray-400 pb-1 border-b border-gray-700/50">
+                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 text-xs text-gray-400 pb-1 border-b border-gray-700/50">
                         <div>Rank</div>
                         <div>Address</div>
                         <div>LP Tokens</div>
                         <div>% of Pool</div>
                       </div>
                       
-                      <div className="max-h-48 overflow-y-auto space-y-0.5">
+                      <div className="max-h-48 overflow-y-auto space-y-1">
                         {pairHoldersData[pair.pairAddress].holders.map((holder, holderIndex) => (
-                          <div key={holder.address} className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-1.5 text-[10px] py-1 hover:bg-gray-700/30 rounded transition-colors">
-                            <div className="text-gray-400 flex items-center gap-0.5 leading-none">#{holderIndex + 1}{isBurnAddress(holder.address) && (<span title="Burn address" aria-label="Burn address">🔥</span>)}</div>
+                          <div key={holder.address} className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 text-xs py-1 hover:bg-gray-800/50 rounded transition-colors">
+                            <div className="text-gray-400 flex items-center gap-0.5">#{holderIndex + 1}{isBurnAddress(holder.address) && (<span title="Burn address" aria-label="Burn address">🔥</span>)}</div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleHolderClick(holder.address, pair);
                               }}
-                              className="font-mono text-blue-300 hover:text-blue-200 underline cursor-pointer text-left transition-colors leading-none"
+                              className="font-mono text-blue-400 hover:text-blue-300 underline cursor-pointer text-left transition-colors"
                             >
                               {formatLpAddress(holder.address)}
                             </button>
-                            <div className="text-white font-medium text-[10px]">
+                            <div className="text-white font-semibold">
                               {formatHolderBalance(holder.value)}
                             </div>
                             <div className="text-right">
                               <div className="flex items-center gap-1">
-                                <span className={`font-medium text-[10px] ${
+                                <span className={`font-semibold text-xs ${
                                   holder.percentage >= 10 ? 'text-red-400' : 
                                   holder.percentage >= 5 ? 'text-yellow-400' : 
                                   'text-green-400'
@@ -707,22 +720,22 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                       {pairLiquidityEvents[pair.pairAddress].events.map((event, eventIndex) => (
                         <div 
                           key={`${event.txHash}-${eventIndex}`}
-                          className="flex items-center justify-between p-1.5 bg-gray-800/50 rounded border border-gray-700/50 hover:bg-gray-700/50 transition-colors"
+                          className="flex items-center justify-between p-2 bg-black/40 backdrop-blur rounded border border-gray-700/50 hover:bg-gray-800/50 transition-colors"
                         >
-                          <div className="flex items-center gap-1.5 flex-1">
+                          <div className="flex items-center gap-2 flex-1">
                             <div className={`text-base ${event.type === 'add' ? 'text-green-400' : 'text-red-400'}`}>
                               {event.type === 'add' ? '🟢' : '🔴'}
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center gap-1 mb-0.5">
-                                <span className={`font-medium text-[10px] ${event.type === 'add' ? 'text-green-400' : 'text-red-400'}`}>
+                                <span className={`font-semibold text-xs ${event.type === 'add' ? 'text-green-400' : 'text-red-400'}`}>
                                   {event.type === 'add' ? 'Added' : 'Removed'}
                                 </span>
-                                <span className="text-[9px] text-gray-400">{formatTimeAgo(event.timestamp)}</span>
+                                <span className="text-xs text-gray-400">{formatTimeAgo(event.timestamp)}</span>
                               </div>
-                              <div className="flex items-center gap-1 text-[9px]">
+                              <div className="flex items-center gap-1 text-xs">
                                 <span className="text-gray-400">By:</span>
-                                <code className="font-mono text-blue-300">
+                                <code className="font-mono text-blue-400">
                                   {event.from ? `${event.from.slice(0, 8)}...${event.from.slice(-6)}` : 'Unknown'}
                                 </code>
                                 <a 
@@ -751,12 +764,12 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-0.5">
+                <div className="flex gap-2">
                   <a 
                     href={pair.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 bg-gray-950/20 text-blue-300 px-2 py-1 text-center border border-gray-800/30 hover:bg-gray-950/30 transition-colors text-xs"
+                    className="flex-1 bg-black/40 backdrop-blur text-blue-400 px-2 py-1.5 text-center border border-gray-700/50 hover:bg-gray-800/50 transition-colors text-xs font-semibold rounded"
                   >
                     DexScreener
                   </a>
@@ -765,14 +778,14 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     href={`https://scan.pulsechain.com/address/${pair.pairAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 bg-green-600/20 text-green-300 px-2 py-1 text-center border border-green-600/30 hover:bg-green-600/30 transition-colors text-xs"
+                    className="flex-1 bg-black/40 backdrop-blur text-green-400 px-2 py-1.5 text-center border border-gray-700/50 hover:bg-gray-800/50 transition-colors text-xs font-semibold rounded"
                   >
                     Code
                   </a>
                   
                   <button 
                     onClick={() => navigator.clipboard.writeText(pair.pairAddress || '')}
-                    className="flex-1 bg-gray-950/20 text-blue-300 px-2 py-1 text-center border border-gray-800/30 hover:bg-gray-950/30 transition-colors text-xs"
+                    className="flex-1 bg-black/40 backdrop-blur text-blue-400 px-2 py-1.5 text-center border border-gray-700/50 hover:bg-gray-800/50 transition-colors text-xs font-semibold rounded"
                     title="Copy pair address"
                   >
                     Copy
@@ -785,20 +798,20 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
         {/* Zero Liquidity Pairs - Collapsed */}
         {zeroLiquidityPairs.length > 0 && (
-          <div className="bg-gray-800 border border-gray-700/50 rounded p-2 px-2"
+          <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 border border-gray-700/50 rounded-lg p-3"
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="text-xs font-semibold text-white">
                   Zero Liquidity ({zeroLiquidityPairs.length})
                 </div>
-                <div className="text-[10px] text-gray-400">
+                <div className="text-xs text-gray-400">
                   Pairs with $0 liquidity
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs text-white">$0</div>
-                <div className="text-[10px] text-gray-400">Liquidity</div>
+                <div className="text-xs text-white font-semibold">$0</div>
+                <div className="text-xs text-gray-400">Liquidity</div>
               </div>
             </div>
           </div>

@@ -9,6 +9,7 @@ import DexScreenerChart from '@/components/DexScreenerChart';
 import LiquidityTab from '@/components/LiquidityTab';
 import { LoaderThree } from "@/components/ui/loader";
 import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
+import { Copy } from 'lucide-react';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem } from '../../types';
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '../../services/pulsechainService';
 import { pulsechainApiService } from '../../services/pulsechainApiService';
@@ -153,6 +154,24 @@ function GeickoPageContent() {
     top10: 0,
     top20: 0,
     top50: 0,
+    isLoading: false,
+  });
+  const [smartContractHolderShare, setSmartContractHolderShare] = useState<{
+    percent: number;
+    contractCount: number;
+    isLoading: boolean;
+  }>({
+    percent: 0,
+    contractCount: 0,
+    isLoading: false,
+  });
+  const [totalLiquidity, setTotalLiquidity] = useState<{
+    usd: number;
+    pairCount: number;
+    isLoading: boolean;
+  }>({
+    usd: 0,
+    pairCount: 0,
     isLoading: false,
   });
 
@@ -631,7 +650,7 @@ function GeickoPageContent() {
     const base = 'https://api.scan.pulsechain.com/api/v2';
 
     const fetchJson = async (url: string) => {
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     };
@@ -694,6 +713,50 @@ function GeickoPageContent() {
     loadOwnership();
     return () => { cancelled = true; };
   }, [apiTokenAddress]);
+
+  // Fetch total liquidity (USD) from all pairs
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTotalLiquidity = async () => {
+      if (!dexScreenerData?.pairs || dexScreenerData.pairs.length === 0) {
+        if (!cancelled) {
+          setTotalLiquidity({
+            usd: 0,
+            pairCount: 0,
+            isLoading: false,
+          });
+        }
+        return;
+      }
+
+      try {
+        setTotalLiquidity(prev => ({ ...prev, isLoading: true }));
+        
+        // Sum of USD liquidity across every discovered pair (same as admin panel)
+        const pairs = dexScreenerData.pairs || [];
+        const totalUsd = pairs.reduce((sum: number, pair: any) => {
+          return sum + Number(pair?.liquidity?.usd || 0);
+        }, 0);
+
+        if (!cancelled) {
+          setTotalLiquidity({
+            usd: totalUsd,
+            pairCount: pairs.length,
+            isLoading: false,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to calculate total liquidity:', error);
+        if (!cancelled) {
+          setTotalLiquidity(prev => ({ ...prev, isLoading: false }));
+        }
+      }
+    };
+
+    loadTotalLiquidity();
+    return () => { cancelled = true; };
+  }, [dexScreenerData]);
 
   // Fetch contract age, total pairs, and supply held
   useEffect(() => {
@@ -784,6 +847,57 @@ function GeickoPageContent() {
           console.error('Failed to fetch supply held:', error);
           if (!cancelled) {
             setSupplyHeld(prev => ({ ...prev, isLoading: false }));
+          }
+        }
+
+        // Fetch smart contract holder share
+        try {
+          setSmartContractHolderShare(prev => ({ ...prev, isLoading: true }));
+          
+          const tokenInfo = await fetchJson(`${base}/tokens/${apiTokenAddress}`);
+          const totalSupply = Number(tokenInfo?.total_supply || 0);
+          
+          if (totalSupply > 0) {
+            // Fetch top 20 holders
+            const holdersResponse = await fetchJson(`${base}/tokens/${apiTokenAddress}/holders?limit=20`);
+            const holders = Array.isArray(holdersResponse?.items) ? holdersResponse.items : [];
+            const top20 = holders.slice(0, 20);
+
+            // Check which holders are smart contracts
+            const contractChecks = await Promise.allSettled(
+              top20.map((h: any) => {
+                const address = h.address?.hash || h.address || '';
+                return address ? pulsechainApiService.getAddressInfo(address) : Promise.resolve(null);
+              })
+            );
+
+            let contractCount = 0;
+            let contractBalance = 0;
+            contractChecks.forEach((res, idx) => {
+              if (res.status === 'fulfilled' && res.value?.is_contract) {
+                contractCount += 1;
+                contractBalance += Number(top20[idx]?.value || 0);
+              }
+            });
+
+            const percent = totalSupply > 0 ? (contractBalance / totalSupply) * 100 : 0;
+
+            if (!cancelled) {
+              setSmartContractHolderShare({
+                percent,
+                contractCount,
+                isLoading: false,
+              });
+            }
+          } else {
+            if (!cancelled) {
+              setSmartContractHolderShare(prev => ({ ...prev, isLoading: false }));
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch smart contract holder share:', error);
+          if (!cancelled) {
+            setSmartContractHolderShare(prev => ({ ...prev, isLoading: false }));
           }
         }
       } catch (error) {
@@ -1123,7 +1237,7 @@ function GeickoPageContent() {
               </div>
             </div>
 
-            <div className="mt-6 rounded-[24px] bg-[#2334ff] border border-white/15 p-5 shadow-[0_15px_40px_rgba(15,15,40,0.35)]">
+            <div className="relative mt-6 rounded-[24px] bg-[#2334ff] border border-white/15 p-5 shadow-[0_15px_40px_rgba(15,15,40,0.35)]">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.3em] text-white/70">Portfolio</p>
@@ -1168,6 +1282,16 @@ function GeickoPageContent() {
                   <span className="font-semibold text-white">{heroVolumeDisplay}</span>
                 </div>
               </div>
+              {apiTokenAddress && (
+                <button
+                  onClick={() => handleCopyAddress(apiTokenAddress)}
+                  className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 text-xs text-white/80 hover:text-white transition-colors bg-[#2334ff]/50 backdrop-blur-sm px-2 py-1 rounded-lg"
+                  title="Copy contract address"
+                >
+                  <span className="font-mono">{apiTokenAddress.slice(0, 6)}...{apiTokenAddress.slice(-4)}</span>
+                  <Copy className="w-3.5 h-3.5 text-blue-400" />
+                </button>
+              )}
             </div>
           </header>
 
@@ -1284,7 +1408,7 @@ function GeickoPageContent() {
           <div className="absolute -bottom-24 left-1/3 h-56 w-56 bg-gradient-to-tr from-emerald-600/20 via-teal-500/10 to-transparent blur-3xl" />
         </div>
       {/* Header Section */}
-      <header className="bg-gray-900 border-b border-gray-800">
+      <header className="relative bg-gray-900 border-b border-gray-800">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 md:px-3 py-2 gap-2">
           {/* Title with Logo */}
           <div className="flex items-center gap-2">
@@ -1296,8 +1420,20 @@ function GeickoPageContent() {
             <h1 className="text-white text-lg font-semibold">Morbius Token Analyzer</h1>
           </div>
 
-          {/* Search Bar - Right side on desktop */}
-          <div className="hidden sm:flex flex-col top-4 items-end w-full max-w-2xl gap-2">
+          {/* Get Morbius Button - Absolute positioned */}
+          <a
+            href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute top-2 right-2 px-2.5 py-1 bg-purple-700/40 backdrop-blur hover:bg-purple-700/50 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap z-10"
+          >
+            Get Morbius
+          </a>
+
+          {/* Right side: Search Bar */}
+          <div className="flex items-center gap-3">
+            {/* Search Bar - Right side on desktop */}
+            <div className="hidden sm:flex flex-col top-4 items-end w-full max-w-2xl gap-2">
             <div className="relative w-full top-4" ref={searchInputRef}>
               <PlaceholdersAndVanishInput
                 placeholders={searchPlaceholders}
@@ -1374,6 +1510,7 @@ function GeickoPageContent() {
                 <span>Settings</span>
               </button> */}
             </div>
+          </div>
           </div>
 
         </div>
@@ -1464,6 +1601,16 @@ function GeickoPageContent() {
                 <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" />
               )}
             </div>
+            {apiTokenAddress && (
+              <button
+                onClick={() => handleCopyAddress(apiTokenAddress)}
+                className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 text-xs text-white/80 hover:text-white transition-colors bg-black/30 backdrop-blur-sm px-2 py-1 rounded-lg"
+                title="Copy contract address"
+              >
+                <span className="font-mono">{apiTokenAddress.slice(0, 6)}...{apiTokenAddress.slice(-4)}</span>
+                <Copy className="w-3.5 h-3.5 text-blue-400" />
+              </button>
+            )}
           </div>
         ) : (
           <div className="text-xs text-gray-400 py-4">No token data available</div>
@@ -1476,7 +1623,7 @@ function GeickoPageContent() {
         <div className="w-full md:flex-[3] min-w-0 bg-black">
 
           {/* Token Stats - Mobile Only (Above Chart) */}
-          <div className="sm:hidden px-2 mb-3">
+          <div className="sm:hidden px-2 mb-3 bg-gradient-to-br from-black via-[#0b0b14] to-black -mx-2 px-2">
             <div className="grid grid-cols-2 gap-3">
               {/* Left Column */}
               <div className="space-y-3">
@@ -1486,13 +1633,14 @@ function GeickoPageContent() {
                   const twitterLink = profileData?.profile?.socials?.find((s: any) => s.type === 'twitter');
                   const discordLink = profileData?.profile?.socials?.find((s: any) => s.type === 'discord');
                   const telegramLink = profileData?.profile?.socials?.find((s: any) => s.type === 'telegram');
+                  const scanLink = apiTokenAddress ? `https://scan.pulsechain.box/token/${apiTokenAddress}` : null;
 
-                  if (!websiteLink && !twitterLink && !discordLink && !telegramLink) return null;
+                  if (!websiteLink && !twitterLink && !discordLink && !telegramLink && !scanLink) return null;
 
                   return (
                     <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
                       <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Socials</div>
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-5 gap-2">
                         {websiteLink && (
                           <a
                             href={websiteLink.url}
@@ -1543,6 +1691,17 @@ function GeickoPageContent() {
                             <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
                             </svg>
+                          </a>
+                        )}
+                        {scanLink && (
+                          <a
+                            href={scanLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-lg p-2.5 transition-all"
+                            title="View on PulseChain Explorer"
+                          >
+                            <span className="text-sm text-white">.box</span>
                           </a>
                         )}
                       </div>
@@ -1617,6 +1776,29 @@ function GeickoPageContent() {
                         </div>
                       )}
                     </div>
+
+                    {/* Smart Contract Holder Share */}
+                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Smart Contract Holder Share</div>
+                      {smartContractHolderShare.isLoading ? (
+                        <div className="text-center text-gray-500 text-sm">Loading...</div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Share</span>
+                            <span className="text-sm text-white font-semibold">
+                              {smartContractHolderShare.percent > 0 ? `${smartContractHolderShare.percent.toFixed(2)}%` : '—'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Contracts</span>
+                            <span className="text-sm text-white font-semibold">
+                              {smartContractHolderShare.contractCount > 0 ? smartContractHolderShare.contractCount : '—'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
@@ -1655,41 +1837,6 @@ function GeickoPageContent() {
                       )}
                     </div>
 
-                    {/* Burned Tokens */}
-                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
-                        {burnedTokens && (
-                          <div className="flex items-center justify-center w-9 h-9 rounded-full border-2 border-green-400">
-                            <span className="text-[10px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
-                          </div>
-                        )}
-                      </div>
-                      {burnedTokens ? (
-                        <div className="text-center">
-                          <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
-                        </div>
-                      ) : (
-                        <div className="text-center text-base text-white font-semibold">—</div>
-                      )}
-                    </div>
-
-                    {/* Liq/MCAP Ratio */}
-                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Liq/MCAP</div>
-                      <div className="text-center text-base text-white font-semibold">
-                        {(() => {
-                          const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
-                          const marketCap = Number(dexScreenerData.pairs[0].marketCap || 0);
-                          if (marketCap > 0) {
-                            const ratio = (liquidity / marketCap) * 100;
-                            return `${ratio.toFixed(2)}%`;
-                          }
-                          return '—';
-                        })()}
-                      </div>
-                    </div>
-
                     {/* Creator Address */}
                     {ownershipData.creatorAddress && (
                       <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
@@ -1719,6 +1866,67 @@ function GeickoPageContent() {
                         </div>
                       </div>
                     )}
+
+                    {/* Liquidity */}
+                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
+                      <div className="text-center text-base text-white font-semibold">
+                        {(() => {
+                          const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                          return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Liq/MCAP Ratio */}
+                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Liq/MCAP</div>
+                      <div className="text-center text-base text-white font-semibold">
+                        {(() => {
+                          const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                          const marketCap = Number(dexScreenerData.pairs[0].marketCap || 0);
+                          if (marketCap > 0) {
+                            const ratio = (liquidity / marketCap) * 100;
+                            return `${ratio.toFixed(2)}%`;
+                          }
+                          return '—';
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Total Liquidity */}
+                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[80px] flex items-center justify-center">
+                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Total Liquidity</div>
+                      {totalLiquidity.isLoading ? (
+                        <div className="text-center text-gray-500 text-sm">Loading...</div>
+                      ) : (
+                        <div className="text-center text-base text-white font-semibold">
+                          {totalLiquidity.usd > 0 ? `$${formatAbbrev(totalLiquidity.usd)}` : '—'}
+                        </div>
+                      )}
+                      {totalLiquidity.pairCount > 0 && (
+                        <div className="absolute top-2 right-3 text-xs text-gray-400 font-medium">
+                          {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Burned Tokens */}
+                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
+                      {burnedTokens ? (
+                        <div className="text-center">
+                          <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
+                        </div>
+                      ) : (
+                        <div className="text-center text-base text-white font-semibold">—</div>
+                      )}
+                      {burnedTokens && (
+                        <div className="absolute top-4 right-2 flex items-center justify-center w-9 h-9 rounded-full border-2 border-green-400">
+                          <span className="text-[10px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
@@ -1726,7 +1934,7 @@ function GeickoPageContent() {
 
             {/* More Info Button */}
             {dexScreenerData?.pairs?.[0] && (
-              <div className="mt-3">
+              <div className="mt-6">
                 <button
                   onClick={() => setIsStatsModalOpen(true)}
                   className="relative w-full overflow-hidden text-xs text-blue-200 hover:text-white font-semibold py-2 rounded-lg border border-cyan-400/40 bg-gradient-to-r from-blue-900/40 via-purple-900/30 to-cyan-900/40 shadow-[0_0_15px_rgba(59,130,246,0.6),0_0_25px_rgba(168,85,247,0.45)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(59,130,246,0.85),0_0_40px_rgba(168,85,247,0.7)]"
@@ -2415,6 +2623,16 @@ function GeickoPageContent() {
                         {heroTagline}
                       </div>
                     </div>
+                    {apiTokenAddress && (
+                      <button
+                        onClick={() => handleCopyAddress(apiTokenAddress)}
+                        className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 text-xs text-white/80 hover:text-white transition-colors bg-black/30 backdrop-blur-sm px-2 py-1 rounded-lg"
+                        title="Copy contract address"
+                      >
+                        <span className="font-mono">{apiTokenAddress.slice(0, 6)}...{apiTokenAddress.slice(-4)}</span>
+                        <Copy className="w-3.5 h-3.5 text-blue-400" />
+                      </button>
+                    )}
                   </div>
                   {hasSocialLinks && (
                     <div className="flex divide-x divide-gray-800 bg-gray-900/70">
@@ -2510,6 +2728,29 @@ function GeickoPageContent() {
                         </div>
                       )}
                     </div>
+
+                    {/* Smart Contract Holder Share */}
+                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Smart Contract Holder Share</div>
+                      {smartContractHolderShare.isLoading ? (
+                        <div className="text-center text-gray-500 text-sm">Loading...</div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Share</span>
+                            <span className="text-sm text-white font-semibold">
+                              {smartContractHolderShare.percent > 0 ? `${smartContractHolderShare.percent.toFixed(2)}%` : '—'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Contracts</span>
+                            <span className="text-sm text-white font-semibold">
+                              {smartContractHolderShare.contractCount > 0 ? smartContractHolderShare.contractCount : '—'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Right Column */}
@@ -2544,41 +2785,6 @@ function GeickoPageContent() {
                       )}
                     </div>
 
-                    {/* Burned Tokens */}
-                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
-                        {burnedTokens && (
-                          <div className="flex items-center justify-center w-9 h-9 rounded-full border-2 border-green-400">
-                            <span className="text-[10px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
-                          </div>
-                        )}
-                      </div>
-                      {burnedTokens ? (
-                        <div className="text-center">
-                          <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
-                        </div>
-                      ) : (
-                        <div className="text-center text-base text-white font-semibold">—</div>
-                      )}
-                    </div>
-
-                    {/* Liq/MCAP Ratio */}
-                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Liq/MCAP</div>
-                      <div className="text-center text-base text-white font-semibold">
-                        {(() => {
-                          const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
-                          const marketCap = Number(dexScreenerData.pairs[0].marketCap || 0);
-                          if (marketCap > 0) {
-                            const ratio = (liquidity / marketCap) * 100;
-                            return `${ratio.toFixed(2)}%`;
-                          }
-                          return '—';
-                        })()}
-                      </div>
-                    </div>
-
                     {/* Creator Address */}
                     {ownershipData.creatorAddress && (
                       <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
@@ -2608,6 +2814,67 @@ function GeickoPageContent() {
                         </div>
                       </div>
                     )}
+
+                    {/* Liquidity */}
+                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
+                      <div className="text-center text-base text-white font-semibold">
+                        {(() => {
+                          const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                          return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Liq/MCAP Ratio */}
+                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Liq/MCAP</div>
+                      <div className="text-center text-base text-white font-semibold">
+                        {(() => {
+                          const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                          const marketCap = Number(dexScreenerData.pairs[0].marketCap || 0);
+                          if (marketCap > 0) {
+                            const ratio = (liquidity / marketCap) * 100;
+                            return `${ratio.toFixed(2)}%`;
+                          }
+                          return '—';
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Total Liquidity */}
+                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[80px] flex items-center justify-center">
+                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Total Liquidity</div>
+                      {totalLiquidity.isLoading ? (
+                        <div className="text-center text-gray-500 text-sm">Loading...</div>
+                      ) : (
+                        <div className="text-center text-base text-white font-semibold">
+                          {totalLiquidity.usd > 0 ? `$${formatAbbrev(totalLiquidity.usd)}` : '—'}
+                        </div>
+                      )}
+                      {totalLiquidity.pairCount > 0 && (
+                        <div className="absolute top-2 right-3 text-xs text-gray-400 font-medium">
+                          {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Burned Tokens */}
+                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
+                      {burnedTokens ? (
+                        <div className="text-center">
+                          <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
+                        </div>
+                      ) : (
+                        <div className="text-center text-base text-white font-semibold">—</div>
+                      )}
+                      {burnedTokens && (
+                        <div className="absolute top-4 right-2 flex items-center justify-center w-9 h-9 rounded-full border-2 border-green-400">
+                          <span className="text-[10px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
