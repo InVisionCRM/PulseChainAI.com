@@ -4,6 +4,7 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next"
 import { TopTickerBar } from "@/components/TopTickerBar";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
+import RichardHeartChatCard from "@/components/RichardHeartChatCard";
 import {
   IconHome,
   IconCode,
@@ -19,6 +20,7 @@ import {
   IconPhoneOutgoing,
   IconWallet,
   IconChevronDown,
+  IconX,
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -106,6 +108,7 @@ export default function RootLayout({
   const isGeickoPage = pathname === "/geicko";
   const isStackerGamePage = pathname === "/stacker-game";
   const [open, setOpen] = useState(false);
+  const [showBetaBanner, setShowBetaBanner] = useState(true);
 
   const primaryLinks: NavLink[] = [
     {
@@ -151,6 +154,13 @@ export default function RootLayout({
       href: "/stat-counter-builder",
       icon: (
         <IconChartPie className="h-5 w-5 shrink-0 text-white" />
+      ),
+    },
+    {
+      label: "PulseChain Stats",
+      href: "/pulsechain-stats",
+      icon: (
+        <IconChartBar className="h-5 w-5 shrink-0 text-white" />
       ),
     },
     {
@@ -204,13 +214,57 @@ export default function RootLayout({
         className={`${inter.variable} ${jetbrainsMono.variable} text-md md:text-base antialiased min-h-screen`}
         style={{ backgroundColor: '#0C2340' }}
       >
+        {showBetaBanner && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+            <div className="relative max-w-xl w-full rounded-2xl border border-white/15 bg-white/10 p-6 text-white shadow-2xl">
+              <button
+                type="button"
+                aria-label="Close beta notice"
+                onClick={() => setShowBetaBanner(false)}
+                className="absolute top-3 right-3 h-9 w-9 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center border border-white/20 transition"
+              >
+                <IconX className="h-5 w-5" />
+              </button>
+              <p className="text-lg font-semibold text-purple-200 mb-2">Beta Access Notice</p>
+              <p className="text-sm leading-relaxed text-white/90">
+                All features on <span className="font-semibold text-purple-300">Morbius.io</span> are currently <span className="font-semibold">FREE TO USE</span> during the BETA stage. In future, premium access will only be available through the use of{" "}
+                <a
+                  href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-purple-300 underline underline-offset-2 hover:text-purple-200"
+                >
+                  Morbius Tokens
+                </a>.
+              </p>
+            </div>
+          </div>
+        )}
         <div className="flex flex-col min-h-screen md:h-screen w-full md:overflow-hidden">
           {!isStackerGamePage && <TopTickerBar />}
           <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
             <Sidebar open={open} setOpen={setOpen}>
-              <SidebarBody className="justify-between gap-10">
-                <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+              <SidebarBody className="gap-10">
+                <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto min-h-0">
                   <div className="mt-8 flex flex-col gap-2">
+                    {/* Get Morbius Button - visible when sidebar is expanded */}
+                    <a
+                      href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 group/sidebar py-2 px-2 bg-purple-700/40 backdrop-blur hover:bg-purple-700/50 rounded-md transition duration-200 md:opacity-0 md:w-0 md:overflow-hidden group-hover/sidebar:md:opacity-100 group-hover/sidebar:md:w-auto group-hover/sidebar:md:overflow-visible"
+                      title="Get Morbius"
+                    >
+                      <IconRocket className="h-5 w-5 shrink-0 text-white" />
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-white text-sm transition duration-150 whitespace-pre inline-block !p-0 !m-0 md:opacity-0 md:w-0 md:overflow-hidden md:translate-x-0 group-hover/sidebar:opacity-100 group-hover/sidebar:w-auto group-hover/sidebar:overflow-visible group-hover/sidebar:translate-x-1 md:ml-0"
+                      >
+                        Get Morbius
+                      </motion.span>
+                    </a>
+
                     {primaryLinks.map((link, idx) => (
                       <SidebarLink key={idx} link={link} />
                     ))}
@@ -270,6 +324,7 @@ export default function RootLayout({
             </main>
           </div>
         </div>
+        <RichardHeartChatCard />
         <Analytics />
       </body>
     </html>

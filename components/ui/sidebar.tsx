@@ -111,8 +111,8 @@ export const DesktopSidebar = ({
         {...props}
       >
         <div className="absolute inset-0 bg-black/40 pointer-events-none rounded-3xl" />
-        <div className="flex flex-col justify-between h-full relative z-10">
-          <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+        <div className="flex flex-col h-full relative z-10">
+          <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto min-h-0">
             {isHovered ? <Logo /> : <LogoIcon />}
             {children as React.ReactNode}
           </div>

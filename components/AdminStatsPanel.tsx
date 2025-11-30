@@ -254,25 +254,6 @@ export default function AdminStatsPanel({
   const [showAllEndpoints, setShowAllEndpoints] = useState<boolean>(false);
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
-  const [pulsechainDropdownOpen, setPulsechainDropdownOpen] = useState<boolean>(false);
-  const pulsechainDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close PulseChain dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (pulsechainDropdownRef.current && !pulsechainDropdownRef.current.contains(event.target as Node)) {
-        setPulsechainDropdownOpen(false);
-      }
-    };
-
-    if (pulsechainDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [pulsechainDropdownOpen]);
 
   useEffect(() => {
     if (networkEvents.length === 0) return;
@@ -2142,327 +2123,9 @@ export default function AdminStatsPanel({
     ];
   }, [ensureCoreCaches, ensureDex, ensureHolders, ensureTransfers24h, tokenAddress]);
 
-  const pulsechainStats = useMemo(() => {
-    return [
-      // Search & Discovery
-          { id: 'search', label: 'Search', description: 'Search for addresses, tokens, contracts', run: async () => {
-            const query = customInputs.searchQuery || '';
-            if (!query) return { error: 'Search query is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/search?q=${encodeURIComponent(query)}`);
-          }},
-          { id: 'checkSearchRedirect', label: 'Check Search Redirect', description: 'Check if search query redirects to a specific page', run: async () => {
-            const query = customInputs.searchQuery || '';
-            if (!query) return { error: 'Search query is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/search/check-redirect?q=${encodeURIComponent(query)}`);
-          }},
-          // Global Lists
-          { id: 'transactionsList', label: 'Transactions List', description: 'List all transactions (paginated)', run: async () => {
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/transactions?page=${page}&limit=${limit}`);
-          }},
-          { id: 'blocksList', label: 'Blocks List', description: 'List all blocks (paginated)', run: async () => {
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/blocks?page=${page}&limit=${limit}`);
-          }},
-          { id: 'tokenTransfersList', label: 'Token Transfers List', description: 'List all token transfers (paginated)', run: async () => {
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '1000';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/token-transfers?page=${page}&limit=${limit}`);
-          }},
-          { id: 'internalTransactionsList', label: 'Internal Transactions List', description: 'List all internal transactions (paginated)', run: async () => {
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/internal-transactions?page=${page}&limit=${limit}`);
-          }},
-          { id: 'addressesList', label: 'Addresses List', description: 'List native coin holders (paginated)', run: async () => {
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses?page=${page}&limit=${limit}`);
-          }},
-          // Main Page Data
-          { id: 'mainPageTransactions', label: 'Main Page Transactions', description: 'Recent transactions for main page', run: async () => {
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/main-page/transactions?page=${page}&limit=${limit}`);
-          }},
-          { id: 'mainPageBlocks', label: 'Main Page Blocks', description: 'Recent blocks for main page', run: async () => {
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/main-page/blocks?page=${page}&limit=${limit}`);
-          }},
-          { id: 'indexingStatus', label: 'Indexing Status', description: 'Blockchain indexing status', run: async () => {
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/main-page/indexing-status`);
-          }},
-          // Stats & Charts
-          { id: 'stats', label: 'Blockchain Stats', description: 'Overall blockchain statistics', run: async () => {
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/stats`);
-          }},
-          { id: 'transactionChart', label: 'Transaction Chart', description: 'Transaction count chart data', run: async () => {
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/stats/charts/transactions`);
-          }},
-          { id: 'marketChart', label: 'Market Chart', description: 'Market cap/price chart data', run: async () => {
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/stats/charts/market`);
-          }},
-          // Transactions
-          { id: 'transactionDetails', label: 'Transaction Details', description: 'Get transaction details', run: async () => {
-            const txHash = customInputs.transactionHash || '';
-            if (!txHash) return { error: 'Transaction hash is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/transactions/${txHash}`);
-          }},
-          { id: 'transactionTokenTransfers', label: 'Transaction Token Transfers', description: 'Token transfers in transaction', run: async () => {
-            const txHash = customInputs.transactionHash || '';
-            if (!txHash) return { error: 'Transaction hash is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/transactions/${txHash}/token-transfers`);
-          }},
-          { id: 'transactionInternalTransactions', label: 'Transaction Internal Transactions', description: 'Internal transactions in transaction', run: async () => {
-            const txHash = customInputs.transactionHash || '';
-            if (!txHash) return { error: 'Transaction hash is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/transactions/${txHash}/internal-transactions`);
-          }},
-          { id: 'transactionLogs', label: 'Transaction Logs', description: 'Event logs from transaction', run: async () => {
-            const txHash = customInputs.transactionHash || '';
-            if (!txHash) return { error: 'Transaction hash is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/transactions/${txHash}/logs`);
-          }},
-          { id: 'transactionRawTrace', label: 'Transaction Raw Trace', description: 'Raw execution trace', run: async () => {
-            const txHash = customInputs.transactionHash || '';
-            if (!txHash) return { error: 'Transaction hash is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/transactions/${txHash}/raw-trace`);
-          }},
-          { id: 'transactionStateChanges', label: 'Transaction State Changes', description: 'State changes from transaction', run: async () => {
-            const txHash = customInputs.transactionHash || '';
-            if (!txHash) return { error: 'Transaction hash is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/transactions/${txHash}/state-changes`);
-          }},
-          { id: 'transactionSummary', label: 'Transaction Summary', description: 'Human-readable transaction summary', run: async () => {
-            const txHash = customInputs.transactionHash || '';
-            if (!txHash) return { error: 'Transaction hash is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/transactions/${txHash}/summary`);
-          }},
-          // Blocks
-          { id: 'blockDetails', label: 'Block Details', description: 'Get block details', run: async () => {
-            const blockNumberOrHash = customInputs.blockNumberOrHash || '';
-            if (!blockNumberOrHash) return { error: 'Block number or hash is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/blocks/${blockNumberOrHash}`);
-          }},
-          { id: 'blockTransactions', label: 'Block Transactions', description: 'Transactions in block', run: async () => {
-            const blockNumberOrHash = customInputs.blockNumberOrHash || '';
-            if (!blockNumberOrHash) return { error: 'Block number or hash is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/blocks/${blockNumberOrHash}/transactions?page=${page}&limit=${limit}`);
-          }},
-          { id: 'blockWithdrawals', label: 'Block Withdrawals', description: 'Withdrawals in block', run: async () => {
-            const blockNumberOrHash = customInputs.blockNumberOrHash || '';
-            if (!blockNumberOrHash) return { error: 'Block number or hash is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/blocks/${blockNumberOrHash}/withdrawals?page=${page}&limit=${limit}`);
-          }},
-          // Addresses
-          { id: 'addressInfo', label: 'Address Info', description: 'Get address information', run: async () => {
-            const addressHash = customInputs.addressHash || tokenAddress;
-            if (!addressHash) return { error: 'Address hash is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}`);
-          }},
-          { id: 'addressCounters', label: 'Address Counters', description: 'Address transaction/transfer counts', run: async () => {
-            const addressHash = customInputs.addressHash || tokenAddress;
-            if (!addressHash) return { error: 'Address hash is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}/counters`);
-          }},
-          { id: 'addressTransactions', label: 'Address Transactions', description: 'Address transactions (paginated)', run: async () => {
-            const addressHash = customInputs.addressHash || tokenAddress;
-            if (!addressHash) return { error: 'Address hash is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '1000';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}/transactions?page=${page}&limit=${limit}`);
-          }},
-          { id: 'addressTokenTransfers', label: 'Address Token Transfers', description: 'Token transfers for address (paginated)', run: async () => {
-            const addressHash = customInputs.addressHash || tokenAddress;
-            if (!addressHash) return { error: 'Address hash is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '1000';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}/token-transfers?page=${page}&limit=${limit}`);
-          }},
-          { id: 'addressInternalTransactions', label: 'Address Internal Transactions', description: 'Internal transactions for address', run: async () => {
-            const addressHash = customInputs.addressHash || tokenAddress;
-            if (!addressHash) return { error: 'Address hash is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '1000';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}/internal-transactions?page=${page}&limit=${limit}`);
-          }},
-          { id: 'addressLogs', label: 'Address Logs', description: 'Event logs for address', run: async () => {
-            const addressHash = customInputs.addressHash || tokenAddress;
-            if (!addressHash) return { error: 'Address hash is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}/logs?page=${page}&limit=${limit}`);
-          }},
-          { id: 'addressBlocksValidated', label: 'Address Blocks Validated', description: 'Blocks validated by address (validators)', run: async () => {
-            const addressHash = customInputs.addressHash || tokenAddress;
-            if (!addressHash) return { error: 'Address hash is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}/blocks-validated?page=${page}&limit=${limit}`);
-          }},
-          { id: 'addressTokenBalances', label: 'Address Token Balances', description: 'Token balances for address', run: async () => {
-            const addressHash = customInputs.addressHash || tokenAddress;
-            if (!addressHash) return { error: 'Address hash is required' };
-            const token = customInputs.tokenAddress || '';
-            const url = token 
-              ? `https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}/token-balances?token=${token}`
-              : `https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}/token-balances`;
-            return await fetchJson(url);
-          }},
-          { id: 'addressTokens', label: 'Address Tokens', description: 'Token balances (paginated)', run: async () => {
-            const addressHash = customInputs.addressHash || tokenAddress;
-            if (!addressHash) return { error: 'Address hash is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '2000';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}/tokens?page=${page}&limit=${limit}`);
-          }},
-          { id: 'addressCoinBalanceHistory', label: 'Address Coin Balance History', description: 'Native coin balance history', run: async () => {
-            const addressHash = customInputs.addressHash || tokenAddress;
-            if (!addressHash) return { error: 'Address hash is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}/coin-balance-history?page=${page}&limit=${limit}`);
-          }},
-          { id: 'addressCoinBalanceHistoryByDay', label: 'Address Coin Balance History By Day', description: 'Daily coin balance history', run: async () => {
-            const addressHash = customInputs.addressHash || tokenAddress;
-            if (!addressHash) return { error: 'Address hash is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}/coin-balance-history-by-day?page=${page}&limit=${limit}`);
-          }},
-          { id: 'addressWithdrawals', label: 'Address Withdrawals', description: 'Withdrawals for address', run: async () => {
-            const addressHash = customInputs.addressHash || tokenAddress;
-            if (!addressHash) return { error: 'Address hash is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}/withdrawals?page=${page}&limit=${limit}`);
-          }},
-          { id: 'addressNFT', label: 'Address NFT', description: 'NFT instances owned by address', run: async () => {
-            const addressHash = customInputs.addressHash || tokenAddress;
-            if (!addressHash) return { error: 'Address hash is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}/nft?page=${page}&limit=${limit}`);
-          }},
-          { id: 'addressNFTCollections', label: 'Address NFT Collections', description: 'NFT collections for address', run: async () => {
-            const addressHash = customInputs.addressHash || tokenAddress;
-            if (!addressHash) return { error: 'Address hash is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${addressHash}/nft/collections?page=${page}&limit=${limit}`);
-          }},
-          // Tokens
-          { id: 'tokensList', label: 'Tokens List', description: 'List all tokens (paginated)', run: async () => {
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens?page=${page}&limit=${limit}`);
-          }},
-          { id: 'tokenInfoDetailed', label: 'Token Info Detailed', description: 'Get token information (detailed)', run: async () => {
-            const tokenAddr = customInputs.tokenAddress || tokenAddress;
-            if (!tokenAddr) return { error: 'Token address is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddr}`);
-          }},
-          { id: 'tokenTransfers', label: 'Token Transfers', description: 'Token transfers (paginated)', run: async () => {
-            const tokenAddr = customInputs.tokenAddress || tokenAddress;
-            if (!tokenAddr) return { error: 'Token address is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '1000';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddr}/transfers?page=${page}&limit=${limit}`);
-          }},
-          { id: 'tokenHolders', label: 'Token Holders', description: 'Token holders (paginated)', run: async () => {
-            const tokenAddr = customInputs.tokenAddress || tokenAddress;
-            if (!tokenAddr) return { error: 'Token address is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '2000';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddr}/holders?page=${page}&limit=${limit}`);
-          }},
-          { id: 'tokenCounters', label: 'Token Counters', description: 'Token holder/transfer counts', run: async () => {
-            const tokenAddr = customInputs.tokenAddress || tokenAddress;
-            if (!tokenAddr) return { error: 'Token address is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddr}/counters`);
-          }},
-          { id: 'tokenLogs', label: 'Token Logs', description: 'Event logs for token', run: async () => {
-            const tokenAddr = customInputs.tokenAddress || tokenAddress;
-            if (!tokenAddr) return { error: 'Token address is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddr}/logs`);
-          }},
-          { id: 'tokenInstances', label: 'Token Instances', description: 'NFT instances (for NFT tokens)', run: async () => {
-            const tokenAddr = customInputs.tokenAddress || tokenAddress;
-            if (!tokenAddr) return { error: 'Token address is required' };
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddr}/instances?page=${page}&limit=${limit}`);
-          }},
-          { id: 'tokenInstanceById', label: 'Token Instance By ID', description: 'Specific NFT instance', run: async () => {
-            const tokenAddr = customInputs.tokenAddress || tokenAddress;
-            const instanceId = customInputs.instanceId || '';
-            if (!tokenAddr) return { error: 'Token address is required' };
-            if (!instanceId) return { error: 'Instance ID is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddr}/instances/${instanceId}`);
-          }},
-          { id: 'tokenInstanceTransfers', label: 'Token Instance Transfers', description: 'Transfers for NFT instance', run: async () => {
-            const tokenAddr = customInputs.tokenAddress || tokenAddress;
-            const instanceId = customInputs.instanceId || '';
-            if (!tokenAddr) return { error: 'Token address is required' };
-            if (!instanceId) return { error: 'Instance ID is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddr}/instances/${instanceId}/transfers`);
-          }},
-          { id: 'tokenInstanceHolders', label: 'Token Instance Holders', description: 'Holders of NFT instance', run: async () => {
-            const tokenAddr = customInputs.tokenAddress || tokenAddress;
-            const instanceId = customInputs.instanceId || '';
-            if (!tokenAddr) return { error: 'Token address is required' };
-            if (!instanceId) return { error: 'Instance ID is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddr}/instances/${instanceId}/holders`);
-          }},
-          { id: 'tokenInstanceTransfersCount', label: 'Token Instance Transfers Count', description: 'Transfer count for NFT instance', run: async () => {
-            const tokenAddr = customInputs.tokenAddress || tokenAddress;
-            const instanceId = customInputs.instanceId || '';
-            if (!tokenAddr) return { error: 'Token address is required' };
-            if (!instanceId) return { error: 'Instance ID is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddr}/instances/${instanceId}/transfers-count`);
-          }},
-          { id: 'refetchTokenInstanceMetadata', label: 'Refetch Token Instance Metadata', description: 'Refetch NFT metadata', run: async () => {
-            const tokenAddr = customInputs.tokenAddress || tokenAddress;
-            const instanceId = customInputs.instanceId || '';
-            if (!tokenAddr) return { error: 'Token address is required' };
-            if (!instanceId) return { error: 'Instance ID is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddr}/instances/${instanceId}/refetch-metadata`, { method: 'PATCH' });
-          }},
-          // Smart Contracts
-          { id: 'smartContractsList', label: 'Smart Contracts List', description: 'List verified smart contracts (paginated)', run: async () => {
-            const page = customInputs.page || '1';
-            const limit = customInputs.limit || '100';
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/smart-contracts?page=${page}&limit=${limit}`);
-          }},
-          { id: 'smartContractsCounters', label: 'Smart Contracts Counters', description: 'Smart contract statistics', run: async () => {
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/smart-contracts/counters`);
-          }},
-          { id: 'smartContractDetails', label: 'Smart Contract Details', description: 'Get smart contract details (source code, ABI, etc.)', run: async () => {
-            const contractAddress = customInputs.contractAddress || '';
-            if (!contractAddress) return { error: 'Contract address is required' };
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/smart-contracts/${contractAddress}`);
-          }},
-          // Configuration
-          { id: 'jsonRpcUrl', label: 'JSON-RPC URL', description: 'Get JSON-RPC endpoint URL', run: async () => {
-            return await fetchJson(`https://api.scan.pulsechain.com/api/v2/config/json-rpc-url`);
-          }},
-          // Proxy/Account Abstraction
-      { id: 'accountAbstractionStatus', label: 'Account Abstraction Status', description: 'Account abstraction status', run: async () => {
-        return await fetchJson(`https://api.scan.pulsechain.com/api/v2/proxy/account-abstraction/status`);
-      }},
-    ];
-  }, [tokenAddress, customInputs]);
-
   const flatStatList = useMemo(
-    () => [...statCategories.flatMap(category => category.stats), ...pulsechainStats],
-    [statCategories, pulsechainStats]
+    () => statCategories.flatMap(category => category.stats),
+    [statCategories]
   );
 
   const selectedStatMeta = useMemo(
@@ -2786,6 +2449,19 @@ export default function AdminStatsPanel({
 
   return (
     <div className={`${compact ? 'text-xs' : 'text-sm'} space-y-3`}>
+      {/* Header with Title and Get Morbius Button */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-white text-lg font-semibold">Advanced Stats</h2>
+        <a
+          href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-2.5 py-1 text-xs bg-purple-700/40 backdrop-blur hover:bg-purple-700/50 text-white rounded transition-colors"
+        >
+          Get Morbius
+        </a>
+      </div>
+
       {/* Token Address Search */}
       {variant === 'default' && (
         <div className="space-y-2">
@@ -2822,43 +2498,6 @@ export default function AdminStatsPanel({
           </div>
         </div>
       )}
-
-      {/* PulseChain Stats Dropdown */}
-      <div className="space-y-2">
-        <label className="text-white block text-sm">PulseChain Stats</label>
-        <div className="relative" ref={pulsechainDropdownRef}>
-          <button
-            onClick={() => setPulsechainDropdownOpen(!pulsechainDropdownOpen)}
-            className={`w-full bg-black/60 backdrop-blur border border-gray-700 rounded px-4 text-left text-white flex items-center justify-between ${
-              compact ? 'py-2 text-xs' : 'py-3 text-sm'
-            }`}
-          >
-            <span>Select PulseChain API Endpoint</span>
-            <span className={`transition-transform ${pulsechainDropdownOpen ? 'rotate-180' : ''}`}>▼</span>
-          </button>
-          {pulsechainDropdownOpen && (
-            <div className="absolute z-[100] w-full mt-1 bg-black/60 backdrop-blur border border-gray-700 rounded max-h-60 overflow-y-auto">
-              {pulsechainStats.map(stat => (
-                <button
-                  key={stat.id}
-                  onClick={() => {
-                    setSelectedStat(stat.id);
-                    setPulsechainDropdownOpen(false);
-                  }}
-                  className={`w-full text-left px-4 py-2 border-b border-gray-700 last:border-b-0 hover:bg-gray-900 transition-colors ${
-                    selectedStat === stat.id ? 'bg-gray-900 text-white' : 'text-white'
-                  }`}
-                >
-                  <div className={`${compact ? 'text-xs' : 'text-sm'} font-semibold`}>{stat.label}</div>
-                  {stat.description && (
-                    <div className={`${compact ? 'text-[10px]' : 'text-xs'} text-white/70 mt-0.5`}>{stat.description}</div>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Stat Selector */}
       <div className="space-y-3">
@@ -2966,31 +2605,6 @@ export default function AdminStatsPanel({
               </DrawerHeader>
               <div className="relative">
                 <div className="max-h-[60vh] overflow-y-auto px-4 pb-32">
-                  {/* PulseChain Stats Section */}
-                  <div className="mb-4">
-                    <div className="bg-black/50 backdrop-blur text-white font-semibold px-3 py-2 rounded-t">
-                      PulseChain Stats
-                    </div>
-                    <div className="bg-black/50 backdrop-blur rounded-b">
-                      {pulsechainStats.map(stat => (
-                        <button
-                          key={stat.id}
-                          onClick={() => {
-                            setSelectedStat(stat.id);
-                            setDrawerOpen(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 border-b border-gray-700 last:border-b-0 hover:bg-gray-900 transition-colors ${
-                            selectedStat === stat.id ? 'bg-gray-900 text-white' : 'text-white'
-                          }`}
-                        >
-                          <div>{stat.label}</div>
-                          {stat.description && (
-                            <div className="text-xs text-white/70 mt-0.5">{stat.description}</div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                   {statCategories.map(category => (
                     <div key={category.title} className="mb-4">
                       <div className="bg-black/50 backdrop-blur text-white font-semibold px-3 py-2 rounded-t">

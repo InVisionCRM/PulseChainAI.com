@@ -1417,7 +1417,10 @@ function GeickoPageContent() {
               alt="Morbius Logo"
               className="w-6 h-6"
             />
-            <h1 className="text-white text-lg font-semibold">Morbius Token Analyzer</h1>
+            <h1 className="text-white text-lg font-semibold">
+              <span className="text-xl sm:text-2xl font-bold text-purple-700">Morbius</span>{' '}
+              Token Analyzer
+            </h1>
           </div>
 
           {/* Get Morbius Button - Absolute positioned */}

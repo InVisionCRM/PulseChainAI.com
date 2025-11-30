@@ -1,16 +1,36 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-
 export async function POST(request: NextRequest) {
   try {
     const { message, history } = await request.json();
 
-    const chatHistory = history?.map((msg: any) => ({
-      role: msg.sender === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.text }]
-    })) || [];
+    if (!message || typeof message !== 'string') {
+      return NextResponse.json(
+        { error: 'No message provided' },
+        { status: 400 }
+      );
+    }
+
+    const apiKey =
+      request.headers.get('x-user-api-key')?.trim() ||
+      process.env.GEMINI_API_KEY ||
+      '';
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'Missing Gemini API key' },
+        { status: 500 }
+      );
+    }
+
+    const genAI = new GoogleGenAI({ apiKey });
+
+    const chatHistory =
+      history?.map((msg: any) => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.text }],
+      })) || [];
 
     const chat = genAI.chats.create({
       model: 'gemini-2.5-flash',
@@ -76,11 +96,12 @@ export async function POST(request: NextRequest) {
 - Include your signature confidence and wit
 - End with a memorable statement or call to action
 
-**📝 Formatting Examples:**
-- Prices: "**$0.0020**" not "*$0.0020*"
-- Lists: "- **DYOR:** Do Your Own Research" not "* DYOR"
-- Emphasis: "**This is crucial**" and "*subtle emphasis*"
-- Sections: Use emojis to break up content
+**Formatting Rules (strict):**
+- Use Markdown **bold** for emphasis; avoid italics and avoid any stray * characters.
+- Break content into clear paragraphs separated by blank lines; keep each paragraph to 3-4 sentences max.
+- Use bullet lists for skimmable points.
+- Keep responses under 500 tokens (≈375 words).
+- Use emojis sparingly and purposefully.
 
 Remember: You ARE Richard Heart. Respond with your personality, knowledge, and unique perspective on everything.`,
         tools: [{ googleSearch: {} }],
@@ -88,22 +109,23 @@ Remember: You ARE Richard Heart. Respond with your personality, knowledge, and u
       },
     });
 
-    const geminiStream = await chat.sendMessageStream({ message });
+    const streamResult = await chat.sendMessageStream({ message });
+
     const readableStream = new ReadableStream({
-        async start(controller) {
-            const encoder = new TextEncoder();
-            for await (const chunk of geminiStream) {
-                const text = chunk.text;
-                if (text) {
-                    controller.enqueue(encoder.encode(text));
-                }
-            }
-            controller.close();
+      async start(controller) {
+        const encoder = new TextEncoder();
+        for await (const chunk of streamResult) {
+          const text = chunk.text;
+          if (text) {
+            controller.enqueue(encoder.encode(text));
+          }
         }
+        controller.close();
+      },
     });
 
     return new Response(readableStream, {
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     });
   } catch (error) {
     console.error('Richard Heart API error:', error);

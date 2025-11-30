@@ -502,7 +502,8 @@ export default function HeroTokenAiChat(): JSX.Element {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 min-w-0">
             <p className="text-xs uppercase tracking-[0.4em] text-white/70">
-              Morbius Token Analyzer
+              <span className="text-sm sm:text-base font-semibold text-purple-700">Morbius</span>{' '}
+              Token Analyzer
             </p>
             <h1 className="text-3xl sm:text-4xl font-semibold leading-tight">
               Analyze any token in seconds.
@@ -513,7 +514,7 @@ export default function HeroTokenAiChat(): JSX.Element {
         <div className="grid gap-4 lg:grid-cols-2 items-start">
           <div className="space-y-4 min-w-0">
             {renderSearchSection(false)}
-            <div className="rounded-2xl border border-white/15 bg-white/5 backdrop-blur-2xl p-3">
+            <div className="relative z-50 rounded-2xl border border-white/15 bg-white/5 backdrop-blur-2xl p-3">
               <AdminStatsPanel
                 initialAddress={selectedToken?.address || DEFAULT_ADDRESS}
                 compact
