@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import TokenAIChat from '@/components/TokenAIChat';
+// import TokenAIChat from '@/components/TokenAIChat';
 import { search, fetchDexScreenerData } from '@/services/pulsechainService';
 import { dexscreenerApi } from '@/services';
 import type { DexScreenerData } from '@/types';
-import AdminStatsPanel from '@/components/AdminStatsPanel';
+// import AdminStatsPanel from '@/components/AdminStatsPanel';
 import { LinkPreview } from '@/components/ui/link-preview';
 
 type LinkItem = { label?: string; url: string };
@@ -116,7 +116,7 @@ const normalizeSocials = (...sources: any[]): SocialItem[] => {
   });
 };
 
-const DEFAULT_ADDRESS = '0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e';
+// const DEFAULT_ADDRESS = '0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e';
 const PLACEHOLDERS = [
   'Search any PulseChain ticker',
   'Paste a contract address',
@@ -209,7 +209,6 @@ export default function HeroTokenAiChat(): JSX.Element {
     setQuery('');
     setResults([]);
     setPlaceholderIndex((prev) => prev + 1);
-    setIsCollapsed(false);
     setShowResults(false);
   }, []);
 
@@ -328,12 +327,6 @@ export default function HeroTokenAiChat(): JSX.Element {
             inputMode="text"
             className="w-full rounded-2xl bg-white/5 border border-white/20 px-4 py-2 text-xs placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/40"
           />
-          <button
-            type="submit"
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 px-3 py-1 rounded-xl text-[11px] bg-white/80 text-purple-900 font-semibold shadow"
-          >
-            Load
-          </button>
         </div>
         {isSearching && (
           <div className="text-[11px] text-white/70">Searching…</div>
@@ -371,48 +364,50 @@ export default function HeroTokenAiChat(): JSX.Element {
   const renderAnalyzingCard = () => {
     if (!selectedToken) return null;
     return (
-      <div className="inline-flex flex-col items-center rounded-2xl bg-white/5 border border-white/20 px-5 py-4 text-xs text-white/80 space-y-2">
+      <div className="flex flex-col items-center rounded-2xl bg-white/5 border border-white/20 px-5 py-4 text-xs text-white/80 space-y-3">
         <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">
           Now analyzing
         </p>
-        <div className="text-base font-semibold text-white truncate max-w-full flex items-center gap-2">
+        <div className="text-lg font-semibold text-white truncate max-w-full flex items-center gap-2">
           {analyzingLogo && (
             <img
               src={analyzingLogo}
               alt={`${selectedToken.name ?? 'Token'} logo`}
-              className="w-6 h-6 rounded-full object-cover"
+              className="w-8 h-8 rounded-full object-cover"
             />
           )}
           <span className="truncate">
             {selectedToken.name}{' '}
             {selectedToken.symbol && (
-              <span className="text-white/70 text-sm">
+              <span className="text-white/70 text-base">
                 ({selectedToken.symbol})
               </span>
             )}
           </span>
         </div>
-        <div className="text-[11px] font-mono text-white/70 truncate max-w-full">
+        <div className="text-xs font-mono text-white/70 truncate max-w-full">
           {selectedToken.address}
         </div>
-        <div className="flex items-center gap-2 text-white/70">
-          {socials.slice(0, 3).map((social, idx) => (
-            <LinkPreview
-              key={`${social.url}-${idx}`}
-              url={social.url}
-              className="text-white/80"
-              width={200}
-              height={120}
-            >
-              <span className="w-7 h-7 flex items-center justify-center rounded-full bg-white/10 border border-white/20">
-                <SocialIcon type={social.type} />
-              </span>
-            </LinkPreview>
-          ))}
-        </div>
+        {socials.length > 0 && (
+          <div className="flex items-center gap-2 text-white/70">
+            {socials.slice(0, 3).map((social, idx) => (
+              <LinkPreview
+                key={`${social.url}-${idx}`}
+                url={social.url}
+                className="text-white/80"
+                width={200}
+                height={120}
+              >
+                <span className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition">
+                  <SocialIcon type={social.type} />
+                </span>
+              </LinkPreview>
+            ))}
+          </div>
+        )}
         <Link
           href={`/geicko?address=${selectedToken.address}`}
-          className="px-3 py-1.5 rounded-full bg-white/80 text-purple-900 text-[11px] font-semibold hover:bg-white transition"
+          className="px-4 py-2 rounded-full bg-white/80 text-purple-900 text-sm font-semibold hover:bg-white transition"
         >
           View Token Page
         </Link>
@@ -496,49 +491,20 @@ export default function HeroTokenAiChat(): JSX.Element {
 
   return (
     <div className="relative z-20 w-full px-4 pt-24 pb-16 flex justify-center overflow-hidden">
-      <div
-        className="w-full rounded-[32px] border border-white/15 bg-white/4 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[40px] p-4 sm:p-7 text-white space-y-5 max-w-full sm:max-w-[60rem] overflow-hidden"
-      >
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2 min-w-0">
-            <p className="text-xs uppercase tracking-[0.4em] text-white/70">
-              <span className="text-sm sm:text-base font-semibold text-purple-700">Morbius</span>{' '}
-              Token Analyzer
-            </p>
-            <h1 className="text-3xl sm:text-4xl font-semibold leading-tight">
-              Analyze any token in seconds.
-            </h1>
-          </div>
+      <div className="w-full rounded-[32px] border border-white/15 bg-white/4 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[40px] p-4 sm:p-7 text-white space-y-5 max-w-full sm:max-w-2xl overflow-hidden">
+        <div className="text-center space-y-2">
+          <p className="text-xs uppercase tracking-[0.4em] text-white/70">
+            <span className="text-sm sm:text-base font-semibold text-purple-700">Morbius</span>{' '}
+            Token Analyzer
+          </p>
+          <h1 className="text-3xl sm:text-4xl font-semibold leading-tight">
+            Analyze any token in seconds.
+          </h1>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2 items-start">
-          <div className="space-y-4 min-w-0">
-            {renderSearchSection(false)}
-            <div className="relative z-50 rounded-2xl border border-white/15 bg-white/5 backdrop-blur-2xl p-3">
-              <AdminStatsPanel
-                initialAddress={selectedToken?.address || DEFAULT_ADDRESS}
-                compact
-                variant="hero"
-                tokenSymbol={selectedToken?.symbol}
-              />
-            </div>
-          </div>
-          <div className="rounded-[28px] border border-white/15 bg-white/4 backdrop-blur-2xl p-4 sm:p-5 flex flex-col items-center gap-4 min-w-0 w-full">
-            {renderAnalyzingCard()}
-            <div className="w-full min-w-0">
-              {selectedToken ? (
-                <TokenAIChat
-                  key={selectedToken.address}
-                  contractAddress={selectedToken.address}
-                  compact
-                />
-              ) : (
-                <div className="rounded-2xl bg-white/5 border border-white/10 p-6 text-center text-white/70">
-                  Select a token to load the AI assistant.
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="space-y-4">
+          {renderSearchSection(false)}
+          {selectedToken && renderAnalyzingCard()}
         </div>
       </div>
     </div>

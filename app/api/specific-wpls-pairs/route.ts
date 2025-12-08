@@ -14,6 +14,11 @@ const SPECIFIC_TOKENS = [
   { symbol: 'DAI', address: '0xf598cB1D27Fb2c5C731F535AD6c1D0ec5EfE1320' },
 ];
 
+// Manually include known WPLS pairs by pair address (e.g., Morbius)
+const MANUAL_WPLS_PAIRS: Array<{ symbol: string; pairAddress: string }> = [
+  { symbol: 'MORBIUS', pairAddress: '0x81acd0AA872675678A25fbB154992A2baD4F6CEF' },
+];
+
 // WPLS contract address on PulseChain
 const WPLS_ADDRESS = '0xA1077a294dDE1B09bB078844df40758a5D0f9a27';
 
@@ -134,6 +139,58 @@ export async function GET() {
       } catch (error) {
         console.error(`   ❌ Error fetching ${token.symbol}:`, error);
         continue;
+      }
+    }
+
+    // Manually fetch and append any manual WPLS pairs
+    for (const manual of MANUAL_WPLS_PAIRS) {
+      try {
+        const pairRes = await fetch(`https://api.dexscreener.com/latest/dex/pairs/pulsechain/${manual.pairAddress}`);
+        if (!pairRes.ok) {
+          console.log(`   ⚠️ Failed to fetch manual pair ${manual.symbol}: ${pairRes.status}`);
+          continue;
+        }
+        const pairDataResp = await pairRes.json();
+        const pairData = pairDataResp.pair;
+        if (!pairData) {
+          console.log(`   ⚠️ Manual pair ${manual.symbol} returned no data`);
+          continue;
+        }
+
+        const baseAddr = pairData.baseToken?.address?.toLowerCase();
+        const quoteAddr = pairData.quoteToken?.address?.toLowerCase();
+        const wplsAddr = WPLS_ADDRESS.toLowerCase();
+        const hasWPLS = baseAddr === wplsAddr || quoteAddr === wplsAddr;
+        if (!hasWPLS) {
+          console.log(`   ⚠️ Manual pair ${manual.symbol} is not a WPLS pair`);
+          continue;
+        }
+
+        const targetToken = baseAddr === wplsAddr ? pairData.quoteToken : pairData.baseToken;
+
+        tokenPairs.push({
+          address: targetToken.address,
+          symbol: targetToken.symbol || manual.symbol,
+          name: targetToken.name || manual.symbol,
+          priceUsd: parseFloat(pairData.priceUsd || '0'),
+          priceChange24h: pairData.priceChange?.h24 || 0,
+          priceChange6h: pairData.priceChange?.h6 || 0,
+          priceChange1h: pairData.priceChange?.h1 || 0,
+          volume24h: pairData.volume?.h24 || 0,
+          volume6h: pairData.volume?.h6 || 0,
+          liquidity: pairData.liquidity?.usd || 0,
+          fdv: pairData.fdv,
+          marketCap: pairData.marketCap,
+          txCount24h: (pairData.txns?.h24?.buys || 0) + (pairData.txns?.h24?.sells || 0),
+          buys24h: pairData.txns?.h24?.buys || 0,
+          sells24h: pairData.txns?.h24?.sells || 0,
+          pairAddress: manual.pairAddress,
+          dexId: pairData.dexId,
+          url: pairData.url,
+        });
+        console.log(`   ✅ Added manual pair ${manual.symbol}/WPLS`);
+      } catch (error) {
+        console.error(`   ❌ Error fetching manual pair ${manual.symbol}:`, error);
       }
     }
 

@@ -18,7 +18,6 @@ import {
   IconMail,
   IconDeviceGamepad2,
   IconPhoneOutgoing,
-  IconWallet,
   IconChevronDown,
   IconX,
 } from "@tabler/icons-react";
@@ -108,7 +107,6 @@ export default function RootLayout({
   const isGeickoPage = pathname === "/geicko";
   const isStackerGamePage = pathname === "/stacker-game";
   const [open, setOpen] = useState(false);
-  const [showBetaBanner, setShowBetaBanner] = useState(true);
 
   const primaryLinks: NavLink[] = [
     {
@@ -123,13 +121,6 @@ export default function RootLayout({
       href: "/geicko",
       icon: (
         <IconCode className="h-5 w-5 shrink-0 text-white" />
-      ),
-    },
-    {
-      label: "Portfolio",
-      href: "/portfolio",
-      icon: (
-        <IconWallet className="h-5 w-5 shrink-0 text-white" />
       ),
     },
     {
@@ -214,32 +205,6 @@ export default function RootLayout({
         className={`${inter.variable} ${jetbrainsMono.variable} text-md md:text-base antialiased min-h-screen`}
         style={{ backgroundColor: '#0C2340' }}
       >
-        {showBetaBanner && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-            <div className="relative max-w-xl w-full rounded-2xl border border-white/15 bg-white/10 p-6 text-white shadow-2xl">
-              <button
-                type="button"
-                aria-label="Close beta notice"
-                onClick={() => setShowBetaBanner(false)}
-                className="absolute top-3 right-3 h-9 w-9 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center border border-white/20 transition"
-              >
-                <IconX className="h-5 w-5" />
-              </button>
-              <p className="text-lg font-semibold text-purple-200 mb-2">Beta Access Notice</p>
-              <p className="text-sm leading-relaxed text-white/90">
-                All features on <span className="font-semibold text-purple-300">Morbius.io</span> are currently <span className="font-semibold">FREE TO USE</span> during the BETA stage. In future, premium access will only be available through the use of{" "}
-                <a
-                  href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-semibold text-purple-300 underline underline-offset-2 hover:text-purple-200"
-                >
-                  Morbius Tokens
-                </a>.
-              </p>
-            </div>
-          </div>
-        )}
         <div className="flex flex-col min-h-screen md:h-screen w-full md:overflow-hidden">
           {!isStackerGamePage && <TopTickerBar />}
           <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
@@ -274,12 +239,12 @@ export default function RootLayout({
                       <button
                         type="button"
                         onClick={handleOpenSearch}
-                        className="flex items-center justify-center gap-2 group/sidebar py-2 px-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-md transition duration-200"
+                        className="flex items-center justify-center gap-2 group/sidebar py-2 px-2 hover:bg-white/5 rounded-md transition duration-200"
                         title="Search Token or Contract"
                       >
-                        <IconSearch className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
+                        <IconSearch className="h-5 w-5 shrink-0 text-white" />
                         {open && (
-                          <span className="text-sm text-neutral-700 dark:text-neutral-200 group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0">
+                          <span className="text-sm text-white group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0">
                             Search
                           </span>
                         )}

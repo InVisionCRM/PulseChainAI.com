@@ -243,14 +243,23 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
                         <motion.div
                           key={stat.id}
                           whileHover={{ scale: 1.02 }}
-                          className={`p-4 rounded-xl cursor-pointer transition-all border ${
+                          className={`relative p-4 rounded-xl cursor-pointer transition-all border overflow-hidden ${
                             isSelected
-                              ? 'border-blue-500/60 bg-slate-950/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]'
-                              : 'border-white/10 bg-white/5 hover:bg-white/10'
+                              ? 'border-blue-500/60 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]'
+                              : 'border-white/10 hover:bg-white/10'
                           }`}
                           onClick={() => handleStatToggle(stat.id)}
                           title={`${isSelected ? 'Remove' : 'Add'} ${stat.name}`}
                         >
+                          {/* Background Image with Overlay */}
+                          <div
+                            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                            style={{ backgroundImage: 'url(/Morbiuss/Bg-card.png)' }}
+                          />
+                          <div className="absolute inset-0 bg-black/50" />
+
+                          {/* Content */}
+                          <div className="relative z-10">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
@@ -273,6 +282,7 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
                               className="mt-1 w-4 h-4 text-slate-950 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
                               title={`Select ${stat.name} stat`}
                             />
+                          </div>
                           </div>
                         </motion.div>
                       );

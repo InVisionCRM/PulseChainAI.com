@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, type JSX } from 'react';
 import { LoaderThree } from "@/components/ui/loader";
 import type { Message, ContractData, TokenInfo, DexScreenerData } from '../types';
 import SendIcon from '@/components/icons/SendIcon';
@@ -9,9 +9,10 @@ import { fetchContract, fetchTokenInfo, fetchDexScreenerData } from '@/services/
 interface TokenAIChatProps {
   contractAddress?: string;
   compact?: boolean;
+  className?: string;
 }
 
-export default function TokenAIChat({ contractAddress, compact = false }: TokenAIChatProps): JSX.Element {
+export default function TokenAIChat({ contractAddress, compact = false, className }: TokenAIChatProps): JSX.Element {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingChat, setIsLoadingChat] = useState<boolean>(false);
   const [isLoadingMetadata, setIsLoadingMetadata] = useState<boolean>(false);
@@ -214,9 +215,9 @@ export default function TokenAIChat({ contractAddress, compact = false }: TokenA
               // Lists
               if (line.match(/^[\-\*]\s/)) {
                 return (
-                  <li key={lineIndex} className="ml-4 text-xs text-gray-300">
-                    {line.substring(2)}
-                  </li>
+                  <p key={lineIndex} className="ml-4 text-md font-bold text-white">
+                    • {line.substring(2)}
+                  </p>
                 );
               }
 
@@ -232,7 +233,7 @@ export default function TokenAIChat({ contractAddress, compact = false }: TokenA
                 );
               }
 
-              return <p key={lineIndex} className="text-xs text-gray-300 mb-1">{processedLine}</p>;
+              return <p key={lineIndex} className="text-xs text-white mb-1">{processedLine}</p>;
             })}
           </div>
         );
@@ -249,18 +250,29 @@ export default function TokenAIChat({ contractAddress, compact = false }: TokenA
   ];
 
   return (
-    <div className={`flex flex-col h-full ${compact ? 'text-xs' : 'text-sm'}`}>
+    <div
+      className={`relative flex flex-col h-full min-h-full w-full flex-1 overflow-hidden rounded-lg border border-purple-300/40 bg-[url('/Mirage.jpg')] bg-cover bg-center bg-no-repeat bg-purple-900/10 backdrop-blur-2xl shadow-[0_0_25px_rgba(0,0,0,0.35)] ${compact ? 'text-[11px]' : 'text-sm'} ${className ?? ''}`}
+    >
+      <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+      <div className="relative px-3 pt-1 text-center space-y-1">
+        <div className="w-full rounded-md px-4 py-3 text-center">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-500">
+            <span className="text-purple-500">MORBIUS</span> Contract Reader
+          </h2>
+        </div>
+      </div>
+      <div className="relative flex flex-col h-full">
       {(isLoadingMetadata || metadataError) && (
         <div className="mb-2 text-[11px]">
           {isLoadingMetadata && (
-            <p className="text-white/60">Loading token context&hellip;</p>
+            <p className="text-blue-100/80">Loading token context&hellip;</p>
           )}
           {metadataError && (
-            <p className="text-red-400">{metadataError}</p>
+            <p className="text-red-300">{metadataError}</p>
           )}
         </div>
       )}
-      <div ref={chatContainerRef} className="flex-grow overflow-y-auto space-y-2 p-3">
+      <div ref={chatContainerRef} className="flex-grow overflow-y-auto space-y-2 p-3 bg-transparent">
         {messages.length === 0 && (
           <div className="text-center text-gray-400 h-full flex flex-col items-center justify-center gap-2">
             {isLoadingChat ? (
@@ -270,23 +282,19 @@ export default function TokenAIChat({ contractAddress, compact = false }: TokenA
               </>
             ) : (
               <div className="w-full max-w-md">
-                <p className="mb-2 text-xs">Ask a question about the contract...</p>
-
-                {/* Question Templates */}
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500 mb-2">Quick Questions:</p>
+                <div className="flex flex-col items-center gap-2">
                   {quickQuestions.map((question, index) => {
                     const colorClasses = [
-                      "bg-pink-900/20 hover:bg-pink-800/30 border-pink-700/30",
-                      "bg-gray-950/20 hover:bg-gray-950/30 border-gray-900/30",
-                      "bg-gray-950/20 hover:bg-gray-950/30 border-gray-900/30"
+                      "bg-purple-900/30 hover:bg-purple-800/40 border-white/20",
+                      "bg-purple-900/30 hover:bg-purple-800/40 border-white/20",
+                      "bg-purple-900/30 hover:bg-purple-800/40 border-white/20"
                     ];
 
                     return (
                       <button
                         key={index}
                         onClick={() => sendMessage(question)}
-                        className={`w-full text-left p-2 rounded transition-all duration-200 text-xs text-gray-300 hover:text-white border ${colorClasses[index]}`}
+                        className={`inline-flex px-3 py-2 rounded-full border ${colorClasses[index]} transition-all duration-200 text-md text-white backdrop-blur-xl shadow-[0_10px_25px_rgba(0,0,0,0.25)]`}
                       >
                         {question}
                       </button>
@@ -299,17 +307,17 @@ export default function TokenAIChat({ contractAddress, compact = false }: TokenA
         )}
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[95%] rounded-lg px-2 py-2 ${msg.sender === 'user' ? 'bg-gray-950 text-white' : 'bg-gray-950 backdrop-blur-sm text-gray-200 border border-gray-900/50'}`}>
+            <div className="max-w-[95%] rounded-lg px-3 py-2 bg-slate-500/50 border border-white/20 backdrop-blur-xl shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
               {msg.sender === 'user' ? (
-                <div className="text-white text-xs">
+                <div className="text-white text-sm font-bold">
                   {msg.text}
                 </div>
               ) : (
-                <div className="space-y-1">
+                <div className="space-y-1 text-white">
                   {msg.text === '...' ? (
                     <LoaderThree />
                   ) : (
-                    renderMessageText(msg.text)
+                    <div className="text-white text-sm font-bold">{renderMessageText(msg.text)}</div>
                   )}
                 </div>
               )}
@@ -318,30 +326,31 @@ export default function TokenAIChat({ contractAddress, compact = false }: TokenA
         ))}
         {isLoadingChat && messages[messages.length - 1]?.sender === 'user' && (
           <div className="flex justify-start">
-            <div className="max-w-[95%] rounded-lg px-2 py-2 bg-gray-950 text-gray-200">
+            <div className="max-w-[95%] rounded-lg px-2 py-2 bg-purple-800/60 text-blue-50 border border-purple-300/40">
               <LoaderThree />
             </div>
           </div>
         )}
       </div>
-      <form onSubmit={handleSendMessage} className="border-t border-gray-800 flex items-center gap-2 bg-gray-950/20 backdrop-blur-xl flex-shrink-0 p-2">
-        <input
-          type="text"
+      <form onSubmit={handleSendMessage} className="border-t border-white/15 flex items-center gap-2 bg-white/5 backdrop-blur-xl flex-shrink-0 p-2 rounded-b-lg">
+        <textarea
+          rows={3}
           value={chatInput}
           onChange={(e) => setChatInput(e.target.value)}
           placeholder="Ask about the contract..."
-          className="flex-grow bg-gray-950/30 backdrop-blur-sm border border-gray-700 rounded px-2 py-1 text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:outline-none transition text-xs"
+          className="flex-grow bg-white/10 backdrop-blur-xl border-[2px] border-white/30 rounded px-3 py-2 text-base text-white placeholder:text-base placeholder:font-semibold placeholder:text-white font-bold focus:ring-2 focus:ring-purple-300 focus:outline-none transition resize-none shadow-[0_10px_25px_rgba(0,0,0,0.2)]"
           disabled={isLoadingChat}
         />
         <button
           type="submit"
           disabled={isLoadingChat || !chatInput.trim()}
-          className="bg-gray-950 text-white p-1.5 rounded-full hover:bg-gray-800 disabled:bg-gray-950 disabled:cursor-not-allowed transition-colors"
+          className="bg-white/20 text-white p-2 rounded-full border border-white/30 hover:bg-white/30 disabled:bg-white/10 disabled:cursor-not-allowed transition-colors shadow-[0_10px_25px_rgba(0,0,0,0.25)] backdrop-blur-xl"
           title="Send message"
         >
-          <SendIcon className="w-3 h-3"/>
+          <SendIcon className="w-4 h-4 text-white"/>
         </button>
       </form>
+      </div>
     </div>
   );
 }

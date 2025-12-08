@@ -314,7 +314,7 @@ export const MobileSidebar = ({
         
         {/* Hamburger Menu Button */}
         <IconMenu2
-          className="text-neutral-200 h-6 w-6 cursor-pointer drop-shadow-lg flex-shrink-0"
+          className="text-white h-6 w-6 cursor-pointer drop-shadow-lg flex-shrink-0"
           onClick={() => setOpen(!open)}
         />
       </div>
@@ -339,7 +339,7 @@ export const MobileSidebar = ({
             <div className="flex flex-col justify-between h-full">
               <div>
                 <div
-                  className="absolute right-10 top-10 z-50 text-neutral-800 dark:text-neutral-200 cursor-pointer"
+                  className="absolute right-10 top-10 z-50 text-white cursor-pointer"
                   onClick={() => setOpen(false)}
                 >
                   <IconX className="h-8 w-8" />
@@ -377,7 +377,7 @@ export const SidebarLink = ({
       <motion.span
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="text-neutral-700 dark:text-neutral-200 text-lg transition duration-150 whitespace-pre inline-block !p-0 !m-0 md:opacity-0 md:w-0 md:overflow-hidden md:translate-x-0 group-hover/sidebar:opacity-100 group-hover/sidebar:w-auto group-hover/sidebar:overflow-visible group-hover/sidebar:translate-x-1 md:ml-0"
+        className="text-white text-lg transition duration-150 whitespace-pre inline-block !p-0 !m-0 md:opacity-0 md:w-0 md:overflow-hidden md:translate-x-0 group-hover/sidebar:opacity-100 group-hover/sidebar:w-auto group-hover/sidebar:overflow-visible group-hover/sidebar:translate-x-1 md:ml-0"
       >
         {link.label}
       </motion.span>

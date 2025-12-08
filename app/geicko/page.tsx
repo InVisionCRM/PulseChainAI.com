@@ -8,7 +8,6 @@ import TokenContractView from '@/components/TokenContractView';
 import DexScreenerChart from '@/components/DexScreenerChart';
 import LiquidityTab from '@/components/LiquidityTab';
 import { LoaderThree } from "@/components/ui/loader";
-import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
 import { Copy } from 'lucide-react';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem } from '../../types';
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '../../services/pulsechainService';
@@ -112,8 +111,8 @@ function GeickoPageContent() {
   const addressFromQuery = searchParams.get('address');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('chart');
-  const [tokenInfoTab, setTokenInfoTab] = useState<'token' | 'wpls'>('token');
-  const [apiTokenAddress, setApiTokenAddress] = useState<string>('0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e');
+  const tokenInfoTab: 'token' = 'token';
+  const [apiTokenAddress, setApiTokenAddress] = useState<string>('');
   const [searchInput, setSearchInput] = useState<string>('');
   const [searchResults, setSearchResults] = useState<SearchResultItem[] | null>(null);
   const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
@@ -203,6 +202,21 @@ function GeickoPageContent() {
   const [isLoadingHolders, setIsLoadingHolders] = useState<boolean>(false);
   const [holdersPage, setHoldersPage] = useState<number>(1);
   const holdersPerPage = 25;
+  const [isHolderTransfersOpen, setIsHolderTransfersOpen] = useState(false);
+  const [holderTransfersAddress, setHolderTransfersAddress] = useState<string | null>(null);
+  const [holderTransfers, setHolderTransfers] = useState<
+    Array<{
+      txHash: string;
+      timestamp: string | null;
+      from: string;
+      to: string;
+      amount: number;
+      direction: 'Buy' | 'Sell' | 'Transfer';
+    }>
+  >([]);
+  const [isLoadingHolderTransfers, setIsLoadingHolderTransfers] = useState(false);
+  const [holderTransfersError, setHolderTransfersError] = useState<string | null>(null);
+  const [expandedHolderTxs, setExpandedHolderTxs] = useState<Set<string>>(new Set());
 
 
   // Load token data function
@@ -441,6 +455,76 @@ function GeickoPageContent() {
     }
   }, []);
 
+  const loadHolderTransfers = useCallback(
+    async (holderAddress: string) => {
+      if (!holderAddress || !apiTokenAddress) return;
+
+      const holderLower = holderAddress.toLowerCase();
+      const tokenLower = apiTokenAddress.toLowerCase();
+      setIsLoadingHolderTransfers(true);
+      setHolderTransfers([]);
+      setHolderTransfersError(null);
+      try {
+        const base = 'https://api.scan.pulsechain.com/api/v2';
+        const limit = 150;
+        const collected: any[] = [];
+        let nextParams: Record<string, string> | undefined;
+
+        for (let i = 0; i < 3; i += 1) {
+          const qs = new URLSearchParams({ limit: String(limit) });
+          if (nextParams) {
+            Object.entries(nextParams).forEach(([k, v]) => qs.set(k, String(v)));
+          }
+          const res = await fetch(`${base}/addresses/${holderAddress}/token-transfers?${qs.toString()}`, {
+            headers: { Accept: 'application/json' },
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+          collected.push(...items);
+          if (data?.next_page_params) {
+            nextParams = data.next_page_params as Record<string, string>;
+          } else {
+            break;
+          }
+        }
+
+        const decimals = tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18;
+        const mapped = collected
+          .filter((item) => (item?.token?.address || item?.token?.hash || '').toLowerCase() === tokenLower)
+          .map((item) => {
+            const txHash = item?.tx_hash || item?.transaction_hash || item?.hash || '';
+            const from = item?.from?.hash || item?.from || '';
+            const to = item?.to?.hash || item?.to || '';
+            const rawValue = item?.total?.value || item?.value || '0';
+            const amount = Number(rawValue) / Math.pow(10, item?.total?.decimals ? Number(item.total.decimals) : decimals);
+            const ts = item?.timestamp || item?.block_signed_at || null;
+            let direction: 'Buy' | 'Sell' | 'Transfer' = 'Transfer';
+            if (from?.toLowerCase() === holderLower) direction = 'Sell';
+            else if (to?.toLowerCase() === holderLower) direction = 'Buy';
+
+            return {
+              txHash,
+              timestamp: ts,
+              from,
+              to,
+              amount,
+              direction,
+            };
+          })
+          .filter((item) => item.txHash);
+
+        setHolderTransfers(mapped);
+      } catch (error) {
+        console.error('Failed to load holder transfers:', error);
+        setHolderTransfersError('Failed to load transfers for this holder.');
+      } finally {
+        setIsLoadingHolderTransfers(false);
+      }
+    },
+    [apiTokenAddress, tokenInfo?.decimals]
+  );
+
   // Load data when token address changes
   useEffect(() => {
     const loadAllData = async () => {
@@ -453,6 +537,35 @@ function GeickoPageContent() {
     loadAllData();
     setHoldersPage(1); // Reset pagination when address changes
   }, [apiTokenAddress, loadTokenData, loadTransactions, loadHolders]);
+
+  const handleOpenHolderTransfers = useCallback(
+    (address: string) => {
+      setHolderTransfersAddress(address);
+      setIsHolderTransfersOpen(true);
+      setExpandedHolderTxs(new Set());
+      loadHolderTransfers(address);
+    },
+    [loadHolderTransfers]
+  );
+
+  const handleCloseHolderTransfers = useCallback(() => {
+    setIsHolderTransfersOpen(false);
+    setHolderTransfers([]);
+    setHolderTransfersAddress(null);
+    setHolderTransfersError(null);
+  }, []);
+
+  const toggleExpandedHolderTx = useCallback((hash: string) => {
+    setExpandedHolderTxs((prev) => {
+      const next = new Set(prev);
+      if (next.has(hash)) {
+        next.delete(hash);
+      } else {
+        next.add(hash);
+      }
+      return next;
+    });
+  }, []);
 
   // Search placeholders
   const searchPlaceholders = [
@@ -658,32 +771,42 @@ function GeickoPageContent() {
     const loadOwnership = async () => {
       try {
         if (!apiTokenAddress) return;
-        
+
         setOwnershipData(prev => ({ ...prev, isLoading: true }));
 
-        // Fetch address info to get creator and creation tx
-        const addressInfo = await fetchJson(`${base}/addresses/${apiTokenAddress}`);
-        const creatorAddress = addressInfo?.creator_address_hash || null;
-        const creationTxHash = addressInfo?.creation_tx_hash || null;
-
+        let creatorAddress: string | null = null;
+        let creationTxHash: string | null = null;
         let ownerAddress: string | null = null;
         let isRenounced = false;
         let renounceTxHash: string | null = null;
 
+        // Fetch address info to get creator and creation tx
+        try {
+          const addressInfo = await fetchJson(`${base}/addresses/${apiTokenAddress}`);
+          creatorAddress = addressInfo?.creator_address_hash || null;
+          creationTxHash = addressInfo?.creation_tx_hash || null;
+        } catch (error) {
+          console.error('Failed to fetch address info:', error);
+        }
+
         if (creationTxHash) {
           // Fetch creation transaction to get owner (from address)
-          const creationTx = await fetchJson(`${base}/transactions/${creationTxHash}`);
-          ownerAddress = creationTx?.from?.hash || creationTx?.from || null;
+          try {
+            const creationTx = await fetchJson(`${base}/transactions/${creationTxHash}`);
+            ownerAddress = creationTx?.from?.hash || creationTx?.from || null;
+          } catch (error) {
+            console.error('Failed to fetch creation transaction:', error);
+          }
         }
 
         // Check if ownership was renounced by checking creator's transactions
         if (creatorAddress) {
           try {
             const creatorTxs = await fetchJson(`${base}/addresses/${creatorAddress}/transactions?limit=100`);
-            const renounceTx = (creatorTxs?.items || []).find((tx: any) => 
+            const renounceTx = (creatorTxs?.items || []).find((tx: any) =>
               (tx?.method || '').toLowerCase() === 'renounceownership'
             );
-            
+
             if (renounceTx) {
               isRenounced = true;
               renounceTxHash = renounceTx.hash || null;
@@ -913,7 +1036,12 @@ function GeickoPageContent() {
     const abs = Math.abs(value);
     const sign = value < 0 ? '-' : '';
     if (abs >= 1_000_000_000) return `${sign}${(abs / 1_000_000_000).toFixed(1)}b`;
-    if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(1)}m`;
+    if (abs >= 1_000_000) {
+      const millions = abs / 1_000_000;
+      // If millions >= 1000, show as billions instead
+      if (millions >= 1000) return `${sign}${(millions / 1000).toFixed(1)}b`;
+      return `${sign}${millions.toFixed(1)}m`;
+    }
     if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(1)}k`;
     return value.toLocaleString(undefined, { maximumFractionDigits: 1 });
   };
@@ -1428,93 +1556,10 @@ function GeickoPageContent() {
             href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
             target="_blank"
             rel="noopener noreferrer"
-            className="absolute top-2 right-2 px-2.5 py-1 bg-purple-700/40 backdrop-blur hover:bg-purple-700/50 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap z-10"
+            className="absolute top-1/2 -translate-y-1/2 right-2 px-2.5 py-1 bg-purple-700/40 backdrop-blur hover:bg-purple-700/50 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap z-10"
           >
             Get Morbius
           </a>
-
-          {/* Right side: Search Bar */}
-          <div className="flex items-center gap-3">
-            {/* Search Bar - Right side on desktop */}
-            <div className="hidden sm:flex flex-col top-4 items-end w-full max-w-2xl gap-2">
-            <div className="relative w-full top-4" ref={searchInputRef}>
-              <PlaceholdersAndVanishInput
-                placeholders={searchPlaceholders}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setSearchInput(value);
-                  if (value.trim()) {
-                    setShowSearchResults(true);
-                  } else {
-                    setShowSearchResults(false);
-                  }
-                }}
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (searchInput.trim()) {
-                    handleSearch(e);
-                    setShowSearchResults(false);
-                  }
-                }}
-              />
-              {showSearchResults && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-gray-900/95 backdrop-blur-sm border border-gray-800 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto">
-                  {isSearching && (
-                    <div className="flex items-center justify-center p-4">
-                      <div className="text-gray-400 text-sm">Searching...</div>
-                    </div>
-                  )}
-                  {!isSearching && searchError && (
-                    <div className="p-4 text-red-400 text-sm">{searchError}</div>
-                  )}
-                  {!isSearching && searchInput.length >= 2 && searchResults?.length === 0 && !searchError && (
-                    <div className="p-4 text-gray-400 text-sm">No tokens found for &quot;{searchInput}&quot;</div>
-                  )}
-                  {!isSearching && searchResults?.map(item => (
-                    <div key={item.address} className="group/item">
-                      <div
-                        onClick={() => handleSelectSearchResult(item)}
-                        className="flex items-center gap-3 p-3 hover:bg-gray-800/50 cursor-pointer transition-colors"
-                      >
-                        <div className="relative">
-                          {item.icon_url ? (
-                            <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-gray-800" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
-                          )}
-                          {item.is_smart_contract_verified && (
-                            <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white text-[10px]">
-                              ✓
-                            </span>
-                          )}
-                        </div>
-                        <div className="overflow-hidden flex-1">
-                          <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
-                          <div className="text-xs text-gray-400 capitalize">{item.type}</div>
-                          <div className="text-xs text-gray-500 font-mono truncate">{item.address}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
-              <div className="text-xs text-red-400 min-h-[1rem]">
-                {error}
-              </div>
-          {/* <button
-            type="button"
-            onClick={openPortfolioSettings}
-            className="inline-flex items-center gap-2 self-end sm:self-auto px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-xs text-white hover:bg-white/10 transition-colors"
-            title="Open settings"
-          >
-                <span>⚙️</span>
-                <span>Settings</span>
-              </button> */}
-            </div>
-          </div>
-          </div>
 
         </div>
       </header>
@@ -1952,7 +1997,7 @@ function GeickoPageContent() {
           </div>
 
           {/* Bottom Tabs */}
-          <div className="px-2 md:px-3 pt-4 pb-3 border-t border-gray-800 mt-4 relative z-30">
+          <div className="px-2 md:px-3 pt-4 pb-3 mt-4 relative z-30">
             {isRabbyUI ? (
               <div className="flex flex-wrap gap-2 overflow-x-auto bg-gray-950/70 border border-white/5 rounded-2xl px-2 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.6)] scrollbar-hide">
                 {tabOptions.map((tab) => {
@@ -2019,7 +2064,7 @@ function GeickoPageContent() {
 
           {/* Content Tables */}
           <div className="px-2 md:px-3 py-1 min-w-0">
-            <div className="bg-gray-900 rounded border border-gray-800 h-[400px] sm:h-[450px] md:h-[500px] lg:h-[550px] xl:h-[600px] overflow-y-auto overflow-x-auto min-w-0">
+            <div className="bg-gray-900 rounded border border-gray-800 h-[400px] sm:h-[450px] md:h-[500px] lg:h-[550px] xl:h-[600px] overflow-y-auto overflow-x-auto min-w-0 relative z-20">
               {/* Chart Tab */}
               {activeTab === 'chart' && (
                 <div className="h-full flex items-center justify-center">
@@ -2172,7 +2217,13 @@ function GeickoPageContent() {
                               <div key={holder.address || i} className="flex items-center px-2 py-1 text-xs hover:bg-gray-800/50 transition-colors">
                                 <div className="flex-[0.8] min-w-[40px] text-white">{globalIndex}</div>
                                 <div className="flex-[3] min-w-[120px] flex items-center gap-1 truncate">
-                                  <span className="text-blue-400 hover:underline cursor-pointer font-mono truncate">{formattedAddress}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenHolderTransfers(holder.address)}
+                                    className="text-blue-400 hover:underline cursor-pointer font-mono truncate text-left"
+                                  >
+                                    {formattedAddress}
+                                  </button>
                                   {holder.isContract && (
                                     <span className="px-1 py-0.5 text-xs bg-purple-900/30 text-purple-300 rounded border border-purple-700/30 whitespace-nowrap">
                                       {holder.isVerified ? '✓ Contract' : 'Contract'}
@@ -2271,95 +2322,12 @@ function GeickoPageContent() {
 
           {/* Token Information Tabs */}
           <div className="px-2 md:px-3 py-2 border-t border-gray-800">
-            <div className="flex space-x-2 md:space-x-4 mb-1 pt-4 border-t border-gray-800 overflow-x-auto">
-              <button
-                onClick={() => setTokenInfoTab('token')}
-                className={`text-xs pb-1 ${tokenInfoTab === 'token' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
-              >
-                {profileData?.tokenInfo?.symbol || dexScreenerData?.pairs?.[0]?.baseToken?.symbol || 'Token'} token info
-              </button>
-              <button
-                onClick={() => setTokenInfoTab('wpls')}
-                className={`text-xs pb-1 ${tokenInfoTab === 'wpls' ? 'text-white border-b border-purple-500' : 'text-gray-400 hover:text-white'}`}
-              >
-                WPLS token info
-              </button>
-        </div>
-
-            {/* Token Info Content */}
-            {tokenInfoTab === 'token' && (
-              <>
-                {/* About Token Section - Dynamic from DexScreener V4 */}
-                <div className="mb-4">
-                  <h2 className="text-sm font-semibold text-white mb-2">
-                    About {profileData?.tokenInfo?.name || tokenInfo?.name || 'Token'}
-                  </h2>
-
-                  {profileData?.profile?.description ? (
-                    <p className="text-xs text-gray-300 mb-2 whitespace-pre-line">
-                      {profileData.profile.description}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-gray-400 mb-2">No description available</p>
-                  )}
-          </div>
-              </>
-            )}
-
-            {/* WPLS Info Content */}
-            {tokenInfoTab === 'wpls' && (
-              <div className="mb-4">
-                <div className="space-y-4">
-                  <div>
-                    <div className="text-sm font-semibold text-white mb-2">Wrapped PLS (WPLS)</div>
-                    <div className="text-xs text-gray-400">Native gas token wrapper for PulseChain</div>
-                  </div>
-
-                  <div className="bg-gray-800 rounded-lg p-3 space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-400">Contract Address:</span>
-                      <span className="text-white font-mono">0xA1077...849</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-400">Symbol:</span>
-                      <span className="text-white">WPLS</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-400">Decimals:</span>
-                      <span className="text-white">18</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-400">Type:</span>
-                      <span className="text-white">ERC-20</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-800 rounded-lg p-3">
-                    <div className="text-xs text-gray-300 mb-2">About WPLS</div>
-                    <div className="text-xs text-gray-400 space-y-2">
-                      <p>WPLS is the wrapped version of PLS, the native token of PulseChain. Wrapping allows PLS to be traded like any other ERC-20 token on decentralized exchanges.</p>
-                      <p>1 PLS = 1 WPLS (always 1:1 ratio)</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-800 rounded-lg p-3">
-                    <div className="text-xs text-gray-300 mb-2">Key Features</div>
-                    <ul className="text-xs text-gray-400 space-y-1 list-disc list-inside">
-                      <li>Used in DeFi protocols and DEXs</li>
-                      <li>Fully backed by PLS reserves</li>
-                      <li>Can be unwrapped back to PLS anytime</li>
-                      <li>Required for token swaps on PulseX</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Links Section - Only show for token tab */}
             {tokenInfoTab === 'token' && (profileData?.profile?.websites?.length > 0 || profileData?.profile?.socials?.length > 0) && (
-              <div className="mb-2">
-                <div className="text-xs text-gray-300 mb-1">Links</div>
-                  <div className="flex flex-wrap gap-2">
+              <div className="mb-3">
+                <div className="text-sm font-semibold text-white mb-2 text-center">Links</div>
+                  <div className="flex flex-wrap gap-2 justify-center">
                     {/* Websites */}
                     {uniqueWebsites.map((website, index) => (
                       <a
@@ -2367,9 +2335,9 @@ function GeickoPageContent() {
                         href={website.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center space-x-1 px-2 py-1 bg-gray-800 hover:bg-gray-700 text-white text-xs rounded transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 bg-slate-700/60 text-white text-xs sm:text-sm font-semibold rounded-full border border-white/30 backdrop-blur-lg shadow-[0_8px_25px_rgba(0,0,0,0.2)] hover:bg-slate-600/70 transition-colors"
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
                         <span>{website.label || 'Website'}</span>
@@ -2381,21 +2349,21 @@ function GeickoPageContent() {
                       const getIcon = (type: string | undefined) => {
                         if (type === 'twitter') {
                           return (
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                             </svg>
                           );
                         }
                         if (type === 'telegram') {
                           return (
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
                             </svg>
                           );
                         }
                         if (type === 'discord') {
                           return (
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
                             </svg>
                           );
@@ -2409,7 +2377,7 @@ function GeickoPageContent() {
                           href={social.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center space-x-1 px-2 py-1 bg-gray-800 hover:bg-gray-700 text-white text-xs rounded transition-colors"
+                          className="flex items-center gap-2 px-3 py-2 bg-slate-700/60 text-white text-xs sm:text-sm font-semibold rounded-full border border-white/30 backdrop-blur-lg shadow-[0_8px_25px_rgba(0,0,0,0.2)] hover:bg-slate-600/70 transition-colors"
                         >
                           {getIcon(social.type)}
                           <span className="capitalize">{social.type ?? 'Link'}</span>
@@ -2421,13 +2389,9 @@ function GeickoPageContent() {
             )}
 
             {/* Ask AI */}
-            <div className="hidden md:block mb-3 px-0">
-              <div className="text-xs text-gray-300 mb-1 flex items-center justify-between">
-                <span>Ask AI</span>
-                <span className="text-[10px] text-gray-500">Powered by TokenAIChat</span>
-              </div>
-              <div className="bg-gray-800 rounded-lg p-2 border border-gray-700/60">
-                <TokenAIChat contractAddress={apiTokenAddress} compact />
+            <div className="mb-3 px-0">
+              <div className="bg-gray-800 rounded-lg p-2 border border-gray-700/60 min-h-[600px] h-[600px] flex">
+                <TokenAIChat contractAddress={apiTokenAddress} compact className="flex-1 h-full" />
               </div>
             </div>
 
@@ -2885,54 +2849,6 @@ function GeickoPageContent() {
 
             {/* API Catalog - Hidden, now shown in modal */}
 
-            {/* Wallet Ad */}
-            <div className="mb-2 px-0">
-              <div className="text-xs text-center text-white/50 mb-1">Advertise Here</div>
-              <a
-                href="https://internetmoney.io"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
-                <img
-                  src="/wallet.jpeg"
-                  alt="InternetMoney.io - Your Gateway to PulseChain"
-                  className="w-full rounded cursor-pointer hover:opacity-90 transition-opacity shadow-lg"
-                />
-              </a>
-            </div>
-
-            {/* Addresses Section */}
-
-            {/* Addresses Section */}
-
-            {/* Video Ad - Always Show */}
-            <div className="mb-2 px-0 relative group">
-              <a
-                href="https://pulsegame.vercel.app/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block cursor-pointer relative"
-              >
-                <video
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="w-full rounded-lg group-hover:brightness-50 transition-all duration-300"
-                >
-                  <source src="/SP.mp4" type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-                {/* Hover Overlay */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg">
-                  <div className="bg-black/50 px-4 py-2 rounded-lg border border-white/20">
-                    <span className="text-white font-bold text-sm">Play Now!</span>
-                  </div>
-                </div>
-              </a>
-            </div>
-
             {/* Token Amount Calculator */}
             {dexScreenerData?.pairs?.[0] && (
               <div className="mb-2">
@@ -3023,9 +2939,167 @@ function GeickoPageContent() {
                 </div>
               </div>
             )}
+
+            {/* Addresses Section */}
+
+            {/* Wallet Ad */}
+            <div className="mb-2 px-0">
+              <div className="text-xs text-center text-white/50 mb-1">Advertise Here</div>
+              <a
+                href="https://internetmoney.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
+                <img
+                  src="/wallet.jpeg"
+                  alt="InternetMoney.io - Your Gateway to PulseChain"
+                  className="w-full rounded cursor-pointer hover:opacity-90 transition-opacity shadow-lg"
+                />
+              </a>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Holder Transfers Modal */}
+      {isHolderTransfersOpen && holderTransfersAddress && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={handleCloseHolderTransfers}
+        >
+          <div
+            className="relative w-full max-w-5xl max-h-[90vh] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between px-5 py-4 border-b border-gray-700 bg-gray-900/80 backdrop-blur">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Holder activity</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-sm font-mono text-white">{truncateAddress(holderTransfersAddress)}</span>
+                  <a
+                    href={`https://scan.pulsechain.box/address/${holderTransfersAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 text-xs hover:underline"
+                  >
+                    View on Explorer
+                  </a>
+                </div>
+              </div>
+              <button
+                onClick={handleCloseHolderTransfers}
+                className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                aria-label="Close holder transfers"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto max-h-[calc(90vh-120px)] bg-gray-900">
+              {isLoadingHolderTransfers ? (
+                <div className="flex items-center justify-center py-10 text-gray-400 gap-3">
+                  <LoaderThree />
+                  <span className="text-sm">Loading transfers...</span>
+                </div>
+              ) : holderTransfersError ? (
+                <div className="text-center text-sm text-red-400 py-6">{holderTransfersError}</div>
+              ) : holderTransfers.length === 0 ? (
+                <div className="text-center text-sm text-gray-400 py-6">No transfers found for this holder.</div>
+              ) : (
+                <div className="space-y-3">
+                  {holderTransfers.map((tx) => {
+                    const isExpanded = expandedHolderTxs.has(tx.txHash);
+                    const badgeClasses =
+                      tx.direction === 'Buy'
+                        ? 'bg-green-900/40 text-green-300 border-green-700/50'
+                        : tx.direction === 'Sell'
+                        ? 'bg-red-900/40 text-red-300 border-red-700/50'
+                        : 'bg-blue-900/30 text-blue-200 border-blue-700/40';
+
+                    return (
+                      <div key={tx.txHash} className="rounded-lg border border-gray-700 bg-gray-800/70 p-3 shadow-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[11px] px-2 py-1 rounded-full border ${badgeClasses}`}>
+                              {tx.direction}
+                            </span>
+                            <span className="text-white font-semibold">
+                              {tx.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })} {baseSymbol || 'TOKEN'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-400">
+                            <span>{tx.timestamp ? formatDateUTC(tx.timestamp) : '—'}</span>
+                            <a
+                              href={`https://scan.pulsechain.box/tx/${tx.txHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:underline"
+                            >
+                              Explorer
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => toggleExpandedHolderTx(tx.txHash)}
+                              className="text-blue-300 hover:text-white transition-colors"
+                            >
+                              {isExpanded ? 'Hide details' : 'Details'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-200">
+                            <div className="bg-black/30 border border-gray-700 rounded-lg p-2">
+                              <p className="text-gray-400">From</p>
+                              <a
+                                href={`https://scan.pulsechain.box/address/${tx.from}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-300 hover:underline break-all"
+                              >
+                                {tx.from || '—'}
+                              </a>
+                            </div>
+                            <div className="bg-black/30 border border-gray-700 rounded-lg p-2">
+                              <p className="text-gray-400">To</p>
+                              <a
+                                href={`https://scan.pulsechain.box/address/${tx.to}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-300 hover:underline break-all"
+                              >
+                                {tx.to || '—'}
+                              </a>
+                            </div>
+                            <div className="bg-black/30 border border-gray-700 rounded-lg p-2">
+                              <p className="text-gray-400">Transaction</p>
+                              <a
+                                href={`https://scan.pulsechain.box/tx/${tx.txHash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-300 hover:underline break-all"
+                              >
+                                {tx.txHash}
+                              </a>
+                            </div>
+                            <div className="bg-black/30 border border-gray-700 rounded-lg p-2">
+                              <p className="text-gray-400">Direction</p>
+                              <p className="text-white font-semibold">{tx.direction}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Modal */}
       {isStatsModalOpen && (
