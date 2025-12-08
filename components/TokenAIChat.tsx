@@ -228,9 +228,10 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
               const boldRegex = /\*\*(.+?)\*\*/g;
               const boldParts = line.split(boldRegex);
               if (boldParts.length > 1) {
-                processedLine = boldParts.map((part, i) =>
-                  i % 2 === 0 ? part : <strong key={i} className="font-bold text-white">{part}</strong>
-                );
+                // Remove bold markdown markers but keep the text
+                processedLine = boldParts
+                  .map((part, i) => (i % 2 === 0 ? part : part))
+                  .join('');
               }
 
               return <p key={lineIndex} className="text-xs text-white mb-1">{processedLine}</p>;
@@ -261,7 +262,7 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
           </h2>
         </div>
       </div>
-      <div className="relative flex flex-col h-full">
+      <div className="relative flex flex-col h-full flex-1 min-h-0">
       {(isLoadingMetadata || metadataError) && (
         <div className="mb-2 text-[11px]">
           {isLoadingMetadata && (
@@ -272,7 +273,7 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
           )}
         </div>
       )}
-      <div ref={chatContainerRef} className="flex-grow overflow-y-auto space-y-2 p-3 bg-transparent">
+      <div ref={chatContainerRef} className="flex-grow min-h-0 overflow-y-auto space-y-2 p-3 bg-transparent">
         {messages.length === 0 && (
           <div className="text-center text-gray-400 h-full flex flex-col items-center justify-center gap-2">
             {isLoadingChat ? (
@@ -334,7 +335,7 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
       </div>
       <form onSubmit={handleSendMessage} className="border-t border-white/15 flex items-center gap-2 bg-white/5 backdrop-blur-xl flex-shrink-0 p-2 rounded-b-lg">
         <textarea
-          rows={3}
+          rows={1}
           value={chatInput}
           onChange={(e) => setChatInput(e.target.value)}
           placeholder="Ask about the contract..."

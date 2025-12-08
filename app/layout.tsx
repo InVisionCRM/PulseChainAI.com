@@ -63,7 +63,7 @@ const SidebarGroup = ({
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-2 transition duration-200 hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50"
+        className="flex w-full items-center justify-between gap-2 px-2 py-2 transition duration-200 hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50"
       >
         <span className="flex items-center gap-2">
           {icon}
@@ -133,20 +133,6 @@ export default function RootLayout({
   ];
 
   const toolsLinks: NavLink[] = [
-    {
-      label: "Blockchain Analyzer",
-      href: "/blockchain-analyzer",
-      icon: (
-        <IconChartBar className="h-5 w-5 shrink-0 text-white" />
-      ),
-    },
-    {
-      label: "Stat Counter Builder",
-      href: "/stat-counter-builder",
-      icon: (
-        <IconChartPie className="h-5 w-5 shrink-0 text-white" />
-      ),
-    },
     {
       label: "PulseChain Stats",
       href: "/pulsechain-stats",
@@ -234,22 +220,6 @@ export default function RootLayout({
                       <SidebarLink key={idx} link={link} />
                     ))}
 
-                    {/* Search button - visible on Token + AI and Tokens pages */}
-                    {(isAICodeReaderPage || isGeickoPage) && (
-                      <button
-                        type="button"
-                        onClick={handleOpenSearch}
-                        className="flex items-center justify-center gap-2 group/sidebar py-2 px-2 hover:bg-white/5 rounded-md transition duration-200"
-                        title="Search Token or Contract"
-                      >
-                        <IconSearch className="h-5 w-5 shrink-0 text-white" />
-                        {open && (
-                          <span className="text-sm text-white group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0">
-                            Search
-                          </span>
-                        )}
-                      </button>
-                    )}
 
                     <SidebarGroup
                       label="Tools"

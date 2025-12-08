@@ -58,11 +58,15 @@ const formatWebsiteDisplay = (url?: string | null) => {
 };
 
 const formatMarketCapLabel = (value?: number) => {
-  if (!value || !Number.isFinite(value) || value <= 0) return 'MCAP N/A';
-  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(2)}B MCAP`;
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M MCAP`;
-  if (value >= 1_000) return `$${Math.round(value / 1_000)}k MCAP`;
-  return `$${Math.round(value).toLocaleString()} MCAP`;
+  const v = Number(value);
+  if (!Number.isFinite(v) || v <= 0) return 'MCAP N/A';
+  const abs = Math.abs(v);
+  const billions = abs / 1_000_000_000;
+  const millions = abs / 1_000_000;
+  if (billions >= 1 || millions >= 1000) return `$${(v / 1_000_000_000).toFixed(2)}B MCAP`;
+  if (millions >= 1) return `$${(v / 1_000_000).toFixed(2)}M MCAP`;
+  if (abs >= 1_000) return `$${Math.round(v / 1_000)}k MCAP`;
+  return `$${Math.round(v).toLocaleString()} MCAP`;
 };
 
 const truncateAddress = (value: string) => `${value.slice(0, 6)}...${value.slice(-4)}`;
@@ -1529,14 +1533,14 @@ function GeickoPageContent() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-black via-[#0b0b14] to-black text-white font-sans px-2 md:px-3 relative overflow-hidden">
+      <div className="min-h-screen bg-slate-900 text-white font-sans px-2 md:px-3 relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -top-24 -left-16 h-64 w-64 bg-gradient-to-br from-blue-700/30 via-cyan-500/10 to-transparent blur-3xl" />
           <div className="absolute top-10 right-0 h-72 w-72 bg-gradient-to-bl from-purple-700/25 via-fuchsia-500/10 to-transparent blur-3xl" />
           <div className="absolute -bottom-24 left-1/3 h-56 w-56 bg-gradient-to-tr from-emerald-600/20 via-teal-500/10 to-transparent blur-3xl" />
         </div>
       {/* Header Section */}
-      <header className="relative bg-gray-900 border-b border-gray-800">
+      <header className="relative bg-slate-850 border-b-2 border-gray-800">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 md:px-3 py-2 gap-2">
           {/* Title with Logo */}
           <div className="flex items-center gap-2">
@@ -1668,7 +1672,7 @@ function GeickoPageContent() {
       {/* Main Content */}
       <div className="flex flex-col md:flex-row items-start">
         {/* Left Panel - Chart Section */}
-        <div className="w-full md:flex-[3] min-w-0 bg-black">
+        <div className="w-full md:flex-[3] min-w-0 bg-slate-850">
 
           {/* Token Stats - Mobile Only (Above Chart) */}
           <div className="sm:hidden px-2 mb-3 bg-gradient-to-br from-black via-[#0b0b14] to-black -mx-2 px-2">
@@ -2323,11 +2327,25 @@ function GeickoPageContent() {
           {/* Token Information Tabs */}
           <div className="px-2 md:px-3 py-2 border-t border-gray-800">
 
+            {/* View More Stats Button */}
+            {dexScreenerData?.pairs?.[0] && (
+              <div className="px-2 md:px-3 pt-3 pb-3">
+                <button
+                  onClick={() => setIsStatsModalOpen(true)}
+                  className="relative w-full overflow-hidden text-xs text-blue-200 hover:text-white font-semibold py-3 rounded-lg border border-cyan-400/40 bg-gradient-to-r from-blue-900/40 via-purple-900/30 to-cyan-900/40 shadow-[0_0_15px_rgba(59,130,246,0.6),0_0_25px_rgba(168,85,247,0.45)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(59,130,246,0.85),0_0_40px_rgba(168,85,247,0.7)]"
+                >
+                  <span className="absolute inset-0 bg-gradient-to-r from-cyan-400/10 via-transparent to-purple-400/10 blur-md" aria-hidden="true" />
+                  <span className="pointer-events-none relative">View More Stats →</span>
+                  <span className="pointer-events-none absolute -left-10 top-0 h-0.5 w-2/3 bg-gradient-to-r from-transparent via-cyan-300 to-transparent animate-pulse" aria-hidden="true" />
+                  <span className="pointer-events-none absolute -right-10 bottom-0 h-0.5 w-2/3 bg-gradient-to-r from-transparent via-purple-400 to-transparent animate-pulse" aria-hidden="true" />
+                </button>
+              </div>
+            )}
+
             {/* Links Section - Only show for token tab */}
             {tokenInfoTab === 'token' && (profileData?.profile?.websites?.length > 0 || profileData?.profile?.socials?.length > 0) && (
-              <div className="mb-3">
-                <div className="text-sm font-semibold text-white mb-2 text-center">Links</div>
-                  <div className="flex flex-wrap gap-2 justify-center">
+              <div className="mb-3 pt-3">
+                <div className="flex flex-wrap gap-2 justify-center">
                     {/* Websites */}
                     {uniqueWebsites.map((website, index) => (
                       <a
@@ -3136,7 +3154,7 @@ export default function GeickoPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
           <LoaderThree />
         </div>
       }

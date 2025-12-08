@@ -1,7 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+// Helper function to attempt API call with fallback
+async function generateWithFallback(prompt: string) {
+  const primaryKey = process.env.GEMINI_API_KEY;
+  const fallbackKey = process.env.GEMINI_API_KEY_FALLBACK;
+
+  if (!primaryKey && !fallbackKey) {
+    throw new Error('No API keys configured');
+  }
+
+  const keys = [primaryKey, fallbackKey].filter(Boolean);
+  let lastError: any;
+
+  for (let i = 0; i < keys.length; i++) {
+    const apiKey = keys[i];
+    const keyLabel = i === 0 ? 'primary' : 'fallback';
+
+    try {
+      console.log(`Attempting with ${keyLabel} API key...`);
+      const ai = new GoogleGenAI({ apiKey });
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+      });
+
+      console.log(`Success with ${keyLabel} API key`);
+      return response;
+
+    } catch (error: any) {
+      console.error(`${keyLabel} API key failed:`, error?.message || error);
+      lastError = error;
+
+      // Check if it's a quota error
+      const isQuotaError = error?.message?.includes('quota') ||
+                          error?.message?.includes('RESOURCE_EXHAUSTED') ||
+                          error?.status === 'RESOURCE_EXHAUSTED';
+
+      if (isQuotaError && i < keys.length - 1) {
+        console.log('Quota exceeded, trying fallback key...');
+        continue;
+      }
+
+      // If not quota error or no more keys, throw
+      if (i === keys.length - 1) {
+        throw lastError;
+      }
+    }
+  }
+
+  throw lastError || new Error('All API keys failed');
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,17 +59,11 @@ export async function POST(req: NextRequest) {
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required.' }, { status: 400 });
     }
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
 
+    const response = await generateWithFallback(prompt);
 
-    // Safely access the text property
-    const text =
-      response?.response?.text ||
-      response?.response?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      '';
+    // Access the text property using the correct Gemini API structure
+    const text = response.text || '';
 
     return NextResponse.json({ result: text });
   } catch (error) {
