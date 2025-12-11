@@ -188,8 +188,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} text-md md:text-base antialiased min-h-screen`}
-        style={{ backgroundColor: '#0C2340' }}
+        className={`${inter.variable} ${jetbrainsMono.variable} text-md md:text-base antialiased min-h-screen bg-[#0C2340]`}
       >
         <div className="flex flex-col min-h-screen md:h-screen w-full md:overflow-hidden">
           {!isStackerGamePage && <TopTickerBar />}
@@ -198,6 +197,16 @@ export default function RootLayout({
               <SidebarBody className="gap-10">
                 <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto min-h-0">
                   <div className="mt-8 flex flex-col gap-2">
+                    {/* Morbius Banner */}
+                    <div className="w-full overflow-hidden rounded-md shadow aspect-[3/1]">
+                      <img
+                        src="/Morbiusbanner.png"
+                        alt="Morbius banner"
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+
                     {/* Get Morbius Button - visible when sidebar is expanded */}
                     <a
                       href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
