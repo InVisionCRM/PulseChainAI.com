@@ -90,6 +90,17 @@ const formatNumberCompact = (value?: number | null) => {
   return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
 };
 
+const isBurnAddress = (addr?: string): boolean => {
+  const lower = (addr || '').toLowerCase();
+  return (
+    lower.endsWith('dead') ||
+    lower.endsWith('0dead') ||
+    lower.endsWith('000') ||
+    lower.endsWith('0369') ||
+    lower.endsWith('000369')
+  );
+};
+
 const formatPercentChange = (value?: number | null) => {
   if (!Number.isFinite(value ?? NaN)) return '0.00%';
   const num = Number(value);
@@ -187,7 +198,7 @@ function GeickoPageContent() {
   const [transactions, setTransactions] = useState<Array<{
     time: string;
     timestamp: number;
-    type: 'BUY' | 'SELL';
+    type: 'BUY' | 'SELL' | 'TRANSFER';
     priceNative: number;
     priceUsd: number;
     amount: number;
@@ -286,7 +297,13 @@ function GeickoPageContent() {
     }
   }, []);
 
-  // Load transactions function
+  // Load transactions function using DexScreener API
+  // Benefits over PulseScan transfers:
+  // 1. Provides actual DEX swap data, not just token transfers
+  // 2. Includes historical prices at time of transaction (accurate USD values)
+  // 3. Pre-classified as BUY/SELL by DexScreener
+  // 4. Filters out non-trading transfers automatically
+  // 5. Includes transaction metadata like maker address
   const loadTransactions = useCallback(async (address: string) => {
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
       return;
@@ -295,41 +312,51 @@ function GeickoPageContent() {
     setIsLoadingTransactions(true);
 
     try {
-      // Fetch real token transfers from PulseScan API (100 max)
-      const transfersResponse = await pulsechainApiService.getTokenTransfers(address, 1, 100);
-
-      // Handle different response formats
-      const transfers: any[] = Array.isArray(transfersResponse)
-        ? transfersResponse
-        : (transfersResponse as any)?.items || [];
-
-      if (transfers.length === 0) {
-        console.log('No transfers found for token');
+      console.log('Fetching transactions from DexScreener for:', address);
+      
+      // Fetch transactions from DexScreener API
+      const response = await dexscreenerApi.getTokenTransactions(address, 'pulsechain');
+      
+      if (!response.success || !response.data) {
+        console.warn('DexScreener transactions not available:', response.error);
         setTransactions([]);
         setIsLoadingTransactions(false);
         return;
       }
 
-      console.log(`Loaded ${transfers.length} transactions from PulseScan v2`);
+      const { transactions: dexTxns, baseToken, priceUsd, priceNative } = response.data;
 
-      // Get current price data for calculation
-      const dexDataResult = await fetchDexScreenerData(address);
-      const dexData = dexDataResult?.data;
-      const currentPriceUsd = Number(dexData?.pairs?.[0]?.priceUsd || 0);
-      const currentPriceNative = Number(dexData?.pairs?.[0]?.priceNative || 0);
+      if (!dexTxns || dexTxns.length === 0) {
+        console.log('No transactions found from DexScreener - token may be too new or have no trading activity');
+        setTransactions([]);
+        setIsLoadingTransactions(false);
+        return;
+      }
 
-      // Get decimals from the first transfer or fallback
-      const decimals = transfers[0]?.total?.decimals
-        ? Number(transfers[0].total.decimals)
-        : transfers[0]?.token?.decimals
-        ? Number(transfers[0].token.decimals)
-        : 18;
+      console.log(`Loaded ${dexTxns.length} transactions from DexScreener`);
+      
+      // Log sample transaction structure for debugging
+      if (dexTxns.length > 0) {
+        console.log('Sample DexScreener transaction structure:', {
+          keys: Object.keys(dexTxns[0]),
+          sample: dexTxns[0]
+        });
+      }
+      
+      const currentPriceUsd = Number(priceUsd || 0);
+      const currentPriceNative = Number(priceNative || 0);
+      const decimals = baseToken?.decimals || 18;
 
-      console.log(`Using ${decimals} decimals from PulseScan API response`);
+      console.log(`Using ${decimals} decimals, current price: $${currentPriceUsd}`);
 
-      // Process transfers into transaction format
-      const processedTransactions = transfers.map((transfer: any) => {
-        const txTime = new Date(transfer.timestamp);
+      // Process DexScreener transactions into standardized format
+      const processedTransactions = dexTxns.map((tx: any) => {
+        // DexScreener provides timestamp in seconds or milliseconds
+        const timestamp = tx.blockUnixtime 
+          ? tx.blockUnixtime * 1000 // Convert seconds to milliseconds
+          : tx.timestamp || Date.now();
+        
+        const txTime = new Date(timestamp);
         const now = new Date();
         const isToday = txTime.toDateString() === now.toDateString();
 
@@ -338,62 +365,68 @@ function GeickoPageContent() {
           ? txTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
           : txTime.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
 
-        // Calculate amount from total.value (PulseScan v2 format)
-        const rawValue = transfer.total?.value || transfer.value || '0';
-        const amount = Number(rawValue) / Math.pow(10, decimals);
-
-        // Safely get address string from PulseScan v2 object format
-        const getAddressString = (addr: any): string => {
-          if (typeof addr === 'string') return addr;
-          if (addr?.hash) return addr.hash;
-          return '';
-        };
-
-        // Common DEX router addresses on PulseChain
-        const knownDexRouters = [
-          '0x165C3410fC91EF562C50559f7d2289fEbed552d9', // PulseX Router V2
-          '0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02', // PulseX Router V1
-          '0x9977e170c9b6e544302e8db0cf01d12d55555289', // Common pair
-        ];
-
-        const fromAddress = getAddressString(transfer.from);
-        const toAddress = getAddressString(transfer.to);
-
-        const isDexRouter = (addr: string) => {
-          if (!addr) return false;
-          return knownDexRouters.some(router =>
-            addr.toLowerCase() === router.toLowerCase()
-          );
-        };
-
-        // Determine BUY or SELL: TO router = SELL, FROM router = BUY
-        let type: 'BUY' | 'SELL' = 'BUY';
-        if (isDexRouter(toAddress)) {
-          type = 'SELL';
-        } else if (isDexRouter(fromAddress)) {
+        // DexScreener provides the transaction type directly
+        // Types: 'buy', 'sell', 'swap', etc.
+        const txType = (tx.type || tx.txnType || '').toLowerCase();
+        let type: 'BUY' | 'SELL' | 'TRANSFER' = 'TRANSFER';
+        
+        if (txType === 'buy') {
           type = 'BUY';
+        } else if (txType === 'sell') {
+          type = 'SELL';
+        } else if (txType === 'swap') {
+          // Determine if it's a buy or sell based on the token amounts
+          // If buying the base token, it's a BUY
+          type = tx.amount0In && tx.amount0Out ? 
+            (Number(tx.amount0In) > Number(tx.amount0Out) ? 'SELL' : 'BUY') : 
+            'TRANSFER';
         }
 
-        const valueUsd = amount * currentPriceUsd;
+        // DexScreener provides amounts and prices at the time of transaction
+        const amount = Number(tx.amount || tx.tokenAmount || tx.amount0 || 0);
+        const priceUsd = Number(tx.priceUsd || tx.price || currentPriceUsd);
+        const priceNative = Number(tx.priceNative || currentPriceNative);
+        const valueUsd = Number(tx.valueUsd || amount * priceUsd);
+
+        // Get maker address (the wallet that initiated the trade)
+        const fromAddress = tx.maker || tx.from || tx.address || '';
 
         return {
           time: timeStr,
           timestamp: txTime.getTime(),
           type: type,
-          priceNative: currentPriceNative,
-          priceUsd: currentPriceUsd,
+          priceNative: priceNative,
+          priceUsd: priceUsd,
           amount: amount,
-          txHash: transfer.tx_hash || transfer.transaction_hash || '',
+          txHash: tx.txnId || tx.hash || tx.txHash || '',
           from: fromAddress,
-          valueUsd
+          valueUsd: valueUsd
         };
       });
 
-      // Sort by timestamp (most recent first)
-      processedTransactions.sort((a, b) => b.timestamp - a.timestamp);
+      // DexScreener transactions are already filtered to actual trades (BUY/SELL)
+      // But we still filter out any remaining dust or invalid entries
+      const filteredTransactions = processedTransactions.filter((tx: {
+        txHash: string;
+        amount: number;
+        type: 'BUY' | 'SELL' | 'TRANSFER';
+        valueUsd: number;
+      }) => {
+        // Validate transaction has essential data
+        if (!tx.txHash || tx.amount <= 0) return false;
+        
+        if (tx.type === 'BUY' || tx.type === 'SELL') {
+          return true; // Keep all identified trades
+        }
+        // For TRANSFER type, only show if value is significant (> $1)
+        return tx.valueUsd > 1;
+      });
 
-      console.log(`Processed ${processedTransactions.length} transactions successfully`);
-      setTransactions(processedTransactions);
+      // Sort by timestamp (most recent first)
+      filteredTransactions.sort((a: { timestamp: number }, b: { timestamp: number }) => b.timestamp - a.timestamp);
+
+      console.log(`✅ Processed ${filteredTransactions.length} DexScreener transactions (filtered from ${processedTransactions.length})`);
+      setTransactions(filteredTransactions);
     } catch (error) {
       console.error('Failed to load transactions:', error);
       setTransactions([]);
@@ -593,9 +626,41 @@ function GeickoPageContent() {
 
     const isAddress = /^0x[a-fA-F0-9]{40}$/.test(searchInput);
     if (isAddress) {
-      setSearchResults([]);
-      setIsSearching(false);
-      setShowSearchResults(false);
+      setIsSearching(true);
+      setSearchError(null);
+      (async () => {
+        try {
+          const dexData = await fetchDexScreenerData(searchInput);
+          const pair = (dexData as any)?.data?.pairs?.[0];
+          const tokenInfo = (dexData as any)?.tokenInfo;
+          const tokenName = pair?.baseToken?.name || tokenInfo?.name || 'Token Address';
+          const tokenSymbol = pair?.baseToken?.symbol || tokenInfo?.symbol || '';
+          let holders: number | null = null;
+          try {
+            const res = await fetch(`https://api.scan.pulsechain.com/api/v2/tokens/${searchInput}/holders?limit=1`);
+            if (res.ok) {
+              const data = await res.json();
+              const raw = data?.items?.[0]?.token?.holders;
+              const parsed = Number(raw);
+              holders = Number.isFinite(parsed) ? parsed : null;
+            }
+          } catch (innerError) {
+            console.error('Address holders lookup failed:', innerError);
+          }
+          setSearchResults([
+            { address: searchInput, name: tokenName, symbol: tokenSymbol, type: 'address', holders },
+          ]);
+          setShowSearchResults(true);
+        } catch (error) {
+          console.error('Address lookup error:', error);
+          setSearchResults([
+            { address: searchInput, name: 'Token Address', symbol: '', type: 'address', holders: null },
+          ]);
+          setShowSearchResults(true);
+        } finally {
+          setIsSearching(false);
+        }
+      })();
       return;
     }
 
@@ -603,7 +668,27 @@ function GeickoPageContent() {
     const timer = setTimeout(async () => {
       try {
         const results = await search(searchInput);
-        setSearchResults(results.slice(0, 10));
+        const limited = results.slice(0, 10);
+        const enriched = await Promise.all(
+          limited.map(async (item) => {
+            const isAddr = /^0x[a-fA-F0-9]{40}$/.test(item.address);
+            if (!isAddr) return item;
+            let holders: number | null = null;
+            try {
+              const res = await fetch(`https://api.scan.pulsechain.com/api/v2/tokens/${item.address}/holders?limit=1`);
+              if (res.ok) {
+                const data = await res.json();
+                const raw = data?.items?.[0]?.token?.holders;
+                const parsed = Number(raw);
+                holders = Number.isFinite(parsed) ? parsed : null;
+              }
+            } catch (innerError) {
+              console.error('Ticker holders lookup failed:', innerError);
+            }
+            return { ...item, holders };
+          })
+        );
+        setSearchResults(enriched);
         setSearchError(null);
         setShowSearchResults(true);
       } catch (error) {
@@ -1244,6 +1329,44 @@ function GeickoPageContent() {
       ].filter((item): item is { label: string; address: string } => Boolean(item.address))
     : [];
 
+  const lpAddressSet = useMemo(
+    () =>
+      new Set(
+        (dexScreenerData?.pairs ?? [])
+          .map((pair) => (pair.pairAddress || '').toLowerCase())
+          .filter(Boolean),
+      ),
+    [dexScreenerData?.pairs],
+  );
+
+  const holderStats = useMemo(() => {
+    const decimals = tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18;
+    const totalSupplyRaw = tokenInfo?.total_supply ? Number(tokenInfo.total_supply) : 0;
+    const topHolder = holders[0];
+    const topBalance = topHolder ? Number(topHolder.value || 0) / Math.pow(10, decimals) : 0;
+    const topPct = totalSupplyRaw > 0 && topHolder ? (Number(topHolder.value || 0) / totalSupplyRaw) * 100 : 0;
+    const lpCount = holders.filter((h) => lpAddressSet.has((h.address || '').toLowerCase())).length;
+    const burnCount = holders.filter((h) => isBurnAddress(h.address)).length;
+    const contractCount = holders.filter((h) => h.isContract).length;
+
+    return {
+      totalHolders: holdersCount ?? holders.length,
+      topBalance,
+      topPct,
+      lpCount,
+      burnCount,
+      contractCount,
+    };
+  }, [holders, holdersCount, lpAddressSet, tokenInfo]);
+
+  const [toast, setToast] = useState<{ message: string } | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 2000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
   const handleSocialTabClick = useCallback((label: string, url?: string | null) => {
     if (!url) return;
     setActiveSocialTab(label);
@@ -1257,6 +1380,7 @@ function GeickoPageContent() {
     if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(value);
     }
+    setToast({ message: 'Copied to clipboard' });
   }, []);
 
   const openExternalLink = useCallback((url: string) => {
@@ -1273,7 +1397,6 @@ function GeickoPageContent() {
 
   const tabOptions: Array<{ id: typeof activeTab; label: string }> = [
     { id: 'chart', label: 'Chart' },
-    { id: 'transactions', label: 'Txns' },
     { id: 'holders', label: 'Holders' },
     { id: 'liquidity', label: 'Liquidity' },
     { id: 'contract', label: 'Code' },
@@ -1287,12 +1410,6 @@ function GeickoPageContent() {
       icon: '⇄',
       description: 'Trade instantly',
       onClick: () => setActiveTab('switch'),
-    },
-    {
-      label: 'Transactions',
-      icon: '🕒',
-      description: 'Latest activity',
-      onClick: () => setActiveTab('transactions'),
     },
     {
       label: 'Holders',
@@ -1359,13 +1476,6 @@ function GeickoPageContent() {
                 >
                   ⚙️
                 </button> */}
-                <button
-                  onClick={() => setActiveTab('transactions')}
-                  className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-lg"
-                  title="History"
-                >
-                  ⟳
-                </button>
               </div>
             </div>
 
@@ -1488,19 +1598,17 @@ function GeickoPageContent() {
             <section className="bg-white rounded-2xl shadow-[0_18px_50px_rgba(15,23,42,0.08)] px-4 py-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-semibold text-slate-900">Recent Transactions</h3>
-                <button
-                  onClick={() => setActiveTab('transactions')}
-                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
-                >
-                  View all
-                </button>
               </div>
               <div className="mt-3 space-y-3">
                 {limitedTransactions.length > 0 ? (
-                  limitedTransactions.map((tx, idx) => (
-                    <div key={`${tx.txHash}-${idx}`} className="flex items-center justify-between rounded-2xl border border-slate-100 px-3 py-2">
+                  limitedTransactions.map((tx, idx) => {
+                    const typeColorClass = tx.type === 'BUY' ? 'text-green-600' : tx.type === 'SELL' ? 'text-red-600' : 'text-blue-600';
+                    const borderColorClass = tx.type === 'BUY' ? 'border-green-100' : tx.type === 'SELL' ? 'border-red-100' : 'border-blue-100';
+                    
+                    return (
+                    <div key={`${tx.txHash}-${idx}`} className={`flex items-center justify-between rounded-2xl border ${borderColorClass} px-3 py-2`}>
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">{tx.type.toUpperCase()}</p>
+                        <p className={`text-sm font-semibold ${typeColorClass}`}>{tx.type.toUpperCase()}</p>
                         <p className="text-xs text-slate-500">{formatDateUTC(tx.timestamp)}</p>
                       </div>
                       <div className="text-right">
@@ -1517,17 +1625,25 @@ function GeickoPageContent() {
                         </a>
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="rounded-2xl border border-dashed border-slate-200 px-3 py-6 text-center text-xs text-slate-500">
-                    No transactions yet. Perform a swap to see history here.
+                    No swap activity found. This token may be new or have limited DEX trading.
                   </div>
                 )}
               </div>
             </section>
           </main>
         </div>
-      </>
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-[1000]">
+          <div className="rounded-xl bg-white/10 border border-white/20 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.35)] text-white text-sm">
+            {toast.message}
+          </div>
+        </div>
+      )}
+    </>
     );
   }
 
@@ -1568,6 +1684,56 @@ function GeickoPageContent() {
         </div>
       </header>
 
+      {/* Desktop Ticker Search (also shown on two-panel view) */}
+      <div className="hidden md:block px-2 md:px-3 mt-2 mb-2">
+        <form onSubmit={handleSearch} className="relative">
+          <div className="flex items-center gap-2">
+            <input
+              ref={searchInputRef}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+              placeholder="Search by ticker, name, or address"
+            />
+            <button
+              type="submit"
+              className="px-3 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white border border-white/10 transition-colors"
+            >
+              Search
+            </button>
+          </div>
+          {isSearching && (
+            <div className="absolute right-3 top-3 text-[11px] text-gray-400">Searching...</div>
+          )}
+          {showSearchResults && searchResults && searchResults.length > 0 && (
+            <div className="absolute z-50 mt-2 w-full bg-gray-900 border border-gray-800 rounded-lg shadow-xl overflow-hidden">
+              {searchResults.map((item) => {
+                const holders = (item as any).holders as number | null | undefined;
+                return (
+                  <button
+                    key={item.address}
+                    type="button"
+                    onClick={() => handleSelectSearchResult(item)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-800 transition-colors gap-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-semibold text-white truncate">{item.name || item.symbol || 'Token'}</div>
+                      <div className="text-[11px] text-gray-400 truncate">
+                        {item.symbol || '—'} • Holders: {holders !== null && holders !== undefined ? holders.toLocaleString() : '—'}
+                      </div>
+                    </div>
+                    <span className="font-mono text-xs text-gray-400">{item.address.slice(0, 6)}...{item.address.slice(-4)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {searchError && (
+            <div className="mt-1 text-xs text-amber-300">{searchError}</div>
+          )}
+        </form>
+      </div>
+
       {/* Mobile Token Header - Top Position */}
       <div className="sm:hidden px-2 mb-2 mt-0">
         {isLoadingData ? (
@@ -1580,7 +1746,7 @@ function GeickoPageContent() {
             <div className="flex-1 min-w-0">
               {/* Ticker and Name */}
               <div className="absolute z-10 left-0 top-0 text-left mb-0">
-                <div className="bg-black/10 backdrop-blur-lg rounded-xs p-2">
+                <div className="bg-slate-900/90 backdrop-blur-lg rounded-xs p-2">
                   <div className="text-md font-bold text-white">
                     {dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} / {dexScreenerData.pairs[0].quoteToken?.symbol}
                   </div>
@@ -1591,7 +1757,7 @@ function GeickoPageContent() {
               </div>
 
               {/* Token Logo - Centered below ticker/name */}
-              <div className="absolute z-20 left-6 bottom-0 bg-black/30 backdrop-blur-xs rounded-full p-2 mb-1">
+              <div className="absolute z-20 left-6 bottom-0 bg-slate-900/90/30 backdrop-blur-xs rounded-full p-2 mb-1">
                 {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? (
                   <img
                     src={dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl}
@@ -1647,7 +1813,7 @@ function GeickoPageContent() {
                       e.currentTarget.style.display = 'none';
                     }}
                   />
-                  <div className="absolute inset-0 bg-black/70" />
+                  <div className="absolute inset-0 bg-slate-900/90/70" />
                 </>
               ) : (
                 <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" />
@@ -1656,7 +1822,7 @@ function GeickoPageContent() {
             {apiTokenAddress && (
               <button
                 onClick={() => handleCopyAddress(apiTokenAddress)}
-                className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 text-xs text-white/80 hover:text-white transition-colors bg-black/30 backdrop-blur-sm px-2 py-1 rounded-lg"
+                className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 text-xs text-white/80 hover:text-white transition-colors bg-slate-900/90/30 backdrop-blur-sm px-2 py-1 rounded-lg"
                 title="Copy contract address"
               >
                 <span className="font-mono">{apiTokenAddress.slice(0, 6)}...{apiTokenAddress.slice(-4)}</span>
@@ -1889,35 +2055,16 @@ function GeickoPageContent() {
                       )}
                     </div>
 
-                    {/* Creator Address */}
-                    {ownershipData.creatorAddress && (
-                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Creator</div>
-                        <div className="text-center">
-                          {ownershipData.creatorAddress.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? (
-                            <a
-                              href={`https://pump.tires/token/${apiTokenAddress}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-400 hover:text-blue-300 font-semibold"
-                              title="View on Pump.Tires"
-                            >
-                              Pump.Tires
-                            </a>
-                          ) : (
-                            <a
-                              href={`https://scan.pulsechain.box/address/${ownershipData.creatorAddress}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-400 hover:text-blue-300 font-mono"
-                              title={ownershipData.creatorAddress}
-                            >
-                              {ownershipData.creatorAddress.slice(0, 6)}...{ownershipData.creatorAddress.slice(-4)}
-                            </a>
-                          )}
-                        </div>
+                    {/* Market Cap */}
+                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Market Cap</div>
+                      <div className="text-center text-base text-white font-semibold">
+                        {(() => {
+                          const marketCap = Number(dexScreenerData.pairs[0].marketCap || 0);
+                          return marketCap > 0 ? formatAbbrev(marketCap) : '—';
+                        })()}
                       </div>
-                    )}
+                    </div>
 
                     {/* Liquidity */}
                     <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
@@ -1956,8 +2103,8 @@ function GeickoPageContent() {
                           {totalLiquidity.usd > 0 ? `$${formatAbbrev(totalLiquidity.usd)}` : '—'}
                         </div>
                       )}
-                      {totalLiquidity.pairCount > 0 && (
-                        <div className="absolute top-2 right-3 text-xs text-gray-400 font-medium">
+                    {totalLiquidity.pairCount > 0 && (
+                        <div className="absolute bottom-2 right-3 text-xs text-gray-400 font-medium">
                           {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
                         </div>
                       )}
@@ -2008,8 +2155,6 @@ function GeickoPageContent() {
                   const isActive = activeTab === tab.id;
                   const accent = tab.id === 'chart'
                     ? 'from-blue-500 to-cyan-500'
-                    : tab.id === 'transactions'
-                    ? 'from-violet-500 to-pink-500'
                     : tab.id === 'holders'
                       ? 'from-emerald-400 to-teal-500'
                         : tab.id === 'contract'
@@ -2041,8 +2186,6 @@ function GeickoPageContent() {
                   const isActive = activeTab === tab.id;
                   const accent = tab.id === 'chart'
                     ? 'from-blue-500/70 to-cyan-500/80'
-                    : tab.id === 'transactions'
-                    ? 'from-violet-500/70 to-indigo-500/80'
                     : tab.id === 'holders'
                       ? 'from-emerald-400/70 to-teal-500/80'
                     : tab.id === 'contract'
@@ -2066,12 +2209,12 @@ function GeickoPageContent() {
             )}
           </div>
 
-          {/* Content Tables */}
-          <div className="px-2 md:px-3 py-1 min-w-0">
-            <div className="bg-gray-900 rounded border border-gray-800 h-[400px] sm:h-[450px] md:h-[500px] lg:h-[550px] xl:h-[600px] overflow-y-auto overflow-x-auto min-w-0 relative z-20">
+        {/* Content Tables */}
+        <div className="px-2 md:px-3 py-1 min-w-0">
+          <div className="bg-gray-900 rounded border border-gray-800 w-full min-w-0 relative z-20 overflow-x-auto">
               {/* Chart Tab */}
               {activeTab === 'chart' && (
-                <div className="h-full flex items-center justify-center">
+                <div className="min-h-[420px] flex items-center justify-center">
                   {isLoadingData ? (
                     <div className="text-center">
                       <LoaderThree />
@@ -2092,93 +2235,16 @@ function GeickoPageContent() {
 
               {/* Switch Tab - Only visible on mobile */}
               {activeTab === 'switch' && (
-                <div className="h-full flex items-center justify-center p-4">
+                <div className="w-full flex items-center justify-center p-4">
                   <iframe
                     src={`https://switch.win/widget?network=pulsechain&background_color=000000&font_color=ffffff&secondary_font_color=7a7a7a&border_color=01e401&backdrop_color=transparent&from=0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee&to=${dexScreenerData?.pairs?.[0]?.baseToken?.address || apiTokenAddress}`}
                     allow="clipboard-read; clipboard-write"
                     width="100%"
-                    height="100%"
-                    className="border-0 rounded"
+                    height="720"
+                    className="border-0 rounded w-full max-w-4xl min-h-[720px]"
                     title="Token Swap Interface"
                   />
                 </div>
-              )}
-
-              {/* Transactions Tab */}
-              {activeTab === 'transactions' && (
-                <>
-                  {/* Table Header */}
-                  <div className="flex items-center px-2 py-1 border-b border-gray-700 text-xs text-gray-300">
-                    <div className="flex-[2] min-w-[80px]">Time</div>
-                    <div className="flex-[1] min-w-[50px]">Type</div>
-                    <div className="flex-[1.5] min-w-[60px]">Amount</div>
-                    <div className="flex-[1.5] min-w-[60px]">Price USD</div>
-                    <div className="flex-[1.5] min-w-[70px]">Value USD</div>
-                    <div className="flex-[2] min-w-[80px]">From</div>
-                    <div className="flex-[0.8] min-w-[40px] text-center">Tx</div>
-                  </div>
-
-                  {/* Table Rows */}
-                  <div className="divide-y divide-gray-700">
-                    {isLoadingTransactions ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="text-center">
-                          <LoaderThree />
-                          <p className="text-gray-400 text-xs mt-2">Loading transactions...</p>
-                        </div>
-                      </div>
-                    ) : transactions.length > 0 ? (
-                      transactions.map((tx, index) => (
-                        <div key={index} className="flex items-center px-2 py-1 text-xs hover:bg-gray-800/50 transition-colors">
-                          <div className="flex-[2] min-w-[80px] text-white text-[10px] truncate">{tx.time}</div>
-                          <div className={`flex-[1] min-w-[50px] ${tx.type === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
-                            {tx.type}
-                          </div>
-                          <div className={`flex-[1.5] min-w-[60px] truncate ${tx.type === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
-                            {tx.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                          </div>
-                          <div className={`flex-[1.5] min-w-[60px] truncate ${tx.type === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
-                            ${tx.priceUsd.toFixed(6)}
-                          </div>
-                          <div className={`flex-[1.5] min-w-[70px] truncate ${tx.type === 'BUY' ? 'text-green-300' : 'text-red-300'} font-semibold`}>
-                            ${tx.valueUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                          </div>
-                          <div className="flex-[2] min-w-[80px] truncate">
-                            <a
-                              href={`https://scan.pulsechain.box/address/${tx.from}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-400 hover:text-blue-300 font-mono text-[10px]"
-                              title={`View address: ${tx.from}`}
-                            >
-                              {tx.from ? `${tx.from.slice(0, 6)}...${tx.from.slice(-4)}` : 'Unknown'}
-                            </a>
-                          </div>
-                          <div className="flex-[0.8] min-w-[40px] flex justify-center">
-                            <a
-                              href={`https://scan.pulsechain.box/tx/${tx.txHash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center justify-center p-1 hover:bg-gray-700 rounded transition-colors"
-                              title="View transaction on PulseScan"
-                            >
-                              <svg className="w-3 h-3 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                              </svg>
-                            </a>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="text-center text-gray-400">
-                          <div className="text-xl mb-1">📊</div>
-                          <div className="text-xs">No transactions available</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </>
               )}
 
               {/* Holders Tab */}
@@ -2192,113 +2258,172 @@ function GeickoPageContent() {
                       </div>
                     </div>
                   ) : holders.length > 0 ? (
-                    <>
-                      {/* Table Header */}
-                      <div className="flex items-center px-2 py-1 border-b border-gray-700 text-xs text-gray-300">
-                        <div className="flex-[0.8] min-w-[40px]">#</div>
-                        <div className="flex-[3] min-w-[120px]">Address</div>
-                        <div className="flex-[2] min-w-[80px]">Balance</div>
-                        <div className="flex-[1.5] min-w-[70px]">% Total</div>
-                      </div>
+            <div className="space-y-3">
+              {/* Holder Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="rounded-xl bg-gradient-to-br from-white/10 via-slate-900/40 to-white/10 border border-white/10 px-3 py-2 shadow-[0_15px_35px_-30px_rgba(0,0,0,0.7)] backdrop-blur">
+                  <div className="text-[11px] uppercase tracking-[0.15em] text-white/70">Total Holders</div>
+                  <div className="text-lg font-semibold text-white">{holderStats.totalHolders ? holderStats.totalHolders.toLocaleString() : '—'}</div>
+                </div>
+                <div className="rounded-xl bg-gradient-to-br from-sky-500/15 via-cyan-500/10 to-blue-500/15 border border-white/10 px-3 py-2 shadow-[0_15px_35px_-30px_rgba(56,189,248,0.7)] backdrop-blur">
+                  <div className="text-[11px] uppercase tracking-[0.15em] text-white/70">LP Addresses</div>
+                  <div className="text-lg font-semibold text-cyan-200">{holderStats.lpCount}</div>
+                </div>
+                <div className="rounded-xl bg-gradient-to-br from-purple-500/15 via-indigo-500/10 to-purple-500/20 border border-white/10 px-3 py-2 shadow-[0_15px_35px_-30px_rgba(129,140,248,0.7)] backdrop-blur">
+                  <div className="text-[11px] uppercase tracking-[0.15em] text-white/70">Contracts</div>
+                  <div className="text-lg font-semibold text-purple-200">{holderStats.contractCount}</div>
+                </div>
+                <div className="rounded-xl bg-gradient-to-br from-amber-500/15 via-orange-500/10 to-rose-500/15 border border-white/10 px-3 py-2 shadow-[0_15px_35px_-30px_rgba(251,191,36,0.55)] backdrop-blur">
+                  <div className="text-[11px] uppercase tracking-[0.15em] text-white/70">Burn / Top</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-amber-100">
+                    <span>{holderStats.burnCount} burn</span>
+                    <span className="text-white/60 text-[11px]">•</span>
+                    <span className="text-emerald-200">{holderStats.topPct.toFixed(2)}% top</span>
+                  </div>
+                </div>
+              </div>
 
-                      {/* Table Rows */}
-                      <div className="divide-y divide-gray-700">
-                        {(() => {
-                          const decimals = tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18;
-                          const totalSupply = tokenInfo?.total_supply ? Number(tokenInfo.total_supply) : 0;
+              <div className="rounded-2xl bg-gradient-to-br from-white/10 via-slate-900/40 to-white/10 border border-white/10 shadow-[0_18px_40px_-30px_rgba(0,0,0,0.7)] overflow-hidden backdrop-blur-xl">
+                {/* Table Header */}
+                <div className="flex items-center px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-white/60 border-b border-white/10">
+                  <div className="flex-[0.8] min-w-[40px]">#</div>
+                  <div className="flex-[3] min-w-[120px]">Address & Tags</div>
+                  <div className="flex-[2] min-w-[80px]">Balance</div>
+                  <div className="flex-[1.5] min-w-[70px]">% Total</div>
+                </div>
 
-                          const startIndex = (holdersPage - 1) * holdersPerPage;
-                          const endIndex = startIndex + holdersPerPage;
-                          const currentPageHolders = holders.slice(startIndex, endIndex);
+                {/* Table Rows */}
+                <div className="divide-y divide-white/5">
+                  {(() => {
+                    const decimals = tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18;
+                    const totalSupply = tokenInfo?.total_supply ? Number(tokenInfo.total_supply) : 0;
 
-                          return currentPageHolders.map((holder, i) => {
-                            const globalIndex = startIndex + i + 1;
-                            const balance = Number(holder.value) / Math.pow(10, decimals);
-                            const percentage = totalSupply > 0 ? (Number(holder.value) / totalSupply) * 100 : 0;
-                            const formattedAddress = holder.address ? `${holder.address.slice(0, 10)}...${holder.address.slice(-6)}` : 'Unknown';
+                    const startIndex = (holdersPage - 1) * holdersPerPage;
+                    const endIndex = startIndex + holdersPerPage;
+                    const currentPageHolders = holders.slice(startIndex, endIndex);
 
-                            return (
-                              <div key={holder.address || i} className="flex items-center px-2 py-1 text-xs hover:bg-gray-800/50 transition-colors">
-                                <div className="flex-[0.8] min-w-[40px] text-white">{globalIndex}</div>
-                                <div className="flex-[3] min-w-[120px] flex items-center gap-1 truncate">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenHolderTransfers(holder.address)}
-                                    className="text-blue-400 hover:underline cursor-pointer font-mono truncate text-left"
-                                  >
-                                    {formattedAddress}
-                                  </button>
-                                  {holder.isContract && (
-                                    <span className="px-1 py-0.5 text-xs bg-purple-900/30 text-purple-300 rounded border border-purple-700/30 whitespace-nowrap">
-                                      {holder.isVerified ? '✓ Contract' : 'Contract'}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex-[2] min-w-[80px] text-white truncate">{balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-                                <div className="flex-[1.5] min-w-[70px] text-green-400">{percentage.toFixed(4)}%</div>
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
+                    return currentPageHolders.map((holder, i) => {
+                      const globalIndex = startIndex + i + 1;
+                      const balance = Number(holder.value) / Math.pow(10, decimals);
+                      const percentage = totalSupply > 0 ? (Number(holder.value) / totalSupply) * 100 : 0;
+                      const formattedAddress = holder.address ? `${holder.address.slice(0, 10)}...${holder.address.slice(-6)}` : 'Unknown';
+                      const isLpHolder = lpAddressSet.has((holder.address || '').toLowerCase());
+                      const isBurn = isBurnAddress(holder.address);
 
-                      {/* Pagination Controls */}
-                      {holders.length > holdersPerPage && (
-                        <div className="flex items-center justify-between px-2 py-2 border-t border-gray-700">
-                          <div className="text-xs text-gray-400">
-                            Showing {((holdersPage - 1) * holdersPerPage) + 1}-{Math.min(holdersPage * holdersPerPage, holders.length)} of {holders.length}
-                          </div>
-                          <div className="flex items-center gap-1">
+                      return (
+                        <div
+                          key={holder.address || i}
+                          className="flex items-center px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+                        >
+                          <div className="flex-[0.8] min-w-[40px] text-white">{globalIndex}</div>
+                          <div className="flex-[3] min-w-[120px] flex items-center gap-2 truncate">
                             <button
-                              onClick={() => setHoldersPage(prev => Math.max(1, prev - 1))}
-                              disabled={holdersPage === 1}
-                              className="px-2 py-0.5 text-xs bg-gray-800 hover:bg-gray-700 disabled:bg-gray-900 disabled:text-gray-500 disabled:cursor-not-allowed text-white rounded border border-gray-700 transition-colors"
+                              type="button"
+                              onClick={() => handleOpenHolderTransfers(holder.address)}
+                              className="text-cyan-300 hover:text-cyan-200 underline cursor-pointer font-mono truncate text-left"
                             >
-                              Prev
+                              {formattedAddress}
                             </button>
-
-                            {/* Page numbers */}
-                            {(() => {
-                              const totalPages = Math.ceil(holders.length / holdersPerPage);
-                              return Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                let pageNum;
-                                if (totalPages <= 5) {
-                                  pageNum = i + 1;
-                                } else if (holdersPage <= 3) {
-                                  pageNum = i + 1;
-                                } else if (holdersPage >= totalPages - 2) {
-                                  pageNum = totalPages - 4 + i;
-                                } else {
-                                  pageNum = holdersPage - 2 + i;
-                                }
-
-                                return (
-                                  <button
-                                    key={pageNum}
-                                    onClick={() => setHoldersPage(pageNum)}
-                                    className={`px-2 py-0.5 text-xs rounded border transition-colors ${
-                                      holdersPage === pageNum
-                                        ? 'bg-gray-700 text-white border-gray-500'
-                                        : 'bg-gray-800 hover:bg-gray-700 text-white border-gray-700'
-                                    }`}
-                                  >
-                                    {pageNum}
-                                  </button>
-                                );
-                              });
-                            })()}
-
-                            <button
-                              onClick={() => setHoldersPage(prev => Math.min(Math.ceil(holders.length / holdersPerPage), prev + 1))}
-                              disabled={holdersPage === Math.ceil(holders.length / holdersPerPage)}
-                              className="px-2 py-0.5 text-xs bg-gray-800 hover:bg-gray-700 disabled:bg-gray-900 disabled:text-gray-500 disabled:cursor-not-allowed text-white rounded border border-gray-700 transition-colors"
-                            >
-                              Next
-                            </button>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {isLpHolder && (
+                                <span className="px-2 py-0.5 text-[10px] bg-cyan-500/15 text-cyan-200 rounded-full border border-cyan-400/30">
+                                  LP
+                                </span>
+                              )}
+                              {holder.isContract && (
+                                <span className="px-2 py-0.5 text-[10px] bg-purple-500/15 text-purple-200 rounded-full border border-purple-400/30">
+                                  {holder.isVerified ? 'Verified Contract' : 'Contract'}
+                                </span>
+                              )}
+                              {isBurn && (
+                                <span className="px-2 py-0.5 text-[10px] bg-amber-500/15 text-amber-200 rounded-full border border-amber-400/30">
+                                  Burn
+                                </span>
+                              )}
+                            </div>
+                            {holder.address && (
+                              <a
+                                href={`https://scan.pulsechain.com/address/${holder.address}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-auto text-white/60 hover:text-white"
+                                aria-label="View address on PulseScan"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 3h7v7m0-7L10 14m4 7H3V10" />
+                                </svg>
+                              </a>
+                            )}
                           </div>
+                          <div className="flex-[2] min-w-[80px] text-white truncate font-semibold">
+                            {balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          </div>
+                          <div className="flex-[1.5] min-w-[70px] text-emerald-300 font-semibold">{percentage.toFixed(4)}%</div>
                         </div>
-                      )}
-                    </>
+                      );
+                    });
+                  })()}
+                </div>
+
+                {/* Pagination Controls */}
+                {holders.length > holdersPerPage && (
+                  <div className="flex items-center justify-between px-3 py-2 border-t border-white/10 bg-white/5">
+                    <div className="text-[11px] text-white/70">
+                      Showing {((holdersPage - 1) * holdersPerPage) + 1}-{Math.min(holdersPage * holdersPerPage, holders.length)} of {holders.length}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setHoldersPage(prev => Math.max(1, prev - 1))}
+                        disabled={holdersPage === 1}
+                        className="px-2 py-1 text-[11px] bg-white/10 hover:bg-white/15 disabled:bg-white/5 disabled:text-white/40 disabled:cursor-not-allowed text-white rounded border border-white/15 transition-colors"
+                      >
+                        Prev
+                      </button>
+
+                      {/* Page numbers */}
+                      {(() => {
+                        const totalPages = Math.ceil(holders.length / holdersPerPage);
+                        return Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (holdersPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (holdersPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = holdersPage - 2 + i;
+                          }
+
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setHoldersPage(pageNum)}
+                              className={`px-2 py-1 text-[11px] rounded border transition-colors ${
+                                holdersPage === pageNum
+                                  ? 'bg-cyan-500/30 text-white border-cyan-400/50'
+                                  : 'bg-white/10 hover:bg-white/15 text-white border-white/15'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        });
+                      })()}
+
+                      <button
+                        onClick={() => setHoldersPage(prev => Math.min(Math.ceil(holders.length / holdersPerPage), prev + 1))}
+                        disabled={holdersPage === Math.ceil(holders.length / holdersPerPage)}
+                        className="px-2 py-1 text-[11px] bg-white/10 hover:bg-white/15 disabled:bg-white/5 disabled:text-white/40 disabled:cursor-not-allowed text-white rounded border border-white/15 transition-colors"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
                   ) : (
                     <div className="flex items-center justify-center py-8">
                       <div className="text-center text-gray-400">
@@ -2545,6 +2670,25 @@ function GeickoPageContent() {
                   <div className="px-4 pt-2 pb-3 border-b border-gray-800/70">
                     <div className="mt-0 flex items-end justify-between gap-4">
                       <div>
+                        {apiTokenAddress && (
+                          <div className="flex items-center gap-1 text-[11px] leading-tight">
+                            <button
+                              onClick={() => handleCopyAddress(apiTokenAddress)}
+                              className="text-blue-400 hover:text-blue-300 font-mono"
+                              title="Copy contract address"
+                            >
+                              {apiTokenAddress.slice(0, 10)}...{apiTokenAddress.slice(-6)}
+                            </button>
+                            <button
+                              onClick={() => handleCopyAddress(apiTokenAddress)}
+                              className="flex items-center justify-center w-6 h-6 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                              aria-label="Copy contract address"
+                              title="Copy contract address"
+                            >
+                              <Copy className="w-3.5 h-3.5 text-blue-400" />
+                            </button>
+                          </div>
+                        )}
                         <div className="text-2xl font-bold text-white tracking-tight">
                           {baseSymbol} <span className="text-gray-500">/</span> {quoteSymbol}
                         </div>
@@ -2561,7 +2705,19 @@ function GeickoPageContent() {
                           {Math.abs(priceChange).toFixed(2)}%
                         </div>
                         <div className="text-[11px] text-gray-400 mt-1">
-                          {formattedMarketCap}
+                          {ownershipData.creatorAddress ? (
+                            <a
+                              href={`https://scan.pulsechain.box/address/${ownershipData.creatorAddress}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 font-mono"
+                              title={ownershipData.creatorAddress}
+                            >
+                              {ownershipData.creatorAddress.slice(0, 6)}...{ownershipData.creatorAddress.slice(-4)}
+                            </a>
+                          ) : (
+                            'Creator N/A'
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2588,7 +2744,7 @@ function GeickoPageContent() {
                         <img
                           src={tokenLogoSrc}
                           alt={`${tokenNameDisplay} logo`}
-                          className="w-10 h-10 rounded-full border border-white/20 bg-black/30 object-cover"
+                          className="w-10 h-10 rounded-full border border-white/20 bg-slate-900/90/30 object-cover"
                           data-fallback="false"
                           onError={(e) => {
                             if (e.currentTarget.dataset.fallback === 'true') {
@@ -2608,16 +2764,6 @@ function GeickoPageContent() {
                         {heroTagline}
                       </div>
                     </div>
-                    {apiTokenAddress && (
-                      <button
-                        onClick={() => handleCopyAddress(apiTokenAddress)}
-                        className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 text-xs text-white/80 hover:text-white transition-colors bg-black/30 backdrop-blur-sm px-2 py-1 rounded-lg"
-                        title="Copy contract address"
-                      >
-                        <span className="font-mono">{apiTokenAddress.slice(0, 6)}...{apiTokenAddress.slice(-4)}</span>
-                        <Copy className="w-3.5 h-3.5 text-blue-400" />
-                      </button>
-                    )}
                   </div>
                   {hasSocialLinks && (
                     <div className="flex divide-x divide-gray-800 bg-gray-900/70">
@@ -2770,36 +2916,6 @@ function GeickoPageContent() {
                       )}
                     </div>
 
-                    {/* Creator Address */}
-                    {ownershipData.creatorAddress && (
-                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Creator</div>
-                        <div className="text-center">
-                          {ownershipData.creatorAddress.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? (
-                            <a
-                              href={`https://pump.tires/token/${apiTokenAddress}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-400 hover:text-blue-300 font-semibold"
-                              title="View on Pump.Tires"
-                            >
-                              Pump.Tires
-                            </a>
-                          ) : (
-                            <a
-                              href={`https://scan.pulsechain.box/address/${ownershipData.creatorAddress}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-400 hover:text-blue-300 font-mono"
-                              title={ownershipData.creatorAddress}
-                            >
-                              {ownershipData.creatorAddress.slice(0, 6)}...{ownershipData.creatorAddress.slice(-4)}
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
                     {/* Liquidity */}
                     <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
                       <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
@@ -2838,7 +2954,7 @@ function GeickoPageContent() {
                         </div>
                       )}
                       {totalLiquidity.pairCount > 0 && (
-                        <div className="absolute top-2 right-3 text-xs text-gray-400 font-medium">
+                        <div className="absolute bottom-2 right-3 text-xs text-gray-400 font-medium">
                           {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
                         </div>
                       )}
@@ -2881,7 +2997,7 @@ function GeickoPageContent() {
                           setTokenAmount(value);
                         }}
                         placeholder="1"
-                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 pr-16 text-white text-sm font-semibold focus:outline-none focus:border-orange-500 transition-colors backdrop-blur"
+                        className="w-full bg-slate-900/90/40 border border-white/10 rounded px-3 py-2 pr-16 text-white text-sm font-semibold focus:outline-none focus:border-orange-500 transition-colors backdrop-blur"
                       />
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium pointer-events-none">
                         {dexScreenerData.pairs[0].baseToken?.symbol || 'TOKEN'}
@@ -2894,7 +3010,7 @@ function GeickoPageContent() {
                     </div>
                   </div>
 
-                  <div className="bg-black/40 border border-white/10 rounded px-3 py-2 mb-2 backdrop-blur">
+                  <div className="bg-slate-900/90/40 border border-white/10 rounded px-3 py-2 mb-2 backdrop-blur">
                     <div className="text-lg font-bold text-white flex items-center justify-between">
                       {(() => {
                         const amount = Number(tokenAmount) || 0;
@@ -2983,7 +3099,7 @@ function GeickoPageContent() {
       {/* Holder Transfers Modal */}
       {isHolderTransfersOpen && holderTransfersAddress && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90/80 backdrop-blur-sm p-4"
           onClick={handleCloseHolderTransfers}
         >
           <div
@@ -3070,7 +3186,7 @@ function GeickoPageContent() {
 
                         {isExpanded && (
                           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-200">
-                            <div className="bg-black/30 border border-gray-700 rounded-lg p-2">
+                            <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
                               <p className="text-gray-400">From</p>
                               <a
                                 href={`https://scan.pulsechain.box/address/${tx.from}`}
@@ -3081,7 +3197,7 @@ function GeickoPageContent() {
                                 {tx.from || '—'}
                               </a>
                             </div>
-                            <div className="bg-black/30 border border-gray-700 rounded-lg p-2">
+                            <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
                               <p className="text-gray-400">To</p>
                               <a
                                 href={`https://scan.pulsechain.box/address/${tx.to}`}
@@ -3092,7 +3208,7 @@ function GeickoPageContent() {
                                 {tx.to || '—'}
                               </a>
                             </div>
-                            <div className="bg-black/30 border border-gray-700 rounded-lg p-2">
+                            <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
                               <p className="text-gray-400">Transaction</p>
                               <a
                                 href={`https://scan.pulsechain.box/tx/${tx.txHash}`}
@@ -3103,7 +3219,7 @@ function GeickoPageContent() {
                                 {tx.txHash}
                               </a>
                             </div>
-                            <div className="bg-black/30 border border-gray-700 rounded-lg p-2">
+                            <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
                               <p className="text-gray-400">Direction</p>
                               <p className="text-white font-semibold">{tx.direction}</p>
                             </div>
@@ -3121,7 +3237,7 @@ function GeickoPageContent() {
 
       {/* Stats Modal */}
       {isStatsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setIsStatsModalOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90/80 backdrop-blur-sm p-4" onClick={() => setIsStatsModalOpen(false)}>
           <div className="relative w-full max-w-6xl max-h-[90vh] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
             <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-gradient-to-r from-gray-800/95 via-gray-800/90 to-gray-800/95 backdrop-blur-sm border-b border-gray-700">

@@ -399,6 +399,103 @@ export class DexScreenerApiClient {
     // Alternative minimal chart URL that removes most UI elements
     return `https://dexscreener.com/pulsechain/${pairAddress}?theme=${theme}&trades=false&info=false&header=false&footer=false`;
   }
+
+  // Get recent transactions/trades for a token from DexScreener v4 API
+  async getTokenTransactions(tokenAddress: string, chainId: string = 'pulsechain'): Promise<ApiResponse<any>> {
+    validateAddress(tokenAddress);
+
+    try {
+      const data = await withRetry(async () => {
+        // First get the pair address for this token
+        const searchResponse = await fetch(`${this.baseUrl}search/?q=${tokenAddress}`);
+        if (!searchResponse.ok) {
+          throw new Error('Failed to find token pairs');
+        }
+
+        const searchData = await searchResponse.json();
+        const pairs = searchData.pairs || [];
+        
+        if (pairs.length === 0) {
+          throw new Error('No pairs found for token');
+        }
+
+        // Get the main pair (highest liquidity)
+        const mainPair = pairs.sort((a: any, b: any) => 
+          (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0)
+        )[0];
+
+        console.log('Fetching transactions for pair:', mainPair.pairAddress);
+
+        // Fetch detailed pair data from v4 endpoint which includes transactions
+        const pairDetailsUrl = `/api/dexscreener-v4/${chainId}/${mainPair.pairAddress}`;
+        const pairResponse = await fetch(pairDetailsUrl, {
+          cache: 'no-store'
+        });
+
+        if (!pairResponse.ok) {
+          throw new Error(`Failed to fetch pair details: ${pairResponse.statusText}`);
+        }
+
+        const pairDetails = await pairResponse.json();
+        
+        // Extract transaction data from the response
+        // DexScreener v4 API includes recent trades/transactions
+        const transactions = pairDetails.trades || pairDetails.transactions || [];
+        
+        return {
+          pairAddress: mainPair.pairAddress,
+          chainId: chainId,
+          baseToken: mainPair.baseToken,
+          quoteToken: mainPair.quoteToken,
+          transactions: transactions,
+          priceUsd: mainPair.priceUsd,
+          priceNative: mainPair.priceNative,
+        };
+      }, SERVICE_CONFIG.dexscreener.retries, 1000, 'dexscreener');
+
+      return { data, success: true };
+    } catch (error) {
+      return { 
+        error: `DexScreener transactions error: ${(error as Error).message}`, 
+        success: false 
+      };
+    }
+  }
+
+  // Get transactions for a specific pair
+  async getPairTransactions(pairAddress: string, chainId: string = 'pulsechain'): Promise<ApiResponse<any>> {
+    validateAddress(pairAddress);
+
+    try {
+      const data = await withRetry(async () => {
+        // Fetch from v4 endpoint via proxy
+        const pairDetailsUrl = `/api/dexscreener-v4/${chainId}/${pairAddress}`;
+        const response = await fetch(pairDetailsUrl, {
+          cache: 'no-store'
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch pair transactions: ${response.statusText}`);
+        }
+
+        const pairDetails = await response.json();
+        
+        return {
+          pairAddress: pairAddress,
+          chainId: chainId,
+          transactions: pairDetails.trades || pairDetails.transactions || [],
+          pair: pairDetails.pair || null,
+        };
+      }, SERVICE_CONFIG.dexscreener.retries, 1000, 'dexscreener');
+
+      return { data, success: true };
+    } catch (error) {
+      return { 
+        error: `DexScreener pair transactions error: ${(error as Error).message}`, 
+        success: false 
+      };
+    }
+  }
 }
 
 // Export singleton instance

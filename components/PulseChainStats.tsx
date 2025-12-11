@@ -63,7 +63,12 @@ const ensureFetchLogger = (): void => {
 
   window.fetch = async (...args: Parameters<typeof fetch>) => {
     const [input, init] = args;
-    const url = typeof input === 'string' ? input : input.url;
+    const url =
+      typeof input === 'string'
+        ? input
+        : input instanceof Request
+          ? input.url
+          : String(input);
     const method =
       init?.method ||
       (typeof Request !== 'undefined' && input instanceof Request && input.method) ||
@@ -231,7 +236,7 @@ export type PulseChainStatsProps = {
   compact?: boolean;
 };
 
-export default function PulseChainStats({ compact = false }: PulseChainStatsProps): JSX.Element {
+export default function PulseChainStats({ compact = false }: PulseChainStatsProps): React.ReactElement {
   const { logs, clearLogs } = useFetchLogger();
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
   const [selectedStat, setSelectedStat] = useState<string>('');

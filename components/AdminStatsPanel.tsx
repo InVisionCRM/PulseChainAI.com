@@ -5,7 +5,6 @@ import { pulsechainApi } from '@/services';
 import { fetchDexScreenerData, search } from '@/services/pulsechainService';
 import { Button } from '@/components/ui/stateful-button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
-import { ProgressiveBlur } from '@/components/ui/progressive-blur';
 
 const MAX_SNIPPET_CHARS = 400;
 
@@ -2383,6 +2382,13 @@ export default function AdminStatsPanel({
     }
   }, [selectedStat, runOneStat]);
 
+  // Auto-fetch stat when selected
+  useEffect(() => {
+    if (selectedStat) {
+      runOneStat(selectedStat);
+    }
+  }, [selectedStat, runOneStat]);
+
   const statLabelText = tokenSymbol ? `Get Any Stat on ${tokenSymbol}` : 'Select Stat';
   const actionText = variant === 'hero' ? 'Get Stat' : 'Test';
 
@@ -2449,9 +2455,18 @@ export default function AdminStatsPanel({
 
   return (
     <div className={`${compact ? 'text-xs' : 'text-sm'} space-y-3`}>
-      {/* Header with Title and Get Morbius Button */}
+      {/* Header with Title and Action Buttons */}
       <div className="flex items-center justify-between">
         <h2 className="text-white text-lg font-semibold">Advanced Stats</h2>
+        <div className="flex items-center gap-2">
+          <a
+            href="/stat-docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2.5 py-1 text-xs bg-blue-700/40 backdrop-blur hover:bg-blue-700/50 text-white rounded transition-colors"
+          >
+            📖 API Docs
+          </a>
         <a
           href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
           target="_blank"
@@ -2460,6 +2475,7 @@ export default function AdminStatsPanel({
         >
           Get Morbius
         </a>
+        </div>
       </div>
 
       {/* Token Address Search */}
@@ -2471,7 +2487,7 @@ export default function AdminStatsPanel({
               id="token"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className={`w-full bg-black/60 backdrop-blur border border-gray-700 rounded px-2 text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+              className={`w-full bg-slate-900/60 backdrop-blur border border-gray-700 rounded px-2 text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
               placeholder="Search by address..."
             />
             <button
@@ -2481,9 +2497,9 @@ export default function AdminStatsPanel({
             >
               Load
             </button>
-            {isSearching && <div className="absolute top-full mt-1 w-full bg-black/50 backdrop-blur border border-gray-700 rounded p-2 text-white">Searching...</div>}
+            {isSearching && <div className="absolute top-full mt-1 w-full bg-slate-900/50 backdrop-blur border border-gray-700 rounded p-2 text-white">Searching...</div>}
             {searchResults.length > 0 && (
-              <div className="absolute top-full mt-1 w-full bg-black/50 backdrop-blur border border-gray-700 rounded z-10">
+              <div className="absolute top-full mt-1 w-full bg-slate-900/50 backdrop-blur border border-gray-700 rounded z-10">
                 {searchResults.map((item: any) => (
                   <div
                     key={item.address}
@@ -2507,7 +2523,7 @@ export default function AdminStatsPanel({
           <div className="hidden md:flex flex-col gap-4" aria-label="Stat selector">
             <div className="w-full space-y-3 overflow-hidden">
               <div className="relative">
-                <div className="flex w-full items-center gap-2 rounded-lg border border-white/15 bg-black/80 backdrop-blur p-1 text-white overflow-x-auto scrollbar-hide">
+                <div className="flex w-full items-center gap-2 rounded-lg border border-white/15 bg-slate-900/80 backdrop-blur p-1 text-white overflow-x-auto scrollbar-hide">
                   {statCategories.map(category => (
                     <button
                       key={category.title}
@@ -2527,7 +2543,7 @@ export default function AdminStatsPanel({
               </div>
 
               <div className="focus-visible:outline-none focus-visible:ring-0">
-                <div className="rounded-lg border border-gray-700/70 bg-black/80 backdrop-blur">
+                <div className="rounded-lg border border-gray-700/70 bg-slate-900/80 backdrop-blur">
                   {statCategories
                     .find(category => category.title === resolvedCategoryTitle)
                     ?.stats.length ? (
@@ -2544,7 +2560,7 @@ export default function AdminStatsPanel({
                                 className={`text-left rounded-xl border px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-700 focus-visible:ring-offset-2 focus-visible:ring-offset-black/50 ${
                                   isActive
                                     ? 'border-purple-700 bg-purple-700 text-white shadow-[0_0_25px_rgba(126,34,206,0.4)]'
-                                    : 'border-gray-700/70 bg-black/70 backdrop-blur text-white hover:border-purple-700/40 hover:bg-gray-900/70'
+                                    : 'border-gray-700/70 bg-slate-900/70 backdrop-blur text-white hover:border-purple-700/40 hover:bg-gray-900/70'
                                 }`}
                                 aria-pressed={isActive}
                               >
@@ -2570,9 +2586,19 @@ export default function AdminStatsPanel({
             </div>
 
             {selectedStatMeta?.description && (
+              <div className="space-y-2">
               <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-white/70`}>
                 {selectedStatMeta.description}
               </p>
+                <a
+                  href={`/stat-docs/${selectedStat}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center gap-1 text-purple-400 hover:text-purple-300 transition-colors ${compact ? 'text-[10px]' : 'text-xs'}`}
+                >
+                  📖 View Full Documentation →
+                </a>
+              </div>
             )}
           </div>
         )}
@@ -2582,14 +2608,14 @@ export default function AdminStatsPanel({
           <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
             <DrawerTrigger asChild>
               <button
-                className={`w-full bg-black/60 backdrop-blur border border-gray-700 rounded-full px-4 text-left text-white ${
+                className={`w-full bg-slate-900/60 backdrop-blur border border-gray-700 rounded-full px-4 text-left text-white ${
                   compact ? 'py-2 text-xs' : 'py-3 text-sm'
                 }`}
               >
                 {selectedStat ? selectedStatMeta?.label ?? statLabelText : statLabelText}
               </button>
             </DrawerTrigger>
-            <DrawerContent className="bg-black/50 backdrop-blur border-gray-700">
+            <DrawerContent className="bg-slate-900/50 backdrop-blur border-gray-700">
               <DrawerHeader className="flex flex-row items-center justify-between">
                 <DrawerTitle className="text-white">Select Stat</DrawerTitle>
                 <Button
@@ -2607,10 +2633,10 @@ export default function AdminStatsPanel({
                 <div className="max-h-[60vh] overflow-y-auto px-4 pb-32">
                   {statCategories.map(category => (
                     <div key={category.title} className="mb-4">
-                      <div className="bg-black/50 backdrop-blur text-white font-semibold px-3 py-2 rounded-t">
+                      <div className="bg-slate-900/50 backdrop-blur text-white font-semibold px-3 py-2 rounded-t">
                         {category.title}
                       </div>
-                      <div className="bg-black/50 backdrop-blur rounded-b">
+                      <div className="bg-slate-900/50 backdrop-blur rounded-b">
                         {category.stats.map(stat => (
                           <button
                             key={stat.id}
@@ -2632,7 +2658,6 @@ export default function AdminStatsPanel({
                     </div>
                   ))}
                 </div>
-                <ProgressiveBlur position="bottom" height="25%" className="pointer-events-none" />
               </div>
             </DrawerContent>
           </Drawer>
@@ -2660,7 +2685,7 @@ export default function AdminStatsPanel({
                   type="text"
                   value={customInputs[input.key] || ''}
                   onChange={(e) => setCustomInputs(prev => ({ ...prev, [input.key]: e.target.value }))}
-                  className={`w-full bg-black/60 backdrop-blur border border-gray-700 rounded px-2 text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+                  className={`w-full bg-slate-900/60 backdrop-blur border border-gray-700 rounded px-2 text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
                   placeholder={input.placeholder}
                 />
               </div>
@@ -2700,7 +2725,7 @@ export default function AdminStatsPanel({
                   <div className="text-white">Network Activity</div>
                   <div className="text-[10px] text-white/70 italic">Click 📋 to copy</div>
                 </div>
-                <div className="relative rounded-2xl border border-white/5 bg-black/50 backdrop-blur w-full overflow-hidden">
+                <div className="relative rounded-2xl border border-white/5 bg-slate-900/50 backdrop-blur w-full overflow-hidden">
                   <div
                     ref={networkListRef}
                     className="space-y-2 max-h-36 overflow-y-auto p-3 pr-4 text-[11px] w-full"
@@ -2722,7 +2747,7 @@ export default function AdminStatsPanel({
                       return (
                         <div
                           key={event.id}
-                          className="rounded-lg border border-white/10 bg-black/50 backdrop-blur p-2 text-white/80 space-y-1 break-words max-w-full group"
+                          className="rounded-lg border border-white/10 bg-slate-900/50 backdrop-blur p-2 text-white/80 space-y-1 break-words max-w-full group"
                         >
                           <div className="flex items-center justify-between text-[10px] uppercase tracking-widest">
                             <span>{event.method}</span>
@@ -2782,18 +2807,17 @@ export default function AdminStatsPanel({
                       );
                     })}
                   </div>
-                  <ProgressiveBlur position="both" height="15%" blurLevels={[0.5,1.5,2.5]} className="pointer-events-none" />
                 </div>
               </div>
             )}
 
-            {!busyStat && (
+            {!busyStat && currentRequest.response?.formattedValue && (
               <div>
-                <div className="text-gray-400 mb-1">Response</div>
-                <div className="text-white font-mono bg-gray-800/80 px-3 py-3 rounded max-h-64 overflow-y-auto w-full md:w-[85%]">
-                  <pre className="whitespace-pre-wrap text-xs">
-                    {JSON.stringify(currentRequest.response, null, 2)}
-                  </pre>
+                <div className="text-gray-400 mb-2">Result</div>
+                <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur px-6 py-8 rounded-xl border border-purple-500/20 shadow-lg">
+                  <div className="text-4xl md:text-5xl font-bold text-center bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+                    {currentRequest.response.formattedValue}
+                  </div>
                 </div>
               </div>
             )}

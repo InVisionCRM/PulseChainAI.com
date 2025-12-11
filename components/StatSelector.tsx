@@ -205,13 +205,13 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
       {/* Token Address Display */}
       <div className="bg-slate-950/20 border border-blue-500/30 rounded-lg p-4">
         <h4 className="text-lg font-semibold text-blue-300 mb-2">Current Token Address</h4>
-        <div className="bg-gray-800 rounded p-3 font-mono text-sm">
+        <div className="bg-gray-600 rounded p-3 font-mono text-sm">
           {localStorage.getItem('selectedTokenAddress') || 'No token selected'}
         </div>
       </div>
 
       {/* Stats Selection */}
-      <div className="bg-gray-800/70 rounded-xl p-6 border border-white/10 backdrop-blur">
+      <div className="bg-slate-600/90 rounded-xl p-6 border border-white/10 backdrop-blur">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h3 className="text-xl font-semibold text-white">Select Statistics</h3>
