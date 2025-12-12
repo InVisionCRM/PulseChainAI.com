@@ -658,7 +658,7 @@ function GeickoPageContent() {
           ]);
           setShowSearchResults(true);
         } finally {
-          setIsSearching(false);
+      setIsSearching(false);
         }
       })();
       return;
@@ -1148,7 +1148,6 @@ function GeickoPageContent() {
   useEffect(() => {
     if (addressFromQuery && /^0x[a-fA-F0-9]{40}$/.test(addressFromQuery)) {
       setApiTokenAddress(addressFromQuery);
-      setSearchInput(addressFromQuery);
     }
   }, [addressFromQuery]);
 
@@ -1643,7 +1642,7 @@ function GeickoPageContent() {
           </div>
         </div>
       )}
-    </>
+      </>
     );
   }
 
@@ -2056,15 +2055,15 @@ function GeickoPageContent() {
                     </div>
 
                     {/* Market Cap */}
-                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
                       <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Market Cap</div>
                       <div className="text-center text-base text-white font-semibold">
                         {(() => {
                           const marketCap = Number(dexScreenerData.pairs[0].marketCap || 0);
                           return marketCap > 0 ? formatAbbrev(marketCap) : '—';
                         })()}
+                        </div>
                       </div>
-                    </div>
 
                     {/* Liquidity */}
                     <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
@@ -2103,7 +2102,7 @@ function GeickoPageContent() {
                           {totalLiquidity.usd > 0 ? `$${formatAbbrev(totalLiquidity.usd)}` : '—'}
                         </div>
                       )}
-                    {totalLiquidity.pairCount > 0 && (
+                      {totalLiquidity.pairCount > 0 && (
                         <div className="absolute bottom-2 right-3 text-xs text-gray-400 font-medium">
                           {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
                         </div>
@@ -2209,8 +2208,8 @@ function GeickoPageContent() {
             )}
           </div>
 
-        {/* Content Tables */}
-        <div className="px-2 md:px-3 py-1 min-w-0">
+          {/* Content Tables */}
+          <div className="px-2 md:px-3 py-1 min-w-0">
           <div className="bg-gray-900 rounded border border-gray-800 w-full min-w-0 relative z-20 overflow-x-auto">
               {/* Chart Tab */}
               {activeTab === 'chart' && (
@@ -2251,12 +2250,12 @@ function GeickoPageContent() {
               {activeTab === 'holders' && (
                 <>
                   {isLoadingHolders ? (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="text-center">
-                        <LoaderThree />
+                      <div className="flex items-center justify-center py-8">
+                        <div className="text-center">
+                          <LoaderThree />
                         <p className="text-gray-400 text-xs mt-2">Loading holders...</p>
+                        </div>
                       </div>
-                    </div>
                   ) : holders.length > 0 ? (
             <div className="space-y-3">
               {/* Holder Stats */}
@@ -2264,73 +2263,73 @@ function GeickoPageContent() {
                 <div className="rounded-xl bg-gradient-to-br from-white/10 via-slate-900/40 to-white/10 border border-white/10 px-3 py-2 shadow-[0_15px_35px_-30px_rgba(0,0,0,0.7)] backdrop-blur">
                   <div className="text-[11px] uppercase tracking-[0.15em] text-white/70">Total Holders</div>
                   <div className="text-lg font-semibold text-white">{holderStats.totalHolders ? holderStats.totalHolders.toLocaleString() : '—'}</div>
-                </div>
+                          </div>
                 <div className="rounded-xl bg-gradient-to-br from-sky-500/15 via-cyan-500/10 to-blue-500/15 border border-white/10 px-3 py-2 shadow-[0_15px_35px_-30px_rgba(56,189,248,0.7)] backdrop-blur">
                   <div className="text-[11px] uppercase tracking-[0.15em] text-white/70">LP Addresses</div>
                   <div className="text-lg font-semibold text-cyan-200">{holderStats.lpCount}</div>
-                </div>
+                          </div>
                 <div className="rounded-xl bg-gradient-to-br from-purple-500/15 via-indigo-500/10 to-purple-500/20 border border-white/10 px-3 py-2 shadow-[0_15px_35px_-30px_rgba(129,140,248,0.7)] backdrop-blur">
                   <div className="text-[11px] uppercase tracking-[0.15em] text-white/70">Contracts</div>
                   <div className="text-lg font-semibold text-purple-200">{holderStats.contractCount}</div>
-                </div>
+                          </div>
                 <div className="rounded-xl bg-gradient-to-br from-amber-500/15 via-orange-500/10 to-rose-500/15 border border-white/10 px-3 py-2 shadow-[0_15px_35px_-30px_rgba(251,191,36,0.55)] backdrop-blur">
                   <div className="text-[11px] uppercase tracking-[0.15em] text-white/70">Burn / Top</div>
                   <div className="flex items-center gap-2 text-sm font-semibold text-amber-100">
                     <span>{holderStats.burnCount} burn</span>
                     <span className="text-white/60 text-[11px]">•</span>
                     <span className="text-emerald-200">{holderStats.topPct.toFixed(2)}% top</span>
-                  </div>
-                </div>
-              </div>
+                          </div>
+                          </div>
+                          </div>
 
               <div className="rounded-2xl bg-gradient-to-br from-white/10 via-slate-900/40 to-white/10 border border-white/10 shadow-[0_18px_40px_-30px_rgba(0,0,0,0.7)] overflow-hidden backdrop-blur-xl">
-                {/* Table Header */}
+                      {/* Table Header */}
                 <div className="flex items-center px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-white/60 border-b border-white/10">
-                  <div className="flex-[0.8] min-w-[40px]">#</div>
+                        <div className="flex-[0.8] min-w-[40px]">#</div>
                   <div className="flex-[3] min-w-[120px]">Address & Tags</div>
-                  <div className="flex-[2] min-w-[80px]">Balance</div>
-                  <div className="flex-[1.5] min-w-[70px]">% Total</div>
-                </div>
+                        <div className="flex-[2] min-w-[80px]">Balance</div>
+                        <div className="flex-[1.5] min-w-[70px]">% Total</div>
+                      </div>
 
-                {/* Table Rows */}
+                      {/* Table Rows */}
                 <div className="divide-y divide-white/5">
-                  {(() => {
-                    const decimals = tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18;
-                    const totalSupply = tokenInfo?.total_supply ? Number(tokenInfo.total_supply) : 0;
+                        {(() => {
+                          const decimals = tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18;
+                          const totalSupply = tokenInfo?.total_supply ? Number(tokenInfo.total_supply) : 0;
 
-                    const startIndex = (holdersPage - 1) * holdersPerPage;
-                    const endIndex = startIndex + holdersPerPage;
-                    const currentPageHolders = holders.slice(startIndex, endIndex);
+                          const startIndex = (holdersPage - 1) * holdersPerPage;
+                          const endIndex = startIndex + holdersPerPage;
+                          const currentPageHolders = holders.slice(startIndex, endIndex);
 
-                    return currentPageHolders.map((holder, i) => {
-                      const globalIndex = startIndex + i + 1;
-                      const balance = Number(holder.value) / Math.pow(10, decimals);
-                      const percentage = totalSupply > 0 ? (Number(holder.value) / totalSupply) * 100 : 0;
-                      const formattedAddress = holder.address ? `${holder.address.slice(0, 10)}...${holder.address.slice(-6)}` : 'Unknown';
+                          return currentPageHolders.map((holder, i) => {
+                            const globalIndex = startIndex + i + 1;
+                            const balance = Number(holder.value) / Math.pow(10, decimals);
+                            const percentage = totalSupply > 0 ? (Number(holder.value) / totalSupply) * 100 : 0;
+                            const formattedAddress = holder.address ? `${holder.address.slice(0, 10)}...${holder.address.slice(-6)}` : 'Unknown';
                       const isLpHolder = lpAddressSet.has((holder.address || '').toLowerCase());
                       const isBurn = isBurnAddress(holder.address);
 
-                      return (
+                            return (
                         <div
                           key={holder.address || i}
                           className="flex items-center px-3 py-2 text-xs hover:bg-white/5 transition-colors"
                         >
-                          <div className="flex-[0.8] min-w-[40px] text-white">{globalIndex}</div>
+                                <div className="flex-[0.8] min-w-[40px] text-white">{globalIndex}</div>
                           <div className="flex-[3] min-w-[120px] flex items-center gap-2 truncate">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenHolderTransfers(holder.address)}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenHolderTransfers(holder.address)}
                               className="text-cyan-300 hover:text-cyan-200 underline cursor-pointer font-mono truncate text-left"
-                            >
-                              {formattedAddress}
-                            </button>
+                                  >
+                                    {formattedAddress}
+                                  </button>
                             <div className="flex items-center gap-1 flex-wrap">
                               {isLpHolder && (
                                 <span className="px-2 py-0.5 text-[10px] bg-cyan-500/15 text-cyan-200 rounded-full border border-cyan-400/30">
                                   LP
                                 </span>
                               )}
-                              {holder.isContract && (
+                                  {holder.isContract && (
                                 <span className="px-2 py-0.5 text-[10px] bg-purple-500/15 text-purple-200 rounded-full border border-purple-400/30">
                                   {holder.isVerified ? 'Verified Contract' : 'Contract'}
                                 </span>
@@ -2338,9 +2337,9 @@ function GeickoPageContent() {
                               {isBurn && (
                                 <span className="px-2 py-0.5 text-[10px] bg-amber-500/15 text-amber-200 rounded-full border border-amber-400/30">
                                   Burn
-                                </span>
-                              )}
-                            </div>
+                                    </span>
+                                  )}
+                                </div>
                             {holder.address && (
                               <a
                                 href={`https://scan.pulsechain.com/address/${holder.address}`}
@@ -2360,68 +2359,68 @@ function GeickoPageContent() {
                             {balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                           </div>
                           <div className="flex-[1.5] min-w-[70px] text-emerald-300 font-semibold">{percentage.toFixed(4)}%</div>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
 
-                {/* Pagination Controls */}
-                {holders.length > holdersPerPage && (
+                      {/* Pagination Controls */}
+                      {holders.length > holdersPerPage && (
                   <div className="flex items-center justify-between px-3 py-2 border-t border-white/10 bg-white/5">
                     <div className="text-[11px] text-white/70">
-                      Showing {((holdersPage - 1) * holdersPerPage) + 1}-{Math.min(holdersPage * holdersPerPage, holders.length)} of {holders.length}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => setHoldersPage(prev => Math.max(1, prev - 1))}
-                        disabled={holdersPage === 1}
-                        className="px-2 py-1 text-[11px] bg-white/10 hover:bg-white/15 disabled:bg-white/5 disabled:text-white/40 disabled:cursor-not-allowed text-white rounded border border-white/15 transition-colors"
-                      >
-                        Prev
-                      </button>
-
-                      {/* Page numbers */}
-                      {(() => {
-                        const totalPages = Math.ceil(holders.length / holdersPerPage);
-                        return Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                          let pageNum;
-                          if (totalPages <= 5) {
-                            pageNum = i + 1;
-                          } else if (holdersPage <= 3) {
-                            pageNum = i + 1;
-                          } else if (holdersPage >= totalPages - 2) {
-                            pageNum = totalPages - 4 + i;
-                          } else {
-                            pageNum = holdersPage - 2 + i;
-                          }
-
-                          return (
+                            Showing {((holdersPage - 1) * holdersPerPage) + 1}-{Math.min(holdersPage * holdersPerPage, holders.length)} of {holders.length}
+                          </div>
+                          <div className="flex items-center gap-1">
                             <button
-                              key={pageNum}
-                              onClick={() => setHoldersPage(pageNum)}
+                              onClick={() => setHoldersPage(prev => Math.max(1, prev - 1))}
+                              disabled={holdersPage === 1}
+                        className="px-2 py-1 text-[11px] bg-white/10 hover:bg-white/15 disabled:bg-white/5 disabled:text-white/40 disabled:cursor-not-allowed text-white rounded border border-white/15 transition-colors"
+                            >
+                              Prev
+                            </button>
+
+                            {/* Page numbers */}
+                            {(() => {
+                              const totalPages = Math.ceil(holders.length / holdersPerPage);
+                              return Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                let pageNum;
+                                if (totalPages <= 5) {
+                                  pageNum = i + 1;
+                                } else if (holdersPage <= 3) {
+                                  pageNum = i + 1;
+                                } else if (holdersPage >= totalPages - 2) {
+                                  pageNum = totalPages - 4 + i;
+                                } else {
+                                  pageNum = holdersPage - 2 + i;
+                                }
+
+                                return (
+                                  <button
+                                    key={pageNum}
+                                    onClick={() => setHoldersPage(pageNum)}
                               className={`px-2 py-1 text-[11px] rounded border transition-colors ${
-                                holdersPage === pageNum
+                                      holdersPage === pageNum
                                   ? 'bg-cyan-500/30 text-white border-cyan-400/50'
                                   : 'bg-white/10 hover:bg-white/15 text-white border-white/15'
-                              }`}
-                            >
-                              {pageNum}
-                            </button>
-                          );
-                        });
-                      })()}
+                                    }`}
+                                  >
+                                    {pageNum}
+                                  </button>
+                                );
+                              });
+                            })()}
 
-                      <button
-                        onClick={() => setHoldersPage(prev => Math.min(Math.ceil(holders.length / holdersPerPage), prev + 1))}
-                        disabled={holdersPage === Math.ceil(holders.length / holdersPerPage)}
+                            <button
+                              onClick={() => setHoldersPage(prev => Math.min(Math.ceil(holders.length / holdersPerPage), prev + 1))}
+                              disabled={holdersPage === Math.ceil(holders.length / holdersPerPage)}
                         className="px-2 py-1 text-[11px] bg-white/10 hover:bg-white/15 disabled:bg-white/5 disabled:text-white/40 disabled:cursor-not-allowed text-white rounded border border-white/15 transition-colors"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                )}
+                            >
+                              Next
+                            </button>
+                          </div>
+                        </div>
+                      )}
               </div>
             </div>
                   ) : (
