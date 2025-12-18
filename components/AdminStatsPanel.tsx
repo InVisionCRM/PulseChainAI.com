@@ -208,6 +208,9 @@ interface AdminStatsPanelProps {
     }>;
     events?: NetworkEventLog[];
   } | null) => void;
+  onFetchStart?: (statId: string, statName: string) => void;
+  onFetchComplete?: (statId: string, result: any, duration: number) => void;
+  onFetchError?: (statId: string, error: string) => void;
 }
 
 export default function AdminStatsPanel({
@@ -216,6 +219,9 @@ export default function AdminStatsPanel({
   variant = 'default',
   tokenSymbol,
   onRequestChange,
+  onFetchStart,
+  onFetchComplete,
+  onFetchError,
 }: AdminStatsPanelProps): JSX.Element {
   const [tokenAddress, setTokenAddress] = useState<string>(initialAddress);
   const [searchInput, setSearchInput] = useState<string>(initialAddress);
@@ -253,6 +259,74 @@ export default function AdminStatsPanel({
   const [showAllEndpoints, setShowAllEndpoints] = useState<boolean>(false);
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
+
+  // Response formatter that handles different types of stat responses
+  const formatResponseForDisplay = (response: any): { displayValue: string; displayType: 'value' | 'table' | 'object' | 'array' } => {
+    // Handle null/undefined
+    if (response == null) {
+      return { displayValue: 'N/A', displayType: 'value' };
+    }
+
+    // Handle objects with 'formatted' property (most common)
+    if (typeof response === 'object' && 'formatted' in response) {
+      return { displayValue: response.formatted, displayType: 'value' };
+    }
+
+    // Handle arrays (like topHolders, allPools)
+    if (Array.isArray(response)) {
+      if (response.length === 0) {
+        return { displayValue: 'No data available', displayType: 'value' };
+      }
+
+      // For arrays of objects, we'll show as table format
+      if (typeof response[0] === 'object') {
+        return { displayValue: `${response.length} items`, displayType: 'array' };
+      }
+
+      // For arrays of primitives
+      return { displayValue: response.join(', '), displayType: 'array' };
+    }
+
+    // Handle primitive values
+    if (typeof response === 'string') {
+      // Check if it's an address
+      if (response.startsWith('0x') && response.length === 42) {
+        return { displayValue: `${response.slice(0, 6)}...${response.slice(-4)}`, displayType: 'value' };
+      }
+      return { displayValue: response, displayType: 'value' };
+    }
+
+    if (typeof response === 'number') {
+      return { displayValue: response.toLocaleString(), displayType: 'value' };
+    }
+
+    if (typeof response === 'boolean') {
+      return { displayValue: response ? 'Yes' : 'No', displayType: 'value' };
+    }
+
+    // Handle complex objects without 'formatted' property
+    if (typeof response === 'object') {
+      // Count meaningful properties
+      const meaningfulProps = Object.entries(response).filter(([key, value]) =>
+        value !== null && value !== undefined && value !== ''
+      );
+
+      if (meaningfulProps.length === 1) {
+        // Single property - show just the value
+        const [key, value] = meaningfulProps[0];
+        return formatResponseForDisplay(value);
+      } else if (meaningfulProps.length <= 3) {
+        // Few properties - show as formatted object
+        return { displayValue: '', displayType: 'object' };
+      } else {
+        // Many properties - show count
+        return { displayValue: `${meaningfulProps.length} properties`, displayType: 'object' };
+      }
+    }
+
+    // Fallback
+    return { displayValue: String(response), displayType: 'value' };
+  };
 
   useEffect(() => {
     if (networkEvents.length === 0) return;
@@ -2189,6 +2263,7 @@ export default function AdminStatsPanel({
 
     startNetworkSession();
     setBusyStat(id);
+    onFetchStart?.(id, item.label);
     const startTime = Date.now();
 
     let derivedApiCalls: Array<{ endpoint: string; method: string; description: string }> | undefined;
@@ -2347,6 +2422,8 @@ export default function AdminStatsPanel({
       });
 
       setStatResult(prev => ({ ...prev, [id]: value }));
+
+      onFetchComplete?.(id, value, duration);
     } catch (e) {
       const duration = Date.now() - startTime;
       const errorResponse = { error: (e as Error).message };
@@ -2362,6 +2439,8 @@ export default function AdminStatsPanel({
       });
 
       setStatResult(prev => ({ ...prev, [id]: errorResponse }));
+
+      onFetchError?.(id, (e as Error).message);
     } finally {
       setBusyStat(null);
       stopNetworkSession();
@@ -2605,7 +2684,7 @@ export default function AdminStatsPanel({
 
         {/* Mobile Drawer */}
         <div className="md:hidden">
-          <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+          <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} dismissible={false}>
             <DrawerTrigger asChild>
               <button
                 className={`w-full bg-slate-900/60 backdrop-blur border border-gray-700 rounded-full px-4 text-left text-white ${
@@ -2615,7 +2694,7 @@ export default function AdminStatsPanel({
                 {selectedStat ? selectedStatMeta?.label ?? statLabelText : statLabelText}
               </button>
             </DrawerTrigger>
-            <DrawerContent className="bg-slate-900/50 backdrop-blur border-gray-700">
+            <DrawerContent className="bg-slate-900/95 backdrop-blur border-gray-700 z-50" onClick={(e) => e.stopPropagation()}>
               <DrawerHeader className="flex flex-row items-center justify-between">
                 <DrawerTitle className="text-white">Select Stat</DrawerTitle>
                 <Button
@@ -2811,16 +2890,71 @@ export default function AdminStatsPanel({
               </div>
             )}
 
-            {!busyStat && currentRequest.response?.formattedValue && (
-              <div>
-                <div className="text-gray-400 mb-2">Result</div>
-                <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur px-6 py-8 rounded-xl border border-purple-500/20 shadow-lg">
-                  <div className="text-4xl md:text-5xl font-bold text-center bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-                    {currentRequest.response.formattedValue}
+            {!busyStat && currentRequest.response && (() => {
+              const formatted = formatResponseForDisplay(currentRequest.response);
+
+              if (formatted.displayType === 'value') {
+                return (
+                  <div>
+                    <div className="text-gray-400 mb-2">Result</div>
+                    <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur px-6 py-8 rounded-xl border border-purple-500/20 shadow-lg">
+                      <div className="text-4xl md:text-5xl font-bold text-center bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+                        {formatted.displayValue}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                );
+              }
+
+              if (formatted.displayType === 'array' && Array.isArray(currentRequest.response)) {
+                return (
+                  <div>
+                    <div className="text-gray-400 mb-2">Result ({currentRequest.response.length} items)</div>
+                    <div className="bg-slate-900/60 backdrop-blur rounded-xl border border-purple-500/20 shadow-lg max-h-96 overflow-y-auto">
+                      <div className="p-4 space-y-2">
+                        {currentRequest.response.slice(0, 10).map((item, index) => (
+                          <div key={index} className="bg-slate-800/50 rounded p-3 text-sm">
+                            {typeof item === 'object' ?
+                              <pre className="text-xs text-gray-300 whitespace-pre-wrap font-mono">
+                                {JSON.stringify(item, null, 2)}
+                              </pre> :
+                              <span className="text-white">{String(item)}</span>
+                            }
+                          </div>
+                        ))}
+                        {currentRequest.response.length > 10 && (
+                          <div className="text-center text-gray-500 text-sm py-2">
+                            ... and {currentRequest.response.length - 10} more items
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (formatted.displayType === 'object' && typeof currentRequest.response === 'object') {
+                return (
+                  <div>
+                    <div className="text-gray-400 mb-2">Result</div>
+                    <div className="bg-slate-900/60 backdrop-blur rounded-xl border border-purple-500/20 shadow-lg">
+                      <div className="p-4 space-y-3">
+                        {Object.entries(currentRequest.response).map(([key, value]) => (
+                          <div key={key} className="flex justify-between items-center">
+                            <span className="text-gray-400 capitalize text-sm">{key.replace(/([A-Z])/g, ' $1')}:</span>
+                            <span className="text-white font-semibold text-sm">
+                              {formatResponseForDisplay(value).displayValue}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              return null;
+            })()}
           </div>
         </div>
       )}

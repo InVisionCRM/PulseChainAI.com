@@ -164,7 +164,7 @@ const DataTable: React.FC<DataTableProps> = ({
   }
 
   return (
-    <div className="bg-slate-950/5 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
+    <div className="bg-slate-950/70 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
       <div className="overflow-auto max-h-[50vh] sm:max-h-[70vh]">
         <table className="min-w-full divide-y divide-white/10">
           <thead className="bg-slate-900 text-white">
@@ -187,7 +187,7 @@ const DataTable: React.FC<DataTableProps> = ({
               })}
             </tr>
           </thead>
-          <tbody className="bg-transparent divide-y divide-white/10">
+          <tbody className="bg-slate-950/70 divide-y divide-white/10">
             {paginatedData.map((row, index) => (
               <tr key={row._id || index} className="hover:bg-white/5">
                 {columns.map((column) => {

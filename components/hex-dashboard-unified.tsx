@@ -223,7 +223,7 @@ const UnifiedHEXDashboard = () => {
         {databaseStatus && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="flex items-center gap-3 mb-4">
-              <Database className="w-5 h-5 text-slate-950" />
+              <Database className="w-5 h-5 text-white" />
               <h2 className="text-xl font-semibold">Database Status</h2>
               {databaseStatus.tablesExist ? (
                 <CheckCircle className="w-5 h-5 text-green-500" />
@@ -332,7 +332,7 @@ const UnifiedHEXDashboard = () => {
                   {/* Total Active Stakes */}
                   <div className="bg-white rounded-lg shadow-md p-6">
                     <div className="flex items-center gap-3 mb-2">
-                      <Lock className="w-5 h-5 text-slate-950" />
+                      <Lock className="w-5 h-5 text-white" />
                       <h3 className="font-semibold text-gray-700">Active Stakes</h3>
                     </div>
                     <div className="text-2xl font-bold text-gray-900">
@@ -356,7 +356,7 @@ const UnifiedHEXDashboard = () => {
                   {/* Average Stake Length */}
                   <div className="bg-white rounded-lg shadow-md p-6">
                     <div className="flex items-center gap-3 mb-2">
-                      <Clock className="w-5 h-5 text-slate-950" />
+                      <Clock className="w-5 h-5 text-white" />
                       <h3 className="font-semibold text-gray-700">Avg Length</h3>
                     </div>
                     <div className="text-2xl font-bold text-gray-900">

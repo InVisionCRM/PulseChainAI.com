@@ -26,6 +26,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { ToastProvider } from "@/components/ui/toast-provider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -264,7 +265,9 @@ export default function RootLayout({
               </SidebarBody>
             </Sidebar>
             <main className="flex-1 w-full overflow-y-auto">
-              {children}
+              <ToastProvider>
+                {children}
+              </ToastProvider>
             </main>
           </div>
         </div>

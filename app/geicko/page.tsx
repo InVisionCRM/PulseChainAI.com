@@ -13,6 +13,7 @@ import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem } from 
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '../../services/pulsechainService';
 import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
+import { useToast } from '@/components/ui/toast-provider';
 
 const normalizeLabel = (value?: string | null) => {
   if (!value) return '';
@@ -123,6 +124,7 @@ const formatDateUTC = (value: string | number | Date) => {
 function GeickoPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { showToast, updateToast, dismissToast } = useToast();
   const addressFromQuery = searchParams.get('address');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('chart');
@@ -141,6 +143,18 @@ function GeickoPageContent() {
   const [activeSocialTab, setActiveSocialTab] = useState<string | null>(null);
   const [uiPreset, setUiPreset] = useState<'classic' | 'rabby1'>('classic');
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+
+  // Toast state for tracking active fetches
+  const [activeFetches, setActiveFetches] = useState<Map<string, {
+    statName: string;
+    startTime: Date;
+    progress: number;
+    completed?: boolean;
+    processed?: boolean;
+    result?: any;
+    duration?: number;
+    completedAt?: number;
+  }>>(new Map());
 
   // Ownership state
   const [ownershipData, setOwnershipData] = useState<{
@@ -561,6 +575,145 @@ function GeickoPageContent() {
     },
     [apiTokenAddress, tokenInfo?.decimals]
   );
+
+  // Toast callback functions for AdminStatsPanel
+  const handleFetchStart = useCallback((statId: string, statName: string) => {
+    const fetchId = `${statId}_${Date.now()}`;
+    setActiveFetches(prev => new Map(prev.set(fetchId, {
+      statName: statName || statId,
+      startTime: new Date(),
+      progress: 0
+    })));
+
+    // Close modal automatically when fetch starts
+    setIsStatsModalOpen(false);
+
+    // Show toast with initial progress
+    showToast({
+      id: fetchId,
+      title: `Fetching ${statName || statId}`,
+      message: 'Analyzing blockchain data...',
+      variant: 'loading',
+      progress: 0,
+      onClick: () => {
+        setIsStatsModalOpen(true);
+        dismissToast(fetchId);
+      }
+    });
+
+    // Update progress over time
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+      progress += Math.random() * 15 + 5; // Random progress between 5-20%
+      if (progress >= 90) {
+        progress = 90;
+        clearInterval(progressInterval); // Stop at 90%, let completion handler finish
+        return;
+      }
+
+      // Update active fetches state (only if not completed)
+      setActiveFetches(prev => {
+        const updated = new Map(prev);
+        const fetch = updated.get(fetchId);
+        if (fetch && !fetch.completed) {
+          updated.set(fetchId, { ...fetch, progress });
+        }
+        return updated;
+      });
+
+      // Update toast progress
+      updateToast(fetchId, {
+        progress: Math.round(progress)
+      });
+    }, 800);
+
+    // Safety cleanup after 10 seconds max (in case completion never happens)
+    setTimeout(() => {
+      clearInterval(progressInterval);
+      dismissToast(fetchId);
+    }, 10000);
+  }, [showToast, dismissToast]);
+
+  const handleFetchComplete = useCallback((statId: string, result: any, duration: number) => {
+    // Store the completion info for processing in useEffect to avoid setState during render
+    setActiveFetches(prev => {
+      const updated = new Map(prev);
+      for (const [fetchId, fetch] of updated) {
+        if (fetchId.startsWith(statId)) {
+          updated.set(fetchId, {
+            ...fetch,
+            completed: true,
+            result,
+            duration,
+            completedAt: Date.now()
+          });
+          break;
+        }
+      }
+      return updated;
+    });
+  }, []);
+
+  // Process completed fetches in useEffect to avoid setState during render
+  useEffect(() => {
+    activeFetches.forEach((fetch, fetchId) => {
+      if (fetch.completed && !fetch.processed) {
+        // Mark as processed to avoid duplicate processing
+        setActiveFetches(prev => {
+          const updated = new Map(prev);
+          const currentFetch = updated.get(fetchId);
+          if (currentFetch) {
+            updated.set(fetchId, { ...currentFetch, processed: true });
+          }
+          return updated;
+        });
+
+        // Dismiss loading toast and show success toast
+        dismissToast(fetchId);
+        showToast({
+          id: `${fetchId}_success`,
+          title: `Completed ${fetch.statName}`,
+          message: `Fetched in ${fetch.duration}ms`,
+          variant: 'success',
+          duration: 0, // Don't auto-dismiss - user manually closes
+          result: fetch.result, // Pass the full result data
+          onClick: () => setIsStatsModalOpen(true)
+        });
+
+        // Clean up after delay
+        setTimeout(() => {
+          setActiveFetches(prev => {
+            const updated = new Map(prev);
+            updated.delete(fetchId);
+            return updated;
+          });
+        }, 3000);
+      }
+    });
+  }, [activeFetches, showToast, dismissToast]);
+
+  const handleFetchError = useCallback((statId: string, error: string) => {
+    // Find and remove the active fetch
+    setActiveFetches(prev => {
+      const updated = new Map(prev);
+      for (const [fetchId, fetch] of updated) {
+        if (fetchId.startsWith(statId)) {
+          updated.delete(fetchId);
+          // Show error toast
+          showToast({
+            id: `${fetchId}_error`,
+            title: `Failed ${fetch.statName}`,
+            message: error,
+            variant: 'error',
+            duration: 5000,
+            onClick: () => setIsStatsModalOpen(true)
+          });
+          break;
+        }
+      }
+      return updated;
+    });
+  }, [showToast]);
 
   // Load data when token address changes
   useEffect(() => {
@@ -3255,7 +3408,13 @@ function GeickoPageContent() {
             {/* Modal Content */}
             <div className="overflow-y-auto max-h-[calc(90vh-70px)] p-4 bg-gray-900">
               <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-4">
-                <AdminStatsPanel key={apiTokenAddress} initialAddress={apiTokenAddress} compact />
+                <AdminStatsPanel
+                  initialAddress={apiTokenAddress}
+                  compact
+                  onFetchStart={handleFetchStart}
+                  onFetchComplete={handleFetchComplete}
+                  onFetchError={handleFetchError}
+                />
               </div>
             </div>
           </div>
