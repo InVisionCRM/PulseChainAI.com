@@ -14,6 +14,7 @@ import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '../
 import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
 import { useToast } from '@/components/ui/toast-provider';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const normalizeLabel = (value?: string | null) => {
   if (!value) return '';
@@ -1552,7 +1553,10 @@ function GeickoPageContent() {
     { id: 'holders', label: 'Holders' },
     { id: 'liquidity', label: 'Liquidity' },
     { id: 'contract', label: 'Code' },
+    { id: 'xcom', label: 'X.COM' },
+    { id: 'community', label: 'Community' },
     { id: 'switch', label: 'Switch' },
+    { id: 'website', label: 'Website' },
   ];
 
 
@@ -1574,6 +1578,12 @@ function GeickoPageContent() {
       icon: '{ }',
       description: 'Contract view',
       onClick: () => setActiveTab('contract'),
+    },
+    {
+      label: 'Website',
+      icon: '🌐',
+      description: 'Official site',
+      onClick: () => setActiveTab('website'),
     },
     {
       label: 'Bridge',
@@ -2096,20 +2106,43 @@ function GeickoPageContent() {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-400 font-medium">Circulating</span>
-                          <span className="text-sm text-white font-semibold">
-                            {totalSupply ? (() => {
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-sm text-white font-semibold">
+                                {totalSupply ? (() => {
+                                  const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
+                                  const burned = burnedTokens?.amount ?? 0;
+                                  const circulating = Math.max(0, supply - burned);
+                                  return formatAbbrev(circulating);
+                                })() : '—'}
+                              </span>
+                            </TooltipTrigger>
+                            {totalSupply && (() => {
                               const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
                               const burned = burnedTokens?.amount ?? 0;
                               const circulating = Math.max(0, supply - burned);
-                              return formatAbbrev(circulating);
-                            })() : '—'}
-                          </span>
+                              return (
+                                <TooltipContent>
+                                  <p>{circulating.toLocaleString()}</p>
+                                </TooltipContent>
+                              );
+                            })()}
+                          </Tooltip>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-400 font-medium">Holders</span>
-                          <span className="text-sm text-white font-semibold">
-                            {holdersCount !== null ? (holdersCount >= 1000 ? `${(holdersCount / 1000).toFixed(1)}k` : holdersCount) : '—'}
-                          </span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-sm text-white font-semibold">
+                                {holdersCount !== null ? (holdersCount >= 1000 ? `${(holdersCount / 1000).toFixed(1)}k` : holdersCount) : '—'}
+                              </span>
+                            </TooltipTrigger>
+                            {holdersCount !== null && (
+                              <TooltipContent>
+                                <p>{holdersCount.toLocaleString()}</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-400 font-medium">Creation Date</span>
@@ -2222,10 +2255,24 @@ function GeickoPageContent() {
                     <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
                       <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
                       <div className="text-center text-base text-white font-semibold">
-                        {(() => {
-                          const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
-                          return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
-                        })()}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              {(() => {
+                                const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                                return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
+                              })()}
+                            </span>
+                          </TooltipTrigger>
+                          {(() => {
+                            const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                            return usdLiquidity > 0 && (
+                              <TooltipContent>
+                                <p>${usdLiquidity.toLocaleString()}</p>
+                              </TooltipContent>
+                            );
+                          })()}
+                        </Tooltip>
                       </div>
                     </div>
 
@@ -2252,7 +2299,18 @@ function GeickoPageContent() {
                         <div className="text-center text-gray-500 text-sm">Loading...</div>
                       ) : (
                         <div className="text-center text-base text-white font-semibold">
-                          {totalLiquidity.usd > 0 ? `$${formatAbbrev(totalLiquidity.usd)}` : '—'}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                {totalLiquidity.usd > 0 ? `$${formatAbbrev(totalLiquidity.usd)}` : '—'}
+                              </span>
+                            </TooltipTrigger>
+                            {totalLiquidity.usd > 0 && (
+                              <TooltipContent>
+                                <p>${totalLiquidity.usd.toLocaleString()}</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
                         </div>
                       )}
                       {totalLiquidity.pairCount > 0 && (
@@ -2267,7 +2325,14 @@ function GeickoPageContent() {
                       <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
                       {burnedTokens ? (
                         <div className="text-center">
-                          <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{burnedTokens.amount.toLocaleString()}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                       ) : (
                         <div className="text-center text-base text-white font-semibold">—</div>
@@ -2396,6 +2461,27 @@ function GeickoPageContent() {
                     className="border-0 rounded w-full max-w-4xl min-h-[720px]"
                     title="Token Swap Interface"
                   />
+                </div>
+              )}
+
+              {/* Website Tab */}
+              {activeTab === 'website' && (
+                <div className="w-full flex items-center justify-center p-4">
+                  {websiteLink ? (
+                    <iframe
+                      src={websiteLink}
+                      width="100%"
+                      height="720"
+                      className="border-0 rounded w-full max-w-6xl min-h-[720px]"
+                      title="Token Website"
+                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                    />
+                  ) : (
+                    <div className="text-center text-gray-400">
+                      <p className="text-lg mb-2">No website available</p>
+                      <p className="text-sm">This token doesn't have a website listed on DexScreener</p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2596,6 +2682,20 @@ function GeickoPageContent() {
               {activeTab === 'contract' && (
                 <div>
                   <TokenContractView contractAddress={apiTokenAddress} compact={true} />
+                </div>
+              )}
+
+              {/* X.COM Tab */}
+              {activeTab === 'xcom' && (
+                <div>
+                  <TokenTwitterFeed twitterHandle={twitterLink ? extractTwitterHandle(twitterLink) : null} />
+                </div>
+              )}
+
+              {/* Community Tab */}
+              {activeTab === 'community' && (
+                <div>
+                  <TokenMentionsFeed twitterHandle={twitterLink ? extractTwitterHandle(twitterLink) : null} />
                 </div>
               )}
             </div>
@@ -2961,20 +3061,43 @@ function GeickoPageContent() {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-400 font-medium">Circulating</span>
-                          <span className="text-sm text-white font-semibold">
-                            {totalSupply ? (() => {
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-sm text-white font-semibold">
+                                {totalSupply ? (() => {
+                                  const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
+                                  const burned = burnedTokens?.amount ?? 0;
+                                  const circulating = Math.max(0, supply - burned);
+                                  return formatAbbrev(circulating);
+                                })() : '—'}
+                              </span>
+                            </TooltipTrigger>
+                            {totalSupply && (() => {
                               const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
                               const burned = burnedTokens?.amount ?? 0;
                               const circulating = Math.max(0, supply - burned);
-                              return formatAbbrev(circulating);
-                            })() : '—'}
-                          </span>
+                              return (
+                                <TooltipContent>
+                                  <p>{circulating.toLocaleString()}</p>
+                                </TooltipContent>
+                              );
+                            })()}
+                          </Tooltip>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-400 font-medium">Holders</span>
-                          <span className="text-sm text-white font-semibold">
-                            {holdersCount !== null ? (holdersCount >= 1000 ? `${(holdersCount / 1000).toFixed(1)}k` : holdersCount) : '—'}
-                          </span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-sm text-white font-semibold">
+                                {holdersCount !== null ? (holdersCount >= 1000 ? `${(holdersCount / 1000).toFixed(1)}k` : holdersCount) : '—'}
+                              </span>
+                            </TooltipTrigger>
+                            {holdersCount !== null && (
+                              <TooltipContent>
+                                <p>{holdersCount.toLocaleString()}</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-400 font-medium">Creation Date</span>
@@ -3072,10 +3195,24 @@ function GeickoPageContent() {
                     <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
                       <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
                       <div className="text-center text-base text-white font-semibold">
-                        {(() => {
-                          const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
-                          return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
-                        })()}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              {(() => {
+                                const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                                return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
+                              })()}
+                            </span>
+                          </TooltipTrigger>
+                          {(() => {
+                            const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                            return usdLiquidity > 0 && (
+                              <TooltipContent>
+                                <p>${usdLiquidity.toLocaleString()}</p>
+                              </TooltipContent>
+                            );
+                          })()}
+                        </Tooltip>
                       </div>
                     </div>
 
@@ -3102,7 +3239,18 @@ function GeickoPageContent() {
                         <div className="text-center text-gray-500 text-sm">Loading...</div>
                       ) : (
                         <div className="text-center text-base text-white font-semibold">
-                          {totalLiquidity.usd > 0 ? `$${formatAbbrev(totalLiquidity.usd)}` : '—'}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                {totalLiquidity.usd > 0 ? `$${formatAbbrev(totalLiquidity.usd)}` : '—'}
+                              </span>
+                            </TooltipTrigger>
+                            {totalLiquidity.usd > 0 && (
+                              <TooltipContent>
+                                <p>${totalLiquidity.usd.toLocaleString()}</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
                         </div>
                       )}
                       {totalLiquidity.pairCount > 0 && (
@@ -3117,7 +3265,14 @@ function GeickoPageContent() {
                       <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
                       {burnedTokens ? (
                         <div className="text-center">
-                          <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{burnedTokens.amount.toLocaleString()}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                       ) : (
                         <div className="text-center text-base text-white font-semibold">—</div>
@@ -3149,7 +3304,7 @@ function GeickoPageContent() {
                           setTokenAmount(value);
                         }}
                         placeholder="1"
-                        className="w-full bg-slate-900/90/40 border border-white/10 rounded px-3 py-2 pr-16 text-white text-sm font-semibold focus:outline-none focus:border-orange-500 transition-colors backdrop-blur"
+                        className="w-full bg-slate-900/40 border border-white/10 rounded px-3 py-2 pr-16 text-white text-sm font-semibold focus:outline-none focus:border-orange-500 transition-colors backdrop-blur"
                       />
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium pointer-events-none">
                         {dexScreenerData.pairs[0].baseToken?.symbol || 'TOKEN'}
@@ -3421,6 +3576,345 @@ function GeickoPageContent() {
         </div>
       )}
     </>
+  );
+}
+
+// Utility function to extract Twitter handle from URL
+const extractTwitterHandle = (twitterUrl: string | null): string | null => {
+  if (!twitterUrl) return null;
+  try {
+    const url = new URL(twitterUrl);
+    const handle = url.pathname.split('/').filter(Boolean)[0];
+    return handle || null;
+  } catch {
+    return null;
+  }
+};
+
+// Twitter Feed Component
+function TokenTwitterFeed({ twitterHandle }: { twitterHandle: string | null }) {
+  const [tweets, setTweets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const fetchTweets = async () => {
+      if (!twitterHandle) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/recent-tweets?username=${twitterHandle}&count=3`);
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.data && Array.isArray(data.data)) {
+          setTweets(data.data);
+          setError(false);
+        } else {
+          setError(true);
+        }
+      } catch (err) {
+        console.error('Failed to fetch tweets:', err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTweets();
+  }, [twitterHandle]);
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  if (!twitterHandle) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-gray-400 text-sm">
+          <span className="text-xl mb-2 block">🐦</span>
+          No Twitter account found for this token
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="bg-gray-900/50 rounded-lg p-4 border border-gray-800 animate-pulse">
+            <div className="flex items-start space-x-3">
+              <div className="w-10 h-10 bg-gray-700 rounded-full"></div>
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-gray-700 rounded w-1/4"></div>
+                <div className="space-y-1">
+                  <div className="h-4 bg-gray-700 rounded w-full"></div>
+                  <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+                </div>
+                <div className="flex space-x-4">
+                  <div className="h-3 bg-gray-700 rounded w-12"></div>
+                  <div className="h-3 bg-gray-700 rounded w-12"></div>
+                  <div className="h-3 bg-gray-700 rounded w-12"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (error || tweets.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-gray-400 text-sm">
+          <span className="text-xl mb-2 block">🐦</span>
+          X.Com feed coming soon!
+          <br />
+          <a
+            href={`https://x.com/${twitterHandle}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300 underline mt-2 inline-block"
+          >
+            View on X →
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {tweets.map((tweet) => (
+        <div key={tweet.id} className="bg-gray-900/50 rounded-lg p-4 border border-gray-800">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-sm">
+                  {twitterHandle.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-2">
+                <span className="text-white font-semibold text-sm">@{twitterHandle}</span>
+                <span className="text-gray-500 text-xs">•</span>
+                <span className="text-gray-500 text-xs">{formatDate(tweet.created_at)}</span>
+              </div>
+              <p className="text-white text-sm leading-relaxed mb-3">
+                {tweet.text}
+              </p>
+              <div className="flex items-center space-x-6 text-xs text-gray-500">
+                <span className="flex items-center space-x-1">
+                  <span>❤️</span>
+                  <span>{tweet.public_metrics?.like_count || 0}</span>
+                </span>
+                <span className="flex items-center space-x-1">
+                  <span>🔄</span>
+                  <span>{tweet.public_metrics?.retweet_count || 0}</span>
+                </span>
+                <span className="flex items-center space-x-1">
+                  <span>💬</span>
+                  <span>{tweet.public_metrics?.reply_count || 0}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <div className="text-center pt-4">
+        <a
+          href={`https://x.com/${twitterHandle}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-400 hover:text-blue-300 underline text-sm"
+        >
+          View all tweets on X →
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// Twitter Mentions Component
+function TokenMentionsFeed({ twitterHandle }: { twitterHandle: string | null }) {
+  const [mentions, setMentions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const fetchMentions = async () => {
+      if (!twitterHandle) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/mentions?username=${twitterHandle}&count=3`);
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.data && Array.isArray(data.data)) {
+          // Combine tweet data with user data
+          const mentionsWithUsers = data.data.map((tweet: any) => {
+            const user = data.includes?.users?.find((u: any) => u.id === tweet.author_id);
+            return {
+              ...tweet,
+              user: user || { username: 'unknown', name: 'Unknown User' }
+            };
+          });
+          setMentions(mentionsWithUsers);
+          setError(false);
+        } else {
+          setError(true);
+        }
+      } catch (err) {
+        console.error('Failed to fetch mentions:', err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMentions();
+  }, [twitterHandle]);
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  if (!twitterHandle) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-gray-400 text-sm">
+          <span className="text-xl mb-2 block">👥</span>
+          No Twitter account found for this token
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="bg-gray-900/50 rounded-lg p-4 border border-gray-800 animate-pulse">
+            <div className="flex items-start space-x-3">
+              <div className="w-10 h-10 bg-gray-700 rounded-full"></div>
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-gray-700 rounded w-1/4"></div>
+                <div className="space-y-1">
+                  <div className="h-4 bg-gray-700 rounded w-full"></div>
+                  <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+                </div>
+                <div className="flex space-x-4">
+                  <div className="h-3 bg-gray-700 rounded w-12"></div>
+                  <div className="h-3 bg-gray-700 rounded w-12"></div>
+                  <div className="h-3 bg-gray-700 rounded w-12"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (error || mentions.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-gray-400 text-sm">
+          <span className="text-xl mb-2 block">👥</span>
+          Community mentions coming soon!
+          <br />
+          <a
+            href={`https://x.com/search?q=${twitterHandle}&src=typed_query`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300 underline mt-2 inline-block"
+          >
+            Search mentions on X →
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {mentions.map((mention) => (
+        <div key={mention.id} className="bg-gray-900/50 rounded-lg p-4 border border-gray-800">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-sm">
+                  {mention.user?.name?.charAt(0).toUpperCase() || '?'}
+                </span>
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-2">
+                <span className="text-white font-semibold text-sm">
+                  {mention.user?.name || 'Unknown User'}
+                </span>
+                <span className="text-gray-500 text-xs">
+                  @{mention.user?.username || 'unknown'}
+                </span>
+                <span className="text-gray-500 text-xs">•</span>
+                <span className="text-gray-500 text-xs">{formatDate(mention.created_at)}</span>
+              </div>
+              <p className="text-white text-sm leading-relaxed mb-3">
+                {mention.text}
+              </p>
+              <div className="flex items-center space-x-6 text-xs text-gray-500">
+                <span className="flex items-center space-x-1">
+                  <span>❤️</span>
+                  <span>{mention.public_metrics?.like_count || 0}</span>
+                </span>
+                <span className="flex items-center space-x-1">
+                  <span>🔄</span>
+                  <span>{mention.public_metrics?.retweet_count || 0}</span>
+                </span>
+                <span className="flex items-center space-x-1">
+                  <span>💬</span>
+                  <span>{mention.public_metrics?.reply_count || 0}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <div className="text-center pt-4">
+        <a
+          href={`https://x.com/search?q=${twitterHandle}&src=typed_query`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-400 hover:text-blue-300 underline text-sm"
+        >
+          View all mentions on X →
+        </a>
+      </div>
+    </div>
   );
 }
 

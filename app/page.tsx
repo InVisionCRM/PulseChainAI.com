@@ -3,7 +3,157 @@
 import React, { useEffect, useState } from 'react';
 import HeroTokenAiChat from '@/components/HeroTokenAiChat';
 
-export default function Home(): JSX.Element {
+function TwitterEmbed() {
+  const [tweet, setTweet] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const fetchRecentTweet = async () => {
+      try {
+        const response = await fetch('/api/recent-tweets?username=morbius_io&count=1');
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.data && data.data.length > 0) {
+          setTweet(data.data[0]);
+          setError(false);
+        } else {
+          setError(true);
+        }
+      } catch (err) {
+        console.error('Failed to fetch recent tweet:', err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecentTweet();
+  }, []);
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div
+        className="bg-black/50 backdrop-blur-md rounded-lg p-4 border border-white/10 min-h-[200px] flex items-center justify-center"
+        role="status"
+        aria-label="Loading recent tweet"
+      >
+        <div className="text-gray-400 text-center">
+          <div
+            className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto mb-3"
+            aria-hidden="true"
+          ></div>
+          <p className="text-sm">Loading latest tweet...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !tweet) {
+    return (
+      <div
+        className="bg-black/50 backdrop-blur-md rounded-lg p-4 border border-white/10"
+        role="region"
+        aria-label="Twitter feed error"
+      >
+        <header className="mb-3 text-center">
+          <h3 className="text-white text-lg font-semibold flex items-center justify-center gap-2">
+            <span aria-hidden="true">🐦</span>
+            Latest from @morbius_io
+          </h3>
+        </header>
+        <div className="text-gray-400 text-center py-4">
+          <p className="mb-2">Unable to load recent tweet</p>
+          <p className="text-sm text-gray-500 mb-4">
+            Please check your connection and try again
+          </p>
+          <div>
+            <a
+              href="https://x.com/morbius_io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-purple-300 hover:text-purple-200 underline text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400 rounded px-1 py-0.5"
+              aria-label="Visit Morbius on X/Twitter (opens in new tab)"
+            >
+              View on X/Twitter →
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="bg-black/50 backdrop-blur-md rounded-lg p-4 border border-white/10"
+      role="region"
+      aria-label="Recent tweet from Morbius"
+    >
+      <header className="mb-3 text-center">
+        <h3 className="text-white text-lg font-semibold flex items-center justify-center gap-2">
+          <span aria-hidden="true">🐦</span>
+          Latest from @morbius_io
+        </h3>
+        <p className="text-gray-400 text-sm mt-1">
+          Follow us on X/Twitter for updates
+        </p>
+      </header>
+
+      <div className="border border-white/10 rounded-lg p-4 bg-black/30">
+        <div className="flex items-start space-x-3">
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-sm">M</span>
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2 mb-2">
+              <span className="text-white font-semibold text-sm">@morbius_io</span>
+              <span className="text-gray-400 text-xs">•</span>
+              <span className="text-gray-400 text-xs">{formatDate(tweet.created_at)}</span>
+            </div>
+            <p className="text-white text-sm leading-relaxed mb-3">
+              {tweet.text}
+            </p>
+            <div className="flex items-center space-x-4 text-xs text-gray-400">
+              <span>❤️ {tweet.public_metrics?.like_count || 0}</span>
+              <span>🔄 {tweet.public_metrics?.retweet_count || 0}</span>
+              <span>💬 {tweet.public_metrics?.reply_count || 0}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer className="mt-3 pt-3 border-t border-white/10 text-center">
+        <a
+          href="https://x.com/morbius_io"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-purple-300 hover:text-purple-200 underline text-sm transition-colors"
+          aria-label="Visit Morbius on X/Twitter (opens in new tab)"
+        >
+          View on X/Twitter →
+        </a>
+      </footer>
+    </div>
+  );
+}
+
+export default function Home() {
   const [showBetaBanner, setShowBetaBanner] = useState(false);
 
   useEffect(() => {
@@ -63,6 +213,11 @@ export default function Home(): JSX.Element {
           />
         </video>
         <div className="absolute inset-0 w-full h-full bg-slate-950/20 z-10 pointer-events-none" />
+
+        {/* Twitter Embed */}
+        <div className="relative z-20 mb-8 w-full max-w-sm sm:max-w-md px-4 sm:px-0">
+          <TwitterEmbed />
+        </div>
 
         <HeroTokenAiChat />
       </div>
