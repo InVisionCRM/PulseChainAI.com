@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { getResponseFormatter } from '@/lib/toast-formatters';
+import { ChevronUp } from 'lucide-react';
 
 export type ToastVariant = 'loading' | 'success' | 'error' | 'info';
 
@@ -34,10 +36,10 @@ export function Toast({
   const [isExiting, setIsExiting] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Check if content is expandable (arrays or complex objects)
+  // Check if content is expandable (arrays or objects with multiple properties)
   const hasExpandableContent = result &&
     (Array.isArray(result) && result.length > 0) ||
-    (typeof result === 'object' && result !== null && Object.keys(result).length > 3);
+    (typeof result === 'object' && result !== null && Object.keys(result).length > 1);
 
   useEffect(() => {
     // Trigger slide-in animation
@@ -62,7 +64,11 @@ export function Toast({
   };
 
   const handleClick = () => {
-    if (onClick) {
+    // If there's expandable content, toggle expansion
+    if (hasExpandableContent) {
+      setIsExpanded(!isExpanded);
+    } else if (onClick) {
+      // If no expandable content, call onClick
       onClick();
       handleDismiss();
     }
@@ -101,9 +107,10 @@ export function Toast({
 
   return (
     <div
+      onClick={handleClick}
       className={cn(
         // Base styles - Apple-inspired design
-        "relative bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl shadow-black/10 transition-all duration-300 ease-out",
+        "relative bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl shadow-black/10 transition-all duration-300 ease-out cursor-pointer",
         // Positioning and animation
         "transform translate-x-full opacity-0",
         isVisible && !isExiting && "translate-x-0 opacity-100",
@@ -115,6 +122,22 @@ export function Toast({
         className
       )}
     >
+      {/* Animated Chevron Icons */}
+      {hasExpandableContent && (
+        <div className="flex justify-center gap-1 py-2 px-4 border-b border-gray-200">
+          {[0, 1, 2].map((index) => (
+            <ChevronUp
+              key={index}
+              className="w-3 h-3 text-black animate-ping"
+              style={{
+                animationDelay: `${index * 0.2}s`,
+                animationDuration: '1s'
+              }}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Header Section - Always visible */}
       <div className="flex items-start gap-3 p-4 pb-2">
         {/* Icon */}
@@ -141,26 +164,13 @@ export function Toast({
 
             {/* Action buttons */}
             <div className="flex items-center gap-1">
-              {/* Expand/Collapse button for expandable content */}
-              {hasExpandableContent && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsExpanded(!isExpanded);
-                  }}
-                  className="flex-shrink-0 px-2 py-1 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-                >
-                  {isExpanded ? 'Less' : 'More'}
-                </button>
-              )}
-
               {/* Dismiss button */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDismiss();
                 }}
-                className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors opacity-60 hover:opacity-100"
+                className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-black bg-purple-200/30 backdrop-blur-sm border border-purple-300/50 rounded-full transition-all duration-200 hover:bg-purple-300/40 hover:scale-110 shadow-sm"
                 aria-label="Dismiss notification"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -209,11 +219,12 @@ export function Toast({
       {isExpanded && result && (
         <div className="border-t border-gray-200">
           <div className="p-4 pt-3 max-h-64 overflow-y-auto">
-            <ExpandableResultDisplay result={result} />
+            {getResponseFormatter(result)(result)}
           </div>
         </div>
       )}
     </div>
   );
 }
+
 

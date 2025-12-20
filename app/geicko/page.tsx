@@ -587,7 +587,7 @@ function GeickoPageContent() {
     })));
 
     // Close modal automatically when fetch starts
-    setIsStatsModalOpen(false);
+    // setIsStatsModalOpen(false); // Disabled auto-closing when stat is clicked
 
     // Show toast with initial progress
     showToast({
@@ -669,8 +669,7 @@ function GeickoPageContent() {
           return updated;
         });
 
-        // Dismiss loading toast and show success toast
-        dismissToast(fetchId);
+        // Show success toast first, then dismiss loading toast
         showToast({
           id: `${fetchId}_success`,
           title: `Completed ${fetch.statName}`,
@@ -680,6 +679,11 @@ function GeickoPageContent() {
           result: fetch.result, // Pass the full result data
           onClick: () => setIsStatsModalOpen(true)
         });
+
+        // Dismiss loading toast after a brief delay to ensure success toast appears first
+        setTimeout(() => {
+          dismissToast(fetchId);
+        }, 100);
 
         // Clean up after delay
         setTimeout(() => {
@@ -859,7 +863,7 @@ function GeickoPageContent() {
 
   const handleSelectSearchResult = (item: SearchResultItem) => {
     setApiTokenAddress(item.address);
-    setSearchInput(item.address);
+    setSearchInput(''); // Clear search input after selecting
     setSearchResults([]);
     setShowSearchResults(false);
     setError(null);
@@ -875,6 +879,7 @@ function GeickoPageContent() {
     // Validate Ethereum address format (0x followed by 40 hex characters)
     if (trimmedInput && /^0x[a-fA-F0-9]{40}$/.test(trimmedInput)) {
       setApiTokenAddress(trimmedInput);
+      setSearchInput(''); // Clear search input after loading
       setError(null);
       setSearchResults([]);
       setShowSearchResults(false);
