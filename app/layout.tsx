@@ -20,6 +20,7 @@ import {
   IconPhoneOutgoing,
   IconChevronDown,
   IconX,
+  IconCurrencyDollar,
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -129,6 +130,13 @@ export default function RootLayout({
       href: "/hex-dashboard",
       icon: (
         <IconHexagon className="h-5 w-5 shrink-0 text-white" />
+      ),
+    },
+    {
+      label: "Casino",
+      href: "https://win.morbius.io",
+      icon: (
+        <IconCurrencyDollar className="h-5 w-5 shrink-0 text-white" />
       ),
     },
   ];

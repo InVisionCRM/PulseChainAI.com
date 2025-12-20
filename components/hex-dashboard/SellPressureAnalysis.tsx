@@ -274,7 +274,7 @@ export default function SellPressureAnalysis({
                       : 0;
                     
                     return (
-                      <tr key={stake.stakeId} className="hover:bg-white/5">
+                      <tr key={stake.stakeId} className="hover:bg-gray-500/5">
                         <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-slate-800">
                           {stake.stakeId}
                         </td>

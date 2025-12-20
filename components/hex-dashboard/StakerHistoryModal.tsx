@@ -342,7 +342,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                     className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors backdrop-blur-sm ${
                       activeNetwork === 'ethereum'
                         ? 'bg-blue-500/90 text-white shadow-lg'
-                        : 'bg-white/20 text-white/90 hover:bg-white/30 hover:text-white shadow-md'
+                        : 'bg-white/20 text-white/90 hover:bg-gray-500/30 hover:text-white shadow-md'
                     }`}
                   >
                     Ethereum
@@ -352,7 +352,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                     className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors backdrop-blur-sm ${
                       activeNetwork === 'pulsechain'
                         ? 'bg-blue-500/90 text-white shadow-lg'
-                        : 'bg-white/20 text-white/90 hover:bg-white/30 hover:text-white shadow-md'
+                        : 'bg-white/20 text-white/90 hover:bg-gray-500/30 hover:text-white shadow-md'
                     }`}
                   >
                     PulseChain
@@ -680,7 +680,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                           </thead>
                           <tbody className="bg-transparent divide-y divide-white/10">
                             {transactionData.transactions.map((tx) => (
-                              <tr key={tx.id} className="hover:bg-white/5">
+                              <tr key={tx.id} className="hover:bg-gray-500/5">
                                 <td className="px-4 py-4 whitespace-nowrap text-sm">
                                   <div className={`${hexTransactionService.getTransactionTypeColor(tx.type)}`}>
                                     <span className="font-medium capitalize">
@@ -787,7 +787,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                             </thead>
                             <tbody className="bg-transparent divide-y divide-white/10">
                               {hexSwaps.result.map((swap) => (
-                                <tr key={swap.transaction_hash} className="hover:bg-white/5">
+                                <tr key={swap.transaction_hash} className="hover:bg-gray-500/5">
                                   <td className="px-4 py-4 whitespace-nowrap text-sm">
                                     <div className={`${
                                       swap.swap_type === 'HEX_IN' ? 'text-green-400' : 
@@ -877,14 +877,14 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                             <button
                               onClick={() => handleHexSwapsPageChange(hexSwaps.page - 1)}
                               disabled={hexSwaps.page <= 1}
-                              className="px-3 py-1 bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
+                              className="px-3 py-1 bg-white/10 hover:bg-gray-500/20 disabled:bg-white/5 disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
                             >
                               Previous
                             </button>
                             <button
                               onClick={() => handleHexSwapsPageChange(hexSwaps.page + 1)}
                               disabled={hexSwaps.page >= Math.ceil(hexSwaps.total / 50)}
-                              className="px-3 py-1 bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
+                              className="px-3 py-1 bg-white/10 hover:bg-gray-500/20 disabled:bg-white/5 disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
                             >
                               Next
                             </button>
@@ -956,7 +956,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                         const hasPenalty = endData && parseFloat(endData.penalty || '0') > 0;
                         
                         return (
-                          <tr key={stake.id || stake.stakeId} className="hover:bg-white/5">
+                          <tr key={stake.id || stake.stakeId} className="hover:bg-gray-500/5">
                             <td className="px-3 py-4 whitespace-nowrap text-sm">
                               <div className={`flex items-center gap-2 ${getStakeStatusColor(stake)}`}>
                                 {getStakeStatusIcon(stake)}
