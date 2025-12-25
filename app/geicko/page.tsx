@@ -1560,6 +1560,7 @@ function GeickoPageContent() {
     { id: 'contract', label: 'Code' },
     { id: 'switch', label: 'Switch' },
     { id: 'website', label: 'Website' },
+    { id: 'stats', label: 'Stats' },
   ];
 
 
@@ -1587,6 +1588,12 @@ function GeickoPageContent() {
       icon: '🌐',
       description: 'Official site',
       onClick: () => setActiveTab('website'),
+    },
+    {
+      label: 'Stats',
+      icon: '📊',
+      description: 'Advanced analytics',
+      onClick: () => setActiveTab('stats'),
     },
     {
       label: 'Bridge',
@@ -2368,60 +2375,47 @@ function GeickoPageContent() {
           </div>
 
           {/* Bottom Tabs */}
-          <div className="px-2 md:px-3 pt-4 pb-3 mt-4 relative z-30">
+          <div className="px-2 md:px-3 pt-4s pb-4 mt-4 relative z-30">
             {isRabbyUI ? (
-              <div className="flex flex-wrap gap-2 overflow-x-auto bg-gray-950/70 border border-white/5 rounded-2xl px-2 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.6)] scrollbar-hide">
+              <div className="flex flex-wrap gap-2 overflow-x-auto scrollbar-hide">
                 {tabOptions.map((tab) => {
                   const isActive = activeTab === tab.id;
-                  const accent = tab.id === 'chart'
-                    ? 'from-blue-500 to-cyan-500'
-                    : tab.id === 'holders'
-                      ? 'from-emerald-400 to-teal-500'
-                        : tab.id === 'contract'
-                          ? 'from-slate-300 to-slate-500'
-                          : 'from-lime-400 to-emerald-500';
+                  const isCodeTab = tab.id === 'contract';
                   return (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`relative flex items-center px-3 py-1.5 text-xs font-semibold rounded-xl border transition-colors duration-200 ${
+                      className={`text-lg transition-all duration-200 ${
                         isActive
-                          ? 'text-white border-white/30 bg-white/5 shadow-[0_0_15px_rgba(255,255,255,0.12)]'
-                          : 'text-slate-400 border-transparent hover:border-white/10 hover:bg-white/5'
+                          ? isCodeTab
+                            ? 'text-xl font-semibold border-b-[3px] border-purple-500 text-purple-500'
+                            : 'text-xl font-semibold border-b-[3px] border-lime-500 bg-gradient-to-t from-lime-500 via-lime-500/50 to-white bg-clip-text text-transparent'
+                          : 'text-white/75 hover:text-purple-500 font-semibold'
                       }`}
                     >
                       {tab.label}
-                      {isActive && (
-                        <span
-                          className={`absolute inset-x-2 -bottom-1 h-0.5 rounded-full bg-gradient-to-r ${accent}`}
-                        />
-                      )}
                     </button>
                   );
                 })}
               </div>
             ) : (
-              <div className="flex items-center gap-2 overflow-x-auto text-[11px] sm:text-xs scrollbar-hide">
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
                 {tabOptions.map((tab) => {
                   const isActive = activeTab === tab.id;
-                  const accent = tab.id === 'chart'
-                    ? 'from-blue-500/70 to-cyan-500/80'
-                    : tab.id === 'holders'
-                      ? 'from-emerald-400/70 to-teal-500/80'
-                    : tab.id === 'contract'
-                      ? 'from-slate-300/70 to-slate-500/80'
-                      : 'from-lime-400/70 to-emerald-500/80';
+                  const isCodeTab = tab.id === 'contract';
                   return (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center px-3 py-1.5 rounded-full border transition-all duration-200 ${
+                      className={`text-lg transition-all duration-200 ${
                         isActive
-                          ? `text-white border-white/40 bg-gradient-to-r ${accent} shadow-[0_0_25px_rgba(255,255,255,0.25)]`
-                          : 'text-slate-300 border-white/10 bg-white/5 hover:border-white/30 hover:text-white'
+                          ? isCodeTab
+                            ? 'text-xl font-semibold border-b-[3px] border-purple-500 text-purple-500'
+                            : 'text-xl font-semibold border-b-[3px] border-lime-500 bg-gradient-to-t from-lime-500 to-white bg-clip-text text-transparent'
+                          : 'text-white/75 hover:text-purple-500'
                       }`}
                     >
-                      <span className="font-semibold tracking-wide uppercase">{tab.label}</span>
+                      <span>{tab.label}</span>
                     </button>
                   );
                 })}
@@ -2485,6 +2479,18 @@ function GeickoPageContent() {
                       <p className="text-sm">This token doesn't have a website listed on DexScreener</p>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Stats Tab */}
+              {activeTab === 'stats' && (
+                <div className="w-full p-4">
+                  <AdminStatsPanel
+                    initialAddress={apiTokenAddress}
+                    onFetchStart={handleFetchStart}
+                    onFetchComplete={handleFetchComplete}
+                    onFetchError={handleFetchError}
+                  />
                 </div>
               )}
 
@@ -2683,8 +2689,15 @@ function GeickoPageContent() {
 
               {/* Contract Tab */}
               {activeTab === 'contract' && (
-                <div>
-                  <TokenContractView contractAddress={apiTokenAddress} compact={true} />
+                <div className="flex flex-col h-[calc(130vh-300px)] min-h-[400px]">
+                  <div className="flex-shrink-0 border-b border-gray-800">
+                    <div className="h-[300px]">
+                      <TokenAIChat contractAddress={apiTokenAddress} compact={true} />
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto pt-4">
+                    <TokenContractView contractAddress={apiTokenAddress} compact={true} />
+                  </div>
                 </div>
               )}
             </div>
@@ -2771,13 +2784,6 @@ function GeickoPageContent() {
                 </div>
               </div>
             )}
-
-            {/* Ask AI */}
-            <div className="mb-3 px-0">
-              <div className="bg-gray-800 rounded-lg p-2 border border-gray-700/60 min-h-[600px] h-[600px] flex">
-                <TokenAIChat contractAddress={apiTokenAddress} compact className="flex-1 h-full" />
-              </div>
-            </div>
 
             {/* Quick Audit Section */}
             {tokenInfoTab === 'token' && profileData?.quickAudit && (

@@ -8,6 +8,7 @@ import { dexscreenerApi } from '@/services';
 import type { DexScreenerData } from '@/types';
 // import AdminStatsPanel from '@/components/AdminStatsPanel';
 import { LinkPreview } from '@/components/ui/link-preview';
+import { Copy } from 'lucide-react';
 
 type LinkItem = { label?: string; url: string };
 type SocialItem = { type?: string; url: string };
@@ -15,28 +16,31 @@ type SocialItem = { type?: string; url: string };
 const SocialIcon = ({ type }: { type?: string }) => {
   const variant = (type || '').toLowerCase();
   const color = '#ffffff';
+  
   if (variant.includes('telegram')) {
     return (
       <svg viewBox="0 0 24 24" fill={color} width={16} height={16}>
-        <path d="M4 12l6 4 9-7-11 5V4z" />
+        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
       </svg>
     );
   }
+  
   if (variant.includes('discord')) {
     return (
       <svg viewBox="0 0 24 24" fill={color} width={16} height={16}>
-        <path d="M7.91 11.35c-.18 0-.33-.16-.33-.35 0-.18.15-.34.33-.34.18 0 .33.16.33.34 0 .19-.15.35-.33.35zm8.09 0c-.18 0-.33-.16-.33-.35 0-.18.15-.34.33-.34.18 0 .33.16.33.34 0 .19-.15.35-.33.35z" />
-        <path d="M8.12 4.5S7.4 5.7 9 6.5l.3-.4c-1.2.4-2.4.9-3.5 1.4-.1 1.7.5 4.6 4.4 5.2.2-.2.4-.3.6-.4l.2-.3c-1.1-.3-2.3-.7-3.3-1.2.2-.2.4-.3.6-.4 1.2-.4 2.6-.8 3.8-1.2l.1-.2c1.9-.8 2.7-2.2 2.7-2.2 1.3 1 2.8 2 4.1 2 .1-1.3-.4-2.6-1.2-3.7 0 0-1-1.2-1.8-1.4-.1 0-.6-.1-1.4.7-.4.4 1.2-1 1.1-.9-1.3-1.3-3.3-1.2-4.3-1.1-.2 0-.5.1-.6.2-1.1-.2-2.6-.5-4.2 1.1-.3.3.7-1 .6-1.1-.1 0-.1.1-.1.5" />
+        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
       </svg>
     );
   }
+  
   if (variant.includes('twitter') || variant.includes('x')) {
     return (
       <svg viewBox="0 0 24 24" fill={color} width={16} height={16}>
-        <path d="M23 3a10.9 10.9 0 0 1-3.14 1.53A4.48 4.48 0 0 0 16 3a4.48 4.48 0 0 0-4.5 4.5c0 .35.04.7.12 1.03A12.7 12.7 0 0 1 3 4S-.07 13 8 17a9 9 0 0 1-5 1.5A9.25 9.25 0 0 1 0 18.19a12.8 12.8 0 0 0 7 2.08c8.5 0 13-7.12 13-13v-.59A9.22 9.22 0 0 0 23 3z" />
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
       </svg>
     );
   }
+  
   return (
     <svg viewBox="0 0 24 24" fill={color} width={16} height={16}>
       <circle cx="12" cy="12" r="10" />
@@ -325,14 +329,14 @@ export default function HeroTokenAiChat(): JSX.Element {
             onChange={(e) => handleInputChange(e.target.value)}
             placeholder={activePlaceholder}
             inputMode="text"
-            className="w-full rounded-2xl bg-white/5 border border-white/20 px-4 py-2 text-xs placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/40"
+            className="w-full rounded-2xl bg-slate-950/40 text-white border-2 border-white px-4 py-2 text-md placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
           />
         </div>
         {isSearching && (
-          <div className="text-[11px] text-white/70">Searching…</div>
+          <div className="text-[16px] text-slate-950">Searching…</div>
         )}
         {showResults && results.length > 0 && (
-          <div className="bg-white/5 border border-white/15 rounded-2xl max-h-44 overflow-y-auto text-xs">
+          <div className="bg-slate-950/35 border border-white/15 rounded-2xl max-h-44 overflow-y-auto text-md">
             {results.map((item) => (
               <button
                 key={item.address}
@@ -340,15 +344,15 @@ export default function HeroTokenAiChat(): JSX.Element {
                 className="w-full px-3 py-2 text-left hover:bg-white/10 transition"
                 onClick={() => handleSelectToken(item)}
               >
-                <div className="font-semibold text-white/90 truncate">
+                <div className="font-semibold text-white truncate">
                   {item.name || item.symbol || 'Unknown'}{' '}
                   {item.symbol && item.name && (
-                    <span className="text-white/60 font-normal">
+                    <span className="text-white/50 font-normal">
                       ({item.symbol})
                     </span>
                   )}
                 </div>
-                <div className="text-[10px] font-mono text-white/60 truncate">
+                <div className="text-[16px] font-mono text-white truncate">
                   {item.address}
                 </div>
               </button>
@@ -364,11 +368,11 @@ export default function HeroTokenAiChat(): JSX.Element {
   const renderAnalyzingCard = () => {
     if (!selectedToken) return null;
     return (
-      <div className="flex flex-col items-center rounded-2xl bg-white/5 border border-white/20 px-5 py-4 text-xs text-white/80 space-y-3">
-        <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">
+      <div className="flex flex-col items-center rounded-2xl bg-white/5 border border-white/20 px-5 py-4 text-md text-slate-950 space-y-3">
+        <p className="text-[16px] uppercase tracking-[0.3em] text-slate-950">
           Now analyzing
         </p>
-        <div className="text-lg font-semibold text-white truncate max-w-full flex items-center gap-2">
+        <div className="text-lg font-semibold text-slate-950 truncate max-w-full flex items-center gap-2">
           {analyzingLogo && (
             <img
               src={analyzingLogo}
@@ -379,22 +383,33 @@ export default function HeroTokenAiChat(): JSX.Element {
           <span className="truncate">
             {selectedToken.name}{' '}
             {selectedToken.symbol && (
-              <span className="text-white/70 text-base">
+              <span className="text-slate-950 text-base">
                 ({selectedToken.symbol})
               </span>
             )}
           </span>
         </div>
-        <div className="text-xs font-mono text-white/70 truncate max-w-full">
-          {selectedToken.address}
+        <div className="flex items-center gap-2 text-xs font-poppins text-slate-950 max-w-full">
+          <span>
+            {selectedToken.address.slice(0, 5)}...{selectedToken.address.slice(-5)}
+          </span>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(selectedToken.address);
+            }}
+            className="flex-shrink-0 p-1 hover:bg-white/20 rounded transition-colors"
+            title="Copy address"
+          >
+            <Copy className="w-3 h-3" />
+          </button>
         </div>
         {socials.length > 0 && (
-          <div className="flex items-center gap-2 text-white/70">
+          <div className="flex items-center gap-2 text-slate-950">
             {socials.slice(0, 3).map((social, idx) => (
               <LinkPreview
                 key={`${social.url}-${idx}`}
                 url={social.url}
-                className="text-white/80"
+                className="text-slate-950"
                 width={200}
                 height={120}
               >
@@ -416,13 +431,13 @@ export default function HeroTokenAiChat(): JSX.Element {
   };
 
   const renderInfoPanel = () => (
-    <div className="rounded-3xl border border-white/15 bg-white/3 backdrop-blur-2xl p-3 space-y-3 text-xs">
-      <p className="text-[10px] uppercase tracking-[0.3em] text-white/70">
+    <div className="rounded-3xl border border-white/15 bg-white/3 backdrop-blur-2xl p-3 space-y-3 text-md">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-slate-950">
         {primaryPair?.chainId?.toUpperCase() || 'PULSECHAIN'}
       </p>
       <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
         {dexLoading ? (
-          <div className="text-white/70 text-[11px]">Loading token data…</div>
+          <div className="text-slate-950 text-[16px]">Loading token data…</div>
         ) : dexError ? (
           <div className="text-red-200 text-[11px]">{dexError}</div>
         ) : primaryPair ? (
@@ -431,7 +446,7 @@ export default function HeroTokenAiChat(): JSX.Element {
               <div className="text-xl font-semibold flex items-baseline gap-2">
                 ${Number(primaryPair.priceUsd || 0).toFixed(6)}
                 <span
-                  className={`text-xs ${
+                  className={`text-md ${
                     (primaryPair.priceChange?.h24 || 0) >= 0
                       ? 'text-green-300'
                       : 'text-red-300'
@@ -441,32 +456,32 @@ export default function HeroTokenAiChat(): JSX.Element {
                   {Math.abs(primaryPair.priceChange?.h24 || 0).toFixed(2)}%
                 </span>
               </div>
-              <p className="text-[11px] text-white/70">
+              <p className="text-[16px] text-slate-950">
                 {primaryPair.baseToken?.symbol}/{primaryPair.quoteToken?.symbol}
               </p>
             </div>
-            <div className="text-[11px] grid grid-cols-2 gap-2">
+            <div className="text-[16px] grid grid-cols-2 gap-2">
               <div className="rounded-xl bg-white/5 border border-white/10 p-2">
-                <p className="text-white/60">Market Cap</p>
-                <p className="text-sm font-semibold">
+                <p className="text-slate-950">Market Cap</p>
+                <p className="text-md font-semibold">
                   ${Number(primaryPair.marketCap || 0).toLocaleString()}
                 </p>
               </div>
               <div className="rounded-xl bg-white/5 border border-white/10 p-2">
-                <p className="text-white/60">Liquidity</p>
-                <p className="text-sm font-semibold">
+                <p className="text-slate-950">Liquidity</p>
+                <p className="text-md font-semibold text-slate-950">
                   ${Number(primaryPair.liquidity?.usd || 0).toLocaleString()}
                 </p>
               </div>
               <div className="rounded-xl bg-white/5 border border-white/10 p-2">
-                <p className="text-white/60">24h Volume</p>
-                <p className="text-sm font-semibold">
+                <p className="text-slate-950">24h Volume</p>
+                <p className="text-md font-semibold">
                   ${Number(primaryPair.volume?.h24 || 0).toLocaleString()}
                 </p>
               </div>
               <div className="rounded-xl bg-white/5 border border-white/10 p-2">
-                <p className="text-white/60">24h Txns</p>
-                <p className="text-sm font-semibold">
+                <p className="text-slate-950">24h Txns</p>
+                <p className="text-md font-semibold">
                   {(primaryPair.txns?.h24?.buys || 0) +
                     (primaryPair.txns?.h24?.sells || 0)}
                 </p>
@@ -474,14 +489,14 @@ export default function HeroTokenAiChat(): JSX.Element {
             </div>
           </div>
         ) : (
-          <p className="text-white/70 text-[11px]">
+          <p className="text-slate-950 text-[16px]">
             No Dex data found for this token yet.
           </p>
         )}
       </div>
 
       <div className="rounded-2xl bg-white/4 border border-white/15 p-3 text-[11px] max-h-56 overflow-y-auto space-y-2">
-        <p className="text-white/70 text-[11px] leading-relaxed">
+        <p className="text-slate-950 text-[16px] leading-relaxed">
           Detailed token stats are available on the right panel, while this
           left column surfaces the search + API explorer directly.
         </p>
@@ -490,11 +505,11 @@ export default function HeroTokenAiChat(): JSX.Element {
   );
 
   return (
-    <div className="relative z-20 w-full px-4 pt-24 pb-16 flex justify-center overflow-hidden">
-      <div className="w-full rounded-[32px] border border-white/15 bg-white/4 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[40px] p-4 sm:p-7 text-white space-y-5 max-w-full sm:max-w-2xl overflow-hidden">
+    <div className="relative z-20 w-full px-4 -mt-[100px] pb-16 flex justify-center overflow-hidden">
+      <div className="w-full rounded-[32px] border border-white/15 bg-gradient-to-b from-white to-gray-400/50 via-white/50 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[40px] p-4 sm:p-7 text-slate-600 space-y-5 max-w-full sm:max-w-2xl overflow-hidden">
         <div className="text-center space-y-2">
-          <p className="text-xs uppercase tracking-[0.4em] text-white/70">
-            <span className="text-sm sm:text-base font-semibold text-purple-700">Morbius</span>{' '}
+          <p className="text-sm uppercase tracking-[0.4em] text-slate-500">
+            <span className="text-lg sm:text-lg font-bold text-purple-600">Morbius</span>{' '}
             Token Analyzer
           </p>
           <h1 className="text-3xl sm:text-4xl font-semibold leading-tight">
