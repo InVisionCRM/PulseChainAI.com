@@ -127,6 +127,7 @@ function GeickoPageContent() {
   const router = useRouter();
   const { showToast, updateToast, dismissToast } = useToast();
   const addressFromQuery = searchParams.get('address');
+  const tabFromQuery = searchParams.get('tab');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('chart');
   const tokenInfoTab: 'token' = 'token';
@@ -312,13 +313,9 @@ function GeickoPageContent() {
     }
   }, []);
 
-  // Load transactions function using DexScreener API
-  // Benefits over PulseScan transfers:
-  // 1. Provides actual DEX swap data, not just token transfers
-  // 2. Includes historical prices at time of transaction (accurate USD values)
-  // 3. Pre-classified as BUY/SELL by DexScreener
-  // 4. Filters out non-trading transfers automatically
-  // 5. Includes transaction metadata like maker address
+  // Load transactions function using PulseChain API
+  // Get recent token transfers for trading activity
+
   const loadTransactions = useCallback(async (address: string) => {
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
       return;
@@ -327,128 +324,76 @@ function GeickoPageContent() {
     setIsLoadingTransactions(true);
 
     try {
-      console.log('Fetching transactions from DexScreener for:', address);
-      
-      // Fetch transactions from DexScreener API
-      const response = await dexscreenerApi.getTokenTransactions(address, 'pulsechain');
-      
-      if (!response.success || !response.data) {
-        console.warn('DexScreener transactions not available:', response.error);
+      console.log('Fetching token transfers from PulseChain API for:', address);
+
+      // Get recent token transfers for this token
+      const transfersResponse = await pulsechainApiService.getAddressTokenTransfers(address, 1, 50);
+
+      if (!transfersResponse || transfersResponse.length === 0) {
+        console.log('No token transfers found from PulseChain API');
         setTransactions([]);
         setIsLoadingTransactions(false);
         return;
       }
 
-      const { transactions: dexTxns, baseToken, priceUsd, priceNative } = response.data;
+      console.log(`Loaded ${transfersResponse.length} token transfers from PulseChain API`);
 
-      if (!dexTxns || dexTxns.length === 0) {
-        console.log('No transactions found from DexScreener - token may be too new or have no trading activity');
-        setTransactions([]);
-        setIsLoadingTransactions(false);
-        return;
-      }
+      // Get current token info for pricing
+      const tokenInfo = await pulsechainApiService.getTokenInfo(address).catch(() => null);
+      const currentPrice = dexScreenerData?.pairs?.[0]?.priceUsd ? parseFloat(dexScreenerData.pairs[0].priceUsd) : 0;
+      const decimals = tokenInfo?.decimals ? parseInt(tokenInfo.decimals) : 18;
 
-      console.log(`Loaded ${dexTxns.length} transactions from DexScreener`);
-      
-      // Log sample transaction structure for debugging
-      if (dexTxns.length > 0) {
-        console.log('Sample DexScreener transaction structure:', {
-          keys: Object.keys(dexTxns[0]),
-          sample: dexTxns[0]
-        });
-      }
-      
-      const currentPriceUsd = Number(priceUsd || 0);
-      const currentPriceNative = Number(priceNative || 0);
-      const decimals = baseToken?.decimals || 18;
+      console.log(`Using ${decimals} decimals, current price: $${currentPrice}`);
 
-      console.log(`Using ${decimals} decimals, current price: $${currentPriceUsd}`);
+      // Process token transfers into transaction format
+      const processedTransactions = transfersResponse.map((transfer: any) => {
+        const timestamp = transfer.timestamp ? new Date(transfer.timestamp).getTime() : Date.now();
+        const amount = transfer.total?.value ? parseFloat(transfer.total.value) / Math.pow(10, decimals) : 0;
+        const valueUsd = amount * currentPrice;
 
-      // Process DexScreener transactions into standardized format
-      const processedTransactions = dexTxns.map((tx: any) => {
-        // DexScreener provides timestamp in seconds or milliseconds
-        const timestamp = tx.blockUnixtime 
-          ? tx.blockUnixtime * 1000 // Convert seconds to milliseconds
-          : tx.timestamp || Date.now();
-        
+        // Determine transaction type based on transfer direction
+        // Note: This is simplified - in reality, we'd need more context to determine BUY vs SELL
+        let type: 'BUY' | 'SELL' | 'TRANSFER' = 'TRANSFER';
+
+        // Format time
         const txTime = new Date(timestamp);
-        const now = new Date();
-        const isToday = txTime.toDateString() === now.toDateString();
-
-        // Format time with date if not today
+        const isToday = txTime.toDateString() === new Date().toDateString();
         const timeStr = isToday
           ? txTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
           : txTime.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
 
-        // DexScreener provides the transaction type directly
-        // Types: 'buy', 'sell', 'swap', etc.
-        const txType = (tx.type || tx.txnType || '').toLowerCase();
-        let type: 'BUY' | 'SELL' | 'TRANSFER' = 'TRANSFER';
-        
-        if (txType === 'buy') {
-          type = 'BUY';
-        } else if (txType === 'sell') {
-          type = 'SELL';
-        } else if (txType === 'swap') {
-          // Determine if it's a buy or sell based on the token amounts
-          // If buying the base token, it's a BUY
-          type = tx.amount0In && tx.amount0Out ? 
-            (Number(tx.amount0In) > Number(tx.amount0Out) ? 'SELL' : 'BUY') : 
-            'TRANSFER';
-        }
-
-        // DexScreener provides amounts and prices at the time of transaction
-        const amount = Number(tx.amount || tx.tokenAmount || tx.amount0 || 0);
-        const priceUsd = Number(tx.priceUsd || tx.price || currentPriceUsd);
-        const priceNative = Number(tx.priceNative || currentPriceNative);
-        const valueUsd = Number(tx.valueUsd || amount * priceUsd);
-
-        // Get maker address (the wallet that initiated the trade)
-        const fromAddress = tx.maker || tx.from || tx.address || '';
-
         return {
           time: timeStr,
-          timestamp: txTime.getTime(),
-          type: type,
-          priceNative: priceNative,
-          priceUsd: priceUsd,
-          amount: amount,
-          txHash: tx.txnId || tx.hash || tx.txHash || '',
-          from: fromAddress,
-          valueUsd: valueUsd
+          timestamp,
+          type,
+          amount,
+          valueUsd,
+          priceUsd: currentPrice,
+          priceNative: 0, // Not available from token transfers
+          from: transfer.from || 'Unknown',
+          txHash: transfer.transaction_hash || transfer.txHash || `unknown-${timestamp}`
         };
       });
 
-      // DexScreener transactions are already filtered to actual trades (BUY/SELL)
-      // But we still filter out any remaining dust or invalid entries
-      const filteredTransactions = processedTransactions.filter((tx: {
-        txHash: string;
-        amount: number;
-        type: 'BUY' | 'SELL' | 'TRANSFER';
-        valueUsd: number;
-      }) => {
-        // Validate transaction has essential data
-        if (!tx.txHash || tx.amount <= 0) return false;
-        
-        if (tx.type === 'BUY' || tx.type === 'SELL') {
-          return true; // Keep all identified trades
-        }
-        // For TRANSFER type, only show if value is significant (> $1)
-        return tx.valueUsd > 1;
+      // Filter out small/invalid transactions
+      const filteredTransactions = processedTransactions.filter((tx) => {
+        return tx.txHash &&
+               !tx.txHash.startsWith('unknown-') &&
+               tx.valueUsd > 0.01; // Filter out dust transactions
       });
 
       // Sort by timestamp (most recent first)
-      filteredTransactions.sort((a: { timestamp: number }, b: { timestamp: number }) => b.timestamp - a.timestamp);
+      filteredTransactions.sort((a, b) => b.timestamp - a.timestamp);
 
-      console.log(`✅ Processed ${filteredTransactions.length} DexScreener transactions (filtered from ${processedTransactions.length})`);
+      console.log(`✅ Processed ${filteredTransactions.length} PulseChain token transfers`);
       setTransactions(filteredTransactions);
     } catch (error) {
-      console.error('Failed to load transactions:', error);
+      console.error('Failed to load transactions from PulseChain API:', error);
       setTransactions([]);
     } finally {
       setIsLoadingTransactions(false);
     }
-  }, []);
+  }, [dexScreenerData]);
 
   // Load holders function
   const loadHolders = useCallback(async (address: string) => {
@@ -769,7 +714,6 @@ function GeickoPageContent() {
     "Search for HEX...or HEX!",
     "Search for PulseChain or PLS!",
     "Try SuperStake or PSSH",
-    "Bringing AI To PulseChain",
     "Bookmark Morbius",
   ];
 
@@ -1064,12 +1008,16 @@ function GeickoPageContent() {
           }
         }
 
+        // Special exception for HEX token - always show as renounced
+        const isHexToken = apiTokenAddress?.toLowerCase() === '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
+        const finalIsRenounced = isHexToken ? true : isRenounced;
+
         if (!cancelled) {
           setOwnershipData({
             creatorAddress,
             ownerAddress: ownerAddress || creatorAddress,
-            isRenounced,
-            renounceTxHash,
+            isRenounced: finalIsRenounced,
+            renounceTxHash: isHexToken ? 'HEX_TOKEN_EXCEPTION' : renounceTxHash,
             isLoading: false,
           });
         }
@@ -1303,12 +1251,18 @@ function GeickoPageContent() {
     return () => window.removeEventListener('openAICodeSearch', handleOpenSearch);
   }, []);
 
-  // Handle URL parameters - load token when address is in URL
+  // Handle URL parameters - load token when address is in URL and set tab
   useEffect(() => {
     if (addressFromQuery && /^0x[a-fA-F0-9]{40}$/.test(addressFromQuery)) {
       setApiTokenAddress(addressFromQuery);
     }
-  }, [addressFromQuery]);
+    if (tabFromQuery) {
+      const validTabs = ['chart', 'holders', 'liquidity', 'contract', 'switch', 'stats', 'website'];
+      if (validTabs.includes(tabFromQuery)) {
+        setActiveTab(tabFromQuery);
+      }
+    }
+  }, [addressFromQuery, tabFromQuery]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1788,7 +1742,7 @@ function GeickoPageContent() {
                           ${tx.valueUsd?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '—'}
                         </p>
                         <a
-                          href={`https://scan.pulsechain.box/tx/${tx.txHash}`}
+                          href={`https://scan.pulsechain.com/tx/${tx.txHash}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-indigo-500 hover:text-indigo-700"
@@ -2023,7 +1977,7 @@ function GeickoPageContent() {
                   const twitterLink = profileData?.profile?.socials?.find((s: any) => s.type === 'twitter');
                   const discordLink = profileData?.profile?.socials?.find((s: any) => s.type === 'discord');
                   const telegramLink = profileData?.profile?.socials?.find((s: any) => s.type === 'telegram');
-                  const scanLink = apiTokenAddress ? `https://scan.pulsechain.box/token/${apiTokenAddress}` : null;
+                  const scanLink = apiTokenAddress ? `https://scan.pulsechain.com/token/${apiTokenAddress}` : null;
 
                   if (!websiteLink && !twitterLink && !discordLink && !telegramLink && !scanLink) return null;
 
@@ -2237,7 +2191,7 @@ function GeickoPageContent() {
                           <div className="text-base text-red-400 font-semibold">Not Renounced</div>
                           {ownershipData.ownerAddress && (
                             <a
-                              href={`https://scan.pulsechain.box/address/${ownershipData.ownerAddress}`}
+                              href={`https://scan.pulsechain.com/address/${ownershipData.ownerAddress}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
@@ -2954,7 +2908,7 @@ function GeickoPageContent() {
                         <div className="text-[11px] text-gray-400 mt-1">
                           {ownershipData.creatorAddress ? (
                             <a
-                              href={`https://scan.pulsechain.box/address/${ownershipData.creatorAddress}`}
+                              href={`https://scan.pulsechain.com/address/${ownershipData.creatorAddress}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-400 hover:text-blue-300 font-mono"
@@ -3173,7 +3127,7 @@ function GeickoPageContent() {
                           <div className="text-base text-red-400 font-semibold">Not Renounced</div>
                           {ownershipData.ownerAddress && (
                             <a
-                              href={`https://scan.pulsechain.box/address/${ownershipData.ownerAddress}`}
+                              href={`https://scan.pulsechain.com/address/${ownershipData.ownerAddress}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
@@ -3414,7 +3368,7 @@ function GeickoPageContent() {
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-sm font-mono text-white">{truncateAddress(holderTransfersAddress)}</span>
                   <a
-                    href={`https://scan.pulsechain.box/address/${holderTransfersAddress}`}
+                    href={`https://scan.pulsechain.com/address/${holderTransfersAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-400 text-xs hover:underline"
@@ -3469,7 +3423,7 @@ function GeickoPageContent() {
                           <div className="flex items-center gap-2 text-xs text-gray-400">
                             <span>{tx.timestamp ? formatDateUTC(tx.timestamp) : '—'}</span>
                             <a
-                              href={`https://scan.pulsechain.box/tx/${tx.txHash}`}
+                              href={`https://scan.pulsechain.com/tx/${tx.txHash}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-400 hover:underline"
@@ -3491,7 +3445,7 @@ function GeickoPageContent() {
                             <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
                               <p className="text-gray-400">From</p>
                               <a
-                                href={`https://scan.pulsechain.box/address/${tx.from}`}
+                                href={`https://scan.pulsechain.com/address/${tx.from}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-300 hover:underline break-all"
@@ -3502,7 +3456,7 @@ function GeickoPageContent() {
                             <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
                               <p className="text-gray-400">To</p>
                               <a
-                                href={`https://scan.pulsechain.box/address/${tx.to}`}
+                                href={`https://scan.pulsechain.com/address/${tx.to}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-300 hover:underline break-all"
@@ -3513,7 +3467,7 @@ function GeickoPageContent() {
                             <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
                               <p className="text-gray-400">Transaction</p>
                               <a
-                                href={`https://scan.pulsechain.box/tx/${tx.txHash}`}
+                                href={`https://scan.pulsechain.com/tx/${tx.txHash}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-300 hover:underline break-all"

@@ -241,7 +241,7 @@ const PortfolioTracker: React.FC = () => {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
             
-            const response = await fetch(`https://scan.pulsechain.box/api/v2/addresses/${address}`, {
+            const response = await fetch(`https://scan.pulsechain.com/api/v2/addresses/${address}`, {
               signal: controller.signal
             });
             

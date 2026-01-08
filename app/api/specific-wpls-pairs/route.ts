@@ -7,7 +7,6 @@ const SPECIFIC_TOKENS = [
   { symbol: 'HEX', address: null },
   { symbol: 'INC', address: null },
   { symbol: 'TIME', address: null },
-  { symbol: 'XGAME', address: null },
   { symbol: 'PCOCK', address: null },
   { symbol: 'PSSH', address: null },
   { symbol: 'MOST', address: null },

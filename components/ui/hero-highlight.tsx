@@ -34,7 +34,6 @@ export const HeroHighlight = ({
     "Search for HEX...or HEX!",
     "Search for PulseChain or PLS!",
     "Try SuperStake or PSSH",
-    "Bringing AI To PulseChain",
     "Bookmark Morbius.io",
   ];
 

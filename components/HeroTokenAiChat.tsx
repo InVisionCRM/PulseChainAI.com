@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 // import TokenAIChat from '@/components/TokenAIChat';
-import { search, fetchDexScreenerData } from '@/services/pulsechainService';
+import { search, fetchDexScreenerData, fetchContract } from '@/services/pulsechainService';
 import { dexscreenerApi } from '@/services';
 import type { DexScreenerData } from '@/types';
 // import AdminStatsPanel from '@/components/AdminStatsPanel';
 import { LinkPreview } from '@/components/ui/link-preview';
-import { Copy } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
+import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
 
 type LinkItem = { label?: string; url: string };
 type SocialItem = { type?: string; url: string };
@@ -122,16 +123,19 @@ const normalizeSocials = (...sources: any[]): SocialItem[] => {
 
 // const DEFAULT_ADDRESS = '0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e';
 const PLACEHOLDERS = [
-  'Search any PulseChain ticker',
-  'Paste a contract address',
-  'Try HEX, PLS, or meme coins',
+  'Search any PulseChain Ticker, Name or Address',
+  'You Can Search For pSSH',
+  'Or Search for Morbius',
+  'Search by Address',
+  'Make Sure To Follow Morbius.io on X!',
 ];
 
 type SearchResult = {
   address: string;
   name: string;
-  symbol: string;
+  symbol?: string;
   type?: string;
+  verified?: boolean;
 };
 
 export default function HeroTokenAiChat(): JSX.Element {
@@ -139,7 +143,6 @@ export default function HeroTokenAiChat(): JSX.Element {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [selectedToken, setSelectedToken] = useState<TokenMeta | null>(null);
   const [dexData, setDexData] = useState<DexScreenerData | null>(null);
   const [dexLoading, setDexLoading] = useState(false);
@@ -153,11 +156,6 @@ export default function HeroTokenAiChat(): JSX.Element {
       }
     };
   }, []);
-
-  const activePlaceholder = useMemo(
-    () => PLACEHOLDERS[placeholderIndex % PLACEHOLDERS.length],
-    [placeholderIndex]
-  );
 
   useEffect(() => {
     return () => {
@@ -177,8 +175,31 @@ export default function HeroTokenAiChat(): JSX.Element {
       setIsSearching(true);
     try {
       const res = await search(value.trim());
-      setResults(res || []);
-      setShowResults((res || []).length > 0);
+
+      // Check verification status for each result
+      const resultsWithVerification = await Promise.all(
+        (res || []).map(async (item) => {
+          try {
+            const contractData = await fetchContract(item.address);
+            const isVerified = contractData.data?.is_verified || false;
+            console.log(`Contract ${item.address} verification status:`, isVerified);
+            return {
+              ...item,
+              verified: isVerified
+            };
+          } catch (error) {
+            console.warn(`Failed to check verification for ${item.address}:`, error);
+            // If verification check fails, assume not verified
+            return {
+              ...item,
+              verified: false
+            };
+          }
+        })
+      );
+
+      setResults(resultsWithVerification);
+      setShowResults(resultsWithVerification.length > 0);
     } finally {
       setIsSearching(false);
     }
@@ -187,7 +208,8 @@ export default function HeroTokenAiChat(): JSX.Element {
   );
 
   const handleInputChange = useCallback(
-    (value: string) => {
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
       setQuery(value);
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
@@ -212,7 +234,6 @@ export default function HeroTokenAiChat(): JSX.Element {
     });
     setQuery('');
     setResults([]);
-    setPlaceholderIndex((prev) => prev + 1);
     setShowResults(false);
   }, []);
 
@@ -323,36 +344,38 @@ export default function HeroTokenAiChat(): JSX.Element {
   const renderSearchSection = (withAnalyzingCard = false) => (
     <div className="space-y-3">
       <form onSubmit={handleManualSubmit} className="space-y-2">
-        <div className="relative">
-          <input
-            value={query}
-            onChange={(e) => handleInputChange(e.target.value)}
-            placeholder={activePlaceholder}
-            inputMode="text"
-            className="w-full rounded-2xl bg-slate-950/40 text-white border-2 border-white px-4 py-2 text-md placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-          />
-        </div>
+        <PlaceholdersAndVanishInput
+          placeholders={PLACEHOLDERS}
+          onChange={handleInputChange}
+          onSubmit={handleManualSubmit}
+        />
         {isSearching && (
-          <div className="text-[16px] text-slate-950">Searching…</div>
+          <div className="text-[16px] text-slate-900/80">Searching…</div>
         )}
         {showResults && results.length > 0 && (
-          <div className="bg-slate-950/35 border border-white/15 rounded-2xl max-h-44 overflow-y-auto text-md">
+          <div className="bg-white/35 border border-white/15 rounded-2xl max-h-44 overflow-y-auto text-md">
             {results.map((item) => (
               <button
                 key={item.address}
                 type="button"
-                className="w-full px-3 py-2 text-left hover:bg-white/10 transition"
+                className="w-full px-3 py-2 text-left hover:bg-purple-900/30 transition"
                 onClick={() => handleSelectToken(item)}
               >
-                <div className="font-semibold text-white truncate">
+                <div className="font-semibold text-slate-900 truncate flex items-center gap-1">
                   {item.name || item.symbol || 'Unknown'}{' '}
                   {item.symbol && item.name && (
-                    <span className="text-white/50 font-normal">
+                    <span className="text-slate-900/80 font-bold">
                       ({item.symbol})
                     </span>
                   )}
+                  {item.verified && (
+                    <span className="text-green-700 font-bold font-['Poppins'] flex items-center gap-1 ml-2">
+                      <Check className="w-4 h-4" />
+                      VERIFIED
+                    </span>
+                  )}
                 </div>
-                <div className="text-[16px] font-mono text-white truncate">
+                <div className="text-[16px] font-mono text-slate-900/80 truncate">
                   {item.address}
                 </div>
               </button>
@@ -368,11 +391,8 @@ export default function HeroTokenAiChat(): JSX.Element {
   const renderAnalyzingCard = () => {
     if (!selectedToken) return null;
     return (
-      <div className="flex flex-col items-center rounded-2xl bg-white/5 border border-white/20 px-5 py-4 text-md text-slate-950 space-y-3">
-        <p className="text-[16px] uppercase tracking-[0.3em] text-slate-950">
-          Now analyzing
-        </p>
-        <div className="text-lg font-semibold text-slate-950 truncate max-w-full flex items-center gap-2">
+      <div className="flex flex-col items-center rounded-2xl bg-white/5 border border-white/20 px-5 py-4 text-md text-slate-900/80 space-y-3">
+        <div className="text-lg font-semibold text-slate-900/80 truncate max-w-full flex items-center gap-2">
           {analyzingLogo && (
             <img
               src={analyzingLogo}
@@ -383,13 +403,13 @@ export default function HeroTokenAiChat(): JSX.Element {
           <span className="truncate">
             {selectedToken.name}{' '}
             {selectedToken.symbol && (
-              <span className="text-slate-950 text-base">
+              <span className="text-slate-900/80 text-base">
                 ({selectedToken.symbol})
               </span>
             )}
           </span>
         </div>
-        <div className="flex items-center gap-2 text-xs font-poppins text-slate-950 max-w-full">
+        <div className="flex items-center gap-2 text-xs font-poppins text-slate-900/80 max-w-full">
           <span>
             {selectedToken.address.slice(0, 5)}...{selectedToken.address.slice(-5)}
           </span>
@@ -404,12 +424,12 @@ export default function HeroTokenAiChat(): JSX.Element {
           </button>
         </div>
         {socials.length > 0 && (
-          <div className="flex items-center gap-2 text-slate-950">
+          <div className="flex items-center gap-2 text-slate-900/80">
             {socials.slice(0, 3).map((social, idx) => (
               <LinkPreview
                 key={`${social.url}-${idx}`}
                 url={social.url}
-                className="text-slate-950"
+                className="text-slate-900/80"
                 width={200}
                 height={120}
               >
@@ -420,24 +440,76 @@ export default function HeroTokenAiChat(): JSX.Element {
             ))}
           </div>
         )}
-        <Link
+        <div className="flex flex-wrap gap-1 justify-center">
+          <a
+            href={`/geicko?address=${selectedToken.address}&tab=chart`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2 py-1 rounded bg-white/60 text-slate-900/80 text-xs font-medium hover:bg-white/80 transition"
+          >
+            Chart
+          </a>
+          <a
+            href={`/geicko?address=${selectedToken.address}&tab=holders`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2 py-1 rounded bg-white/60 text-slate-900/80 text-xs font-medium hover:bg-white/80 transition"
+          >
+            Holders
+          </a>
+          <a
+            href={`/geicko?address=${selectedToken.address}&tab=liquidity`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2 py-1 rounded bg-white/60 text-slate-900/80 text-xs font-medium hover:bg-white/80 transition"
+          >
+            Liquidity
+          </a>
+          <a
+            href={`/geicko?address=${selectedToken.address}&tab=contract`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2 py-1 rounded bg-white/60 text-slate-900/80 text-xs font-medium hover:bg-white/80 transition"
+          >
+            Code
+          </a>
+          <a
+            href={`/geicko?address=${selectedToken.address}&tab=switch`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2 py-1 rounded bg-white/60 text-slate-900/80 text-xs font-medium hover:bg-white/80 transition"
+          >
+            Switch
+          </a>
+          <a
+            href={`/geicko?address=${selectedToken.address}&tab=stats`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2 py-1 rounded bg-white/60 text-slate-900/80 text-xs font-medium hover:bg-white/80 transition"
+          >
+            Stats
+          </a>
+        </div>
+        <a
           href={`/geicko?address=${selectedToken.address}`}
-          className="px-4 py-2 rounded-full bg-white/80 text-purple-900 text-sm font-semibold hover:bg-white transition"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-4 py-2 rounded-full bg-white/80 text-slate-900/80 text-sm font-semibold hover:bg-white transition"
         >
           View Token Page
-        </Link>
+        </a>
       </div>
     );
   };
 
   const renderInfoPanel = () => (
     <div className="rounded-3xl border border-white/15 bg-white/3 backdrop-blur-2xl p-3 space-y-3 text-md">
-      <p className="text-[10px] uppercase tracking-[0.3em] text-slate-950">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-slate-900/80">
         {primaryPair?.chainId?.toUpperCase() || 'PULSECHAIN'}
       </p>
       <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
         {dexLoading ? (
-          <div className="text-slate-950 text-[16px]">Loading token data…</div>
+          <div className="text-slate-900/80 text-[16px]">Loading token data…</div>
         ) : dexError ? (
           <div className="text-red-200 text-[11px]">{dexError}</div>
         ) : primaryPair ? (
@@ -456,32 +528,32 @@ export default function HeroTokenAiChat(): JSX.Element {
                   {Math.abs(primaryPair.priceChange?.h24 || 0).toFixed(2)}%
                 </span>
               </div>
-              <p className="text-[16px] text-slate-950">
+              <p className="text-[16px] text-slate-900/80">
                 {primaryPair.baseToken?.symbol}/{primaryPair.quoteToken?.symbol}
               </p>
             </div>
             <div className="text-[16px] grid grid-cols-2 gap-2">
               <div className="rounded-xl bg-white/5 border border-white/10 p-2">
-                <p className="text-slate-950">Market Cap</p>
-                <p className="text-md font-semibold">
+                <p className="text-slate-900/80">Market Cap</p>
+                <p className="text-md font-semibold text-slate-900/80">
                   ${Number(primaryPair.marketCap || 0).toLocaleString()}
                 </p>
               </div>
               <div className="rounded-xl bg-white/5 border border-white/10 p-2">
-                <p className="text-slate-950">Liquidity</p>
-                <p className="text-md font-semibold text-slate-950">
+                <p className="text-slate-900/80">Liquidity</p>
+                <p className="text-md font-semibold text-slate-900/80">
                   ${Number(primaryPair.liquidity?.usd || 0).toLocaleString()}
                 </p>
               </div>
               <div className="rounded-xl bg-white/5 border border-white/10 p-2">
-                <p className="text-slate-950">24h Volume</p>
-                <p className="text-md font-semibold">
+                <p className="text-slate-900/80">24h Volume</p>
+                <p className="text-md font-semibold text-slate-900/80">
                   ${Number(primaryPair.volume?.h24 || 0).toLocaleString()}
                 </p>
               </div>
               <div className="rounded-xl bg-white/5 border border-white/10 p-2">
-                <p className="text-slate-950">24h Txns</p>
-                <p className="text-md font-semibold">
+                <p className="text-slate-900/80">24h Txns</p>
+                <p className="text-md font-semibold text-slate-900/80">
                   {(primaryPair.txns?.h24?.buys || 0) +
                     (primaryPair.txns?.h24?.sells || 0)}
                 </p>
@@ -489,14 +561,14 @@ export default function HeroTokenAiChat(): JSX.Element {
             </div>
           </div>
         ) : (
-          <p className="text-slate-950 text-[16px]">
+          <p className="text-slate-900/80 text-[16px]">
             No Dex data found for this token yet.
           </p>
         )}
       </div>
 
       <div className="rounded-2xl bg-white/4 border border-white/15 p-3 text-[11px] max-h-56 overflow-y-auto space-y-2">
-        <p className="text-slate-950 text-[16px] leading-relaxed">
+        <p className="text-slate-900/80 text-[16px] leading-relaxed">
           Detailed token stats are available on the right panel, while this
           left column surfaces the search + API explorer directly.
         </p>
@@ -506,7 +578,7 @@ export default function HeroTokenAiChat(): JSX.Element {
 
   return (
     <div className="relative z-20 w-full px-4 -mt-[100px] pb-16 flex justify-center overflow-hidden">
-      <div className="w-full rounded-[32px] border border-white/15 bg-gradient-to-b from-white to-gray-400/50 via-white/50 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[40px] p-4 sm:p-7 text-slate-600 space-y-5 max-w-full sm:max-w-2xl overflow-hidden">
+      <div className="w-full rounded-[32px] bg-gradient-to-b from-white to-gray-400/50 via-white/50 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[40px] p-4 sm:p-7 text-slate-600 space-y-5 max-w-full sm:max-w-2xl overflow-hidden">
         <div className="text-center space-y-2">
           <p className="text-sm uppercase tracking-[0.4em] text-slate-500">
             <span className="text-lg sm:text-lg font-bold text-purple-600">Morbius</span>{' '}

@@ -716,7 +716,7 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
   const fetchTransactionDetails = async () => {
     setIsLoadingDetails(true);
     try {
-      const response = await fetch(`https://scan.pulsechain.box/api/v2/transactions/${txHash}`);
+      const response = await fetch(`https://scan.pulsechain.com/api/v2/transactions/${txHash}`);
       const data = await response.json();
       setTxDetails(data);
     } catch (error) {
@@ -729,7 +729,7 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
   const fetchTokenTransfers = async () => {
     setIsLoadingTransfers(true);
     try {
-      const response = await fetch(`https://scan.pulsechain.box/api/v2/transactions/${txHash}/token-transfers?type=ERC-20%2CERC-721%2CERC-1155`);
+      const response = await fetch(`https://scan.pulsechain.com/api/v2/transactions/${txHash}/token-transfers?type=ERC-20%2CERC-721%2CERC-1155`);
       const data = await response.json();
       setTokenTransfers(data);
     } catch (error) {
@@ -742,7 +742,7 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
   const fetchInternalTransactions = async () => {
     setIsLoadingInternal(true);
     try {
-      const response = await fetch(`https://scan.pulsechain.box/api/v2/transactions/${txHash}/internal-transactions`);
+      const response = await fetch(`https://scan.pulsechain.com/api/v2/transactions/${txHash}/internal-transactions`);
       const data = await response.json();
       setInternalTxns(data);
     } catch (error) {

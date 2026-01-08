@@ -2,7 +2,7 @@
 import { cn } from "@/lib/utils";
 import React, { useState, createContext, useContext, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { IconMenu2, IconX, IconSearch } from "@tabler/icons-react";
+import { IconMenu2, IconX, IconSearch, IconSettings, IconDeviceGamepad2, IconHome, IconCode, IconCurrencyDollar, IconBook, IconTrendingUp } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import { search } from "@/services/pulsechainService";
 import type { SearchResultItem } from "@/types";
@@ -96,7 +96,7 @@ export const DesktopSidebar = ({
     <>
       <motion.div
         className={cn(
-          "h-full px-4 py-4 hidden md:flex md:flex-col bg-gradient-to-br from-[#2C3E50] via-[#34495E] to-[#3B6978] border-r border-orange-500/40 w-[300px] shrink-0 relative z-50 group/sidebar",
+          "h-full px-2 py-2 hidden md:flex md:flex-col bg-gradient-to-br from-[#2C3E50] via-[#34495E] to-[#3B6978] border-r border-orange-500/40 w-[300px] shrink-0 relative z-50 group/sidebar",
           className
         )}
         animate={{
@@ -110,11 +110,47 @@ export const DesktopSidebar = ({
         onMouseLeave={() => setIsHovered(false)}
         {...props}
       >
-        <div className="absolute inset-0 bg-black/40 pointer-events-none rounded-3xl" />
+        <div className="absolute inset-0 bg-black/60 pointer-events-none rounded-sm" />
         <div className="flex flex-col h-full relative z-10">
           <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto min-h-0">
-            {isHovered ? <Logo /> : <LogoIcon />}
-            {children as React.ReactNode}
+            {!isHovered ? (
+              <div className="flex flex-col items-center justify-start h-full pt-4 space-y-4">
+                <LogoIcon />
+                {/* Navigation Icons */}
+                <div className="flex flex-col space-y-4">
+                  {/* Home */}
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
+                    <IconHome className="h-6 w-6 text-white" />
+                  </div>
+                  {/* Tokens */}
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
+                    <IconCode className="h-6 w-6 text-white" />
+                  </div>
+                  {/* Hex Dashboard */}
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
+                    <img
+                      src="/HEXagon (1).svg"
+                      alt="HEX Dashboard"
+                      className="h-6 w-6"
+                    />
+                  </div>
+                  {/* SuperStake Dashboard */}
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer" onClick={() => window.open('https://supershill.vercel.app/', '_blank')}>
+                    <IconTrendingUp className="h-6 w-6 text-white" />
+                  </div>
+                  {/* Learn AI */}
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
+                    <IconBook className="h-6 w-6 text-white" />
+                  </div>
+                  {/* Casino */}
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
+                    <IconCurrencyDollar className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              children as React.ReactNode
+            )}
           </div>
         </div>
       </motion.div>
@@ -143,11 +179,11 @@ const Logo = () => {
 
 const LogoIcon = () => {
   return (
-    <div className="relative z-20 flex items-center justify-center py-1">
+    <div className="relative z-20 flex items-center justify-center py-0">
       <img 
         src="/MobiusLogoClean.png" 
         alt="Mobius Logo" 
-        className="h-6 w-6 shrink-0 object-contain"
+        className="h-10 w-10 shrink-0 object-contain"
       />
     </div>
   );

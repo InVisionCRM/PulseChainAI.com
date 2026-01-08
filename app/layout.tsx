@@ -21,6 +21,7 @@ import {
   IconChevronDown,
   IconX,
   IconCurrencyDollar,
+  IconBook,
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -129,7 +130,18 @@ export default function RootLayout({
       label: "Hex Dashboard",
       href: "/hex-dashboard",
       icon: (
-        <IconHexagon className="h-5 w-5 shrink-0 text-white" />
+        <img
+          src="/HEXagon (1).svg"
+          alt="HEX Dashboard"
+          className="h-5 w-5 shrink-0"
+        />
+      ),
+    },
+    {
+      label: "Learn AI",
+      href: "/learn-ai",
+      icon: (
+        <IconBook className="h-5 w-5 shrink-0 text-white" />
       ),
     },
     {
@@ -146,7 +158,7 @@ export default function RootLayout({
       label: "PulseChain Stats",
       href: "/pulsechain-stats",
       icon: (
-        <IconChartBar className="h-5 w-5 shrink-0 text-white" />
+        <IconChartBar className="h-5 w-5 shrink-0 text-white text-center items-center justify-center" />
       ),
     },
     {
@@ -213,16 +225,6 @@ export default function RootLayout({
               <SidebarBody className="gap-10">
                 <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto min-h-0">
                   <div className="mt-8 flex flex-col gap-2">
-                    {/* Morbius Banner */}
-                    <div className="w-full overflow-hidden rounded-md shadow aspect-[3/1]">
-                      <img
-                        src="/Morbiusbanner.png"
-                        alt="Morbius banner"
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-
                     {/* Get Morbius Button - visible when sidebar is expanded */}
                     <a
                       href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
@@ -263,17 +265,19 @@ export default function RootLayout({
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2 md:hidden group-hover/sidebar:md:block"
+                        className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2 text-center md:hidden group-hover/sidebar:md:block"
                       >
                         Sponsored by
                       </motion.div>
-                      <SidebarLink
-                        link={{
-                          label: "SuperStake.Win",
-                          href: "https://superstake.win",
-                          icon: (<span className="h-5 w-5 shrink-0" />),
-                        }}
-                      />
+                      <div className="flex justify-center">
+                        <SidebarLink
+                          link={{
+                            label: "SuperStake.Win",
+                            href: "https://superstake.win",
+                            icon: (<span className="h-5 w-5 shrink-0" />),
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
