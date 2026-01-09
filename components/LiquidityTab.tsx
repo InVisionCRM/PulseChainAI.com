@@ -108,7 +108,7 @@ const formatTimeAgo = (timestamp: string): string => {
 const isBurnAddress = (address: string): boolean => {
   if (!address) return false;
   const lower = address.toLowerCase();
-  return lower.endsWith('dead') || lower.endsWith('000369') || lower.endsWith('000');
+  return lower.endsWith('dead') || lower.endsWith('000369') || lower.endsWith('0000');
 };
 
 const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading }) => {
@@ -363,79 +363,86 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
   }
 
   return (
-    <div className="h-full overflow-y-auto space-y-1 p-1 sm:p-2 text-white font-sans" style={{ fontFamily: 'Poppins, sans-serif' }}>
+    <div className="h-full overflow-y-auto space-y-2 p-2 text-white font-sans" style={{ fontFamily: 'Poppins, sans-serif' }}>
       {/* Overview Banner */}
-      <div className="rounded bg-white/5 border border-white/20 px-2 py-1.5 flex flex-col gap-1">
-        <div className="flex flex-wrap items-center justify-between gap-1.5">
+      <div className="rounded-lg bg-gradient-to-br from-slate-800/50 via-slate-900/50 to-slate-800/50 border border-slate-700/50 backdrop-blur p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div>
-            <p className="text-[8px] uppercase tracking-wider text-white/60">Liquidity Intelligence</p>
-            <h3 className="text-sm font-medium text-white">PulseChain Liquidity</h3>
+            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Liquidity Intelligence</p>
+            <h3 className="text-sm font-semibold text-white">PulseChain Liquidity</h3>
           </div>
-          <div className="flex flex-wrap gap-1 text-[9px] text-white/60">
-            <span className="px-1.5 py-0.5 border border-white/20">Live pairs {activePairs.length}</span>
-            <span className="px-1.5 py-0.5 border border-white/20">Zero liquidity {zeroLiquidityPairs.length}</span>
+          <div className="flex flex-wrap gap-1.5 text-[10px]">
+            <span className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 font-medium">
+              {activePairs.length} Live
+            </span>
+            {zeroLiquidityPairs.length > 0 && (
+              <span className="px-2 py-0.5 rounded bg-slate-500/15 border border-slate-500/25 text-slate-300 font-medium">
+                {zeroLiquidityPairs.length} Inactive
+              </span>
+            )}
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-1">
-          <div className="border border-white/20 px-1.5 py-1">
-            <div className="text-[9px] text-white/60">Total Liquidity</div>
-            <div className="text-sm font-medium text-white">{formatNumber(totalLiquidity)}</div>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-slate-900/40 backdrop-blur rounded border border-slate-700/40 p-2">
+            <div className="text-[9px] text-slate-400 font-medium mb-0.5">Total Liquidity</div>
+            <div className="text-sm font-bold text-white">{formatNumber(totalLiquidity)}</div>
           </div>
-          <div className="border border-white/20 px-1.5 py-1">
-            <div className="text-[9px] text-white/60">24h Volume</div>
-            <div className="text-sm font-medium text-white">{formatNumber(totalVolume)}</div>
+          <div className="bg-slate-900/40 backdrop-blur rounded border border-slate-700/40 p-2">
+            <div className="text-[9px] text-slate-400 font-medium mb-0.5">24h Volume</div>
+            <div className="text-sm font-bold text-white">{formatNumber(totalVolume)}</div>
           </div>
-          <div className="border border-white/20 px-1.5 py-1">
-            <div className="text-[9px] text-white/60">24h Transactions</div>
-            <div className="text-sm font-medium text-white">{totalTransactions.toLocaleString()}</div>
+          <div className="bg-slate-900/40 backdrop-blur rounded border border-slate-700/40 p-2">
+            <div className="text-[9px] text-slate-400 font-medium mb-0.5">24h Txns</div>
+            <div className="text-sm font-bold text-white">{totalTransactions.toLocaleString()}</div>
           </div>
         </div>
       </div>
 
 
       {/* All Pairs List */}
-      <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="text-sm font-medium text-white">Trading Pairs</h4>
-            <p className="text-[9px] text-white/50">Tap to expand details</p>
-          </div>
-          <div className="text-[9px] text-white/50">Active {activePairs.length}</div>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between pb-1.5 border-b border-slate-700/50">
+          <h4 className="text-xs font-semibold text-white uppercase tracking-wide">Trading Pairs</h4>
+          <div className="text-[10px] text-slate-400 font-medium">{activePairs.length} Active</div>
         </div>
 
         {activePairs.map((pair) => (
           <div
             key={pair.pairAddress}
-            className="bg-white/5 border border-white/20 overflow-hidden"
+            className="bg-slate-800/30 border border-slate-700/50 rounded-lg overflow-hidden hover:bg-slate-800/50 hover:border-slate-600/50 transition-all"
           >
             {/* Collapsed View */}
             <button
               type="button"
-              className="relative w-full text-left py-1.5 px-2 hover:bg-white/5 transition-colors focus:outline-none"
+              className="relative w-full text-left py-2 px-3 transition-all focus:outline-none"
               onClick={() => togglePairExpansion(pair.pairAddress)}
               aria-expanded={expandedPairs.has(pair.pairAddress)}
             >
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <div className="border border-white/30 px-1 py-0.5 text-[9px] text-white/70">
+                  <div className="bg-blue-500/10 border border-blue-500/25 px-1.5 py-0.5 rounded text-[10px] font-semibold text-blue-300">
                     {pair.dexId}
                   </div>
-                  <div className="text-sm font-medium text-white truncate">
+                  <div className="text-sm font-bold text-white truncate">
                     {pair.baseToken.symbol}/{pair.quoteToken.symbol}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-[10px] text-white/70">
-                  <div className="flex items-center gap-1 border border-white/20 px-1 py-0.5">
-                    <span className="text-white/60">Price</span>
-                    <span className="font-medium text-white">${parseFloat(pair.priceUsd || '0').toFixed(6)}</span>
+                <div className="flex items-center gap-1.5 text-[10px]">
+                  <div className="flex items-center gap-1 bg-slate-900/40 border border-slate-700/40 rounded px-1.5 py-0.5">
+                    <span className="text-slate-400">Price</span>
+                    <span className="font-semibold text-white">${parseFloat(pair.priceUsd || '0').toFixed(6)}</span>
                   </div>
                   {(() => {
                     const priceDiff = calculatePriceDifference(pair);
                     if (priceDiff === null) return null;
                     const isPositive = priceDiff >= 0;
                     return (
-                      <div className={`flex items-center gap-1 border border-white/20 px-1.5 py-0.5 text-[10px] ${isPositive ? 'text-white' : 'text-white/80'}`}>
+                      <div className={`flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                        isPositive
+                          ? 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-300'
+                          : 'bg-rose-500/15 border border-rose-500/25 text-rose-300'
+                      }`}>
                         {isPositive ? '↑' : '↓'}
                         {Math.abs(priceDiff).toFixed(2)}%
                       </div>
@@ -443,58 +450,60 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   })()}
                 </div>
 
-                <div className="ml-auto flex items-center gap-1.5 text-right">
+                <div className="ml-auto flex items-center gap-3 text-right">
                   <div>
-                    <div className="text-[10px] font-medium text-white">{formatNumber(pair.liquidity?.usd || 0)}</div>
-                    <div className="text-[8px] text-white/50">Liquidity</div>
+                    <div className="text-[11px] font-bold text-white">{formatNumber(pair.liquidity?.usd || 0)}</div>
+                    <div className="text-[9px] text-slate-400">Liquidity</div>
                   </div>
                   <div>
-                    <div className="text-[10px] font-medium text-white">{formatNumber(pair.volume?.h24 || 0)}</div>
-                    <div className="text-[8px] text-white/50">24h Volume</div>
+                    <div className="text-[11px] font-bold text-white">{formatNumber(pair.volume?.h24 || 0)}</div>
+                    <div className="text-[9px] text-slate-400">24h Vol</div>
                   </div>
-                  <div className="text-[9px] text-white/60">{expandedPairs.has(pair.pairAddress) ? '▲' : '▼'}</div>
+                  <div className="text-[10px] text-slate-400">
+                    {expandedPairs.has(pair.pairAddress) ? '▲' : '▼'}
+                  </div>
                 </div>
               </div>
 
-              <div className="mt-1.5 grid grid-cols-2 sm:grid-cols-4 gap-1">
-                <div className="border border-white/20 px-1.5 py-1 flex items-center justify-between text-[10px]">
-                  <span className="text-white/60">{pair.baseToken.symbol}</span>
-                  <span className="font-medium text-white">
+              <div className="grid grid-cols-4 gap-1.5">
+                <div className="bg-slate-900/40 border border-slate-700/40 rounded px-2 py-1 flex items-center justify-between">
+                  <span className="text-[9px] text-slate-400 font-medium">{pair.baseToken.symbol}</span>
+                  <span className="font-semibold text-white text-[10px]">
                     {formatTokenAmount(parseFloat(String(pair.liquidity?.base || '0')))}
                   </span>
                 </div>
-                <div className="border border-white/20 px-1.5 py-1 flex items-center justify-between text-[10px]">
-                  <span className="text-white/60">{pair.quoteToken.symbol}</span>
-                  <span className="font-medium text-white">
+                <div className="bg-slate-900/40 border border-slate-700/40 rounded px-2 py-1 flex items-center justify-between">
+                  <span className="text-[9px] text-slate-400 font-medium">{pair.quoteToken.symbol}</span>
+                  <span className="font-semibold text-white text-[10px]">
                     {formatTokenAmount(parseFloat(String(pair.liquidity?.quote || '0')))}
                   </span>
                 </div>
-                <div className="border border-white/20 px-1.5 py-1 flex items-center justify-between text-[10px]">
-                  <span className="text-white/60">Txns 24h</span>
-                  <span className="font-medium text-white">
+                <div className="bg-slate-900/40 border border-slate-700/40 rounded px-2 py-1 flex items-center justify-between">
+                  <span className="text-[9px] text-slate-400 font-medium">Txns</span>
+                  <span className="font-semibold text-white text-[10px]">
                     {((pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0)).toLocaleString()}
                   </span>
                 </div>
-                <div className="border border-white/20 px-1.5 py-1 flex items-center justify-between text-[10px]">
-                  <span className="text-white/60">FDV</span>
-                  <span className="font-medium text-white">{formatNumber((pair as any).fdv || 0)}</span>
+                <div className="bg-slate-900/40 border border-slate-700/40 rounded px-2 py-1 flex items-center justify-between">
+                  <span className="text-[9px] text-slate-400 font-medium">FDV</span>
+                  <span className="font-semibold text-white text-[10px]">{formatNumber((pair as any).fdv || 0)}</span>
                 </div>
               </div>
             </button>
 
             {/* Expanded View */}
             {expandedPairs.has(pair.pairAddress) && (
-              <div className="border-t border-white/20 p-2 space-y-2 bg-white/5">
+              <div className="border-t border-slate-700/50 p-2.5 space-y-2 bg-slate-900/20">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
-                  <div className="border border-white/20 p-1.5">
-                    <div className="text-[9px] text-white/60 mb-0.5">Price USD</div>
-                    <div className="text-sm font-medium text-white">
+                  <div className="bg-slate-900/40 border border-slate-700/40 rounded p-2">
+                    <div className="text-[9px] text-slate-400 font-medium mb-0.5">Price USD</div>
+                    <div className="text-[11px] font-bold text-white">
                       ${parseFloat(pair.priceUsd || '0').toFixed(6)}
                     </div>
                   </div>
-                  <div className="border border-white/20 p-1.5">
-                    <div className="text-[9px] text-white/60 mb-0.5">Price WPLS</div>
-                    <div className="text-sm font-medium text-white">
+                  <div className="bg-slate-900/40 border border-slate-700/40 rounded p-2">
+                    <div className="text-[9px] text-slate-400 font-medium mb-0.5">Price WPLS</div>
+                    <div className="text-[11px] font-bold text-white">
                       {parseFloat(pair.priceNative || '0').toLocaleString('en-US', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
@@ -506,13 +515,13 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     if (priceDiff === null) {
                       return (
                         <>
-                          <div className="border border-white/20 p-1.5">
-                            <div className="text-[9px] text-white/60 mb-0.5">FDV</div>
-                            <div className="text-sm font-medium text-white">{formatNumber((pair as any).fdv || 0)}</div>
+                          <div className="bg-slate-900/40 border border-slate-700/40 rounded p-2">
+                            <div className="text-[9px] text-slate-400 font-medium mb-0.5">FDV</div>
+                            <div className="text-[11px] font-bold text-white">{formatNumber((pair as any).fdv || 0)}</div>
                           </div>
-                          <div className="border border-white/20 p-1.5">
-                            <div className="text-[9px] text-white/60 mb-0.5">Market Cap</div>
-                            <div className="text-sm font-medium text-white">{formatNumber((pair as any).marketCap || 0)}</div>
+                          <div className="bg-slate-900/40 border border-slate-700/40 rounded p-2">
+                            <div className="text-[9px] text-slate-400 font-medium mb-0.5">Market Cap</div>
+                            <div className="text-[11px] font-bold text-white">{formatNumber((pair as any).marketCap || 0)}</div>
                           </div>
                         </>
                       );
@@ -520,93 +529,101 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     const isPositive = priceDiff >= 0;
                     return (
                       <>
-                        <div className="border border-white/20 p-1.5">
-                          <div className="text-[9px] text-white/60 mb-0.5">vs WPLS Pair</div>
-                          <div className={`text-sm font-medium flex items-center gap-1 ${isPositive ? 'text-white' : 'text-white/80'}`}>
+                        <div className={`border rounded p-2 ${
+                          isPositive
+                            ? 'bg-emerald-500/10 border-emerald-500/25'
+                            : 'bg-rose-500/10 border-rose-500/25'
+                        }`}>
+                          <div className="text-[9px] font-medium mb-0.5 text-slate-400">vs WPLS</div>
+                          <div className={`text-[11px] font-bold flex items-center gap-0.5 ${
+                            isPositive ? 'text-emerald-300' : 'text-rose-300'
+                          }`}>
                             {isPositive ? '↑' : '↓'}
                             {Math.abs(priceDiff).toFixed(2)}%
                           </div>
                         </div>
-                        <div className="border border-white/20 p-1.5">
-                          <div className="text-[9px] text-white/60 mb-0.5">Market Cap</div>
-                          <div className="text-sm font-medium text-white">{formatNumber((pair as any).marketCap || 0)}</div>
+                        <div className="bg-slate-900/40 border border-slate-700/40 rounded p-2">
+                          <div className="text-[9px] text-slate-400 font-medium mb-0.5">Market Cap</div>
+                          <div className="text-[11px] font-bold text-white">{formatNumber((pair as any).marketCap || 0)}</div>
                         </div>
                       </>
                     );
                   })()}
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
-                  <div className="border border-white/20 p-1.5">
-                    <div className="text-[9px] text-white/60">{pair.baseToken.symbol} in Pool</div>
-                    <div className="text-sm font-medium text-white">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="bg-blue-500/5 border border-blue-500/20 rounded p-2">
+                    <div className="text-[9px] text-blue-300/70 font-medium mb-0.5">{pair.baseToken.symbol} in Pool</div>
+                    <div className="text-[11px] font-bold text-white">
                       {formatTokenAmount(parseFloat(String(pair.liquidity?.base || '0')))}
                     </div>
                   </div>
-                  <div className="border border-white/20 p-1.5">
-                    <div className="text-[9px] text-white/60">{pair.quoteToken.symbol} in Pool</div>
-                    <div className="text-sm font-medium text-white">
+                  <div className="bg-purple-500/5 border border-purple-500/20 rounded p-2">
+                    <div className="text-[9px] text-purple-300/70 font-medium mb-0.5">{pair.quoteToken.symbol} in Pool</div>
+                    <div className="text-[11px] font-bold text-white">
                       {formatTokenAmount(parseFloat(String(pair.liquidity?.quote || '0')))}
                     </div>
                   </div>
                 </div>
 
                 {/* Liquidity Holders Section */}
-                <div className="space-y-1">
-                  <h5 className="text-[10px] font-medium text-white uppercase">LP Holders</h5>
+                <div className="space-y-1.5">
+                  <h5 className="text-[10px] font-semibold text-white uppercase tracking-wide">LP Holders</h5>
 
                   {pairHoldersData[pair.pairAddress]?.isLoading && (
-                    <div className="flex items-center justify-center py-1.5">
-                      <div className="animate-spin rounded-full h-2.5 w-2.5 border-b-2 border-white/60"></div>
-                      <span className="ml-2 text-white/60 text-[9px]">Loading holders...</span>
+                    <div className="flex items-center justify-center py-3 bg-slate-900/40 rounded border border-slate-700/40">
+                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-400 border-t-transparent"></div>
+                      <span className="ml-2 text-slate-400 text-[10px]">Loading holders...</span>
                     </div>
                   )}
 
                   {pairHoldersData[pair.pairAddress]?.error && (
-                    <div className="border border-white/30 text-white/70 px-1.5 py-1 text-[9px]">
+                    <div className="bg-rose-500/10 border border-rose-500/25 text-rose-300 rounded px-2 py-1.5 text-[10px]">
                       Failed to load holders: {pairHoldersData[pair.pairAddress].error}
                     </div>
                   )}
 
                   {pairHoldersData[pair.pairAddress]?.holders && pairHoldersData[pair.pairAddress].holders.length > 0 && (
-                    <div className="space-y-0.5 border border-white/20 p-1.5">
-                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-1.5 text-[9px] text-white/60 pb-1 border-b border-white/20">
+                    <div className="bg-slate-900/40 border border-slate-700/40 rounded overflow-hidden">
+                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 px-2 py-1.5 bg-slate-800/50 border-b border-slate-700/40 text-[9px] font-semibold text-slate-400 uppercase tracking-wide">
                         <div>Rank</div>
                         <div>Address</div>
                         <div>LP Tokens</div>
-                        <div>% of Pool</div>
+                        <div>% Pool</div>
                       </div>
 
-                      <div className="max-h-32 overflow-y-auto space-y-0.5 pr-0.5">
+                      <div className="max-h-48 overflow-y-auto divide-y divide-slate-700/30">
                         {pairHoldersData[pair.pairAddress].holders.map((holder, holderIndex) => (
                           <div
                             key={holder.address}
-                            className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-1.5 text-[10px] py-0.5 px-1 hover:bg-white/5 transition-colors"
+                            className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 px-2 py-1.5 hover:bg-slate-800/50 transition-colors"
                           >
-                            <div className="text-white/70 flex items-center gap-0.5">
+                            <div className="text-slate-300 font-semibold text-[10px] flex items-center gap-1">
                               #{holderIndex + 1}
-                              {isBurnAddress(holder.address) && <span title="Burn address" aria-label="Burn address">🔥</span>}
+                              {isBurnAddress(holder.address) && (
+                                <span className="text-[10px]" title="Burn address" aria-label="Burn address">🔥</span>
+                              )}
                             </div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleHolderClick(holder.address, pair);
                               }}
-                              className="font-mono text-white hover:text-white/80 underline cursor-pointer text-left transition-colors"
+                              className="font-mono text-blue-300 hover:text-blue-200 underline cursor-pointer text-left transition-colors text-[10px] font-medium"
                             >
                               {formatLpAddress(holder.address)}
                             </button>
-                            <div className="text-white font-medium">
+                            <div className="text-white font-semibold text-[10px]">
                               {formatHolderBalance(holder.value)}
                             </div>
                             <div className="text-right">
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium text-[9px] text-white">
+                              <div className="flex items-center gap-1 justify-end">
+                                <span className="font-semibold text-[10px] text-white">
                                   {formatHolderPercentage(holder.percentage)}
                                 </span>
-                                <div className="w-6 h-0.5 bg-white/20 rounded-full overflow-hidden">
+                                <div className="w-12 h-1 bg-slate-700/50 rounded-full overflow-hidden">
                                   <div
-                                    className="h-full bg-white transition-all duration-300"
+                                    className="h-full bg-gradient-to-r from-blue-400 to-purple-400"
                                     style={{ width: `${Math.min(100, holder.percentage * 2)}%` }}
                                   />
                                 </div>
@@ -621,25 +638,25 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   {pairHoldersData[pair.pairAddress]?.holders &&
                     pairHoldersData[pair.pairAddress].holders.length === 0 &&
                     !pairHoldersData[pair.pairAddress].isLoading && (
-                      <div className="text-center text-white/50 py-1 text-[9px]">
-                        No holders data available for this pair
+                      <div className="text-center text-slate-400 py-2 text-[10px] bg-slate-900/40 rounded border border-slate-700/40">
+                        No holders data available
                       </div>
                   )}
                 </div>
 
                 {/* Recent Liquidity Activity Section */}
-                <div className="space-y-1">
-                  <h5 className="text-[10px] font-medium text-white uppercase">Recent Activity</h5>
+                <div className="space-y-1.5">
+                  <h5 className="text-[10px] font-semibold text-white uppercase tracking-wide">Recent Activity</h5>
 
                   {pairLiquidityEvents[pair.pairAddress]?.isLoading && (
-                    <div className="flex items-center justify-center py-1.5">
-                      <div className="animate-spin rounded-full h-2.5 w-2.5 border-b-2 border-white/60"></div>
-                      <span className="ml-2 text-white/60 text-[9px]">Loading activity...</span>
+                    <div className="flex items-center justify-center py-3 bg-slate-900/40 rounded border border-slate-700/40">
+                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-purple-400 border-t-transparent"></div>
+                      <span className="ml-2 text-slate-400 text-[10px]">Loading activity...</span>
                     </div>
                   )}
 
                   {pairLiquidityEvents[pair.pairAddress]?.error && (
-                    <div className="border border-white/30 text-white/70 px-1.5 py-1 text-[9px]">
+                    <div className="bg-rose-500/10 border border-rose-500/25 text-rose-300 rounded px-2 py-1.5 text-[10px]">
                       Failed to load activity: {pairLiquidityEvents[pair.pairAddress].error}
                     </div>
                   )}
@@ -649,29 +666,29 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                       {pairLiquidityEvents[pair.pairAddress].events.map((event, eventIndex) => (
                         <div
                           key={`${event.txHash}-${eventIndex}`}
-                          className="flex items-center justify-between p-1.5 border border-white/20 hover:bg-white/5 transition-colors"
+                          className="flex items-center justify-between p-1.5 border border-slate-700/40 bg-slate-900/40 rounded hover:bg-slate-800/50 transition-colors"
                         >
                           <div className="flex items-center gap-1.5 flex-1">
-                            <div className={`text-xs ${event.type === 'add' ? 'text-white' : 'text-white/70'}`}>
+                            <div className={`text-[10px] font-bold ${event.type === 'add' ? 'text-emerald-300' : 'text-rose-300'}`}>
                               {event.type === 'add' ? '+' : '−'}
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center gap-1.5 mb-0.5">
-                                <span className={`font-medium text-[10px] ${event.type === 'add' ? 'text-white' : 'text-white/80'}`}>
+                                <span className={`font-semibold text-[10px] ${event.type === 'add' ? 'text-white' : 'text-slate-300'}`}>
                                   {event.type === 'add' ? 'Added' : 'Removed'}
                                 </span>
-                                <span className="text-[9px] text-white/50">{formatTimeAgo(event.timestamp)}</span>
+                                <span className="text-[9px] text-slate-400">{formatTimeAgo(event.timestamp)}</span>
                               </div>
-                              <div className="flex items-center gap-1.5 text-[9px] text-white/60">
+                              <div className="flex items-center gap-1.5 text-[9px] text-slate-500">
                                 <span>By</span>
-                                <code className="font-mono text-white/70">
+                                <code className="font-mono text-slate-400">
                                   {event.from ? `${event.from.slice(0, 8)}...${event.from.slice(-6)}` : 'Unknown'}
                                 </code>
                                 <a
                                   href={`https://scan.pulsechain.com/tx/${event.txHash}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-white/60 hover:text-white/40"
+                                  className="text-blue-300 hover:text-blue-200"
                                   title="View transaction"
                                   onClick={(e) => e.stopPropagation()}
                                 >
@@ -688,19 +705,19 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   {pairLiquidityEvents[pair.pairAddress]?.events &&
                     pairLiquidityEvents[pair.pairAddress].events.length === 0 &&
                     !pairLiquidityEvents[pair.pairAddress].isLoading && (
-                      <div className="text-center text-white/50 py-1 text-[9px]">
-                        No recent liquidity activity found
+                      <div className="text-center text-slate-400 py-2 text-[10px] bg-slate-900/40 rounded border border-slate-700/40">
+                        No recent activity
                       </div>
                   )}
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-col sm:flex-row gap-1">
+                <div className="flex gap-1.5">
                   <a
                     href={pair.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 text-center border border-white/20 text-white px-1.5 py-1 text-[10px] font-medium hover:bg-white/5 transition-colors"
+                    className="flex-1 text-center bg-blue-500/10 border border-blue-500/25 text-blue-300 px-2 py-1 text-[10px] font-semibold rounded hover:bg-blue-500/20 transition-colors"
                   >
                     DexScreener
                   </a>
@@ -709,17 +726,17 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     href={`https://scan.pulsechain.com/address/${pair.pairAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 text-center border border-white/20 text-white px-1.5 py-1 text-[10px] font-medium hover:bg-white/5 transition-colors"
+                    className="flex-1 text-center bg-slate-700/30 border border-slate-700/50 text-slate-300 px-2 py-1 text-[10px] font-semibold rounded hover:bg-slate-700/50 transition-colors"
                   >
                     Contract
                   </a>
 
                   <button
                     onClick={() => navigator.clipboard.writeText(pair.pairAddress || '')}
-                    className="flex-1 text-center border border-white/20 text-white px-1.5 py-1 text-[10px] font-medium hover:bg-white/5 transition-colors"
+                    className="flex-1 text-center bg-slate-700/30 border border-slate-700/50 text-slate-300 px-2 py-1 text-[10px] font-semibold rounded hover:bg-slate-700/50 transition-colors"
                     title="Copy pair address"
                   >
-                    Copy Address
+                    Copy
                   </button>
                 </div>
               </div>
@@ -729,15 +746,15 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
         {/* Zero Liquidity Pairs */}
         {zeroLiquidityPairs.length > 0 && (
-          <div className="border border-white/20 p-2">
+          <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-2">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm font-medium text-white">Zero Liquidity ({zeroLiquidityPairs.length})</div>
-                <div className="text-[9px] text-white/50">Pairs currently holding $0 liquidity</div>
+                <div className="text-xs font-semibold text-white">Zero Liquidity ({zeroLiquidityPairs.length})</div>
+                <div className="text-[9px] text-slate-400">Pairs with $0 liquidity</div>
               </div>
               <div className="text-right">
-                <div className="text-sm font-medium text-white">$0</div>
-                <div className="text-[8px] text-white/50">Liquidity</div>
+                <div className="text-xs font-bold text-white">$0</div>
+                <div className="text-[9px] text-slate-400">Liquidity</div>
               </div>
             </div>
           </div>

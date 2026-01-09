@@ -37,8 +37,7 @@ const isBurnAddress = (addr: string): boolean => {
   const lower = (addr || '').toLowerCase();
   return (
     lower.endsWith('dead') ||
-    lower.endsWith('0dead') ||
-    lower.endsWith('000') ||
+    lower.endsWith('0000') ||
     lower.endsWith('0369') ||
     lower.endsWith('000369')
   );
@@ -59,50 +58,27 @@ async function calculateBurnedTokens(address: string, decimals: number, totalSup
     let nextParams: Record<string, string> | undefined = undefined;
     let deadValueRaw = 0;
 
-    // Fetch up to 10 pages in parallel batches of 3
-    const maxPages = 10;
-    const batchSize = 3;
-
-    for (let batch = 0; batch < Math.ceil(maxPages / batchSize); batch++) {
-      const promises = [];
-
-      for (let i = 0; i < batchSize && (batch * batchSize + i) < maxPages; i++) {
-        const qs = new URLSearchParams({ limit: String(limit) });
-        if (nextParams && i === 0) {
-          Object.entries(nextParams).forEach(([k, v]) => qs.set(k, String(v)));
-        } else if (i > 0) {
-          // For parallel requests, use offset
-          qs.set('offset', String((batch * batchSize + i) * limit));
-        }
-
-        promises.push(
-          fetchJson(`${BASE_URL}/tokens/${address}/holders?${qs.toString()}`)
-            .catch(() => null)
-        );
+    // Paginate through holders to calculate burned tokens (up to 10 pages)
+    for (let i = 0; i < 10; i++) {
+      const qs = new URLSearchParams({ limit: String(limit) });
+      if (nextParams) {
+        Object.entries(nextParams).forEach(([k, v]) => qs.set(k, String(v)));
       }
 
-      const results = await Promise.all(promises);
+      const data = await fetchJson(`${BASE_URL}/tokens/${address}/holders?${qs.toString()}`);
+      const items: Array<{ address?: { hash?: string }; value?: string }> =
+        Array.isArray(data?.items) ? data.items : [];
 
-      for (const data of results) {
-        if (!data) continue;
+      // Calculate burned tokens on this page
+      const burnedOnPage = items.reduce(
+        (sum, it) => sum + (isBurnAddress(it.address?.hash || '') ? Number(it.value || '0') : 0),
+        0
+      );
+      deadValueRaw += burnedOnPage;
 
-        const items: Array<{ address?: { hash?: string }; value?: string }> =
-          Array.isArray(data?.items) ? data.items : [];
-
-        const burnedOnPage = items.reduce(
-          (sum, it) => sum + (isBurnAddress(it.address?.hash || '') ? Number(it.value || '0') : 0),
-          0
-        );
-        deadValueRaw += burnedOnPage;
-
-        if (!data?.next_page_params) {
-          const burnedAmount = decimals ? deadValueRaw / Math.pow(10, decimals) : deadValueRaw;
-          const burnedPct = totalSupply > 0 ? (deadValueRaw / totalSupply) * 100 : 0;
-          return { amount: burnedAmount, percent: burnedPct };
-        }
-
-        nextParams = data.next_page_params as Record<string, string>;
-      }
+      // If no more pages, stop pagination
+      if (!data?.next_page_params) break;
+      nextParams = data.next_page_params as Record<string, string>;
     }
 
     const burnedAmount = decimals ? deadValueRaw / Math.pow(10, decimals) : deadValueRaw;
@@ -175,7 +151,7 @@ async function getOwnershipData(address: string) {
     let isRenounced = false;
     let renounceTxHash: string | null = null;
 
-    // Fetch address info and creation tx in parallel
+    // Fetch address info and token info in parallel
     const [addressInfo, tokenInfo] = await Promise.all([
       fetchJson(`${BASE_URL}/addresses/${address}`).catch(() => null),
       fetchJson(`${BASE_URL}/tokens/${address}`).catch(() => null)
@@ -184,32 +160,32 @@ async function getOwnershipData(address: string) {
     creatorAddress = addressInfo?.creator_address_hash || null;
     creationTxHash = addressInfo?.creation_tx_hash || null;
 
-    // Check if it's a HEX token
-    const isHexToken = tokenInfo?.symbol?.toUpperCase() === 'HEX';
+    // Special exception for HEX token - always show as renounced
+    const isHexToken = address?.toLowerCase() === '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
 
     if (creationTxHash) {
+      // Fetch creation transaction to get owner (from address)
       const creationTx = await fetchJson(`${BASE_URL}/transactions/${creationTxHash}`).catch(() => null);
       ownerAddress = creationTx?.from?.hash || creationTx?.from || null;
+    }
 
-      // Check for renounce in address transfers
+    // Check if ownership was renounced by checking creator's transactions
+    if (creatorAddress && !isHexToken) {
       try {
-        const transfersData = await fetchJson(
-          `${BASE_URL}/addresses/${address}/transactions?filter=to`
+        const creatorTxs = await fetchJson(
+          `${BASE_URL}/addresses/${creatorAddress}/transactions?limit=100`
         );
 
-        const transfers = transfersData?.items || [];
-        const renounceTransfer = transfers.find((tx: any) => {
-          const toAddr = (tx.to?.hash || '').toLowerCase();
-          return toAddr === '0x0000000000000000000000000000000000000000' ||
-                 toAddr === '0x000000000000000000000000000000000000dead';
-        });
+        const renounceTx = (creatorTxs?.items || []).find((tx: any) =>
+          (tx?.method || '').toLowerCase() === 'renounceownership'
+        );
 
-        if (renounceTransfer) {
+        if (renounceTx) {
           isRenounced = true;
-          renounceTxHash = renounceTransfer.hash;
+          renounceTxHash = renounceTx.hash || null;
         }
       } catch (error) {
-        console.error('Failed to check for renounce:', error);
+        console.error('Failed to check renounce status:', error);
       }
     }
 
@@ -217,9 +193,9 @@ async function getOwnershipData(address: string) {
 
     return {
       creatorAddress,
-      ownerAddress,
+      ownerAddress: ownerAddress || creatorAddress,
       isRenounced: finalIsRenounced,
-      renounceTxHash,
+      renounceTxHash: isHexToken ? 'HEX_TOKEN_EXCEPTION' : renounceTxHash,
     };
   } catch (error) {
     console.error('Failed to get ownership data:', error);

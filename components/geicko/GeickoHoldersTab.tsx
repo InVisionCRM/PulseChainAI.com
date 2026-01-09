@@ -69,9 +69,9 @@ export default function GeickoHoldersTab({
   const totalPages = Math.ceil(holders.length / holdersPerPage);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {/* Holder Stats Cards */}
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-3 gap-1">
         {/* Total Holders */}
         <div className="border border-white/20 px-2 py-1.5">
           <div className="text-[10px] uppercase tracking-wider text-white/60">
@@ -109,11 +109,12 @@ export default function GeickoHoldersTab({
       {/* Holders Table */}
       <div className="border border-white/20 overflow-hidden">
         {/* Table Header */}
-        <div className="flex items-center px-2 py-1.5 text-[10px] uppercase tracking-wider text-white/60 border-b border-white/20">
-          <div className="flex-[0.8] min-w-[35px]">#</div>
+        <div className="flex items-center px-2 py-1 text-[10px] uppercase tracking-wider text-white/60 border-b border-white/20 bg-white/5">
+          <div className="flex-[0.6] min-w-[30px]">#</div>
           <div className="flex-[3] min-w-[110px]">Address & Tags</div>
           <div className="flex-[2] min-w-[70px]">Balance</div>
           <div className="flex-[1.5] min-w-[60px]">% Total</div>
+          <div className="flex-[0.8] min-w-[45px]">View</div>
         </div>
 
         {/* Table Rows */}
@@ -123,7 +124,7 @@ export default function GeickoHoldersTab({
             const balance = Number(holder.value) / Math.pow(10, decimals);
             const percentage = totalSupply > 0 ? (Number(holder.value) / totalSupply) * 100 : 0;
             const formattedAddress = holder.address
-              ? `${holder.address.slice(0, 9)}...${holder.address.slice(-5)}`
+              ? `${holder.address.slice(0, 4)}...${holder.address.slice(-4)}`
               : 'Unknown';
             const isLpHolder = lpAddressSet.has((holder.address || '').toLowerCase());
             const isBurn = isBurnAddress(holder.address);
@@ -131,10 +132,10 @@ export default function GeickoHoldersTab({
             return (
               <div
                 key={holder.address || i}
-                className="flex items-center px-2 py-1.5 text-[11px] hover:bg-white/5 transition-colors"
+                className="flex items-center px-2 py-1 text-sm hover:bg-white/5 transition-colors"
               >
                 {/* Rank */}
-                <div className="flex-[0.8] min-w-[35px] text-white">{globalIndex}</div>
+                <div className="flex-[0.6] min-w-[30px] text-white font-medium">{globalIndex}</div>
 
                 {/* Address & Tags */}
                 <div className="flex-[3] min-w-[110px] flex items-center gap-1 truncate">
@@ -147,55 +148,46 @@ export default function GeickoHoldersTab({
                   </button>
                   <div className="flex items-center gap-0.5 flex-wrap">
                     {isLpHolder && (
-                      <span className="px-1 py-0.5 text-[8px] bg-white/10 text-white rounded border border-white/20">
+                      <span className="px-1 py-0.5 text-[9px] bg-blue-500/20 text-blue-300 rounded border border-blue-500/30">
                         LP
                       </span>
                     )}
                     {holder.isContract && (
-                      <span className="px-1 py-0.5 text-[8px] bg-white/10 text-white rounded border border-white/20">
+                      <span className="px-1 py-0.5 text-[9px] bg-purple-500/20 text-purple-300 rounded border border-purple-500/30">
                         {holder.isVerified ? 'Verified' : 'Contract'}
                       </span>
                     )}
                     {isBurn && (
-                      <span className="px-1 py-0.5 text-[8px] bg-white/10 text-white rounded border border-white/20">
+                      <span className="px-1 py-0.5 text-[9px] bg-orange-500/20 text-orange-300 rounded border border-orange-500/30">
                         Burn
                       </span>
                     )}
                   </div>
+                </div>
+
+                {/* Balance */}
+                <div className="flex-[2] min-w-[70px] text-white truncate font-semibold">
+                  {Math.floor(balance).toLocaleString()}
+                </div>
+
+                {/* Percentage */}
+                <div className="flex-[1.5] min-w-[60px] text-white font-semibold">
+                  {percentage.toFixed(4)}%
+                </div>
+
+                {/* View Button */}
+                <div className="flex-[0.8] min-w-[45px]">
                   {holder.address && (
                     <a
                       href={`https://scan.pulsechain.com/address/${holder.address}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="ml-auto text-white/50 hover:text-white"
-                      aria-label="View address on PulseScan"
+                      className="inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-semibold bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded border border-blue-500/30 transition-colors"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <svg
-                        className="w-3 h-3"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={1.6}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M14 3h7v7m0-7L10 14m4 7H3V10"
-                        />
-                      </svg>
+                      View
                     </a>
                   )}
-                </div>
-
-                {/* Balance */}
-                <div className="flex-[2] min-w-[70px] text-white truncate font-medium">
-                  {balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                </div>
-
-                {/* Percentage */}
-                <div className="flex-[1.5] min-w-[60px] text-white font-medium">
-                  {percentage.toFixed(4)}%
                 </div>
               </div>
             );
@@ -204,17 +196,17 @@ export default function GeickoHoldersTab({
 
         {/* Pagination Controls */}
         {holders.length > holdersPerPage && (
-          <div className="flex items-center justify-between px-3 py-2 border-t border-white/10 bg-white/5">
-            <div className="text-[11px] text-white/70">
+          <div className="flex items-center justify-between px-2 py-1.5 border-t border-white/10 bg-white/5">
+            <div className="text-xs text-white/70 font-medium">
               Showing {startIndex + 1}-{Math.min(endIndex, holders.length)} of{' '}
               {holders.length}
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               {/* Previous Button */}
               <button
                 onClick={() => onPageChange(Math.max(1, holdersPage - 1))}
                 disabled={holdersPage === 1}
-                className="px-2 py-1 text-[11px] bg-white/10 hover:bg-white/15 disabled:bg-white/5 disabled:text-white/40 disabled:cursor-not-allowed text-white rounded border border-white/15 transition-colors"
+                className="px-2 py-0.5 text-xs font-medium bg-white/10 hover:bg-white/15 disabled:bg-white/5 disabled:text-white/40 disabled:cursor-not-allowed text-white rounded border border-white/15 transition-colors"
               >
                 Prev
               </button>
@@ -236,7 +228,7 @@ export default function GeickoHoldersTab({
                   <button
                     key={pageNum}
                     onClick={() => onPageChange(pageNum)}
-                    className={`px-2 py-1 text-[11px] rounded border transition-colors ${
+                    className={`px-2 py-0.5 text-xs font-medium rounded border transition-colors ${
                       holdersPage === pageNum
                         ? 'bg-cyan-500/30 text-white border-cyan-400/50'
                         : 'bg-white/10 hover:bg-white/15 text-white border-white/15'
@@ -251,7 +243,7 @@ export default function GeickoHoldersTab({
               <button
                 onClick={() => onPageChange(Math.min(totalPages, holdersPage + 1))}
                 disabled={holdersPage === totalPages}
-                className="px-2 py-1 text-[11px] bg-white/10 hover:bg-white/15 disabled:bg-white/5 disabled:text-white/40 disabled:cursor-not-allowed text-white rounded border border-white/15 transition-colors"
+                className="px-2 py-0.5 text-xs font-medium bg-white/10 hover:bg-white/15 disabled:bg-white/5 disabled:text-white/40 disabled:cursor-not-allowed text-white rounded border border-white/15 transition-colors"
               >
                 Next
               </button>
