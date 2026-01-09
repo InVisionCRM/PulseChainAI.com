@@ -24,118 +24,30 @@ import {
   formatPercentChange,
   formatDateUTC,
   formatAbbrev,
+  formatWebsiteDisplay,
   PUMP_TIRES_CREATOR,
 } from '@/components/geicko/utils';
 import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
 import { useToast } from '@/components/ui/toast-provider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-
-const normalizeLabel = (value?: string | null) => {
-  if (!value) return '';
-  return value
-    .split(/[-_]/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-};
-
-const formatChainLabel = (value?: string | null) => {
-  if (!value) return 'PulseChain';
-  const normalized = value.toLowerCase();
-  if (normalized === 'pulsechain') return 'PulseChain';
-  return normalizeLabel(value);
-};
-
-const formatDexLabel = (value?: string | null) => {
-  if (!value) return 'PulseX';
-  const normalized = value.toLowerCase();
-  if (normalized.includes('pulsex')) {
-    if (normalized.includes('v3')) return 'PulseX V3';
-    if (normalized.includes('v2')) return 'PulseX V2';
-    return 'PulseX';
-  }
-  return normalizeLabel(value);
-};
-
-// Pump.Tires creator address
-const PUMP_TIRES_CREATOR = '0x6538A83a81d855B965983161AF6a83e616D16fD5';
-
-const formatWebsiteDisplay = (url?: string | null) => {
-  if (!url) return '';
-  try {
-    const normalized = url.startsWith('http') ? url : `https://${url}`;
-    const parsed = new URL(normalized);
-    const host = parsed.hostname.replace(/^www\./, '');
-    const path = parsed.pathname && parsed.pathname !== '/' ? parsed.pathname.replace(/\/$/, '') : '';
-    return `${host}${path}`;
-  } catch {
-    return url.replace(/^https?:\/\//, '');
-  }
-};
-
-const formatMarketCapLabel = (value?: number) => {
-  const v = Number(value);
-  if (!Number.isFinite(v) || v <= 0) return 'MCAP N/A';
-  const abs = Math.abs(v);
-  const billions = abs / 1_000_000_000;
-  const millions = abs / 1_000_000;
-  if (billions >= 1 || millions >= 1000) return `$${(v / 1_000_000_000).toFixed(2)}B MCAP`;
-  if (millions >= 1) return `$${(v / 1_000_000).toFixed(2)}M MCAP`;
-  if (abs >= 1_000) return `$${Math.round(v / 1_000)}k MCAP`;
-  return `$${Math.round(v).toLocaleString()} MCAP`;
-};
-
-const truncateAddress = (value: string) => `${value.slice(0, 6)}...${value.slice(-4)}`;
-const formatLpHolderAddress = (value?: string) => (value ? `...${value.slice(-4)}` : 'Unknown');
-
-const formatCurrencyCompact = (value?: number | null, options: Intl.NumberFormatOptions = {}) => {
-  if (!Number.isFinite(value ?? NaN)) return '—';
-  const num = Number(value);
-  if (Math.abs(num) >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(2)}B`;
-  if (Math.abs(num) >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`;
-  if (Math.abs(num) >= 1_000) return `$${(num / 1_000).toFixed(1)}K`;
-  return `$${num.toLocaleString('en-US', { maximumFractionDigits: 2, ...options })}`;
-};
-
-const formatNumberCompact = (value?: number | null) => {
-  if (!Number.isFinite(value ?? NaN)) return '—';
-  const num = Number(value);
-  if (Math.abs(num) >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B`;
-  if (Math.abs(num) >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
-  if (Math.abs(num) >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
-  return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
-};
-
-const isBurnAddress = (addr?: string): boolean => {
-  const lower = (addr || '').toLowerCase();
-  return (
-    lower.endsWith('dead') ||
-    lower.endsWith('0dead') ||
-    lower.endsWith('000') ||
-    lower.endsWith('0369') ||
-    lower.endsWith('000369')
-  );
-};
-
-const formatPercentChange = (value?: number | null) => {
-  if (!Number.isFinite(value ?? NaN)) return '0.00%';
-  const num = Number(value);
-  return `${num >= 0 ? '+' : ''}${num.toFixed(2)}%`;
-};
-
-const formatDateUTC = (value: string | number | Date) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString('en-US', {
-    timeZone: 'UTC',
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
+import {
+  GeickoHolderTransfersModal,
+  GeickoHoldersTab,
+  GeickoSwitchTab,
+  GeickoWebsiteTab,
+  GeickoClassicHeader,
+  GeickoSearchBar,
+  GeickoMobileTokenHeader,
+  GeickoTabNavigation,
+  GeickoOwnershipPanel,
+  GeickoMetricsGrid,
+  GeickoMarketStatsPanel,
+  GeickoRabbyHeader,
+  GeickoRabbyActionButtons,
+  GeickoRabbyInfoCards,
+  GeickoRabbyTransactionsList,
+} from '@/components/geicko';
 
 function GeickoPageContent() {
   const searchParams = useSearchParams();
@@ -471,6 +383,51 @@ function GeickoPageContent() {
     }
   }, []);
 
+  // Load token metrics from server-side API
+  const loadTokenMetrics = useCallback(async (address: string) => {
+    if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/token-metrics/${address}`);
+      if (!response.ok) throw new Error('Failed to fetch token metrics');
+
+      const metrics = await response.json();
+
+      // Update all metrics state at once
+      if (metrics.burnedTokens) {
+        setBurnedTokens(metrics.burnedTokens);
+      }
+      if (metrics.holdersCount !== null) {
+        setHoldersCount(metrics.holdersCount);
+      }
+      if (metrics.creationDate) {
+        setCreationDate(metrics.creationDate);
+      }
+      if (metrics.supplyHeld) {
+        setSupplyHeld({ ...metrics.supplyHeld, isLoading: false });
+      }
+      if (metrics.smartContractHolderShare) {
+        setSmartContractHolderShare({ ...metrics.smartContractHolderShare, isLoading: false });
+      }
+      if (metrics.ownershipData) {
+        setOwnershipData({ ...metrics.ownershipData, isLoading: false });
+      }
+      if (metrics.totalSupply) {
+        setTotalSupply(metrics.totalSupply);
+      }
+
+      console.log('✅ Token metrics loaded from server in single request');
+    } catch (error) {
+      console.error('Failed to load token metrics:', error);
+      // Set loading states to false on error
+      setSupplyHeld(prev => ({ ...prev, isLoading: false }));
+      setSmartContractHolderShare(prev => ({ ...prev, isLoading: false }));
+      setOwnershipData(prev => ({ ...prev, isLoading: false }));
+    }
+  }, []);
+
   const loadHolderTransfers = useCallback(
     async (holderAddress: string) => {
       if (!holderAddress || !apiTokenAddress) return;
@@ -688,6 +645,8 @@ function GeickoPageContent() {
   useEffect(() => {
     const loadAllData = async () => {
       await loadTokenData(apiTokenAddress);
+      // Load metrics from server API (replaces multiple heavy calculations)
+      loadTokenMetrics(apiTokenAddress);
       // Load transactions and holders after token data is available
       loadTransactions(apiTokenAddress);
       loadHolders(apiTokenAddress);
@@ -695,7 +654,7 @@ function GeickoPageContent() {
 
     loadAllData();
     setHoldersPage(1); // Reset pagination when address changes
-  }, [apiTokenAddress, loadTokenData, loadTransactions, loadHolders]);
+  }, [apiTokenAddress, loadTokenData, loadTokenMetrics, loadTransactions, loadHolders]);
 
   const handleOpenHolderTransfers = useCallback(
     (address: string) => {
@@ -855,202 +814,59 @@ function GeickoPageContent() {
     }
   }, [searchInput, searchResults]);
 
-  // Load top tokens on mount
-  useEffect(() => {
-    const loadTopTokens = async () => {
-      try {
-        // Popular PulseChain token addresses
-        const popularTokens = [
-          { address: '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39', name: 'HEX' },
-          { address: '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab', name: 'PLSX' },
-          { address: '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d', name: 'INC' },
-          { address: '0xefD766cCb38EaF1dfd701853BFCe31359239F305', name: 'DAI' },
-          { address: '0xA1077a294dDE1B09bB078844df40758a5D0f9a27', name: 'WPLS' },
-          { address: '0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07', name: 'USDC' },
-        ];
+  // DISABLED: Load top tokens on mount - causing performance issues
+  // TODO: Move to lazy loading or separate API endpoint
+  // useEffect(() => {
+  //   const loadTopTokens = async () => {
+  //     try {
+  //       // Popular PulseChain token addresses
+  //       const popularTokens = [
+  //         { address: '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39', name: 'HEX' },
+  //         { address: '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab', name: 'PLSX' },
+  //         { address: '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d', name: 'INC' },
+  //         { address: '0xefD766cCb38EaF1dfd701853BFCe31359239F305', name: 'DAI' },
+  //         { address: '0xA1077a294dDE1B09bB078844df40758a5D0f9a27', name: 'WPLS' },
+  //         { address: '0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07', name: 'USDC' },
+  //       ];
 
-        const tokenDataPromises = popularTokens.map(async (token) => {
-          try {
-            const result = await fetchDexScreenerData(token.address);
-            const data = result?.data;
-            return {
-              symbol: token.name,
-              priceChange: data?.pairs?.[0]?.priceChange?.h24 || 0
-            };
-          } catch {
-            return { symbol: token.name, priceChange: 0 };
-          }
-        });
+  //       const tokenDataPromises = popularTokens.map(async (token) => {
+  //         try {
+  //           const result = await fetchDexScreenerData(token.address);
+  //           const data = result?.data;
+  //           return {
+  //             symbol: token.name,
+  //             priceChange: data?.pairs?.[0]?.priceChange?.h24 || 0
+  //           };
+  //         } catch {
+  //           return { symbol: token.name, priceChange: 0 };
+  //         }
+  //       });
 
-        const results = await Promise.all(tokenDataPromises);
-        setTopTokens(results);
-      } catch (error) {
-        console.error('Failed to load top tokens:', error);
-      }
-    };
+  //       const results = await Promise.all(tokenDataPromises);
+  //       setTopTokens(results);
+  //     } catch (error) {
+  //       console.error('Failed to load top tokens:', error);
+  //     }
+  //   };
 
-    loadTopTokens();
-  }, []);
+  //   loadTopTokens();
+  // }, []);
 
-  // Fetch burned tokens and holders count
-  useEffect(() => {
-    let cancelled = false;
-    const base = 'https://api.scan.pulsechain.com/api/v2';
+  // DISABLED: Fetch burned tokens and holders count - NOW HANDLED BY SERVER API
+  // This heavy calculation is now done server-side via /api/token-metrics/[address]
+  // useEffect(() => {
+  //   let cancelled = false;
+  //   const base = 'https://api.scan.pulsechain.com/api/v2';
+  //   ... (calculation code removed for performance)
+  //   load();
+  //   return () => { cancelled = true; };
+  // }, [apiTokenAddress]);
 
-    const isBurnAddress = (addr: string): boolean => {
-      const lower = (addr || '').toLowerCase();
-      return (
-        lower.endsWith('dead') ||
-        lower.endsWith('0000') ||
-        lower.endsWith('0369') ||
-        lower.endsWith('000369')
-      );
-    };
-
-    const fetchJson = async (url: string) => {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    };
-
-    const load = async () => {
-      try {
-        if (!apiTokenAddress) return;
-        const tokenInfo = await fetchJson(`${base}/tokens/${apiTokenAddress}`);
-        const decimals = Number(tokenInfo?.decimals ?? 18);
-        const totalSupply = Number(tokenInfo?.total_supply ?? 0);
-
-        // Get holders count from first page response
-        const firstPageUrl = `${base}/tokens/${apiTokenAddress}/holders?limit=50`;
-        const firstPage = await fetchJson(firstPageUrl);
-
-        // Extract total holders from the token metadata in the response
-        const totalHolders = firstPage?.items?.[0]?.token?.holders
-          ? Number(firstPage.items[0].token.holders)
-          : 0;
-
-        // Paginate through holders to calculate burned tokens
-        const limit = 50;
-        let nextParams: Record<string, string> | undefined = undefined;
-        let deadValueRaw = 0;
-
-        for (let i = 0; i < 10; i += 1) {
-          const qs = new URLSearchParams({ limit: String(limit) });
-          if (nextParams) Object.entries(nextParams).forEach(([k, v]) => qs.set(k, String(v)));
-          const data = await fetchJson(`${base}/tokens/${apiTokenAddress}/holders?${qs.toString()}`);
-          const items: Array<{ address?: { hash?: string }; value?: string }> = Array.isArray(data?.items) ? data.items : [];
-
-          // Calculate burned tokens
-          const burnedOnPage = items.reduce((sum, it) => sum + (isBurnAddress(it.address?.hash || '') ? Number(it.value || '0') : 0), 0);
-          deadValueRaw += burnedOnPage;
-
-          if (!data?.next_page_params) break;
-          nextParams = data.next_page_params as Record<string, string>;
-        }
-
-        const burnedAmount = decimals ? deadValueRaw / Math.pow(10, decimals) : deadValueRaw;
-        const burnedPct = totalSupply > 0 ? (deadValueRaw / totalSupply) * 100 : 0;
-
-        if (!cancelled) {
-          setBurnedTokens({ amount: burnedAmount, percent: burnedPct });
-          setHoldersCount(totalHolders);
-        }
-      } catch (error) {
-        console.error('Failed to fetch burned tokens and holders:', error);
-        if (!cancelled) {
-          setBurnedTokens(null);
-          setHoldersCount(null);
-        }
-      }
-    };
-
-    load();
-    return () => { cancelled = true; };
-  }, [apiTokenAddress]);
-
-  // Fetch contract ownership data
-  useEffect(() => {
-    let cancelled = false;
-    const base = 'https://api.scan.pulsechain.com/api/v2';
-
-    const fetchJson = async (url: string) => {
-      const res = await fetch(url, { headers: { Accept: 'application/json' } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    };
-
-    const loadOwnership = async () => {
-      try {
-        if (!apiTokenAddress) return;
-
-        setOwnershipData(prev => ({ ...prev, isLoading: true }));
-
-        let creatorAddress: string | null = null;
-        let creationTxHash: string | null = null;
-        let ownerAddress: string | null = null;
-        let isRenounced = false;
-        let renounceTxHash: string | null = null;
-
-        // Fetch address info to get creator and creation tx
-        try {
-          const addressInfo = await fetchJson(`${base}/addresses/${apiTokenAddress}`);
-          creatorAddress = addressInfo?.creator_address_hash || null;
-          creationTxHash = addressInfo?.creation_tx_hash || null;
-        } catch (error) {
-          console.error('Failed to fetch address info:', error);
-        }
-
-        if (creationTxHash) {
-          // Fetch creation transaction to get owner (from address)
-          try {
-            const creationTx = await fetchJson(`${base}/transactions/${creationTxHash}`);
-            ownerAddress = creationTx?.from?.hash || creationTx?.from || null;
-          } catch (error) {
-            console.error('Failed to fetch creation transaction:', error);
-          }
-        }
-
-        // Check if ownership was renounced by checking creator's transactions
-        if (creatorAddress) {
-          try {
-            const creatorTxs = await fetchJson(`${base}/addresses/${creatorAddress}/transactions?limit=100`);
-            const renounceTx = (creatorTxs?.items || []).find((tx: any) =>
-              (tx?.method || '').toLowerCase() === 'renounceownership'
-            );
-
-            if (renounceTx) {
-              isRenounced = true;
-              renounceTxHash = renounceTx.hash || null;
-            }
-          } catch (error) {
-            console.error('Failed to check renounce status:', error);
-          }
-        }
-
-        // Special exception for HEX token - always show as renounced
-        const isHexToken = apiTokenAddress?.toLowerCase() === '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
-        const finalIsRenounced = isHexToken ? true : isRenounced;
-
-        if (!cancelled) {
-          setOwnershipData({
-            creatorAddress,
-            ownerAddress: ownerAddress || creatorAddress,
-            isRenounced: finalIsRenounced,
-            renounceTxHash: isHexToken ? 'HEX_TOKEN_EXCEPTION' : renounceTxHash,
-            isLoading: false,
-          });
-        }
-      } catch (error) {
-        console.error('Failed to fetch ownership data:', error);
-        if (!cancelled) {
-          setOwnershipData(prev => ({ ...prev, isLoading: false }));
-        }
-      }
-    };
-
-    loadOwnership();
-    return () => { cancelled = true; };
-  }, [apiTokenAddress]);
+  // DISABLED: Fetch contract ownership data - NOW HANDLED BY SERVER API
+  // This sequential API call chain is now done server-side via /api/token-metrics/[address]
+  // useEffect(() => {
+  //   ... (ownership calculation removed for performance)
+  // }, [apiTokenAddress]);
 
   // Fetch total liquidity (USD) from all pairs
   useEffect(() => {
@@ -1096,7 +912,15 @@ function GeickoPageContent() {
     return () => { cancelled = true; };
   }, [dexScreenerData]);
 
-  // Fetch contract age, total pairs, and supply held
+  // DISABLED: Fetch contract age, total pairs, and supply held - NOW HANDLED BY SERVER API
+  // This heavy calculation with multiple sequential API calls is now done server-side
+  // via /api/token-metrics/[address] endpoint which includes:
+  // - Creation date calculation
+  // - Total supply fetching
+  // - Supply held percentages (top 10/20/50)
+  // - Smart contract holder share
+  // All of these are now loaded in a single optimized server request with caching
+  /*
   useEffect(() => {
     let cancelled = false;
     const base = 'https://api.scan.pulsechain.com/api/v2';
@@ -1116,15 +940,15 @@ function GeickoPageContent() {
         try {
           const addressInfo = await fetchJson(`${base}/addresses/${apiTokenAddress}`);
           const creationTxHash = addressInfo?.creation_tx_hash;
-          
+
           if (creationTxHash) {
             const creationTx = await fetchJson(`${base}/transactions/${creationTxHash}`);
             const timestamp = creationTx?.timestamp || creationTx?.block_timestamp;
-            
+
             if (timestamp) {
               const creationDate = new Date(timestamp);
               const creationDateStr = `${creationDate.getUTCFullYear()}-${String(creationDate.getUTCMonth() + 1).padStart(2, '0')}-${String(creationDate.getUTCDate()).padStart(2, '0')}`;
-              
+
               if (!cancelled) {
                 setCreationDate(creationDateStr);
               }
@@ -1149,7 +973,7 @@ function GeickoPageContent() {
         // Fetch supply held by top holders
         try {
           setSupplyHeld(prev => ({ ...prev, isLoading: true }));
-          
+
           const tokenInfo = await fetchJson(`${base}/tokens/${apiTokenAddress}`);
           const totalSupply = Number(tokenInfo?.total_supply || 0);
           const decimals = Number(tokenInfo?.decimals || 18);
@@ -1191,10 +1015,10 @@ function GeickoPageContent() {
         // Fetch smart contract holder share
         try {
           setSmartContractHolderShare(prev => ({ ...prev, isLoading: true }));
-          
+
           const tokenInfo = await fetchJson(`${base}/tokens/${apiTokenAddress}`);
           const totalSupply = Number(tokenInfo?.total_supply || 0);
-          
+
           if (totalSupply > 0) {
             // Fetch top 20 holders
             const holdersResponse = await fetchJson(`${base}/tokens/${apiTokenAddress}/holders?limit=20`);
@@ -1233,6 +1057,7 @@ function GeickoPageContent() {
     loadMetrics();
     return () => { cancelled = true; };
   }, [apiTokenAddress]);
+  */
 
   // Handle sidebar search button click
   useEffect(() => {
@@ -1569,133 +1394,18 @@ function GeickoPageContent() {
     return (
       <>
         <div className="min-h-screen bg-[#eef2ff] text-[#0f172a]">
-          <header className="bg-[#1c2cf8] text-white px-3 py-5 sm:px-8 sm:py-7 shadow-[0_20px_60px_rgba(28,44,248,0.35)]">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center text-lg font-semibold">
-                  <span role="img" aria-label="ledger">👛</span>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold tracking-wide">Ledger 1</p>
-                  <button
-                    onClick={() => handleCopyAddress(walletAddress)}
-                    className="text-xs text-white/70 hover:text-white transition-colors inline-flex items-center gap-1"
-                  >
-                    {displayAddress}
-                    <span className="text-white/60">⧉</span>
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {/* <button
-                  onClick={openPortfolioSettings}
-                  className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-lg"
-                  title="Settings"
-                >
-                  ⚙️
-                </button> */}
-              </div>
-            </div>
-
-            <div className="relative mt-6 rounded-[24px] bg-[#2334ff] border border-white/15 p-5 shadow-[0_15px_40px_rgba(15,15,40,0.35)]">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/70">Portfolio</p>
-                  <p className="text-4xl font-black tracking-tight mt-1">{heroPriceDisplay}</p>
-                  <p className={`text-sm font-semibold ${priceChange >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>
-                    {heroChangeDisplay}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setActiveTab('switch')}
-                  className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center"
-                  title="Open chart"
-                >
-                  →
-                </button>
-              </div>
-              <div className="mt-5 h-24 rounded-3xl bg-white/5 border border-white/10 overflow-hidden">
-                <svg viewBox="0 0 500 120" className="w-full h-full" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="rabbyLine" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#8bf7ff" />
-                      <stop offset="100%" stopColor="#4de88d" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d={sparklinePath}
-                    fill="none"
-                    stroke="url(#rabbyLine)"
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                    opacity="0.9"
-                  />
-                </svg>
-              </div>
-              <div className="mt-5 grid grid-cols-2 gap-3 text-xs text-white/80">
-                <div className="rounded-2xl bg-white/10 px-3 py-2 flex items-center justify-between">
-                  <span>Liquidity</span>
-                  <span className="font-semibold text-white">{heroLiquidityDisplay}</span>
-                </div>
-                <div className="rounded-2xl bg-white/10 px-3 py-2 flex items-center justify-between">
-                  <span>Volume 24h</span>
-                  <span className="font-semibold text-white">{heroVolumeDisplay}</span>
-                </div>
-              </div>
-              {apiTokenAddress && (
-                <button
-                  onClick={() => handleCopyAddress(apiTokenAddress)}
-                  className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 text-xs text-white/80 hover:text-white transition-colors bg-[#2334ff]/50 backdrop-blur-sm px-2 py-1 rounded-lg"
-                  title="Copy contract address"
-                >
-                  <span className="font-mono">{apiTokenAddress.slice(0, 6)}...{apiTokenAddress.slice(-4)}</span>
-                  <Copy className="w-3.5 h-3.5 text-blue-400" />
-                </button>
-              )}
-            </div>
-          </header>
+          <GeickoRabbyHeader
+            walletAddress={walletAddress}
+            primaryPair={primaryPair}
+            priceChange={priceChange}
+            onCopyAddress={handleCopyAddress}
+            onOpenChart={() => setActiveTab('switch')}
+          />
 
           <main className="px-4 sm:px-8 -mt-10 pb-12 space-y-5">
-            <section className="bg-white rounded-[28px] shadow-[0_20px_60px_rgba(15,23,42,0.08)] p-5">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {rabbyActions.map((action) => (
-                  <button
-                    key={action.label}
-                    onClick={action.onClick}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100 px-3 py-3 text-left hover:border-indigo-200 hover:bg-indigo-50 transition-colors"
-                  >
-                    <span className="text-lg text-indigo-500">{action.icon}</span>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">{action.label}</p>
-                      <p className="text-xs text-slate-500">{action.description}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </section>
+            <GeickoRabbyActionButtons onTabChange={setActiveTab} onExternalLink={openExternalLink} />
 
-            <section className="bg-white rounded-2xl shadow-[0_12px_40px_rgba(15,23,42,0.08)] px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-sm text-slate-600">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-semibold">
-                  $
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-400">PLS price</p>
-                  <p className="text-base font-semibold text-slate-900">{heroPriceDisplay}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-semibold">
-                  ⛽
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Gas</p>
-                  <p className="text-base font-semibold text-slate-900">
-                    {(Math.max(0.001, (primaryPair?.txns?.m5?.buys || 0) / 1000) + 0.0028).toFixed(4)} Gwei
-                  </p>
-                </div>
-              </div>
-            </section>
+            <GeickoRabbyInfoCards primaryPair={primaryPair} />
 
             <section className="bg-white rounded-2xl shadow-[0_12px_40px_rgba(15,23,42,0.08)] px-4 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1713,45 +1423,10 @@ function GeickoPageContent() {
               </button>
             </section>
 
-            <section className="bg-white rounded-2xl shadow-[0_18px_50px_rgba(15,23,42,0.08)] px-4 py-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-slate-900">Recent Transactions</h3>
-              </div>
-              <div className="mt-3 space-y-3">
-                {limitedTransactions.length > 0 ? (
-                  limitedTransactions.map((tx, idx) => {
-                    const typeColorClass = tx.type === 'BUY' ? 'text-green-600' : tx.type === 'SELL' ? 'text-red-600' : 'text-blue-600';
-                    const borderColorClass = tx.type === 'BUY' ? 'border-green-100' : tx.type === 'SELL' ? 'border-red-100' : 'border-blue-100';
-                    
-                    return (
-                    <div key={`${tx.txHash}-${idx}`} className={`flex items-center justify-between rounded-2xl border ${borderColorClass} px-3 py-2`}>
-                      <div>
-                        <p className={`text-sm font-semibold ${typeColorClass}`}>{tx.type.toUpperCase()}</p>
-                        <p className="text-xs text-slate-500">{formatDateUTC(tx.timestamp)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-slate-900">
-                          {tx.amount?.toLocaleString(undefined, { maximumFractionDigits: 6 }) || '—'} {tokenInfo?.symbol || 'tokens'}
-                        </p>
-                        <a
-                          href={`https://scan.pulsechain.com/tx/${tx.txHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-indigo-500 hover:text-indigo-700"
-                        >
-                          View →
-                        </a>
-                      </div>
-                    </div>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-200 px-3 py-6 text-center text-xs text-slate-500">
-                    No swap activity found. This token may be new or have limited DEX trading.
-                  </div>
-                )}
-              </div>
-            </section>
+            <GeickoRabbyTransactionsList
+              transactions={limitedTransactions}
+              formatDate={formatDateUTC}
+            />
           </main>
         </div>
       {toast && (
@@ -1774,216 +1449,28 @@ function GeickoPageContent() {
           <div className="absolute -bottom-24 left-1/3 h-56 w-56 bg-gradient-to-tr from-emerald-600/20 via-teal-500/10 to-transparent blur-3xl" />
         </div>
       {/* Header Section */}
-      <header className="relative bg-slate-850 border-b-2 border-gray-800">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 md:px-3 py-2 gap-2">
-          {/* Title with Logo */}
-          <div className="flex items-center gap-2">
-            <img
-              src="/LogoVector.svg"
-              alt="Morbius Logo"
-              className="w-6 h-6"
-            />
-            <h1 className="text-white text-lg font-semibold">
-              <span className="text-xl sm:text-2xl font-bold text-purple-700">Morbius</span>{' '}
-              Token Analyzer
-            </h1>
-          </div>
-
-          {/* Get Morbius Button - Absolute positioned */}
-          <a
-            href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute top-1/2 -translate-y-1/2 right-2 px-2.5 py-1 bg-purple-700/40 backdrop-blur hover:bg-purple-700/50 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap z-10"
-          >
-            Get Morbius
-          </a>
-
-        </div>
-      </header>
+      <GeickoClassicHeader />
 
       {/* Desktop Ticker Search (also shown on two-panel view) */}
-      <div className="hidden md:block px-2 md:px-3 mt-2 mb-2">
-        <form onSubmit={handleSearch} className="relative">
-          <div className="flex items-center gap-2">
-            <input
-              ref={searchInputRef}
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-              placeholder="Search by ticker, name, or address"
-            />
-            <button
-              type="submit"
-              className="px-3 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white border border-white/10 transition-colors"
-            >
-              Search
-            </button>
-          </div>
-          {isSearching && (
-            <div className="absolute right-3 top-3 text-[11px] text-gray-400">Searching...</div>
-          )}
-          {showSearchResults && searchResults && searchResults.length > 0 && (
-            <div className="absolute z-50 mt-2 w-full bg-gray-900 border border-gray-800 rounded-lg shadow-xl overflow-hidden">
-              {searchResults.map((item) => {
-                const holders = (item as any).holders as number | null | undefined;
-                return (
-                  <button
-                    key={item.address}
-                    type="button"
-                    onClick={() => handleSelectSearchResult(item)}
-                    className="w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-800 transition-colors gap-3"
-                  >
-                    <div className="min-w-0">
-                      <div className="font-semibold text-white truncate">{item.name || item.symbol || 'Token'}</div>
-                      <div className="text-[11px] text-gray-400 truncate">
-                        {item.symbol || '—'} • Holders: {holders !== null && holders !== undefined ? holders.toLocaleString() : '—'}
-                      </div>
-                    </div>
-                    <span className="font-mono text-xs text-gray-400">{item.address.slice(0, 6)}...{item.address.slice(-4)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {searchError && (
-            <div className="mt-1 text-xs text-amber-300">{searchError}</div>
-          )}
-        </form>
-      </div>
+      <GeickoSearchBar
+        searchInput={searchInput}
+        setSearchInput={setSearchInput}
+        searchResults={searchResults}
+        showSearchResults={showSearchResults}
+        isSearching={isSearching}
+        searchError={searchError}
+        onSearch={handleSearch}
+        onSelectResult={handleSelectSearchResult}
+      />
 
       {/* Mobile Token Header - Top Position */}
-      <div className="sm:hidden px-2 mb-2 mt-0">
-        {isLoadingData ? (
-          <div className="flex items-center justify-center py-4">
-            <LoaderThree />
-          </div>
-        ) : dexScreenerData?.pairs?.[0] ? (
-          <div className="relative flex gap-2 min-h-[140px] pt-0 rounded-lg overflow-hidden">
-            {/* Left side: Token info */}
-            <div className="flex-1 min-w-0">
-              {/* Ticker and Name */}
-              <div className="absolute z-10 left-0 top-0 text-left mb-0">
-                <div className="bg-slate-900/90 backdrop-blur-lg rounded-xs p-2">
-                  <div className="text-md font-bold text-white">
-                    {dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} / {dexScreenerData.pairs[0].quoteToken?.symbol}
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    {dexScreenerData?.tokenInfo?.name || tokenInfo?.name || dexScreenerData.pairs[0].baseToken?.name || 'Token'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Token Logo - Centered below ticker/name */}
-              <div className="absolute z-20 left-6 bottom-0 bg-slate-900/90/30 backdrop-blur-xs rounded-full p-2 mb-1">
-                {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? (
-                  <img
-                    src={dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl}
-                    alt={`${dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol} logo`}
-                    className="w-16 h-16 rounded-full bg-gray-950"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                    }}
-                  />
-                ) : null}
-                <div className={`w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center ${(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? 'hidden' : ''}`}>
-                  <span className="text-white font-bold text-xl">
-                    {dexScreenerData?.tokenInfo?.symbol?.charAt(0) || dexScreenerData.pairs[0].baseToken?.symbol?.charAt(0) || 'T'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Download Logo Button */}
-              {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) && (
-                <button
-                  onClick={() => {
-                    const logoUrl = dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl;
-                    const symbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol || 'token';
-                    downloadImage(logoUrl!, `${symbol}-logo.png`);
-                  }}
-                  className="absolute z-20 left-6 bottom-0 ml-20 mb-1 flex items-center gap-1 text-xs text-white/70 hover:text-white transition-colors bg-slate-900/90/30 backdrop-blur-sm px-2 py-1 rounded-lg"
-                  title="Download logo"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                </button>
-              )}
-
-              {/* Current Price */}
-              <div className="absolute right-4 top-2">
-                <div className="text-xl font-bold text-white">
-                  ${Number(dexScreenerData.pairs[0].priceUsd || 0).toFixed(6)}
-                </div>
-                <div className={`text-md ${(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {(dexScreenerData.pairs[0].priceChange?.h24 || 0) >= 0 ? '↑' : '↓'}
-                  {Math.abs(dexScreenerData.pairs[0].priceChange?.h24 || 0).toFixed(2)}%
-                </div>
-                <div className="text-lg font-bold text-gray-300">
-                  {dexScreenerData.pairs[0].marketCap
-                    ? (() => {
-                        const marketCap = Number(dexScreenerData.pairs[0].marketCap);
-                        if (marketCap >= 1000000) {
-                          return `${(marketCap / 1000000).toFixed(2)}M MCAP`;
-                        } else {
-                          const rounded = Math.round(marketCap / 1000) * 1000;
-                          return `$${(rounded / 1000).toFixed(0)}k MCAP`;
-                        }
-                      })()
-                    : 'MCAP N/A'}
-                </div>
-              </div>
-            </div>
-
-            {/* Background - Zoomed Logo with Overlay */}
-            <div className="absolute inset-0 w-full h-full overflow-hidden -z-10">
-              {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) ? (
-                <>
-                  <img
-                    src={dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl}
-                    alt="Background Logo"
-                    className="w-full h-full object-cover blur-xl scale-150 opacity-50"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-slate-900/90/70" />
-                </>
-              ) : (
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" />
-              )}
-            </div>
-
-            {/* Download Logo Button for Background */}
-            {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) && (
-              <button
-                onClick={() => {
-                  const logoUrl = dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl;
-                  const symbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol || 'token';
-                  downloadImage(logoUrl!, `${symbol}-logo-highres.png`);
-                }}
-                className="absolute bottom-4 right-20 z-10 flex items-center gap-1 text-xs text-white/70 hover:text-white transition-colors bg-slate-900/90/30 backdrop-blur-sm px-2 py-1 rounded-lg"
-                title="Download high-res logo"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Logo</span>
-              </button>
-            )}
-
-            {apiTokenAddress && (
-              <button
-                onClick={() => handleCopyAddress(apiTokenAddress)}
-                className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 text-xs text-white/80 hover:text-white transition-colors bg-slate-900/90/30 backdrop-blur-sm px-2 py-1 rounded-lg"
-                title="Copy contract address"
-              >
-                <span className="font-mono">{apiTokenAddress.slice(0, 6)}...{apiTokenAddress.slice(-4)}</span>
-                <Copy className="w-3.5 h-3.5 text-blue-400" />
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="text-xs text-gray-400 py-4">No token data available</div>
-        )}
-      </div>
+      <GeickoMobileTokenHeader
+        dexScreenerData={dexScreenerData}
+        tokenInfo={tokenInfo}
+        apiTokenAddress={apiTokenAddress}
+        isLoadingData={isLoadingData}
+        onCopyAddress={handleCopyAddress}
+      />
 
       {/* Main Content */}
       <div className="flex flex-col md:flex-row items-start">
@@ -1994,345 +1481,25 @@ function GeickoPageContent() {
           <div className="sm:hidden px-2 mb-3 bg-gradient-to-br from-black via-[#0b0b14] to-black -mx-2 px-2">
             <div className="grid grid-cols-2 gap-3">
               {/* Left Column */}
-              <div className="space-y-3">
-                {/* Social Icons */}
-                {(() => {
-                  const websiteLink = profileData?.profile?.websites?.[0];
-                  const twitterLink = profileData?.profile?.socials?.find((s: any) => s.type === 'twitter');
-                  const discordLink = profileData?.profile?.socials?.find((s: any) => s.type === 'discord');
-                  const telegramLink = profileData?.profile?.socials?.find((s: any) => s.type === 'telegram');
-                  const scanLink = apiTokenAddress ? `https://scan.pulsechain.com/token/${apiTokenAddress}` : null;
-
-                  if (!websiteLink && !twitterLink && !discordLink && !telegramLink && !scanLink) return null;
-
-                  return (
-                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Socials</div>
-                      <div className="grid grid-cols-5 gap-2">
-                        {websiteLink && (
-                          <a
-                            href={websiteLink.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-lg p-2.5 transition-all"
-                            title="Website"
-                          >
-                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                            </svg>
-                          </a>
-                        )}
-                        {twitterLink && (
-                          <a
-                            href={twitterLink.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-lg p-2.5 transition-all"
-                            title="X.com"
-                          >
-                            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                            </svg>
-                          </a>
-                        )}
-                        {telegramLink && (
-                          <a
-                            href={telegramLink.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-lg p-2.5 transition-all"
-                            title="Telegram"
-                          >
-                            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-                            </svg>
-                          </a>
-                        )}
-                        {discordLink && (
-                          <a
-                            href={discordLink.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-lg p-2.5 transition-all"
-                            title="Discord"
-                          >
-                            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
-                            </svg>
-                          </a>
-                        )}
-                        {scanLink && (
-                          <a
-                            href={scanLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-lg p-2.5 transition-all"
-                            title="View on PulseChain Explorer"
-                          >
-                            <span className="text-sm text-white">.box</span>
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {dexScreenerData?.pairs?.[0] && (
-                  <>
-                    {/* Supply & Token Info */}
-                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Supply Info</div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-400 font-medium">Total Supply</span>
-                          <span className="text-sm text-white font-semibold">
-                            {totalSupply ? (() => {
-                              const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
-                              return formatAbbrev(supply);
-                            })() : '—'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-400 font-medium">Circulating</span>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-sm text-white font-semibold">
-                                {totalSupply ? (() => {
-                                  const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
-                                  const burned = burnedTokens?.amount ?? 0;
-                                  const circulating = Math.max(0, supply - burned);
-                                  return formatAbbrev(circulating);
-                                })() : '—'}
-                              </span>
-                            </TooltipTrigger>
-                            {totalSupply && (() => {
-                              const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
-                              const burned = burnedTokens?.amount ?? 0;
-                              const circulating = Math.max(0, supply - burned);
-                              return (
-                                <TooltipContent>
-                                  <p>{circulating.toLocaleString()}</p>
-                                </TooltipContent>
-                              );
-                            })()}
-                          </Tooltip>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-400 font-medium">Holders</span>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-sm text-white font-semibold">
-                                {holdersCount !== null ? (holdersCount >= 1000 ? `${(holdersCount / 1000).toFixed(1)}k` : holdersCount) : '—'}
-                              </span>
-                            </TooltipTrigger>
-                            {holdersCount !== null && (
-                              <TooltipContent>
-                                <p>{holdersCount.toLocaleString()}</p>
-                              </TooltipContent>
-                            )}
-                          </Tooltip>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-400 font-medium">Creation Date</span>
-                          <span className="text-sm text-white font-semibold">{creationDate || '—'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Supply Held */}
-                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Supply Held</div>
-                      {supplyHeld.isLoading ? (
-                        <div className="text-center text-gray-500 text-sm">Loading...</div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 font-medium">Top 10</span>
-                            <span className="text-sm text-white font-semibold">
-                              {supplyHeld.top10 > 0 ? `${Math.round(supplyHeld.top10)}%` : '—'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 font-medium">Top 20</span>
-                            <span className="text-sm text-white font-semibold">
-                              {supplyHeld.top20 > 0 ? `${Math.round(supplyHeld.top20)}%` : '—'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 font-medium">Top 50</span>
-                            <span className="text-sm text-white font-semibold">
-                              {supplyHeld.top50 > 0 ? `${Math.round(supplyHeld.top50)}%` : '—'}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Smart Contract Holder Share */}
-                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Smart Contract Holder Share</div>
-                      {smartContractHolderShare.isLoading ? (
-                        <div className="text-center text-gray-500 text-sm">Loading...</div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 font-medium">Share</span>
-                            <span className="text-sm text-white font-semibold">
-                              {smartContractHolderShare.percent > 0 ? `${smartContractHolderShare.percent.toFixed(2)}%` : '—'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 font-medium">Contracts</span>
-                            <span className="text-sm text-white font-semibold">
-                              {smartContractHolderShare.contractCount > 0 ? smartContractHolderShare.contractCount : '—'}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
+              <GeickoMetricsGrid
+                burnedTokens={burnedTokens}
+                holdersCount={holdersCount}
+                creationDate={creationDate}
+                supplyHeld={supplyHeld}
+                smartContractHolderShare={smartContractHolderShare}
+                totalLiquidity={totalLiquidity}
+              />
 
               {/* Right Column */}
               <div className="space-y-3">
-                {dexScreenerData?.pairs?.[0] && (
-                  <>
-                    {/* Ownership Status */}
-                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Ownership</div>
-                      {ownershipData.isLoading ? (
-                        <div className="text-center text-gray-500 text-sm">Loading...</div>
-                      ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
-                        <div className="text-center">
-                          <div className="text-base text-green-400 font-semibold">Renounced ✓</div>
-                          <div className="text-xs text-gray-400 mt-0.5">
-                            {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-center">
-                          <div className="text-base text-red-400 font-semibold">Not Renounced</div>
-                          {ownershipData.ownerAddress && (
-                            <a
-                              href={`https://scan.pulsechain.com/address/${ownershipData.ownerAddress}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
-                              title={ownershipData.ownerAddress}
-                            >
-                              ...{ownershipData.ownerAddress.slice(-6)}
-                            </a>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Market Cap */}
-                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Market Cap</div>
-                      <div className="text-center text-base text-white font-semibold">
-                        {(() => {
-                          const marketCap = Number(dexScreenerData.pairs[0].marketCap || 0);
-                          return marketCap > 0 ? formatAbbrev(marketCap) : '—';
-                        })()}
-                        </div>
-                      </div>
-
-                    {/* Liquidity */}
-                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
-                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
-                      <div className="text-center text-base text-white font-semibold">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              {(() => {
-                                const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
-                                return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
-                              })()}
-                            </span>
-                          </TooltipTrigger>
-                          {(() => {
-                            const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
-                            return usdLiquidity > 0 && (
-                              <TooltipContent>
-                                <p>${usdLiquidity.toLocaleString()}</p>
-                              </TooltipContent>
-                            );
-                          })()}
-                        </Tooltip>
-                      </div>
-                    </div>
-
-                    {/* Liq/MCAP Ratio */}
-                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
-                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Liq/MCAP</div>
-                      <div className="text-center text-base text-white font-semibold">
-                        {(() => {
-                          const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
-                          const marketCap = Number(dexScreenerData.pairs[0].marketCap || 0);
-                          if (marketCap > 0) {
-                            const ratio = (liquidity / marketCap) * 100;
-                            return `${ratio.toFixed(2)}%`;
-                          }
-                          return '—';
-                        })()}
-                      </div>
-                    </div>
-
-                    {/* Total Liquidity */}
-                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[80px] flex items-center justify-center">
-                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Total Liquidity</div>
-                      {totalLiquidity.isLoading ? (
-                        <div className="text-center text-gray-500 text-sm">Loading...</div>
-                      ) : (
-                        <div className="text-center text-base text-white font-semibold">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span>
-                                {totalLiquidity.usd > 0 ? `$${formatAbbrev(totalLiquidity.usd)}` : '—'}
-                              </span>
-                            </TooltipTrigger>
-                            {totalLiquidity.usd > 0 && (
-                              <TooltipContent>
-                                <p>${totalLiquidity.usd.toLocaleString()}</p>
-                              </TooltipContent>
-                            )}
-                          </Tooltip>
-                        </div>
-                      )}
-                      {totalLiquidity.pairCount > 0 && (
-                        <div className="absolute bottom-2 right-3 text-xs text-gray-400 font-medium">
-                          {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Burned Tokens */}
-                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
-                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
-                      {burnedTokens ? (
-                        <div className="text-center">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{burnedTokens.amount.toLocaleString()}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      ) : (
-                        <div className="text-center text-base text-white font-semibold">—</div>
-                      )}
-                      {burnedTokens && (
-                        <div className="absolute top-4 right-2 flex items-center justify-center w-9 h-9 rounded-full border-2 border-green-400">
-                          <span className="text-[10px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
+                <GeickoOwnershipPanel
+                  ownershipData={ownershipData}
+                  tokenAddress={apiTokenAddress}
+                />
+                <GeickoMarketStatsPanel
+                  dexScreenerData={dexScreenerData}
+                  totalLiquidity={totalLiquidity}
+                />
               </div>
             </div>
 
@@ -2353,53 +1520,12 @@ function GeickoPageContent() {
           </div>
 
           {/* Bottom Tabs */}
-          <div className="px-2 md:px-3 pt-4s pb-4 mt-4 relative z-30">
-            {isRabbyUI ? (
-              <div className="flex flex-wrap gap-2 overflow-x-auto scrollbar-hide">
-                {tabOptions.map((tab) => {
-                  const isActive = activeTab === tab.id;
-                  const isCodeTab = tab.id === 'contract';
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`text-lg transition-all duration-200 ${
-                        isActive
-                          ? isCodeTab
-                            ? 'text-xl font-semibold border-b-[3px] border-purple-500 text-purple-500'
-                            : 'text-xl font-semibold border-b-[3px] border-lime-500 bg-gradient-to-t from-lime-500 via-lime-500/50 to-white bg-clip-text text-transparent'
-                          : 'text-white/75 hover:text-purple-500 font-semibold'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-                {tabOptions.map((tab) => {
-                  const isActive = activeTab === tab.id;
-                  const isCodeTab = tab.id === 'contract';
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`text-lg transition-all duration-200 ${
-                        isActive
-                          ? isCodeTab
-                            ? 'text-xl font-semibold border-b-[3px] border-purple-500 text-purple-500'
-                            : 'text-xl font-semibold border-b-[3px] border-lime-500 bg-gradient-to-t from-lime-500 to-white bg-clip-text text-transparent'
-                          : 'text-white/75 hover:text-purple-500'
-                      }`}
-                    >
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <GeickoTabNavigation
+            activeTab={activeTab}
+            tabs={tabOptions}
+            variant={isRabbyUI ? 'rabby' : 'classic'}
+            onTabChange={setActiveTab}
+          />
 
           {/* Content Tables */}
           <div className="px-2 md:px-3 py-1 min-w-0">
@@ -2427,38 +1553,14 @@ function GeickoPageContent() {
 
               {/* Switch Tab - Only visible on mobile */}
               {activeTab === 'switch' && (
-                <div className="w-full flex items-center justify-center p-4">
-                  <iframe
-                    src={`https://switch.win/widget?network=pulsechain&background_color=000000&font_color=ffffff&secondary_font_color=7a7a7a&border_color=01e401&backdrop_color=transparent&from=0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee&to=${dexScreenerData?.pairs?.[0]?.baseToken?.address || apiTokenAddress}`}
-                    allow="clipboard-read; clipboard-write"
-                    width="100%"
-                    height="720"
-                    className="border-0 rounded w-full max-w-4xl min-h-[720px]"
-                    title="Token Swap Interface"
-                  />
-                </div>
+                <GeickoSwitchTab
+                  dexScreenerData={dexScreenerData}
+                  apiTokenAddress={apiTokenAddress}
+                />
               )}
 
               {/* Website Tab */}
-              {activeTab === 'website' && (
-                <div className="w-full flex items-center justify-center p-4">
-                  {websiteLink ? (
-                    <iframe
-                      src={websiteLink}
-                      width="100%"
-                      height="720"
-                      className="border-0 rounded w-full max-w-6xl min-h-[720px]"
-                      title="Token Website"
-                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                    />
-                  ) : (
-                    <div className="text-center text-gray-400">
-                      <p className="text-lg mb-2">No website available</p>
-                      <p className="text-sm">This token doesn't have a website listed on DexScreener</p>
-                    </div>
-                  )}
-                </div>
-              )}
+              {activeTab === 'website' && <GeickoWebsiteTab websiteLink={websiteLink} />}
 
               {/* Stats Tab */}
               {activeTab === 'stats' && (
@@ -2474,190 +1576,17 @@ function GeickoPageContent() {
 
               {/* Holders Tab */}
               {activeTab === 'holders' && (
-                <>
-                  {isLoadingHolders ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="text-center">
-                          <LoaderThree />
-                        <p className="text-gray-400 text-xs mt-2">Loading holders...</p>
-                        </div>
-                      </div>
-                  ) : holders.length > 0 ? (
-            <div className="space-y-3">
-              {/* Holder Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div className="rounded-xl bg-gradient-to-br from-white/10 via-slate-900/40 to-white/10 border border-white/10 px-3 py-2 shadow-[0_15px_35px_-30px_rgba(0,0,0,0.7)] backdrop-blur">
-                  <div className="text-[11px] uppercase tracking-[0.15em] text-white/70">Total Holders</div>
-                  <div className="text-lg font-semibold text-white">{holderStats.totalHolders ? holderStats.totalHolders.toLocaleString() : '—'}</div>
-                          </div>
-                <div className="rounded-xl bg-gradient-to-br from-sky-500/15 via-cyan-500/10 to-blue-500/15 border border-white/10 px-3 py-2 shadow-[0_15px_35px_-30px_rgba(56,189,248,0.7)] backdrop-blur">
-                  <div className="text-[11px] uppercase tracking-[0.15em] text-white/70">LP Addresses</div>
-                  <div className="text-lg font-semibold text-cyan-200">{holderStats.lpCount}</div>
-                          </div>
-                <div className="rounded-xl bg-gradient-to-br from-purple-500/15 via-indigo-500/10 to-purple-500/20 border border-white/10 px-3 py-2 shadow-[0_15px_35px_-30px_rgba(129,140,248,0.7)] backdrop-blur">
-                  <div className="text-[11px] uppercase tracking-[0.15em] text-white/70">Contracts</div>
-                  <div className="text-lg font-semibold text-purple-200">{holderStats.contractCount}</div>
-                          </div>
-                <div className="rounded-xl bg-gradient-to-br from-amber-500/15 via-orange-500/10 to-rose-500/15 border border-white/10 px-3 py-2 shadow-[0_15px_35px_-30px_rgba(251,191,36,0.55)] backdrop-blur">
-                  <div className="text-[11px] uppercase tracking-[0.15em] text-white/70">Burn / Top</div>
-                  <div className="flex items-center gap-2 text-sm font-semibold text-amber-100">
-                    <span>{holderStats.burnCount} burn</span>
-                    <span className="text-white/60 text-[11px]">•</span>
-                    <span className="text-emerald-200">{holderStats.topPct.toFixed(2)}% top</span>
-                          </div>
-                          </div>
-                          </div>
-
-              <div className="rounded-2xl bg-gradient-to-br from-white/10 via-slate-900/40 to-white/10 border border-white/10 shadow-[0_18px_40px_-30px_rgba(0,0,0,0.7)] overflow-hidden backdrop-blur-xl">
-                      {/* Table Header */}
-                <div className="flex items-center px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-white/60 border-b border-white/10">
-                        <div className="flex-[0.8] min-w-[40px]">#</div>
-                  <div className="flex-[3] min-w-[120px]">Address & Tags</div>
-                        <div className="flex-[2] min-w-[80px]">Balance</div>
-                        <div className="flex-[1.5] min-w-[70px]">% Total</div>
-                      </div>
-
-                      {/* Table Rows */}
-                <div className="divide-y divide-white/5">
-                        {(() => {
-                          const decimals = tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18;
-                          const totalSupply = tokenInfo?.total_supply ? Number(tokenInfo.total_supply) : 0;
-
-                          const startIndex = (holdersPage - 1) * holdersPerPage;
-                          const endIndex = startIndex + holdersPerPage;
-                          const currentPageHolders = holders.slice(startIndex, endIndex);
-
-                          return currentPageHolders.map((holder, i) => {
-                            const globalIndex = startIndex + i + 1;
-                            const balance = Number(holder.value) / Math.pow(10, decimals);
-                            const percentage = totalSupply > 0 ? (Number(holder.value) / totalSupply) * 100 : 0;
-                            const formattedAddress = holder.address ? `${holder.address.slice(0, 10)}...${holder.address.slice(-6)}` : 'Unknown';
-                      const isLpHolder = lpAddressSet.has((holder.address || '').toLowerCase());
-                      const isBurn = isBurnAddress(holder.address);
-
-                            return (
-                        <div
-                          key={holder.address || i}
-                          className="flex items-center px-3 py-2 text-xs hover:bg-white/5 transition-colors"
-                        >
-                                <div className="flex-[0.8] min-w-[40px] text-white">{globalIndex}</div>
-                          <div className="flex-[3] min-w-[120px] flex items-center gap-2 truncate">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenHolderTransfers(holder.address)}
-                              className="text-cyan-300 hover:text-cyan-200 underline cursor-pointer font-mono truncate text-left"
-                                  >
-                                    {formattedAddress}
-                                  </button>
-                            <div className="flex items-center gap-1 flex-wrap">
-                              {isLpHolder && (
-                                <span className="px-2 py-0.5 text-[10px] bg-cyan-500/15 text-cyan-200 rounded-full border border-cyan-400/30">
-                                  LP
-                                </span>
-                              )}
-                                  {holder.isContract && (
-                                <span className="px-2 py-0.5 text-[10px] bg-purple-500/15 text-purple-200 rounded-full border border-purple-400/30">
-                                  {holder.isVerified ? 'Verified Contract' : 'Contract'}
-                                </span>
-                              )}
-                              {isBurn && (
-                                <span className="px-2 py-0.5 text-[10px] bg-amber-500/15 text-amber-200 rounded-full border border-amber-400/30">
-                                  Burn
-                                    </span>
-                                  )}
-                                </div>
-                            {holder.address && (
-                              <a
-                                href={`https://scan.pulsechain.com/address/${holder.address}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="ml-auto text-white/60 hover:text-white"
-                                aria-label="View address on PulseScan"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 3h7v7m0-7L10 14m4 7H3V10" />
-                                </svg>
-                              </a>
-                            )}
-                          </div>
-                          <div className="flex-[2] min-w-[80px] text-white truncate font-semibold">
-                            {balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                          </div>
-                          <div className="flex-[1.5] min-w-[70px] text-emerald-300 font-semibold">{percentage.toFixed(4)}%</div>
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
-
-                      {/* Pagination Controls */}
-                      {holders.length > holdersPerPage && (
-                  <div className="flex items-center justify-between px-3 py-2 border-t border-white/10 bg-white/5">
-                    <div className="text-[11px] text-white/70">
-                            Showing {((holdersPage - 1) * holdersPerPage) + 1}-{Math.min(holdersPage * holdersPerPage, holders.length)} of {holders.length}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => setHoldersPage(prev => Math.max(1, prev - 1))}
-                              disabled={holdersPage === 1}
-                        className="px-2 py-1 text-[11px] bg-white/10 hover:bg-white/15 disabled:bg-white/5 disabled:text-white/40 disabled:cursor-not-allowed text-white rounded border border-white/15 transition-colors"
-                            >
-                              Prev
-                            </button>
-
-                            {/* Page numbers */}
-                            {(() => {
-                              const totalPages = Math.ceil(holders.length / holdersPerPage);
-                              return Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                let pageNum;
-                                if (totalPages <= 5) {
-                                  pageNum = i + 1;
-                                } else if (holdersPage <= 3) {
-                                  pageNum = i + 1;
-                                } else if (holdersPage >= totalPages - 2) {
-                                  pageNum = totalPages - 4 + i;
-                                } else {
-                                  pageNum = holdersPage - 2 + i;
-                                }
-
-                                return (
-                                  <button
-                                    key={pageNum}
-                                    onClick={() => setHoldersPage(pageNum)}
-                              className={`px-2 py-1 text-[11px] rounded border transition-colors ${
-                                      holdersPage === pageNum
-                                  ? 'bg-cyan-500/30 text-white border-cyan-400/50'
-                                  : 'bg-white/10 hover:bg-white/15 text-white border-white/15'
-                                    }`}
-                                  >
-                                    {pageNum}
-                                  </button>
-                                );
-                              });
-                            })()}
-
-                            <button
-                              onClick={() => setHoldersPage(prev => Math.min(Math.ceil(holders.length / holdersPerPage), prev + 1))}
-                              disabled={holdersPage === Math.ceil(holders.length / holdersPerPage)}
-                        className="px-2 py-1 text-[11px] bg-white/10 hover:bg-white/15 disabled:bg-white/5 disabled:text-white/40 disabled:cursor-not-allowed text-white rounded border border-white/15 transition-colors"
-                            >
-                              Next
-                            </button>
-                          </div>
-                        </div>
-                      )}
-              </div>
-            </div>
-                  ) : (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="text-center text-gray-400">
-                        <div className="text-xl mb-1">👥</div>
-                        <div className="text-xs">No holders found</div>
-                      </div>
-                    </div>
-                  )}
-                </>
+                <GeickoHoldersTab
+                  holders={holders}
+                  holderStats={holderStats}
+                  holdersPage={holdersPage}
+                  holdersPerPage={holdersPerPage}
+                  isLoadingHolders={isLoadingHolders}
+                  tokenInfo={tokenInfo}
+                  lpAddressSet={lpAddressSet}
+                  onPageChange={setHoldersPage}
+                  onOpenHolderTransfers={handleOpenHolderTransfers}
+                />
               )}
 
               {/* Liquidity Tab */}
@@ -2965,10 +1894,18 @@ function GeickoPageContent() {
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-                    {/* Download Logo Text Overlay */}
+                    {/* Download Logo Icon with Text */}
                     {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) && (
-                      <div className="absolute top-3 right-3 text-xs text-white/60 font-medium bg-black/40 backdrop-blur-sm px-2 py-1 rounded">
-                        download logo
+                      <div className="absolute top-3 right-3 flex flex-col items-center gap-1">
+                        <Download
+                          className="w-4 h-4 text-white/70 hover:text-white cursor-pointer transition-colors"
+                          onClick={() => {
+                            const logoUrl = dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl;
+                            const symbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol || 'token';
+                            downloadImage(logoUrl!, `${symbol}-logo.png`);
+                          }}
+                        />
+                        <span className="text-xs text-white/60 font-medium">Download Logo</span>
                       </div>
                     )}
 
@@ -3385,143 +2322,17 @@ function GeickoPageContent() {
       </div>
 
       {/* Holder Transfers Modal */}
-      {isHolderTransfersOpen && holderTransfersAddress && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90/80 backdrop-blur-sm p-4"
-          onClick={handleCloseHolderTransfers}
-        >
-          <div
-            className="relative w-full max-w-5xl max-h-[90vh] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between px-5 py-4 border-b border-gray-700 bg-gray-900/80 backdrop-blur">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Holder activity</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm font-mono text-white">{truncateAddress(holderTransfersAddress)}</span>
-                  <a
-                    href={`https://scan.pulsechain.com/address/${holderTransfersAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-400 text-xs hover:underline"
-                  >
-                    View on Explorer
-                  </a>
-                </div>
-              </div>
-              <button
-                onClick={handleCloseHolderTransfers}
-                className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                aria-label="Close holder transfers"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="p-4 overflow-y-auto max-h-[calc(90vh-120px)] bg-gray-900">
-              {isLoadingHolderTransfers ? (
-                <div className="flex items-center justify-center py-10 text-gray-400 gap-3">
-                  <LoaderThree />
-                  <span className="text-sm">Loading transfers...</span>
-                </div>
-              ) : holderTransfersError ? (
-                <div className="text-center text-sm text-red-400 py-6">{holderTransfersError}</div>
-              ) : holderTransfers.length === 0 ? (
-                <div className="text-center text-sm text-gray-400 py-6">No transfers found for this holder.</div>
-              ) : (
-                <div className="space-y-3">
-                  {holderTransfers.map((tx) => {
-                    const isExpanded = expandedHolderTxs.has(tx.txHash);
-                    const badgeClasses =
-                      tx.direction === 'Buy'
-                        ? 'bg-green-900/40 text-green-300 border-green-700/50'
-                        : tx.direction === 'Sell'
-                        ? 'bg-red-900/40 text-red-300 border-red-700/50'
-                        : 'bg-blue-900/30 text-blue-200 border-blue-700/40';
-
-                    return (
-                      <div key={tx.txHash} className="rounded-lg border border-gray-700 bg-gray-800/70 p-3 shadow-sm">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-[11px] px-2 py-1 rounded-full border ${badgeClasses}`}>
-                              {tx.direction}
-                            </span>
-                            <span className="text-white font-semibold">
-                              {tx.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })} {baseSymbol || 'TOKEN'}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-400">
-                            <span>{tx.timestamp ? formatDateUTC(tx.timestamp) : '—'}</span>
-                            <a
-                              href={`https://scan.pulsechain.com/tx/${tx.txHash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-400 hover:underline"
-                            >
-                              Explorer
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => toggleExpandedHolderTx(tx.txHash)}
-                              className="text-blue-300 hover:text-white transition-colors"
-                            >
-                              {isExpanded ? 'Hide details' : 'Details'}
-                            </button>
-                          </div>
-                        </div>
-
-                        {isExpanded && (
-                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-200">
-                            <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
-                              <p className="text-gray-400">From</p>
-                              <a
-                                href={`https://scan.pulsechain.com/address/${tx.from}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-300 hover:underline break-all"
-                              >
-                                {tx.from || '—'}
-                              </a>
-                            </div>
-                            <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
-                              <p className="text-gray-400">To</p>
-                              <a
-                                href={`https://scan.pulsechain.com/address/${tx.to}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-300 hover:underline break-all"
-                              >
-                                {tx.to || '—'}
-                              </a>
-                            </div>
-                            <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
-                              <p className="text-gray-400">Transaction</p>
-                              <a
-                                href={`https://scan.pulsechain.com/tx/${tx.txHash}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-300 hover:underline break-all"
-                              >
-                                {tx.txHash}
-                              </a>
-                            </div>
-                            <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
-                              <p className="text-gray-400">Direction</p>
-                              <p className="text-white font-semibold">{tx.direction}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <GeickoHolderTransfersModal
+        isOpen={isHolderTransfersOpen}
+        holderAddress={holderTransfersAddress}
+        transfers={holderTransfers}
+        isLoading={isLoadingHolderTransfers}
+        error={holderTransfersError}
+        expandedTxs={expandedHolderTxs}
+        tokenSymbol={baseSymbol || 'TOKEN'}
+        onClose={handleCloseHolderTransfers}
+        onToggleExpand={toggleExpandedHolderTx}
+      />
 
       {/* Stats Modal */}
       {isStatsModalOpen && (

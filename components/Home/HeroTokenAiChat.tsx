@@ -10,6 +10,7 @@ import type { DexScreenerData } from '@/types';
 import { LinkPreview } from '@/components/ui/link-preview';
 import { Copy, Check } from 'lucide-react';
 import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
+import { useRouter } from 'next/navigation';
 
 type LinkItem = { label?: string; url: string };
 type SocialItem = { type?: string; url: string };
@@ -149,6 +150,7 @@ export default function HeroTokenAiChat(): JSX.Element {
   const [dexError, setDexError] = useState<string | null>(null);
   const [tokenProfile, setTokenProfile] = useState<any | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const router = useRouter();
   React.useEffect(() => {
     return () => {
       if (searchTimeoutRef.current) {
@@ -176,19 +178,18 @@ export default function HeroTokenAiChat(): JSX.Element {
     try {
       const res = await search(value.trim());
 
-      // Check verification status for each result
+      // For performance, only check verification for top 3 results
+      const limitedResults = (res || []).slice(0, 3);
       const resultsWithVerification = await Promise.all(
-        (res || []).map(async (item) => {
+        limitedResults.map(async (item) => {
           try {
             const contractData = await fetchContract(item.address);
             const isVerified = contractData.data?.is_verified || false;
-            console.log(`Contract ${item.address} verification status:`, isVerified);
             return {
               ...item,
               verified: isVerified
             };
           } catch (error) {
-            console.warn(`Failed to check verification for ${item.address}:`, error);
             // If verification check fails, assume not verified
             return {
               ...item,
@@ -198,8 +199,16 @@ export default function HeroTokenAiChat(): JSX.Element {
         })
       );
 
-      setResults(resultsWithVerification);
-      setShowResults(resultsWithVerification.length > 0);
+      // Add remaining results without verification check
+      const remainingResults = (res || []).slice(3).map(item => ({
+        ...item,
+        verified: false
+      }));
+
+      const allResults = [...resultsWithVerification, ...remainingResults];
+
+      setResults(allResults);
+      setShowResults(allResults.length > 0);
     } finally {
       setIsSearching(false);
     }
@@ -227,15 +236,9 @@ export default function HeroTokenAiChat(): JSX.Element {
   );
 
   const handleSelectToken = useCallback((token: SearchResult) => {
-    setSelectedToken({
-      address: token.address,
-      name: token.name || token.symbol || 'Token',
-      symbol: token.symbol || token.name || '',
-    });
-    setQuery('');
-    setResults([]);
-    setShowResults(false);
-  }, []);
+    // Navigate directly to geicko page instead of showing info in chat
+    router.push(`/geicko?address=${token.address}&tab=chart`);
+  }, [router]);
 
   const handleManualSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -369,13 +372,13 @@ export default function HeroTokenAiChat(): JSX.Element {
                     </span>
                   )}
                   {item.verified && (
-                    <span className="text-green-700 font-bold font-['Poppins'] flex items-center gap-1 ml-2">
+                    <span className="text-green-800 font-bold font-poppins flex items-center gap-1 ml-2">
                       <Check className="w-4 h-4" />
                       VERIFIED
                     </span>
                   )}
                 </div>
-                <div className="text-[16px] font-mono text-slate-900/80 truncate">
+                <div className="text-[12px] font-mono text-slate-900/80 truncate">
                   {item.address}
                 </div>
               </button>

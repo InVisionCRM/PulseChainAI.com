@@ -359,7 +359,7 @@ export default function TokenTable() {
       <div className="w-full mx-auto px-1 py-1">
         <div className="bg-black border border-b-white/40 p-1">
           <div className="flex justify-center items-center py-1">
-            <div className="text-white text-2xl font-bold font-poppins animate-pulse">Loading tokens...</div>
+            <div className="text-white text-2xl md:text-xl font-bold font-poppins animate-pulse">Loading tokens...</div>
           </div>
         </div>
       </div>
@@ -374,7 +374,7 @@ export default function TokenTable() {
           <button
             onClick={fetchTokenData}
             disabled={refreshing}
-            className="flex items-center gap-1 px-1 py-1 text-xs bg-white/5 hover:bg-white/10 rounded text-white/70 hover:text-white transition-colors disabled:opacity-50"
+            className="flex items-center gap-1 px-1 py-1 text-sm md:text-xs bg-white/5 hover:bg-white/10 rounded text-white/70 hover:text-white transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
@@ -382,10 +382,10 @@ export default function TokenTable() {
         </div>
 
         <div className="max-h-[95vh] overflow-auto">
-          <table className="w-full text-xs table-fixed">
+          <table className="w-full text-sm md:text-xs table-fixed">
             <thead className="bg-black/90 sticky top-0">
-              <tr className="text-xs text-white/80 uppercase tracking-wider">
-                <th className="w-[200px] px-1 py-1 text-center justify-center font-medium">Token</th>
+              <tr className="text-sm md:text-xs text-white/80 uppercase tracking-wider">
+                <th className="w-[90px] px-1 py-1 text-left font-medium">Token</th>
                 <th className="w-[90px] px-1 py-1 text-center justify-center font-medium cursor-pointer hover:text-white transition-colors"
                     onClick={() => handleSort('price')}>
                   Price {getSortIcon('price')}
@@ -418,7 +418,7 @@ export default function TokenTable() {
                           <span className="px-1 py-0.5 text-[8px] font-bold bg-yellow-500 text-black rounded-sm border border-yellow-400 cursor-help">
                             GOLD
                           </span>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-xs rounded border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-sm md:text-xs rounded border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
                             GOLD Badges are given to projects that have sponsored with Morbius.io.{' '}
                             <a
                               href="https://morbius.io"
@@ -433,7 +433,7 @@ export default function TokenTable() {
                       )}
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <img src={token.dexIcon} alt="DEX" className="w-3 h-3 opacity-60" />
-                        <img src={token.tokenIcon} alt={token.symbol} className="w-4 h-4 rounded-full" />
+                        <img src={token.tokenIcon} alt={token.symbol} className="w-6 h-6 md:w-4 md:h-4 rounded-full" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <Link
@@ -447,14 +447,14 @@ export default function TokenTable() {
                     </div>
                   </td>
 
-                  <td className="px-1 py-1 text-center justify-center font-mono text-white text-xs truncate">{token.price}</td>
+                  <td className="px-1 py-1 text-center justify-center font-mono text-white text-sm md:text-xs truncate">{token.price}</td>
 
                   <td className="px-1 py-1 text-center justify-center">
                     <PriceChange value={token.priceChange24h} />
                   </td>
 
-                  <td className="px-1 py-1 text-center justify-center font-mono text-white/80 text-xs truncate">{token.volume}</td>
-                  <td className="px-1 py-1 text-center justify-center font-mono text-white/80 text-xs truncate">{token.liquidity}</td>
+                  <td className="px-1 py-1 text-center justify-center font-mono text-white/80 text-sm md:text-xs truncate">{token.volume}</td>
+                  <td className="px-1 py-1 text-center justify-center font-mono text-white/80 text-sm md:text-xs truncate">{token.liquidity}</td>
 
                   <td className="px-1 py-1 text-center">
                     <div className="flex items-center justify-center gap-1">
@@ -473,7 +473,7 @@ export default function TokenTable() {
                           </a>
                         ))
                       ) : (
-                        <span className="text-white/30 text-xs">-</span>
+                        <span className="text-white/30 text-sm md:text-xs">-</span>
                       )}
                     </div>
                   </td>
@@ -487,7 +487,7 @@ export default function TokenTable() {
                       >
                         <CopyIcon />
                       </button>
-                      <span className="text-xs font-mono text-white/80">
+                      <span className="text-sm md:text-xs font-mono text-white/80">
                         {token.pairAddress.slice(0, 4)}...{token.pairAddress.slice(-4)}
                       </span>
                     </div>
@@ -502,7 +502,7 @@ export default function TokenTable() {
                       >
                         <CopyIcon />
                       </button>
-                      <span className="text-xs font-mono text-white/80">
+                      <span className="text-sm md:text-xs font-mono text-white/80">
                         {(token.tokenAddress || token.pairAddress).slice(0, 4)}...{(token.tokenAddress || token.pairAddress).slice(-4)}
                       </span>
                     </div>
@@ -512,37 +512,37 @@ export default function TokenTable() {
                     <div className="grid grid-cols-3 gap-1">
                       <a
                         href={`/geicko?address=${token.pairAddress}&tab=chart`}
-                        className="px-1 py-1 text-xs hover:bg-blue-600/40 text-white underline rounded transition-colors text-center justify-center"
+                        className="px-1 py-1 text-sm md:text-xs hover:bg-blue-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Chart
                       </a>
                       <a
                         href={`/geicko?address=${token.pairAddress}&tab=holders`}
-                        className="px-1 py-1 text-xs hover:bg-green-600/40 text-white underline rounded transition-colors text-center justify-center"
+                        className="px-1 py-1 text-sm md:text-xs hover:bg-green-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Holders
                       </a>
                       <a
                         href={`/geicko?address=${token.pairAddress}&tab=liquidity`}
-                        className="px-1 py-1 text-xs hover:bg-purple-600/40 text-white underline rounded transition-colors text-center justify-center"
+                        className="px-1 py-1 text-sm md:text-xs hover:bg-purple-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Liquidity
                       </a>
                       <a
                         href={`/geicko?address=${token.pairAddress}&tab=contract`}
-                        className="px-1 py-1 text-xs hover:bg-orange-600/40 text-white underline rounded transition-colors text-center justify-center"
+                        className="px-1 py-1 text-sm md:text-xs hover:bg-orange-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Code
                       </a>
                       <a
                         href={`/geicko?address=${token.pairAddress}&tab=switch`}
-                        className="px-1 py-1 text-xs hover:bg-cyan-600/40 text-white underline rounded transition-colors text-center justify-center"
+                        className="px-1 py-1 text-sm md:text-xs hover:bg-cyan-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Swap
                       </a>
                       <a
                         href={`/geicko?address=${token.pairAddress}&tab=stats`}
-                        className="px-1 py-1 text-xs hover:bg-pink-600/40 text-white underline rounded transition-colors text-center justify-center"
+                        className="px-1 py-1 text-sm md:text-xs hover:bg-pink-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Stats
                       </a>
@@ -559,16 +559,16 @@ export default function TokenTable() {
 }
 
 function PriceChange({ value }: { value: string }) {
-  if (!value || value === '' || value === '""') return <span className="text-white/30 text-xs">-</span>;
+  if (!value || value === '' || value === '""') return <span className="text-white/30 text-sm md:text-xs">-</span>;
 
   const cleanValue = value.replace(/"/g, '');
-  if (cleanValue === '') return <span className="text-white/30 text-xs">-</span>;
+  if (cleanValue === '') return <span className="text-white/30 text-sm md:text-xs">-</span>;
 
   const isPositive = !cleanValue.startsWith('-');
   const colorClass = isPositive ? 'text-green-400' : 'text-red-400';
 
   return (
-    <span className={`flex items-center justify-end gap-1 ${colorClass} text-xs`}>
+    <span className={`flex items-center justify-end gap-1 ${colorClass} text-sm md:text-xs`}>
       {isPositive ? <ArrowUp className="w-2 h-2" /> : <ArrowDown className="w-2 h-2" />}
       <span>{cleanValue}</span>
     </span>
