@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Explicitly set workspace root to fix lockfile detection warning
+  outputFileTracingRoot: __dirname,
   // Temporarily disable type checking during build to fix deployment
   typescript: {
     ignoreBuildErrors: true,

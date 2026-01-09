@@ -1,29 +1,5 @@
 import { neon } from '@neondatabase/serverless';
 
-// Load environment variables from .env.local for scripts (server-side only)
-if (typeof window === 'undefined' && typeof require !== 'undefined' && !process.env.DATABASE_URL) {
-  try {
-    // Dynamically import fs to avoid client-side bundling issues
-    const fs = eval('require')('fs');
-    const path = eval('require')('path');
-    const envPath = path.join(process.cwd(), '.env.local');
-    
-    if (fs.existsSync(envPath)) {
-      const envContent = fs.readFileSync(envPath, 'utf8');
-      const envLines = envContent.split('\n');
-      
-      for (const line of envLines) {
-        const [key, ...valueParts] = line.split('=');
-        if (key && valueParts.length > 0 && !process.env[key] && !key.startsWith('#')) {
-          process.env[key] = valueParts.join('=').trim();
-        }
-      }
-    }
-  } catch (error) {
-    // Silently fail for browser compatibility
-  }
-}
-
 const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
 // Only create connection on server-side
@@ -67,50 +43,6 @@ export async function testDatabaseConnection(): Promise<boolean> {
   }
 }
 
-// Helper function to initialize database schema
-export async function initializeDatabase(): Promise<void> {
-  if (typeof window !== 'undefined') {
-    throw new Error('Database initialization not available on client-side');
-  }
-  
-  if (!sql) {
-    throw new Error('Database connection not available');
-  }
-  
-  try {
-    console.log('🔧 Initializing PulseChain staking database...');
-    
-    // Read and execute schema (with proper dynamic imports)
-    const fs = await import('fs');
-    const path = await import('path');
-    
-    const schemaPath = path.join(process.cwd(), 'lib/db/schema.sql');
-    const schema = fs.readFileSync(schemaPath, 'utf8');
-    
-    // Split schema into individual statements and execute them
-    const statements = schema
-      .split(';')
-      .map(stmt => stmt.trim())
-      .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
-    
-    for (const statement of statements) {
-      if (statement.trim()) {
-        try {
-          // Use unsafe query method for DDL statements
-          await sql.unsafe(statement);
-        } catch (error) {
-          console.error('Error executing statement:', statement.substring(0, 100) + '...');
-          throw error;
-        }
-      }
-    }
-    
-    console.log('✅ Database schema initialized successfully');
-  } catch (error) {
-    console.error('❌ Failed to initialize database:', error);
-    throw error;
-  }
-}
 
 // Helper function to check if tables exist
 export async function checkTablesExist(): Promise<{

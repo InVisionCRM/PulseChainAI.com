@@ -53,82 +53,8 @@ export class DexScreenerApiClient {
         // Debug: Log main pair structure
         console.log('DexScreener Main Pair:', mainPair);
 
-        // Fetch detailed pair information from v4 endpoint - try direct first, then proxy
+        // Skip V4 endpoint fetches as they are returning 403 Forbidden errors
         let pairDetails = null;
-        if (mainPair.pairAddress) {
-          try {
-            // Try direct fetch from client (works better with Cloudflare)
-            const directV4Url = `https://io.dexscreener.com/dex/pair-details/v4/pulsechain/${mainPair.pairAddress}`;
-            console.log('Fetching DexScreener V4 directly:', directV4Url);
-
-            // Add timeout and better error handling
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-
-            const pairDetailsResponse = await fetch(directV4Url, {
-              signal: controller.signal,
-              cache: 'no-store',
-              mode: 'cors',
-              credentials: 'omit',
-            });
-
-            clearTimeout(timeoutId);
-
-            console.log('V4 Response Status:', pairDetailsResponse.status, pairDetailsResponse.statusText);
-            if (pairDetailsResponse.ok) {
-              pairDetails = await pairDetailsResponse.json();
-              console.log('✅ DexScreener Pair Details V4 Response (direct):', pairDetails);
-              console.log('✅ V4 CMS Description (direct):', pairDetails?.cms?.description);
-              console.log('✅ V4 CMS Full Object:', JSON.stringify(pairDetails?.cms, null, 2));
-            } else {
-              console.warn('V4 endpoint returned error:', pairDetailsResponse.status);
-              // Fallback to proxy
-              throw new Error('Direct fetch failed, trying proxy');
-            }
-          } catch (error: any) {
-            // Handle specific error types
-            if (error.name === 'AbortError') {
-              console.warn('V4 endpoint request timed out, trying proxy...');
-            } else if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS')) {
-              console.warn('V4 endpoint unavailable (CORS/Cloudflare), trying proxy...', error.message);
-            } else if (error.message?.includes('Direct fetch failed')) {
-              console.warn('Direct fetch failed, trying proxy...');
-            } else {
-              console.warn('Failed to fetch pair details v4 directly, trying proxy:', error);
-            }
-            
-            // Fallback to proxy route
-            try {
-              const proxyV4Url = `/api/dexscreener-v4/pulsechain/${mainPair.pairAddress}`;
-              console.log('Fetching DexScreener V4 via proxy:', proxyV4Url);
-              
-              const proxyController = new AbortController();
-              const proxyTimeoutId = setTimeout(() => proxyController.abort(), 15000);
-              
-              const proxyResponse = await fetch(proxyV4Url, {
-                signal: proxyController.signal,
-                cache: 'no-store'
-              });
-              
-              clearTimeout(proxyTimeoutId);
-              
-              console.log('Proxy V4 Response Status:', proxyResponse.status, proxyResponse.statusText);
-              if (proxyResponse.ok) {
-                pairDetails = await proxyResponse.json();
-                console.log('✅ DexScreener Pair Details V4 Response (via proxy):', pairDetails);
-                console.log('✅ V4 CMS Description (via proxy):', pairDetails?.cms?.description);
-                console.log('✅ V4 CMS Full Object:', JSON.stringify(pairDetails?.cms, null, 2));
-              } else {
-                const errorData = await proxyResponse.json().catch(() => ({}));
-                console.error('Proxy V4 endpoint returned error:', proxyResponse.status, errorData);
-              }
-            } catch (proxyError: any) {
-              console.error('Failed to fetch pair details v4 via proxy:', proxyError);
-            }
-          }
-        } else {
-          console.warn('No pair address found for v4 fetch');
-        }
 
         // Even if v4 data could not be retrieved, keep a lightweight fallback structure
         const fallbackInfo = mainPair.info || {};

@@ -8,9 +8,24 @@ import TokenContractView from '@/components/TokenContractView';
 import DexScreenerChart from '@/components/DexScreenerChart';
 import LiquidityTab from '@/components/LiquidityTab';
 import { LoaderThree } from "@/components/ui/loader";
-import { Copy } from 'lucide-react';
+import { Copy, Download } from 'lucide-react';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem } from '../../types';
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '../../services/pulsechainService';
+import {
+  normalizeLabel,
+  formatChainLabel,
+  formatDexLabel,
+  formatMarketCapLabel,
+  truncateAddress,
+  formatLpHolderAddress,
+  formatCurrencyCompact,
+  formatNumberCompact,
+  isBurnAddress,
+  formatPercentChange,
+  formatDateUTC,
+  formatAbbrev,
+  PUMP_TIRES_CREATOR,
+} from '@/components/geicko/utils';
 import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
 import { useToast } from '@/components/ui/toast-provider';
@@ -173,6 +188,26 @@ function GeickoPageContent() {
     isLoading: false,
   });
 
+  // Download image function
+  const downloadImage = async (imageUrl: string, filename: string) => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      showToast('Logo downloaded successfully!', 'success');
+    } catch (error) {
+      console.error('Failed to download image:', error);
+      showToast('Failed to download logo', 'error');
+    }
+  };
+
   // Additional metrics state
   const [totalSupply, setTotalSupply] = useState<{ supply: string; decimals: number } | null>(null);
   const [supplyHeld, setSupplyHeld] = useState<{
@@ -215,12 +250,10 @@ function GeickoPageContent() {
     time: string;
     timestamp: number;
     type: 'BUY' | 'SELL' | 'TRANSFER';
-    priceNative: number;
-    priceUsd: number;
     amount: number;
     txHash: string;
     from: string;
-    valueUsd: number;
+    to: string;
   }>>([]);
 
   // Loading state
@@ -321,35 +354,40 @@ function GeickoPageContent() {
       return;
     }
 
+    // Prevent duplicate simultaneous calls
+    if (isLoadingTransactions) {
+      return;
+    }
+
     setIsLoadingTransactions(true);
 
     try {
       console.log('Fetching token transfers from PulseChain API for:', address);
 
       // Get recent token transfers for this token
-      const transfersResponse = await pulsechainApiService.getAddressTokenTransfers(address, 1, 50);
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+      const transfersUrl = `${baseUrl}/api/address-transfers?address=${address}&limit=50`;
+      const transfersResponse = await fetch(transfersUrl).then(res => res.json());
 
-      if (!transfersResponse || transfersResponse.length === 0) {
+      if (!transfersResponse || !transfersResponse.items || transfersResponse.items.length === 0) {
         console.log('No token transfers found from PulseChain API');
         setTransactions([]);
         setIsLoadingTransactions(false);
         return;
       }
 
-      console.log(`Loaded ${transfersResponse.length} token transfers from PulseChain API`);
+      console.log(`Loaded ${transfersResponse.items.length} token transfers from PulseChain API`);
 
-      // Get current token info for pricing
+      // Get token decimals from PulseScan (no pricing needed for transactions)
       const tokenInfo = await pulsechainApiService.getTokenInfo(address).catch(() => null);
-      const currentPrice = dexScreenerData?.pairs?.[0]?.priceUsd ? parseFloat(dexScreenerData.pairs[0].priceUsd) : 0;
       const decimals = tokenInfo?.decimals ? parseInt(tokenInfo.decimals) : 18;
 
-      console.log(`Using ${decimals} decimals, current price: $${currentPrice}`);
+      console.log(`Using ${decimals} decimals for token transfers`);
 
-      // Process token transfers into transaction format
-      const processedTransactions = transfersResponse.map((transfer: any) => {
+      // Process token transfers into transaction format (no USD calculations needed)
+      const processedTransactions = transfersResponse.items.map((transfer: any) => {
         const timestamp = transfer.timestamp ? new Date(transfer.timestamp).getTime() : Date.now();
         const amount = transfer.total?.value ? parseFloat(transfer.total.value) / Math.pow(10, decimals) : 0;
-        const valueUsd = amount * currentPrice;
 
         // Determine transaction type based on transfer direction
         // Note: This is simplified - in reality, we'd need more context to determine BUY vs SELL
@@ -367,19 +405,17 @@ function GeickoPageContent() {
           timestamp,
           type,
           amount,
-          valueUsd,
-          priceUsd: currentPrice,
-          priceNative: 0, // Not available from token transfers
           from: transfer.from || 'Unknown',
+          to: transfer.to || 'Unknown',
           txHash: transfer.transaction_hash || transfer.txHash || `unknown-${timestamp}`
         };
       });
 
-      // Filter out small/invalid transactions
+      // Filter out invalid transactions (keep all valid amounts)
       const filteredTransactions = processedTransactions.filter((tx) => {
         return tx.txHash &&
                !tx.txHash.startsWith('unknown-') &&
-               tx.valueUsd > 0.01; // Filter out dust transactions
+               tx.amount > 0; // Filter out zero/negative amounts
       });
 
       // Sort by timestamp (most recent first)
@@ -393,7 +429,7 @@ function GeickoPageContent() {
     } finally {
       setIsLoadingTransactions(false);
     }
-  }, [dexScreenerData]);
+  }, []);
 
   // Load holders function
   const loadHolders = useCallback(async (address: string) => {
@@ -422,26 +458,8 @@ function GeickoPageContent() {
         }))
         .filter((item: any) => item.address && item.value);
 
-      // Only fetch contract info for top 5 holders to reduce API calls
-      const top5Addresses = items.slice(0, 5).map(h => h.address);
-      const contractChecks = await Promise.allSettled(
-        top5Addresses.map(addr => pulsechainApiService.getAddressInfo(addr))
-      );
-
-      // Map contract info to holders
-      const itemsWithContractInfo = items.map((item, idx) => {
-        if (idx < 5) {
-          const checkResult = contractChecks[idx];
-          if (checkResult.status === 'fulfilled' && checkResult.value) {
-            return {
-              ...item,
-              isContract: checkResult.value.is_contract,
-              isVerified: checkResult.value.is_verified
-            };
-          }
-        }
-        return item;
-      });
+      // Skip contract info fetching to avoid API issues
+      const itemsWithContractInfo = items;
 
       setHolders(itemsWithContractInfo);
     } catch (error) {
@@ -1182,24 +1200,11 @@ function GeickoPageContent() {
             const holders = Array.isArray(holdersResponse?.items) ? holdersResponse.items : [];
             const top20 = holders.slice(0, 20);
 
-            // Check which holders are smart contracts
-            const contractChecks = await Promise.allSettled(
-              top20.map((h: any) => {
-                const address = h.address?.hash || h.address || '';
-                return address ? pulsechainApiService.getAddressInfo(address) : Promise.resolve(null);
-              })
-            );
+            // Skip contract checking to avoid API issues - set to 0
+            const contractCount = 0;
+            const contractBalance = 0;
 
-            let contractCount = 0;
-            let contractBalance = 0;
-            contractChecks.forEach((res, idx) => {
-              if (res.status === 'fulfilled' && res.value?.is_contract) {
-                contractCount += 1;
-                contractBalance += Number(top20[idx]?.value || 0);
-              }
-            });
-
-            const percent = totalSupply > 0 ? (contractBalance / totalSupply) * 100 : 0;
+            const percent = 0; // Cannot calculate without contract data
 
             if (!cancelled) {
               setSmartContractHolderShare({
@@ -1227,20 +1232,6 @@ function GeickoPageContent() {
     loadMetrics();
     return () => { cancelled = true; };
   }, [apiTokenAddress]);
-
-  const formatAbbrev = (value: number): string => {
-    const abs = Math.abs(value);
-    const sign = value < 0 ? '-' : '';
-    if (abs >= 1_000_000_000) return `${sign}${(abs / 1_000_000_000).toFixed(1)}b`;
-    if (abs >= 1_000_000) {
-      const millions = abs / 1_000_000;
-      // If millions >= 1000, show as billions instead
-      if (millions >= 1000) return `${sign}${(millions / 1000).toFixed(1)}b`;
-      return `${sign}${millions.toFixed(1)}m`;
-    }
-    if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(1)}k`;
-    return value.toLocaleString(undefined, { maximumFractionDigits: 1 });
-  };
 
   // Handle sidebar search button click
   useEffect(() => {
@@ -1739,7 +1730,7 @@ function GeickoPageContent() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-semibold text-slate-900">
-                          ${tx.valueUsd?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '—'}
+                          {tx.amount?.toLocaleString(undefined, { maximumFractionDigits: 6 }) || '—'} {tokenInfo?.symbol || 'tokens'}
                         </p>
                         <a
                           href={`https://scan.pulsechain.com/tx/${tx.txHash}`}
@@ -1902,6 +1893,21 @@ function GeickoPageContent() {
                 </div>
               </div>
 
+              {/* Download Logo Button */}
+              {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) && (
+                <button
+                  onClick={() => {
+                    const logoUrl = dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl;
+                    const symbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol || 'token';
+                    downloadImage(logoUrl!, `${symbol}-logo.png`);
+                  }}
+                  className="absolute z-20 left-6 bottom-0 ml-20 mb-1 flex items-center gap-1 text-xs text-white/70 hover:text-white transition-colors bg-slate-900/90/30 backdrop-blur-sm px-2 py-1 rounded-lg"
+                  title="Download logo"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </button>
+              )}
+
               {/* Current Price */}
               <div className="absolute right-4 top-2">
                 <div className="text-xl font-bold text-white">
@@ -1945,6 +1951,23 @@ function GeickoPageContent() {
                 <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" />
               )}
             </div>
+
+            {/* Download Logo Button for Background */}
+            {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) && (
+              <button
+                onClick={() => {
+                  const logoUrl = dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl;
+                  const symbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol || 'token';
+                  downloadImage(logoUrl!, `${symbol}-logo-highres.png`);
+                }}
+                className="absolute bottom-4 right-20 z-10 flex items-center gap-1 text-xs text-white/70 hover:text-white transition-colors bg-slate-900/90/30 backdrop-blur-sm px-2 py-1 rounded-lg"
+                title="Download high-res logo"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Logo</span>
+              </button>
+            )}
+
             {apiTokenAddress && (
               <button
                 onClick={() => handleCopyAddress(apiTokenAddress)}
@@ -2940,6 +2963,14 @@ function GeickoPageContent() {
                       <div className="w-full h-full" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                    {/* Download Logo Text Overlay */}
+                    {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) && (
+                      <div className="absolute top-3 right-3 text-xs text-white/60 font-medium bg-black/40 backdrop-blur-sm px-2 py-1 rounded">
+                        download logo
+                      </div>
+                    )}
+
                     <div className="absolute left-4 bottom-3 flex items-center gap-3">
                       {tokenLogoSrc ? (
                         <img

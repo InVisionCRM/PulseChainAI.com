@@ -1,7 +1,7 @@
 import HEXDataDashboard from '@/components/hex-dashboard';
 
-// Force dynamic rendering to avoid long build times with large data fetching
-export const dynamic = 'force-dynamic';
+// Revalidate every 24 hours (86400 seconds)
+export const revalidate = 86400;
 
 export default function HexDashboardPage() {
   return <HEXDataDashboard />;

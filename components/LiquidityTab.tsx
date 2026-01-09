@@ -343,8 +343,8 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-          <p className="text-xs text-gray-400">Loading liquidity data...</p>
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white/60 mx-auto mb-1.5"></div>
+          <p className="text-[10px] text-white/50">Loading liquidity data...</p>
         </div>
       </div>
     );
@@ -354,211 +354,88 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <div className="text-4xl mb-2">💧</div>
-          <h3 className="text-sm font-semibold text-white mb-1">No Liquidity Pairs Found</h3>
-          <p className="text-xs text-gray-400">This token doesn't have any active liquidity pairs on DEXScreener.</p>
+          <div className="text-xl mb-1.5">💧</div>
+          <h3 className="text-sm font-medium text-white mb-1">No Liquidity Pairs Found</h3>
+          <p className="text-[9px] text-white/50">This token doesn't have any active liquidity pairs on DEXScreener.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto space-y-4 p-3 sm:p-4 text-white">
+    <div className="h-full overflow-y-auto space-y-1 p-1 sm:p-2 text-white font-sans" style={{ fontFamily: 'Poppins, sans-serif' }}>
       {/* Overview Banner */}
-      <div className="rounded-2xl bg-gradient-to-br from-white/10 via-sky-500/10 to-purple-500/10 border border-white/10 shadow-[0_15px_45px_-25px_rgba(0,0,0,0.65)] backdrop-blur-xl px-4 py-3 flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="rounded bg-white/5 border border-white/20 px-2 py-1.5 flex flex-col gap-1">
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-white/70">Liquidity Intelligence</p>
-            <h3 className="text-lg font-semibold text-white">PulseChain Liquidity</h3>
+            <p className="text-[8px] uppercase tracking-wider text-white/60">Liquidity Intelligence</p>
+            <h3 className="text-sm font-medium text-white">PulseChain Liquidity</h3>
           </div>
-          <div className="flex flex-wrap gap-2 text-xs text-gray-300">
-            <span className="px-2 py-1 rounded-full bg-white/10 border border-white/10 backdrop-blur">Live pairs {activePairs.length}</span>
-            <span className="px-2 py-1 rounded-full bg-white/10 border border-white/10 backdrop-blur">Zero liquidity {zeroLiquidityPairs.length}</span>
+          <div className="flex flex-wrap gap-1 text-[9px] text-white/60">
+            <span className="px-1.5 py-0.5 border border-white/20">Live pairs {activePairs.length}</span>
+            <span className="px-1.5 py-0.5 border border-white/20">Zero liquidity {zeroLiquidityPairs.length}</span>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="rounded-xl bg-white/10 border border-white/10 px-3 py-2 shadow-inner backdrop-blur">
-            <div className="text-[11px] text-white/70">Total Liquidity</div>
-            <div className="text-lg font-semibold text-emerald-300">{formatNumber(totalLiquidity)}</div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-1">
+          <div className="border border-white/20 px-1.5 py-1">
+            <div className="text-[9px] text-white/60">Total Liquidity</div>
+            <div className="text-sm font-medium text-white">{formatNumber(totalLiquidity)}</div>
           </div>
-          <div className="rounded-xl bg-white/10 border border-white/10 px-3 py-2 shadow-inner backdrop-blur">
-            <div className="text-[11px] text-white/70">24h Volume</div>
-            <div className="text-lg font-semibold text-cyan-300">{formatNumber(totalVolume)}</div>
+          <div className="border border-white/20 px-1.5 py-1">
+            <div className="text-[9px] text-white/60">24h Volume</div>
+            <div className="text-sm font-medium text-white">{formatNumber(totalVolume)}</div>
           </div>
-          <div className="rounded-xl bg-white/10 border border-white/10 px-3 py-2 shadow-inner backdrop-blur">
-            <div className="text-[11px] text-white/70">24h Transactions</div>
-            <div className="text-lg font-semibold text-indigo-200">{totalTransactions.toLocaleString()}</div>
+          <div className="border border-white/20 px-1.5 py-1">
+            <div className="text-[9px] text-white/60">24h Transactions</div>
+            <div className="text-sm font-medium text-white">{totalTransactions.toLocaleString()}</div>
           </div>
         </div>
       </div>
 
-      {/* Main Pair Feature */}
-      {top3Pairs[0] && (
-        <div className="w-full rounded-2xl bg-gradient-to-br from-blue-500/20 via-sky-500/10 to-cyan-500/10 border border-white/10 shadow-[0_25px_60px_-35px_rgba(59,130,246,0.8)] backdrop-blur-xl p-4 space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute inset-0 rounded-full bg-cyan-400/40 blur-lg" aria-hidden />
-                <img
-                  src={top3Pairs[0].baseToken.logoURI || '/LogoVector.svg'}
-                  alt={top3Pairs[0].baseToken.symbol}
-                  className="relative w-10 h-10 rounded-full border border-white/20 shadow-lg object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/LogoVector.svg';
-                  }}
-                />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-white">
-                    {top3Pairs[0].baseToken.symbol}/{top3Pairs[0].quoteToken.symbol}
-                  </span>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10 text-white/80">
-                    {top3Pairs[0].dexId}
-                  </span>
-                </div>
-                <div className="text-xs text-white/70">Featured pair by liquidity</div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-[11px] text-white/70">Price (USD)</div>
-              <div className="text-lg font-semibold text-white">
-                ${parseFloat(top3Pairs[0].priceUsd || '0').toFixed(6)}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-xl bg-white/5 border border-white/10 p-3 backdrop-blur">
-              <div className="text-[11px] text-white/70 mb-1">Liquidity</div>
-              <div className="text-base font-semibold text-emerald-300">{formatNumber(top3Pairs[0].liquidity?.usd || 0)}</div>
-            </div>
-            <div className="rounded-xl bg-white/5 border border-white/10 p-3 backdrop-blur">
-              <div className="text-[11px] text-white/70 mb-1">Volume 24h</div>
-              <div className="text-base font-semibold text-cyan-300">{formatNumber(top3Pairs[0].volume?.h24 || 0)}</div>
-            </div>
-            <div className="rounded-xl bg-white/5 border border-white/10 p-3 backdrop-blur">
-              <div className="text-[11px] text-white/70 mb-1">{top3Pairs[0].baseToken.symbol} Reserves</div>
-              <div className="text-sm font-semibold text-blue-200">
-                {formatTokenAmount(parseFloat(String(top3Pairs[0].liquidity?.base || '0')))}
-              </div>
-            </div>
-            <div className="rounded-xl bg-white/5 border border-white/10 p-3 backdrop-blur">
-              <div className="text-[11px] text-white/70 mb-1">{top3Pairs[0].quoteToken.symbol} Reserves</div>
-              <div className="text-sm font-semibold text-teal-200">
-                {formatTokenAmount(parseFloat(String(top3Pairs[0].liquidity?.quote || '0')))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Additional Highlight Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {top3Pairs.slice(1, 5).map((pair) => (
-          <div
-            key={pair.pairAddress}
-            className="rounded-2xl bg-gradient-to-br from-white/10 via-sky-500/5 to-purple-500/10 border border-white/10 p-3 shadow-[0_18px_40px_-32px_rgba(0,0,0,0.65)] backdrop-blur-xl"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <img
-                  src={pair.baseToken.logoURI || '/LogoVector.svg'}
-                  alt={pair.baseToken.symbol}
-                  className="w-8 h-8 rounded-full border border-white/10 shadow"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/LogoVector.svg';
-                  }}
-                />
-                <div>
-                  <div className="text-sm font-semibold text-white">
-                    {pair.baseToken.symbol}/{pair.quoteToken.symbol}
-                  </div>
-                  <div className="text-[11px] text-white/60">{pair.dexId}</div>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-[11px] text-white/70">Price</div>
-                <div className="text-sm font-semibold text-white">${parseFloat(pair.priceUsd || '0').toFixed(6)}</div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <div className="rounded-lg bg-white/5 border border-white/10 px-2 py-2">
-                <div className="text-[11px] text-white/60">Liquidity</div>
-                <div className="text-sm font-semibold text-emerald-300">{formatNumber(pair.liquidity?.usd || 0)}</div>
-              </div>
-              <div className="rounded-lg bg-white/5 border border-white/10 px-2 py-2">
-                <div className="text-[11px] text-white/60">Volume</div>
-                <div className="text-sm font-semibold text-cyan-300">{formatNumber(pair.volume?.h24 || 0)}</div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-lg bg-white/5 border border-white/10 px-2 py-2">
-                <div className="text-[11px] text-white/60">{pair.baseToken.symbol}</div>
-                <div className="text-sm font-semibold text-blue-200">
-                  {formatTokenAmount(parseFloat(String(pair.liquidity?.base || '0')))}
-                </div>
-              </div>
-              <div className="rounded-lg bg-white/5 border border-white/10 px-2 py-2">
-                <div className="text-[11px] text-white/60">{pair.quoteToken.symbol}</div>
-                <div className="text-sm font-semibold text-teal-200">
-                  {formatTokenAmount(parseFloat(String(pair.liquidity?.quote || '0')))}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
 
       {/* All Pairs List */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
           <div>
-            <h4 className="text-sm font-semibold text-white">Trading Pairs</h4>
-            <p className="text-xs text-white/60">Tap to reveal depth, holders, and flow</p>
+            <h4 className="text-sm font-medium text-white">Trading Pairs</h4>
+            <p className="text-[9px] text-white/50">Tap to expand details</p>
           </div>
-          <div className="text-[11px] text-white/60">Active {activePairs.length}</div>
+          <div className="text-[9px] text-white/50">Active {activePairs.length}</div>
         </div>
 
         {activePairs.map((pair) => (
           <div
             key={pair.pairAddress}
-            className="rounded-2xl bg-gradient-to-br from-white/10 via-slate-900/40 to-white/5 border border-white/10 shadow-[0_18px_40px_-30px_rgba(0,0,0,0.7)] overflow-hidden backdrop-blur-xl"
+            className="bg-white/5 border border-white/20 overflow-hidden"
           >
             {/* Collapsed View */}
             <button
               type="button"
-              className="relative w-full text-left py-3 px-4 hover:bg-white/5 transition-colors focus:outline-none"
+              className="relative w-full text-left py-1.5 px-2 hover:bg-white/5 transition-colors focus:outline-none"
               onClick={() => togglePairExpansion(pair.pairAddress)}
               aria-expanded={expandedPairs.has(pair.pairAddress)}
             >
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="rounded-full bg-white/5 border border-white/10 px-2 py-1 text-[11px] text-white/80">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="border border-white/30 px-1 py-0.5 text-[9px] text-white/70">
                     {pair.dexId}
                   </div>
-                  <div className="text-sm font-semibold text-white truncate">
+                  <div className="text-sm font-medium text-white truncate">
                     {pair.baseToken.symbol}/{pair.quoteToken.symbol}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 text-xs text-white/80">
-                  <div className="flex items-center gap-1 rounded-full bg-white/5 border border-white/10 px-2 py-1">
-                    <span className="text-white/70">Price</span>
-                    <span className="font-semibold text-cyan-200">${parseFloat(pair.priceUsd || '0').toFixed(6)}</span>
+                <div className="flex items-center gap-1.5 text-[10px] text-white/70">
+                  <div className="flex items-center gap-1 border border-white/20 px-1 py-0.5">
+                    <span className="text-white/60">Price</span>
+                    <span className="font-medium text-white">${parseFloat(pair.priceUsd || '0').toFixed(6)}</span>
                   </div>
                   {(() => {
                     const priceDiff = calculatePriceDifference(pair);
                     if (priceDiff === null) return null;
                     const isPositive = priceDiff >= 0;
                     return (
-                      <div
-                        className={`flex items-center gap-1 rounded-full px-2 py-1 border border-white/10 ${
-                          isPositive ? 'bg-emerald-500/10 text-emerald-300' : 'bg-rose-500/10 text-rose-300'
-                        }`}
-                      >
+                      <div className={`flex items-center gap-1 border border-white/20 px-1.5 py-0.5 text-[10px] ${isPositive ? 'text-white' : 'text-white/80'}`}>
                         {isPositive ? '↑' : '↓'}
                         {Math.abs(priceDiff).toFixed(2)}%
                       </div>
@@ -566,58 +443,58 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   })()}
                 </div>
 
-                <div className="ml-auto flex items-center gap-3 text-right">
+                <div className="ml-auto flex items-center gap-1.5 text-right">
                   <div>
-                    <div className="text-xs font-semibold text-white">{formatNumber(pair.liquidity?.usd || 0)}</div>
-                    <div className="text-[11px] text-white/60">Liquidity</div>
+                    <div className="text-[10px] font-medium text-white">{formatNumber(pair.liquidity?.usd || 0)}</div>
+                    <div className="text-[8px] text-white/50">Liquidity</div>
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-white">{formatNumber(pair.volume?.h24 || 0)}</div>
-                    <div className="text-[11px] text-white/60">24h Volume</div>
+                    <div className="text-[10px] font-medium text-white">{formatNumber(pair.volume?.h24 || 0)}</div>
+                    <div className="text-[8px] text-white/50">24h Volume</div>
                   </div>
-                  <div className="text-xs text-white/80">{expandedPairs.has(pair.pairAddress) ? '▲' : '▼'}</div>
+                  <div className="text-[9px] text-white/60">{expandedPairs.has(pair.pairAddress) ? '▲' : '▼'}</div>
                 </div>
               </div>
 
-              <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div className="rounded-lg bg-white/5 border border-white/10 px-2 py-2 flex items-center justify-between text-xs">
+              <div className="mt-1.5 grid grid-cols-2 sm:grid-cols-4 gap-1">
+                <div className="border border-white/20 px-1.5 py-1 flex items-center justify-between text-[10px]">
                   <span className="text-white/60">{pair.baseToken.symbol}</span>
-                  <span className="font-semibold text-blue-200">
+                  <span className="font-medium text-white">
                     {formatTokenAmount(parseFloat(String(pair.liquidity?.base || '0')))}
                   </span>
                 </div>
-                <div className="rounded-lg bg-white/5 border border-white/10 px-2 py-2 flex items-center justify-between text-xs">
+                <div className="border border-white/20 px-1.5 py-1 flex items-center justify-between text-[10px]">
                   <span className="text-white/60">{pair.quoteToken.symbol}</span>
-                  <span className="font-semibold text-teal-200">
+                  <span className="font-medium text-white">
                     {formatTokenAmount(parseFloat(String(pair.liquidity?.quote || '0')))}
                   </span>
                 </div>
-                <div className="rounded-lg bg-white/5 border border-white/10 px-2 py-2 flex items-center justify-between text-xs">
+                <div className="border border-white/20 px-1.5 py-1 flex items-center justify-between text-[10px]">
                   <span className="text-white/60">Txns 24h</span>
-                  <span className="font-semibold text-indigo-200">
+                  <span className="font-medium text-white">
                     {((pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0)).toLocaleString()}
                   </span>
                 </div>
-                <div className="rounded-lg bg-white/5 border border-white/10 px-2 py-2 flex items-center justify-between text-xs">
+                <div className="border border-white/20 px-1.5 py-1 flex items-center justify-between text-[10px]">
                   <span className="text-white/60">FDV</span>
-                  <span className="font-semibold text-amber-200">{formatNumber((pair as any).fdv || 0)}</span>
+                  <span className="font-medium text-white">{formatNumber((pair as any).fdv || 0)}</span>
                 </div>
               </div>
             </button>
 
             {/* Expanded View */}
             {expandedPairs.has(pair.pairAddress) && (
-              <div className="border-t border-white/10 p-4 space-y-4 bg-gradient-to-br from-white/5 via-slate-900/30 to-white/5 backdrop-blur-xl">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                    <div className="text-[11px] text-white/60 mb-1">Price USD</div>
-                    <div className="text-sm font-semibold text-white">
+              <div className="border-t border-white/20 p-2 space-y-2 bg-white/5">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
+                  <div className="border border-white/20 p-1.5">
+                    <div className="text-[9px] text-white/60 mb-0.5">Price USD</div>
+                    <div className="text-sm font-medium text-white">
                       ${parseFloat(pair.priceUsd || '0').toFixed(6)}
                     </div>
                   </div>
-                  <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                    <div className="text-[11px] text-white/60 mb-1">Price WPLS</div>
-                    <div className="text-sm font-semibold text-white">
+                  <div className="border border-white/20 p-1.5">
+                    <div className="text-[9px] text-white/60 mb-0.5">Price WPLS</div>
+                    <div className="text-sm font-medium text-white">
                       {parseFloat(pair.priceNative || '0').toLocaleString('en-US', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
@@ -629,13 +506,13 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     if (priceDiff === null) {
                       return (
                         <>
-                          <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                            <div className="text-[11px] text-white/60 mb-1">FDV</div>
-                            <div className="text-sm font-semibold text-white">{formatNumber((pair as any).fdv || 0)}</div>
+                          <div className="border border-white/20 p-1.5">
+                            <div className="text-[9px] text-white/60 mb-0.5">FDV</div>
+                            <div className="text-sm font-medium text-white">{formatNumber((pair as any).fdv || 0)}</div>
                           </div>
-                          <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                            <div className="text-[11px] text-white/60 mb-1">Market Cap</div>
-                            <div className="text-sm font-semibold text-white">{formatNumber((pair as any).marketCap || 0)}</div>
+                          <div className="border border-white/20 p-1.5">
+                            <div className="text-[9px] text-white/60 mb-0.5">Market Cap</div>
+                            <div className="text-sm font-medium text-white">{formatNumber((pair as any).marketCap || 0)}</div>
                           </div>
                         </>
                       );
@@ -643,74 +520,70 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     const isPositive = priceDiff >= 0;
                     return (
                       <>
-                        <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                          <div className="text-[11px] text-white/60 mb-1">vs WPLS Pair</div>
-                          <div
-                            className={`text-sm font-semibold flex items-center gap-1 ${
-                              isPositive ? 'text-emerald-300' : 'text-rose-300'
-                            }`}
-                          >
+                        <div className="border border-white/20 p-1.5">
+                          <div className="text-[9px] text-white/60 mb-0.5">vs WPLS Pair</div>
+                          <div className={`text-sm font-medium flex items-center gap-1 ${isPositive ? 'text-white' : 'text-white/80'}`}>
                             {isPositive ? '↑' : '↓'}
                             {Math.abs(priceDiff).toFixed(2)}%
                           </div>
                         </div>
-                        <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                          <div className="text-[11px] text-white/60 mb-1">Market Cap</div>
-                          <div className="text-sm font-semibold text-white">{formatNumber((pair as any).marketCap || 0)}</div>
+                        <div className="border border-white/20 p-1.5">
+                          <div className="text-[9px] text-white/60 mb-0.5">Market Cap</div>
+                          <div className="text-sm font-medium text-white">{formatNumber((pair as any).marketCap || 0)}</div>
                         </div>
                       </>
                     );
                   })()}
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                    <div className="text-[11px] text-white/60">{pair.baseToken.symbol} in Pool</div>
-                    <div className="text-sm font-semibold text-white">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
+                  <div className="border border-white/20 p-1.5">
+                    <div className="text-[9px] text-white/60">{pair.baseToken.symbol} in Pool</div>
+                    <div className="text-sm font-medium text-white">
                       {formatTokenAmount(parseFloat(String(pair.liquidity?.base || '0')))}
                     </div>
                   </div>
-                  <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                    <div className="text-[11px] text-white/60">{pair.quoteToken.symbol} in Pool</div>
-                    <div className="text-sm font-semibold text-white">
+                  <div className="border border-white/20 p-1.5">
+                    <div className="text-[9px] text-white/60">{pair.quoteToken.symbol} in Pool</div>
+                    <div className="text-sm font-medium text-white">
                       {formatTokenAmount(parseFloat(String(pair.liquidity?.quote || '0')))}
                     </div>
                   </div>
                 </div>
 
                 {/* Liquidity Holders Section */}
-                <div className="space-y-2">
-                  <h5 className="text-xs font-semibold text-white tracking-wide uppercase">LP Holders</h5>
+                <div className="space-y-1">
+                  <h5 className="text-[10px] font-medium text-white uppercase">LP Holders</h5>
 
                   {pairHoldersData[pair.pairAddress]?.isLoading && (
-                    <div className="flex items-center justify-center py-3">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-400"></div>
-                      <span className="ml-2 text-white/70 text-xs">Loading holders...</span>
+                    <div className="flex items-center justify-center py-1.5">
+                      <div className="animate-spin rounded-full h-2.5 w-2.5 border-b-2 border-white/60"></div>
+                      <span className="ml-2 text-white/60 text-[9px]">Loading holders...</span>
                     </div>
                   )}
 
                   {pairHoldersData[pair.pairAddress]?.error && (
-                    <div className="bg-rose-500/10 border border-rose-400/30 text-rose-200 px-3 py-2 rounded-lg text-xs">
+                    <div className="border border-white/30 text-white/70 px-1.5 py-1 text-[9px]">
                       Failed to load holders: {pairHoldersData[pair.pairAddress].error}
                     </div>
                   )}
 
                   {pairHoldersData[pair.pairAddress]?.holders && pairHoldersData[pair.pairAddress].holders.length > 0 && (
-                    <div className="space-y-1 rounded-xl border border-white/10 bg-white/5 p-2">
-                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 text-[11px] text-white/60 pb-1 border-b border-white/10">
+                    <div className="space-y-0.5 border border-white/20 p-1.5">
+                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-1.5 text-[9px] text-white/60 pb-1 border-b border-white/20">
                         <div>Rank</div>
                         <div>Address</div>
                         <div>LP Tokens</div>
                         <div>% of Pool</div>
                       </div>
 
-                      <div className="max-h-52 overflow-y-auto space-y-1 pr-1">
+                      <div className="max-h-32 overflow-y-auto space-y-0.5 pr-0.5">
                         {pairHoldersData[pair.pairAddress].holders.map((holder, holderIndex) => (
                           <div
                             key={holder.address}
-                            className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 text-xs py-1 px-1 rounded-lg hover:bg-white/5 transition-colors"
+                            className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-1.5 text-[10px] py-0.5 px-1 hover:bg-white/5 transition-colors"
                           >
-                            <div className="text-white/70 flex items-center gap-1">
+                            <div className="text-white/70 flex items-center gap-0.5">
                               #{holderIndex + 1}
                               {isBurnAddress(holder.address) && <span title="Burn address" aria-label="Burn address">🔥</span>}
                             </div>
@@ -719,27 +592,21 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                                 e.stopPropagation();
                                 handleHolderClick(holder.address, pair);
                               }}
-                              className="font-mono text-cyan-300 hover:text-cyan-200 underline cursor-pointer text-left transition-colors"
+                              className="font-mono text-white hover:text-white/80 underline cursor-pointer text-left transition-colors"
                             >
                               {formatLpAddress(holder.address)}
                             </button>
-                            <div className="text-white font-semibold">
+                            <div className="text-white font-medium">
                               {formatHolderBalance(holder.value)}
                             </div>
                             <div className="text-right">
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className={`font-semibold text-xs ${
-                                    holder.percentage >= 10 ? 'text-rose-300' : holder.percentage >= 5 ? 'text-amber-300' : 'text-emerald-300'
-                                  }`}
-                                >
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium text-[9px] text-white">
                                   {formatHolderPercentage(holder.percentage)}
                                 </span>
-                                <div className="w-12 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                <div className="w-6 h-0.5 bg-white/20 rounded-full overflow-hidden">
                                   <div
-                                    className={`h-full transition-all duration-300 ${
-                                      holder.percentage >= 10 ? 'bg-rose-400' : holder.percentage >= 5 ? 'bg-amber-300' : 'bg-emerald-300'
-                                    }`}
+                                    className="h-full bg-white transition-all duration-300"
                                     style={{ width: `${Math.min(100, holder.percentage * 2)}%` }}
                                   />
                                 </div>
@@ -754,61 +621,61 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   {pairHoldersData[pair.pairAddress]?.holders &&
                     pairHoldersData[pair.pairAddress].holders.length === 0 &&
                     !pairHoldersData[pair.pairAddress].isLoading && (
-                      <div className="text-center text-white/60 py-2 text-xs">
+                      <div className="text-center text-white/50 py-1 text-[9px]">
                         No holders data available for this pair
                       </div>
                   )}
                 </div>
 
                 {/* Recent Liquidity Activity Section */}
-                <div className="space-y-2">
-                  <h5 className="text-xs font-semibold text-white tracking-wide uppercase">Recent Activity</h5>
+                <div className="space-y-1">
+                  <h5 className="text-[10px] font-medium text-white uppercase">Recent Activity</h5>
 
                   {pairLiquidityEvents[pair.pairAddress]?.isLoading && (
-                    <div className="flex items-center justify-center py-3">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-400"></div>
-                      <span className="ml-2 text-white/70 text-xs">Loading activity...</span>
+                    <div className="flex items-center justify-center py-1.5">
+                      <div className="animate-spin rounded-full h-2.5 w-2.5 border-b-2 border-white/60"></div>
+                      <span className="ml-2 text-white/60 text-[9px]">Loading activity...</span>
                     </div>
                   )}
 
                   {pairLiquidityEvents[pair.pairAddress]?.error && (
-                    <div className="bg-rose-500/10 border border-rose-400/30 text-rose-200 px-3 py-2 rounded-lg text-xs">
+                    <div className="border border-white/30 text-white/70 px-1.5 py-1 text-[9px]">
                       Failed to load activity: {pairLiquidityEvents[pair.pairAddress].error}
                     </div>
                   )}
 
                   {pairLiquidityEvents[pair.pairAddress]?.events && pairLiquidityEvents[pair.pairAddress].events.length > 0 && (
-                    <div className="space-y-2">
+                    <div className="space-y-0.5">
                       {pairLiquidityEvents[pair.pairAddress].events.map((event, eventIndex) => (
                         <div
                           key={`${event.txHash}-${eventIndex}`}
-                          className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                          className="flex items-center justify-between p-1.5 border border-white/20 hover:bg-white/5 transition-colors"
                         >
-                          <div className="flex items-center gap-3 flex-1">
-                            <div className={`text-lg ${event.type === 'add' ? 'text-emerald-300' : 'text-rose-300'}`}>
-                              {event.type === 'add' ? '🟢' : '🔴'}
+                          <div className="flex items-center gap-1.5 flex-1">
+                            <div className={`text-xs ${event.type === 'add' ? 'text-white' : 'text-white/70'}`}>
+                              {event.type === 'add' ? '+' : '−'}
                             </div>
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-0.5">
-                                <span className={`font-semibold text-xs ${event.type === 'add' ? 'text-emerald-300' : 'text-rose-300'}`}>
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className={`font-medium text-[10px] ${event.type === 'add' ? 'text-white' : 'text-white/80'}`}>
                                   {event.type === 'add' ? 'Added' : 'Removed'}
                                 </span>
-                                <span className="text-[11px] text-white/60">{formatTimeAgo(event.timestamp)}</span>
+                                <span className="text-[9px] text-white/50">{formatTimeAgo(event.timestamp)}</span>
                               </div>
-                              <div className="flex items-center gap-2 text-xs text-white/70">
+                              <div className="flex items-center gap-1.5 text-[9px] text-white/60">
                                 <span>By</span>
-                                <code className="font-mono text-cyan-300">
+                                <code className="font-mono text-white/70">
                                   {event.from ? `${event.from.slice(0, 8)}...${event.from.slice(-6)}` : 'Unknown'}
                                 </code>
                                 <a
                                   href={`https://scan.pulsechain.com/tx/${event.txHash}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-cyan-300 hover:text-cyan-200"
+                                  className="text-white/60 hover:text-white/40"
                                   title="View transaction"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  🔗
+                                  →
                                 </a>
                               </div>
                             </div>
@@ -821,19 +688,19 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   {pairLiquidityEvents[pair.pairAddress]?.events &&
                     pairLiquidityEvents[pair.pairAddress].events.length === 0 &&
                     !pairLiquidityEvents[pair.pairAddress].isLoading && (
-                      <div className="text-center text-white/60 py-2 text-xs">
+                      <div className="text-center text-white/50 py-1 text-[9px]">
                         No recent liquidity activity found
                       </div>
                   )}
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex flex-col sm:flex-row gap-1">
                   <a
                     href={pair.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 text-center rounded-lg bg-gradient-to-r from-sky-500/30 to-cyan-500/30 border border-white/15 text-white px-3 py-2 text-xs font-semibold hover:from-sky-500/40 hover:to-cyan-500/40 transition-colors"
+                    className="flex-1 text-center border border-white/20 text-white px-1.5 py-1 text-[10px] font-medium hover:bg-white/5 transition-colors"
                   >
                     DexScreener
                   </a>
@@ -842,14 +709,14 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     href={`https://scan.pulsechain.com/address/${pair.pairAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 text-center rounded-lg bg-gradient-to-r from-emerald-500/25 to-lime-500/20 border border-white/15 text-white px-3 py-2 text-xs font-semibold hover:from-emerald-500/35 hover:to-lime-500/25 transition-colors"
+                    className="flex-1 text-center border border-white/20 text-white px-1.5 py-1 text-[10px] font-medium hover:bg-white/5 transition-colors"
                   >
                     Contract
                   </a>
 
                   <button
                     onClick={() => navigator.clipboard.writeText(pair.pairAddress || '')}
-                    className="flex-1 text-center rounded-lg bg-white/10 border border-white/15 text-white px-3 py-2 text-xs font-semibold hover:bg-white/15 transition-colors"
+                    className="flex-1 text-center border border-white/20 text-white px-1.5 py-1 text-[10px] font-medium hover:bg-white/5 transition-colors"
                     title="Copy pair address"
                   >
                     Copy Address
@@ -862,15 +729,15 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
         {/* Zero Liquidity Pairs */}
         {zeroLiquidityPairs.length > 0 && (
-          <div className="rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-rose-500/10 border border-white/10 p-4 backdrop-blur-xl">
+          <div className="border border-white/20 p-2">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm font-semibold text-white">Zero Liquidity ({zeroLiquidityPairs.length})</div>
-                <div className="text-xs text-white/70">Pairs currently holding $0 liquidity</div>
+                <div className="text-sm font-medium text-white">Zero Liquidity ({zeroLiquidityPairs.length})</div>
+                <div className="text-[9px] text-white/50">Pairs currently holding $0 liquidity</div>
               </div>
               <div className="text-right">
-                <div className="text-sm font-semibold text-white">$0</div>
-                <div className="text-[11px] text-white/60">Liquidity</div>
+                <div className="text-sm font-medium text-white">$0</div>
+                <div className="text-[8px] text-white/50">Liquidity</div>
               </div>
             </div>
           </div>

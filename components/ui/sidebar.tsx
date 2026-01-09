@@ -2,7 +2,7 @@
 import { cn } from "@/lib/utils";
 import React, { useState, createContext, useContext, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { IconMenu2, IconX, IconSearch, IconSettings, IconDeviceGamepad2, IconHome, IconCode, IconCurrencyDollar, IconBook, IconTrendingUp } from "@tabler/icons-react";
+import { IconMenu2, IconX, IconSearch, IconSettings, IconDeviceGamepad2, IconHome, IconCode, IconCurrencyDollar, IconBook } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import { search } from "@/services/pulsechainService";
 import type { SearchResultItem } from "@/types";
@@ -114,37 +114,33 @@ export const DesktopSidebar = ({
         <div className="flex flex-col h-full relative z-10">
           <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto min-h-0">
             {!isHovered ? (
-              <div className="flex flex-col items-center justify-start h-full pt-4 space-y-4">
+              <div className="flex flex-col items-center justify-center h-full space-y-4">
                 <LogoIcon />
                 {/* Navigation Icons */}
-                <div className="flex flex-col space-y-4">
+                <div className="flex flex-col space-y-3">
                   {/* Home */}
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
-                    <IconHome className="h-6 w-6 text-white" />
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
+                    <IconHome className="h-4 w-4 text-white" />
                   </div>
                   {/* Tokens */}
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
-                    <IconCode className="h-6 w-6 text-white" />
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
+                    <IconCode className="h-4 w-4 text-white" />
                   </div>
                   {/* Hex Dashboard */}
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
                     <img
                       src="/HEXagon (1).svg"
                       alt="HEX Dashboard"
-                      className="h-6 w-6"
+                      className="h-4 w-4"
                     />
                   </div>
-                  {/* SuperStake Dashboard */}
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer" onClick={() => window.open('https://supershill.vercel.app/', '_blank')}>
-                    <IconTrendingUp className="h-6 w-6 text-white" />
-                  </div>
                   {/* Learn AI */}
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
-                    <IconBook className="h-6 w-6 text-white" />
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
+                    <IconBook className="h-4 w-4 text-white" />
                   </div>
                   {/* Casino */}
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
-                    <IconCurrencyDollar className="h-6 w-6 text-white" />
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
+                    <IconCurrencyDollar className="h-4 w-4 text-white" />
                   </div>
                 </div>
               </div>

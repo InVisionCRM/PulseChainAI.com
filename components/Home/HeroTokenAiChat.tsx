@@ -343,7 +343,7 @@ export default function HeroTokenAiChat(): JSX.Element {
 
   const renderSearchSection = (withAnalyzingCard = false) => (
     <div className="space-y-3">
-      <form onSubmit={handleManualSubmit} className="space-y-2">
+      <div className="space-y-2">
         <PlaceholdersAndVanishInput
           placeholders={PLACEHOLDERS}
           onChange={handleInputChange}
@@ -382,7 +382,7 @@ export default function HeroTokenAiChat(): JSX.Element {
             ))}
           </div>
         )}
-      </form>
+      </div>
 
       {withAnalyzingCard && null}
     </div>

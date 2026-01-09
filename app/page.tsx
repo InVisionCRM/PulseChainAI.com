@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import HeroTokenAiChat from '@/components/HeroTokenAiChat';
+import HeroTokenAiChat from '@/components/Home/HeroTokenAiChat';
+import TokenTable from '@/components/TokenTable';
 
 
 export default function Home(): JSX.Element {
   return (
     <div className="w-full">
-      <div className="min-h-screen relative w-full flex flex-col items-center justify-center">
+      {/* Hero Section */}
+      <section className="min-h-screen relative w-full flex flex-col items-center justify-center overflow-hidden">
         <video
           className="absolute inset-0 w-full h-full object-cover z-0"
           autoPlay
@@ -20,11 +22,15 @@ export default function Home(): JSX.Element {
             type="video/mp4"
           />
         </video>
-        <div className="absolute inset-0 w-full h-full bg-slate-950/20 z-10 pointer-events-none" />
-
+        <div className="absolute inset-0 w-full h-full z-10 pointer-events-none" />
 
         <HeroTokenAiChat />
-      </div>
+      </section>
+
+      {/* Token Table Section */}
+      <section className="relative z-20 w-full bg-black py-5">
+        <TokenTable />
+      </section>
     </div>
   );
 }
