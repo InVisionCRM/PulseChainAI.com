@@ -2,7 +2,7 @@
 import { cn } from "@/lib/utils";
 import React, { useState, createContext, useContext, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { IconMenu2, IconX, IconSearch, IconSettings, IconDeviceGamepad2, IconHome, IconCode, IconCurrencyDollar, IconBook } from "@tabler/icons-react";
+import { IconMenu2, IconX, IconSearch, IconSettings, IconDeviceGamepad2, IconHome, IconCode, IconCurrencyDollar, IconBook, IconHeart, IconMail, IconPhoneOutgoing, IconRocket, IconChevronRight } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import { search } from "@/services/pulsechainService";
 import type { SearchResultItem } from "@/types";
@@ -89,67 +89,72 @@ export const DesktopSidebar = ({
   children,
   ...props
 }: Omit<React.ComponentProps<typeof motion.div>, "children"> & { children?: React.ReactNode }) => {
-  const { animate } = useSidebar();
-  const [isHovered, setIsHovered] = useState(false);
-  
+  const { open, setOpen } = useSidebar();
+
   return (
     <>
+      {/* Collapsed Sidebar - Always visible on desktop */}
       <motion.div
         className={cn(
-          "h-full px-2 py-2 hidden md:flex md:flex-col bg-gradient-to-br from-[#2C3E50] via-[#34495E] to-[#3B6978] border-r border-orange-500/40 w-[300px] shrink-0 relative z-50 group/sidebar",
+          "hidden md:flex h-full w-12 flex-col bg-gradient-to-br from-[#2C3E50] via-[#34495E] to-[#3B6978] border-r border-orange-500/40 relative z-50",
+          "before:absolute before:right-0 before:top-0 before:h-full before:w-[1px] before:bg-gradient-to-b before:from-transparent before:via-orange-500/30 before:to-transparent",
           className
         )}
-        animate={{
-          width: animate ? (isHovered ? "300px" : "80px") : "300px",
-        }}
-        transition={{
-          duration: 0.2,
-          ease: "easeInOut",
-        }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onClick={() => setOpen(true)}
         {...props}
       >
-        <div className="absolute inset-0 bg-black/60 pointer-events-none rounded-sm" />
-        <div className="flex flex-col h-full relative z-10">
-          <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto min-h-0">
-            {!isHovered ? (
-              <div className="flex flex-col items-center justify-center h-full space-y-4">
-                <LogoIcon />
-                {/* Navigation Icons */}
-                <div className="flex flex-col space-y-3">
-                  {/* Home */}
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
-                    <IconHome className="h-4 w-4 text-white" />
-                  </div>
-                  {/* Tokens */}
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
-                    <IconCode className="h-4 w-4 text-white" />
-                  </div>
-                  {/* Hex Dashboard */}
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
-                    <img
-                      src="/HEXagon (1).svg"
-                      alt="HEX Dashboard"
-                      className="h-4 w-4"
-                    />
-                  </div>
-                  {/* Learn AI */}
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
-                    <IconBook className="h-4 w-4 text-white" />
-                  </div>
-                  {/* Casino */}
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
-                    <IconCurrencyDollar className="h-4 w-4 text-white" />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              children as React.ReactNode
-            )}
+        <div className="flex flex-col h-full justify-center cursor-pointer">
+          {/* 3 Breathing Chevron Right Icons */}
+          <div className="flex flex-col items-center justify-center gap-3">
+            <IconChevronRight className="h-5 w-5 text-orange-500/70 breathe-1" />
+            <IconChevronRight className="h-5 w-5 text-orange-500/70 breathe-2" />
+            <IconChevronRight className="h-5 w-5 text-orange-500/70 breathe-3" />
           </div>
         </div>
       </motion.div>
+
+      {/* Expanded Sidebar - Slides in when open */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ x: "-100%", opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: "-100%", opacity: 0 }}
+            transition={{
+              duration: 0.3,
+              ease: "easeInOut",
+            }}
+            className={cn(
+              "fixed h-full w-[40vh] left-0 top-0 bg-gradient-to-br from-[#2C3E50] via-[#34495E] to-[#3B6978] border-r border-orange-500/10 p-4 z-[100] flex flex-col justify-between",
+              "before:absolute before:right-0 before:top-0 before:h-full before:w-[1px] before:bg-gradient-to-b before:from-transparent before:via-orange-500/30 before:to-transparent",
+              className
+            )}
+          >
+            <div className="flex flex-col justify-between h-full">
+              {/* Morbius Banner at top */}
+              <div className="absolute top-0 left-0 right-0 z-40">
+                <img
+                  src="/Morbiusbanner.png"
+                  alt="Morbius Banner"
+                  className="w-full h-auto object-cover max-h-24"
+                />
+              </div>
+
+              {/* Close button repositioned */}
+              <div
+                className="absolute top-2 right-2 z-50 text-white cursor-pointer"
+                onClick={() => setOpen(false)}
+              >
+                <IconX className="h-6 w-6" />
+              </div>
+
+              <div className="mt-14 overflow-y-auto scrollbar-hide">
+                {children}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };
@@ -364,21 +369,31 @@ export const MobileSidebar = ({
               ease: "easeInOut",
             }}
             className={cn(
-              "fixed h-full w-full inset-0 bg-gradient-to-br from-[#2C3E50] via-[#34495E] to-[#3B6978] border-r border-orange-500/10 p-10 z-[100] flex flex-col justify-between",
+              "fixed h-full w-[40vh] left-0 top-0 bg-gradient-to-br from-[#2C3E50] via-[#34495E] to-[#3B6978] border-r border-orange-500/10 p-4 z-[100] flex flex-col justify-between",
+              "before:absolute before:right-0 before:top-0 before:h-full before:w-[1px] before:bg-gradient-to-b before:from-transparent before:via-orange-500/30 before:to-transparent",
               className
             )}
           >
             <div className="flex flex-col justify-between h-full">
-              <div>
-                <div
-                  className="absolute right-10 top-10 z-50 text-white cursor-pointer"
-                  onClick={() => setOpen(false)}
-                >
-                  <IconX className="h-8 w-8" />
-                </div>
-                <div className="mt-16">
-                  {children}
-                </div>
+              {/* Morbius Banner at top */}
+              <div className="absolute top-0 left-0 right-0 z-40">
+                <img
+                  src="/Morbiusbanner.png"
+                  alt="Morbius Banner"
+                  className="w-full h-auto object-cover max-h-24"
+                />
+              </div>
+
+              {/* Close button repositioned */}
+              <div
+                className="absolute top-2 right-2 z-50 text-white cursor-pointer"
+                onClick={() => setOpen(false)}
+              >
+                <IconX className="h-6 w-6" />
+              </div>
+
+              <div className="mt-14 overflow-y-auto scrollbar-hide">
+                {children}
               </div>
             </div>
           </motion.div>
@@ -400,19 +415,15 @@ export const SidebarLink = ({
     <a
       href={link.href}
       className={cn(
-        "flex items-center group/sidebar py-2 justify-start gap-2 md:w-full md:justify-center md:gap-0 md:pl-0 group-hover/sidebar:md:justify-start group-hover/sidebar:md:gap-2",
+        "flex items-center py-2 justify-start justify-center gap-2",
         className
       )}
       {...props}
     >
       {link.icon}
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="text-white text-lg transition duration-150 whitespace-pre inline-block !p-0 !m-0 md:opacity-0 md:w-0 md:overflow-hidden md:translate-x-0 group-hover/sidebar:opacity-100 group-hover/sidebar:w-auto group-hover/sidebar:overflow-visible group-hover/sidebar:translate-x-1 md:ml-0"
-      >
+      <span className="text-white text-xs md:text-sm whitespace-pre inline-block">
         {link.label}
-      </motion.span>
+      </span>
     </a>
   );
 };

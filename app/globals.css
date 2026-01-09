@@ -496,3 +496,23 @@ img {
 .animate-scroll-ticker {
   animation: scrollTicker 40s linear infinite;
 }
+
+/* Hide scrollbars while maintaining scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+/* Breathing animation for chevron icons */
+@keyframes breathe {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.breathe-1 { animation: breathe 2s ease-in-out infinite; }
+.breathe-2 { animation: breathe 2s ease-in-out infinite 0.7s; }
+.breathe-3 { animation: breathe 2s ease-in-out infinite 1.4s; }

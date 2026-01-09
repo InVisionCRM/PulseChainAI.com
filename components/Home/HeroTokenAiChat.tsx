@@ -123,10 +123,10 @@ const normalizeSocials = (...sources: any[]): SocialItem[] => {
 
 // const DEFAULT_ADDRESS = '0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e';
 const PLACEHOLDERS = [
-  'Search any PulseChain Ticker, Name or Address',
-  'You Can Search For pSSH',
-  'Or Search for Morbius',
-  'Search by Address',
+  'Search by Ticker, Name, or Address...',
+  'Search For pSSH...',
+  'Search for Morbius...',
+  'Search by Address...',
   'Make Sure To Follow Morbius.io on X!',
 ];
 
@@ -578,13 +578,13 @@ export default function HeroTokenAiChat(): JSX.Element {
 
   return (
     <div className="relative z-20 w-full px-4 -mt-[100px] pb-16 flex justify-center overflow-hidden">
-      <div className="w-full rounded-[32px] bg-gradient-to-b from-white to-gray-400/50 via-white/50 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[40px] p-4 sm:p-7 text-slate-600 space-y-5 max-w-full sm:max-w-2xl overflow-hidden">
+      <div className="w-full rounded-[32px] bg-gradient-to-b from-white to-gray-400/50 via-white/50 backdrop-blur-[40px] p-4 sm:p-7 text-slate-600 space-y-5 max-w-full sm:max-w-2xl overflow-hidden">
         <div className="text-center space-y-2">
           <p className="text-sm uppercase tracking-[0.4em] text-slate-500">
             <span className="text-lg sm:text-lg font-bold text-purple-600">Morbius</span>{' '}
             Token Analyzer
           </p>
-          <h1 className="text-3xl sm:text-4xl font-semibold leading-tight">
+          <h1 className="text-2xl sm:text-xl font-semibold leading-tight">
             Analyze any token in seconds.
           </h1>
         </div>

@@ -263,7 +263,17 @@ export default function TokenTable() {
 
       // Filter out priority tokens from CSV data to avoid duplicates
       const priorityAddresses = new Set(priorityTokens.map(p => p.pairAddress));
-      const filteredCsvTokens = parsedTokens.filter(token => !priorityAddresses.has(token.pairAddress));
+      let filteredCsvTokens = parsedTokens.filter(token => !priorityAddresses.has(token.pairAddress));
+
+      // Remove duplicates within CSV data based on token symbol, keeping the first occurrence
+      const seenSymbols = new Set<string>();
+      filteredCsvTokens = filteredCsvTokens.filter(token => {
+        if (seenSymbols.has(token.symbol)) {
+          return false; // Skip duplicate
+        }
+        seenSymbols.add(token.symbol);
+        return true; // Keep first occurrence
+      });
 
       // Fetch socials and format volume/liquidity for all CSV tokens
       const csvTokensWithSocials = await Promise.all(
@@ -349,7 +359,7 @@ export default function TokenTable() {
       <div className="w-full mx-auto px-1 py-1">
         <div className="bg-black border border-b-white/40 p-1">
           <div className="flex justify-center items-center py-1">
-            <div className="text-white text-sm">Loading tokens...</div>
+            <div className="text-white text-2xl font-bold font-poppins animate-pulse">Loading tokens...</div>
           </div>
         </div>
       </div>
@@ -358,9 +368,9 @@ export default function TokenTable() {
 
   return (
     <div className="w-full px-1 py-1">
-      <div className="bg-black rounded-lg overflow-hidden">
-        <div className="px-1 py-1 border-b border-white/5 flex justify-between items-center">
-          <h2 className="text-md font-poppins text-white">Top PulseChain Tokens</h2>
+      <div className="bg-black overflow-hidden">
+        <div className="px-1 py-1 border-b border-white border-t border-white flex justify-between items-center">
+          <h2 className="text-2xl relative left-1/2 -translate-x-1/2 font-bold font-poppins text-white">Top PulseChain Tokens</h2>
           <button
             onClick={fetchTokenData}
             disabled={refreshing}

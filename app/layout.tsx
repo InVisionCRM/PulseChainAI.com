@@ -9,8 +9,6 @@ import {
   IconHome,
   IconCode,
   IconChartBar,
-  IconChartPie,
-  IconSettings,
   IconSearch,
   IconRocket,
   IconHeart,
@@ -151,9 +149,6 @@ export default function RootLayout({
         <IconCurrencyDollar className="h-5 w-5 shrink-0 text-white" />
       ),
     },
-  ];
-
-  const toolsLinks: NavLink[] = [
     {
       label: "PulseChain Stats",
       href: "/pulsechain-stats",
@@ -176,22 +171,12 @@ export default function RootLayout({
       ),
     },
     {
-      label: "Bubblemaps",
-      href: "/bubblemaps",
-      icon: (
-        <IconChartPie className="h-5 w-5 shrink-0 text-white" />
-      ),
-    },
-    {
       label: "API Endpoints",
       href: "/admin-stats",
       icon: (
         <IconPhoneOutgoing className="h-5 w-5 shrink-0 text-white" />
       ),
     },
-  ];
-
-  const gamesLinks: NavLink[] = [
     {
       label: "Hextroids",
       href: "https://pulsegame.vercel.app",
@@ -207,6 +192,7 @@ export default function RootLayout({
       ),
     },
   ];
+
 
   const handleOpenSearch = () => {
     const event = new Event('openAICodeSearch');
@@ -224,7 +210,7 @@ export default function RootLayout({
             <Sidebar open={open} setOpen={setOpen}>
               <SidebarBody className="gap-10">
                 <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto min-h-0">
-                  <div className="mt-8 flex flex-col gap-2">
+                  <div className="mt-8 flex flex-col gap-2 items-center max-w-[200px] mx-auto text-sm">
                     {/* Get Morbius Button - visible when sidebar is expanded */}
                     <a
                       href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
@@ -246,19 +232,6 @@ export default function RootLayout({
                     {primaryLinks.map((link, idx) => (
                       <SidebarLink key={idx} link={link} />
                     ))}
-
-
-                    <SidebarGroup
-                      label="Tools"
-                      icon={<IconSettings className="h-5 w-5 shrink-0 text-white" />}
-                      links={toolsLinks}
-                    />
-
-                    <SidebarGroup
-                      label="Games"
-                      icon={<IconDeviceGamepad2 className="h-5 w-5 shrink-0 text-white" />}
-                      links={gamesLinks}
-                    />
 
                     {/* Sponsored by Section */}
                     <div className="mt-6">

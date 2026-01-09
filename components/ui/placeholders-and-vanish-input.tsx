@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { Search } from "lucide-react";
 
 export function PlaceholdersAndVanishInput({
   placeholders,
@@ -203,10 +204,15 @@ export function PlaceholdersAndVanishInput({
         placeholder=""
         aria-label="Search for contracts by address or name"
         className={cn(
-          "w-full relative text-base sm:text-lg z-50 border-none bg-transparent text-white h-full rounded-full focus:outline-none focus:ring-0 pl-4 sm:pl-10 pr-4",
+          "w-full relative text-base sm:text-lg z-50 border-none bg-transparent text-white h-full rounded-full focus:outline-none focus:ring-0 text-center",
           animating && "text-transparent"
         )}
       />
+
+      {/* Magnifying glass icon on the right */}
+      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 z-50 pointer-events-none">
+        <Search className="h-4 w-4 text-white/60" />
+      </div>
 
 
       <div className="absolute inset-0 flex items-center rounded-full pointer-events-none">
@@ -230,7 +236,7 @@ export function PlaceholdersAndVanishInput({
                 duration: 0.3,
                 ease: "linear",
               }}
-              className="text-white/80 text-base sm:text-lg font-normal pl-10 sm:pl-14 text-left w-[calc(100%-2rem)] truncate"
+              className="text-white/80 text-base sm:text-lg font-normal text-center w-full truncate"
             >
               {placeholders[currentPlaceholder]}
             </motion.p>
