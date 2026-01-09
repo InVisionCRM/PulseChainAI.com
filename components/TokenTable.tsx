@@ -502,48 +502,36 @@ export default function TokenTable() {
                     <div className="grid grid-cols-3 gap-1">
                       <a
                         href={`/geicko?address=${token.pairAddress}&tab=chart`}
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="px-1 py-1 text-xs hover:bg-blue-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Chart
                       </a>
                       <a
                         href={`/geicko?address=${token.pairAddress}&tab=holders`}
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="px-1 py-1 text-xs hover:bg-green-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Holders
                       </a>
                       <a
                         href={`/geicko?address=${token.pairAddress}&tab=liquidity`}
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="px-1 py-1 text-xs hover:bg-purple-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Liquidity
                       </a>
                       <a
                         href={`/geicko?address=${token.pairAddress}&tab=contract`}
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="px-1 py-1 text-xs hover:bg-orange-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Code
                       </a>
                       <a
                         href={`/geicko?address=${token.pairAddress}&tab=switch`}
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="px-1 py-1 text-xs hover:bg-cyan-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Swap
                       </a>
                       <a
                         href={`/geicko?address=${token.pairAddress}&tab=stats`}
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="px-1 py-1 text-xs hover:bg-pink-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Stats
