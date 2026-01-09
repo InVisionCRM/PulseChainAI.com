@@ -1569,7 +1569,7 @@ function GeickoPageContent() {
     return (
       <>
         <div className="min-h-screen bg-[#eef2ff] text-[#0f172a]">
-          <header className="bg-[#1c2cf8] text-white px-4 py-5 sm:px-8 sm:py-7 shadow-[0_20px_60px_rgba(28,44,248,0.35)]">
+          <header className="bg-[#1c2cf8] text-white px-3 py-5 sm:px-8 sm:py-7 shadow-[0_20px_60px_rgba(28,44,248,0.35)]">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center text-lg font-semibold">
