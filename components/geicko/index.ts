@@ -36,6 +36,9 @@ export { default as GeickoHoldersTab } from './GeickoHoldersTab';
 export { default as GeickoSwitchTab } from './GeickoSwitchTab';
 export { default as GeickoWebsiteTab } from './GeickoWebsiteTab';
 
+// Export components - Phase 7 (Modal Components)
+export { default as GeickoHolderTransfersModal } from './GeickoHolderTransfersModal';
+
 // Re-export component prop types for convenience
 export type { GeickoMetricCardProps } from './GeickoMetricCard';
 export type { GeickoToastProps } from './GeickoToast';
@@ -54,3 +57,4 @@ export type { GeickoMarketStatsPanelProps } from './GeickoMarketStatsPanel';
 export type { GeickoHoldersTabProps } from './GeickoHoldersTab';
 export type { GeickoSwitchTabProps } from './GeickoSwitchTab';
 export type { GeickoWebsiteTabProps } from './GeickoWebsiteTab';
+export type { GeickoHolderTransfersModalProps } from './GeickoHolderTransfersModal';

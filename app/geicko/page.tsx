@@ -440,28 +440,29 @@ function GeickoPageContent() {
     setIsLoadingHolders(true);
 
     try {
+      // Use the same fetchJson approach that works in burned tokens calculation
+      const base = 'https://api.scan.pulsechain.com/api/v2';
+
+      const fetchJson = async (url: string) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      };
+
       // Fetch top 100 holders from PulseScan API
-      const res = await pulsechainApiService.getTokenHolders(address, 1, 100);
-      const resData: any = res;
+      const qs = new URLSearchParams({ limit: '100' });
+      const data = await fetchJson(`${base}/tokens/${address}/holders?${qs.toString()}`);
+      const items: Array<{ address?: { hash?: string }; value?: string }> = Array.isArray(data?.items) ? data.items : [];
 
-      // Parse response structure
-      let items: Array<{ address: string; value: string }> = [];
-      const rawData = Array.isArray(resData) ? resData
-                    : resData.data && Array.isArray(resData.data) ? resData.data
-                    : resData.items && Array.isArray(resData.items) ? resData.items
-                    : [];
-
-      items = rawData
+      // Process holders data (same logic as burned tokens calculation)
+      const processedHolders = items
         .map((h: any) => ({
-          address: h.address?.hash || h.address || '',
+          address: h.address?.hash || '',
           value: h.value || '0'
         }))
         .filter((item: any) => item.address && item.value);
 
-      // Skip contract info fetching to avoid API issues
-      const itemsWithContractInfo = items;
-
-      setHolders(itemsWithContractInfo);
+      setHolders(processedHolders);
     } catch (error) {
       console.error('Failed to load holders:', error);
       setHolders([]);
@@ -2666,7 +2667,7 @@ function GeickoPageContent() {
 
               {/* Contract Tab */}
               {activeTab === 'contract' && (
-                <div className="flex flex-col h-[calc(130vh-300px)] min-h-[400px]">
+                <div className="flex flex-col h-[calc(160vh-300px)] min-h-[900px]">
                   <div className="flex-shrink-0 border-b border-gray-800">
                     <div className="h-[300px]">
                       <TokenAIChat contractAddress={apiTokenAddress} compact={true} />
