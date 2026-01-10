@@ -16,7 +16,8 @@ const PRIORITY_TOKENS = [
   '0xA1077a294dDE1B09bB078844df40758a5D0f9a27', // #7
   '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d', // #8
   '0xc10A4Ed9b4042222d69ff0B374eddd47ed90fC1F', // #9
-  '0xC70CF25DFCf5c5e9757002106C096ab72fab299E'  // #10
+  '0xC70CF25DFCf5c5e9757002106C096ab72fab299E', // #10
+  '0x483287DEd4F43552f201a103670853b5dc57D59d'  // #10
 ];
 
 const parseVolumeString = (volumeStr: string): number => {
@@ -39,6 +40,54 @@ const parseFormattedVolume = (formattedVolume: string): number => {
 const parseFormattedLiquidity = (formattedLiquidity: string): number => {
   // Parse already formatted liquidity strings
   return parseFloat(formattedLiquidity.replace(/[$,]/g, '')) || 0;
+};
+
+const parsePriceString = (priceStr: string): number => {
+  // Remove $ and commas
+  let cleanStr = priceStr.replace(/[$,]/g, '');
+
+  // Check if it contains superscript numbers (for very small prices)
+  if (cleanStr.includes('⁰') || cleanStr.includes('¹') || cleanStr.includes('²') ||
+      cleanStr.includes('³') || cleanStr.includes('⁴') || cleanStr.includes('⁵') ||
+      cleanStr.includes('⁶') || cleanStr.includes('⁷') || cleanStr.includes('⁸') || cleanStr.includes('⁹')) {
+    // Format: $0.0⁵123 means 0.0000005123
+    const superscriptMap: {[key: string]: string} = {
+      '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
+      '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9'
+    };
+
+    // Extract the superscript number
+    let zeroCount = '';
+    let afterSuperscript = '';
+    let foundSuperscript = false;
+
+    for (let i = 0; i < cleanStr.length; i++) {
+      if (superscriptMap[cleanStr[i]]) {
+        zeroCount += superscriptMap[cleanStr[i]];
+        foundSuperscript = true;
+      } else if (foundSuperscript) {
+        afterSuperscript = cleanStr.substring(i);
+        break;
+      }
+    }
+
+    const numZeros = parseInt(zeroCount) || 0;
+    const significantDigits = afterSuperscript;
+
+    // Construct the decimal: 0. followed by numZeros zeros, then the significant digits
+    const decimalStr = '0.' + '0'.repeat(numZeros) + significantDigits;
+    return parseFloat(decimalStr) || 0;
+  }
+
+  // Handle M and K suffixes
+  if (cleanStr.includes('M')) {
+    return parseFloat(cleanStr.replace('M', '')) * 1000000;
+  } else if (cleanStr.includes('K')) {
+    return parseFloat(cleanStr.replace('K', '')) * 1000;
+  }
+
+  // Regular number
+  return parseFloat(cleanStr) || 0;
 };
 
 const formatVolume = (volume: number): string => {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { SearchResultItem } from './types';
 
 export interface GeickoSearchBarProps {
@@ -18,6 +18,8 @@ export interface GeickoSearchBarProps {
   onSearch: (e: React.FormEvent) => void;
   /** Callback when a result is selected */
   onSelectResult: (item: SearchResultItem) => void;
+  /** Callback to close search results */
+  onCloseResults?: () => void;
   /** Optional ref for the input element */
   inputRef?: React.RefObject<HTMLInputElement>;
   /** Optional placeholder text */
@@ -37,40 +39,64 @@ export default function GeickoSearchBar({
   searchError,
   onSearch,
   onSelectResult,
+  onCloseResults,
   inputRef,
   placeholder = 'Search by ticker, name, or address',
 }: GeickoSearchBarProps) {
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    if (!showSearchResults || !onCloseResults) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        onCloseResults();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSearchResults, onCloseResults]);
+
   return (
-    <div className="hidden md:block px-2 md:px-3 mt-2 mb-2">
-      <form onSubmit={onSearch} className="relative">
-        <div className="flex items-center gap-2">
-          <input
-            ref={inputRef}
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-            placeholder={placeholder}
-          />
+    <div className="px-2 md:px-3 mt-2 mb-2">
+      <form onSubmit={onSearch} className="relative" ref={dropdownRef}>
+        <div className="flex items-center gap-2 relative">
+          <div className="flex-1 relative">
+            <input
+              ref={inputRef}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 pr-28 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+              placeholder={placeholder}
+            />
+            {/* Loading indicator inside input */}
+            {isSearching && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                <div className="flex gap-1">
+                  <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+                <span className="text-[11px] text-cyan-400 font-medium">Searching</span>
+              </div>
+            )}
+          </div>
           <button
             type="submit"
-            className="px-3 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white border border-white/10 transition-colors"
+            disabled={isSearching}
+            className="px-3 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white border border-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Search
           </button>
         </div>
 
-        {/* Loading indicator */}
-        {isSearching && (
-          <div className="absolute right-3 top-3 text-[11px] text-gray-400">
-            Searching...
-          </div>
-        )}
-
         {/* Search Results Dropdown */}
         {showSearchResults && searchResults && searchResults.length > 0 && (
-          <div className="absolute z-50 mt-2 w-full bg-gray-900 border border-gray-800 rounded-lg shadow-xl overflow-hidden">
+          <div className="absolute z-50 mt-2 w-full bg-gray-900 border border-gray-800 rounded-lg shadow-xl overflow-hidden max-h-[400px] overflow-y-auto">
             {searchResults.map((item) => {
-              const holders = (item as any).holders as number | null | undefined;
+              const holders = 'holders' in item ? (item.holders as number | null | undefined) : undefined;
               return (
                 <button
                   key={item.address}
