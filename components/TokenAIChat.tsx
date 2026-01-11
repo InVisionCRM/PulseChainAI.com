@@ -12,6 +12,79 @@ interface TokenAIChatProps {
   className?: string;
 }
 
+// Parse follow-up questions from AI response
+// Format: [FOLLOWUP]- question 1\n- question 2[/FOLLOWUP]
+const parseFollowUpQuestions = (text: string): string[] => {
+  const followUpRegex = /\[FOLLOWUP\]([\s\S]*?)\[\/FOLLOWUP\]/;
+  const match = text.match(followUpRegex);
+
+  if (!match) return [];
+
+  const followUpContent = match[1];
+  const questions = followUpContent
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.startsWith('-') || line.startsWith('•'))
+    .map(line => line.substring(1).trim())
+    .filter(q => q.length > 0);
+
+  return questions;
+};
+
+// Auto-generate contextual follow-up questions based on AI response
+// Only code-specific questions that the AI can actually answer
+const generateFollowUpQuestions = (text: string): string[] => {
+  const lowerText = text.toLowerCase();
+  const questions: string[] = [];
+
+  // Security/Vulnerability related
+  if (lowerText.includes('risk') || lowerText.includes('security') || lowerText.includes('vulnerability') || lowerText.includes('safe')) {
+    questions.push('Are there any hidden backdoors in the code?');
+  }
+
+  // Tax/Fee related
+  if (lowerText.includes('tax') || lowerText.includes('fee') || lowerText.includes('%') || lowerText.includes('transfer')) {
+    questions.push('Explain how the fee mechanism works');
+  }
+
+  // Mint/Burn functions
+  if (lowerText.includes('mint') || lowerText.includes('burn') || lowerText.includes('supply')) {
+    questions.push('Can the owner manipulate the token supply?');
+  }
+
+  // Ownership/Control
+  if (lowerText.includes('owner') || lowerText.includes('renounce') || lowerText.includes('control')) {
+    questions.push('What powers does the owner have in the code?');
+  }
+
+  // Blacklist/Whitelist
+  if (lowerText.includes('blacklist') || lowerText.includes('whitelist') || lowerText.includes('pause')) {
+    questions.push('Can trading be restricted or paused?');
+  }
+
+  // Functions mentioned
+  if (lowerText.includes('function')) {
+    questions.push('What are the most critical functions?');
+  }
+
+  // Default code-specific questions if nothing specific was mentioned
+  if (questions.length === 0) {
+    const defaultQuestions = [
+      'Are there any security vulnerabilities?',
+      'What does this contract do?',
+      'Are there any hidden fees in the code?',
+    ];
+    questions.push(...defaultQuestions);
+  }
+
+  return questions.slice(0, 3); // Max 3 follow-up questions
+};
+
+// Remove follow-up questions markup from text for display
+const removeFollowUpMarkup = (text: string): string => {
+  return text.replace(/\[FOLLOWUP\][\s\S]*?\[\/FOLLOWUP\]/g, '').trim();
+};
+
 export default function TokenAIChat({ contractAddress, compact = false, className }: TokenAIChatProps): JSX.Element {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingChat, setIsLoadingChat] = useState<boolean>(false);
@@ -122,7 +195,25 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
       }
 
       const data = await response.json();
-      const aiMessage: Message = { id: (Date.now() + 1).toString(), text: data.response, sender: 'ai' };
+
+      // Parse follow-up questions from the response (check for markup first)
+      let followUpQuestions = parseFollowUpQuestions(data.response);
+
+      // If no markup found, auto-generate contextual questions
+      if (followUpQuestions.length === 0) {
+        followUpQuestions = generateFollowUpQuestions(data.response);
+      }
+
+      // Debug logging
+      console.log('AI Response:', data.response);
+      console.log('Follow-up questions:', followUpQuestions);
+
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: data.response,
+        sender: 'ai',
+        followUpQuestions
+      };
       setMessages(prev => [...prev, aiMessage]);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
@@ -142,6 +233,9 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
   }, [chatInput, sendMessage]);
 
   const renderMessageText = (text: string) => {
+    // Remove follow-up markup before rendering
+    const cleanedText = removeFollowUpMarkup(text);
+
     // Enhanced markdown parser with tabbed content and hashtags
     const renderMarkdown = (content: string): React.ReactNode => {
       // Handle tabbed content first
@@ -241,7 +335,7 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
       });
     };
 
-    return <div className="space-y-1">{renderMarkdown(text)}</div>;
+    return <div className="space-y-1">{renderMarkdown(cleanedText)}</div>;
   };
 
   const quickQuestions = [
@@ -295,7 +389,7 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
                       <button
                         key={index}
                         onClick={() => sendMessage(question)}
-                        className={`inline-flex px-3 py-2 rounded-full border ${colorClasses[index]} transition-all duration-200 text-md text-white backdrop-blur-xl shadow-[0_10px_25px_rgba(0,0,0,0.25)]`}
+                        className={`inline-flex px-2 py-1.5 rounded-full border ${colorClasses[index]} transition-all duration-200 text-sm text-white backdrop-blur-xl shadow-[0_10px_25px_rgba(0,0,0,0.25)]`}
                       >
                         {question}
                       </button>
@@ -307,22 +401,45 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
           </div>
         )}
         {messages.map((msg) => (
-          <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className="max-w-[95%] rounded-lg px-3 py-2 bg-slate-500/50 border border-white/20 backdrop-blur-xl shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
-              {msg.sender === 'user' ? (
-                <div className="text-white text-sm font-bold">
-                  {msg.text}
-                </div>
-              ) : (
-                <div className="space-y-1 text-white">
-                  {msg.text === '...' ? (
-                    <LoaderThree />
-                  ) : (
-                    <div className="text-white text-sm font-bold">{renderMessageText(msg.text)}</div>
-                  )}
-                </div>
-              )}
+          <div key={msg.id} className="space-y-2">
+            <div className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className="max-w-[95%] rounded-lg px-3 py-2 bg-slate-500/50 border border-white/20 backdrop-blur-xl shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                {msg.sender === 'user' ? (
+                  <div className="text-white text-sm font-bold">
+                    {msg.text}
+                  </div>
+                ) : (
+                  <div className="space-y-1 text-white">
+                    {msg.text === '...' ? (
+                      <LoaderThree />
+                    ) : (
+                      <div className="text-white text-sm font-bold">{renderMessageText(msg.text)}</div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Follow-up questions for AI messages */}
+            {msg.sender === 'ai' && msg.followUpQuestions && msg.followUpQuestions.length > 0 && (
+              <div className="flex justify-start">
+                <div className="max-w-[95%] space-y-1">
+                  <div className="text-[10px] text-purple-300/60 ml-2">Suggested questions:</div>
+                  <div className="flex flex-wrap gap-2 ml-2">
+                    {msg.followUpQuestions.map((question, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => sendMessage(question)}
+                        disabled={isLoadingChat}
+                        className="inline-flex px-3 py-1.5 rounded-full border border-purple-300/40 bg-purple-900/30 hover:bg-purple-800/40 transition-all duration-200 text-xs text-white backdrop-blur-xl shadow-[0_5px_15px_rgba(0,0,0,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {question}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ))}
         {isLoadingChat && messages[messages.length - 1]?.sender === 'user' && (

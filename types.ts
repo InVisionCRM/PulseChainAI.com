@@ -2,6 +2,7 @@ export interface Message {
   id: string;
   text: string;
   sender: 'user' | 'ai';
+  followUpQuestions?: string[];
 }
 
 // From user's image for TokenInfo

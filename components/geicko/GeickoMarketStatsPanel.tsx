@@ -1,5 +1,6 @@
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Skeleton } from '@/components/ui/skeleton';
 import { DexScreenerData, LiquidityData } from './types';
 import { formatAbbrev } from './utils';
 
@@ -92,7 +93,7 @@ export default function GeickoMarketStatsPanel({
           Total Liquidity
         </div>
         {totalLiquidity.isLoading ? (
-          <div className="text-center text-gray-500 text-sm">Loading...</div>
+          <Skeleton className="h-6 w-24" />
         ) : (
           <div className="text-center text-base text-white font-semibold">
             <Tooltip>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   BurnedTokens,
   SupplyHeldData,
@@ -124,7 +125,20 @@ export default function GeickoMetricsGrid({
           Supply Held
         </div>
         {supplyHeld.isLoading ? (
-          <div className="text-center text-gray-500 text-sm">Loading...</div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-400 font-medium">Top 10</span>
+              <Skeleton className="h-5 w-12" />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-400 font-medium">Top 20</span>
+              <Skeleton className="h-5 w-12" />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-400 font-medium">Top 50</span>
+              <Skeleton className="h-5 w-12" />
+            </div>
+          </div>
         ) : (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -155,7 +169,16 @@ export default function GeickoMetricsGrid({
           Smart Contract Holder Share
         </div>
         {smartContractHolderShare.isLoading ? (
-          <div className="text-center text-gray-500 text-sm">Loading...</div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-400 font-medium">Share</span>
+              <Skeleton className="h-5 w-16" />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-400 font-medium">Contracts</span>
+              <Skeleton className="h-5 w-8" />
+            </div>
+          </div>
         ) : (
           <div className="space-y-2">
             <div className="flex items-center justify-between">

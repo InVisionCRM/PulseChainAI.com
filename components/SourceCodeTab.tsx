@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { CodeBlock } from '@/components/ui/code-block';
 
 interface SourceCodeTabProps {
   sourceCode: string;
@@ -318,9 +319,11 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode, readFunctions
                 </div>
               )}
               
-              <pre className="text-sm font-mono text-slate-300 whitespace-pre-wrap break-words bg-slate-900/50 rounded-lg p-4 border border-slate-700/30 overflow-auto">
-                <code>{sourceFiles[activeFileIndex].content}</code>
-              </pre>
+              <CodeBlock
+                code={sourceFiles[activeFileIndex].content}
+                language="solidity"
+                filename={sourceFiles[activeFileIndex].path}
+              />
             </div>
           </div>
         </>

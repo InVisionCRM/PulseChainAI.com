@@ -1,11 +1,13 @@
 "use client";
 import { cn } from "@/lib/utils";
-import React, { useState, createContext, useContext, useEffect } from "react";
+import React, { useState, createContext, useContext, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { IconMenu2, IconX, IconSearch, IconSettings, IconDeviceGamepad2, IconHome, IconCode, IconCurrencyDollar, IconBook, IconHeart, IconMail, IconPhoneOutgoing, IconRocket, IconChevronRight } from "@tabler/icons-react";
-import { useRouter } from "next/navigation";
-import { search } from "@/services/pulsechainService";
-import type { SearchResultItem } from "@/types";
+import Image from "next/image";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { Message } from "@/types";
+import { useApiKey } from "@/lib/hooks/useApiKey";
 
 interface Links {
   label: string;
@@ -130,7 +132,7 @@ export const DesktopSidebar = ({
               className
             )}
           >
-            <div className="flex flex-col justify-between h-full">
+            <div className="flex flex-col h-full">
               {/* Morbius Banner at top */}
               <div className="absolute top-0 left-0 right-0 z-40">
                 <img
@@ -148,14 +150,216 @@ export const DesktopSidebar = ({
                 <IconX className="h-6 w-6" />
               </div>
 
-              <div className="mt-14 overflow-y-auto scrollbar-hide">
+              <div className="mt-14 overflow-y-auto scrollbar-hide flex-1 flex flex-col min-h-0">
                 {children}
+                <RichardHeartChat />
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </>
+  );
+};
+
+// Richard Heart Chat Component for Sidebar
+const RichardHeartChat = () => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 'intro',
+      text: "What's on your mind today? Markets, mindset, or something bold?",
+      sender: 'ai',
+    },
+  ]);
+  const [input, setInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const { getApiKey } = useApiKey();
+
+  const sendMessage = useCallback(
+    async (messageText: string) => {
+      if (!messageText.trim() || isSending) return;
+      const trimmed = messageText.trim();
+
+      const nextUserMessage: Message = {
+        id: String(Date.now()),
+        text: trimmed,
+        sender: 'user',
+      };
+      const aiMessageId = String(Date.now() + 1);
+      const aiPlaceholder: Message = { id: aiMessageId, text: '', sender: 'ai' };
+
+      const historyPayload = [...messages, nextUserMessage];
+
+      setMessages((prev) => [...prev, nextUserMessage, aiPlaceholder]);
+      setIsSending(true);
+
+      try {
+        const userApiKey = getApiKey();
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (userApiKey) headers['x-user-api-key'] = userApiKey;
+
+        const res = await fetch('/api/richard-heart', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            message: trimmed,
+            history: historyPayload,
+          }),
+        });
+        if (!res.ok || !res.body) {
+          throw new Error('No response body from server');
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulated = '';
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          if (chunk) {
+            accumulated += chunk;
+            const textCopy = accumulated;
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === aiMessageId ? { ...msg, text: textCopy } : msg
+              )
+            );
+          }
+        }
+
+        if (!accumulated) {
+          throw new Error('Empty response from model');
+        }
+      } catch {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiMessageId
+              ? {
+                  ...msg,
+                  text: "Connection glitched. Ask again and we'll keep it rolling.",
+                }
+              : msg
+          )
+        );
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [getApiKey, isSending, messages]
+  );
+
+  if (!isExpanded) {
+    return (
+      <button
+        onClick={() => setIsExpanded(true)}
+        className="mt-auto mb-4 flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-purple-600/30 hover:bg-purple-600/40 border border-purple-500/30 transition-colors"
+      >
+        <div className="w-8 h-8 rounded-full border border-white/40 overflow-hidden flex-shrink-0">
+          <Image
+            src="/RH.png"
+            alt="Richard Heart"
+            width={32}
+            height={32}
+            className="w-full h-full object-cover"
+            unoptimized
+          />
+        </div>
+        <span className="text-white text-sm font-medium">Chat with RH</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-auto mb-4 flex flex-col bg-purple-600/20 rounded-lg border border-purple-500/30 p-4 max-h-[400px]">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full border border-white/40 overflow-hidden flex-shrink-0">
+            <Image
+              src="/RH.png"
+              alt="Richard Heart"
+              width={32}
+              height={32}
+              className="w-full h-full object-cover"
+              unoptimized
+            />
+          </div>
+          <span className="text-white text-sm font-semibold">Richard Heart</span>
+        </div>
+        <button
+          onClick={() => setIsExpanded(false)}
+          className="text-white/70 hover:text-white"
+        >
+          <IconX className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto mb-3 space-y-2 min-h-0">
+        {messages.map((msg) =>
+          msg.sender === 'user' ? (
+            <p
+              key={msg.id}
+              className="text-sm text-white/70 italic"
+            >
+              {msg.text}
+            </p>
+          ) : (
+            <div
+              key={msg.id}
+              className="prose prose-invert prose-sm max-w-none"
+            >
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p: ({ children }) => (
+                    <p className="text-white text-sm leading-relaxed my-1">{children}</p>
+                  ),
+                  strong: ({ children }) => (
+                    <strong className="font-semibold text-white">{children}</strong>
+                  ),
+                }}
+              >
+                {msg.text}
+              </ReactMarkdown>
+            </div>
+          )
+        )}
+        {isSending && (
+          <p className="text-white/60 text-xs">Let me think about that…</p>
+        )}
+      </div>
+
+      <div className="relative">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              sendMessage(input);
+              setInput('');
+            }
+          }}
+          placeholder="Type your message..."
+          className="w-full h-9 rounded-lg bg-white/5 border border-white/15 px-3 pr-10 text-xs text-white placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+          disabled={isSending}
+        />
+        <button
+          onClick={() => {
+            sendMessage(input);
+            setInput('');
+          }}
+          disabled={!input.trim() || isSending}
+          className="absolute right-1 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center text-xs transition"
+        >
+          →
+        </button>
+      </div>
+    </div>
   );
 };
 
@@ -196,167 +400,9 @@ export const MobileSidebar = ({
   ...props
 }: React.ComponentProps<"div">) => {
   const { open, setOpen } = useSidebar();
-  const router = useRouter();
-  const [searchValue, setSearchValue] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showResults, setShowResults] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-
-  // Debounced search effect
-  useEffect(() => {
-    if (searchValue.length < 2) {
-      setSearchResults([]);
-      setIsSearching(false);
-      setShowResults(false);
-      return;
-    }
-
-    const isAddress = /^0x[a-fA-F0-9]{40}$/.test(searchValue);
-    if (isAddress) {
-      setSearchResults([]);
-      setIsSearching(false);
-      setShowResults(false);
-      return;
-    }
-
-    setIsSearching(true);
-    setShowResults(true);
-    const timer = setTimeout(async () => {
-      try {
-        const results = await search(searchValue);
-        setSearchResults(results.slice(0, 10));
-        setSearchError(null);
-      } catch (error) {
-        console.error('Search error:', error);
-        setSearchResults([]);
-        setSearchError(error instanceof Error ? error.message : 'Search failed');
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchValue]);
-
-  // Close results when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('.search-container')) {
-        setShowResults(false);
-      }
-    };
-
-    if (showResults) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showResults]);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchValue.trim()) {
-      router.push(`/geicko?address=${searchValue.trim()}`);
-      setSearchValue("");
-      setShowResults(false);
-    }
-  };
-
-  const handleSelectResult = (item: SearchResultItem) => {
-    router.push(`/geicko?address=${item.address}`);
-    setSearchValue("");
-    setShowResults(false);
-    setSearchResults([]);
-  };
 
   return (
     <>
-      <div
-        className={cn(
-          "h-[50px] flex flex-row md:hidden items-center justify-between gap-2 w-full overflow-visible sticky top-0 bg-white/5 backdrop-blur-xl border-b border-white/40 px-4 z-50"
-        )}
-        {...props}
-      >
-        {/* Search Bar */}
-        <form onSubmit={handleSearch} className="flex-1 flex items-center gap-2">
-          <div className="relative flex-1 search-container">
-            <input
-              type="text"
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Search token..."
-              className="w-full h-8 px-3 pr-8 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-orange-500/50"
-            />
-            <button
-              type="submit"
-              aria-label="Search"
-              title="Search"
-              className="absolute right-2 top-1/2 -translate-y-1/2"
-            >
-              <IconSearch className="h-4 w-4 text-white/70" />
-            </button>
-            {showResults && (
-              <div className="absolute left-0 right-0 top-full bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto search-container">
-                <div 
-                  className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-lg opacity-20 pointer-events-none"
-                  style={{ backgroundImage: 'url(/Mirage.jpg)' }}
-                />
-                <div className="relative z-10">
-                  {isSearching && (
-                    <div className="flex items-center justify-center">
-                      <div className="text-slate-400 text-sm">Searching...</div>
-                    </div>
-                  )}
-                  {!isSearching && searchError && (
-                    <div className="text-red-400 text-sm">{searchError}</div>
-                  )}
-                  {!isSearching && searchValue.length >= 2 && searchResults.length === 0 && !searchError && (
-                    <div className="text-slate-400 text-sm">No tokens found for &quot;{searchValue}&quot;</div>
-                  )}
-                {!isSearching && searchResults.map(item => (
-                    <div
-                      key={item.address}
-                      onClick={() => handleSelectResult(item)}
-                      className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
-                    >
-                    <div className="relative">
-                      {item.icon_url ? (
-                        <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-blue-400 font-bold text-sm flex-shrink-0">
-                          {item.name?.[0] || '?'}
-                        </div>
-                      )}
-                      {item.is_smart_contract_verified && (
-                        <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white text-[10px]">
-                          ✓
-                        </span>
-                      )}
-                    </div>
-                      <div className="overflow-hidden flex-1">
-                        <div className="font-semibold text-white truncate">
-                          {item.name} {item.symbol && `(${item.symbol})`}
-                        </div>
-                        <div className="text-xs text-slate-400 capitalize">{item.type}</div>
-                        <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </form>
-        
-        {/* Hamburger Menu Button */}
-        <IconMenu2
-          className="text-white h-6 w-6 cursor-pointer drop-shadow-lg flex-shrink-0"
-          onClick={() => setOpen(!open)}
-        />
-      </div>
-      
-      {/* Results now render directly under the search bar inside search-container */}
       
       <AnimatePresence>
         {open && (

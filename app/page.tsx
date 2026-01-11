@@ -1,12 +1,34 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import HeroTokenAiChat from '@/components/Home/HeroTokenAiChat';
 import TokenTable from '@/components/TokenTable';
 import { IconChevronDown } from '@tabler/icons-react';
 
 
 export default function Home(): JSX.Element {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // Handle hash-based scrolling (e.g., from mobile nav)
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      if (hash) {
+        const element = document.querySelector(hash);
+        if (element) {
+          // Small delay to ensure page is fully loaded
+          setTimeout(() => {
+            element.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
+          }, 100);
+        }
+      }
+    }
+  }, []);
+
   return (
     <div className="w-full">
       {/* Hero Section */}
@@ -35,7 +57,7 @@ export default function Home(): JSX.Element {
       </section>
 
       {/* Token Table Section */}
-      <section className="relative z-20 w-full bg-black py-10">
+      <section id="tokentable" className="relative z-20 w-full bg-black py-10">
         <TokenTable />
       </section>
     </div>

@@ -3,8 +3,9 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next"
 import { TopTickerBar } from "@/components/TopTickerBar";
+import { MobileSearchBar } from "@/components/MobileSearchBar";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
-import RichardHeartChatCard from "@/components/RichardHeartChatCard";
 import {
   IconHome,
   IconCode,
@@ -206,6 +207,7 @@ export default function RootLayout({
       >
         <div className="flex flex-col min-h-screen md:h-screen w-full md:overflow-hidden">
           {!isStackerGamePage && <TopTickerBar />}
+          <MobileSearchBar />
           <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
             <Sidebar open={open} setOpen={setOpen}>
               <SidebarBody className="gap-10">
@@ -256,14 +258,14 @@ export default function RootLayout({
                 </div>
               </SidebarBody>
             </Sidebar>
-            <main className="flex-1 w-full overflow-y-auto">
+            <main className="flex-1 w-full overflow-y-auto pb-20 md:pb-0">
               <ToastProvider>
                 {children}
               </ToastProvider>
             </main>
           </div>
+          <MobileBottomNav />
         </div>
-        <RichardHeartChatCard />
         <Analytics />
       </body>
     </html>

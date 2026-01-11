@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
+import { ArrowUp, ArrowDown, RefreshCw, Search, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { parseCSV, TokenData } from '@/lib/csvParser';
 
 // Priority tokens that should always appear at the top
@@ -221,6 +221,15 @@ export default function TokenTable() {
   const [sortBy, setSortBy] = useState('volume');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeQuickFilter, setActiveQuickFilter] = useState<string | null>(null);
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+  const [volumeRange, setVolumeRange] = useState({ min: '', max: '' });
+  const [liquidityRange, setLiquidityRange] = useState({ min: '', max: '' });
+  const [filteredTokens, setFilteredTokens] = useState<TokenData[]>([]);
+
   const getSortIcon = (field: string) => {
     if (sortBy !== field) return null;
     return sortOrder === 'desc' ? '↓' : '↑';
@@ -273,8 +282,8 @@ export default function TokenTable() {
         rank: 0, // Will be set by position in priority list
         dexIcon: 'https://dd.dexscreener.com/ds-data/dexes/pulsex.png',
         tokenIcon: bestPair.info?.imageUrl || targetToken?.logoURI || '',
-        symbol: targetToken.symbol,
-        name: targetToken.name,
+        symbol: targetToken?.symbol || 'Unknown',
+        name: targetToken?.name || 'Unknown Token',
         price: formatPrice(parseFloat(bestPair.priceUsd || '0')),
         txns: bestPair.txns?.h24 ? (bestPair.txns.h24.buys + bestPair.txns.h24.sells).toString() : '0',
         volume: formatVolume(bestPair.volume?.h24 || 0),
@@ -282,7 +291,7 @@ export default function TokenTable() {
         priceChange24h: bestPair.priceChange?.h24 ? `${bestPair.priceChange.h24.toFixed(2)}%` : '',
         fdv: bestPair.fdv ? `$${(bestPair.fdv / 1000000).toFixed(1)}M` : '',
         pairAddress: bestPair.pairAddress,
-        tokenAddress: tokenAddress || targetToken.address,
+        tokenAddress: tokenAddress || targetToken?.address || '',
         dexName: 'PulseChain',
         socials
       };
@@ -404,9 +413,131 @@ export default function TokenTable() {
     setTokens([...priorityTokens, ...sortedRegularTokens]);
   };
 
+  // Apply all filters to tokens
+  const applyFilters = (tokensToFilter: TokenData[]) => {
+    // When actively searching, treat all tokens equally (no GOLD priority)
+    const hasActiveSearch = searchQuery && searchQuery.trim();
+
+    if (hasActiveSearch) {
+      // Apply search to ALL tokens, show matching results at top
+      const query = searchQuery.toLowerCase().trim();
+
+      return tokensToFilter.filter(token => {
+        // Text search
+        const matchesName = token.name.toLowerCase().includes(query);
+        const matchesSymbol = token.symbol.toLowerCase().includes(query);
+        if (!matchesName && !matchesSymbol) {
+          return false;
+        }
+
+        // Quick filters
+        if (activeQuickFilter === 'gold') {
+          if (token.rank > 5) return false;
+        }
+        if (activeQuickFilter === 'gainers') {
+          const change = parseFloat(token.priceChange24h.replace('%', '')) || 0;
+          if (change <= 0) return false;
+        }
+        if (activeQuickFilter === 'losers') {
+          const change = parseFloat(token.priceChange24h.replace('%', '')) || 0;
+          if (change >= 0) return false;
+        }
+
+        // Price range
+        if (priceRange.min || priceRange.max) {
+          const price = parsePriceString(token.price);
+          if (priceRange.min && price < parseFloat(priceRange.min)) return false;
+          if (priceRange.max && price > parseFloat(priceRange.max)) return false;
+        }
+
+        // Volume range
+        if (volumeRange.min || volumeRange.max) {
+          const volume = parseFormattedVolume(token.volume);
+          if (volumeRange.min && volume < parseFloat(volumeRange.min)) return false;
+          if (volumeRange.max && volume > parseFloat(volumeRange.max)) return false;
+        }
+
+        // Liquidity range
+        if (liquidityRange.min || liquidityRange.max) {
+          const liquidity = parseFormattedLiquidity(token.liquidity);
+          if (liquidityRange.min && liquidity < parseFloat(liquidityRange.min)) return false;
+          if (liquidityRange.max && liquidity > parseFloat(liquidityRange.max)) return false;
+        }
+
+        return true;
+      });
+    }
+
+    // No active search - use GOLD priority behavior
+    const goldTokens = tokensToFilter.filter(t => t.rank <= 5);
+    const regularTokens = tokensToFilter.filter(t => t.rank > 5);
+
+    // Filter regular tokens
+    let filtered = regularTokens.filter(token => {
+      // Quick filters
+      if (activeQuickFilter === 'gold') {
+        // Gold filter only shows GOLD tokens, so exclude all regular tokens
+        return false;
+      }
+      if (activeQuickFilter === 'gainers') {
+        const change = parseFloat(token.priceChange24h.replace('%', '')) || 0;
+        if (change <= 0) return false;
+      }
+      if (activeQuickFilter === 'losers') {
+        const change = parseFloat(token.priceChange24h.replace('%', '')) || 0;
+        if (change >= 0) return false;
+      }
+
+      // Price range
+      if (priceRange.min || priceRange.max) {
+        const price = parsePriceString(token.price);
+        if (priceRange.min && price < parseFloat(priceRange.min)) return false;
+        if (priceRange.max && price > parseFloat(priceRange.max)) return false;
+      }
+
+      // Volume range
+      if (volumeRange.min || volumeRange.max) {
+        const volume = parseFormattedVolume(token.volume);
+        if (volumeRange.min && volume < parseFloat(volumeRange.min)) return false;
+        if (volumeRange.max && volume > parseFloat(volumeRange.max)) return false;
+      }
+
+      // Liquidity range
+      if (liquidityRange.min || liquidityRange.max) {
+        const liquidity = parseFormattedLiquidity(token.liquidity);
+        if (liquidityRange.min && liquidity < parseFloat(liquidityRange.min)) return false;
+        if (liquidityRange.max && liquidity > parseFloat(liquidityRange.max)) return false;
+      }
+
+      return true;
+    });
+
+    // Show GOLD tokens at top when no search is active
+    return [...goldTokens, ...filtered];
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setActiveQuickFilter(null);
+    setPriceRange({ min: '', max: '' });
+    setVolumeRange({ min: '', max: '' });
+    setLiquidityRange({ min: '', max: '' });
+  };
+
+  // Apply filters whenever filter state or tokens change
+  useEffect(() => {
+    if (tokens.length > 0) {
+      const filtered = applyFilters(tokens);
+      setFilteredTokens(filtered);
+    } else {
+      setFilteredTokens([]);
+    }
+  }, [tokens, searchQuery, activeQuickFilter, priceRange, volumeRange, liquidityRange]);
+
   if (loading) {
     return (
-      <div className="w-full mx-auto px-1 py-1">
+      <div className="w-full px-1 py-1">
         <div className="bg-black border border-b-white/40 p-1">
           <div className="flex justify-center items-center py-1">
             <div className="text-white text-2xl md:text-xl font-bold font-poppins animate-pulse">Loading tokens...</div>
@@ -418,7 +549,7 @@ export default function TokenTable() {
 
   return (
     <div className="w-full px-1 py-1">
-      <div className="bg-black overflow-hidden">
+      <div className="bg-brand-navy overflow-hidden">
         <div className="px-1 py-1 border-b border-white border-t border-white flex justify-between items-center">
           <h2 className="text-2xl relative left-1/2 -translate-x-1/2 font-bold font-poppins text-white">Top PulseChain Tokens</h2>
           <button
@@ -431,48 +562,202 @@ export default function TokenTable() {
           </button>
         </div>
 
+        {/* Filter Bar */}
+        <div className="px-4 py-3 border-b border-white/20 bg-black/50">
+          <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+            {/* Search Input */}
+            <div className="relative w-full md:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
+              <input
+                type="text"
+                placeholder="Search tokens..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 bg-white/10 border border-white/20 rounded text-sm text-white placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50 font-poppins"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Quick Filter Chips */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setActiveQuickFilter(activeQuickFilter === 'gold' ? null : 'gold')}
+                className={`px-3 py-1.5 text-xs rounded font-poppins transition-colors ${
+                  activeQuickFilter === 'gold'
+                    ? 'bg-yellow-600/50 text-white border border-yellow-500'
+                    : 'bg-white/10 text-white/80 border border-white/20 hover:bg-white/20'
+                }`}
+              >
+                GOLD Only
+              </button>
+              <button
+                onClick={() => setActiveQuickFilter(activeQuickFilter === 'gainers' ? null : 'gainers')}
+                className={`px-3 py-1.5 text-xs rounded font-poppins transition-colors ${
+                  activeQuickFilter === 'gainers'
+                    ? 'bg-green-600/50 text-white border border-green-500'
+                    : 'bg-white/10 text-white/80 border border-white/20 hover:bg-white/20'
+                }`}
+              >
+                Top Gainers
+              </button>
+              <button
+                onClick={() => setActiveQuickFilter(activeQuickFilter === 'losers' ? null : 'losers')}
+                className={`px-3 py-1.5 text-xs rounded font-poppins transition-colors ${
+                  activeQuickFilter === 'losers'
+                    ? 'bg-red-600/50 text-white border border-red-500'
+                    : 'bg-white/10 text-white/80 border border-white/20 hover:bg-white/20'
+                }`}
+              >
+                Top Losers
+              </button>
+            </div>
+
+            {/* Advanced Filters Toggle */}
+            <button
+              onClick={() => setAdvancedFiltersOpen(!advancedFiltersOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/10 text-white/80 border border-white/20 rounded text-xs hover:bg-white/20 transition-colors font-poppins"
+            >
+              <Filter className="w-4 h-4" />
+              <span>Advanced Filters</span>
+              {(priceRange.min || priceRange.max || volumeRange.min || volumeRange.max || liquidityRange.min || liquidityRange.max) && (
+                <span className="bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {[priceRange.min || priceRange.max, volumeRange.min || volumeRange.max, liquidityRange.min || liquidityRange.max].filter(Boolean).length}
+                </span>
+              )}
+              {advancedFiltersOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Advanced Filters Panel */}
+        {advancedFiltersOpen && (
+          <div className="px-4 py-4 border-b border-white/20 bg-black/30">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Price Range */}
+              <div>
+                <label className="block text-xs font-medium text-white/80 mb-2 font-poppins">Price Range ($)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={priceRange.min}
+                    onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-white/10 border border-white/20 rounded text-sm text-white placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50 font-poppins"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={priceRange.max}
+                    onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-white/10 border border-white/20 rounded text-sm text-white placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50 font-poppins"
+                  />
+                </div>
+              </div>
+
+              {/* Volume Range */}
+              <div>
+                <label className="block text-xs font-medium text-white/80 mb-2 font-poppins">24h Volume ($)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={volumeRange.min}
+                    onChange={(e) => setVolumeRange({ ...volumeRange, min: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-white/10 border border-white/20 rounded text-sm text-white placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50 font-poppins"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={volumeRange.max}
+                    onChange={(e) => setVolumeRange({ ...volumeRange, max: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-white/10 border border-white/20 rounded text-sm text-white placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50 font-poppins"
+                  />
+                </div>
+              </div>
+
+              {/* Liquidity Range */}
+              <div>
+                <label className="block text-xs font-medium text-white/80 mb-2 font-poppins">Liquidity ($)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={liquidityRange.min}
+                    onChange={(e) => setLiquidityRange({ ...liquidityRange, min: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-white/10 border border-white/20 rounded text-sm text-white placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50 font-poppins"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={liquidityRange.max}
+                    onChange={(e) => setLiquidityRange({ ...liquidityRange, max: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-white/10 border border-white/20 rounded text-sm text-white placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50 font-poppins"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Clear All Button */}
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={clearAllFilters}
+                className="px-4 py-1.5 bg-red-600/30 hover:bg-red-600/50 text-white rounded text-xs transition-colors font-poppins flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Clear All Filters
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="max-h-[95vh] overflow-auto">
-          <table className="w-full text-sm md:text-xs table-fixed">
-            <thead className="bg-black/90 sticky top-0">
-              <tr className="text-sm md:text-xs text-white/80 uppercase tracking-wider">
-                <th className="w-[90px] px-1 py-1 text-left font-medium">Token</th>
-                <th className="w-[90px] px-1 py-1 text-center justify-center font-medium cursor-pointer hover:text-white transition-colors"
+          <table className="w-full text-sm md:text-sm table-fixed">
+            <thead className="bg-brand-navy/80 sticky top-0">
+              <tr className="text-sm md:text-sm text-white uppercase tracking-wider font-poppins">
+                <th className="w-[180px] px-4 py-1 text-center justify-center font-semibold font-poppins">Token</th>
+                <th className="w-[90px] px-4 py-1 text-center justify-center font-semibold font-poppins cursor-pointer hover:text-white transition-colors"
                     onClick={() => handleSort('price')}>
                   Price {getSortIcon('price')}
                 </th>
-                <th className="w-[60px] px-1 py-1 text-center justify-center font-medium cursor-pointer hover:text-white transition-colors"
+                <th className="w-[60px] px-1 py-1 text-center justify-center font-semibold font-poppins cursor-pointer hover:text-white transition-colors"
                     onClick={() => handleSort('priceChange24h')}>
                   24h {getSortIcon('priceChange24h')}
                 </th>
-                <th className="w-[70px] px-1 py-1 text-center justify-center font-medium cursor-pointer hover:text-white transition-colors"
+                <th className="w-[70px] px-1 py-1 text-center justify-center font-semibold font-poppins cursor-pointer hover:text-white transition-colors"
                     onClick={() => handleSort('volume')}>
                   Volume {getSortIcon('volume')}
                 </th>
-                <th className="w-[80px] px-1 py-1 text-center justify-center font-medium cursor-pointer hover:text-white transition-colors"
+                <th className="w-[80px] px-1 py-1 text-center justify-center font-semibold font-poppins cursor-pointer hover:text-white transition-colors"
                     onClick={() => handleSort('liquidity')}>
                   Liq {getSortIcon('liquidity')}
                 </th>
-                <th className="w-[50px] px-1 py-1 text-center justify-center font-medium">Links</th>
-                <th className="w-[120px] px-1 py-1 text-center justify-center font-medium">Pair</th>
-                <th className="w-[120px] px-1 py-1 text-center justify-center font-medium">Token</th>
-                <th className="w-[275px] px-1 py-1 text-center justify-center font-medium">Actions</th>
+                <th className="w-[50px] px-1 py-1 text-center justify-center font-semibold font-poppins">Links</th>
+                <th className="w-[120px] px-1 py-1 text-center justify-center font-semibold font-poppins">Token</th>
+                <th className="w-[200px] px-1 py-1 text-center justify-center font-semibold font-poppins">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/20">
-              {tokens.map((token) => (
+              {(filteredTokens.length > 0 ? filteredTokens : tokens).map((token) => (
                 <tr key={token.pairAddress} className={`hover:bg-white/5 transition-colors ${token.rank <= 2 ? 'border border-yellow-500/50 bg-yellow-500/5' : ''}`}>
                   <td className="px-1 py-1">
                     <div className="flex items-center gap-1 overflow-hidden">
                       {token.rank <= 5 && (
                         <div className="relative group flex-shrink-0">
-                          <span className="px-1 py-0.5 text-[8px] font-bold bg-yellow-500 text-black rounded-sm border border-yellow-400 cursor-help">
+                          <span className="px-1 py-0.5 text-[8px] font-bold font-poppins bg-yellow-500 text-black rounded-sm border border-yellow-400 cursor-help">
                             GOLD
                           </span>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-sm md:text-xs rounded border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-sm md:text-xs font-poppins rounded border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
                             GOLD Badges are given to projects that have sponsored with Morbius.io.{' '}
                             <a
                               href="https://morbius.io"
-                              className="text-blue-500 underline hover:text-blue-600"
+                              className="text-blue-500 underline hover:text-blue-600 font-poppins"
                               target="_blank"
                               rel="noopener noreferrer"
                             >
@@ -481,30 +766,35 @@ export default function TokenTable() {
                           </div>
                         </div>
                       )}
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <img src={token.dexIcon} alt="DEX" className="w-3 h-3 opacity-60" />
-                        <img src={token.tokenIcon} alt={token.symbol} className="w-6 h-6 md:w-4 md:h-4 rounded-full" />
+                      <div className="flex items-center gap-1 mx-3 flex-shrink-0">
+                        {token.tokenIcon && token.tokenIcon.trim() !== '' ? (
+                          <img src={token.tokenIcon} alt={token.symbol} className="w-8 h-8 md:w-8 md:h-8 rounded-full" />
+                        ) : (
+                          <div className="w-8 h-8 md:w-8 md:h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                            <span className="text-xs text-white font-semibold">{token.symbol?.charAt(0)?.toUpperCase()}</span>
+                          </div>
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <Link
                           href={`/geicko?address=${token.tokenAddress || token.pairAddress}&tab=chart`}
-                          className="font-medium text-white text-xs truncate hover:text-blue-400 transition-colors"
+                          className="font-medium font-poppins text-white text-sm truncate hover:text-blue-400 transition-colors"
                         >
                           {token.symbol}
                         </Link>
-                        <div className="text-[9px] text-white/50 truncate">{token.name}</div>
+                        <div className="text-[12px] text-white/80 font-poppins truncate">{token.name}</div>
                       </div>
                     </div>
                   </td>
 
-                  <td className="px-1 py-1 text-center justify-center font-mono text-white text-sm md:text-xs truncate">{token.price}</td>
+                  <td className="px-1 py-1 text-center justify-center font-poppins text-white text-sm md:text-xs truncate">{token.price}</td>
 
                   <td className="px-1 py-1 text-center justify-center">
                     <PriceChange value={token.priceChange24h} />
                   </td>
 
-                  <td className="px-1 py-1 text-center justify-center font-mono text-white/80 text-sm md:text-xs truncate">{token.volume}</td>
-                  <td className="px-1 py-1 text-center justify-center font-mono text-white/80 text-sm md:text-xs truncate">{token.liquidity}</td>
+                  <td className="px-1 py-1 text-center justify-center font-poppins text-white/80 text-sm md:text-xs truncate">{token.volume}</td>
+                  <td className="px-1 py-1 text-center justify-center font-poppins text-white/80 text-sm md:text-xs truncate">{token.liquidity}</td>
 
                   <td className="px-1 py-1 text-center">
                     <div className="flex items-center justify-center gap-1">
@@ -523,23 +813,8 @@ export default function TokenTable() {
                           </a>
                         ))
                       ) : (
-                        <span className="text-white/30 text-sm md:text-xs">-</span>
+                        <span className="text-white/30 text-sm md:text-xs font-poppins">-</span>
                       )}
-                    </div>
-                  </td>
-
-                  <td className="px-1 py-1 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button
-                        onClick={() => navigator.clipboard.writeText(token.pairAddress)}
-                        className="text-white/60 hover:text-white transition-colors"
-                        title="Copy pair address"
-                      >
-                        <CopyIcon />
-                      </button>
-                      <span className="text-sm md:text-xs font-mono text-white/80">
-                        {token.pairAddress.slice(0, 4)}...{token.pairAddress.slice(-4)}
-                      </span>
                     </div>
                   </td>
 
@@ -552,54 +827,43 @@ export default function TokenTable() {
                       >
                         <CopyIcon />
                       </button>
-                      <span className="text-sm md:text-xs font-mono text-white/80">
+                      <span className="text-sm md:text-xs font-poppins text-white/80">
                         {(token.tokenAddress || token.pairAddress).slice(0, 4)}...{(token.tokenAddress || token.pairAddress).slice(-4)}
                       </span>
                     </div>
                   </td>
 
                   <td className="px-1 py-1">
-                    <div className="grid grid-cols-3 gap-1">
+                    <div className="flex gap-1 justify-center">
                       <a
-                        href={`/geicko?address=${token.tokenAddress || token.pairAddress}&tab=chart`}
-                        className="px-1 py-1 text-sm md:text-xs hover:bg-blue-600/40 text-white underline rounded transition-colors text-center justify-center"
+                        href={`/geicko?address=${token.tokenAddress || token.pairAddress}`}
+                        className="px-2 py-1 text-sm md:text-xs font-poppins bg-blue-600/30 hover:bg-blue-600/50 text-white rounded transition-colors text-center"
                       >
-                        Chart
-                      </a>
-                      <a
-                        href={`/geicko?address=${token.tokenAddress || token.pairAddress}&tab=holders`}
-                        className="px-1 py-1 text-sm md:text-xs hover:bg-green-600/40 text-white underline rounded transition-colors text-center justify-center"
-                      >
-                        Holders
-                      </a>
-                      <a
-                        href={`/geicko?address=${token.tokenAddress || token.pairAddress}&tab=liquidity`}
-                        className="px-1 py-1 text-sm md:text-xs hover:bg-purple-600/40 text-white underline rounded transition-colors text-center justify-center"
-                      >
-                        Liquidity
-                      </a>
-                      <a
-                        href={`/geicko?address=${token.tokenAddress || token.pairAddress}&tab=contract`}
-                        className="px-1 py-1 text-sm md:text-xs hover:bg-orange-600/40 text-white underline rounded transition-colors text-center justify-center"
-                      >
-                        Code
+                        Analyze
                       </a>
                       <a
                         href={`/geicko?address=${token.tokenAddress || token.pairAddress}&tab=switch`}
-                        className="px-1 py-1 text-sm md:text-xs hover:bg-cyan-600/40 text-white underline rounded transition-colors text-center justify-center"
+                        className="px-2 py-1 text-sm md:text-xs font-poppins bg-cyan-600/30 hover:bg-cyan-600/50 text-white rounded transition-colors text-center"
                       >
-                        Swap
+                        SWAP
                       </a>
                       <a
                         href={`/geicko?address=${token.tokenAddress || token.pairAddress}&tab=stats`}
-                        className="px-1 py-1 text-sm md:text-xs hover:bg-pink-600/40 text-white underline rounded transition-colors text-center justify-center"
+                        className="px-2 py-1 text-sm md:text-xs font-poppins bg-pink-600/30 hover:bg-pink-600/50 text-white rounded transition-colors text-center"
                       >
-                        Stats
+                        STATS
                       </a>
                     </div>
                   </td>
                 </tr>
               ))}
+              {filteredTokens.length === 0 && tokens.length > 0 && (searchQuery || activeQuickFilter || priceRange.min || priceRange.max || volumeRange.min || volumeRange.max || liquidityRange.min || liquidityRange.max) && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-white/60 font-poppins">
+                    No tokens found matching your filters. Try adjusting your search criteria.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -609,18 +873,18 @@ export default function TokenTable() {
 }
 
 function PriceChange({ value }: { value: string }) {
-  if (!value || value === '' || value === '""') return <span className="text-white/30 text-sm md:text-xs">-</span>;
+  if (!value || value === '' || value === '""') return <span className="text-white/30 text-sm md:text-xs font-poppins">-</span>;
 
   const cleanValue = value.replace(/"/g, '');
-  if (cleanValue === '') return <span className="text-white/30 text-sm md:text-xs">-</span>;
+  if (cleanValue === '') return <span className="text-white/30 text-sm md:text-xs font-poppins">-</span>;
 
   const isPositive = !cleanValue.startsWith('-');
   const colorClass = isPositive ? 'text-green-400' : 'text-red-400';
 
   return (
-    <span className={`flex items-center justify-end gap-1 ${colorClass} text-sm md:text-xs`}>
+    <span className={`flex items-center justify-end gap-1 ${colorClass} text-sm md:text-xs font-poppins`}>
       {isPositive ? <ArrowUp className="w-2 h-2" /> : <ArrowDown className="w-2 h-2" />}
-      <span>{cleanValue}</span>
+      <span className="font-poppins">{cleanValue}</span>
     </span>
   );
 }

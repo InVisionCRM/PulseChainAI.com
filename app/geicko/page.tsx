@@ -31,14 +31,12 @@ import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
 import { useToast } from '@/components/ui/toast-provider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   GeickoHolderTransfersModal,
   GeickoHoldersTab,
   GeickoSwitchTab,
   GeickoWebsiteTab,
-  GeickoClassicHeader,
-  GeickoSearchBar,
-  GeickoMobileTokenHeader,
   GeickoTabNavigation,
   GeickoOwnershipPanel,
   GeickoMetricsGrid,
@@ -55,18 +53,13 @@ function GeickoPageContent() {
   const { showToast, updateToast, dismissToast } = useToast();
   const addressFromQuery = searchParams.get('address');
   const tabFromQuery = searchParams.get('tab');
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('chart');
   const tokenInfoTab: 'token' = 'token';
   const [apiTokenAddress, setApiTokenAddress] = useState<string>('');
-  const [searchInput, setSearchInput] = useState<string>('');
-  const [searchResults, setSearchResults] = useState<SearchResultItem[] | null>(null);
-  const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
-  const [isSearching, setIsSearching] = useState<boolean>(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
   const [tokenAmount, setTokenAmount] = useState<string>('1');
   const [calculatorCurrency, setCalculatorCurrency] = useState<'usd' | 'wpls'>('usd');
   const [burnedTokens, setBurnedTokens] = useState<{ amount: number; percent: number } | null>(null);
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState<boolean>(false);
   const [holdersCount, setHoldersCount] = useState<number | null>(null);
   const [creationDate, setCreationDate] = useState<string | null>(null);
   const [activeSocialTab, setActiveSocialTab] = useState<string | null>(null);
@@ -389,6 +382,8 @@ function GeickoPageContent() {
       return;
     }
 
+    setIsLoadingMetrics(true);
+
     try {
       const response = await fetch(`/api/token-metrics/${address}`);
       if (!response.ok) throw new Error('Failed to fetch token metrics');
@@ -425,6 +420,8 @@ function GeickoPageContent() {
       setSupplyHeld(prev => ({ ...prev, isLoading: false }));
       setSmartContractHolderShare(prev => ({ ...prev, isLoading: false }));
       setOwnershipData(prev => ({ ...prev, isLoading: false }));
+    } finally {
+      setIsLoadingMetrics(false);
     }
   }, []);
 
@@ -695,124 +692,7 @@ function GeickoPageContent() {
     "Bookmark Morbius",
   ];
 
-  // Handle search with name, ticker, or address
-  useEffect(() => {
-    if (searchInput.length < 2) {
-      setSearchResults([]);
-      setIsSearching(false);
-      setShowSearchResults(false);
-      return;
-    }
 
-    const isAddress = /^0x[a-fA-F0-9]{40}$/.test(searchInput);
-    if (isAddress) {
-      setIsSearching(true);
-      setSearchError(null);
-      (async () => {
-        try {
-          const dexData = await fetchDexScreenerData(searchInput);
-          const pair = (dexData as any)?.data?.pairs?.[0];
-          const tokenInfo = (dexData as any)?.tokenInfo;
-          const tokenName = pair?.baseToken?.name || tokenInfo?.name || 'Token Address';
-          const tokenSymbol = pair?.baseToken?.symbol || tokenInfo?.symbol || '';
-          let holders: number | null = null;
-          try {
-            const res = await fetch(`https://api.scan.pulsechain.com/api/v2/tokens/${searchInput}/holders?limit=1`);
-            if (res.ok) {
-              const data = await res.json();
-              const raw = data?.items?.[0]?.token?.holders;
-              const parsed = Number(raw);
-              holders = Number.isFinite(parsed) ? parsed : null;
-            }
-          } catch (innerError) {
-            console.error('Address holders lookup failed:', innerError);
-          }
-          setSearchResults([
-            { address: searchInput, name: tokenName, symbol: tokenSymbol, type: 'address', holders },
-          ]);
-          setShowSearchResults(true);
-        } catch (error) {
-          console.error('Address lookup error:', error);
-          setSearchResults([
-            { address: searchInput, name: 'Token Address', symbol: '', type: 'address', holders: null },
-          ]);
-          setShowSearchResults(true);
-        } finally {
-      setIsSearching(false);
-        }
-      })();
-      return;
-    }
-
-    setIsSearching(true);
-    const timer = setTimeout(async () => {
-      try {
-        const results = await search(searchInput);
-        const limited = results.slice(0, 10);
-        const enriched = await Promise.all(
-          limited.map(async (item) => {
-            const isAddr = /^0x[a-fA-F0-9]{40}$/.test(item.address);
-            if (!isAddr) return item;
-            let holders: number | null = null;
-            try {
-              const res = await fetch(`https://api.scan.pulsechain.com/api/v2/tokens/${item.address}/holders?limit=1`);
-              if (res.ok) {
-                const data = await res.json();
-                const raw = data?.items?.[0]?.token?.holders;
-                const parsed = Number(raw);
-                holders = Number.isFinite(parsed) ? parsed : null;
-              }
-            } catch (innerError) {
-              console.error('Ticker holders lookup failed:', innerError);
-            }
-            return { ...item, holders };
-          })
-        );
-        setSearchResults(enriched);
-        setSearchError(null);
-        setShowSearchResults(true);
-      } catch (error) {
-        console.error('Search error:', error);
-        setSearchResults([]);
-        setSearchError(error instanceof Error ? error.message : 'Search failed');
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchInput]);
-
-  const handleSelectSearchResult = (item: SearchResultItem) => {
-    setApiTokenAddress(item.address);
-    setSearchInput(''); // Clear search input after selecting
-    setSearchResults([]);
-    setShowSearchResults(false);
-    setError(null);
-    router.push(`/geicko?address=${encodeURIComponent(item.address)}`);
-  };
-
-  // Handle search submission (for direct address input)
-  const handleSearch = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-
-    const trimmedInput = searchInput.trim();
-
-    // Validate Ethereum address format (0x followed by 40 hex characters)
-    if (trimmedInput && /^0x[a-fA-F0-9]{40}$/.test(trimmedInput)) {
-      setApiTokenAddress(trimmedInput);
-      setSearchInput(''); // Clear search input after loading
-      setError(null);
-      setSearchResults([]);
-      setShowSearchResults(false);
-      router.push(`/geicko?address=${encodeURIComponent(trimmedInput)}`);
-    } else if (trimmedInput && searchResults && searchResults.length > 0) {
-      // If there are search results, select the first one
-      handleSelectSearchResult(searchResults[0]);
-    } else if (trimmedInput) {
-      setError('Invalid token address. Please enter a valid Ethereum address (0x...)');
-    }
-  }, [searchInput, searchResults]);
 
   // DISABLED: Load top tokens on mount - causing performance issues
   // TODO: Move to lazy loading or separate API endpoint
@@ -1059,14 +939,6 @@ function GeickoPageContent() {
   }, [apiTokenAddress]);
   */
 
-  // Handle sidebar search button click
-  useEffect(() => {
-    const handleOpenSearch = () => {
-      searchInputRef.current?.focus();
-    };
-    window.addEventListener('openAICodeSearch', handleOpenSearch);
-    return () => window.removeEventListener('openAICodeSearch', handleOpenSearch);
-  }, []);
 
   // Handle URL parameters - load token when address is in URL and set tab
   useEffect(() => {
@@ -1080,6 +952,19 @@ function GeickoPageContent() {
       }
     }
   }, [addressFromQuery, tabFromQuery]);
+
+  // Scroll to top when switch tab becomes active (for mobile swap button)
+  useEffect(() => {
+    if (activeTab === 'switch' && typeof window !== 'undefined') {
+      // Small delay to ensure the component has rendered, then scroll to top
+      setTimeout(() => {
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
+      }, 200);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1244,10 +1129,11 @@ function GeickoPageContent() {
   const marketCapValue = Number(primaryPair?.marketCap ?? primaryPair?.fdv ?? 0);
   const formattedMarketCap = formatMarketCapLabel(marketCapValue);
   const heroTagline = formatWebsiteDisplay(websiteLink) || profileData?.profile?.header || primaryPair?.info?.header || tokenNameDisplay;
-  const socialTabs: Array<{ label: string; url: string | null }> = [
+  const socialTabs: Array<{ label: string; url: string | null; isDownload?: boolean }> = [
     { label: 'Website', url: websiteLink },
     { label: 'Twitter', url: twitterLink },
     { label: 'Telegram', url: telegramLink },
+    { label: 'Download Logo', url: null, isDownload: true },
   ];
   const hasSocialLinks = socialTabs.some((tab) => Boolean(tab.url));
   const addressItems: Array<{ label: string; address: string }> = primaryPair
@@ -1449,75 +1335,443 @@ function GeickoPageContent() {
           <div className="absolute -bottom-24 left-1/3 h-56 w-56 bg-gradient-to-tr from-emerald-600/20 via-teal-500/10 to-transparent blur-3xl" />
         </div>
       {/* Header Section */}
-      <GeickoClassicHeader />
 
-      {/* Desktop Ticker Search (also shown on two-panel view) */}
-      <GeickoSearchBar
-        searchInput={searchInput}
-        setSearchInput={setSearchInput}
-        searchResults={searchResults}
-        showSearchResults={showSearchResults}
-        isSearching={isSearching}
-        searchError={searchError}
-        onSearch={handleSearch}
-        onSelectResult={handleSelectSearchResult}
-      />
 
-      {/* Mobile Token Header - Top Position */}
-      <GeickoMobileTokenHeader
-        dexScreenerData={dexScreenerData}
-        tokenInfo={tokenInfo}
-        apiTokenAddress={apiTokenAddress}
-        isLoadingData={isLoadingData}
-        onCopyAddress={handleCopyAddress}
-      />
+      {/* Mobile Token Header - Top of mobile layout */}
+      <div className="md:hidden px-0 mb-1">
+        {isLoadingData ? (
+          <div className="flex items-center justify-center py-4">
+            <LoaderThree />
+          </div>
+        ) : primaryPair ? (
+          <div className="px-2 mb-2 pt-0">
+            <div className="bg-gray-900/80 border border-gray-800 rounded-2xl overflow-hidden shadow-[0_12px_35px_rgba(0,0,0,0.45)]">
+              <div className="px-4 pt-2 pb-3 border-b border-gray-800/70">
+                <div className="mt-0 flex items-end justify-between gap-4">
+                  <div>
+                    <div className="text-2xl font-bold text-white tracking-tight">
+                      {baseSymbol} <span className="text-gray-500">/</span> {quoteSymbol}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1 truncate">
+                      {tokenNameDisplay}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xl font-semibold text-white">
+                      ${formattedPrice}
+                    </div>
+                    <div className={`text-xs font-semibold ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {priceChange >= 0 ? '↑' : '↓'}
+                      {Math.abs(priceChange).toFixed(2)}%
+                    </div>
+
+
+                  </div>
+                </div>
+              </div>
+              <div className="relative h-40 border-b border-gray-800/70 bg-gradient-to-r from-gray-900 via-gray-800 to-black">
+                {headerImageUrl ? (
+                  <img
+                    src={headerImageUrl}
+                    alt={`${tokenNameDisplay} header`}
+                    className="w-full h-full object-cover"
+                    data-fallback="false"
+                    onError={(e) => {
+                      if (e.currentTarget.dataset.fallback === 'true') return;
+                      e.currentTarget.dataset.fallback = 'true';
+                      e.currentTarget.src = '/app-pics/clean.png';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+
+                <div className="absolute left-4 bottom-3 flex items-center gap-3">
+                  {tokenLogoSrc ? (
+                    <img
+                      src={tokenLogoSrc}
+                      alt={`${tokenNameDisplay} logo`}
+                      className="w-10 h-10 rounded-full border border-white/20 bg-slate-900/90/30 object-cover"
+                      data-fallback="false"
+                      onError={(e) => {
+                        if (e.currentTarget.dataset.fallback === 'true') {
+                          e.currentTarget.style.display = 'none';
+                          return;
+                        }
+                        e.currentTarget.dataset.fallback = 'true';
+                        e.currentTarget.src = '/LogoVector.svg';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-900/80 border border-white/10 flex items-center justify-center text-white font-bold">
+                      {baseSymbol.charAt(0)}
+                    </div>
+                  )}
+                  <div className="text-sm font-semibold text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.9)] truncate max-w-[220px]">
+                    {heroTagline}
+                  </div>
+                </div>
+              </div>
+              {hasSocialLinks && (
+                <div className="flex divide-x divide-gray-800 bg-gray-900/70">
+                  {socialTabs.map((tab) => (
+                    <button
+                      key={tab.label}
+                      type="button"
+                      onClick={() => {
+                        if (tab.isDownload) {
+                          const logoUrl = dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl;
+                          const symbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData?.pairs?.[0]?.baseToken?.symbol || 'token';
+                          if (logoUrl) {
+                            downloadImage(logoUrl, `${symbol}-logo.png`);
+                          }
+                        } else {
+                          handleSocialTabClick(tab.label, tab.url);
+                        }
+                      }}
+                      disabled={!tab.url && !tab.isDownload}
+                      className={`flex-1 text-center text-xs font-semibold px-3 py-2 transition-colors ${
+                        activeSocialTab === tab.label ? 'text-white bg-gray-800' : 'text-gray-400'
+                      } ${(tab.url || tab.isDownload) ? 'hover:text-white hover:bg-gray-800/60' : 'opacity-40 cursor-not-allowed'}`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="text-xs text-gray-400 py-4 text-center">No token data available</div>
+        )}
+      </div>
+
+      {/* Mobile Stats - Top of mobile layout */}
+      <div className="md:hidden">
+        {/* Stats Grid - Same layout as mobile single panel */}
+        {dexScreenerData?.pairs?.[0] && (
+          <div className="block mb-1 px-1">
+            <div className="grid grid-cols-2 gap-1">
+              {/* Left Column */}
+              <div className="space-y-0.5">
+                {/* Contract Address */}
+                {apiTokenAddress && (
+                  <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Contract</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleCopyAddress(apiTokenAddress)}
+                          className="text-blue-400 hover:text-blue-300 font-mono text-xs"
+                          title="Copy contract address"
+                        >
+                          0x...{apiTokenAddress.slice(-4)}
+                        </button>
+                        <button
+                          onClick={() => handleCopyAddress(apiTokenAddress)}
+                          className="flex items-center justify-center w-5 h-5 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                          aria-label="Copy contract address"
+                          title="Copy contract address"
+                        >
+                          <Copy className="w-3 h-3 text-blue-400" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* Decimals */}
+                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Decimals</span>
+                    <span className="text-xs text-white font-semibold">
+                      {totalSupply?.decimals !== undefined ? totalSupply.decimals : '—'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Supply & Token Info */}
+                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Supply Info</div>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400 font-medium">Total Supply</span>
+                      <span className="text-xs text-white font-semibold">
+                        {totalSupply ? (() => {
+                          const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
+                          return formatAbbrev(supply);
+                        })() : '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400 font-medium">Circ.</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-xs text-white font-semibold">
+                            {totalSupply ? (() => {
+                              const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
+                              const burned = burnedTokens?.amount ?? 0;
+                              const circulating = Math.max(0, supply - burned);
+                              return formatAbbrev(circulating);
+                            })() : '—'}
+                          </span>
+                        </TooltipTrigger>
+                        {totalSupply && (() => {
+                          const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
+                          const burned = burnedTokens?.amount ?? 0;
+                          const circulating = Math.max(0, supply - burned);
+                          return (
+                            <TooltipContent>
+                              <p>{circulating.toLocaleString()}</p>
+                            </TooltipContent>
+                          );
+                        })()}
+                      </Tooltip>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400 font-medium">Holders</span>
+                      {isLoadingMetrics ? (
+                        <Skeleton className="h-4 w-12" />
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-xs text-white font-semibold">
+                              {holdersCount !== null ? (holdersCount >= 1000 ? `${(holdersCount / 1000).toFixed(1)}k` : holdersCount) : '—'}
+                            </span>
+                          </TooltipTrigger>
+                          {holdersCount !== null && (
+                            <TooltipContent>
+                              <p>{holdersCount.toLocaleString()}</p>
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400 font-medium">Age</span>
+                      {isLoadingMetrics ? (
+                        <Skeleton className="h-4 w-16" />
+                      ) : (
+                        <span className="text-xs text-white font-semibold">{creationDate || '—'}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Supply Held */}
+                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                  <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Supply Held</div>
+                  {supplyHeld.isLoading ? (
+                    <div className="text-center text-gray-500 text-sm">Loading...</div>
+                  ) : (
+                    <div className="space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-400 font-medium">Top 10</span>
+                        <span className="text-xs text-white font-semibold">
+                          {supplyHeld.top10 > 0 ? `${Math.round(supplyHeld.top10)}%` : '—'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-400 font-medium">Top 20</span>
+                        <span className="text-xs text-white font-semibold">
+                          {supplyHeld.top20 > 0 ? `${Math.round(supplyHeld.top20)}%` : '—'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-400 font-medium">Top 50</span>
+                        <span className="text-xs text-white font-semibold">
+                          {supplyHeld.top50 > 0 ? `${Math.round(supplyHeld.top50)}%` : '—'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Smart Contract Holder Share */}
+                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Supply In Contracts</div>
+                  {smartContractHolderShare.isLoading ? (
+                    <div className="text-center text-gray-500 text-sm">Loading...</div>
+                  ) : (
+                    <div className="space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-400 font-medium">Share</span>
+                        <span className="text-xs text-white font-semibold">
+                          {smartContractHolderShare.percent > 0 ? `${smartContractHolderShare.percent.toFixed(2)}%` : '—'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-400 font-medium">Contracts</span>
+                        <span className="text-xs text-white font-semibold">
+                          {smartContractHolderShare.contractCount > 0 ? smartContractHolderShare.contractCount : '—'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column */}
+              <div className="space-y-0.5">
+                {/* Creator */}
+                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Creator</span>
+                    <span className="text-xs text-white font-semibold">
+                      {ownershipData.creatorAddress ? (
+                        <a
+                          href={`https://scan.pulsechain.com/address/${ownershipData.creatorAddress}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-400 hover:text-blue-300 font-mono"
+                          title={ownershipData.creatorAddress}
+                        >
+                          {ownershipData.creatorAddress.slice(0, 6)}...{ownershipData.creatorAddress.slice(-4)}
+                        </a>
+                      ) : (
+                        '—'
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Ownership Status */}
+                <div className="relative h-16 bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                  <div className="absolute left-1/2 -translate-x-1/2 top-2 text-xs text-gray-400 font-medium uppercase tracking-wider">Ownership</div>
+                  {ownershipData.isLoading ? (
+                    <div className="text-center text-gray-500 text-sm">Loading...</div>
+                  ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
+                    <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-center">
+                      <div className="text-xs text-green-400 font-semibold">Renounced</div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="absolute top-6 right-1/2 translate-x-1/2 text-center">
+                      <div className="text-xs text-yellow-400 font-semibold">Owner</div>
+                      {ownershipData.ownerAddress && (
+                        <a
+                          href={`https://scan.pulsechain.com/address/${ownershipData.ownerAddress}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-400 bottom-2hover:text-blue-300 font-mono mt-0.5 inline-block"
+                          title={ownershipData.ownerAddress}
+                        >
+                          0x...{ownershipData.ownerAddress.slice(-6)}
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Liquidity */}
+                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                  <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
+                  <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          {(() => {
+                            const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                            return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
+                          })()}
+                        </span>
+                      </TooltipTrigger>
+                      {(() => {
+                        const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                        return usdLiquidity > 0 ? (
+                          <TooltipContent>
+                            <p>${usdLiquidity.toLocaleString()}</p>
+                          </TooltipContent>
+                        ) : null;
+                      })()}
+                    </Tooltip>
+                  </div>
+                </div>
+
+                {/* Liq/MCAP Ratio */}
+                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                  <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liq/MCAP</div>
+                  <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                    {(() => {
+                      const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                      const mcap = dexScreenerData.pairs[0].fdv ? Number(dexScreenerData.pairs[0].fdv) : Number(dexScreenerData.pairs[0].marketCap || 0);
+                      const ratio = mcap > 0 ? liquidity / mcap : 0;
+                      return ratio > 0 ? `${(ratio * 100).toFixed(1)}%` : '—';
+                    })()}
+                  </div>
+                </div>
+
+                {/* Total Liquidity */}
+                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[80px] flex items-center justify-center">
+                  <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-gray-400 font-medium uppercase tracking-wider">Total Liquidity</div>
+                  {totalLiquidity.isLoading ? (
+                    <div className="text-center text-gray-500 text-sm">Loading...</div>
+                  ) : totalLiquidity.usd > 0 ? (
+                    <div className="absolute bottom-6 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            ${formatAbbrev(totalLiquidity.usd)}
+                          </span>
+                        </TooltipTrigger>
+                        {totalLiquidity.usd > 0 && (
+                          <TooltipContent>
+                            <p>${totalLiquidity.usd.toLocaleString()}</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </div>
+                  ) : (
+                    <div className="text-center text-base text-white font-semibold">—</div>
+                  )}
+                  {totalLiquidity.pairCount > 0 && (
+                    <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-xs text-green-400 font-medium">
+                      {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Burned Tokens */}
+                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                  <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
+                  {isLoadingMetrics ? (
+                    <Skeleton className="h-6 w-16" />
+                  ) : burnedTokens ? (
+                    <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{burnedTokens.amount.toLocaleString()}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  ) : (
+                    <div className="text-center text-base text-white font-semibold">—</div>
+                  )}
+                  {burnedTokens && !isLoadingMetrics && (
+                    <div className="absolute top-4 right-2 flex items-center justify-center w-8 h-8 rounded-full border-2 border-green-400">
+                      <span className="text-[8px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
+                    </div>
+                  )}
+                </div>
+
+
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Main Content */}
       <div className="flex flex-col md:flex-row items-start">
         {/* Left Panel - Chart Section */}
         <div className="w-full md:flex-[3] min-w-0 bg-slate-850">
 
-          {/* Token Stats - Mobile Only (Above Chart) */}
-          <div className="sm:hidden px-2 mb-3 bg-gradient-to-br from-black via-[#0b0b14] to-black -mx-2 px-2">
-            <div className="grid grid-cols-2 gap-3">
-              {/* Left Column */}
-              <GeickoMetricsGrid
-                burnedTokens={burnedTokens}
-                holdersCount={holdersCount}
-                creationDate={creationDate}
-                supplyHeld={supplyHeld}
-                smartContractHolderShare={smartContractHolderShare}
-                totalLiquidity={totalLiquidity}
-              />
-
-              {/* Right Column */}
-              <div className="space-y-3">
-                <GeickoOwnershipPanel
-                  ownershipData={ownershipData}
-                  tokenAddress={apiTokenAddress}
-                />
-                <GeickoMarketStatsPanel
-                  dexScreenerData={dexScreenerData}
-                  totalLiquidity={totalLiquidity}
-                />
-              </div>
-            </div>
-
-            {/* More Info Button */}
-            {dexScreenerData?.pairs?.[0] && (
-              <div className="mt-6">
-                <button
-                  onClick={() => setIsStatsModalOpen(true)}
-                  className="relative w-full overflow-hidden text-xs text-blue-200 hover:text-white font-semibold py-2 rounded-lg border border-cyan-400/40 bg-gradient-to-r from-blue-900/40 via-purple-900/30 to-cyan-900/40 shadow-[0_0_15px_rgba(59,130,246,0.6),0_0_25px_rgba(168,85,247,0.45)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(59,130,246,0.85),0_0_40px_rgba(168,85,247,0.7)]"
-                >
-                  <span className="absolute inset-0 bg-gradient-to-r from-cyan-400/10 via-transparent to-purple-400/10 blur-md" aria-hidden="true" />
-                  <span className="pointer-events-none relative">View More Stats →</span>
-                  <span className="pointer-events-none absolute -left-10 top-0 h-0.5 w-2/3 bg-gradient-to-r from-transparent via-cyan-300 to-transparent animate-pulse" aria-hidden="true" />
-                  <span className="pointer-events-none absolute -right-10 bottom-0 h-0.5 w-2/3 bg-gradient-to-r from-transparent via-purple-400 to-transparent animate-pulse" aria-hidden="true" />
-                </button>
-              </div>
-            )}
-          </div>
 
           {/* Bottom Tabs */}
           <GeickoTabNavigation
@@ -1551,12 +1805,14 @@ function GeickoPageContent() {
                 </div>
               )}
 
-              {/* Switch Tab - Only visible on mobile */}
+              {/* Switch Tab */}
               {activeTab === 'switch' && (
-                <GeickoSwitchTab
-                  dexScreenerData={dexScreenerData}
-                  apiTokenAddress={apiTokenAddress}
-                />
+                <div data-switch-tab className="min-h-[600px] w-full">
+                  <GeickoSwitchTab
+                    dexScreenerData={dexScreenerData}
+                    apiTokenAddress={apiTokenAddress}
+                  />
+                </div>
               )}
 
               {/* Website Tab */}
@@ -1598,7 +1854,7 @@ function GeickoPageContent() {
               {activeTab === 'contract' && (
                 <div className="flex flex-col h-[calc(160vh-300px)] min-h-[900px]">
                   <div className="flex-shrink-0 border-b border-gray-800">
-                    <div className="h-[300px]">
+                    <div className="h-[400px]">
                       <TokenAIChat contractAddress={apiTokenAddress} compact={true} />
                     </div>
                   </div>
@@ -1811,7 +2067,7 @@ function GeickoPageContent() {
         </div>
 
         {/* Right Panel - Token Info */}
-        <div className="w-full md:flex-[2] min-w-0 bg-gray-900 md:border-l border-gray-800 mt-2 md:mt-0 overflow-hidden">
+        <div className="w-full md:flex-[1.4] min-w-0 bg-gray-900 md:border-l border-gray-800 mt-2 md:mt-0 overflow-hidden">
           {/* Token Header - Hidden on mobile, shown on desktop */}
           <div className="hidden md:block px-0 mb-1">
             {isLoadingData ? (
@@ -1824,25 +2080,6 @@ function GeickoPageContent() {
                   <div className="px-4 pt-2 pb-3 border-b border-gray-800/70">
                     <div className="mt-0 flex items-end justify-between gap-4">
                       <div>
-                        {apiTokenAddress && (
-                          <div className="flex items-center gap-1 text-[11px] leading-tight">
-                            <button
-                              onClick={() => handleCopyAddress(apiTokenAddress)}
-                              className="text-blue-400 hover:text-blue-300 font-mono"
-                              title="Copy contract address"
-                            >
-                              {apiTokenAddress.slice(0, 10)}...{apiTokenAddress.slice(-6)}
-                            </button>
-                            <button
-                              onClick={() => handleCopyAddress(apiTokenAddress)}
-                              className="flex items-center justify-center w-6 h-6 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-                              aria-label="Copy contract address"
-                              title="Copy contract address"
-                            >
-                              <Copy className="w-3.5 h-3.5 text-blue-400" />
-                            </button>
-                          </div>
-                        )}
                         <div className="text-2xl font-bold text-white tracking-tight">
                           {baseSymbol} <span className="text-gray-500">/</span> {quoteSymbol}
                         </div>
@@ -1858,24 +2095,11 @@ function GeickoPageContent() {
                           {priceChange >= 0 ? '↑' : '↓'}
                           {Math.abs(priceChange).toFixed(2)}%
                         </div>
-                        <div className="text-[11px] text-gray-400 mt-1">
-                          {ownershipData.creatorAddress ? (
-                            <a
-                              href={`https://scan.pulsechain.com/address/${ownershipData.creatorAddress}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-400 hover:text-blue-300 font-mono"
-                              title={ownershipData.creatorAddress}
-                            >
-                              {ownershipData.creatorAddress.slice(0, 6)}...{ownershipData.creatorAddress.slice(-4)}
-                            </a>
-                          ) : (
-                            'Creator N/A'
-                          )}
-                        </div>
-                      </div>
-                    </div>
+
+
                   </div>
+                </div>
+              </div>
                   <div className="relative h-40 border-b border-gray-800/70 bg-gradient-to-r from-gray-900 via-gray-800 to-black">
                     {headerImageUrl ? (
                       <img
@@ -1894,20 +2118,6 @@ function GeickoPageContent() {
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-                    {/* Download Logo Icon with Text */}
-                    {(dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl) && (
-                      <div className="absolute top-3 right-3 flex flex-col items-center gap-1">
-                        <Download
-                          className="w-4 h-4 text-white/70 hover:text-white cursor-pointer transition-colors"
-                          onClick={() => {
-                            const logoUrl = dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl;
-                            const symbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData.pairs[0].baseToken?.symbol || 'token';
-                            downloadImage(logoUrl!, `${symbol}-logo.png`);
-                          }}
-                        />
-                        <span className="text-xs text-white/60 font-medium">Download Logo</span>
-                      </div>
-                    )}
 
                     <div className="absolute left-4 bottom-3 flex items-center gap-3">
                       {tokenLogoSrc ? (
@@ -1941,11 +2151,21 @@ function GeickoPageContent() {
                         <button
                           key={tab.label}
                           type="button"
-                          onClick={() => handleSocialTabClick(tab.label, tab.url)}
-                          disabled={!tab.url}
+                          onClick={() => {
+                            if (tab.isDownload) {
+                              const logoUrl = dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl;
+                              const symbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData?.pairs?.[0]?.baseToken?.symbol || 'token';
+                              if (logoUrl) {
+                                downloadImage(logoUrl, `${symbol}-logo.png`);
+                              }
+                            } else {
+                              handleSocialTabClick(tab.label, tab.url);
+                            }
+                          }}
+                          disabled={!tab.url && !tab.isDownload}
                           className={`flex-1 text-center text-xs font-semibold px-3 py-2 transition-colors ${
                             activeSocialTab === tab.label ? 'text-white bg-gray-800' : 'text-gray-400'
-                          } ${tab.url ? 'hover:text-white hover:bg-gray-800/60' : 'opacity-40 cursor-not-allowed'}`}
+                          } ${(tab.url || tab.isDownload) ? 'hover:text-white hover:bg-gray-800/60' : 'opacity-40 cursor-not-allowed'}`}
                         >
                           {tab.label}
                         </button>
@@ -1958,253 +2178,7 @@ function GeickoPageContent() {
               <div className="text-xs text-gray-400 py-4 text-center">No token data available</div>
             )}
           </div>
-            {/* Stats Grid - Same layout as mobile single panel */}
-            {dexScreenerData?.pairs?.[0] && (
-              <div className="hidden md:block mb-2 px-2">
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Left Column */}
-                  <div className="space-y-3">
-                    {/* Supply & Token Info */}
-                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Supply Info</div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-400 font-medium">Total Supply</span>
-                          <span className="text-sm text-white font-semibold">
-                            {totalSupply ? (() => {
-                              const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
-                              return formatAbbrev(supply);
-                            })() : '—'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-400 font-medium">Circulating</span>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-sm text-white font-semibold">
-                                {totalSupply ? (() => {
-                                  const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
-                                  const burned = burnedTokens?.amount ?? 0;
-                                  const circulating = Math.max(0, supply - burned);
-                                  return formatAbbrev(circulating);
-                                })() : '—'}
-                              </span>
-                            </TooltipTrigger>
-                            {totalSupply && (() => {
-                              const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
-                              const burned = burnedTokens?.amount ?? 0;
-                              const circulating = Math.max(0, supply - burned);
-                              return (
-                                <TooltipContent>
-                                  <p>{circulating.toLocaleString()}</p>
-                                </TooltipContent>
-                              );
-                            })()}
-                          </Tooltip>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-400 font-medium">Holders</span>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-sm text-white font-semibold">
-                                {holdersCount !== null ? (holdersCount >= 1000 ? `${(holdersCount / 1000).toFixed(1)}k` : holdersCount) : '—'}
-                              </span>
-                            </TooltipTrigger>
-                            {holdersCount !== null && (
-                              <TooltipContent>
-                                <p>{holdersCount.toLocaleString()}</p>
-                              </TooltipContent>
-                            )}
-                          </Tooltip>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-400 font-medium">Creation Date</span>
-                          <span className="text-sm text-white font-semibold">{creationDate || '—'}</span>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Supply Held */}
-                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Supply Held</div>
-                      {supplyHeld.isLoading ? (
-                        <div className="text-center text-gray-500 text-sm">Loading...</div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 font-medium">Top 10</span>
-                            <span className="text-sm text-white font-semibold">
-                              {supplyHeld.top10 > 0 ? `${Math.round(supplyHeld.top10)}%` : '—'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 font-medium">Top 20</span>
-                            <span className="text-sm text-white font-semibold">
-                              {supplyHeld.top20 > 0 ? `${Math.round(supplyHeld.top20)}%` : '—'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 font-medium">Top 50</span>
-                            <span className="text-sm text-white font-semibold">
-                              {supplyHeld.top50 > 0 ? `${Math.round(supplyHeld.top50)}%` : '—'}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Smart Contract Holder Share */}
-                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Smart Contract Holder Share</div>
-                      {smartContractHolderShare.isLoading ? (
-                        <div className="text-center text-gray-500 text-sm">Loading...</div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 font-medium">Share</span>
-                            <span className="text-sm text-white font-semibold">
-                              {smartContractHolderShare.percent > 0 ? `${smartContractHolderShare.percent.toFixed(2)}%` : '—'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 font-medium">Contracts</span>
-                            <span className="text-sm text-white font-semibold">
-                              {smartContractHolderShare.contractCount > 0 ? smartContractHolderShare.contractCount : '—'}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right Column */}
-                  <div className="space-y-3">
-                    {/* Ownership Status */}
-                    <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Ownership</div>
-                      {ownershipData.isLoading ? (
-                        <div className="text-center text-gray-500 text-sm">Loading...</div>
-                      ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
-                        <div className="text-center">
-                          <div className="text-base text-green-400 font-semibold">Renounced ✓</div>
-                          <div className="text-xs text-gray-400 mt-0.5">
-                            {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-center">
-                          <div className="text-base text-red-400 font-semibold">Not Renounced</div>
-                          {ownershipData.ownerAddress && (
-                            <a
-                              href={`https://scan.pulsechain.com/address/${ownershipData.ownerAddress}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
-                              title={ownershipData.ownerAddress}
-                            >
-                              ...{ownershipData.ownerAddress.slice(-6)}
-                            </a>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Liquidity */}
-                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
-                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
-                      <div className="text-center text-base text-white font-semibold">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              {(() => {
-                                const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
-                                return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
-                              })()}
-                            </span>
-                          </TooltipTrigger>
-                          {(() => {
-                            const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
-                            return usdLiquidity > 0 && (
-                              <TooltipContent>
-                                <p>${usdLiquidity.toLocaleString()}</p>
-                              </TooltipContent>
-                            );
-                          })()}
-                        </Tooltip>
-                      </div>
-                    </div>
-
-                    {/* Liq/MCAP Ratio */}
-                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
-                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Liq/MCAP</div>
-                      <div className="text-center text-base text-white font-semibold">
-                        {(() => {
-                          const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
-                          const marketCap = Number(dexScreenerData.pairs[0].marketCap || 0);
-                          if (marketCap > 0) {
-                            const ratio = (liquidity / marketCap) * 100;
-                            return `${ratio.toFixed(2)}%`;
-                          }
-                          return '—';
-                        })()}
-                      </div>
-                    </div>
-
-                    {/* Total Liquidity */}
-                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[80px] flex items-center justify-center">
-                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Total Liquidity</div>
-                      {totalLiquidity.isLoading ? (
-                        <div className="text-center text-gray-500 text-sm">Loading...</div>
-                      ) : (
-                        <div className="text-center text-base text-white font-semibold">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span>
-                                {totalLiquidity.usd > 0 ? `$${formatAbbrev(totalLiquidity.usd)}` : '—'}
-                              </span>
-                            </TooltipTrigger>
-                            {totalLiquidity.usd > 0 && (
-                              <TooltipContent>
-                                <p>${totalLiquidity.usd.toLocaleString()}</p>
-                              </TooltipContent>
-                            )}
-                          </Tooltip>
-                        </div>
-                      )}
-                      {totalLiquidity.pairCount > 0 && (
-                        <div className="absolute bottom-2 right-3 text-xs text-gray-400 font-medium">
-                          {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Burned Tokens */}
-                    <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
-                      <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
-                      {burnedTokens ? (
-                        <div className="text-center">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{burnedTokens.amount.toLocaleString()}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      ) : (
-                        <div className="text-center text-base text-white font-semibold">—</div>
-                      )}
-                      {burnedTokens && (
-                        <div className="absolute top-4 right-2 flex items-center justify-center w-9 h-9 rounded-full border-2 border-green-400">
-                          <span className="text-[10px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* API Catalog - Hidden, now shown in modal */}
 
