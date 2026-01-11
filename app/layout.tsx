@@ -25,7 +25,7 @@ import {
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { ToastProvider } from "@/components/ui/toast-provider";
 
@@ -264,7 +264,9 @@ export default function RootLayout({
               </ToastProvider>
             </main>
           </div>
-          <MobileBottomNav />
+          <Suspense fallback={null}>
+            <MobileBottomNav />
+          </Suspense>
         </div>
         <Analytics />
       </body>
