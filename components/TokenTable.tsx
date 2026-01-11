@@ -267,7 +267,7 @@ export default function TokenTable() {
       const targetToken = isToken0WPLS ? bestPair.quoteToken : bestPair.baseToken;
 
       // Fetch socials for priority tokens
-      const { socials } = await fetchTokenSocials(bestPair.pairAddress);
+      const { socials, tokenAddress } = await fetchTokenSocials(bestPair.pairAddress);
 
       return {
         rank: 0, // Will be set by position in priority list
@@ -282,6 +282,7 @@ export default function TokenTable() {
         priceChange24h: bestPair.priceChange?.h24 ? `${bestPair.priceChange.h24.toFixed(2)}%` : '',
         fdv: bestPair.fdv ? `$${(bestPair.fdv / 1000000).toFixed(1)}M` : '',
         pairAddress: bestPair.pairAddress,
+        tokenAddress: tokenAddress || targetToken.address,
         dexName: 'PulseChain',
         socials
       };
@@ -486,7 +487,7 @@ export default function TokenTable() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <Link
-                          href={`/geicko?address=${token.pairAddress}&tab=chart`}
+                          href={`/geicko?address=${token.tokenAddress || token.pairAddress}&tab=chart`}
                           className="font-medium text-white text-xs truncate hover:text-blue-400 transition-colors"
                         >
                           {token.symbol}
@@ -560,37 +561,37 @@ export default function TokenTable() {
                   <td className="px-1 py-1">
                     <div className="grid grid-cols-3 gap-1">
                       <a
-                        href={`/geicko?address=${token.pairAddress}&tab=chart`}
+                        href={`/geicko?address=${token.tokenAddress || token.pairAddress}&tab=chart`}
                         className="px-1 py-1 text-sm md:text-xs hover:bg-blue-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Chart
                       </a>
                       <a
-                        href={`/geicko?address=${token.pairAddress}&tab=holders`}
+                        href={`/geicko?address=${token.tokenAddress || token.pairAddress}&tab=holders`}
                         className="px-1 py-1 text-sm md:text-xs hover:bg-green-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Holders
                       </a>
                       <a
-                        href={`/geicko?address=${token.pairAddress}&tab=liquidity`}
+                        href={`/geicko?address=${token.tokenAddress || token.pairAddress}&tab=liquidity`}
                         className="px-1 py-1 text-sm md:text-xs hover:bg-purple-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Liquidity
                       </a>
                       <a
-                        href={`/geicko?address=${token.pairAddress}&tab=contract`}
+                        href={`/geicko?address=${token.tokenAddress || token.pairAddress}&tab=contract`}
                         className="px-1 py-1 text-sm md:text-xs hover:bg-orange-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Code
                       </a>
                       <a
-                        href={`/geicko?address=${token.pairAddress}&tab=switch`}
+                        href={`/geicko?address=${token.tokenAddress || token.pairAddress}&tab=switch`}
                         className="px-1 py-1 text-sm md:text-xs hover:bg-cyan-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Swap
                       </a>
                       <a
-                        href={`/geicko?address=${token.pairAddress}&tab=stats`}
+                        href={`/geicko?address=${token.tokenAddress || token.pairAddress}&tab=stats`}
                         className="px-1 py-1 text-sm md:text-xs hover:bg-pink-600/40 text-white underline rounded transition-colors text-center justify-center"
                       >
                         Stats
