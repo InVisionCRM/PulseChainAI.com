@@ -1,15 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import HeroTokenAiChat from '@/components/Home/HeroTokenAiChat';
 import TokenTable from '@/components/TokenTable';
 import { IconChevronDown } from '@tabler/icons-react';
 
 
 export default function Home(): JSX.Element {
-  const searchParams = useSearchParams();
-
   useEffect(() => {
     // Handle hash-based scrolling (e.g., from mobile nav)
     if (typeof window !== 'undefined') {
