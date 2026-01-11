@@ -1752,6 +1752,7 @@ const HEXDataDashboard = () => {
           className="w-full h-full opacity-70"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950 to-transparent via-transparent to-slate-950 text-transparent" />
+      </div>
       <div className="relative z-10 max-w-7xl mx-auto px-1 sm:px-1 lg:px-1 py-1 space-y-1">
         <div className="rounded-xs border border-white/15 bg-white/5 shadow-[0_35px_120px_rgba(0,0,0,0.45)] backdrop-blur-[45px] p-[1px]">
           <div className="rounded-xs border border-white/10 bg-white/5 p-3 sm:p-4 lg:p-5 space-y-1">
@@ -3947,7 +3948,6 @@ const HEXDataDashboard = () => {
         </footer>
           </div>
         </div>
-      </div>
       </div>
 
       {/* Ethereum Staker History Modal */}
