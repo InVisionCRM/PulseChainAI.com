@@ -1344,32 +1344,9 @@ function GeickoPageContent() {
             <LoaderThree />
           </div>
         ) : primaryPair ? (
-          <div className="px-2 mb-2 pt-0">
+          <div className="px-2 mb-2 pt-2">
             <div className="bg-gray-900/80 border border-gray-800 rounded-2xl overflow-hidden shadow-[0_12px_35px_rgba(0,0,0,0.45)]">
-              <div className="px-4 pt-2 pb-3 border-b border-gray-800/70">
-                <div className="mt-0 flex items-end justify-between gap-4">
-                  <div>
-                    <div className="text-2xl font-bold text-white tracking-tight">
-                      {baseSymbol} <span className="text-gray-500">/</span> {quoteSymbol}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-1 truncate">
-                      {tokenNameDisplay}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xl font-semibold text-white">
-                      ${formattedPrice}
-                    </div>
-                    <div className={`text-xs font-semibold ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {priceChange >= 0 ? '↑' : '↓'}
-                      {Math.abs(priceChange).toFixed(2)}%
-                    </div>
-
-
-                  </div>
-                </div>
-              </div>
-              <div className="relative h-40 border-b border-gray-800/70 bg-gradient-to-r from-gray-900 via-gray-800 to-black">
+              <div className="relative h-40 border-b border-gray-800/70 bg-slate-900">
                 {headerImageUrl ? (
                   <img
                     src={headerImageUrl}
@@ -1386,6 +1363,28 @@ function GeickoPageContent() {
                   <div className="w-full h-full" />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                {/* Token info overlay */}
+                <div className="absolute top-1 left-1 right-1 p-0">
+                  <div className="flex justify-between gap-0">
+                    <div>
+                      <div className="text-lg p-1 font-bold text-white rounded-tl-lg bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 tracking-tight">
+                        {baseSymbol} <span className="text-white pb-1 bg-slate-900">/</span> {quoteSymbol}
+                      </div>
+                      <div className="text-xs text-white/70 pb-1 text-center justify-center bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 truncate">
+                        {tokenNameDisplay}
+                      </div>
+                    </div>
+                    <div className="text-center justify-center">
+                      <div className="text-lg p-1 font-semibold text-white rounded-tr-lg bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900">
+                        ${formattedPrice}
+                      </div>
+                      <div className={`text-xs text-center pb-1 justify-center font-semibold p-1 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {priceChange >= 0 ? '↑' :  '↓'}
+                        {Math.abs(priceChange).toFixed(2)}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
 
                 <div className="absolute left-4 bottom-3 flex items-center gap-3">

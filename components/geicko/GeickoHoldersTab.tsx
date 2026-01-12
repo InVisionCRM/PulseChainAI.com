@@ -74,28 +74,28 @@ export default function GeickoHoldersTab({
       <div className="grid grid-cols-3 gap-1">
         {/* Total Holders */}
         <div className="border border-white/20 px-2 py-1.5">
-          <div className="text-[10px] uppercase tracking-wider text-white/60">
+          <div className="text-[10px] text-center justify-center uppercase tracking-wider text-white/60">
             Total Holders
           </div>
-          <div className="text-sm font-medium text-white">
+          <div className="text-sm font-medium text-center justify-center text-white">
             {holderStats.totalHolders ? holderStats.totalHolders.toLocaleString() : '—'}
           </div>
         </div>
 
         {/* LP Addresses */}
         <div className="border border-white/20 px-2 py-1.5">
-          <div className="text-[10px] uppercase tracking-wider text-white/60">
+          <div className="text-[10px] text-center justify-center uppercase tracking-wider text-white/60">
             LP Addresses
           </div>
-          <div className="text-sm font-medium text-white">{holderStats.lpCount}</div>
+          <div className="text-sm font-medium text-center justify-center text-white">{holderStats.lpCount}</div>
         </div>
 
         {/* Contracts */}
         <div className="border border-white/20 px-2 py-1.5">
-          <div className="text-[10px] uppercase tracking-wider text-white/60">
+          <div className="text-[10px] text-center justify-center uppercase tracking-wider text-white/60">
             Contracts
           </div>
-          <div className="text-sm font-medium text-white">
+          <div className="text-sm font-medium text-center justify-center text-white">
             {holderStats.contractCount}
           </div>
         </div>
@@ -148,7 +148,7 @@ export default function GeickoHoldersTab({
                   </button>
                   <div className="flex items-center gap-0.5 flex-wrap">
                     {isLpHolder && (
-                      <span className="px-1 py-0.5 text-[9px] bg-blue-500/20 text-blue-300 rounded border border-blue-500/30">
+                      <span className="px-1 py-0.5 text-[11px] font-bold text-blue-300">
                         LP
                       </span>
                     )}
@@ -158,7 +158,7 @@ export default function GeickoHoldersTab({
                       </span>
                     )}
                     {isBurn && (
-                      <span className="px-1 py-0.5 text-[9px] bg-orange-500/20 text-orange-300 rounded border border-orange-500/30">
+                      <span className="px-1 py-0.5 text-[11px] font-bold text-red-500">
                         Burn
                       </span>
                     )}

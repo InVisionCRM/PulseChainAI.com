@@ -25,54 +25,23 @@ export default function GeickoTabNavigation({
   const isRabby = variant === 'rabby';
 
   return (
-    <div className="px-2 md:px-3 pt-4s pb-4 mt-4 relative z-30">
-      {isRabby ? (
-        // Rabby UI Style
-        <div className="flex flex-wrap gap-2 overflow-x-auto scrollbar-hide">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            const isCodeTab = tab.id === 'contract';
-            return (
-              <button
-                key={tab.id}
-                onClick={() => onTabChange(tab.id)}
-                className={`text-lg transition-all duration-200 ${
-                  isActive
-                    ? isCodeTab
-                      ? 'text-xl font-semibold border-b-[3px] border-purple-500 text-purple-500'
-                      : 'text-xl font-semibold border-b-[3px] border-purple-500 text-purple-500'
-                    : 'text-white/75 hover:text-purple-500 font-semibold'
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        // Classic UI Style
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            const isCodeTab = tab.id === 'contract';
-            return (
-              <button
-                key={tab.id}
-                onClick={() => onTabChange(tab.id)}
-                className={`text-lg transition-all duration-200 ${
-                  isActive
-                    ? isCodeTab
-                      ? 'text-xl font-semibold border-b-[3px] border-purple-500 text-purple-500'
-                      : 'text-xl font-semibold border-b-[3px] border-purple-500 text-purple-500'
-                    : 'text-white/75 hover:text-purple-500'
-                }`}
-              >
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+    <div className="px-2 md:px-3 pt-2 pb-1 mt-4 relative z-30">
+      <div className="flex h-6 divide-x divide-white bg-theme-navy overflow-x-auto scrollbar-hide">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={`flex-1 text-center text-xs font-semibold px-3 py-2 transition-colors ${
+                isActive ? 'text-green-500 bg-theme-navy' : 'text-gray-400'
+              } hover:text-white hover:bg-gray-800/60`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

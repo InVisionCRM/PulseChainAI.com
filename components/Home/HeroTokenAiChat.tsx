@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 // import TokenAIChat from '@/components/TokenAIChat';
-import { search, fetchDexScreenerData, fetchContract } from '@/services/pulsechainService';
+import { search, fetchDexScreenerData } from '@/services/pulsechainService';
 import { dexscreenerApi } from '@/services';
-import type { DexScreenerData } from '@/types';
+import type { DexScreenerData, SearchResultItem } from '@/types';
+import { searchCache } from '@/lib/searchCache';
 // import AdminStatsPanel from '@/components/AdminStatsPanel';
 import { LinkPreview } from '@/components/ui/link-preview';
 import { Copy, Check } from 'lucide-react';
@@ -131,17 +132,9 @@ const PLACEHOLDERS = [
   'Make Sure To Follow Morbius.io on X!',
 ];
 
-type SearchResult = {
-  address: string;
-  name: string;
-  symbol?: string;
-  type?: string;
-  verified?: boolean;
-};
-
 export default function HeroTokenAiChat(): JSX.Element {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<SearchResultItem[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedToken, setSelectedToken] = useState<TokenMeta | null>(null);
@@ -149,93 +142,145 @@ export default function HeroTokenAiChat(): JSX.Element {
   const [dexLoading, setDexLoading] = useState(false);
   const [dexError, setDexError] = useState<string | null>(null);
   const [tokenProfile, setTokenProfile] = useState<any | null>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [isCachedResult, setIsCachedResult] = useState(false);
   const router = useRouter();
-  React.useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, []);
 
+  // Optimized search effect with multi-layer caching
   useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const executeSearch = useCallback(
-    async (value: string) => {
-      if (value.trim().length < 2) {
-        setResults([]);
-        setIsSearching(false);
-        return;
-      }
-      setIsSearching(true);
-    try {
-      const res = await search(value.trim());
-
-      // For performance, only check verification for top 3 results
-      const limitedResults = (res || []).slice(0, 3);
-      const resultsWithVerification = await Promise.all(
-        limitedResults.map(async (item) => {
-          try {
-            const contractData = await fetchContract(item.address);
-            const isVerified = contractData.data?.is_verified || false;
-            return {
-              ...item,
-              verified: isVerified
-            };
-          } catch (error) {
-            // If verification check fails, assume not verified
-            return {
-              ...item,
-              verified: false
-            };
-          }
-        })
-      );
-
-      // Add remaining results without verification check
-      const remainingResults = (res || []).slice(3).map(item => ({
-        ...item,
-        verified: false
-      }));
-
-      const allResults = [...resultsWithVerification, ...remainingResults];
-
-      setResults(allResults);
-      setShowResults(allResults.length > 0);
-    } finally {
+    if (query.length < 2) {
+      setResults([]);
       setIsSearching(false);
+      setShowResults(false);
+      setIsCachedResult(false);
+      setSearchError(null);
+      return;
     }
-    },
-    []
-  );
+
+    const isAddress = /^0x[a-fA-F0-9]{40}$/.test(query);
+    if (isAddress) {
+      setResults([]);
+      setIsSearching(false);
+      setShowResults(false);
+      setIsCachedResult(false);
+      return;
+    }
+
+    // Show dropdown immediately
+    setShowResults(true);
+
+    // Check in-memory cache first - INSTANT results if cached
+    const memoryCachedResults = searchCache.get(query);
+    if (memoryCachedResults) {
+      setResults(memoryCachedResults.slice(0, 10));
+      setIsSearching(false);
+      setSearchError(null);
+      setIsCachedResult(true);
+      return;
+    }
+
+    // Not in memory cache - show searching state
+    setIsSearching(true);
+    setIsCachedResult(false);
+
+    // Check IndexedDB cache (persists across sessions)
+    let isCancelled = false;
+
+    (async () => {
+      try {
+        const indexedDBResults = await searchCache.getAsync(query);
+
+        if (isCancelled) return;
+
+        if (indexedDBResults) {
+          // Found in IndexedDB - return quickly
+          setResults(indexedDBResults.slice(0, 10));
+          setIsSearching(false);
+          setSearchError(null);
+          setIsCachedResult(true);
+          return;
+        }
+
+        // Not in any cache - fetch from API with debounce
+        const timer = setTimeout(async () => {
+          if (isCancelled) return;
+
+          try {
+            const results = await search(query);
+
+            if (isCancelled) return;
+
+            const limitedResults = results.slice(0, 10);
+
+            // Store in both caches for next time
+            searchCache.set(query, results);
+
+            setResults(limitedResults);
+            setSearchError(null);
+          } catch (error) {
+            if (isCancelled) return;
+            console.error('Search error:', error);
+            setResults([]);
+            setSearchError(error instanceof Error ? error.message : 'Search failed');
+          } finally {
+            if (!isCancelled) {
+              setIsSearching(false);
+            }
+          }
+        }, 300);
+
+        return () => {
+          isCancelled = true;
+          clearTimeout(timer);
+        };
+      } catch (error) {
+        console.error('Cache check error:', error);
+        if (isCancelled) return;
+
+        const timer = setTimeout(async () => {
+          if (isCancelled) return;
+
+          try {
+            const results = await search(query);
+
+            if (isCancelled) return;
+
+            setResults(results.slice(0, 10));
+            setSearchError(null);
+            searchCache.set(query, results);
+          } catch (error) {
+            if (isCancelled) return;
+            console.error('Search error:', error);
+            setResults([]);
+            setSearchError(error instanceof Error ? error.message : 'Search failed');
+          } finally {
+            if (!isCancelled) {
+              setIsSearching(false);
+            }
+          }
+        }, 300);
+
+        return () => {
+          isCancelled = true;
+          clearTimeout(timer);
+        };
+      }
+    })();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [query]);
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       setQuery(value);
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-      if (!value.trim()) {
-        setResults([]);
-        setIsSearching(false);
-        setShowResults(false);
-        return;
-      }
-      searchTimeoutRef.current = setTimeout(() => executeSearch(value), 350);
-      setShowResults(true);
     },
-    [executeSearch]
+    []
   );
 
-  const handleSelectToken = useCallback((token: SearchResult) => {
+  const handleSelectToken = useCallback((token: SearchResultItem) => {
     // Navigate directly to geicko page instead of showing info in chat
     router.push(`/geicko?address=${token.address}&tab=chart`);
   }, [router]);
@@ -248,6 +293,7 @@ export default function HeroTokenAiChat(): JSX.Element {
       address: query.trim(),
       name: query.trim().slice(0, 6),
       symbol: query.trim().slice(-4),
+      type: 'address',
     });
     setShowResults(false);
   },
@@ -352,12 +398,25 @@ export default function HeroTokenAiChat(): JSX.Element {
           onChange={handleInputChange}
           onSubmit={handleManualSubmit}
         />
-        {isSearching && (
-          <div className="text-[16px] text-slate-900/80">Searching…</div>
-        )}
-        {showResults && results.length > 0 && (
+        {showResults && (
           <div className="bg-white/35 border border-white/15 rounded-2xl max-h-44 overflow-y-auto text-md">
-            {results.map((item) => (
+            {isSearching && (
+              <>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="px-3 py-2 animate-pulse">
+                    <div className="h-5 bg-slate-300/50 rounded w-3/4 mb-1" />
+                    <div className="h-3 bg-slate-300/40 rounded w-1/2" />
+                  </div>
+                ))}
+              </>
+            )}
+            {!isSearching && searchError && (
+              <div className="px-3 py-2 text-red-600 text-sm">{searchError}</div>
+            )}
+            {!isSearching && query.length >= 2 && results.length === 0 && !searchError && (
+              <div className="px-3 py-2 text-slate-900/80 text-sm">No tokens found for &quot;{query}&quot;</div>
+            )}
+            {!isSearching && results.map((item) => (
               <button
                 key={item.address}
                 type="button"
@@ -371,7 +430,7 @@ export default function HeroTokenAiChat(): JSX.Element {
                       ({item.symbol})
                     </span>
                   )}
-                  {item.verified && (
+                  {item.is_smart_contract_verified && (
                     <span className="text-green-800 font-bold font-poppins flex items-center gap-1 ml-2">
                       <Check className="w-4 h-4" />
                       VERIFIED

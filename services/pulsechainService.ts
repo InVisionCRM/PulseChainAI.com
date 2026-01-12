@@ -142,17 +142,26 @@ export const search = async (query: string): Promise<SearchResultItem[]> => {
     if (query.trim().length < 2) {
         return [];
     }
+
     try {
-        const response = await fetch(`${API_BASE_URL}search?q=${encodeURIComponent(query)}`);
+        const url = `${API_BASE_URL}search?q=${encodeURIComponent(query.trim())}`;
+        const response = await fetch(url);
+
         if (!response.ok) {
-            throw new Error(`Search API Error: ${response.statusText}`);
+            console.error(`Search API returned ${response.status}`);
+            return [];
         }
+
         const data: SearchResponse = await response.json();
-        
-        
+
+        if (!data.items || !Array.isArray(data.items)) {
+            console.error('Invalid search response structure');
+            return [];
+        }
+
         return data.items.filter(item => item.address);
     } catch (error) {
-        console.error(`Search failed: ${(error as Error).message}`);
+        console.error('Search failed:', (error as Error).message);
         return [];
     }
 };
