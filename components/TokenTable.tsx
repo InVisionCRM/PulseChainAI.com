@@ -549,22 +549,22 @@ export default function TokenTable() {
 
   return (
     <div className="w-full h-full">
-      <div className="bg-brand-orange/10 overflow-hidden">
+      <div className="bg-brand-navy overflow-hidden">
         <div className="border-b border-white/20 border-t border-white flex justify-between items-center">
-          <h2 className="text-2xl relative left-1/2 -translate-x-1/2 font-bold font-poppins text-white">Top PulseChain Tokens</h2>
+          <h2 className="py-4 text-2xl relative left-1/2 -translate-x-1/2 font-bold font-poppins text-white">Tokens</h2>
           <button
             onClick={fetchTokenData}
             disabled={refreshing}
-            className="flex items-center gap-1 px-1 py-1 text-sm md:text-xs bg-white/5 hover:bg-white/10 rounded text-white/70 hover:text-white transition-colors disabled:opacity-50"
+            className="flex items-center gap-1 px-1 py-1 text-sm md:text-xs hover:bg-white/10 rounded text-transparent hover:text-white transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            
           </button>
         </div>
 
         {/* Filter Bar */}
         <div className="px-4 py-3 border-b border-white/20 bg-black/50">
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 items-start md:items-center">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-3 items-start">
             {/* Search Input */}
             <div className="relative w-full md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
@@ -586,16 +586,16 @@ export default function TokenTable() {
             </div>
 
             {/* Quick Filter Chips */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-grid-cols-3 gap-2">
               <button
                 onClick={() => setActiveQuickFilter(activeQuickFilter === 'gold' ? null : 'gold')}
-                className={`px-3 py-1.5 text-xs rounded font-poppins transition-colors ${
+                className={`px-1 py-1 text-xs rounded-sm font-poppins transition-colors ${
                   activeQuickFilter === 'gold'
                     ? 'bg-yellow-600/50 text-white border border-yellow-500'
                     : 'bg-white/10 text-white/80 border border-white/20 hover:bg-white/20'
                 }`}
               >
-                GOLD Only
+                GOLD
               </button>
               <button
                 onClick={() => setActiveQuickFilter(activeQuickFilter === 'gainers' ? null : 'gainers')}
@@ -605,7 +605,7 @@ export default function TokenTable() {
                     : 'bg-white/10 text-white/80 border border-white/20 hover:bg-white/20'
                 }`}
               >
-                Top Gainers
+                Gainers
               </button>
               <button
                 onClick={() => setActiveQuickFilter(activeQuickFilter === 'losers' ? null : 'losers')}
@@ -615,7 +615,7 @@ export default function TokenTable() {
                     : 'bg-white/10 text-white/80 border border-white/20 hover:bg-white/20'
                 }`}
               >
-                Top Losers
+                Losers
               </button>
             </div>
 
