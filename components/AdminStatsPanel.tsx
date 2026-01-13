@@ -3,6 +3,7 @@
 import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { pulsechainApi } from '@/services';
 import { fetchDexScreenerData, search } from '@/services/pulsechainService';
+import { TokenInfoDetailed } from '@/services/core/types';
 import { Button } from '@/components/ui/stateful-button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 
@@ -64,7 +65,7 @@ const ensureFetchLogger = (): void => {
 
   window.fetch = async (...args: Parameters<typeof fetch>) => {
     const [input, init] = args;
-    const url = typeof input === 'string' ? input : input.url;
+    const url = typeof input === 'string' ? input : (input as Request).url;
     const method =
       init?.method ||
       (typeof Request !== 'undefined' && input instanceof Request && input.method) ||
@@ -732,15 +733,15 @@ export default function AdminStatsPanel({
     return d.toISOString().slice(0, 10);
   };
 
-  const statCategories: Array<{ title: string; stats: Array<{ id: string; label: string; description: string; run: () => Promise<any> }> }> = useMemo(() => {
+  const statCategories = useMemo(() => {
     return [
       {
         title: 'Token Supply',
         stats: [
           { id: 'totalSupply', label: 'Total Supply', description: 'Total number of tokens in circulation', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const raw = Number(tokenInfo?.total_supply ?? 0);
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const raw = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         return {
           raw,
           formatted: formatTokenAmount2(raw, decimals),
@@ -748,7 +749,8 @@ export default function AdminStatsPanel({
         };
       } },
           { id: 'holders', label: 'Total Holders', description: 'Number of unique wallet addresses holding this token', run: async () => {
-        const count = Number((await ensureCoreCaches()).tokenCounters?.token_holders_count ?? (await ensureCoreCaches()).tokenInfo?.holders ?? 0);
+        const { tokenCounters, tokenInfo } = await ensureCoreCaches();
+        const count = Number((tokenCounters as { token_holders_count?: number })?.token_holders_count ?? (tokenInfo as { holders?: number })?.holders ?? 0);
         return {
           raw: count,
           formatted: formatNumber2(count)
@@ -756,11 +758,11 @@ export default function AdminStatsPanel({
       } },
           { id: 'burnedTotal', label: 'Total Burned', description: 'Total tokens sent to burn address (dead wallet)', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         const holders = await ensureHolders();
         const dead = holders.find(h => h.hash.toLowerCase() === DEAD_ADDRESS)?.value || '0';
         const rawNum = Number(dead);
-        const totalSupply = Number(tokenInfo?.total_supply ?? 0);
+        const totalSupply = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
         const pct = totalSupply ? (rawNum / totalSupply) * 100 : 0;
         return {
           raw: rawNum,
@@ -771,17 +773,17 @@ export default function AdminStatsPanel({
       } },
       { id: 'burned24h', label: 'Burned (24h)', description: 'Tokens burned in the last 24 hours', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const totalSupply = Number(tokenInfo?.total_supply ?? 0);
+        const totalSupply = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
         const sum = (await ensureTransfers24h())
           .filter(t => (t.to?.hash || '').toLowerCase() === DEAD_ADDRESS)
           .reduce((s, t) => s + Number(t.total?.value || 0), 0);
         const pct = totalSupply ? (sum / totalSupply) * 100 : 0;
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         return { raw: sum, formatted: formatTokenAmount2(sum, decimals), percent: pct, percentFormatted: formatPct2(pct) };
       } },
       { id: 'minted24h', label: 'Minted (24h)', description: 'New tokens created in the last 24 hours', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         const sum = (await ensureTransfers24h())
           .filter(t => (t.from?.hash || '').toLowerCase() === tokenAddress.toLowerCase())
           .reduce((s, t) => s + Number(t.total?.value || 0), 0);
@@ -792,12 +794,12 @@ export default function AdminStatsPanel({
       } },
       { id: 'circulatingExBurn', label: 'Circulating Supply (ex-burn)', description: 'Total supply minus balances held by burn addresses', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         const holders = await ensureHolders();
         const burnBalance = holders
           .filter(h => BURN_ADDRESSES.has(h.hash?.toLowerCase?.()))
           .reduce((s, h) => s + Number(h.value || 0), 0);
-        const supply = Number(tokenInfo?.total_supply ?? 0);
+        const supply = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
         const circulating = supply - burnBalance;
         return {
           raw: circulating,
@@ -812,7 +814,7 @@ export default function AdminStatsPanel({
         stats: [
           { id: 'top1Pct', label: 'Top 1% Holdings', description: 'Percentage of supply held by top holder', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const total = Number(tokenInfo?.total_supply ?? 0);
+        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
         const holders = await ensureHolders();
         const sum = holders.sort((a,b)=>Number(b.value)-Number(a.value)).slice(0,1).reduce((s,x)=>s+Number(x.value),0);
         const pct = total ? (sum/total)*100 : 0;
@@ -825,7 +827,7 @@ export default function AdminStatsPanel({
       } },
       { id: 'top10Pct', label: 'Top 10 Holdings', description: 'Percentage of supply held by top 10 holders', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const total = Number(tokenInfo?.total_supply ?? 0);
+        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
         const holders = await ensureHolders();
         const sum = holders.sort((a,b)=>Number(b.value)-Number(a.value)).slice(0,10).reduce((s,x)=>s+Number(x.value),0);
         const pct = total ? (sum/total)*100 : 0;
@@ -838,7 +840,7 @@ export default function AdminStatsPanel({
       } },
       { id: 'top20Pct', label: 'Top 20 Holdings', description: 'Percentage of supply held by top 20 holders', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const total = Number(tokenInfo?.total_supply ?? 0);
+        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
         const holders = await ensureHolders();
         const sum = holders.sort((a,b)=>Number(b.value)-Number(a.value)).slice(0,20).reduce((s,x)=>s+Number(x.value),0);
         const pct = total ? (sum/total)*100 : 0;
@@ -851,7 +853,7 @@ export default function AdminStatsPanel({
       } },
       { id: 'top50Pct', label: 'Top 50 Holdings', description: 'Percentage of supply held by top 50 holders', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const total = Number(tokenInfo?.total_supply ?? 0);
+        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
         const holders = await ensureHolders();
         const sum = holders.sort((a,b)=>Number(b.value)-Number(a.value)).slice(0,50).reduce((s,x)=>s+Number(x.value),0);
         const pct = total ? (sum/total)*100 : 0;
@@ -864,20 +866,20 @@ export default function AdminStatsPanel({
       } },
       { id: 'whaleCount1Pct', label: 'Whale Count (>1%)', description: 'Number of wallets holding more than 1% of supply', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const total = Number(tokenInfo?.total_supply ?? 0);
+        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
         const threshold = total * 0.01;
         const holders = await ensureHolders();
         const count = holders.filter(h => Number(h.value) >= threshold).length;
         return {
           raw: count,
           formatted: formatNumber2(count),
-          threshold: formatTokenAmount2(threshold, Number(tokenInfo?.decimals ?? 18))
+          threshold: formatTokenAmount2(threshold, Number((tokenInfo as { decimals?: number })?.decimals ?? 18))
         };
       } },
       { id: 'top50Holders', label: 'Top 50 Holders', description: 'Detailed list of top 50 token holders with balances', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const totalSupply = Number(tokenInfo?.total_supply ?? 0);
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const totalSupply = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         const holders = await ensureHolders();
 
         const sortedHolders = [...holders].sort((a, b) => Number(b.value) - Number(a.value));
@@ -950,17 +952,18 @@ export default function AdminStatsPanel({
         const { tokenInfo, tokenCounters } = await ensureCoreCaches();
         const holders = await ensureHolders();
         const dead = holders.find(h => h.hash.toLowerCase() === DEAD_ADDRESS)?.value || '0';
-        const circulatingSupply = Number(tokenInfo.total_supply) - Number(dead);
-        const holderCount = Number(tokenCounters?.token_holders_count ?? 0);
+        const circulatingSupply = Number((tokenInfo as { total_supply?: string | number }).total_supply) - Number(dead);
+        const holderCount = Number((tokenCounters as { token_holders_count?: number })?.token_holders_count ?? 0);
 
         if (holderCount === 0) return 0;
 
         const avgBalance = circulatingSupply / holderCount;
-        return formatTokenAmount2(avgBalance, Number(tokenInfo.decimals));
+        return formatTokenAmount2(avgBalance, Number((tokenInfo as { decimals?: number }).decimals));
       }},
       { id: 'medianHolderBalance', label: 'Median Holder Balance (Top 200)', description: 'Median balance among the top 200 holders', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        if (!tokenInfo) return 0;
+        const decimals = Number((tokenInfo as { decimals?: number }).decimals ?? 18);
         const holders = await ensureHolders();
         const top = holders.sort((a, b) => Number(b.value) - Number(a.value)).slice(0, 200);
         const values = top.map(h => Number(h.value)).sort((a, b) => a - b);
@@ -973,7 +976,7 @@ export default function AdminStatsPanel({
       }},
       { id: 'holderTierCounts', label: 'Holder Tier Counts', description: 'Addresses holding ≥1%, ≥0.1%, and ≥0.01% of supply', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const total = Number(tokenInfo?.total_supply ?? 0);
+        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
         if (!total) return { onePct: 0, pointOnePct: 0, pointZeroOnePct: 0 };
         const thresholds = {
           onePct: total * 0.01,
@@ -990,7 +993,7 @@ export default function AdminStatsPanel({
       }},
       { id: 'smartContractHolderShare', label: 'Smart-Contract Holder Share', description: 'Percent of top 20 holders that are smart contracts', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         const holders = await ensureHolders();
         const top20 = holders.sort((a, b) => Number(b.value) - Number(a.value)).slice(0, 20);
         const results = await Promise.allSettled(
@@ -1004,7 +1007,7 @@ export default function AdminStatsPanel({
             contractBalance += Number(top20[idx].value || 0);
           }
         });
-        const total = Number(tokenInfo?.total_supply ?? 0);
+        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
         const pct = total ? (contractBalance / total) * 100 : 0;
         return {
           contracts: contractCount,
@@ -1014,7 +1017,7 @@ export default function AdminStatsPanel({
       }},
       { id: 'routerHolderShare', label: 'Router/DEX Holder Share', description: 'Percent of supply held by known router or pair addresses', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const total = Number(tokenInfo?.total_supply ?? 0);
+        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
         const holders = await ensureHolders();
         const dex = await ensureDex();
         const pairAddresses = new Set((dex?.pairs || []).map((p: any) => p?.pairAddress?.toLowerCase?.()).filter(Boolean));
@@ -1026,7 +1029,7 @@ export default function AdminStatsPanel({
           }
         });
         const pct = total ? (sum / total) * 100 : 0;
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         return {
           percent: formatPct2(pct),
           balanceFormatted: formatTokenAmount2(sum, decimals),
@@ -1034,13 +1037,13 @@ export default function AdminStatsPanel({
       }},
       { id: 'bridgeExposure', label: 'Bridge Exposure', description: 'Supply percentage held by official bridge addresses', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const total = Number(tokenInfo?.total_supply ?? 0);
+        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
         const holders = await ensureHolders();
         const bridgeBalance = holders
           .filter(h => BRIDGE_ADDRESSES.has(h.hash?.toLowerCase?.()))
           .reduce((s, h) => s + Number(h.value || 0), 0);
         const pct = total ? (bridgeBalance / total) * 100 : 0;
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         return {
           percent: formatPct2(pct),
           balanceFormatted: formatTokenAmount2(bridgeBalance, decimals),
@@ -1074,11 +1077,11 @@ export default function AdminStatsPanel({
           if (t.to?.hash) active.add(t.to.hash.toLowerCase());
         });
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         const holders = await ensureHolders();
         const dormant = holders.filter(h => !active.has(h.hash?.toLowerCase?.()));
         const dormantSum = dormant.reduce((s, h) => s + Number(h.value || 0), 0);
-        const total = Number(tokenInfo?.total_supply ?? 0);
+        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
         const pct = total ? (dormantSum / total) * 100 : 0;
         return {
           percent: formatPct2(pct),
@@ -1091,11 +1094,11 @@ export default function AdminStatsPanel({
         const holders = await ensureHolders();
         const top100 = holders.sort((a, b) => Number(b.value) - Number(a.value)).slice(0, 100);
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         const safeBalances = top100
           .filter(h => !senders.has(h.hash?.toLowerCase?.()))
           .reduce((s, h) => s + Number(h.value || 0), 0);
-        const total = Number(tokenInfo?.total_supply ?? 0);
+        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
         const pct = total ? (safeBalances / total) * 100 : 0;
         return {
           percent: formatPct2(pct),
@@ -1202,7 +1205,7 @@ export default function AdminStatsPanel({
 
         const allHolders = await ensureHolders();
         const { tokenInfo } = await ensureCoreCaches();
-        const totalSupply = Number(tokenInfo?.total_supply ?? 0);
+        const totalSupply = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
 
         let unmoved90d = 0;
         let unmoved180d = 0;
@@ -1246,7 +1249,7 @@ export default function AdminStatsPanel({
           }
         }
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
 
         return Object.entries(changes).map(([address, netChange]) => ({
           address,
@@ -1259,9 +1262,9 @@ export default function AdminStatsPanel({
         const pairs = dex?.pairs || [];
         if (pairs.length === 0) return { avgBuy: 0, avgSell: 0 };
 
-        const totalVolume = pairs.reduce((sum: number, p) => sum + Number(p.volume?.h24 || 0), 0);
-        const totalBuys = pairs.reduce((sum: number, p) => sum + Number(p.txns?.h24?.buys || 0), 0);
-        const totalSells = pairs.reduce((sum: number, p) => sum + Number(p.txns?.h24?.sells || 0), 0);
+        const totalVolume = pairs.reduce((sum: number, p: unknown) => sum + Number((p as { volume?: { h24?: string | number } })?.volume?.h24 || 0), 0);
+        const totalBuys = pairs.reduce((sum: number, p: unknown) => sum + Number((p as { txns?: { h24?: { buys?: string | number } } })?.txns?.h24?.buys || 0), 0);
+        const totalSells = pairs.reduce((sum: number, p: unknown) => sum + Number((p as { txns?: { h24?: { sells?: string | number } } })?.txns?.h24?.sells || 0), 0);
 
         // Cannot determine buy/sell volume, so we approximate by ratio
         const totalTrades = totalBuys + totalSells;
@@ -1280,11 +1283,11 @@ export default function AdminStatsPanel({
       }},
       { id: 'contractAgeInDays', label: 'Contract Age (Days)', description: 'Days since the contract creation transaction was mined', run: async () => {
         const { addressInfo } = await ensureCoreCaches();
-        const txHash = addressInfo?.creation_tx_hash;
+        const txHash = (addressInfo as { creation_tx_hash?: string })?.creation_tx_hash;
         if (!txHash) return 'N/A';
 
         const txDetails = await fetchJson(`https://api.scan.pulsechain.com/api/v2/transactions/${txHash}`);
-        const timestamp = txDetails?.timestamp;
+        const timestamp = (txDetails as { timestamp?: number })?.timestamp;
         if (!timestamp) return 'Not found';
 
         const creationDate = new Date(timestamp);
@@ -1313,7 +1316,7 @@ export default function AdminStatsPanel({
       { id: 'dexDiversityScore', label: 'DEX Diversity Score', description: 'How widely liquidity is distributed across different DEXes for this token', run: async () => {
         const dex = await ensureDex();
         const pairs = dex?.pairs || [];
-        const dexIds = new Set(pairs.map(p => p.dexId));
+        const dexIds = new Set(pairs.map((p: unknown) => (p as { dexId: string }).dexId));
         return {
           score: dexIds.size,
           dexs: Array.from(dexIds),
@@ -1321,11 +1324,11 @@ export default function AdminStatsPanel({
       }},
       { id: 'holderToLiquidityRatio', label: 'Holder-to-Liquidity Ratio', description: 'Compares holder count to total liquidity to gauge depth per wallet', run: async () => {
         const { tokenCounters } = await ensureCoreCaches();
-        const holders = Number(tokenCounters?.token_holders_count ?? 0);
+        const holders = Number((tokenCounters as { token_holders_count?: number })?.token_holders_count ?? 0);
 
         const dex = await ensureDex();
         const pairs = dex?.pairs || [];
-        const totalLiquidity = pairs.reduce((sum, p) => sum + Number(p.liquidity?.usd || 0), 0);
+        const totalLiquidity = pairs.reduce((sum: number, p: unknown) => sum + Number((p as { liquidity?: { usd?: string | number } })?.liquidity?.usd || 0), 0);
 
         const ratio = totalLiquidity > 0 ? holders / totalLiquidity : Infinity;
 
@@ -1337,8 +1340,8 @@ export default function AdminStatsPanel({
       }},
       { id: 'definitiveTotalLiquidity', label: 'Definitive Total Liquidity', description: 'Consolidated USD and token liquidity across all known pools', run: async () => {
         // Step 1: Fetch logs from PulseChain Scan API to find all pair creation events.
-        const logs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}/logs`);
-        const pairAddresses = (logs?.items || []).map((log: unknown) => (log as { address?: { hash: string } })?.address?.hash).filter(Boolean);
+        const logs = await fetchJson(`https://api.scan.pulsechain.com/api?module=logs&action=getLogs&fromBlock=0&toBlock=latest&address=${tokenAddress}`);
+        const pairAddresses = ((logs as { result?: unknown[] })?.result || []).map((log: unknown) => (log as { address: string })?.address).filter((addr): addr is string => Boolean(addr));
 
         if (pairAddresses.length === 0) {
           return { totalLiquidity: 0, pairCount: 0, failedPairs: 0 };
@@ -1353,9 +1356,9 @@ export default function AdminStatsPanel({
 
         let totalLiquidity = 0;
         let failedPairs = 0;
-        results.forEach(result => {
-          if (result.status === 'fulfilled' && result.value.pairs) {
-            totalLiquidity += Number(result.value.pairs[0]?.liquidity?.usd || 0);
+        results.forEach((result: unknown) => {
+          if ((result as { status: string; value?: { pairs?: unknown[] } }).status === 'fulfilled' && (result as { status: string; value?: { pairs?: unknown[] } }).value?.pairs) {
+            totalLiquidity += Number(((result as { status: string; value?: { pairs?: unknown[] } }).value?.pairs?.[0] as { liquidity?: { usd?: string | number } })?.liquidity?.usd || 0);
           } else {
             failedPairs++;
           }
@@ -1388,12 +1391,13 @@ export default function AdminStatsPanel({
           return slippage;
         };
 
-        const dexGroups = pairs.reduce((acc: Record<string, unknown>, pair: unknown) => {
-          const dexId = pair.dexId;
+        const dexGroups = pairs.reduce((acc: Record<string, { totalLiquidity: number; pairs: unknown[] }>, pair: unknown) => {
+          const pairTyped = pair as { dexId: string; liquidity?: { usd?: number | string } };
+          const dexId = pairTyped.dexId;
           if (!acc[dexId]) {
             acc[dexId] = { totalLiquidity: 0, pairs: [] };
           }
-          acc[dexId].totalLiquidity += Number(pair.liquidity?.usd || 0);
+          acc[dexId].totalLiquidity += Number(pairTyped.liquidity?.usd || 0);
           acc[dexId].pairs.push(pair);
           return acc;
         }, {});
@@ -1402,17 +1406,17 @@ export default function AdminStatsPanel({
 
         return sortedDexes.map(([dexId, dexData]) => {
           const virtualReserves = (dexData as { pairs: unknown[] }).pairs.reduce((acc: { base: number; quote: number }, p: unknown) => {
-            acc.base += Number(p.liquidity?.base || 0);
-            acc.quote += Number(p.liquidity?.quote || 0);
+            acc.base += Number((p as { liquidity?: { base?: string | number } })?.liquidity?.base || 0);
+            acc.quote += Number((p as { liquidity?: { quote?: string | number } })?.liquidity?.quote || 0);
             return acc;
           }, { base: 0, quote: 0 });
 
-          const price = dexData.pairs[0] ? Number(dexData.pairs[0].priceUsd) : 0;
+          const price = (dexData as { pairs: unknown[] }).pairs[0] ? Number(((dexData as { pairs: unknown[] }).pairs[0] as { priceUsd?: string | number })?.priceUsd) : 0;
 
           return {
             dex: dexId,
-            totalLiquidity: formatNumber2(dexData.totalLiquidity),
-            pairCount: dexData.pairs.length,
+            totalLiquidity: formatNumber2((dexData as { totalLiquidity: number }).totalLiquidity),
+            pairCount: (dexData as { pairs: unknown[] }).pairs.length,
             slippage_50: formatPct2(calculateSlippage(virtualReserves.base, virtualReserves.quote, 50, price)),
             slippage_500: formatPct2(calculateSlippage(virtualReserves.base, virtualReserves.quote, 500, price)),
             slippage_1k: formatPct2(calculateSlippage(virtualReserves.base, virtualReserves.quote, 1000, price)),
@@ -1431,17 +1435,23 @@ export default function AdminStatsPanel({
         const dex = await ensureDex();
         const pairs = (dex?.pairs || []).sort((a:any, b:any) => Number(b.liquidity?.usd || 0) - Number(a.liquidity?.usd || 0)).slice(0, 5);
         const { addressInfo } = await ensureCoreCaches();
-        const creatorAddress = addressInfo?.creator_address_hash?.toLowerCase();
+        const creatorAddress = (addressInfo as { creator_address_hash?: string })?.creator_address_hash?.toLowerCase();
 
         if (pairs.length === 0) return { error: 'No liquidity pools found.' };
 
         const analysisPromises = pairs.map(async (pair: unknown) => {
-          const lpAddress = pair.pairAddress;
-          const lpTotalSupply = Number(pair.liquidity.base) + Number(pair.liquidity.quote); // A simplification
+          const pairTyped = pair as {
+            pairAddress: string;
+            liquidity: { base: number | string; quote: number | string };
+            baseToken: { symbol: string };
+            quoteToken: { symbol: string };
+          };
+          const lpAddress = pairTyped.pairAddress;
+          const lpTotalSupply = Number(pairTyped.liquidity.base) + Number(pairTyped.liquidity.quote); // A simplification
           const holders = await getHoldersPaged(lpAddress);
 
           if (holders.length === 0) {
-            return `${pair.baseToken.symbol}/${pair.quoteToken.symbol}: No holder data available.`;
+            return `${pairTyped.baseToken.symbol}/${pairTyped.quoteToken.symbol}: No holder data available.`;
           }
 
           const topHolderAddress = holders[0].hash.toLowerCase();
@@ -1453,14 +1463,14 @@ export default function AdminStatsPanel({
           const burnedPct = lpTotalSupply > 0 ? (Number(burned?.value || 0) / lpTotalSupply) * 100 : 0;
           const creatorPct = lpTotalSupply > 0 ? (Number(creatorOwned?.value || 0) / lpTotalSupply) * 100 : 0;
 
-          return `${isBurned ? '🔥 ' : ''}${pair.baseToken.symbol}/${pair.quoteToken.symbol} | Liq: ${formatNumber2(pair.liquidity.usd)} | Burned: ${formatPct2(burnedPct)} | Creator: ${formatPct2(creatorPct)}`;
+          return `${isBurned ? '🔥 ' : ''}${pairTyped.baseToken.symbol}/${pairTyped.quoteToken.symbol} | Liq: ${formatNumber2(Number((pairTyped as { liquidity: { usd?: string | number } }).liquidity.usd || 0))} | Burned: ${formatPct2(burnedPct)} | Creator: ${formatPct2(creatorPct)}`;
         });
 
         return Promise.all(analysisPromises);
       }},
       { id: 'crossDexPriceSpread', label: 'Cross-DEX Price Spread', description: 'Difference between best and worst price across all pairs', run: async () => {
         const dex = await ensureDex();
-        const prices = (dex?.pairs || []).map((p: any) => Number(p?.priceUsd || 0)).filter(v => v > 0);
+        const prices = (dex?.pairs || []).map((p: unknown) => Number((p as { priceUsd?: string | number })?.priceUsd || 0)).filter((v: number) => v > 0);
         if (prices.length < 2) return { spreadPct: '0%', best: null, worst: null };
         const best = Math.max(...prices);
         const worst = Math.min(...prices);
@@ -1509,9 +1519,9 @@ export default function AdminStatsPanel({
           return acc;
         }, {});
         return Object.entries(groups).map(([dexId, data]) => {
-          const price = data.samplePrice || 0;
+          const price = (data as { samplePrice?: number }).samplePrice || 0;
           const tradeIn = price ? 500 / price : 0;
-          const slippage = calcSlippagePct(data.base, data.quote, tradeIn);
+          const slippage = calcSlippagePct((data as { base: number; quote: number }).base, (data as { base: number; quote: number }).quote, tradeIn);
           return { dex: dexId, slippage: formatPct2(slippage) };
         });
       }},
@@ -1534,7 +1544,7 @@ export default function AdminStatsPanel({
       { id: 'largestHolderExitStress', label: 'Largest-Holder Exit Stress Test', description: 'Estimated price impact if top holder sells 50% into main pool', run: async () => {
         const holders = await ensureHolders();
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         const top = holders.sort((a, b) => Number(b.value) - Number(a.value))[0];
         const pair = await getMainPair();
         if (!top || !pair) return { error: 'Missing data' };
@@ -1585,19 +1595,22 @@ export default function AdminStatsPanel({
         return { score: Math.round(score), topHolderPct: formatPct2(topPct), recentNonBurn };
       }},
       { id: 'liquidityMigrationTracker', label: 'Liquidity Migration Tracker', description: 'Timeline of pair creations/removals using token logs and Dex data', run: async () => {
-        const logs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}/logs`);
-        const items: any[] = Array.isArray((logs as any)?.items) ? (logs as any).items : [];
+        // Use v1 API format for logs endpoint
+        const logs = await fetchJson(`https://api.scan.pulsechain.com/api?module=logs&action=getLogs&fromBlock=0&toBlock=latest&address=${tokenAddress}`);
+        const items: any[] = Array.isArray((logs as any)?.result) ? (logs as any).result : [];
         const dex = await ensureDex();
         const pairsByAddr = new Map<string, any>();
         (dex?.pairs || []).forEach((p: any) => pairsByAddr.set(p.pairAddress?.toLowerCase?.(), p));
         return items.slice(0, 50).map((log: any) => {
-          const addr = log?.address?.hash?.toLowerCase?.();
+          const addr = log?.address?.toLowerCase?.();
           const pair = addr ? pairsByAddr.get(addr) : null;
           return {
             address: addr,
-            timestamp: log.timestamp,
-            event: log.event_name || 'log',
+            timestamp: log.timeStamp,
+            event: log.topics?.[0] || 'log',
             liquidityUsd: pair ? pair.liquidity?.usd : null,
+            blockNumber: log.blockNumber,
+            transactionHash: log.transactionHash,
           };
         });
       }},
@@ -1624,56 +1637,64 @@ export default function AdminStatsPanel({
         stats: [
           { id: 'creatorInitialSupply', label: "Creator's Initial Supply", run: async () => {
             const { addressInfo, tokenInfo } = await ensureCoreCaches();
-            const txHash = addressInfo?.creation_tx_hash;
+            const txHash = (addressInfo as { creation_tx_hash?: string })?.creation_tx_hash;
             if (!txHash) return { error: 'No creation hash found' };
 
             const tx = await fetchJson(`https://api.scan.pulsechain.com/api/v2/transactions/${txHash}`);
-            const creator = tx?.from?.hash;
-            const token = tokenInfo?.address;
-            const mintTransfer = tx?.token_transfers?.find((t: unknown) => (t as { from: { hash: string }; to: { hash: string }; token: { address: string } }).from.hash === '0x0000000000000000000000000000000000000000' && (t as { from: { hash: string }; to: { hash: string }; token: { address: string } }).to.hash === creator && (t as { from: { hash: string }; to: { hash: string }; token: { address: string } }).token.address === token);
+            const creator = (tx as { from?: { hash: string } })?.from?.hash;
+            const token = (tokenInfo as { address?: string })?.address;
+            const mintTransfer = (tx as { token_transfers?: unknown[] })?.token_transfers?.find((t: unknown) => (t as { from: { hash: string }; to: { hash: string }; token: { address: string } }).from.hash === '0x0000000000000000000000000000000000000000' && (t as { from: { hash: string }; to: { hash: string }; token: { address: string } }).to.hash === creator && (t as { from: { hash: string }; to: { hash: string }; token: { address: string } }).token.address === token);
 
             if (!mintTransfer) return { error: 'No initial mint transfer found to creator.' };
 
-            const initialSupply = Number(mintTransfer.total.value);
-            const totalSupply = Number(tokenInfo?.total_supply);
+            const initialSupply = Number((mintTransfer as { total: { value: string | number } }).total.value);
+            const totalSupply = Number((tokenInfo as { total_supply?: string | number })?.total_supply);
             const percentage = totalSupply > 0 ? (initialSupply / totalSupply) * 100 : 0;
 
             return {
               creator,
-              initialSupply: formatTokenAmount2(initialSupply, Number(tokenInfo.decimals)),
+              initialSupply: formatTokenAmount2(initialSupply, Number((tokenInfo as { decimals?: number }).decimals)),
               percentageOfTotal: formatPct2(percentage),
             };
           }},
           { id: 'creatorFirst5Outbound', label: "Creator's First 5 Outbound Txs", run: async () => {
             const { addressInfo } = await ensureCoreCaches();
-            const creatorAddress = addressInfo?.creator_address_hash;
+            const creatorAddress = (addressInfo as { creator_address_hash?: string })?.creator_address_hash;
             if (!creatorAddress) return { error: 'No creator address found' };
 
             const txs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${creatorAddress}/transactions`);
-            const outboundTxs = (txs?.items || []).filter((tx: unknown) => (tx as { from: { hash: string } }).from.hash.toLowerCase() === creatorAddress.toLowerCase());
+            const outboundTxs = ((txs as { items?: unknown[] })?.items || []).filter((tx: unknown) => (tx as { from: { hash: string } }).from.hash.toLowerCase() === creatorAddress.toLowerCase());
             
-            return outboundTxs.slice(0, 5).map((tx: unknown) => ({
-              hash: tx.hash,
-              to: tx.to?.hash,
-              value: formatTokenAmount2(Number(tx.value), 18) + ' PLS',
-              method: tx.method,
-            }));
+            return outboundTxs.slice(0, 5).map((tx: unknown) => {
+              const txTyped = tx as {
+                hash: string;
+                to?: { hash: string };
+                value: string | number;
+                method?: string;
+              };
+              return {
+                hash: txTyped.hash,
+                to: txTyped.to?.hash,
+                value: formatTokenAmount2(Number(txTyped.value), 18) + ' PLS',
+                method: txTyped.method,
+              };
+            });
           }},
           { id: 'creatorCurrentBalance', label: "Creator's Current Balance", run: async () => {
             const { addressInfo, tokenInfo } = await ensureCoreCaches();
-            const creatorAddress = addressInfo?.creator_address_hash;
+            const creatorAddress = (addressInfo as { creator_address_hash?: string })?.creator_address_hash;
             if (!creatorAddress) return { error: 'No creator address found' };
 
             const balanceData = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${creatorAddress}/token-balances?token=${tokenAddress}`);
-            const tokenBalance = (balanceData || []).find((b: unknown) => (b as { token: { address: string } }).token.address.toLowerCase() === tokenAddress.toLowerCase());
+            const tokenBalance = ((balanceData as unknown[]) || []).find((b: unknown) => (b as { token: { address: string } }).token.address.toLowerCase() === tokenAddress.toLowerCase());
 
             return {
-              balance: tokenBalance ? formatTokenAmount2(Number(tokenBalance.value), Number(tokenInfo.decimals)) : '0',
+              balance: tokenBalance ? formatTokenAmount2(Number((tokenBalance as { value: string | number }).value), Number((tokenInfo as { decimals?: number }).decimals)) : '0',
             };
           }},
           { id: 'creatorNetflow30d', label: 'Creator Netflow (30d)', description: 'Inbound vs outbound token totals for creator over 30 days', run: async () => {
             const { addressInfo, tokenInfo } = await ensureCoreCaches();
-            const creatorAddress = addressInfo?.creator_address_hash;
+            const creatorAddress = (addressInfo as { creator_address_hash?: string })?.creator_address_hash;
             if (!creatorAddress) return { error: 'No creator address found' };
             const transfers = await getWalletTokenTransfers(creatorAddress, 100);
             const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
@@ -1686,7 +1707,7 @@ export default function AdminStatsPanel({
               if (t.to?.hash?.toLowerCase?.() === creatorAddress.toLowerCase()) inbound += val;
               if (t.from?.hash?.toLowerCase?.() === creatorAddress.toLowerCase()) outbound += val;
             });
-            const decimals = Number(tokenInfo?.decimals ?? 18);
+            const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
             return {
               inbound: formatTokenAmount2(inbound, decimals),
               outbound: formatTokenAmount2(outbound, decimals),
@@ -1695,17 +1716,17 @@ export default function AdminStatsPanel({
           }},
           { id: 'teamClusterShare', label: 'Team Cluster Share', description: 'Supply held by creator + first 5 outbound recipients', run: async () => {
             const { addressInfo, tokenInfo } = await ensureCoreCaches();
-            const creatorAddress = addressInfo?.creator_address_hash;
+            const creatorAddress = (addressInfo as { creator_address_hash?: string })?.creator_address_hash;
             if (!creatorAddress) return { error: 'No creator address found' };
             const txs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${creatorAddress}/transactions`);
-            const outbound = (txs?.items || []).filter((tx: any) => tx?.from?.hash?.toLowerCase?.() === creatorAddress.toLowerCase());
-            const firstRecipients = Array.from(new Set(outbound.map((tx: any) => tx.to?.hash?.toLowerCase?.()).filter(Boolean))).slice(0, 5);
+            const outbound = ((txs as { items?: unknown[] })?.items || []).filter((tx: unknown) => (tx as { from?: { hash?: string } })?.from?.hash?.toLowerCase?.() === creatorAddress.toLowerCase());
+            const firstRecipients = Array.from(new Set(outbound.map((tx: unknown) => (tx as { to?: { hash?: string } })?.to?.hash?.toLowerCase?.()).filter(Boolean))).slice(0, 5);
             const holders = await ensureHolders();
             const teamSet = new Set([creatorAddress.toLowerCase(), ...firstRecipients]);
             const teamBalance = holders.filter(h => teamSet.has(h.hash?.toLowerCase?.())).reduce((s, h) => s + Number(h.value || 0), 0);
-            const total = Number(tokenInfo?.total_supply ?? 0);
+            const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
             const pct = total ? (teamBalance / total) * 100 : 0;
-            const decimals = Number(tokenInfo?.decimals ?? 18);
+            const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
             return {
               percent: formatPct2(pct),
               balanceFormatted: formatTokenAmount2(teamBalance, decimals),
@@ -1714,49 +1735,49 @@ export default function AdminStatsPanel({
           }},
           { id: 'ownershipStatus', label: 'Ownership Status', description: 'Summarizes whether ownership is renounced plus owner metadata', run: async () => {
             const { addressInfo } = await ensureCoreCaches();
-            const creatorAddress = addressInfo?.creator_address_hash;
+            const creatorAddress = (addressInfo as { creator_address_hash?: string })?.creator_address_hash;
             if (!creatorAddress) return { error: 'No creator address found' };
 
             const txs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${creatorAddress}/transactions`);
-            const renouncedTx = (txs?.items || []).find((tx: unknown) => (tx as { method?: string }).method?.toLowerCase() === 'renounceownership');
+            const renouncedTx = ((txs as { items?: unknown[] })?.items || []).find((tx: unknown) => (tx as { method?: string }).method?.toLowerCase() === 'renounceownership');
 
             if (renouncedTx) {
-              return { status: 'Renounced', transaction: renouncedTx.hash };
+              return { status: 'Renounced', transaction: (renouncedTx as { hash: string }).hash };
             }
             return { status: 'Not Renounced' };
           }},
           { id: 'ownershipTransferHistoryCount', label: 'Ownership Transfer History Count', description: 'Number of ownership transfer style calls on the contract', run: async () => {
             const txs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${tokenAddress}/transactions`);
-            const count = (txs?.items || []).filter((tx: any) => (tx.method || '').toLowerCase().includes('ownership')).length;
+            const count = ((txs as { items?: unknown[] })?.items || []).filter((tx: unknown) => ((tx as { method?: string }).method || '').toLowerCase().includes('ownership')).length;
             return count;
           }},
           { id: 'creatorTokenHistory', label: "Creator's Full Token History", run: async () => {
             const { addressInfo, tokenInfo } = await ensureCoreCaches();
-            const creatorAddress = addressInfo?.creator_address_hash;
+            const creatorAddress = (addressInfo as { creator_address_hash?: string })?.creator_address_hash;
             if (!creatorAddress) return { error: 'No creator address found' };
 
             const allCreatorTransfers = await getWalletTokenTransfers(creatorAddress);
-            const relevantTransfers = allCreatorTransfers.filter(t => t.token?.address?.toLowerCase() === tokenAddress.toLowerCase());
+            const relevantTransfers = allCreatorTransfers.filter((t: unknown) => (t as { token?: { address?: string } }).token?.address?.toLowerCase() === tokenAddress.toLowerCase());
 
-            return relevantTransfers.map(t => ({
-              timestamp: t.timestamp,
-              direction: t.from.hash.toLowerCase() === creatorAddress.toLowerCase() ? 'OUT' : 'IN',
-              counterparty: t.from.hash.toLowerCase() === creatorAddress.toLowerCase() ? t.to.hash : t.from.hash,
-              value: formatTokenAmount2(Number(t.total.value), Number(tokenInfo.decimals)),
+            return relevantTransfers.map((t: unknown) => ({
+              timestamp: (t as { timestamp: number }).timestamp,
+              direction: (t as { from: { hash: string } }).from.hash.toLowerCase() === creatorAddress.toLowerCase() ? 'OUT' : 'IN',
+              counterparty: (t as { from: { hash: string }; to: { hash: string } }).from.hash.toLowerCase() === creatorAddress.toLowerCase() ? (t as { to: { hash: string } }).to.hash : (t as { from: { hash: string } }).from.hash,
+              value: formatTokenAmount2(Number((t as { total: { value: string | number } }).total.value), Number((tokenInfo as { decimals?: number }).decimals)),
             }));
           }},
           { id: 'creatorCrossTokenFootprint', label: 'Creator Cross-Token Footprint', description: 'Number of other tokens the creator has deployed or interacted with', run: async () => {
             const { addressInfo } = await ensureCoreCaches();
-            const creatorAddress = addressInfo?.creator_address_hash;
+            const creatorAddress = (addressInfo as { creator_address_hash?: string })?.creator_address_hash;
             if (!creatorAddress) return { error: 'No creator address found' };
             const txs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${creatorAddress}/transactions`);
-            const items: any[] = Array.isArray(txs?.items) ? txs.items : [];
+            const items: unknown[] = Array.isArray((txs as { items?: unknown[] })?.items) ? (txs as { items?: unknown[] }).items! : [];
             const touchedTokens = new Set<string>();
             let creations = 0;
-            items.forEach(tx => {
-              if ((tx.method || '').toLowerCase().includes('create')) creations += 1;
-              (tx.token_transfers || []).forEach((tr: any) => {
-                const addr = tr.token?.address?.toLowerCase?.();
+            items.forEach((tx: unknown) => {
+              if (((tx as { method?: string }).method || '').toLowerCase().includes('create')) creations += 1;
+              ((tx as { token_transfers?: unknown[] }).token_transfers || []).forEach((tr: unknown) => {
+                const addr = (tr as { token?: { address?: string } }).token?.address?.toLowerCase?.();
                 if (addr && addr !== tokenAddress.toLowerCase()) touchedTokens.add(addr);
               });
             });
@@ -1831,7 +1852,7 @@ export default function AdminStatsPanel({
           { id: 'dailyBurnMintSeries30d', label: 'Daily Burn/Mint Series (30d)', description: 'Per-day totals sent to burn address or minted from zero', run: async () => {
             const transfers = await getTransfersLastNDays(tokenAddress, 30);
             const { tokenInfo } = await ensureCoreCaches();
-            const decimals = Number(tokenInfo?.decimals ?? 18);
+            const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
             const series: Record<string, { burned: number; minted: number }> = {};
             transfers.forEach(t => {
               const day = groupByDay(t.timestamp);
@@ -1857,7 +1878,7 @@ export default function AdminStatsPanel({
         title: 'On-Chain Activity',
         stats: [
           { id: 'transfersTotal', label: 'Total Transfers', description: 'Cumulative number of token transfers recorded on-chain', run: async () => {
-        const count = Number((await ensureCoreCaches()).tokenCounters?.transfers_count ?? 0);
+        const count = Number(((await ensureCoreCaches()).tokenCounters as { transfers_count?: number })?.transfers_count ?? 0);
         return {
           raw: count,
           formatted: formatNumber2(count)
@@ -1886,7 +1907,7 @@ export default function AdminStatsPanel({
       } },
       { id: 'avgTransferValue24h', label: 'avgTransferValue24h', description: 'Average transfer amount (raw token units) over the last 24 hours', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         const vals = (await ensureTransfers24h()).map(t => Number(t.total?.value || 0));
         const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
         return {
@@ -1896,7 +1917,7 @@ export default function AdminStatsPanel({
       } },
       { id: 'medianTransferValue24h', label: 'medianTransferValue24h', description: 'Median transfer amount over the last 24 hours', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         const vals = (await ensureTransfers24h()).map(t => Number(t.total?.value || 0)).sort((a,b)=>a-b);
         const median = vals.length ? vals[Math.floor(vals.length/2)] : 0;
         return {
@@ -1916,7 +1937,7 @@ export default function AdminStatsPanel({
       { id: 'transferVolume24hTokens', label: 'Transfer Volume 24h (tokens)', description: 'Total token units moved in last 24h', run: async () => {
         const transfers = await ensureTransfers24h();
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         const total = transfers.reduce((s, t) => s + Number(t.total?.value || 0), 0);
         return { raw: total, formatted: formatTokenAmount2(total, decimals) };
       }},
@@ -1925,7 +1946,7 @@ export default function AdminStatsPanel({
         const pair = await getMainPair();
         const price = Number(pair?.priceUsd || 0);
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? pair?.baseToken?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? pair?.baseToken?.decimals ?? 18);
         const totalRaw = transfers.reduce((s, t) => s + Number(t.total?.value || 0), 0);
         const usd = price ? (totalRaw / Math.pow(10, decimals)) * price : 0;
         return { usd: formatNumber2(usd) };
@@ -1971,7 +1992,7 @@ export default function AdminStatsPanel({
         const transfers = await ensureTransfers24h();
         transfers.sort((a, b) => new Date(a.timestamp || '').getTime() - new Date(b.timestamp || '').getTime());
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         let pingPongVolume = 0;
         let totalVolume = 0;
         const lastByPair = new Map<string, { ts: number; dir: string }>();
@@ -2051,19 +2072,25 @@ export default function AdminStatsPanel({
         
         // Calculate breakdown of both sides
         const pairDetails = pairs.map((p: unknown) => {
-          const baseUsd = Number(p?.liquidity?.base || 0) * Number(p?.priceUsd || 0);
-          const quoteUsd = Number(p?.liquidity?.usd || 0) - baseUsd; // Remaining is quote token USD
+          const pTyped = p as {
+            liquidity?: { usd?: string | number; base?: string | number; quote?: string | number };
+            priceUsd?: string | number;
+            baseToken?: { symbol?: string };
+            quoteToken?: { symbol?: string };
+          };
+          const baseUsd = Number(pTyped?.liquidity?.base || 0) * Number(pTyped?.priceUsd || 0);
+          const quoteUsd = Number(pTyped?.liquidity?.usd || 0) - baseUsd; // Remaining is quote token USD
           
           return {
-            pair: `${p.baseToken?.symbol}/${p.quoteToken?.symbol}`,
-            totalUsd: Number(p?.liquidity?.usd || 0),
-            totalUsdFormatted: formatNumber2(Number(p?.liquidity?.usd || 0)),
+            pair: `${pTyped.baseToken?.symbol}/${pTyped.quoteToken?.symbol}`,
+            totalUsd: Number(pTyped?.liquidity?.usd || 0),
+            totalUsdFormatted: formatNumber2(Number(pTyped?.liquidity?.usd || 0)),
             baseUsd: baseUsd,
             baseUsdFormatted: formatNumber2(baseUsd),
             quoteUsd: quoteUsd,
             quoteUsdFormatted: formatNumber2(quoteUsd),
-            baseAmount: Number(p?.liquidity?.base || 0),
-            quoteAmount: Number(p?.liquidity?.quote || 0)
+            baseAmount: Number(pTyped?.liquidity?.base || 0),
+            quoteAmount: Number(pTyped?.liquidity?.quote || 0)
           };
         });
         
@@ -2077,17 +2104,24 @@ export default function AdminStatsPanel({
       { id: 'totalTokensInLiquidity', label: 'Total Tokens in Liquidity', description: 'Breakdown of base and quote token balances locked in liquidity', run: async () => {
         const dex = await ensureDex();
         const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number(tokenInfo?.decimals ?? 18);
+        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
         const pairs = dex?.pairs || [];
         const totalBase = pairs.reduce((s: number, x: unknown) => s + Number((x as { liquidity?: { base?: string | number } })?.liquidity?.base || 0), 0);
         const totalQuote = pairs.reduce((s: number, x: unknown) => s + Number((x as { liquidity?: { quote?: string | number } })?.liquidity?.quote || 0), 0);
-        const pairDetails = pairs.map((p: unknown) => ({
-          pair: `${p.baseToken?.symbol}/${p.quoteToken?.symbol}`,
-          base: Number(p?.liquidity?.base || 0),
-          baseFormatted: formatTokenAmount2(Number(p?.liquidity?.base || 0), decimals),
-          quote: Number(p?.liquidity?.quote || 0),
-          quoteFormatted: formatNumber2(Number(p?.liquidity?.quote || 0))
-        }));
+        const pairDetails = pairs.map((p: unknown) => {
+          const pTyped = p as {
+            liquidity?: { base?: string | number; quote?: string | number };
+            baseToken?: { symbol?: string };
+            quoteToken?: { symbol?: string };
+          };
+          return {
+            pair: `${pTyped.baseToken?.symbol}/${pTyped.quoteToken?.symbol}`,
+            base: Number(pTyped?.liquidity?.base || 0),
+            baseFormatted: formatTokenAmount2(Number(pTyped?.liquidity?.base || 0), decimals),
+            quote: Number(pTyped?.liquidity?.quote || 0),
+            quoteFormatted: formatNumber2(Number(pTyped?.liquidity?.quote || 0))
+          };
+        });
         return { 
           totalBase, 
           totalBaseFormatted: formatTokenAmount2(totalBase, decimals),
@@ -2127,16 +2161,16 @@ export default function AdminStatsPanel({
       }},
 
       // Contract/address
-      { id: 'contractVerified', label: 'contractVerified', description: 'Indicates whether the contract is verified on PulseScan', run: async () => !!(await ensureCoreCaches()).addressInfo?.is_verified },
-      { id: 'creatorAddress', label: 'creatorAddress', description: 'Address that deployed the contract per PulseScan', run: async () => (await ensureCoreCaches()).addressInfo?.creator_address_hash },
-      { id: 'creationTxHash', label: 'creationTxHash', description: 'Hash of the deployment transaction', run: async () => (await ensureCoreCaches()).addressInfo?.creation_tx_hash },
+      { id: 'contractVerified', label: 'contractVerified', description: 'Indicates whether the contract is verified on PulseScan', run: async () => !!((await ensureCoreCaches()).addressInfo as { is_verified?: boolean })?.is_verified },
+      { id: 'creatorAddress', label: 'creatorAddress', description: 'Address that deployed the contract per PulseScan', run: async () => ((await ensureCoreCaches()).addressInfo as { creator_address_hash?: string })?.creator_address_hash },
+      { id: 'creationTxHash', label: 'creationTxHash', description: 'Hash of the deployment transaction', run: async () => ((await ensureCoreCaches()).addressInfo as { creation_tx_hash?: string })?.creation_tx_hash },
       { id: 'creationDate', label: 'Creation Date', description: 'UTC date the contract was deployed', run: async () => {
         const { addressInfo } = await ensureCoreCaches();
-        const txHash = addressInfo?.creation_tx_hash;
+        const txHash = (addressInfo as { creation_tx_hash?: string })?.creation_tx_hash;
         if (!txHash) return 'N/A';
 
         const txDetails = await fetchJson(`https://api.scan.pulsechain.com/api/v2/transactions/${txHash}`);
-        const timestamp = txDetails?.timestamp;
+        const timestamp = (txDetails as { timestamp?: number })?.timestamp;
 
         if (!timestamp) return 'Not found';
 
@@ -2147,32 +2181,33 @@ export default function AdminStatsPanel({
 
         return `${year}-${month}-${day}`;
       }},
-      { id: 'transactionsCount', label: 'transactionsCount', description: 'Total on-chain transactions associated with this address', run: async () => Number((await ensureCoreCaches()).addressCounters?.transactions_count || 0) },
-      { id: 'tokenTransfersCount', label: 'tokenTransfersCount', description: 'Total token transfer entries counted on PulseScan', run: async () => Number((await ensureCoreCaches()).addressCounters?.token_transfers_count || 0) },
-      { id: 'gasUsageCount', label: 'gasUsageCount', description: 'Number of gas usage records tied to the address', run: async () => Number((await ensureCoreCaches()).addressCounters?.gas_usage_count || 0) },
-      { id: 'validationsCount', label: 'Validations Count', description: 'Validator/validation count attributed to the address', run: async () => Number((await ensureCoreCaches()).addressCounters?.validations_count || 0) },
+      { id: 'transactionsCount', label: 'transactionsCount', description: 'Total on-chain transactions associated with this address', run: async () => Number(((await ensureCoreCaches()).addressCounters as { transactions_count?: number })?.transactions_count || 0) },
+      { id: 'tokenTransfersCount', label: 'tokenTransfersCount', description: 'Total token transfer entries counted on PulseScan', run: async () => Number(((await ensureCoreCaches()).addressCounters as { token_transfers_count?: number })?.token_transfers_count || 0) },
+      { id: 'gasUsageCount', label: 'gasUsageCount', description: 'Number of gas usage records tied to the address', run: async () => Number(((await ensureCoreCaches()).addressCounters as { gas_usage_count?: number })?.gas_usage_count || 0) },
+      { id: 'validationsCount', label: 'Validations Count', description: 'Validator/validation count attributed to the address', run: async () => Number(((await ensureCoreCaches()).addressCounters as { validations_count?: number })?.validations_count || 0) },
           { id: 'firstPageTxs', label: '1st Page Transactions', description: 'Raw payload of the first page of transactions from the API', run: async () => {
             const data = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${tokenAddress}/transactions`);
-            return data?.items || [];
+            return (data as { items?: unknown[] })?.items || [];
           }},
           { id: 'firstPageTransfers', label: '1st Page Transfers', description: 'Raw payload of the first page of token transfers', run: async () => {
             const data = await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}/transfers`);
-            return data?.items || [];
+            return (data as { items?: unknown[] })?.items || [];
           }},
           { id: 'firstPageInternalTxs', label: '1st Page Internal Txs', description: 'Raw payload of the first page of internal transactions', run: async () => {
             const data = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${tokenAddress}/internal-transactions`);
-            return data?.items || [];
+            return (data as { items?: unknown[] })?.items || [];
           }},
           { id: 'transactionVelocity', label: 'Transaction Velocity (24h)', description: 'Velocity metric measuring transfer volume vs circulating supply over 24h', run: async () => {
             const transfers = await ensureTransfers24h();
             const { tokenInfo } = await ensureCoreCaches();
             const holders = await ensureHolders();
+            if (!tokenInfo) return 0;
             const dead = holders.find(h => h.hash.toLowerCase() === DEAD_ADDRESS)?.value || '0';
-            const circulatingSupply = Number(tokenInfo.total_supply) - Number(dead);
+            const circulatingSupply = Number((tokenInfo as TokenInfoDetailed & { total_supply?: string | number }).total_supply || 0) - Number(dead);
 
             if (circulatingSupply === 0) return 0;
 
-            const transferVolume = transfers.reduce((sum, t) => sum + Number(t.total.value), 0);
+            const transferVolume = transfers.reduce((sum, t) => sum + Number((t as { total?: { value?: string | number } }).total?.value || 0), 0);
             const velocity = transferVolume / circulatingSupply;
             return formatPct2(velocity * 100);
           }},
@@ -2182,13 +2217,13 @@ export default function AdminStatsPanel({
         title: 'Contract Metadata',
         stats: [
           { id: 'address', label: 'Token Address', description: 'Currently selected token address for the panel', run: async () => tokenAddress },
-      { id: 'symbol', label: 'symbol', description: 'Token symbol fetched from token metadata', run: async () => (await ensureCoreCaches()).tokenInfo?.symbol },
-      { id: 'name', label: 'name', description: 'Token name fetched from token metadata', run: async () => (await ensureCoreCaches()).tokenInfo?.name },
-      { id: 'iconUrl', label: 'Icon URL', description: 'Primary icon/logo URL when available', run: async () => (await ensureDex()).pairs?.[0]?.info?.imageUrl || (await ensureCoreCaches()).tokenInfo?.icon_url },
+      { id: 'symbol', label: 'symbol', description: 'Token symbol fetched from token metadata', run: async () => ((await ensureCoreCaches()).tokenInfo as { symbol?: string })?.symbol },
+      { id: 'name', label: 'name', description: 'Token name fetched from token metadata', run: async () => ((await ensureCoreCaches()).tokenInfo as { name?: string })?.name },
+      { id: 'iconUrl', label: 'Icon URL', description: 'Primary icon/logo URL when available', run: async () => ((await ensureDex()).pairs?.[0] as { info?: { imageUrl?: string } })?.info?.imageUrl || ((await ensureCoreCaches()).tokenInfo as { icon_url?: string })?.icon_url },
           { id: 'abiComplexity', label: 'ABI Complexity Score', description: 'Count of ABI functions as a quick complexity proxy', run: async () => {
             const { addressInfo } = await ensureCoreCaches();
-            const contract = await fetchJson(`https://api.scan.pulsechain.com/api/v2/smart-contracts/${addressInfo.creator_address_hash}`);
-            const abi = contract?.abi || [];
+            const contract = await fetchJson(`https://api.scan.pulsechain.com/api/v2/smart-contracts/${(addressInfo as { creator_address_hash?: string }).creator_address_hash}`);
+            const abi = (contract as { abi?: unknown[] })?.abi || [];
             return abi.filter((item: unknown) => (item as { type: string }).type === 'function').length;
           }},
         ]
@@ -2258,12 +2293,11 @@ export default function AdminStatsPanel({
   );
 
   const runOneStat = useCallback(async (id: string) => {
-    const item = flatStatList.find(stat => stat.id === id);
+    const item = flatStatList.find(stat => stat.id === id) as { id: string; label: string; description: string; run: () => Promise<any> } | undefined;
     if (!item) return;
 
     startNetworkSession();
     setBusyStat(id);
-    onFetchStart?.(id, item.label);
     const startTime = Date.now();
 
     let derivedApiCalls: Array<{ endpoint: string; method: string; description: string }> | undefined;
@@ -2422,8 +2456,6 @@ export default function AdminStatsPanel({
       });
 
       setStatResult(prev => ({ ...prev, [id]: value }));
-
-      onFetchComplete?.(id, value, duration);
     } catch (e) {
       const duration = Date.now() - startTime;
       const errorResponse = { error: (e as Error).message };
@@ -2439,8 +2471,6 @@ export default function AdminStatsPanel({
       });
 
       setStatResult(prev => ({ ...prev, [id]: errorResponse }));
-
-      onFetchError?.(id, (e as Error).message);
     } finally {
       setBusyStat(null);
       stopNetworkSession();
@@ -2536,13 +2566,13 @@ export default function AdminStatsPanel({
     <div className={`${compact ? 'text-xs' : 'text-sm'} space-y-3`}>
       {/* Header with Title and Action Buttons */}
       <div className="flex items-center justify-between">
-        <h2 className="text-white text-lg font-semibold">Advanced Stats</h2>
+        <h2 className="text-brand-orange text-lg font-poppins">Advanced Stats</h2>
         <div className="flex items-center gap-2">
           <a
             href="/stat-docs"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-2.5 py-1 text-xs bg-blue-700/40 backdrop-blur hover:bg-blue-700/50 text-white rounded transition-colors"
+            className="px-2.5 py-1 text-xs bg-brand-orange backdrop-blur hover:bg-blue-700/50 text-white rounded transition-colors"
           >
             📖 API Docs
           </a>
@@ -2550,7 +2580,7 @@ export default function AdminStatsPanel({
           href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
           target="_blank"
           rel="noopener noreferrer"
-          className="px-2.5 py-1 text-xs bg-purple-700/40 backdrop-blur hover:bg-purple-700/50 text-white rounded transition-colors"
+          className="px-1 py-1 text-xs bg-black/20 border border-white/50 backdrop-blur hover:bg-purple-700/50 font-bold text-purple-700 rounded transition-colors"
         >
           Get Morbius
         </a>
@@ -2566,13 +2596,13 @@ export default function AdminStatsPanel({
               id="token"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className={`w-full bg-slate-900/60 backdrop-blur border border-gray-700 rounded px-2 text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+              className={`w-full bg-brand-navy backdrop-blur border border-brand-orange rounded px-2 text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
               placeholder="Search by address..."
             />
             <button
               type="button"
               onClick={() => handleLoadNewToken(searchInput)}
-              className={`shrink-0 px-3 rounded bg-purple-700 hover:bg-purple-800 text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+              className={`shrink-0 px-5 rounded bg-brand-orange border border-whit/50e hover:bg-brand-orange text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
             >
               Load
             </button>
@@ -2622,7 +2652,7 @@ export default function AdminStatsPanel({
               </div>
 
               <div className="focus-visible:outline-none focus-visible:ring-0">
-                <div className="rounded-lg border border-gray-700/70 bg-slate-900/80 backdrop-blur">
+                <div className="rounded-lg border border-brand-orange bg-brand-navy backdrop-blur">
                   {statCategories
                     .find(category => category.title === resolvedCategoryTitle)
                     ?.stats.length ? (
@@ -2639,9 +2669,8 @@ export default function AdminStatsPanel({
                                 className={`text-left rounded-xl border px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-700 focus-visible:ring-offset-2 focus-visible:ring-offset-black/50 ${
                                   isActive
                                     ? 'border-purple-700 bg-purple-700 text-white shadow-[0_0_25px_rgba(126,34,206,0.4)]'
-                                    : 'border-gray-700/70 bg-slate-900/70 backdrop-blur text-white hover:border-purple-700/40 hover:bg-gray-900/70'
+                                    : 'border-brand-orange bg-brand-navy backdrop-blur text-white hover:border-purple-700/40 hover:bg-gray-900/70'
                                 }`}
-                                aria-pressed={isActive}
                               >
                                 <p className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>
                                   {stat.label}
@@ -2666,7 +2695,7 @@ export default function AdminStatsPanel({
 
             {selectedStatMeta?.description && (
               <div className="space-y-2">
-              <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-white/70`}>
+              <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-white`}>
                 {selectedStatMeta.description}
               </p>
                 <a
@@ -2687,16 +2716,16 @@ export default function AdminStatsPanel({
           <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} dismissible={false}>
             <DrawerTrigger asChild>
               <button
-                className={`w-full bg-slate-900/60 backdrop-blur border border-gray-700 rounded-full px-4 text-left text-white ${
+                className={`w-full bg-brand-navy backdrop-blur border border-brand-orange rounded-full px-4 text-left text-white ${
                   compact ? 'py-2 text-xs' : 'py-3 text-sm'
                 }`}
               >
                 {selectedStat ? selectedStatMeta?.label ?? statLabelText : statLabelText}
               </button>
             </DrawerTrigger>
-            <DrawerContent className="bg-slate-900/95 backdrop-blur border-gray-700 z-50" onClick={(e) => e.stopPropagation()}>
+            <DrawerContent className="bg-brand-navy backdrop-blur-sm border-gray-700 z-50" onClick={(e) => e.stopPropagation()}>
               <DrawerHeader className="flex flex-row items-center justify-between">
-                <DrawerTitle className="text-white">Select Stat</DrawerTitle>
+                <DrawerTitle className="text-brand-orange">Select Stat</DrawerTitle>
                 <Button
                   onClick={() => {
                     handleTestStat();
@@ -2712,10 +2741,10 @@ export default function AdminStatsPanel({
                 <div className="max-h-[60vh] overflow-y-auto px-4 pb-32">
                   {statCategories.map(category => (
                     <div key={category.title} className="mb-4">
-                      <div className="bg-slate-900/50 backdrop-blur text-white font-semibold px-3 py-2 rounded-t">
+                      <div className="bg-brand-navy backdrop-blur text-white font-semibold px-3 py-2 rounded-t">
                         {category.title}
                       </div>
-                      <div className="bg-slate-900/50 backdrop-blur rounded-b">
+                      <div className="bg-brand-navy backdrop-blur rounded-b">
                         {category.stats.map(stat => (
                           <button
                             key={stat.id}
@@ -2723,8 +2752,8 @@ export default function AdminStatsPanel({
                               setSelectedStat(stat.id);
                               setDrawerOpen(false);
                             }}
-                            className={`w-full text-left px-3 py-2 border-b border-gray-700 last:border-b-0 hover:bg-gray-900 transition-colors ${
-                              selectedStat === stat.id ? 'bg-gray-900 text-white' : 'text-white'
+                            className={`w-full text-left px-3 py-2 border-b border-brand-orange last:border-b-0 hover:bg-gray-900 transition-colors ${
+                              selectedStat === stat.id ? 'bg-brand-navy text-white' : 'text-white'
                             }`}
                           >
                             <div>{stat.label}</div>
@@ -2743,7 +2772,7 @@ export default function AdminStatsPanel({
         </div>
 
         {selectedStatMeta?.description && (
-          <p className={`md:hidden ${compact ? 'text-[11px]' : 'text-xs'} text-white/70`}>
+          <p className={`md:hidden ${compact ? 'text-[11px]' : 'text-xs'} text-white`}>
             {selectedStatMeta.description}
           </p>
         )}
@@ -2764,7 +2793,7 @@ export default function AdminStatsPanel({
                   type="text"
                   value={customInputs[input.key] || ''}
                   onChange={(e) => setCustomInputs(prev => ({ ...prev, [input.key]: e.target.value }))}
-                  className={`w-full bg-slate-900/60 backdrop-blur border border-gray-700 rounded px-2 text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+                  className={`w-full bg-brand-navy backdrop-blur border border-brand-orange rounded px-2 text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
                   placeholder={input.placeholder}
                 />
               </div>
@@ -2778,7 +2807,7 @@ export default function AdminStatsPanel({
         <Button
           onClick={handleTestStat}
           disabled={!selectedStat || busyStat === selectedStat}
-          className={`px-4 bg-purple-700 hover:bg-purple-800 hover:ring-purple-700 disabled:opacity-50 disabled:cursor-not-allowed ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+          className={`px-4 bg-brand-orange hover:ring-purple-700 disabled:opacity-50 disabled:cursor-not-allowed ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
         >
           {busyStat === selectedStat ? 'Testing...' : actionText}
         </Button>
@@ -2786,7 +2815,7 @@ export default function AdminStatsPanel({
 
       {/* Current Request Details */}
       {currentRequest && (
-        <div className="pt-3 border-t border-gray-700 space-y-3">
+        <div className="pt-3 border-t border-brand-orange space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Results</h3>
             <button
@@ -2804,7 +2833,7 @@ export default function AdminStatsPanel({
                   <div className="text-white">Network Activity</div>
                   <div className="text-[10px] text-white/70 italic">Click 📋 to copy</div>
                 </div>
-                <div className="relative rounded-2xl border border-white/5 bg-slate-900/50 backdrop-blur w-full overflow-hidden">
+                <div className="relative rounded-2xl border border-brand-orange/20 bg-brand-navy backdrop-blur w-full overflow-hidden">
                   <div
                     ref={networkListRef}
                     className="space-y-2 max-h-36 overflow-y-auto p-3 pr-4 text-[11px] w-full"

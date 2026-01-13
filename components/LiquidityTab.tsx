@@ -365,35 +365,35 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
   return (
     <div className="h-full overflow-y-auto space-y-2 p-2 text-white font-sans" style={{ fontFamily: 'Poppins, sans-serif' }}>
       {/* Overview Banner */}
-      <div className="rounded-lg bg-gradient-to-br from-slate-800/50 via-slate-900/50 to-slate-800/50 border border-slate-700/50 backdrop-blur p-3">
+      <div className="rounded-lg bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-white/30 backdrop-blur p-3">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div>
-            <p className="text-sm uppercase tracking-wider text-slate-400 font-medium">Liquidity Intelligence</p>
-            <h3 className="text-sm font-semibold text-white">PulseChain Liquidity</h3>
+            <p className="text-sm uppercase tracking-wider text-brand-orange font-medium">Liquidity Intelligence</p>
+            <h3 className="text-sm font-semibold text-white"></h3>
           </div>
           <div className="flex flex-wrap gap-1.5 text-sm">
-            <span className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 font-medium">
+            <span className="px-2 py-0.5 rounded bg-gray-900 border border-emerald-500/25 text-green-400 font-poppins">
               {activePairs.length} Live
             </span>
             {zeroLiquidityPairs.length > 0 && (
-              <span className="px-2 py-0.5 rounded bg-slate-500/15 border border-slate-500/25 text-slate-300 font-medium">
+              <span className="px-2 py-0.5 rounded bg-brand-navy border border-brand-orange/40 text-white font-poppins">
                 {zeroLiquidityPairs.length} Inactive
               </span>
             )}
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <div className="bg-red-500/10 backdrop-blur rounded border border-slate-700/40 p-2 text-center">
-            <div className="text-sm text-slate-400 font-medium mb-0.5">Total Liquidity</div>
-            <div className="text-sm font-bold text-white">{formatNumber(totalLiquidity)}</div>
+          <div className="bg-gray-900 backdrop-blur rounded border border-brand-orange/40 p-2 text-center">
+            <div className="text-sm text-white font-semibold mb-0.5">Total Liquidity</div>
+            <div className="text-sm font-bold text-green-500">{formatNumber(totalLiquidity)}</div>
           </div>
-          <div className="bg-blue-500/10 backdrop-blur rounded border border-slate-700/40 p-2 text-center">
-            <div className="text-sm text-slate-400 font-medium mb-0.5">24h Volume</div>
-            <div className="text-sm font-bold text-white">{formatNumber(totalVolume)}</div>
+          <div className="bg-gray-900 backdrop-blur rounded border border-brand-orange/40 p-2 text-center">
+            <div className="text-sm text-white font-semibold mb-0.5">24h Volume</div>
+            <div className="text-sm font-bold text-green-500">{formatNumber(totalVolume)}</div>
           </div>
-          <div className="bg-green-500/10 backdrop-blur rounded border border-slate-700/40 p-2 text-center">
-            <div className="text-sm text-slate-400 font-medium mb-0.5">24h Txns</div>
-            <div className="text-sm font-bold text-white">{totalTransactions.toLocaleString()}</div>
+          <div className="bg-gray-900 backdrop-blur rounded border border-brand-orange/40 p-2 text-center">
+            <div className="text-sm text-white font-semibold mb-0.5">24h Txns</div>
+            <div className="text-sm font-bold text-green-500">{totalTransactions.toLocaleString()}</div>
           </div>
         </div>
       </div>
@@ -428,11 +428,11 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     }`}>
                       {pair.dexId}
                     </div>
-                    <div className="text-sm font-bold truncate">
+                    <div className="text-md font-bold truncate">
                       <span className={pair.dexId.toLowerCase() !== 'pulsex' ? 'text-red-400' : 'text-white'}>
-                        {pair.baseToken.symbol}
+                        {pair.baseToken.symbol} /
                       </span>
-                      <span className="text-red-400">/{pair.quoteToken.symbol}</span>
+                      <span className="text-green-500 font-bold"> {pair.quoteToken.symbol}</span>
                     </div>
                     {/* Price difference indicator */}
                     {(() => {
@@ -442,8 +442,8 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                       return (
                         <div className={`flex items-center gap-1 rounded px-1.5 py-1 text-sm font-semibold ${
                           isPositive
-                            ? 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-300'
-                            : 'bg-rose-500/15 border border-rose-500/25 text-rose-300'
+                            ? 'text-green-500'
+                            : 'text-rose-400'
                         }`}>
                           {isPositive ? '↑' : '↓'}
                           {Math.abs(priceDiff).toFixed(2)}%
@@ -454,7 +454,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
                   <div className="flex items-center">
                     {/* View More button on the right */}
-                    <div className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded md:px-3 md:py-1.5 md:text-sm">
+                    <div className="flex items-center gap-1 px-2 py-1 text-xs font-semibold text-white bg-brand-orange border border-brand-orange/20 rounded md:px-3 md:py-1.5 md:text-sm">
                       {expandedPairs.has(pair.pairAddress) ? 'View Less' : 'View More'}
                     </div>
                   </div>

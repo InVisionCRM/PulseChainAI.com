@@ -1,38 +1,42 @@
 import React, { useState } from 'react';
+import { Copy, Check } from 'lucide-react';
+import { GeickoToast } from '@/components/geicko';
 import type { TokenBalance, Transaction, TokenInfo } from '@/types';
 import LoadingSpinner from './icons/LoadingSpinner';
 
 const truncateHash = (hash: string) => `${hash.substring(0, 10)}...${hash.substring(hash.length - 8)}`;
 
 const CopyButton: React.FC<{ text: string; className?: string }> = ({ text, className = "" }) => {
-    const [copied, setCopied] = useState(false);
+    const [showToast, setShowToast] = useState(false);
 
     const handleCopy = async () => {
         try {
             await navigator.clipboard.writeText(text);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+            setShowToast(true);
+            setTimeout(() => setShowToast(false), 2000);
         } catch (err) {
             console.error('Failed to copy text: ', err);
         }
     };
 
     return (
-        <button
-            onClick={handleCopy}
-            className={`ml-2 p-1 rounded hover:bg-slate-600 transition-colors ${className}`}
-            title="Copy to clipboard"
-        >
-            {copied ? (
-                <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-            ) : (
-                <svg className="w-4 h-4 text-slate-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
+        <>
+            <button
+                onClick={handleCopy}
+                className={`ml-2 p-1 rounded hover:bg-slate-600 transition-colors ${className}`}
+                title="Copy to clipboard"
+            >
+                <Copy className="w-4 h-4 text-slate-400 hover:text-white" />
+            </button>
+
+            {showToast && (
+                <GeickoToast
+                    message="Address copied!"
+                    variant="success"
+                    onClose={() => setShowToast(false)}
+                />
             )}
-        </button>
+        </>
     );
 };
 

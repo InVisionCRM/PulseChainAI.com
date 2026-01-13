@@ -212,8 +212,10 @@ export default function HeroTokenAiChat(): JSX.Element {
 
             const limitedResults = results.slice(0, 10);
 
-            // Store in both caches for next time
-            searchCache.set(query, results);
+            // Only cache positive results (don't cache empty arrays)
+            if (results.length > 0) {
+              searchCache.set(query, results);
+            }
 
             setResults(limitedResults);
             setSearchError(null);
@@ -245,9 +247,15 @@ export default function HeroTokenAiChat(): JSX.Element {
 
             if (isCancelled) return;
 
-            setResults(results.slice(0, 10));
+            const limitedResults = results.slice(0, 10);
+
+            // Only cache positive results (don't cache empty arrays)
+            if (results.length > 0) {
+              searchCache.set(query, results);
+            }
+
+            setResults(limitedResults);
             setSearchError(null);
-            searchCache.set(query, results);
           } catch (error) {
             if (isCancelled) return;
             console.error('Search error:', error);

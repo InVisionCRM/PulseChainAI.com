@@ -540,7 +540,7 @@ export default function TokenTable() {
       <div className="w-full px-1 py-1">
         <div className="bg-black border border-b-white/40 p-1">
           <div className="flex justify-center items-center py-1">
-            <div className="text-white text-2xl md:text-xl font-bold font-poppins animate-pulse">Loading tokens...</div>
+            <div className="text-gradient-to-r from-slate-950 to-cyan-700 text-2xl md:text-xl font-bold font-poppins animate-pulse">Loading tokens...</div>
           </div>
         </div>
       </div>
@@ -548,9 +548,9 @@ export default function TokenTable() {
   }
 
   return (
-    <div className="w-full px-1 py-1">
-      <div className="bg-brand-navy overflow-hidden">
-        <div className="px-1 py-1 border-b border-white border-t border-white flex justify-between items-center">
+    <div className="w-full h-full">
+      <div className="bg-brand-orange/10 overflow-hidden">
+        <div className="border-b border-white/20 border-t border-white flex justify-between items-center">
           <h2 className="text-2xl relative left-1/2 -translate-x-1/2 font-bold font-poppins text-white">Top PulseChain Tokens</h2>
           <button
             onClick={fetchTokenData}
@@ -564,7 +564,7 @@ export default function TokenTable() {
 
         {/* Filter Bar */}
         <div className="px-4 py-3 border-b border-white/20 bg-black/50">
-          <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 items-start md:items-center">
             {/* Search Input */}
             <div className="relative w-full md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />

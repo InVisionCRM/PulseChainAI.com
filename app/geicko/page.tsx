@@ -45,6 +45,7 @@ import {
   GeickoRabbyActionButtons,
   GeickoRabbyInfoCards,
   GeickoRabbyTransactionsList,
+  GeickoToast,
 } from '@/components/geicko';
 
 function GeickoPageContent() {
@@ -65,6 +66,9 @@ function GeickoPageContent() {
   const [activeSocialTab, setActiveSocialTab] = useState<string | null>(null);
   const [uiPreset, setUiPreset] = useState<'classic' | 'rabby1'>('classic');
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+
+  // Copy confirmation toast state
+  const [copyToast, setCopyToast] = useState<{ message: string; show: boolean }>({ message: '', show: false });
 
   // Toast state for tracking active fetches
   const [activeFetches, setActiveFetches] = useState<Map<string, {
@@ -638,6 +642,81 @@ function GeickoPageContent() {
     });
   }, [showToast]);
 
+  // No-toast callback functions for stats tab (AdminStatsPanel without toast notifications)
+  const handleFetchStartNoToast = useCallback((statId: string, statName: string) => {
+    const fetchId = `${statId}_${Date.now()}`;
+    setActiveFetches(prev => new Map(prev.set(fetchId, {
+      statName: statName || statId,
+      startTime: new Date(),
+      progress: 0
+    })));
+
+    // Update progress over time (same as original but without toast)
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+      progress += Math.random() * 15 + 5; // Random progress between 5-20%
+      if (progress >= 90) {
+        progress = 90;
+        clearInterval(progressInterval); // Stop at 90%, let completion handler finish
+        return;
+      }
+
+      // Update active fetches state (only if not completed)
+      setActiveFetches(prev => {
+        const updated = new Map(prev);
+        const fetch = updated.get(fetchId);
+        if (fetch && !fetch.completed) {
+          updated.set(fetchId, { ...fetch, progress: Math.min(progress, 90) });
+        }
+        return updated;
+      });
+    }, 200);
+
+    // Store interval for cleanup
+    setActiveFetches(prev => {
+      const updated = new Map(prev);
+      const fetch = updated.get(fetchId);
+      if (fetch) {
+        updated.set(fetchId, { ...fetch, progressInterval });
+      }
+      return updated;
+    });
+  }, []);
+
+  const handleFetchCompleteNoToast = useCallback((statId: string, result: any, duration: number) => {
+    // Store the completion info for processing in useEffect to avoid setState during render
+    setActiveFetches(prev => {
+      const updated = new Map(prev);
+      for (const [fetchId, fetch] of updated) {
+        if (fetchId.startsWith(statId)) {
+          updated.set(fetchId, {
+            ...fetch,
+            completed: true,
+            result,
+            duration,
+            completedAt: Date.now()
+          });
+          break;
+        }
+      }
+      return updated;
+    });
+  }, []);
+
+  const handleFetchErrorNoToast = useCallback((statId: string, error: string) => {
+    // Find and remove the active fetch (same logic as original but without toast)
+    setActiveFetches(prev => {
+      const updated = new Map(prev);
+      for (const [fetchId, fetch] of updated) {
+        if (fetchId.startsWith(statId)) {
+          updated.delete(fetchId);
+          break;
+        }
+      }
+      return updated;
+    });
+  }, []);
+
   // Load data when token address changes
   useEffect(() => {
     const loadAllData = async () => {
@@ -1194,8 +1273,9 @@ function GeickoPageContent() {
     if (!value) return;
     if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(value);
+      setCopyToast({ message: 'Address copied!', show: true });
+      setTimeout(() => setCopyToast({ message: '', show: false }), 2000);
     }
-    setToast({ message: 'Copied to clipboard' });
   }, []);
 
   const openExternalLink = useCallback((url: string) => {
@@ -1288,7 +1368,7 @@ function GeickoPageContent() {
             onOpenChart={() => setActiveTab('switch')}
           />
 
-          <main className="px-4 sm:px-8 -mt-10 pb-12 space-y-5">
+          <main className="px-4 sm:px-8 mt-10 pb-12 space-y-5">
             <GeickoRabbyActionButtons onTabChange={setActiveTab} onExternalLink={openExternalLink} />
 
             <GeickoRabbyInfoCards primaryPair={primaryPair} />
@@ -1330,9 +1410,9 @@ function GeickoPageContent() {
     <>
       <div className="min-h-screen bg-slate-900 text-white font-sans px-2 md:px-3 relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-24 -left-16 h-64 w-64 bg-gradient-to-br from-blue-700/30 via-cyan-500/10 to-transparent blur-3xl" />
+          <div className="absolute top-24 left-16 h-64 w-64 bg-gradient-to-br from-blue-700/30 via-cyan-500/10 to-transparent blur-3xl" />
           <div className="absolute top-10 right-0 h-72 w-72 bg-gradient-to-bl from-purple-700/25 via-fuchsia-500/10 to-transparent blur-3xl" />
-          <div className="absolute -bottom-24 left-1/3 h-56 w-56 bg-gradient-to-tr from-emerald-600/20 via-teal-500/10 to-transparent blur-3xl" />
+          <div className="absolute bottom-24 left-1/3 h-56 w-56 bg-gradient-to-tr from-emerald-600/20 via-teal-500/10 to-transparent blur-3xl" />
         </div>
       {/* Header Section */}
 
@@ -1367,18 +1447,18 @@ function GeickoPageContent() {
                 <div className="absolute top-1 left-1 right-1 p-0">
                   <div className="flex justify-between gap-0">
                     <div>
-                      <div className="text-lg p-1 font-bold text-white rounded-tl-lg bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 tracking-tight">
-                        {baseSymbol} <span className="text-white pb-1 bg-slate-900">/</span> {quoteSymbol}
+                      <div className="text-lg p-1 font-bold text-white rounded-tl-lg bg-transparent backdrop-blur-md tracking-tight">
+                        {baseSymbol} <span className="text-white pb-1 bg-transparent">/</span> {quoteSymbol}
                       </div>
-                      <div className="text-xs text-white/70 pb-1 text-center justify-center bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 truncate">
+                      <div className="text-xs text-white pb-1 text-left pl-2 bg-transparent backdrop-blur-xs">
                         {tokenNameDisplay}
                       </div>
                     </div>
                     <div className="text-center justify-center">
-                      <div className="text-lg p-1 font-semibold text-white rounded-tr-lg bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900">
+                      <div className="text-lg p-1 font-semibold text-white rounded-tr-lg bg-transparent backdrop-blur-md">
                         ${formattedPrice}
                       </div>
-                      <div className={`text-xs text-center pb-1 justify-center font-semibold p-1 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      <div className={`text-xs text-center pb-1 justify-center font-semibold p-1 bg-transparent backdrop-blur-md ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {priceChange >= 0 ? '↑' :  '↓'}
                         {Math.abs(priceChange).toFixed(2)}%
                       </div>
@@ -1392,7 +1472,7 @@ function GeickoPageContent() {
                     <img
                       src={tokenLogoSrc}
                       alt={`${tokenNameDisplay} logo`}
-                      className="w-10 h-10 rounded-full border border-white/20 bg-slate-900/90/30 object-cover"
+                      className="w-14 h-14 rounded-full border border-brand-orange/30 bg-brand-navy object-cover"
                       data-fallback="false"
                       onError={(e) => {
                         if (e.currentTarget.dataset.fallback === 'true') {
@@ -1404,7 +1484,7 @@ function GeickoPageContent() {
                       }}
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-gray-900/80 border border-white/10 flex items-center justify-center text-white font-bold">
+                    <div className="w-10 h-10 rounded-full bg-brand-navy border border-white/10 flex items-center justify-center text-white font-bold">
                       {baseSymbol.charAt(0)}
                     </div>
                   )}
@@ -1458,9 +1538,9 @@ function GeickoPageContent() {
                 {/* Contract Address */}
                 {apiTokenAddress && (
                   <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Contract</span>
-                      <div className="flex items-center gap-1">
+                    <div className="flex flex-col space-y-1 items-center">
+                      <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Contract</span>
+                      <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => handleCopyAddress(apiTokenAddress)}
                           className="text-blue-400 hover:text-blue-300 font-mono text-xs"
@@ -1615,23 +1695,33 @@ function GeickoPageContent() {
               <div className="space-y-0.5">
                 {/* Creator */}
                 <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Creator</span>
-                    <span className="text-xs text-white font-semibold">
+                  <div className="flex flex-col space-y-1 items-center">
+                    <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Creator</span>
+                    <div className="flex items-center justify-center gap-1">
                       {ownershipData.creatorAddress ? (
-                        <a
-                          href={`https://scan.pulsechain.com/address/${ownershipData.creatorAddress}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-400 hover:text-blue-300 font-mono"
-                          title={ownershipData.creatorAddress}
-                        >
-                          {ownershipData.creatorAddress.slice(0, 6)}...{ownershipData.creatorAddress.slice(-4)}
-                        </a>
+                        <>
+                          <a
+                            href={`https://scan.pulsechain.com/address/${ownershipData.creatorAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300 font-mono text-xs"
+                            title={ownershipData.creatorAddress}
+                          >
+                            {ownershipData.creatorAddress.slice(0, 6)}...{ownershipData.creatorAddress.slice(-4)}
+                          </a>
+                          <button
+                            onClick={() => handleCopyAddress(ownershipData.creatorAddress!)}
+                            className="flex items-center justify-center w-5 h-5 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                            aria-label="Copy creator address"
+                            title="Copy creator address"
+                          >
+                            <Copy className="w-3 h-3 text-blue-400" />
+                          </button>
+                        </>
                       ) : (
-                        '—'
+                        <span className="text-xs text-white font-semibold">—</span>
                       )}
-                    </span>
+                    </div>
                   </div>
                 </div>
 
@@ -1767,7 +1857,7 @@ function GeickoPageContent() {
       </div>
 
       {/* Main Content */}
-      <div className="flex flex-col md:flex-row items-start">
+      <div className="flex flex-col md:flex-row items-start pt-4">
         {/* Left Panel - Chart Section */}
         <div className="w-full md:flex-[3] min-w-0 bg-slate-850">
 
@@ -1782,7 +1872,7 @@ function GeickoPageContent() {
 
           {/* Content Tables */}
           <div className="px-2 md:px-3 py-1 min-w-0">
-          <div className="bg-gray-900 rounded border border-gray-800 w-full min-w-0 relative z-20 overflow-x-auto">
+          <div className="bg-gray-900 rounded-t-none border-t-0 border border-gray-800 w-full min-w-0 relative z-20 overflow-x-auto rounded-lg">
               {/* Chart Tab */}
               {activeTab === 'chart' && (
                 <div className="min-h-[420px] flex items-center justify-center">
@@ -1822,9 +1912,9 @@ function GeickoPageContent() {
                 <div className="w-full p-4">
                   <AdminStatsPanel
                     initialAddress={apiTokenAddress}
-                    onFetchStart={handleFetchStart}
-                    onFetchComplete={handleFetchComplete}
-                    onFetchError={handleFetchError}
+                    onFetchStart={handleFetchStartNoToast}
+                    onFetchComplete={handleFetchCompleteNoToast}
+                    onFetchError={handleFetchErrorNoToast}
                   />
                 </div>
               )}
@@ -2181,6 +2271,336 @@ function GeickoPageContent() {
 
             {/* API Catalog - Hidden, now shown in modal */}
 
+
+
+
+            {/* Desktop Stats Cards */}
+            <div className="hidden md:block mb-2">
+              {/* Stats Grid - Desktop right panel */}
+              {dexScreenerData?.pairs?.[0] && (
+                <div className="block mb-2 px-0">
+                  <div className="grid grid-cols-2 gap-1">
+                    {/* Left Column */}
+                    <div className="space-y-0.5">
+                      {/* Contract Address */}
+                      {apiTokenAddress && (
+                        <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                          <div className="flex flex-col space-y-1 items-center">
+                            <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Contract</span>
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => handleCopyAddress(apiTokenAddress)}
+                                className="text-blue-400 hover:text-blue-300 font-mono text-xs"
+                                title="Copy contract address"
+                              >
+                                0x...{apiTokenAddress.slice(-4)}
+                              </button>
+                              <button
+                                onClick={() => handleCopyAddress(apiTokenAddress)}
+                                className="flex items-center justify-center w-5 h-5 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                                aria-label="Copy contract address"
+                                title="Copy contract address"
+                              >
+                                <Copy className="w-3 h-3 text-blue-400" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {/* Decimals */}
+                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Decimals</span>
+                          <span className="text-xs text-white font-semibold">
+                            {totalSupply?.decimals !== undefined ? totalSupply.decimals : '—'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Supply & Token Info */}
+                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Supply Info</div>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Total Supply</span>
+                            <span className="text-xs text-white font-semibold">
+                              {totalSupply ? (() => {
+                                const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
+                                return formatAbbrev(supply);
+                              })() : '—'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Circ.</span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-xs text-white font-semibold">
+                                  {totalSupply ? (() => {
+                                    const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
+                                    const burned = burnedTokens?.amount ?? 0;
+                                    const circulating = Math.max(0, supply - burned);
+                                    return formatAbbrev(circulating);
+                                  })() : '—'}
+                                </span>
+                              </TooltipTrigger>
+                              {totalSupply && (() => {
+                                const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
+                                const burned = burnedTokens?.amount ?? 0;
+                                const circulating = Math.max(0, supply - burned);
+                                return (
+                                  <TooltipContent>
+                                    <p>{circulating.toLocaleString()}</p>
+                                  </TooltipContent>
+                                );
+                              })()}
+                            </Tooltip>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Holders</span>
+                            {isLoadingMetrics ? (
+                              <Skeleton className="h-4 w-12" />
+                            ) : (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="text-xs text-white font-semibold">
+                                    {holdersCount !== null ? (holdersCount >= 1000 ? `${(holdersCount / 1000).toFixed(1)}k` : holdersCount) : '—'}
+                                  </span>
+                                </TooltipTrigger>
+                                {holdersCount !== null && (
+                                  <TooltipContent>
+                                    <p>{holdersCount.toLocaleString()}</p>
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Age</span>
+                            {isLoadingMetrics ? (
+                              <Skeleton className="h-4 w-16" />
+                            ) : (
+                              <span className="text-xs text-white font-semibold">{creationDate || '—'}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Supply Held */}
+                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                        <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Supply Held</div>
+                        {supplyHeld.isLoading ? (
+                          <div className="text-center text-gray-500 text-sm">Loading...</div>
+                        ) : (
+                          <div className="space-y-0.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-400 font-medium">Top 10</span>
+                              <span className="text-xs text-white font-semibold">
+                                {supplyHeld.top10 > 0 ? `${Math.round(supplyHeld.top10)}%` : '—'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-400 font-medium">Top 20</span>
+                              <span className="text-xs text-white font-semibold">
+                                {supplyHeld.top20 > 0 ? `${Math.round(supplyHeld.top20)}%` : '—'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-400 font-medium">Top 50</span>
+                              <span className="text-xs text-white font-semibold">
+                                {supplyHeld.top50 > 0 ? `${Math.round(supplyHeld.top50)}%` : '—'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Smart Contract Holder Share */}
+                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Supply In Contracts</div>
+                        {smartContractHolderShare.isLoading ? (
+                          <div className="text-center text-gray-500 text-sm">Loading...</div>
+                        ) : (
+                          <div className="space-y-0.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-400 font-medium">Share</span>
+                              <span className="text-xs text-white font-semibold">
+                                {smartContractHolderShare.percent > 0 ? `${smartContractHolderShare.percent.toFixed(2)}%` : '—'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-400 font-medium">Contracts</span>
+                              <span className="text-xs text-white font-semibold">
+                                {smartContractHolderShare.contractCount > 0 ? smartContractHolderShare.contractCount : '—'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right Column */}
+                    <div className="space-y-0.5">
+                      {/* Creator */}
+                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                        <div className="flex flex-col space-y-1 items-center">
+                          <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Creator</span>
+                          <div className="flex items-center justify-center gap-1">
+                            {ownershipData.creatorAddress ? (
+                              <>
+                                <a
+                                  href={`https://scan.pulsechain.com/address/${ownershipData.creatorAddress}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:text-blue-300 font-mono text-xs"
+                                  title={ownershipData.creatorAddress}
+                                >
+                                  {ownershipData.creatorAddress.slice(0, 6)}...{ownershipData.creatorAddress.slice(-4)}
+                                </a>
+                                <button
+                                  onClick={() => handleCopyAddress(ownershipData.creatorAddress!)}
+                                  className="flex items-center justify-center w-5 h-5 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                                  aria-label="Copy creator address"
+                                  title="Copy creator address"
+                                >
+                                  <Copy className="w-3 h-3 text-blue-400" />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-xs text-white font-semibold">—</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Ownership Status */}
+                      <div className="relative h-16 bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                        <div className="absolute left-1/2 -translate-x-1/2 top-2 text-xs text-gray-400 font-medium uppercase tracking-wider">Ownership</div>
+                        {ownershipData.isLoading ? (
+                          <div className="text-center text-gray-500 text-sm">Loading...</div>
+                        ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
+                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-center">
+                            <div className="text-xs text-green-400 font-semibold">Renounced</div>
+                            <div className="text-xs text-gray-400 mt-0.5">
+                              {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="absolute top-6 right-1/2 translate-x-1/2 text-center">
+                            <div className="text-xs text-yellow-400 font-semibold">Owner</div>
+                            {ownershipData.ownerAddress && (
+                              <a
+                                href={`https://scan.pulsechain.com/address/${ownershipData.ownerAddress}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
+                                title={ownershipData.ownerAddress}
+                              >
+                                0x...{ownershipData.ownerAddress.slice(-6)}
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Liquidity */}
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
+                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                {(() => {
+                                  const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                                  return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
+                                })()}
+                              </span>
+                            </TooltipTrigger>
+                            {(() => {
+                              const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                              return usdLiquidity > 0 ? (
+                                <TooltipContent>
+                                  <p>${usdLiquidity.toLocaleString()}</p>
+                                </TooltipContent>
+                              ) : null;
+                            })()}
+                          </Tooltip>
+                        </div>
+                      </div>
+
+                      {/* Liq/MCAP Ratio */}
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liq/MCAP</div>
+                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                          {(() => {
+                            const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                            const mcap = dexScreenerData.pairs[0].fdv ? Number(dexScreenerData.pairs[0].fdv) : Number(dexScreenerData.pairs[0].marketCap || 0);
+                            const ratio = mcap > 0 ? liquidity / mcap : 0;
+                            return ratio > 0 ? `${(ratio * 100).toFixed(1)}%` : '—';
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Total Liquidity */}
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[80px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-gray-400 font-medium uppercase tracking-wider">Total Liquidity</div>
+                        {totalLiquidity.isLoading ? (
+                          <div className="text-center text-gray-500 text-sm">Loading...</div>
+                        ) : totalLiquidity.usd > 0 ? (
+                          <div className="absolute bottom-6 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  ${formatAbbrev(totalLiquidity.usd)}
+                                </span>
+                              </TooltipTrigger>
+                              {totalLiquidity.usd > 0 && (
+                                <TooltipContent>
+                                  <p>${totalLiquidity.usd.toLocaleString()}</p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </div>
+                        ) : (
+                          <div className="text-center text-base text-white font-semibold">—</div>
+                        )}
+                        {totalLiquidity.pairCount > 0 && (
+                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-xs text-green-400 font-medium">
+                            {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Burned Tokens */}
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
+                        {isLoadingMetrics ? (
+                          <Skeleton className="h-6 w-16" />
+                        ) : burnedTokens ? (
+                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{burnedTokens.amount.toLocaleString()}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        ) : (
+                          <div className="text-center text-base text-white font-semibold">—</div>
+                        )}
+                        {burnedTokens && !isLoadingMetrics && (
+                          <div className="absolute top-4 right-2 flex items-center justify-center w-8 h-8 rounded-full border-2 border-green-400">
+                            <span className="text-[8px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Token Amount Calculator */}
             {dexScreenerData?.pairs?.[0] && (
               <div className="mb-2">
@@ -2339,6 +2759,15 @@ function GeickoPageContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Copy confirmation toast */}
+      {copyToast.show && (
+        <GeickoToast
+          message={copyToast.message}
+          variant="success"
+          onClose={() => setCopyToast({ message: '', show: false })}
+        />
       )}
     </>
   );

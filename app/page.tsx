@@ -54,7 +54,7 @@ export default function Home(): JSX.Element {
       </section>
 
       {/* Token Table Section */}
-      <section id="tokentable" className="relative z-20 w-full bg-black py-10">
+      <section id="tokentable" className="relative z-20 w-full bg-black">
         <TokenTable />
       </section>
     </div>

@@ -74,7 +74,7 @@ export default function GeickoHoldersTab({
       <div className="grid grid-cols-3 gap-1">
         {/* Total Holders */}
         <div className="border border-white/20 px-2 py-1.5">
-          <div className="text-[10px] text-center justify-center uppercase tracking-wider text-white/60">
+          <div className="text-sm text-center justify-center uppercase tracking-wider text-brand-orange">
             Total Holders
           </div>
           <div className="text-sm font-medium text-center justify-center text-white">
@@ -84,7 +84,7 @@ export default function GeickoHoldersTab({
 
         {/* LP Addresses */}
         <div className="border border-white/20 px-2 py-1.5">
-          <div className="text-[10px] text-center justify-center uppercase tracking-wider text-white/60">
+          <div className="text-sm text-center justify-center uppercase tracking-wider text-brand-orange">
             LP Addresses
           </div>
           <div className="text-sm font-medium text-center justify-center text-white">{holderStats.lpCount}</div>
@@ -92,7 +92,7 @@ export default function GeickoHoldersTab({
 
         {/* Contracts */}
         <div className="border border-white/20 px-2 py-1.5">
-          <div className="text-[10px] text-center justify-center uppercase tracking-wider text-white/60">
+          <div className="text-sm text-center justify-center uppercase tracking-wider text-brand-orange">
             Contracts
           </div>
           <div className="text-sm font-medium text-center justify-center text-white">
@@ -103,7 +103,7 @@ export default function GeickoHoldersTab({
 
       {/* Top 50 Holders Header */}
       <div className="text-center">
-        <p className="text-[9px] text-white/50 uppercase tracking-wider">Showing Top 50 Holders</p>
+        <p className="text-[12px] text-brand-orange uppercase tracking-wider">Showing Top 50 Holders</p>
       </div>
 
       {/* Holders Table */}

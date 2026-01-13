@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect, Suspense } from 'react';
+import { Copy } from 'lucide-react';
+import { GeickoToast } from '@/components/geicko';
 // import { motion } from "framer-motion"; // Temporarily disabled due to TypeScript issues
 import { useSearchParams, useRouter } from 'next/navigation';
 
@@ -75,6 +77,9 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
   const [showTutorial, setShowTutorial] = useState<boolean>(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [addressSet, setAddressSet] = useState<boolean>(false);
+
+  // Copy confirmation toast state
+  const [copyToast, setCopyToast] = useState<{ message: string; show: boolean }>({ message: '', show: false });
   const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('info');
   const [apiResponses, setApiResponses] = useState<Record<string, unknown>>({});
@@ -1427,7 +1432,15 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                         <div className="text-xs text-slate-400 capitalize">{item.type}</div>
                                       <div className="text-xs text-slate-500 font-mono truncate flex items-center gap-2">
                                         <span className="truncate">{item.address}</span>
-                                        <button type="button" className="text-slate-300 hover:text-white" title="Copy address" onClick={() => navigator.clipboard.writeText(item.address)}>📋</button>
+                                        <Copy
+                                          className="w-3 h-3 text-slate-300 hover:text-white cursor-pointer"
+                                          title="Copy address"
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(item.address);
+                                            setCopyToast({ message: 'Address copied!', show: true });
+                                            setTimeout(() => setCopyToast({ message: '', show: false }), 2000);
+                                          }}
+                                        />
                                       </div>
                                     </div>
                                   </div>
@@ -3062,6 +3075,15 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
           tokenAddress={contractAddress}
           tokenSymbol={tokenInfo?.symbol || 'TOKEN'}
           tokenDecimals={tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18}
+        />
+      )}
+
+      {/* Copy confirmation toast */}
+      {copyToast.show && (
+        <GeickoToast
+          message={copyToast.message}
+          variant="success"
+          onClose={() => setCopyToast({ message: '', show: false })}
         />
       )}
     </div>

@@ -1,8 +1,9 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { atomDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import { IconCheck, IconCopy, IconSearch, IconX } from "@tabler/icons-react";
+import { Check, Copy, Search, X } from "lucide-react";
+import { GeickoToast } from "@/components/geicko";
 
 type CodeBlockProps = {
   language: string;
@@ -31,19 +32,20 @@ export const CodeBlock = ({
   highlightLines = [],
   tabs = [],
 }: CodeBlockProps) => {
-  const [copied, setCopied] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState(0);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
 
   const tabsExist = tabs.length > 0;
 
+  const [showToast, setShowToast] = useState(false);
+
   const copyToClipboard = async () => {
     const textToCopy = tabsExist ? tabs[activeTab].code : code;
     if (textToCopy) {
       await navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
     }
   };
 
@@ -125,7 +127,7 @@ export const CodeBlock = ({
                       onClick={clearSearch}
                       className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
                     >
-                      <IconX size={12} />
+                      <X className="w-3 h-3" />
                     </button>
                   )}
                 </div>
@@ -137,14 +139,14 @@ export const CodeBlock = ({
                 }`}
                 title={isSearchOpen ? "Close search" : "Search code"}
               >
-                <IconSearch size={14} />
+                <Search className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={copyToClipboard}
                 className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 transition-colors font-sans"
                 title="Copy code"
               >
-                {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                <Copy className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -176,6 +178,15 @@ export const CodeBlock = ({
       >
         {String(activeCode)}
       </SyntaxHighlighter>
+
+      {/* Copy confirmation toast */}
+      {showToast && (
+        <GeickoToast
+          message="Code copied!"
+          variant="success"
+          onClose={() => setShowToast(false)}
+        />
+      )}
     </div>
   );
 };
