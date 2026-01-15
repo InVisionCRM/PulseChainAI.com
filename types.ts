@@ -238,6 +238,24 @@ export interface QuickAudit {
     functions: string[];
 }
 
+export interface ContractAuditResult {
+    ownershipRenounced: boolean;
+    hiddenOwner: boolean;
+    hasSuspiciousFunctions: boolean;
+    suspiciousFunctions: string[];
+    honeypot: boolean;
+    proxyContract: boolean;
+    mintable: boolean;
+    transferPausable: boolean;
+    tradingCooldown: boolean;
+    hasBlacklist: boolean;
+    hasWhitelist: boolean;
+    buyTax: boolean;
+    sellTax: boolean;
+    creatorAddress: string | null;
+    ownerAddress: string | null;
+}
+
 export interface DexScreenerData {
     pairs: DexScreenerPair[];
     totalPairs: number;

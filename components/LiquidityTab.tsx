@@ -365,7 +365,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
   return (
     <div className="h-full overflow-y-auto space-y-2 p-2 text-white font-sans" style={{ fontFamily: 'Poppins, sans-serif' }}>
       {/* Overview Banner */}
-      <div className="rounded-lg bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-white/30 backdrop-blur p-3">
+      <div className="rounded-lg bg-gradient-to-b from-brand-navy to-slate-900 via-slate-800  border border-white/30 backdrop-blur p-3">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div>
             <p className="text-sm uppercase tracking-wider text-brand-orange font-medium">Liquidity Intelligence</p>
@@ -401,14 +401,14 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
       {/* All Pairs List */}
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between pb-1.5 border-b border-slate-700/50">
+        <div className="flex justify-center py-1 px-2 bg-gray-900 border-2 border-brand-orange/50">
           <h4 className="text-sm font-semibold text-white uppercase tracking-wide">Trading Pairs</h4>
-          <div className="text-sm text-slate-400 font-medium">{activePairs.length} Active</div>
+          <div className="text-sm text-slate-400 pl-3 font-medium">{activePairs.length} Active</div>
         </div>
         {activePairs.map((pair) => (
           <div
             key={pair.pairAddress}
-            className="bg-slate-800/30 border border-slate-700/50 rounded-lg overflow-hidden hover:bg-slate-800/50 hover:border-slate-600/50 transition-all"
+            className="bg-brand-navy border border-brand-orange/50 rounded-lg overflow-hidden hover:bg-slate-800/50 hover:border-slate-600/50 transition-all"
           >
             {/* Collapsed View */}
             <button
@@ -418,7 +418,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
               aria-expanded={expandedPairs.has(pair.pairAddress)}
             >
               {/* Header with subtle background */}
-              <div className="bg-gradient-to-r from-slate-800/60 to-slate-900/40 border-b border-slate-700/30 px-3 py-2 rounded-t-lg group-hover:from-slate-800/70 group-hover:to-slate-900/50 transition-all duration-200">
+              <div className="bg-gradient-to-r from-brand-navy to-slate-900 border-b border-slate-700/30 px-3 py-2 rounded-t-lg group-hover:from-slate-800/70 group-hover:to-slate-900/50 transition-all duration-200">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className={`border px-1.5 py-0.5 rounded text-xs font-semibold ${
@@ -463,7 +463,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
               </div>
 
               <div className="grid grid-cols-3 gap-1.5">
-                <div className="bg-slate-900/40 border border-slate-700/40 rounded px-2 py-2 flex flex-col items-center justify-center text-center">
+                <div className="bg-gradient-to-b from-brand-navy to-slate-900 border border-slate-700/40 rounded px-2 py-2 flex flex-col items-center justify-center text-center">
                   <div className="text-sm text-slate-400 font-medium mb-1">Price</div>
                   <div className={`font-semibold text-sm ${
                     pair.dexId.toLowerCase() !== 'pulsex' ? 'text-red-400' : 'text-white'
@@ -471,13 +471,13 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     {pair.priceUsd && Number(pair.priceUsd) > 0 ? `$${Number(pair.priceUsd).toFixed(6)}` : 'N/A'}
                   </div>
                 </div>
-                <div className="bg-slate-900/40 border border-slate-700/40 rounded px-2 py-2 flex flex-col items-center justify-center text-center">
+                <div className="bg-gradient-to-b from-brand-navy to-slate-900 border border-slate-700/40 rounded px-2 py-2 flex flex-col items-center justify-center text-center">
                   <div className="text-sm text-slate-400 font-medium mb-1">Liquidity</div>
                   <div className="font-semibold text-white text-sm">
                     {formatNumber(pair.liquidity?.usd || 0)}
                   </div>
                 </div>
-                <div className="bg-slate-900/40 border border-slate-700/40 rounded px-2 py-2 flex flex-col items-center justify-center text-center">
+                <div className="bg-gradient-to-b from-brand-navy to-slate-900 border border-slate-700/40 rounded px-2 py-2 flex flex-col items-center justify-center text-center">
                   <div className="text-sm text-slate-400 font-medium mb-1">24h Vol</div>
                   <div className="font-semibold text-white text-sm">
                     {formatNumber(pair.volume?.h24 || 0)}

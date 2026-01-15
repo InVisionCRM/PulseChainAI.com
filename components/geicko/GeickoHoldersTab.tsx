@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LoaderThree } from '@/components/ui/loader';
 import { Holder, HolderStats, TokenInfo } from './types';
 import { isBurnAddress } from './utils';
+import GeickoPortfolioModal from './GeickoPortfolioModal';
 
 export interface GeickoHoldersTabProps {
   /** Array of holder data */
@@ -39,6 +40,19 @@ export default function GeickoHoldersTab({
   onPageChange,
   onOpenHolderTransfers,
 }: GeickoHoldersTabProps) {
+  const [portfolioModalOpen, setPortfolioModalOpen] = useState(false);
+  const [selectedHolderAddress, setSelectedHolderAddress] = useState<string | null>(null);
+
+  const handleOpenPortfolio = (address: string) => {
+    setSelectedHolderAddress(address);
+    setPortfolioModalOpen(true);
+  };
+
+  const handleClosePortfolio = () => {
+    setPortfolioModalOpen(false);
+    setSelectedHolderAddress(null);
+  };
+
   if (isLoadingHolders) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -178,15 +192,15 @@ export default function GeickoHoldersTab({
                 {/* View Button */}
                 <div className="flex-[0.8] min-w-[45px]">
                   {holder.address && (
-                    <a
-                      href={`https://scan.pulsechain.com/address/${holder.address}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenPortfolio(holder.address);
+                      }}
                       className="inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-semibold bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded border border-blue-500/30 transition-colors"
-                      onClick={(e) => e.stopPropagation()}
                     >
-                      View
-                    </a>
+                      View O
+                    </button>
                   )}
                 </div>
               </div>
@@ -251,6 +265,13 @@ export default function GeickoHoldersTab({
           </div>
         )}
       </div>
+
+      {/* Portfolio Modal */}
+      <GeickoPortfolioModal
+        isOpen={portfolioModalOpen}
+        onClose={handleClosePortfolio}
+        holderAddress={selectedHolderAddress}
+      />
     </div>
   );
 }

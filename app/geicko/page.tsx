@@ -7,10 +7,12 @@ import TokenAIChat from '@/components/TokenAIChat';
 import TokenContractView from '@/components/TokenContractView';
 import DexScreenerChart from '@/components/DexScreenerChart';
 import LiquidityTab from '@/components/LiquidityTab';
-import { LoaderThree } from "@/components/ui/loader";
+import { LoaderOne, LoaderThree } from "@/components/ui/loader";
 import { Copy, Download } from 'lucide-react';
-import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem } from '../../types';
+import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem, ContractAuditResult } from '../../types';
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '../../services/pulsechainService';
+import { analyzeContractAudit } from '../../services/contractAuditService';
+import ContractAuditPanel from '@/components/ContractAuditPanel';
 import {
   normalizeLabel,
   formatChainLabel,
@@ -35,7 +37,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   GeickoHolderTransfersModal,
   GeickoHoldersTab,
-  GeickoSwitchTab,
+  GeickoSwapTab,
   GeickoWebsiteTab,
   GeickoTabNavigation,
   GeickoOwnershipPanel,
@@ -96,6 +98,10 @@ function GeickoPageContent() {
     renounceTxHash: null,
     isLoading: false,
   });
+
+  // Audit state
+  const [auditResult, setAuditResult] = useState<ContractAuditResult | null>(null);
+  const [isLoadingAudit, setIsLoadingAudit] = useState<boolean>(false);
 
   // Download image function
   const downloadImage = async (imageUrl: string, filename: string) => {
@@ -428,6 +434,49 @@ function GeickoPageContent() {
       setIsLoadingMetrics(false);
     }
   }, []);
+
+  // Run audit analysis when contract data and ownership data are available
+  useEffect(() => {
+    const runAuditAnalysis = async () => {
+      if (!apiTokenAddress || !contractData || ownershipData.isLoading) {
+        return;
+      }
+
+      // Only run if we have both contract data and ownership data
+      if (!contractData.abi || ownershipData.creatorAddress === null) {
+        return;
+      }
+
+      // Don't run audit if contract is not verified or has no source code
+      if (!contractData.is_verified || !contractData.source_code || contractData.source_code.trim() === '') {
+        setIsLoadingAudit(false);
+        setAuditResult(null);
+        return;
+      }
+
+      setIsLoadingAudit(true);
+      try {
+        const result = await analyzeContractAudit(
+          apiTokenAddress,
+          contractData,
+          {
+            creatorAddress: ownershipData.creatorAddress,
+            ownerAddress: ownershipData.ownerAddress,
+            isRenounced: ownershipData.isRenounced,
+            renounceTxHash: ownershipData.renounceTxHash,
+          }
+        );
+        setAuditResult(result);
+      } catch (error) {
+        console.error('Failed to analyze contract audit:', error);
+        setAuditResult(null);
+      } finally {
+        setIsLoadingAudit(false);
+      }
+    };
+
+    runAuditAnalysis();
+  }, [apiTokenAddress, contractData, ownershipData]);
 
   const loadHolderTransfers = useCallback(
     async (holderAddress: string) => {
@@ -1298,6 +1347,7 @@ function GeickoPageContent() {
     { id: 'switch', label: 'Switch' },
     { id: 'website', label: 'Website' },
     { id: 'stats', label: 'Stats' },
+    { id: 'audit', label: 'Audit' },
   ];
 
 
@@ -1565,7 +1615,7 @@ function GeickoPageContent() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Decimals</span>
                     <span className="text-xs text-white font-semibold">
-                      {totalSupply?.decimals !== undefined ? totalSupply.decimals : '—'}
+                      {totalSupply?.decimals !== undefined ? totalSupply.decimals : <LoaderOne />}
                     </span>
                   </div>
                 </div>
@@ -1580,7 +1630,7 @@ function GeickoPageContent() {
                         {totalSupply ? (() => {
                           const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
                           return formatAbbrev(supply);
-                        })() : '—'}
+                        })() : <LoaderOne />}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -1593,7 +1643,7 @@ function GeickoPageContent() {
                               const burned = burnedTokens?.amount ?? 0;
                               const circulating = Math.max(0, supply - burned);
                               return formatAbbrev(circulating);
-                            })() : '—'}
+                            })() : <LoaderOne />}
                           </span>
                         </TooltipTrigger>
                         {totalSupply && (() => {
@@ -1894,13 +1944,10 @@ function GeickoPageContent() {
                 </div>
               )}
 
-              {/* Switch Tab */}
+              {/* Swap Tab */}
               {activeTab === 'switch' && (
                 <div data-switch-tab className="min-h-[600px] w-full">
-                  <GeickoSwitchTab
-                    dexScreenerData={dexScreenerData}
-                    apiTokenAddress={apiTokenAddress}
-                  />
+                  <GeickoSwapTab />
                 </div>
               )}
 
@@ -1916,6 +1963,25 @@ function GeickoPageContent() {
                     onFetchComplete={handleFetchCompleteNoToast}
                     onFetchError={handleFetchErrorNoToast}
                   />
+                </div>
+              )}
+
+              {/* Audit Tab */}
+              {activeTab === 'audit' && (
+                <div className="w-full p-4">
+                  <div className="relative">
+                    <div className="absolute -top-2 -right-2">
+                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                        BETA
+                      </span>
+                    </div>
+                    <ContractAuditPanel
+                      auditResult={auditResult}
+                      isLoading={isLoadingAudit}
+                      isContractVerified={contractData?.is_verified ?? false}
+                      hasSourceCode={contractData?.source_code ? contractData.source_code.trim().length > 0 : false}
+                    />
+                  </div>
                 </div>
               )}
 
@@ -2436,6 +2502,32 @@ function GeickoPageContent() {
                           </div>
                         )}
                       </div>
+
+                      {/* Burned Tokens */}
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
+                        {isLoadingMetrics ? (
+                          <Skeleton className="h-6 w-16" />
+                        ) : burnedTokens ? (
+                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{burnedTokens.amount.toLocaleString()}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        ) : (
+                          <div className="text-center text-base text-white font-semibold">—</div>
+                        )}
+                        {burnedTokens && !isLoadingMetrics && (
+                          <div className="absolute top-4 right-2 flex items-center justify-center w-8 h-8 rounded-full border-2 border-green-400">
+                            <span className="text-[8px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Right Column */}
@@ -2502,6 +2594,56 @@ function GeickoPageContent() {
                         )}
                       </div>
 
+                      {/* Price in WPLS */}
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-gray-400 font-medium uppercase tracking-wider">Price (WPLS)</div>
+                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                {(() => {
+                                  const priceNative = Number(dexScreenerData.pairs[0].priceNative || 0);
+                                  return priceNative > 0 ? priceNative.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 }) : '—';
+                                })()}
+                              </span>
+                            </TooltipTrigger>
+                            {(() => {
+                              const priceNative = Number(dexScreenerData.pairs[0].priceNative || 0);
+                              return priceNative > 0 ? (
+                                <TooltipContent>
+                                  <p>{priceNative}</p>
+                                </TooltipContent>
+                              ) : null;
+                            })()}
+                          </Tooltip>
+                        </div>
+                      </div>
+
+                      {/* Total Volume */}
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-gray-400 font-medium uppercase tracking-wider">Total Volume</div>
+                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                {(() => {
+                                  const totalVolume = dexScreenerData.pairs.reduce((sum, pair) => sum + Number(pair.volume?.h24 || 0), 0);
+                                  return totalVolume > 0 ? `$${formatAbbrev(totalVolume)}` : '—';
+                                })()}
+                              </span>
+                            </TooltipTrigger>
+                            {(() => {
+                              const totalVolume = dexScreenerData.pairs.reduce((sum, pair) => sum + Number(pair.volume?.h24 || 0), 0);
+                              return totalVolume > 0 ? (
+                                <TooltipContent>
+                                  <p>${totalVolume.toLocaleString()}</p>
+                                </TooltipContent>
+                              ) : null;
+                            })()}
+                          </Tooltip>
+                        </div>
+                      </div>
+
                       {/* Liquidity */}
                       <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
                         <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
@@ -2566,32 +2708,6 @@ function GeickoPageContent() {
                         {totalLiquidity.pairCount > 0 && (
                           <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-xs text-green-400 font-medium">
                             {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Burned Tokens */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
-                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
-                        {isLoadingMetrics ? (
-                          <Skeleton className="h-6 w-16" />
-                        ) : burnedTokens ? (
-                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>{burnedTokens.amount.toLocaleString()}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                        ) : (
-                          <div className="text-center text-base text-white font-semibold">—</div>
-                        )}
-                        {burnedTokens && !isLoadingMetrics && (
-                          <div className="absolute top-4 right-2 flex items-center justify-center w-8 h-8 rounded-full border-2 border-green-400">
-                            <span className="text-[8px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
                           </div>
                         )}
                       </div>
