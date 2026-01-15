@@ -1344,7 +1344,7 @@ function GeickoPageContent() {
     { id: 'holders', label: 'Holders' },
     { id: 'liquidity', label: 'Liquidity' },
     { id: 'contract', label: 'Code' },
-    { id: 'switch', label: 'Switch' },
+    { id: 'switch', label: 'Swap' },
     { id: 'website', label: 'Website' },
     { id: 'stats', label: 'Stats' },
     { id: 'audit', label: 'Audit' },
