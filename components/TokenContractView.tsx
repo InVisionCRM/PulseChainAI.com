@@ -26,28 +26,66 @@ export default function TokenContractView({ contractAddress, compact = false }: 
 
     setIsLoading(true);
     setError(null);
+    // Don't clear contractData immediately - preserve it until new data loads
 
     try {
       // Fetch contract data
       const result = await fetchContract(contractAddress);
       const data = result.data;
-      setContractData(data);
-      console.log('Contract data loaded in TokenContractView:', data);
-
-      // Parse ABI and fetch read method values
-      if (data.abi && Array.isArray(data.abi)) {
-        try {
-          const readMethodsWithVals = await fetchReadMethodsWithValues(contractAddress, data.abi);
-          setReadFunctionsWithValues(readMethodsWithVals);
-        } catch (readError) {
-          console.error('Error fetching read methods:', readError);
-          // Continue even if read methods fail
+      
+      // Preserve existing source code if new fetch returns empty but we have existing data
+      const existingSourceCode = contractData?.source_code;
+      const newSourceCode = data?.source_code;
+      
+      // Only update if we have valid data with source code or ABI
+      if (data && (newSourceCode || (data.abi && Array.isArray(data.abi) && data.abi.length > 0))) {
+        // If new fetch has empty source but we have existing source, preserve it
+        if (!newSourceCode && existingSourceCode && data.abi && Array.isArray(data.abi) && data.abi.length > 0) {
+          // Keep existing source code but update ABI
+          setContractData({
+            ...data,
+            source_code: existingSourceCode
+          });
+          console.log('Preserved existing source code, updated ABI');
+        } else {
+          setContractData(data);
         }
+        
+        console.log('Contract data loaded in TokenContractView:', {
+          name: data.name,
+          hasSourceCode: !!data.source_code,
+          sourceCodeLength: data.source_code?.length || 0,
+          abiLength: data.abi?.length || 0,
+          isVerified: data.is_verified
+        });
+      } else {
+        console.warn('Contract data missing source code and ABI:', data);
+        // If we have existing data with source code, don't overwrite with empty data
+        if (contractData?.source_code && !data?.source_code) {
+          console.log('Preserving existing contract data with source code');
+          // Don't update - keep existing data
+        } else if (data) {
+          setContractData(data);
+        }
+      }
+
+      // Parse ABI and fetch read method values (don't block on this)
+      if (data.abi && Array.isArray(data.abi) && data.abi.length > 0) {
+        // Fetch read methods in background - don't let errors affect contract display
+        fetchReadMethodsWithValues(contractAddress, data.abi)
+          .then((readMethodsWithVals) => {
+            setReadFunctionsWithValues(readMethodsWithVals);
+          })
+          .catch((readError) => {
+            console.error('Error fetching read methods (non-blocking):', readError);
+            // Don't set error state - contract display should still work
+          });
       }
 
     } catch (e) {
       console.error('Error loading contract:', e);
       setError(e instanceof Error ? e.message : 'Failed to load contract');
+      // Don't clear contractData on error - preserve existing data
     } finally {
       setIsLoading(false);
     }

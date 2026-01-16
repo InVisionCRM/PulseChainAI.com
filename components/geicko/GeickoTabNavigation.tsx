@@ -35,7 +35,7 @@ export default function GeickoTabNavigation({
               onClick={() => onTabChange(tab.id)}
               className={`flex-1 text-center text-xs font-semibold px-4 py-2 mx-1 rounded-t-lg border-t border-l border-r transition-all duration-200 ${
                 isActive
-                  ? 'text-white bg-gray-900 border-gray-700 shadow-sm'
+                  ? 'text-brand-orange bg-brand-navy border-gray-700 shadow-sm'
                   : 'text-gray-400 bg-gray-800/50 border-gray-700 hover:text-white hover:bg-gray-800/80'
               }`}
             >

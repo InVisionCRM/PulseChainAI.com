@@ -49,6 +49,8 @@ import {
   GeickoRabbyTransactionsList,
   GeickoToast,
 } from '@/components/geicko';
+import { MobileSearchBar } from '@/components/MobileSearchBar';
+import { DesktopSearchBar } from '@/components/DesktopSearchBar';
 
 function GeickoPageContent() {
   const searchParams = useSearchParams();
@@ -198,10 +200,10 @@ function GeickoPageContent() {
   const [expandedHolderTxs, setExpandedHolderTxs] = useState<Set<string>>(new Set());
 
 
-  // Load token data function
+  // Load token/contract data function - works for both tokens and non-token contracts
   const loadTokenData = useCallback(async (address: string) => {
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
-      setError('Invalid token address');
+      setError('Invalid address');
       return;
     }
 
@@ -209,53 +211,61 @@ function GeickoPageContent() {
     setError(null);
 
     try {
-      // Fetch all data in parallel
+      // Always fetch contract data first (works for both tokens and non-token contracts)
+      // Token-specific data is optional and failures are handled gracefully
       const [contractResult, tokenResult, dexResult, profileResult] = await Promise.allSettled([
         fetchContract(address),
-        fetchTokenInfo(address),
-        fetchDexScreenerData(address),
-        dexscreenerApi.getTokenProfile(address)
+        fetchTokenInfo(address).catch(() => ({ data: null, raw: null })), // Gracefully handle non-token contracts
+        fetchDexScreenerData(address).catch(() => ({ data: null, raw: null })), // Gracefully handle non-token contracts
+        dexscreenerApi.getTokenProfile(address).catch(() => ({ success: false, data: null })) // Gracefully handle non-token contracts
       ]);
 
-      // Handle contract data
+      // Handle contract data - this should always work for any contract
       if (contractResult.status === 'fulfilled') {
         setContractData(contractResult.value.data);
         console.log('Contract data loaded:', contractResult.value.data);
       } else if (contractResult.status === 'rejected') {
         console.error('Failed to fetch contract data:', contractResult.reason);
+        // Even if contract fetch fails, set minimal data so contract tab can still function
+        setContractData({
+          name: 'Contract',
+          source_code: '',
+          compiler_version: '',
+          optimization_enabled: false,
+          is_verified: false,
+          abi: [],
+          creator_address_hash: null,
+          creation_tx_hash: null,
+        });
       }
 
-      // Handle token info
-      if (tokenResult.status === 'fulfilled') {
-        setTokenInfo(tokenResult.value?.data || null);
-        console.log('Token info loaded:', tokenResult.value?.data);
-      } else if (tokenResult.status === 'rejected') {
-        console.error('Failed to fetch token info:', tokenResult.reason);
+      // Handle token info (optional - may be null for non-token contracts)
+      if (tokenResult.status === 'fulfilled' && tokenResult.value?.data) {
+        setTokenInfo(tokenResult.value.data);
+        console.log('Token info loaded:', tokenResult.value.data);
+      } else {
+        setTokenInfo(null); // Not a token or token info unavailable
       }
 
-      // Handle DexScreener data
-      if (dexResult.status === 'fulfilled') {
+      // Handle DexScreener data (optional - may be null for non-token contracts)
+      if (dexResult.status === 'fulfilled' && dexResult.value?.data) {
         setDexScreenerData(dexResult.value.data);
         console.log('DexScreener data loaded:', dexResult.value.data);
-      } else if (dexResult.status === 'rejected') {
-        console.error('Failed to fetch DexScreener data:', dexResult.reason);
+      } else {
+        setDexScreenerData(null); // Not a token or no DEX data
       }
 
-      // Handle profile data
-      if (profileResult.status === 'fulfilled') {
-        if (profileResult.value.success) {
-          setProfileData(profileResult.value.data);
-          console.log('Profile data loaded:', profileResult.value.data);
-        } else {
-          console.error('Failed to fetch profile data:', profileResult.value.error);
-        }
-      } else if (profileResult.status === 'rejected') {
-        console.error('Failed to fetch profile data:', profileResult.reason);
+      // Handle profile data (optional)
+      if (profileResult.status === 'fulfilled' && profileResult.value.success) {
+        setProfileData(profileResult.value.data);
+        console.log('Profile data loaded:', profileResult.value.data);
+      } else {
+        setProfileData(null);
       }
 
     } catch (e) {
-      console.error('Error loading token data:', e);
-      setError(e instanceof Error ? e.message : 'Failed to load token data');
+      console.error('Error loading contract/token data:', e);
+      setError(e instanceof Error ? e.message : 'Failed to load data');
     } finally {
       setIsLoadingData(false);
     }
@@ -1587,7 +1597,7 @@ function GeickoPageContent() {
               <div className="space-y-0.5">
                 {/* Contract Address */}
                 {apiTokenAddress && (
-                  <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                  <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
                     <div className="flex flex-col space-y-1 items-center">
                       <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Contract</span>
                       <div className="flex items-center justify-center gap-1">
@@ -1611,7 +1621,7 @@ function GeickoPageContent() {
                   </div>
                 )}
                 {/* Decimals */}
-                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Decimals</span>
                     <span className="text-xs text-white font-semibold">
@@ -1621,7 +1631,7 @@ function GeickoPageContent() {
                 </div>
 
                 {/* Supply & Token Info */}
-                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
                   <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Supply Info</div>
                   <div className="space-y-0.5">
                     <div className="flex items-center justify-between">
@@ -1689,7 +1699,7 @@ function GeickoPageContent() {
                 </div>
 
                 {/* Supply Held */}
-                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
                   <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Supply Held</div>
                   {supplyHeld.isLoading ? (
                     <div className="text-center text-gray-500 text-sm">Loading...</div>
@@ -1718,7 +1728,7 @@ function GeickoPageContent() {
                 </div>
 
                 {/* Smart Contract Holder Share */}
-                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
                   <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Supply In Contracts</div>
                   {smartContractHolderShare.isLoading ? (
                     <div className="text-center text-gray-500 text-sm">Loading...</div>
@@ -1744,7 +1754,7 @@ function GeickoPageContent() {
               {/* Right Column */}
               <div className="space-y-0.5">
                 {/* Creator */}
-                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
                   <div className="flex flex-col space-y-1 items-center">
                     <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Creator</span>
                     <div className="flex items-center justify-center gap-1">
@@ -1776,7 +1786,7 @@ function GeickoPageContent() {
                 </div>
 
                 {/* Ownership Status */}
-                <div className="relative h-16 bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                <div className="relative h-16 bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
                   <div className="absolute left-1/2 -translate-x-1/2 top-2 text-xs text-gray-400 font-medium uppercase tracking-wider">Ownership</div>
                   {ownershipData.isLoading ? (
                     <div className="text-center text-gray-500 text-sm">Loading...</div>
@@ -1806,7 +1816,7 @@ function GeickoPageContent() {
                 </div>
 
                 {/* Liquidity */}
-                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
                   <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
                   <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
                     <Tooltip>
@@ -1831,7 +1841,7 @@ function GeickoPageContent() {
                 </div>
 
                 {/* Liq/MCAP Ratio */}
-                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
                   <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liq/MCAP</div>
                   <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
                     {(() => {
@@ -1844,7 +1854,7 @@ function GeickoPageContent() {
                 </div>
 
                 {/* Total Liquidity */}
-                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[80px] flex items-center justify-center">
+                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[80px] flex items-center justify-center">
                   <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-gray-400 font-medium uppercase tracking-wider">Total Liquidity</div>
                   {totalLiquidity.isLoading ? (
                     <div className="text-center text-gray-500 text-sm">Loading...</div>
@@ -1874,7 +1884,7 @@ function GeickoPageContent() {
                 </div>
 
                 {/* Burned Tokens */}
-                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
                   <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
                   {isLoadingMetrics ? (
                     <Skeleton className="h-6 w-16" />
@@ -1906,10 +1916,17 @@ function GeickoPageContent() {
         )}
       </div>
 
+      {/* Mobile Search Bar */}
+      <MobileSearchBar />
+
       {/* Main Content */}
       <div className="flex flex-col md:flex-row items-start pt-4">
         {/* Left Panel - Chart Section */}
         <div className="w-full md:flex-[3] min-w-0 bg-slate-850">
+          {/* Desktop Search Bar - Above left panel only */}
+          <div className="hidden md:block mb-2 px-2">
+            <DesktopSearchBar />
+          </div>
 
 
           {/* Bottom Tabs */}
@@ -2350,7 +2367,7 @@ function GeickoPageContent() {
                     <div className="space-y-0.5">
                       {/* Contract Address */}
                       {apiTokenAddress && (
-                        <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                        <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
                           <div className="flex flex-col space-y-1 items-center">
                             <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Contract</span>
                             <div className="flex items-center justify-center gap-1">
@@ -2374,7 +2391,7 @@ function GeickoPageContent() {
                         </div>
                       )}
                       {/* Decimals */}
-                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Decimals</span>
                           <span className="text-xs text-white font-semibold">
@@ -2384,7 +2401,7 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Supply & Token Info */}
-                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
                         <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Supply Info</div>
                         <div className="space-y-0.5">
                           <div className="flex items-center justify-between">
@@ -2452,7 +2469,7 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Supply Held */}
-                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
                         <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Supply Held</div>
                         {supplyHeld.isLoading ? (
                           <div className="text-center text-gray-500 text-sm">Loading...</div>
@@ -2481,7 +2498,7 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Smart Contract Holder Share */}
-                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
                         <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Supply In Contracts</div>
                         {smartContractHolderShare.isLoading ? (
                           <div className="text-center text-gray-500 text-sm">Loading...</div>
@@ -2504,7 +2521,7 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Burned Tokens */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
                         <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
                         {isLoadingMetrics ? (
                           <Skeleton className="h-6 w-16" />
@@ -2533,7 +2550,7 @@ function GeickoPageContent() {
                     {/* Right Column */}
                     <div className="space-y-0.5">
                       {/* Creator */}
-                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
                         <div className="flex flex-col space-y-1 items-center">
                           <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Creator</span>
                           <div className="flex items-center justify-center gap-1">
@@ -2565,7 +2582,7 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Ownership Status */}
-                      <div className="relative h-16 bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
+                      <div className="relative h-16 bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
                         <div className="absolute left-1/2 -translate-x-1/2 top-2 text-xs text-gray-400 font-medium uppercase tracking-wider">Ownership</div>
                         {ownershipData.isLoading ? (
                           <div className="text-center text-gray-500 text-sm">Loading...</div>
@@ -2595,7 +2612,7 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Price in WPLS */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
                         <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-gray-400 font-medium uppercase tracking-wider">Price (WPLS)</div>
                         <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
                           <Tooltip>
@@ -2620,7 +2637,7 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Total Volume */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
                         <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-gray-400 font-medium uppercase tracking-wider">Total Volume</div>
                         <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
                           <Tooltip>
@@ -2645,7 +2662,7 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Liquidity */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
                         <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
                         <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
                           <Tooltip>
@@ -2670,7 +2687,7 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Liq/MCAP Ratio */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
                         <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liq/MCAP</div>
                         <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
                           {(() => {
@@ -2683,7 +2700,7 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Total Liquidity */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[80px] flex items-center justify-center">
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[80px] flex items-center justify-center">
                         <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-gray-400 font-medium uppercase tracking-wider">Total Liquidity</div>
                         {totalLiquidity.isLoading ? (
                           <div className="text-center text-gray-500 text-sm">Loading...</div>
@@ -2863,7 +2880,7 @@ function GeickoPageContent() {
 
             {/* Modal Content */}
             <div className="overflow-y-auto max-h-[calc(90vh-70px)] p-4 bg-gray-900">
-              <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-4">
+              <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-4">
                 <AdminStatsPanel
                   initialAddress={apiTokenAddress}
                   compact

@@ -9,15 +9,17 @@ import { parseCSV, TokenData } from '@/lib/csvParser';
 const PRIORITY_TOKENS = [
   '0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1', // #1 - GOLD badge
   '0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e', // #2 - GOLD badge
-  '0x31Ac295D593877bb77c3fCc19Fbbcea9c4f1c50A', // #3
-  '0x33779a40987F729a7DF6cc08B1dAD1a21b58A220', // #4
-  '0x9deeaF046e144Fb6304A5ACD2aF142bBfE958030', // #5
-  '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39', // #6
-  '0xA1077a294dDE1B09bB078844df40758a5D0f9a27', // #7
-  '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d', // #8
-  '0xc10A4Ed9b4042222d69ff0B374eddd47ed90fC1F', // #9
-  '0xC70CF25DFCf5c5e9757002106C096ab72fab299E', // #10
-  '0x483287DEd4F43552f201a103670853b5dc57D59d'  // #10
+  '0xCA35638A3fdDD02fEC597D8c1681198C06b23F58', // #3 - GOLD badge
+  '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39', // #4 - GOLD badge
+  '0x8CDaf3d630Da9E1450832924D5701CC0500E9cfC', // #5 - GOLD badge
+  '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab', // #6 - GOLD badge
+  '0xA1077a294dDE1B09bB078844df40758a5D0f9a27', // #7 - GOLD badge (WPLS)
+  '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d', // #8 - GOLD badge
+  '0xc10A4Ed9b4042222d69ff0B374eddd47ed90fC1F', // #9 - GOLD badge
+  '0x33779a40987F729a7DF6cc08B1dAD1a21b58A220', // #10
+  '0x9deeaF046e144Fb6304A5ACD2aF142bBfE958030', // #11
+  '0xC70CF25DFCf5c5e9757002106C096ab72fab299E', // #12
+  '0x483287DEd4F43552f201a103670853b5dc57D59d'  // #13
 ];
 
 const parseVolumeString = (volumeStr: string): number => {
@@ -432,7 +434,7 @@ export default function TokenTable() {
 
         // Quick filters
         if (activeQuickFilter === 'gold') {
-          if (token.rank > 5) return false;
+          if (token.rank > 13) return false;
         }
         if (activeQuickFilter === 'gainers') {
           const change = parseFloat(token.priceChange24h.replace('%', '')) || 0;
@@ -469,8 +471,8 @@ export default function TokenTable() {
     }
 
     // No active search - use GOLD priority behavior
-    const goldTokens = tokensToFilter.filter(t => t.rank <= 5);
-    const regularTokens = tokensToFilter.filter(t => t.rank > 5);
+    const goldTokens = tokensToFilter.filter(t => t.rank <= 13);
+    const regularTokens = tokensToFilter.filter(t => t.rank > 13);
 
     // Filter regular tokens
     let filtered = regularTokens.filter(token => {
@@ -748,7 +750,7 @@ export default function TokenTable() {
                 <tr key={token.pairAddress} className={`hover:bg-white/5 transition-colors ${token.rank <= 2 ? 'border border-yellow-500/50 bg-yellow-500/5' : ''}`}>
                   <td className="px-1 py-1">
                     <div className="flex items-center gap-1 overflow-hidden">
-                      {token.rank <= 5 && (
+                      {token.rank <= 13 && (
                         <div className="relative group flex-shrink-0">
                           <span className="px-1 py-0.5 text-[8px] font-bold font-poppins bg-yellow-500 text-black rounded-sm border border-yellow-400 cursor-help">
                             GOLD

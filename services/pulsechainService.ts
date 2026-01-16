@@ -5,69 +5,238 @@ const API_BASE_URL = 'https://api.scan.pulsechain.com/api/v2/';
 const isAddressValid = (address: string): boolean => /^0x[a-fA-F0-9]{40}$/.test(address);
 
 
+// Fetch contract from Sourcify (used by Otterscan) - via proxy to avoid CORS
+const fetchContractFromSourcify = async (address: string, chainId: number = 369): Promise<{ data: ContractData; raw: any } | null> => {
+  try {
+    // Use Next.js API proxy to avoid CORS issues
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const metadataUrl = `${baseUrl}/api/sourcify-proxy?chainId=${chainId}&address=${address}&type=metadata`;
+    
+    const metadataResponse = await fetch(metadataUrl);
+    
+    if (!metadataResponse.ok) {
+      return null; // Contract not verified on Sourcify
+    }
+    
+    const metadata = await metadataResponse.json();
+    return await parseSourcifyMetadata(metadata, address, chainId, baseUrl);
+  } catch (error) {
+    console.error('Error fetching from Sourcify:', error);
+    return null;
+  }
+};
+
+// Parse Sourcify metadata into ContractData format
+const parseSourcifyMetadata = async (metadata: any, address: string, chainId: number, apiBaseUrl: string): Promise<{ data: ContractData; raw: any }> => {
+  const compiler = metadata.compiler || {};
+  const settings = compiler.settings || {};
+  const sources = metadata.sources || {};
+  
+  // Fetch source files - Sourcify stores them as separate files
+  let sourceCode = '';
+  const sourceFiles = Object.keys(sources).sort();
+  
+  // First, try to get source content from metadata.sources (if available)
+  let hasContentInMetadata = false;
+  for (const filePath of sourceFiles) {
+    const sourceInfo = sources[filePath];
+    if (sourceInfo?.content) {
+      sourceCode += `// File: ${filePath}\n${sourceInfo.content}\n\n`;
+      hasContentInMetadata = true;
+    }
+  }
+  
+  // If sources weren't in metadata, fetch them from Sourcify files endpoint
+  if (!hasContentInMetadata && sourceFiles.length > 0) {
+    try {
+      // Try fetching all files at once using Sourcify's files endpoint via proxy
+      const filesUrl = `${apiBaseUrl}/api/sourcify-proxy?chainId=${chainId}&address=${address}&type=files`;
+      // Use a timeout promise for better compatibility
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 10000)
+      );
+      
+      const filesResponse = await Promise.race([
+        fetch(filesUrl),
+        timeoutPromise
+      ]) as Response;
+      
+      if (filesResponse.ok) {
+        const filesData = await filesResponse.json();
+        // Files endpoint returns an object with file paths as keys
+        if (filesData && typeof filesData === 'object') {
+          const fileKeys = Object.keys(filesData).sort();
+          for (const filePath of fileKeys) {
+            const content = filesData[filePath];
+            if (typeof content === 'string' && content.trim().length > 0) {
+              sourceCode += `// File: ${filePath}\n${content}\n\n`;
+            }
+          }
+        }
+      }
+      
+      // If files endpoint didn't work or returned empty, try individual files
+      if (!sourceCode || sourceCode.trim().length === 0) {
+        // Fetch each source file individually
+        const fetchPromises = sourceFiles.map(async (filePath) => {
+          try {
+            // Use API proxy to avoid CORS
+            const sourceUrl = `${apiBaseUrl}/api/sourcify-proxy?chainId=${chainId}&address=${address}&type=source&filePath=${encodeURIComponent(filePath)}`;
+            
+            // Use a timeout promise instead of AbortSignal.timeout for better compatibility
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout')), 5000)
+            );
+            
+            const sourceResponse = await Promise.race([
+              fetch(sourceUrl),
+              timeoutPromise
+            ]) as Response;
+            
+            if (sourceResponse.ok) {
+              const content = await sourceResponse.text();
+              if (content && content.trim().length > 0) {
+                return { filePath, content };
+              }
+            }
+          } catch (error) {
+            // Silently fail for individual files - we'll try other methods
+            return null;
+          }
+          return null;
+        });
+        
+        const results = await Promise.allSettled(fetchPromises);
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value) {
+            sourceCode += `// File: ${result.value.filePath}\n${result.value.content}\n\n`;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching source files from Sourcify:', error);
+      // Don't throw - preserve any source code we've already collected
+    }
+  }
+  
+  // Log if we have source code or not (for debugging)
+  if (sourceCode && sourceCode.trim().length > 0) {
+    console.log(`Successfully fetched ${sourceFiles.length} source file(s) from Sourcify`);
+  } else {
+    console.warn('No source code found in Sourcify metadata or files');
+  }
+  
+  // Extract ABI from output - try multiple possible locations
+  let abi: any[] = [];
+  if (metadata.output?.abi && Array.isArray(metadata.output.abi)) {
+    abi = metadata.output.abi;
+  } else if (metadata.output?.contracts) {
+    // ABI might be nested in contracts - collect all ABIs
+    const contractKeys = Object.keys(metadata.output.contracts);
+    for (const contractKey of contractKeys) {
+      const contract = metadata.output.contracts[contractKey];
+      if (contract?.abi && Array.isArray(contract.abi)) {
+        // Merge all ABIs (avoid duplicates)
+        const existingNames = new Set(abi.map((item: any) => item.name));
+        for (const abiItem of contract.abi) {
+          if (!existingNames.has(abiItem.name)) {
+            abi.push(abiItem);
+            existingNames.add(abiItem.name);
+          }
+        }
+      }
+    }
+  }
+  
+  // Extract compiler version
+  const compilerVersion = compiler.version || '';
+  
+  // Determine optimization
+  const optimizationEnabled = settings.optimizer?.enabled || false;
+  
+  // Extract contract name from metadata or from the first contract key
+  let contractName = metadata.contractName || 'Contract';
+  if (!contractName && metadata.output?.contracts) {
+    const contractKeys = Object.keys(metadata.output.contracts);
+    if (contractKeys.length > 0) {
+      const firstKey = contractKeys[0];
+      contractName = firstKey.split(':').pop() || 'Contract';
+    }
+  }
+  
+  const contractData: ContractData = {
+    name: contractName,
+    source_code: sourceCode.trim() || '', // Ensure we have source code
+    compiler_version: compilerVersion,
+    optimization_enabled: optimizationEnabled,
+    is_verified: true,
+    abi: abi,
+    creator_address_hash: null, // Sourcify doesn't provide this
+    creation_tx_hash: null, // Sourcify doesn't provide this
+  };
+  
+  return { data: contractData, raw: metadata };
+};
+
 export const fetchContract = async (address: string): Promise<{ data: ContractData; raw: any }> => {
   if (!isAddressValid(address)) {
     throw new Error('Invalid contract address format.');
   }
 
   try {
+    // First, try PulseChain Scan API
     const response = await fetch(`${API_BASE_URL}smart-contracts/${address}`);
     const raw = await response.json();
-    if (!response.ok) {
-      // If not found, allow viewing by returning minimal structure
-      if (response.status === 404) {
-        const minimal = {
-          name: raw?.name || 'Unverified Contract',
-          source_code: raw?.source_code || '',
-          compiler_version: raw?.compiler_version || '',
-          optimization_enabled: Boolean(raw?.optimization_enabled),
-          is_verified: false,
-          abi: Array.isArray(raw?.abi) ? raw.abi : [],
-          creator_address_hash: raw?.creator_address_hash || null,
-          creation_tx_hash: raw?.creation_tx_hash || null,
-        } as ContractData;
-        return { data: minimal, raw };
+    
+    if (response.ok) {
+      // Parse ABI if present
+      if (typeof raw.abi === 'string') {
+        try {
+          raw.abi = JSON.parse(raw.abi);
+        } catch (_) {
+          raw.abi = [];
+        }
       }
-      // Other API errors: still return minimal data when possible
-      const minimal = {
-        name: raw?.name || 'Unverified Contract',
-        source_code: raw?.source_code || '',
-        compiler_version: raw?.compiler_version || '',
-        optimization_enabled: Boolean(raw?.optimization_enabled),
-        is_verified: Boolean(raw?.is_verified),
-        abi: Array.isArray(raw?.abi) ? raw.abi : [],
-        creator_address_hash: raw?.creator_address_hash || null,
-        creation_tx_hash: raw?.creation_tx_hash || null,
-      } as ContractData;
-      return { data: minimal, raw };
-    }
 
-    // Parse ABI if present
-    if (typeof raw.abi === 'string') {
-      try {
-        raw.abi = JSON.parse(raw.abi);
-      } catch (_) {
-        raw.abi = [];
+      // If we have source code and ABI, return it
+      if (raw.source_code && raw.abi && Array.isArray(raw.abi) && raw.abi.length > 0) {
+        return { data: raw as ContractData, raw };
       }
     }
-
-    // If ABI/source missing, still allow viewing with minimal data
-    if (!raw.source_code || !raw.abi) {
-      const minimal = {
-        name: raw?.name || 'Unverified Contract',
-        source_code: raw?.source_code || '',
-        compiler_version: raw?.compiler_version || '',
-        optimization_enabled: Boolean(raw?.optimization_enabled),
-        is_verified: Boolean(raw?.is_verified),
-        abi: Array.isArray(raw?.abi) ? raw.abi : [],
-        creator_address_hash: raw?.creator_address_hash || null,
-        creation_tx_hash: raw?.creation_tx_hash || null,
-      } as ContractData;
-      return { data: minimal, raw };
+    
+    // If PulseChain Scan failed or missing data, try Sourcify (Otterscan source)
+    console.log('PulseChain Scan failed or incomplete, trying Sourcify...');
+    const sourcifyResult = await fetchContractFromSourcify(address);
+    
+    if (sourcifyResult) {
+      console.log('Contract found on Sourcify (Otterscan source)');
+      return sourcifyResult;
     }
-
-    return { data: raw as ContractData, raw };
+    
+    // If both failed, return minimal structure
+    const minimal = {
+      name: raw?.name || 'Unverified Contract',
+      source_code: raw?.source_code || '',
+      compiler_version: raw?.compiler_version || '',
+      optimization_enabled: Boolean(raw?.optimization_enabled),
+      is_verified: false,
+      abi: Array.isArray(raw?.abi) ? raw.abi : [],
+      creator_address_hash: raw?.creator_address_hash || null,
+      creation_tx_hash: raw?.creation_tx_hash || null,
+    } as ContractData;
+    
+    return { data: minimal, raw };
   } catch (error) {
+    // On error, try Sourcify as fallback
+    console.log('PulseChain Scan error, trying Sourcify fallback...');
+    const sourcifyResult = await fetchContractFromSourcify(address);
+    
+    if (sourcifyResult) {
+      console.log('Contract found on Sourcify (Otterscan source)');
+      return sourcifyResult;
+    }
+    
+    // If Sourcify also fails, throw error
     if (error instanceof Error) {
         throw new Error(`Failed to fetch contract: ${error.message}`);
     }

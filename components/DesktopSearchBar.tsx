@@ -5,6 +5,7 @@ import { IconSearch } from "@tabler/icons-react";
 import { search } from "@/services/pulsechainService";
 import { searchCache } from "@/lib/searchCache";
 import type { SearchResultItem } from "@/types";
+import { Check } from "lucide-react";
 
 // List of contract addresses that should show as verified even if API doesn't return it
 const VERIFIED_CONTRACT_ADDRESSES = new Set<string>([
@@ -12,7 +13,7 @@ const VERIFIED_CONTRACT_ADDRESSES = new Set<string>([
   // Example: '0x1234567890123456789012345678901234567890',
 ]);
 
-export const MobileSearchBar = () => {
+export const DesktopSearchBar = () => {
   const router = useRouter();
   const [searchValue, setSearchValue] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
@@ -180,7 +181,7 @@ export const MobileSearchBar = () => {
   };
 
   return (
-    <div className="md:hidden w-full sticky top-0 bg-white/5 backdrop-blur-xl border-b border-white/40 px-4 py-2 z-50">
+    <div className="w-full">
       <form onSubmit={handleSearch} className="flex items-center gap-2">
         <div className="relative flex-1 search-container">
           <input
@@ -188,7 +189,7 @@ export const MobileSearchBar = () => {
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             placeholder="Search token..."
-            className="w-full h-8 px-3 pr-8 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-orange-500/50"
+            className="w-full h-8 px-3 pr-8 text-sm bg-gray-900/80 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500"
           />
           <button
             type="submit"
@@ -196,14 +197,10 @@ export const MobileSearchBar = () => {
             title="Search"
             className="absolute right-2 top-1/2 -translate-y-1/2"
           >
-            <IconSearch className="h-4 w-4 text-white/70" />
+            <IconSearch className="h-4 w-4 text-gray-400" />
           </button>
           {showResults && (
             <div className="absolute left-0 right-0 top-full mt-1 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto search-container">
-              <div
-                className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-lg opacity-20 pointer-events-none"
-                style={{ backgroundImage: 'url(/Mirage.jpg)' }}
-              />
               <div className="relative z-10">
                 {isSearching && (
                   <>
@@ -246,8 +243,14 @@ export const MobileSearchBar = () => {
                       )}
                     </div>
                     <div className="overflow-hidden flex-1">
-                      <div className="font-semibold text-white truncate">
+                      <div className="font-semibold text-white truncate flex items-center gap-2">
                         {item.name} {item.symbol && `(${item.symbol})`}
+                        {(item.is_smart_contract_verified || VERIFIED_CONTRACT_ADDRESSES.has(item.address.toLowerCase())) && (
+                          <span className="text-green-400 text-xs font-bold flex items-center gap-1">
+                            <Check className="w-3 h-3" />
+                            VERIFIED
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-slate-400 capitalize">{item.type}</div>
                       <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>

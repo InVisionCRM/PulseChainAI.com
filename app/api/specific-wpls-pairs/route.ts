@@ -10,6 +10,9 @@ const SPECIFIC_TOKENS = [
   { symbol: 'PCOCK', address: null },
   { symbol: 'PSSH', address: null },
   { symbol: 'MOST', address: null },
+  { symbol: 'TOKEN1', address: '0xCA35638A3fdDD02fEC597D8c1681198C06b23F58' },
+  { symbol: 'TOKEN2', address: '0x8CDaf3d630Da9E1450832924D5701CC0500E9cfC' },
+  { symbol: 'TOKEN3', address: '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab' },
   { symbol: 'DAI', address: '0xf598cB1D27Fb2c5C731F535AD6c1D0ec5EfE1320' },
 ];
 

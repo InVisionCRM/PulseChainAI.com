@@ -132,6 +132,12 @@ const PLACEHOLDERS = [
   'Make Sure To Follow Morbius.io on X!',
 ];
 
+// List of contract addresses that should show as verified even if API doesn't return it
+const VERIFIED_CONTRACT_ADDRESSES = new Set<string>([
+  // Add verified contract addresses here (lowercase for comparison)
+  // Example: '0x1234567890123456789012345678901234567890',
+]);
+
 export default function HeroTokenAiChat(): JSX.Element {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResultItem[]>([]);
@@ -438,7 +444,7 @@ export default function HeroTokenAiChat(): JSX.Element {
                       ({item.symbol})
                     </span>
                   )}
-                  {item.is_smart_contract_verified && (
+                  {(item.is_smart_contract_verified || VERIFIED_CONTRACT_ADDRESSES.has(item.address.toLowerCase())) && (
                     <span className="text-green-800 font-bold font-poppins flex items-center gap-1 ml-2">
                       <Check className="w-4 h-4" />
                       VERIFIED
