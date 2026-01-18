@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import HeroTokenAiChat from '@/components/Home/HeroTokenAiChat';
 import TokenTable from '@/components/TokenTable';
+import StickyBanner from '@/components/ui/sticky-banner';
 import { IconChevronDown } from '@tabler/icons-react';
 
 
@@ -28,6 +29,8 @@ export default function Home(): JSX.Element {
 
   return (
     <div className="w-full">
+      <StickyBanner />
+
       {/* Hero Section */}
       <section className="min-h-screen relative w-full flex flex-col items-center justify-center overflow-hidden">
         <video

@@ -144,7 +144,7 @@ export default function RootLayout({
       ),
     },
     {
-      label: "Casino",
+      label: "Gaming",
       href: "https://win.morbius.io",
       icon: (
         <IconCurrencyDollar className="h-5 w-5 shrink-0 text-white" />
