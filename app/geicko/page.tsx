@@ -2686,6 +2686,31 @@ function GeickoPageContent() {
                         </div>
                       </div>
 
+                      {/* Market Cap */}
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider whitespace-nowrap">Market Cap</div>
+                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                {(() => {
+                                  const mcap = dexScreenerData.pairs[0].fdv ? Number(dexScreenerData.pairs[0].fdv) : Number(dexScreenerData.pairs[0].marketCap || 0);
+                                  return mcap > 0 ? `$${formatAbbrev(mcap)}` : '—';
+                                })()}
+                              </span>
+                            </TooltipTrigger>
+                            {(() => {
+                              const mcap = dexScreenerData.pairs[0].fdv ? Number(dexScreenerData.pairs[0].fdv) : Number(dexScreenerData.pairs[0].marketCap || 0);
+                              return mcap > 0 ? (
+                                <TooltipContent>
+                                  <p>${mcap.toLocaleString()}</p>
+                                </TooltipContent>
+                              ) : null;
+                            })()}
+                          </Tooltip>
+                        </div>
+                      </div>
+
                       {/* Liq/MCAP Ratio */}
                       <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
                         <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liq/MCAP</div>
