@@ -42,11 +42,6 @@ const auditChecks = [
     tooltip: 'Whether the contract owner is different from the creator and is itself a contract address, potentially hiding control.'
   },
   { 
-    key: 'hasSuspiciousFunctions', 
-    label: 'Has suspicious functions',
-    tooltip: 'Whether the contract contains potentially dangerous functions that could pose security risks:\n\n• selfdestruct/suicide: Can destroy the contract and send all funds to an address, potentially causing total loss\n• delegatecall: Allows executing code from another contract in the current context, can be exploited if not carefully implemented\n• assembly: Low-level EVM assembly code that bypasses Solidity safety checks, increasing risk of bugs or exploits\n• unchecked: Disables overflow/underflow checks, can lead to unexpected behavior\n• callcode: Deprecated low-level call that can have unexpected side effects\n\nThese functions are not inherently malicious but require careful implementation and should be reviewed by security auditors.'
-  },
-  { 
     key: 'honeypot', 
     label: 'Honeypot',
     tooltip: 'Whether the contract appears to be a honeypot - allowing buys but preventing sells through transfer restrictions.'
@@ -184,28 +179,9 @@ export default function ContractAuditPanel({
                 </Tooltip>
                 <span className="text-xs text-gray-400 font-medium">{check.label}</span>
               </div>
-              <div className="flex items-center gap-2">
-                {check.key === 'hasSuspiciousFunctions' && value && auditResult.suspiciousFunctions.length > 0 && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="text-xs text-gray-500">({auditResult.suspiciousFunctions.length})</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <div className="text-xs">
-                        <p className="font-semibold mb-1">Suspicious functions found:</p>
-                        <ul className="list-disc list-inside space-y-0.5">
-                          {auditResult.suspiciousFunctions.map((func, idx) => (
-                            <li key={idx}>{func}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-                <span className={`text-xs font-semibold ${colorClass}`}>
-                  {formatBoolean(value)}
-                </span>
-              </div>
+              <span className={`text-xs font-semibold ${colorClass}`}>
+                {formatBoolean(value)}
+              </span>
             </div>
           );
         })}
