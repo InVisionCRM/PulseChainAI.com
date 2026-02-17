@@ -43,39 +43,7 @@ export function TopTickerBar() {
 
   const fetchPriorityTokenData = async (contractAddress: string): Promise<TokenData | null> => {
     try {
-      // #region agent log - hypothesis A: Check fetch attempt
-      fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'TopTickerBar.tsx:47',
-          message: 'Starting DexScreener fetch',
-          data: { contractAddress, url: `https://api.dexscreener.com/latest/dex/search?q=${contractAddress}` },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'A'
-        })
-      }).catch(() => {});
-
-      // Search for the token on DexScreener
       const searchResponse = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${contractAddress}`);
-
-      // #region agent log - hypothesis A: Check response status
-      fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'TopTickerBar.tsx:47',
-          message: 'Fetch response received',
-          data: { contractAddress, status: searchResponse.status, ok: searchResponse.ok, statusText: searchResponse.statusText },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'A'
-        })
-      }).catch(() => {});
-
       const searchData = await searchResponse.json();
 
       // Find PulseChain pairs that include WPLS
@@ -126,26 +94,6 @@ export function TopTickerBar() {
 
       return tokenData;
     } catch (error) {
-      // #region agent log - hypothesis A: Log fetch error details
-      fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'TopTickerBar.tsx:128',
-          message: 'Catch block error details',
-          data: {
-            contractAddress,
-            error: error instanceof Error ? error.message : String(error),
-            errorType: error instanceof Error ? error.constructor.name : 'Unknown',
-            stack: error instanceof Error ? error.stack : undefined
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'A'
-        })
-      }).catch(() => {});
-
       console.error(`❌ Failed to fetch priority token ${contractAddress}:`, error);
       return null;
     }
@@ -156,41 +104,8 @@ export function TopTickerBar() {
       try {
         console.log('🎯 Fetching priority token WPLS pairs...');
 
-        // #region agent log - hypothesis B: Check if individual fetches succeed
-        const tokenPromises = PRIORITY_TOKENS.map(async (address) => {
-          const result = await fetchPriorityTokenData(address);
-          fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              location: 'TopTickerBar.tsx:139',
-              message: 'Individual token fetch result',
-              data: { address, result: result ? 'success' : 'null' },
-              timestamp: Date.now(),
-              sessionId: 'debug-session',
-              runId: 'run1',
-              hypothesisId: 'B'
-            })
-          }).catch(() => {});
-          return result;
-        });
-
+        const tokenPromises = PRIORITY_TOKENS.map(address => fetchPriorityTokenData(address));
         const fetchedTokens = (await Promise.all(tokenPromises)).filter(Boolean) as TokenData[];
-
-        // #region agent log - hypothesis B: Check final results
-        fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'TopTickerBar.tsx:139',
-            message: 'Final fetch results',
-            data: { totalTokens: fetchedTokens.length, addresses: fetchedTokens.map(t => t.address) },
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'B'
-          })
-        }).catch(() => {});
 
         if (fetchedTokens.length > 0) {
           setTokens(fetchedTokens);
@@ -199,21 +114,6 @@ export function TopTickerBar() {
           console.log('⚠️ No priority tokens found');
         }
       } catch (error) {
-        // #region agent log - hypothesis B: Check useEffect error
-        fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'TopTickerBar.tsx:162',
-            message: 'useEffect error',
-            data: { error: error instanceof Error ? error.message : String(error) },
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'B'
-          })
-        }).catch(() => {});
-
         console.error('❌ Failed to fetch priority tokens:', error);
       }
     };

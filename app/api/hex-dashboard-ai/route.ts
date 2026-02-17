@@ -55,21 +55,6 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 export async function POST(req: NextRequest) {
   try {
-    // #region agent log H1 - API request parsing
-    fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'app/api/hex-dashboard-ai/route.ts:28',
-        message: 'API request received, parsing JSON',
-        data: { url: req.url, method: req.method },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'initial',
-        hypothesisId: 'H1'
-      })
-    }).catch(() => {});
-
     const {
       message,
       conversationHistory = [],
@@ -82,57 +67,12 @@ export async function POST(req: NextRequest) {
       liveData
     } = await req.json();
 
-    // #endregion agent log H1
-
-    // #region agent log H2 - Request validation
-    fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'app/api/hex-dashboard-ai/route.ts:50',
-        message: 'Request validation check',
-        data: {
-          message: !!message,
-          messageLength: message?.length,
-          network,
-          includeStakingData,
-          includeDexData
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'initial',
-        hypothesisId: 'H2'
-      })
-    }).catch(() => {});
-    // #endregion agent log H2
-
     if (!message) {
       return NextResponse.json({ error: 'Message is required.' }, { status: 400 });
     }
 
     // Fetch all HEX dashboard data in parallel
     const dataPromises = [];
-
-    // #region agent log H3 - Data fetching setup
-    fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'app/api/hex-dashboard-ai/route.ts:85',
-        message: 'Starting data fetching setup',
-        data: {
-          includeStakingData,
-          includeDexData,
-          network,
-          dataPromisesCount: dataPromises.length
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'initial',
-        hypothesisId: 'H3'
-      })
-    }).catch(() => {});
-    // #endregion agent log H3
 
     // Always fetch staking metrics for context
     if (includeStakingData) {
@@ -173,47 +113,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // #region agent log H6 - Promise.all execution
-    fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'app/api/hex-dashboard-ai/route.ts:149',
-        message: 'About to execute Promise.all for data fetching',
-        data: {
-          dataPromisesCount: dataPromises.length,
-          includeStakingData,
-          includeDexData
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'initial',
-        hypothesisId: 'H6'
-      })
-    }).catch(() => {});
-    // #endregion agent log H6
-
     // Wait for all data to be fetched
     const dataResults = await Promise.all(dataPromises);
-
-    // #region agent log H7 - Data fetch results
-    fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'app/api/hex-dashboard-ai/route.ts:168',
-        message: 'Data fetch completed',
-        data: {
-          dataResultsCount: dataResults.length,
-          dataResults: dataResults.map(r => r ? 'success' : 'null')
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'initial',
-        hypothesisId: 'H7'
-      })
-    }).catch(() => {});
-    // #endregion agent log H7
 
     // Organize the data context
     const dataContext: HexDataContext = {};
@@ -333,26 +234,6 @@ ${conversationContext ? `CONVERSATION HISTORY:\n${conversationContext}\n\n` : ''
 Please provide a helpful, conversational response about HEX based on the available data and context. Focus on being informative while maintaining a natural conversation flow.
 `;
 
-          // #region agent log H8 - Gemini AI call setup
-          fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              location: 'app/api/hex-dashboard-ai/route.ts:306',
-              message: 'About to call Gemini AI',
-              data: {
-                model: 'gemini-2.5-flash',
-                promptLength: fullPrompt.length,
-                hasApiKey: !!process.env.GEMINI_API_KEY
-              },
-              timestamp: Date.now(),
-              sessionId: 'debug-session',
-              runId: 'initial',
-              hypothesisId: 'H8'
-            })
-          }).catch(() => {});
-          // #endregion agent log H8
-
           const response = await ai.models.generateContentStream({
             model: 'gemini-2.5-flash',
             contents: fullPrompt,
@@ -449,26 +330,6 @@ Please provide a helpful, conversational response about HEX based on the availab
     });
 
   } catch (error) {
-    // #region agent log H9 - Main error handler
-    fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'app/api/hex-dashboard-ai/route.ts:420',
-        message: 'Main error handler triggered',
-        data: {
-          error: error instanceof Error ? error.message : String(error),
-          errorType: error instanceof Error ? error.constructor.name : typeof error,
-          stack: error instanceof Error ? error.stack?.substring(0, 500) : undefined
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'initial',
-        hypothesisId: 'H9'
-      })
-    }).catch(() => {});
-    // #endregion agent log H9
-
     console.error('HEX Dashboard AI API error:', error);
 
     let errorMessage = 'Failed to process HEX AI request.';

@@ -142,28 +142,6 @@ const HexDashboardAIAgent: React.FC<HexDashboardAIAgentProps> = React.memo(({
         timestamp: msg.timestamp
       }));
 
-      // #region agent log C1 - Client request start
-      fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'components/HexDashboardAIAgent.tsx:102',
-          message: 'Client sending request to AI API',
-          data: {
-            messageLength: messageText.length,
-            network,
-            includeHistoricalData,
-            ethereumDataPoints: ethereumData.length,
-            pulsechainDataPoints: pulsechainData.length
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'initial',
-          hypothesisId: 'C1'
-        })
-      }).catch(() => {});
-      // #endregion agent log C1
-
       const response = await fetch('/api/hex-dashboard-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -182,27 +160,6 @@ const HexDashboardAIAgent: React.FC<HexDashboardAIAgentProps> = React.memo(({
         }),
         signal: abortControllerRef.current.signal
       });
-
-      // #region agent log C2 - Response received
-      fetch('http://127.0.0.1:7243/ingest/bf246329-4dd5-4c2c-83a0-9a84d005ba26', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'components/HexDashboardAIAgent.tsx:130',
-          message: 'Response received from AI API',
-          data: {
-            ok: response.ok,
-            status: response.status,
-            statusText: response.statusText,
-            headers: Object.fromEntries(response.headers.entries())
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'initial',
-          hypothesisId: 'C2'
-        })
-      }).catch(() => {});
-      // #endregion agent log C2
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
