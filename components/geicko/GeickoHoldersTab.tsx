@@ -125,7 +125,7 @@ export default function GeickoHoldersTab({
         {/* Table Header */}
         <div className="flex items-center px-2 py-1 text-[10px] uppercase tracking-wider text-white/60 border-b border-white/20 bg-white/5">
           <div className="flex-[0.6] min-w-[30px]">#</div>
-          <div className="flex-[3] min-w-[110px]">Address & Tags</div>
+          <div className="flex-[1.5] min-w-[90px]">Address & Tags</div>
           <div className="flex-[2] min-w-[70px]">Balance</div>
           <div className="flex-[1.5] min-w-[60px]">% Total</div>
           <div className="flex-[0.8] min-w-[45px]">View</div>
@@ -152,7 +152,7 @@ export default function GeickoHoldersTab({
                 <div className="flex-[0.6] min-w-[30px] text-white font-medium">{globalIndex}</div>
 
                 {/* Address & Tags */}
-                <div className="flex-[3] min-w-[110px] flex items-center gap-1 truncate">
+                <div className="flex-[1.5] min-w-[90px] flex items-center gap-1 truncate">
                   <button
                     type="button"
                     onClick={() => onOpenHolderTransfers(holder.address)}
