@@ -88,7 +88,7 @@ export default function GeickoHoldersTab({
       <div className="grid grid-cols-3 gap-1">
         {/* Total Holders */}
         <div className="border border-white/20 px-2 py-1.5">
-          <div className="text-sm text-center justify-center uppercase tracking-wider text-brand-orange">
+          <div className="text-sm text-center justify-center uppercase tracking-wider text-cyan-500">
             Total Holders
           </div>
           <div className="text-sm font-medium text-center justify-center text-white">
@@ -98,7 +98,7 @@ export default function GeickoHoldersTab({
 
         {/* LP Addresses */}
         <div className="border border-white/20 px-2 py-1.5">
-          <div className="text-sm text-center justify-center uppercase tracking-wider text-brand-orange">
+          <div className="text-sm text-center justify-center uppercase tracking-wider text-cyan-500">
             LP Addresses
           </div>
           <div className="text-sm font-medium text-center justify-center text-white">{holderStats.lpCount}</div>
@@ -106,7 +106,7 @@ export default function GeickoHoldersTab({
 
         {/* Contracts */}
         <div className="border border-white/20 px-2 py-1.5">
-          <div className="text-sm text-center justify-center uppercase tracking-wider text-brand-orange">
+          <div className="text-sm text-center justify-center uppercase tracking-wider text-cyan-500">
             Contracts
           </div>
           <div className="text-sm font-medium text-center justify-center text-white">
@@ -117,7 +117,7 @@ export default function GeickoHoldersTab({
 
       {/* Top 50 Holders Header */}
       <div className="text-center">
-        <p className="text-[12px] text-brand-orange uppercase tracking-wider">Showing Top 50 Holders</p>
+        <p className="text-[12px] text-cyan-500 uppercase tracking-wider">Showing Top 50 Holders</p>
       </div>
 
       {/* Holders Table */}
@@ -138,7 +138,7 @@ export default function GeickoHoldersTab({
             const balance = Number(holder.value) / Math.pow(10, decimals);
             const percentage = totalSupply > 0 ? (Number(holder.value) / totalSupply) * 100 : 0;
             const formattedAddress = holder.address
-              ? `${holder.address.slice(0, 4)}...${holder.address.slice(-4)}`
+              ? holder.address.slice(0, 4)
               : 'Unknown';
             const isLpHolder = lpAddressSet.has((holder.address || '').toLowerCase());
             const isBurn = isBurnAddress(holder.address);
@@ -186,7 +186,7 @@ export default function GeickoHoldersTab({
 
                 {/* Percentage */}
                 <div className="flex-[1.5] min-w-[60px] text-white font-semibold">
-                  {percentage.toFixed(4)}%
+                  {percentage.toFixed(1)}%
                 </div>
 
                 {/* View Button */}
