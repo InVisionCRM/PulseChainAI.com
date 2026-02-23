@@ -35,9 +35,20 @@ export interface SupplyHeldData {
 }
 
 // Smart contract holder statistics
+export interface ContractHolderItem {
+  address: string;
+  value: string;
+  percent: number;
+  type: 'LP' | 'Contract';
+}
+
 export interface SmartContractHolderData {
   percent: number;
   contractCount: number;
+  /** @deprecated Use contractHolders for rich tooltip data */
+  contractAddresses?: string[];
+  /** Per-holder details for tooltip: address, value, percent, type (LP | Contract) */
+  contractHolders?: ContractHolderItem[];
   isLoading: boolean;
 }
 

@@ -8,7 +8,7 @@ import TokenContractView from '@/components/TokenContractView';
 import DexScreenerChart from '@/components/DexScreenerChart';
 import LiquidityTab from '@/components/LiquidityTab';
 import { LoaderOne, LoaderThree } from "@/components/ui/loader";
-import { Copy, Download } from 'lucide-react';
+import { Copy, Download, Info } from 'lucide-react';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem, ContractAuditResult } from '../../types';
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '../../services/pulsechainService';
 import { analyzeContractAudit } from '../../services/contractAuditService';
@@ -51,6 +51,49 @@ import {
 } from '@/components/geicko';
 import { MobileSearchBar } from '@/components/MobileSearchBar';
 import { DesktopSearchBar } from '@/components/DesktopSearchBar';
+
+function ContractHolderTooltipRow({
+  holder,
+}: {
+  holder: { address: string; percent: number; type: 'LP' | 'Contract' };
+}) {
+  const [copied, setCopied] = useState(false);
+  const copyOne = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(holder.address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore
+    }
+  }, [holder.address]);
+  return (
+    <li className="text-xs font-mono text-gray-400 space-y-0.5 border-b border-white/10 pb-1.5 last:border-0">
+      <div className="flex items-center gap-1.5">
+        <span className="text-gray-300">{truncateAddress(holder.address)}</span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            copyOne();
+          }}
+          className="shrink-0 p-0.5 rounded text-cyan-400 hover:text-cyan-300"
+          aria-label="Copy address"
+          title="Copy address"
+        >
+          {copied ? (
+            <span className="text-[10px]">Copied</span>
+          ) : (
+            <Copy className="h-3 w-3" />
+          )}
+        </button>
+      </div>
+      <div className="text-[10px] text-gray-500 mt-0.5">
+        {holder.type} · {holder.percent.toFixed(2)}% of supply
+      </div>
+    </li>
+  );
+}
 
 function GeickoPageContent() {
   const searchParams = useSearchParams();
@@ -141,6 +184,8 @@ function GeickoPageContent() {
   const [smartContractHolderShare, setSmartContractHolderShare] = useState<{
     percent: number;
     contractCount: number;
+    contractAddresses?: string[];
+    contractHolders?: Array<{ address: string; value: string; percent: number; type: 'LP' | 'Contract' }>;
     isLoading: boolean;
   }>({
     percent: 0,
@@ -1700,7 +1745,25 @@ function GeickoPageContent() {
 
                 {/* Supply Held */}
                 <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
-                  <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Supply Held</div>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center flex-1">Supply Held</div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="text-cyan-400 hover:text-cyan-300 p-0.5 rounded shrink-0"
+                          aria-label="What Supply Held excludes"
+                        >
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-[240px]">
+                        <p className="text-xs">
+                          Excludes burn addresses (e.g. …dead, …0000) and smart contract addresses (e.g. LPs, routers). Only EOA wallets in the top 50 are counted.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                   {supplyHeld.isLoading ? (
                     <div className="text-center text-gray-500 text-sm">Loading...</div>
                   ) : (
@@ -1729,7 +1792,46 @@ function GeickoPageContent() {
 
                 {/* Smart Contract Holder Share */}
                 <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
-                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Supply In Contracts</div>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center flex-1">Supply In Contracts</div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="text-cyan-400 hover:text-cyan-300 p-0.5 rounded shrink-0"
+                          aria-label="Addresses counted as contracts"
+                        >
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-[340px] p-2">
+                        <div className="space-y-1.5">
+                          <p className="text-xs text-gray-300 font-medium">Addresses counted (top 50):</p>
+                          {smartContractHolderShare.contractHolders?.length ? (
+                            <>
+                              <ul className="space-y-0 max-h-48 overflow-y-auto">
+                                {smartContractHolderShare.contractHolders.map((h) => (
+                                  <ContractHolderTooltipRow key={h.address} holder={h} />
+                                ))}
+                              </ul>
+                            </>
+                          ) : smartContractHolderShare.contractAddresses?.length ? (
+                            <>
+                              <ul className="text-xs font-mono text-gray-400 space-y-0.5 max-h-40 overflow-y-auto">
+                                {smartContractHolderShare.contractAddresses.map((addr: string) => (
+                                  <li key={addr} className="text-gray-300">
+                                    {truncateAddress(addr)}
+                                  </li>
+                                ))}
+                              </ul>
+                            </>
+                          ) : (
+                            <p className="text-[10px] text-gray-500">No contract holders in top 50.</p>
+                          )}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                   {smartContractHolderShare.isLoading ? (
                     <div className="text-center text-gray-500 text-sm">Loading...</div>
                   ) : (
@@ -2470,7 +2572,25 @@ function GeickoPageContent() {
 
                       {/* Supply Held */}
                       <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
-                        <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Supply Held</div>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center flex-1">Supply Held</div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                className="text-cyan-400 hover:text-cyan-300 p-0.5 rounded shrink-0"
+                                aria-label="What Supply Held excludes"
+                              >
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" className="max-w-[240px]">
+                              <p className="text-xs">
+                                Excludes burn addresses (e.g. …dead, …0000) and smart contract addresses (e.g. LPs, routers). Only EOA wallets in the top 50 are counted.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                         {supplyHeld.isLoading ? (
                           <div className="text-center text-gray-500 text-sm">Loading...</div>
                         ) : (
@@ -2499,7 +2619,46 @@ function GeickoPageContent() {
 
                       {/* Smart Contract Holder Share */}
                       <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
-                        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Supply In Contracts</div>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center flex-1">Supply In Contracts</div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                className="text-cyan-400 hover:text-cyan-300 p-0.5 rounded shrink-0"
+                                aria-label="Addresses counted as contracts"
+                              >
+                                <Info className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" className="max-w-[340px] p-2">
+                              <div className="space-y-1.5">
+                                <p className="text-xs text-gray-300 font-medium">Addresses counted (top 50):</p>
+                                {smartContractHolderShare.contractHolders?.length ? (
+                                  <>
+                                    <ul className="space-y-0 max-h-48 overflow-y-auto">
+                                      {smartContractHolderShare.contractHolders.map((h) => (
+                                        <ContractHolderTooltipRow key={h.address} holder={h} />
+                                      ))}
+                                    </ul>
+                                  </>
+                                ) : smartContractHolderShare.contractAddresses?.length ? (
+                                  <>
+                                    <ul className="text-xs font-mono text-gray-400 space-y-0.5 max-h-40 overflow-y-auto">
+                                      {smartContractHolderShare.contractAddresses.map((addr: string) => (
+                                        <li key={addr} className="text-gray-300">
+                                          {truncateAddress(addr)}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </>
+                                ) : (
+                                  <p className="text-[10px] text-gray-500">No contract holders in top 50.</p>
+                                )}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                         {smartContractHolderShare.isLoading ? (
                           <div className="text-center text-gray-500 text-sm">Loading...</div>
                         ) : (

@@ -138,7 +138,7 @@ export default function GeickoHoldersTab({
             const balance = Number(holder.value) / Math.pow(10, decimals);
             const percentage = totalSupply > 0 ? (Number(holder.value) / totalSupply) * 100 : 0;
             const formattedAddress = holder.address
-              ? holder.address.slice(0, 4)
+              ? holder.address.slice(-4)
               : 'Unknown';
             const isLpHolder = lpAddressSet.has((holder.address || '').toLowerCase());
             const isBurn = isBurnAddress(holder.address);

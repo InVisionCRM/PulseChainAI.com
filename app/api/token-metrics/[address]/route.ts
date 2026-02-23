@@ -18,6 +18,15 @@ interface TokenMetrics {
   smartContractHolderShare: {
     percent: number;
     contractCount: number;
+    /** @deprecated Use contractHolders for rich tooltip data */
+    contractAddresses: string[];
+    /** Per-holder details: address, value (raw), percent of supply, type (LP | Contract) */
+    contractHolders: Array<{
+      address: string;
+      value: string;
+      percent: number;
+      type: 'LP' | 'Contract';
+    }>;
   };
   ownershipData: {
     creatorAddress: string | null;
@@ -93,13 +102,20 @@ async function calculateBurnedTokens(address: string, decimals: number, totalSup
 async function calculateSupplyHeld(address: string, totalSupply: number) {
   try {
     const data = await fetchJson(`${BASE_URL}/tokens/${address}/holders?limit=50`);
-    const items: Array<{ value?: string }> = Array.isArray(data?.items) ? data.items : [];
+    const items: Array<{ address?: { hash?: string; is_contract?: boolean }; value?: string }> =
+      Array.isArray(data?.items) ? data.items : [];
+
+    // Exclude burn addresses and contract addresses so "Supply Held" = EOA/non-burn only
+    const eoaOnly = items.filter(
+      (holder) =>
+        !isBurnAddress(holder.address?.hash || '') && !holder.address?.is_contract
+    );
 
     let top10Sum = 0;
     let top20Sum = 0;
     let top50Sum = 0;
 
-    items.forEach((holder, index) => {
+    eoaOnly.forEach((holder, index) => {
       const value = Number(holder.value || 0);
       if (index < 10) top10Sum += value;
       if (index < 20) top20Sum += value;
@@ -117,29 +133,69 @@ async function calculateSupplyHeld(address: string, totalSupply: number) {
   }
 }
 
-async function calculateSmartContractShare(address: string, totalSupply: number) {
+async function fetchTokenPairAddresses(tokenAddress: string): Promise<Set<string>> {
+  try {
+    const res = await fetch(
+      `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`,
+      { next: { revalidate: CACHE_DURATION } }
+    );
+    if (!res.ok) return new Set();
+    const data = await res.json();
+    const pairs = Array.isArray(data?.pairs) ? data.pairs : [];
+    const set = new Set<string>();
+    pairs.forEach((p: { pairAddress?: string }) => {
+      if (p?.pairAddress) set.add(p.pairAddress.toLowerCase());
+    });
+    return set;
+  } catch {
+    return new Set();
+  }
+}
+
+async function calculateSmartContractShare(
+  address: string,
+  totalSupply: number,
+  pairAddresses: Set<string>
+) {
   try {
     const data = await fetchJson(`${BASE_URL}/tokens/${address}/holders?limit=50`);
     const items: Array<{ address?: { hash?: string; is_contract?: boolean }; value?: string }> =
       Array.isArray(data?.items) ? data.items : [];
 
     let contractSum = 0;
-    let contractCount = 0;
+    const contractHolders: Array<{ address: string; value: string; percent: number; type: 'LP' | 'Contract' }> = [];
 
     items.forEach((holder) => {
-      if (holder.address?.is_contract) {
-        contractSum += Number(holder.value || 0);
-        contractCount++;
+      if (holder.address?.is_contract && holder.address?.hash) {
+        const value = holder.value || '0';
+        const valueNum = Number(value);
+        contractSum += valueNum;
+        const percent = totalSupply > 0 ? (valueNum / totalSupply) * 100 : 0;
+        const addrLower = holder.address.hash.toLowerCase();
+        const type = pairAddresses.has(addrLower) ? 'LP' : 'Contract';
+        contractHolders.push({
+          address: holder.address.hash,
+          value,
+          percent,
+          type,
+        });
       }
     });
 
     return {
       percent: totalSupply > 0 ? (contractSum / totalSupply) * 100 : 0,
-      contractCount,
+      contractCount: contractHolders.length,
+      contractAddresses: contractHolders.map((h) => h.address),
+      contractHolders,
     };
   } catch (error) {
     console.error('Failed to calculate smart contract share:', error);
-    return { percent: 0, contractCount: 0 };
+    return {
+      percent: 0,
+      contractCount: 0,
+      contractAddresses: [],
+      contractHolders: [],
+    };
   }
 }
 
@@ -231,10 +287,10 @@ async function getCreationDate(address: string) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { address: string } }
+  { params }: { params: Promise<{ address: string }> }
 ) {
   try {
-    const address = params.address;
+    const { address } = await params;
 
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
       return NextResponse.json(
@@ -249,7 +305,10 @@ export async function GET(
     const totalSupply = Number(tokenInfo?.total_supply || 0);
     const totalHoldersCount = Number(tokenInfo?.holders || 0);
 
-    // Run all calculations in parallel
+    // Fetch pair addresses for LP detection (used in smart contract share)
+    const pairAddresses = await fetchTokenPairAddresses(address);
+
+    // Run all calculations in parallel (smartContractShare uses pairAddresses)
     const [
       burnedTokens,
       supplyHeld,
@@ -259,7 +318,7 @@ export async function GET(
     ] = await Promise.all([
       calculateBurnedTokens(address, decimals, totalSupply),
       calculateSupplyHeld(address, totalSupply),
-      calculateSmartContractShare(address, totalSupply),
+      calculateSmartContractShare(address, totalSupply, pairAddresses),
       getOwnershipData(address),
       getCreationDate(address)
     ]);

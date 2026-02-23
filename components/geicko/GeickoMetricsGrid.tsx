@@ -1,13 +1,54 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Info, Copy } from 'lucide-react';
 import {
   BurnedTokens,
   SupplyHeldData,
   SmartContractHolderData,
   TotalSupply,
+  ContractHolderItem,
 } from './types';
-import { formatAbbrev } from './utils';
+import { formatAbbrev, truncateAddress } from './utils';
+
+function ContractHolderRow({ holder }: { holder: ContractHolderItem }) {
+  const [copied, setCopied] = useState(false);
+  const copyOne = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(holder.address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore
+    }
+  }, [holder.address]);
+  return (
+    <li className="text-xs font-mono text-gray-400 space-y-0.5 border-b border-white/10 pb-1.5 last:border-0">
+      <div className="flex items-center gap-1.5">
+        <span className="text-gray-300">{truncateAddress(holder.address)}</span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            copyOne();
+          }}
+          className="shrink-0 p-0.5 rounded text-cyan-400 hover:text-cyan-300"
+          aria-label="Copy address"
+          title="Copy address"
+        >
+          {copied ? (
+            <span className="text-[10px]">Copied</span>
+          ) : (
+            <Copy className="h-3 w-3" />
+          )}
+        </button>
+      </div>
+      <div className="text-[10px] text-gray-500 mt-0.5">
+        {holder.type} · {holder.percent.toFixed(2)}% of supply
+      </div>
+    </li>
+  );
+}
 
 export interface GeickoMetricsGridProps {
   /** Burned tokens data */
@@ -120,9 +161,27 @@ export default function GeickoMetricsGrid({
       </div>
 
       {/* Supply Held */}
-      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">
-          Supply Held
+      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3 relative">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">
+            Supply Held
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="text-cyan-400 hover:text-cyan-300 p-0.5 rounded focus:outline-none focus:ring-1 focus:ring-cyan-500/50 shrink-0"
+                aria-label="What Supply Held excludes"
+              >
+                <Info className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="max-w-[240px]">
+              <p className="text-xs">
+                Excludes burn addresses (e.g. …dead, …0000) and smart contract addresses (e.g. LPs, routers).
+              </p>
+            </TooltipContent>
+          </Tooltip>
         </div>
         {supplyHeld.isLoading ? (
           <div className="space-y-2">
@@ -163,10 +222,57 @@ export default function GeickoMetricsGrid({
         )}
       </div>
 
-      {/* Smart Contract Holder Share */}
-      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">
-          Smart Contract Holder Share
+      {/* Supply In Contracts */}
+      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3 relative">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">
+            Supply In Contracts
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="text-cyan-400 hover:text-cyan-300 p-0.5 rounded focus:outline-none focus:ring-1 focus:ring-cyan-500/50 shrink-0"
+                aria-label="Addresses counted as contracts"
+              >
+                <Info className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="max-w-[340px] p-2">
+              <div className="space-y-1.5">
+                <p className="text-xs text-gray-300 font-medium">Addresses counted (top 50):</p>
+                {(() => {
+                  const holders = smartContractHolderShare.contractHolders;
+                  const fallbackAddrs = smartContractHolderShare.contractAddresses;
+                  const hasRich = holders && holders.length > 0;
+                  const hasFallback = fallbackAddrs && fallbackAddrs.length > 0;
+                  if (hasRich) {
+                    return (
+                      <ul className="space-y-0 max-h-48 overflow-y-auto">
+                        {holders!.map((h) => (
+                          <ContractHolderRow key={h.address} holder={h} />
+                        ))}
+                      </ul>
+                    );
+                  }
+                  if (hasFallback) {
+                    return (
+                      <ul className="text-xs font-mono text-gray-400 space-y-0.5 max-h-40 overflow-y-auto">
+                        {fallbackAddrs!.map((addr) => (
+                          <li key={addr} className="text-gray-300">
+                            {truncateAddress(addr)}
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  }
+                  return (
+                    <p className="text-[10px] text-gray-500">No contract holders in top 50.</p>
+                  );
+                })()}
+              </div>
+            </TooltipContent>
+          </Tooltip>
         </div>
         {smartContractHolderShare.isLoading ? (
           <div className="space-y-2">
