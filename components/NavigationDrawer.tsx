@@ -77,6 +77,11 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
       icon: <IconPhoneOutgoing className="h-8 w-8" />,
     },
     {
+      label: "GOLD Badges Admin",
+      href: "/admin/gold-badges",
+      icon: <IconPhoneOutgoing className="h-8 w-8" />,
+    },
+    {
       label: "Hextroids",
       href: "https://pulsegame.vercel.app",
       icon: <IconHextroids className="h-8 w-8" />,

@@ -3,18 +3,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TickerCardWithPopover } from './TickerCardWithPopover';
 
-// Same priority tokens as TokenTable.tsx
-const PRIORITY_TOKENS = [
-  '0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1', // #1 - GOLD badge
-  '0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e', // #2 - GOLD badge
-  '0x31Ac295D593877bb77c3fCc19Fbbcea9c4f1c50A', // #3
-  '0x33779a40987F729a7DF6cc08B1dAD1a21b58A220', // #4
-  '0x9deeaF046e144Fb6304A5ACD2aF142bBfE958030', // #5
-  '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39', // #6
-  '0xA1077a294dDE1B09bB078844df40758a5D0f9a27', // #7
-  '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d', // #8
-  '0xc10A4Ed9b4042222d69ff0B374eddd47ed90fC1F', // #9
-  '0xC70CF25DFCf5c5e9757002106C096ab72fab299E'  // #10
+const GOLD_BADGES_FALLBACK = [
+  '0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1',
+  '0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e',
+  '0xCA35638A3fdDD02fEC597D8c1681198C06b23F58',
+  '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39',
+  '0x8CDaf3d630Da9E1450832924D5701CC0500E9cfC',
+  '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab',
+  '0xA1077a294dDE1B09bB078844df40758a5D0f9a27',
+  '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d',
+  '0xc10A4Ed9b4042222d69ff0B374eddd47ed90fC1F',
+  '0x33779a40987F729a7DF6cc08B1dAD1a21b58A220',
 ];
 
 interface TokenData {
@@ -38,6 +37,7 @@ interface TokenData {
 
 export function TopTickerBar() {
   const [tokens, setTokens] = useState<TokenData[]>([]);
+  const [priorityAddresses, setPriorityAddresses] = useState<string[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
@@ -99,30 +99,38 @@ export function TopTickerBar() {
     }
   };
 
+  // Order from API matches admin GOLD badge list (Save order in admin updates this)
   useEffect(() => {
+    fetch('/api/gold-badges')
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.addresses) && d.addresses.length > 0) {
+          setPriorityAddresses(d.addresses);
+        } else {
+          setPriorityAddresses(GOLD_BADGES_FALLBACK);
+        }
+      })
+      .catch(() => setPriorityAddresses(GOLD_BADGES_FALLBACK));
+  }, []);
+
+  useEffect(() => {
+    const list = priorityAddresses.length > 0 ? priorityAddresses : GOLD_BADGES_FALLBACK;
+    if (list.length === 0) return;
+
     const fetchTokens = async () => {
       try {
-        console.log('🎯 Fetching priority token WPLS pairs...');
-
-        const tokenPromises = PRIORITY_TOKENS.map(address => fetchPriorityTokenData(address));
+        const tokenPromises = list.map((address) => fetchPriorityTokenData(address));
         const fetchedTokens = (await Promise.all(tokenPromises)).filter(Boolean) as TokenData[];
-
-        if (fetchedTokens.length > 0) {
-          setTokens(fetchedTokens);
-          console.log(`✅ Loaded ${fetchedTokens.length} priority tokens`);
-        } else {
-          console.log('⚠️ No priority tokens found');
-        }
+        if (fetchedTokens.length > 0) setTokens(fetchedTokens);
       } catch (error) {
         console.error('❌ Failed to fetch priority tokens:', error);
       }
     };
 
     fetchTokens();
-    // Refresh every 2 minutes
     const interval = setInterval(fetchTokens, 120000);
     return () => clearInterval(interval);
-  }, []);
+  }, [priorityAddresses]);
 
   const handlePause = () => {
     console.log('🔴 Pausing ticker animation');

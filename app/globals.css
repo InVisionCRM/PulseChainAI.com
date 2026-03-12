@@ -182,6 +182,16 @@ body {
   animation: shimmer 2s infinite;
 }
 
+@keyframes goldshimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.gold-btn-shimmer {
+  background-size: 200% 100%;
+  animation: goldshimmer 3s ease-in-out infinite;
+}
+
 /* Code block styling */
 pre {
   background: #1F2937;

@@ -127,6 +127,26 @@ CREATE TRIGGER update_staker_metrics_updated_at
     BEFORE UPDATE ON pulsechain_staker_metrics 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- GOLD badges: token addresses that show the GOLD badge (sponsored with Morbius.io)
+CREATE TABLE IF NOT EXISTS gold_badges (
+    id SERIAL PRIMARY KEY,
+    token_address VARCHAR(42) UNIQUE NOT NULL,
+    display_order INTEGER NOT NULL DEFAULT 0,
+    symbol VARCHAR(32),
+    name VARCHAR(128),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_gold_badges_display_order ON gold_badges(display_order);
+
+-- Token profile custom data (description, logo, links) for token profile tab
+CREATE TABLE IF NOT EXISTS token_profile_custom (
+    token_address VARCHAR(42) PRIMARY KEY,
+    description TEXT,
+    logo_url VARCHAR(512),
+    custom_links JSONB,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Insert initial sync status record
 INSERT INTO pulsechain_sync_status (
     last_synced_stake_id, 

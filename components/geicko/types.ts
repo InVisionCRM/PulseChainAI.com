@@ -9,7 +9,7 @@ export type { ContractData, TokenInfo, DexScreenerData, SearchResultItem } from 
 export type UIPreset = 'classic' | 'rabby1';
 
 // Active tab identifiers
-export type ActiveTab = 'chart' | 'holders' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats';
+export type ActiveTab = 'gold' | 'chart' | 'holders' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats' | 'audit';
 
 // Burned tokens data
 export interface BurnedTokens {

@@ -29,13 +29,16 @@ export default function GeickoTabNavigation({
       <div className="flex h-8 bg-transparent overflow-x-auto scrollbar-hide">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
+          const isGoldTab = tab.id === 'gold';
           return (
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={`flex-1 text-center text-xs font-semibold px-4 py-2 mx-1 rounded-t-lg border-t border-l border-r transition-all duration-200 ${
                 isActive
-                  ? 'text-cyan-500 bg-brand-navy border-gray-700 shadow-sm'
+                  ? isGoldTab
+                    ? 'text-amber-400 bg-brand-navy border-amber-500/50 shadow-sm'
+                    : 'text-cyan-500 bg-brand-navy border-gray-700 shadow-sm'
                   : 'text-gray-400 bg-gray-800/50 border-gray-700 hover:text-white hover:bg-gray-800/80'
               }`}
             >

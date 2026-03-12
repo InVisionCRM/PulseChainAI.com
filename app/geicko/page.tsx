@@ -101,9 +101,13 @@ function GeickoPageContent() {
   const { showToast, updateToast, dismissToast } = useToast();
   const addressFromQuery = searchParams.get('address');
   const tabFromQuery = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState('chart');
+  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'holders' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
   const tokenInfoTab: 'token' = 'token';
   const [apiTokenAddress, setApiTokenAddress] = useState<string>('');
+  const [goldBadgeAddresses, setGoldBadgeAddresses] = useState<string[]>([]);
+  const [goldProfile, setGoldProfile] = useState<{ description: string | null; logo_url: string | null; custom_links: { label: string; url: string }[] } | null>(null);
+  const [goldLogoFallback, setGoldLogoFallback] = useState<string | null>(null);
+  const [goldLogoCustomFailed, setGoldLogoCustomFailed] = useState(false);
   const [tokenAmount, setTokenAmount] = useState<string>('1');
   const [calculatorCurrency, setCalculatorCurrency] = useState<'usd' | 'wpls'>('usd');
   const [burnedTokens, setBurnedTokens] = useState<{ amount: number; percent: number } | null>(null);
@@ -1123,18 +1127,75 @@ function GeickoPageContent() {
   */
 
 
+  // Fetch GOLD badge list once
+  useEffect(() => {
+    fetch('/api/gold-badges')
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d?.addresses)) setGoldBadgeAddresses(d.addresses); })
+      .catch(() => {});
+  }, []);
+
   // Handle URL parameters - load token when address is in URL and set tab
   useEffect(() => {
     if (addressFromQuery && /^0x[a-fA-F0-9]{40}$/.test(addressFromQuery)) {
       setApiTokenAddress(addressFromQuery);
     }
     if (tabFromQuery) {
-      const validTabs = ['chart', 'holders', 'liquidity', 'contract', 'switch', 'stats', 'website'];
+      const validTabs = ['gold', 'chart', 'holders', 'liquidity', 'contract', 'switch', 'stats', 'website', 'audit'];
       if (validTabs.includes(tabFromQuery)) {
-        setActiveTab(tabFromQuery);
+        setActiveTab(tabFromQuery as typeof activeTab);
       }
     }
   }, [addressFromQuery, tabFromQuery]);
+
+  // Default to GOLD tab when first viewing a GOLD token (no tab in URL), only if user hasn't switched tab yet
+  const lastAddressForGoldDefault = useRef<string | null>(null);
+  useEffect(() => {
+    if (!apiTokenAddress || !goldBadgeAddresses.length || tabFromQuery) return;
+    const isGold = goldBadgeAddresses.some((a) => a.toLowerCase() === apiTokenAddress.toLowerCase());
+    if (isGold && lastAddressForGoldDefault.current !== apiTokenAddress && activeTab === 'chart') {
+      lastAddressForGoldDefault.current = apiTokenAddress;
+      setActiveTab('gold');
+    }
+    if (!isGold) lastAddressForGoldDefault.current = null;
+  }, [apiTokenAddress, goldBadgeAddresses, tabFromQuery, activeTab]);
+
+  // Fetch token profile when on GOLD tab for a GOLD token
+  useEffect(() => {
+    const isGold = apiTokenAddress && goldBadgeAddresses.some((a) => a.toLowerCase() === apiTokenAddress.toLowerCase());
+    if (activeTab !== 'gold' || !apiTokenAddress || !isGold) {
+      if (activeTab !== 'gold') setGoldProfile(null);
+      setGoldLogoFallback(null);
+      return;
+    }
+    setGoldProfile(null);
+    setGoldLogoFallback(null);
+    setGoldLogoCustomFailed(false);
+    fetch(`/api/token-profile?address=${encodeURIComponent(apiTokenAddress)}`)
+      .then((r) => r.json())
+      .then((d) => setGoldProfile({ description: d.description ?? null, logo_url: d.logo_url ?? null, custom_links: Array.isArray(d.custom_links) ? d.custom_links : [] }))
+      .catch(() => setGoldProfile({ description: null, logo_url: null, custom_links: [] }));
+  }, [activeTab, apiTokenAddress, goldBadgeAddresses]);
+
+  // DexScreener logo fallback when GOLD tab has no custom logo
+  useEffect(() => {
+    if (activeTab !== 'gold' || !apiTokenAddress || !goldProfile) return;
+    if (goldProfile.logo_url) return;
+    fetch(`https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(apiTokenAddress)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const pairs = d?.pairs ?? [];
+        const pc = pairs.find((p: { chainId?: string }) => p.chainId === 'pulsechain');
+        const pair = pc || pairs[0];
+        if (!pair) return;
+        const base = pair.baseToken?.address?.toLowerCase();
+        const addr = apiTokenAddress.toLowerCase();
+        const token = base === addr ? pair.baseToken : pair.quoteToken;
+        const url = token?.logoURI || pair.info?.imageUrl;
+        if (url) setGoldLogoFallback(url);
+      })
+      .catch(() => {});
+  }, [activeTab, apiTokenAddress, goldProfile]);
 
   // Scroll to top when switch tab becomes active (for mobile swap button)
   useEffect(() => {
@@ -1394,7 +1455,9 @@ function GeickoPageContent() {
     router.push('/portfolio');
   }, [router]);
 
+  const isGoldToken = Boolean(apiTokenAddress && goldBadgeAddresses.some((a) => a.toLowerCase() === apiTokenAddress.toLowerCase()));
   const tabOptions: Array<{ id: typeof activeTab; label: string }> = [
+    ...(isGoldToken ? [{ id: 'gold' as const, label: 'GOLD' }] : []),
     { id: 'chart', label: 'Chart' },
     { id: 'holders', label: 'Holders' },
     { id: 'liquidity', label: 'Liquidity' },
@@ -2042,6 +2105,75 @@ function GeickoPageContent() {
           {/* Content Tables */}
           <div className="px-2 md:px-3 py-1 min-w-0">
           <div className="bg-gray-900 rounded-t-none border-t-0 border border-gray-800 w-full min-w-0 relative z-20 overflow-x-auto rounded-lg">
+              {/* GOLD Tab */}
+              {activeTab === 'gold' && isGoldToken && (
+                <div className="min-h-[360px] p-4 md:p-6 border border-amber-500/30 bg-gradient-to-b from-amber-950/20 to-transparent rounded-b-lg">
+                  {goldProfile === null ? (
+                    <div className="flex items-center justify-center py-12">
+                      <LoaderThree />
+                      <span className="text-amber-200/80 text-sm ml-2">Loading GOLD profile…</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      {(goldProfile.logo_url || goldLogoFallback) && (
+                        <div className="flex justify-center">
+                          <img
+                            src={(goldProfile.logo_url && !goldLogoCustomFailed) ? goldProfile.logo_url : (goldLogoFallback || '')}
+                            alt=""
+                            className="w-20 h-20 rounded-full object-cover border-2 border-amber-500/50 shadow-lg"
+                            onError={() => {
+                              if (goldProfile.logo_url && !goldLogoFallback) {
+                                setGoldLogoCustomFailed(true);
+                                fetch(`https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(apiTokenAddress)}`)
+                                  .then((r) => r.json())
+                                  .then((d) => {
+                                    const pairs = d?.pairs ?? [];
+                                    const pc = pairs.find((p: { chainId?: string }) => p.chainId === 'pulsechain');
+                                    const pair = pc || pairs[0];
+                                    if (!pair) return;
+                                    const base = pair.baseToken?.address?.toLowerCase();
+                                    const addr = apiTokenAddress.toLowerCase();
+                                    const token = base === addr ? pair.baseToken : pair.quoteToken;
+                                    const url = token?.logoURI || pair.info?.imageUrl;
+                                    if (url) setGoldLogoFallback(url);
+                                  })
+                                  .catch(() => {});
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+                      {goldProfile.description && (
+                        <p className="text-amber-100/90 text-sm md:text-base leading-relaxed max-w-2xl mx-auto text-center whitespace-pre-wrap">{goldProfile.description}</p>
+                      )}
+                      {goldProfile.custom_links && goldProfile.custom_links.length > 0 && (
+                        <div className="flex flex-wrap gap-2 justify-center">
+                          {goldProfile.custom_links.map((link, i) => (
+                            <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-lg bg-amber-500/20 text-amber-200 border border-amber-500/40 text-sm font-medium hover:bg-amber-500/30 transition-colors">
+                              {link.label || link.url}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                      {/* CTA */}
+                      <div className="mt-6 pt-6 border-t border-amber-500/20 text-center">
+                        <p className="text-amber-200/90 text-xs md:text-sm max-w-xl mx-auto mb-4">
+                          You think your token deserves to be GOLD Verified by MORBIUS? Get it today along with your token&apos;s own custom games table on Morbius.io! Limited promotion.
+                        </p>
+                        <a
+                          href="https://morbius.io/marketing"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="gold-btn-shimmer inline-flex items-center justify-center px-6 py-3 rounded-xl font-bold text-amber-950 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 border border-amber-300/80 shadow-lg hover:opacity-95 transition-opacity"
+                        >
+                          Let&apos;s GO!
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Chart Tab */}
               {activeTab === 'chart' && (
                 <div className="min-h-[420px] flex items-center justify-center">

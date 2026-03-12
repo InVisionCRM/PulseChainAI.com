@@ -179,6 +179,13 @@ export default function RootLayout({
       ),
     },
     {
+      label: "GOLD Badges Admin",
+      href: "/admin/gold-badges",
+      icon: (
+        <IconPhoneOutgoing className="h-5 w-5 shrink-0 text-white" />
+      ),
+    },
+    {
       label: "Hextroids",
       href: "https://pulsegame.vercel.app",
       icon: (

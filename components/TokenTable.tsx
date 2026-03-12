@@ -5,21 +5,21 @@ import Link from 'next/link';
 import { ArrowUp, ArrowDown, RefreshCw, Search, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { parseCSV, TokenData } from '@/lib/csvParser';
 
-// Priority tokens that should always appear at the top
-const PRIORITY_TOKENS = [
-  '0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1', // #1 - GOLD badge
-  '0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e', // #2 - GOLD badge
-  '0xCA35638A3fdDD02fEC597D8c1681198C06b23F58', // #3 - GOLD badge
-  '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39', // #4 - GOLD badge
-  '0x8CDaf3d630Da9E1450832924D5701CC0500E9cfC', // #5 - GOLD badge
-  '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab', // #6 - GOLD badge
-  '0xA1077a294dDE1B09bB078844df40758a5D0f9a27', // #7 - GOLD badge (WPLS)
-  '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d', // #8 - GOLD badge
-  '0xc10A4Ed9b4042222d69ff0B374eddd47ed90fC1F', // #9 - GOLD badge
-  '0x33779a40987F729a7DF6cc08B1dAD1a21b58A220', // #10
-  '0x9deeaF046e144Fb6304A5ACD2aF142bBfE958030', // #11
-  '0xC70CF25DFCf5c5e9757002106C096ab72fab299E', // #12
-  '0x483287DEd4F43552f201a103670853b5dc57D59d'  // #13
+// Fallback when /api/gold-badges is unavailable
+const GOLD_BADGES_FALLBACK = [
+  '0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1',
+  '0xB5C4ecEF450fd36d0eBa1420F6A19DBfBeE5292e',
+  '0xCA35638A3fdDD02fEC597D8c1681198C06b23F58',
+  '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39',
+  '0x8CDaf3d630Da9E1450832924D5701CC0500E9cfC',
+  '0x95B303987A60C71504D99Aa1b13B4DA07b0790ab',
+  '0xA1077a294dDE1B09bB078844df40758a5D0f9a27',
+  '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d',
+  '0xc10A4Ed9b4042222d69ff0B374eddd47ed90fC1F',
+  '0x33779a40987F729a7DF6cc08B1dAD1a21b58A220',
+  '0x9deeaF046e144Fb6304A5ACD2aF142bBfE958030',
+  '0xC70CF25DFCf5c5e9757002106C096ab72fab299E',
+  '0x483287DEd4F43552f201a103670853b5dc57D59d',
 ];
 
 const parseVolumeString = (volumeStr: string): number => {
@@ -222,6 +222,7 @@ export default function TokenTable() {
   const [refreshing, setRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState('volume');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [priorityAddresses, setPriorityAddresses] = useState<string[]>([]);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -232,14 +233,32 @@ export default function TokenTable() {
   const [liquidityRange, setLiquidityRange] = useState({ min: '', max: '' });
   const [filteredTokens, setFilteredTokens] = useState<TokenData[]>([]);
 
+  const goldCount = priorityAddresses.length || GOLD_BADGES_FALLBACK.length;
+
   const getSortIcon = (field: string) => {
     if (sortBy !== field) return null;
     return sortOrder === 'desc' ? '↓' : '↑';
   };
 
   useEffect(() => {
-    fetchTokenData();
+    fetch('/api/gold-badges')
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.addresses) && d.addresses.length > 0) {
+          setPriorityAddresses(d.addresses);
+        } else {
+          setPriorityAddresses(GOLD_BADGES_FALLBACK);
+        }
+      })
+      .catch(() => setPriorityAddresses(GOLD_BADGES_FALLBACK));
   }, []);
+
+  useEffect(() => {
+    const list = priorityAddresses.length > 0 ? priorityAddresses : GOLD_BADGES_FALLBACK;
+    if (list.length > 0) {
+      fetchTokenData(list);
+    }
+  }, [priorityAddresses]);
 
 
   const fetchPriorityTokenData = async (contractAddress: string, index: number): Promise<TokenData | null> => {
@@ -303,12 +322,12 @@ export default function TokenTable() {
     }
   };
 
-  const fetchTokenData = async () => {
+  const fetchTokenData = async (addresses: string[]) => {
+    if (addresses.length === 0) return;
     try {
       setRefreshing(true);
 
-      // First, fetch priority tokens
-      const priorityPromises = PRIORITY_TOKENS.map(async (address, index) => {
+      const priorityPromises = addresses.map(async (address, index) => {
         const data = await fetchPriorityTokenData(address, index);
         return data ? { ...data, rank: index + 1 } : null;
       });
@@ -323,8 +342,8 @@ export default function TokenTable() {
       const parsedTokens = parseCSV(csvText);
 
       // Filter out priority tokens from CSV data to avoid duplicates
-      const priorityAddresses = new Set(priorityTokens.map(p => p.pairAddress));
-      let filteredCsvTokens = parsedTokens.filter(token => !priorityAddresses.has(token.pairAddress));
+      const priorityAddressSet = new Set(priorityTokens.map(p => p.pairAddress));
+      let filteredCsvTokens = parsedTokens.filter(token => !priorityAddressSet.has(token.pairAddress));
 
       // Remove duplicates within CSV data based on token symbol, keeping the first occurrence
       const seenSymbols = new Set<string>();
@@ -345,7 +364,7 @@ export default function TokenTable() {
           const priceValue = parseFloat(token.price.replace(/[$,]/g, '')) || 0;
           return {
             ...token,
-            rank: index + 11, // Start ranking from 11 for CSV tokens
+            rank: priorityTokens.length + index + 1,
             socials,
             tokenAddress,
             volume: formatVolume(volumeValue),
@@ -405,8 +424,8 @@ export default function TokenTable() {
     setSortOrder(newOrder);
 
     // Separate priority tokens from regular tokens
-    const priorityTokens = tokens.filter(token => token.rank <= 10);
-    const regularTokens = tokens.filter(token => token.rank > 10);
+    const priorityTokens = tokens.filter(token => token.rank <= goldCount);
+    const regularTokens = tokens.filter(token => token.rank > goldCount);
 
     // Sort only the regular tokens
     const sortedRegularTokens = sortTokens(regularTokens, field, newOrder);
@@ -434,7 +453,7 @@ export default function TokenTable() {
 
         // Quick filters
         if (activeQuickFilter === 'gold') {
-          if (token.rank > 13) return false;
+          if (token.rank > goldCount) return false;
         }
         if (activeQuickFilter === 'gainers') {
           const change = parseFloat(token.priceChange24h.replace('%', '')) || 0;
@@ -471,8 +490,8 @@ export default function TokenTable() {
     }
 
     // No active search - use GOLD priority behavior
-    const goldTokens = tokensToFilter.filter(t => t.rank <= 13);
-    const regularTokens = tokensToFilter.filter(t => t.rank > 13);
+    const goldTokens = tokensToFilter.filter(t => t.rank <= goldCount);
+    const regularTokens = tokensToFilter.filter(t => t.rank > goldCount);
 
     // Filter regular tokens
     let filtered = regularTokens.filter(token => {
@@ -555,7 +574,7 @@ export default function TokenTable() {
         <div className="border-b border-white/20 border-t border-white flex justify-between items-center">
           <h2 className="py-4 text-2xl relative left-1/2 -translate-x-1/2 font-bold font-poppins text-white">Tokens</h2>
           <button
-            onClick={fetchTokenData}
+            onClick={() => fetchTokenData(priorityAddresses.length > 0 ? priorityAddresses : GOLD_BADGES_FALLBACK)}
             disabled={refreshing}
             className="flex items-center gap-1 px-1 py-1 text-sm md:text-xs hover:bg-white/10 rounded text-transparent hover:text-white transition-colors disabled:opacity-50"
           >
@@ -750,7 +769,7 @@ export default function TokenTable() {
                 <tr key={token.pairAddress} className={`hover:bg-white/5 transition-colors ${token.rank <= 2 ? 'border border-yellow-500/50 bg-yellow-500/5' : ''}`}>
                   <td className="px-1 py-1">
                     <div className="flex items-center gap-1 overflow-hidden">
-                      {token.rank <= 13 && (
+                      {token.rank <= goldCount && (
                         <div className="relative group flex-shrink-0">
                           <span className="px-1 py-0.5 text-[8px] font-bold font-poppins bg-yellow-500 text-black rounded-sm border border-yellow-400 cursor-help">
                             GOLD
