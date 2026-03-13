@@ -1588,11 +1588,11 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                         </div>
                       )}
                       <div className={`h-full bg-slate-950 w-full ${isDexUnavailable ? 'hidden' : ''}`}>
-                         {/* Header Banner Image with Overlay Buttons */}
+                         {/* Header Banner Image with Overlay Buttons — banner, else logo, else default */}
                          <div className="relative w-full -mt-px h-24">
                              <div className="absolute top-0 right-0 overflow-hidden">
                                <img
-                               src={dexScreenerData?.profile?.headerImageUrl || '/app-pics/clean.png'}
+                               src={dexScreenerData?.profile?.headerImageUrl || dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl || '/app-pics/clean.png'}
                                  alt="Token header"
                                  className="object-cover rounded-md"
                                  style={{ width: '300px', height: '100px' }}

@@ -1160,12 +1160,12 @@ function GeickoPageContent() {
     if (!isGold) lastAddressForGoldDefault.current = null;
   }, [apiTokenAddress, goldBadgeAddresses, tabFromQuery, activeTab]);
 
-  // Fetch token profile when on GOLD tab for a GOLD token
+  // Fetch token profile when token is set (so custom logo shows in header and GOLD tab)
   useEffect(() => {
-    const isGold = apiTokenAddress && goldBadgeAddresses.some((a) => a.toLowerCase() === apiTokenAddress.toLowerCase());
-    if (activeTab !== 'gold' || !apiTokenAddress || !isGold) {
-      if (activeTab !== 'gold') setGoldProfile(null);
+    if (!apiTokenAddress) {
+      setGoldProfile(null);
       setGoldLogoFallback(null);
+      setGoldLogoCustomFailed(false);
       return;
     }
     setGoldProfile(null);
@@ -1175,7 +1175,7 @@ function GeickoPageContent() {
       .then((r) => r.json())
       .then((d) => setGoldProfile({ description: d.description ?? null, logo_url: d.logo_url ?? null, custom_links: Array.isArray(d.custom_links) ? d.custom_links : [] }))
       .catch(() => setGoldProfile({ description: null, logo_url: null, custom_links: [] }));
-  }, [activeTab, apiTokenAddress, goldBadgeAddresses]);
+  }, [apiTokenAddress]);
 
   // DexScreener logo fallback when GOLD tab has no custom logo
   useEffect(() => {
@@ -1359,14 +1359,17 @@ function GeickoPageContent() {
   const baseSymbol = primaryPair?.baseToken?.symbol || dexScreenerData?.tokenInfo?.symbol || tokenInfo?.symbol || 'Token';
   const quoteSymbol = primaryPair?.quoteToken?.symbol || 'WPLS';
   const tokenNameDisplay = dexScreenerData?.tokenInfo?.name || tokenInfo?.name || primaryPair?.baseToken?.name || 'Token';
-  const headerImageUrl = profileData?.profile?.headerImageUrl || primaryPair?.info?.imageUrl || '/app-pics/clean.png';
+  // Custom uploaded logo (GOLD admin) takes precedence, then DexScreener
   const tokenLogoSrc =
+    goldProfile?.logo_url ||
     profileData?.profile?.logo ||
     profileData?.profile?.iconImageUrl ||
     dexScreenerData?.tokenInfo?.logoURI ||
     primaryPair?.baseToken?.logoURI ||
     primaryPair?.info?.imageUrl ||
     '';
+  // Banner header first; if none, use logo (including custom); if no logo, use default
+  const headerImageUrl = profileData?.profile?.headerImageUrl || primaryPair?.info?.imageUrl || tokenLogoSrc || '/app-pics/clean.png';
   const priceUsd = Number(primaryPair?.priceUsd || 0);
   const priceChange = Number(primaryPair?.priceChange?.h24 || 0);
   const formattedPrice = priceUsd >= 1 ? priceUsd.toFixed(4) : priceUsd.toFixed(6);

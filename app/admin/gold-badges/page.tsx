@@ -276,6 +276,7 @@ export default function AdminGoldBadgesPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to save');
       closeProfileModal();
+      await loadList();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save profile');
     } finally {
@@ -562,8 +563,13 @@ export default function AdminGoldBadgesPage() {
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
+                            setError(null);
                             const result = await uploadBlob(file);
-                            if (result?.url) setProfileForm((f) => ({ ...f, logo_url: result.url }));
+                            if (result?.url) {
+                              setProfileForm((f) => ({ ...f, logo_url: result.url }));
+                            } else {
+                              setError('Upload failed. Add BLOB_READ_WRITE_TOKEN to .env for Vercel Blob, or paste a logo URL instead.');
+                            }
                             e.target.value = '';
                           }}
                         />
