@@ -48,6 +48,7 @@ import {
   GeickoRabbyInfoCards,
   GeickoRabbyTransactionsList,
   GeickoToast,
+  type OwnershipData,
 } from '@/components/geicko';
 import { MobileSearchBar } from '@/components/MobileSearchBar';
 import { DesktopSearchBar } from '@/components/DesktopSearchBar';
@@ -133,14 +134,8 @@ function GeickoPageContent() {
     completedAt?: number;
   }>>(new Map());
 
-  // Ownership state
-  const [ownershipData, setOwnershipData] = useState<{
-    creatorAddress: string | null;
-    ownerAddress: string | null;
-    isRenounced: boolean;
-    renounceTxHash: string | null;
-    isLoading: boolean;
-  }>({
+  // Ownership state (OwnershipData from API includes creationTxTo, isPumpTiresToken)
+  const [ownershipData, setOwnershipData] = useState<OwnershipData>({
     creatorAddress: null,
     ownerAddress: null,
     isRenounced: false,
@@ -1185,8 +1180,14 @@ function GeickoPageContent() {
       .then((r) => r.json())
       .then((d) => {
         const pairs = d?.pairs ?? [];
-        const pc = pairs.find((p: { chainId?: string }) => p.chainId === 'pulsechain');
-        const pair = pc || pairs[0];
+        const wplsAddr = '0xA1077a294dDE1B09bB078844df40758a5D0f9a27'.toLowerCase();
+        const wplsPair = pairs.find((p: { chainId?: string; baseToken?: { address?: string }; quoteToken?: { address?: string } }) => {
+          if (p.chainId !== 'pulsechain') return false;
+          const base = (p.baseToken?.address ?? '').toLowerCase();
+          const quote = (p.quoteToken?.address ?? '').toLowerCase();
+          return base === wplsAddr || quote === wplsAddr;
+        });
+        const pair = wplsPair ?? pairs.find((p: { chainId?: string }) => p.chainId === 'pulsechain') ?? pairs[0];
         if (!pair) return;
         const base = pair.baseToken?.address?.toLowerCase();
         const addr = apiTokenAddress.toLowerCase();
@@ -1249,15 +1250,33 @@ function GeickoPageContent() {
     };
   }, []);
 
+  // Prefer WPLS pair so price/liquidity reflect Token/WPLS, not another quote (e.g. USDC)
+  const WPLS_ADDRESS = '0xA1077a294dDE1B09bB078844df40758a5D0f9a27';
+  const primaryPair = useMemo(() => {
+    const pairs = dexScreenerData?.pairs ?? [];
+    if (pairs.length === 0) return null;
+    const wpls = WPLS_ADDRESS.toLowerCase();
+    const wplsPairs = pairs.filter((p: { baseToken?: { address?: string }; quoteToken?: { address?: string } }) => {
+      const base = (p.baseToken?.address ?? '').toLowerCase();
+      const quote = (p.quoteToken?.address ?? '').toLowerCase();
+      return base === wpls || quote === wpls;
+    });
+    if (wplsPairs.length > 0) {
+      const byLiquidity = [...wplsPairs].sort((a: any, b: any) => Number(b?.liquidity?.usd ?? 0) - Number(a?.liquidity?.usd ?? 0));
+      return byLiquidity[0] ?? null;
+    }
+    return pairs[0] ?? null;
+  }, [dexScreenerData?.pairs]);
+
   const websiteCandidates = [
     ...(profileData?.profile?.websites || []),
     ...(profileData?.profile?.cmsLinks || []),
-    ...(dexScreenerData?.pairs?.[0]?.info?.websites || []),
+    ...(primaryPair?.info?.websites || []),
   ] as Array<{ label?: string; url?: string }>;
 
   const socialSources = [
     ...(profileData?.profile?.socials || []),
-    ...(dexScreenerData?.pairs?.[0]?.info?.socials || []),
+    ...(primaryPair?.info?.socials || []),
   ] as Array<{ type?: string; label?: string; url?: string }>;
 
   const uniqueWebsites: Array<{ label?: string; url?: string }> = useMemo(() => {
@@ -1355,7 +1374,6 @@ function GeickoPageContent() {
   }, [websiteLink, twitterLink, telegramLink, activeSocialTab]);
 
   const isRabbyUI = uiPreset === 'rabby1';
-  const primaryPair = dexScreenerData?.pairs?.[0] || null;
   const baseSymbol = primaryPair?.baseToken?.symbol || dexScreenerData?.tokenInfo?.symbol || tokenInfo?.symbol || 'Token';
   const quoteSymbol = primaryPair?.quoteToken?.symbol || 'WPLS';
   const tokenNameDisplay = dexScreenerData?.tokenInfo?.name || tokenInfo?.name || primaryPair?.baseToken?.name || 'Token';
@@ -1370,6 +1388,10 @@ function GeickoPageContent() {
     '';
   // Banner header first; if none, use logo (including custom); if no logo, use default
   const headerImageUrl = profileData?.profile?.headerImageUrl || primaryPair?.info?.imageUrl || tokenLogoSrc || '/app-pics/clean.png';
+  const isPumpTiresToken =
+    ownershipData.isPumpTiresToken === true ||
+    ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ||
+    ownershipData.creationTxTo?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase();
   const priceUsd = Number(primaryPair?.priceUsd || 0);
   const priceChange = Number(primaryPair?.priceChange?.h24 || 0);
   const formattedPrice = priceUsd >= 1 ? priceUsd.toFixed(4) : priceUsd.toFixed(6);
@@ -1614,6 +1636,19 @@ function GeickoPageContent() {
                   <div className="w-full h-full" />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                {isPumpTiresToken && (
+                  <div className="absolute top-2 left-2 z-10">
+                    <a
+                      href="https://pump.tires"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold shadow-lg border border-amber-300/50 hover:from-orange-400 hover:to-amber-400 transition-all"
+                    >
+                      <span aria-hidden>🛞</span>
+                      <span>Pump.Tires</span>
+                    </a>
+                  </div>
+                )}
                 {/* Token info overlay */}
                 <div className="absolute top-1 left-1 right-1 p-0">
                   <div className="flex justify-between gap-0">
@@ -1672,8 +1707,8 @@ function GeickoPageContent() {
                       type="button"
                       onClick={() => {
                         if (tab.isDownload) {
-                          const logoUrl = dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl;
-                          const symbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData?.pairs?.[0]?.baseToken?.symbol || 'token';
+                          const logoUrl = dexScreenerData?.tokenInfo?.logoURI || primaryPair?.baseToken?.logoURI || primaryPair?.info?.imageUrl;
+                          const symbol = dexScreenerData?.tokenInfo?.symbol || primaryPair?.baseToken?.symbol || 'token';
                           if (logoUrl) {
                             downloadImage(logoUrl, `${symbol}-logo.png`);
                           }
@@ -1701,7 +1736,7 @@ function GeickoPageContent() {
       {/* Mobile Stats - Top of mobile layout */}
       <div className="md:hidden">
         {/* Stats Grid - Same layout as mobile single panel */}
-        {dexScreenerData?.pairs?.[0] && (
+        {primaryPair && (
           <div className="block mb-1 px-1">
             <div className="grid grid-cols-2 gap-1">
               {/* Left Column */}
@@ -1968,17 +2003,20 @@ function GeickoPageContent() {
                   ) : (
                     <div className="absolute top-6 right-1/2 translate-x-1/2 text-center">
                       <div className="text-xs text-yellow-400 font-semibold">Owner</div>
-                      {ownershipData.ownerAddress && (
-                        <a
-                          href={`https://scan.pulsechain.com/address/${ownershipData.ownerAddress}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-400 bottom-2hover:text-blue-300 font-mono mt-0.5 inline-block"
-                          title={ownershipData.ownerAddress}
-                        >
-                          0x...{ownershipData.ownerAddress.slice(-6)}
-                        </a>
-                      )}
+                      {(() => {
+                        const addr = ownershipData.ownerAddress || ownershipData.creatorAddress;
+                        return addr ? (
+                          <a
+                            href={`https://scan.pulsechain.com/address/${addr}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
+                            title={addr}
+                          >
+                            0x...{addr.slice(-6)}
+                          </a>
+                        ) : null;
+                      })()}
                     </div>
                   )}
                 </div>
@@ -1991,13 +2029,13 @@ function GeickoPageContent() {
                       <TooltipTrigger asChild>
                         <span>
                           {(() => {
-                            const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                            const usdLiquidity = Number(primaryPair.liquidity?.usd || 0);
                             return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
                           })()}
                         </span>
                       </TooltipTrigger>
                       {(() => {
-                        const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                        const usdLiquidity = Number(primaryPair.liquidity?.usd || 0);
                         return usdLiquidity > 0 ? (
                           <TooltipContent>
                             <p>${usdLiquidity.toLocaleString()}</p>
@@ -2013,8 +2051,8 @@ function GeickoPageContent() {
                   <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liq/MCAP</div>
                   <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
                     {(() => {
-                      const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
-                      const mcap = dexScreenerData.pairs[0].fdv ? Number(dexScreenerData.pairs[0].fdv) : Number(dexScreenerData.pairs[0].marketCap || 0);
+                      const liquidity = Number(primaryPair.liquidity?.usd || 0);
+                      const mcap = primaryPair.fdv ? Number(primaryPair.fdv) : Number(primaryPair.marketCap || 0);
                       const ratio = mcap > 0 ? liquidity / mcap : 0;
                       return ratio > 0 ? `${(ratio * 100).toFixed(1)}%` : '—';
                     })()}
@@ -2185,9 +2223,9 @@ function GeickoPageContent() {
                       <LoaderThree />
                       <p className="text-gray-400 text-xs mt-2">Loading chart...</p>
                     </div>
-                  ) : dexScreenerData?.pairs?.[0]?.pairAddress ? (
+                  ) : primaryPair?.pairAddress ? (
                     <div className="w-full h-full">
-                      <DexScreenerChart pairAddress={dexScreenerData.pairs[0].pairAddress} />
+                      <DexScreenerChart pairAddress={primaryPair.pairAddress} />
                     </div>
                   ) : (
                     <div className="text-center text-gray-500">
@@ -2279,7 +2317,7 @@ function GeickoPageContent() {
           <div className="px-2 md:px-3 py-2 border-t border-gray-800">
 
             {/* View More Stats Button */}
-            {dexScreenerData?.pairs?.[0] && (
+            {primaryPair && (
               <div className="px-2 md:px-3 pt-3 pb-3">
                 <button
                   onClick={() => setIsStatsModalOpen(true)}
@@ -2526,8 +2564,19 @@ function GeickoPageContent() {
                       <div className="w-full h-full" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-
+                    {isPumpTiresToken && (
+                      <div className="absolute top-2 left-2 z-10">
+                        <a
+                          href="https://pump.tires"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold shadow-lg border border-amber-300/50 hover:from-orange-400 hover:to-amber-400 transition-all"
+                        >
+                          <span aria-hidden>🛞</span>
+                          <span>Pump.Tires</span>
+                        </a>
+                      </div>
+                    )}
                     <div className="absolute left-4 bottom-3 flex items-center gap-3">
                       {tokenLogoSrc ? (
                         <img
@@ -2562,8 +2611,8 @@ function GeickoPageContent() {
                           type="button"
                           onClick={() => {
                             if (tab.isDownload) {
-                              const logoUrl = dexScreenerData?.tokenInfo?.logoURI || dexScreenerData?.pairs?.[0]?.baseToken?.logoURI || dexScreenerData?.pairs?.[0]?.info?.imageUrl;
-                              const symbol = dexScreenerData?.tokenInfo?.symbol || dexScreenerData?.pairs?.[0]?.baseToken?.symbol || 'token';
+                              const logoUrl = dexScreenerData?.tokenInfo?.logoURI || primaryPair?.baseToken?.logoURI || primaryPair?.info?.imageUrl;
+                              const symbol = dexScreenerData?.tokenInfo?.symbol || primaryPair?.baseToken?.symbol || 'token';
                               if (logoUrl) {
                                 downloadImage(logoUrl, `${symbol}-logo.png`);
                               }
@@ -2597,7 +2646,7 @@ function GeickoPageContent() {
             {/* Desktop Stats Cards */}
             <div className="hidden md:block mb-2">
               {/* Stats Grid - Desktop right panel */}
-              {dexScreenerData?.pairs?.[0] && (
+              {primaryPair && (
                 <div className="block mb-2 px-0">
                   <div className="grid grid-cols-2 gap-1">
                     {/* Left Column */}
@@ -2890,17 +2939,20 @@ function GeickoPageContent() {
                         ) : (
                           <div className="absolute top-6 right-1/2 translate-x-1/2 text-center">
                             <div className="text-xs text-yellow-400 font-semibold">Owner</div>
-                            {ownershipData.ownerAddress && (
-                              <a
-                                href={`https://scan.pulsechain.com/address/${ownershipData.ownerAddress}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
-                                title={ownershipData.ownerAddress}
-                              >
-                                0x...{ownershipData.ownerAddress.slice(-6)}
-                              </a>
-                            )}
+                            {(() => {
+                              const addr = ownershipData.ownerAddress || ownershipData.creatorAddress;
+                              return addr ? (
+                                <a
+                                  href={`https://scan.pulsechain.com/address/${addr}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
+                                  title={addr}
+                                >
+                                  0x...{addr.slice(-6)}
+                                </a>
+                              ) : null;
+                            })()}
                           </div>
                         )}
                       </div>
@@ -2913,13 +2965,13 @@ function GeickoPageContent() {
                             <TooltipTrigger asChild>
                               <span>
                                 {(() => {
-                                  const priceNative = Number(dexScreenerData.pairs[0].priceNative || 0);
+                                  const priceNative = Number(primaryPair.priceNative || 0);
                                   return priceNative > 0 ? priceNative.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 }) : '—';
                                 })()}
                               </span>
                             </TooltipTrigger>
                             {(() => {
-                              const priceNative = Number(dexScreenerData.pairs[0].priceNative || 0);
+                              const priceNative = Number(primaryPair.priceNative || 0);
                               return priceNative > 0 ? (
                                 <TooltipContent>
                                   <p>{priceNative}</p>
@@ -2938,13 +2990,15 @@ function GeickoPageContent() {
                             <TooltipTrigger asChild>
                               <span>
                                 {(() => {
-                                  const totalVolume = dexScreenerData.pairs.reduce((sum, pair) => sum + Number(pair.volume?.h24 || 0), 0);
+                                  const pairs = dexScreenerData?.pairs ?? [];
+                                  const totalVolume = pairs.reduce((sum, pair) => sum + Number(pair.volume?.h24 || 0), 0);
                                   return totalVolume > 0 ? `$${formatAbbrev(totalVolume)}` : '—';
                                 })()}
                               </span>
                             </TooltipTrigger>
                             {(() => {
-                              const totalVolume = dexScreenerData.pairs.reduce((sum, pair) => sum + Number(pair.volume?.h24 || 0), 0);
+                              const pairs = dexScreenerData?.pairs ?? [];
+                              const totalVolume = pairs.reduce((sum, pair) => sum + Number(pair.volume?.h24 || 0), 0);
                               return totalVolume > 0 ? (
                                 <TooltipContent>
                                   <p>${totalVolume.toLocaleString()}</p>
@@ -2963,13 +3017,13 @@ function GeickoPageContent() {
                             <TooltipTrigger asChild>
                               <span>
                                 {(() => {
-                                  const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                                  const usdLiquidity = Number(primaryPair.liquidity?.usd || 0);
                                   return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
                                 })()}
                               </span>
                             </TooltipTrigger>
                             {(() => {
-                              const usdLiquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
+                              const usdLiquidity = Number(primaryPair.liquidity?.usd || 0);
                               return usdLiquidity > 0 ? (
                                 <TooltipContent>
                                   <p>${usdLiquidity.toLocaleString()}</p>
@@ -2988,13 +3042,13 @@ function GeickoPageContent() {
                             <TooltipTrigger asChild>
                               <span>
                                 {(() => {
-                                  const mcap = dexScreenerData.pairs[0].fdv ? Number(dexScreenerData.pairs[0].fdv) : Number(dexScreenerData.pairs[0].marketCap || 0);
+                                  const mcap = primaryPair.fdv ? Number(primaryPair.fdv) : Number(primaryPair.marketCap || 0);
                                   return mcap > 0 ? `$${formatAbbrev(mcap)}` : '—';
                                 })()}
                               </span>
                             </TooltipTrigger>
                             {(() => {
-                              const mcap = dexScreenerData.pairs[0].fdv ? Number(dexScreenerData.pairs[0].fdv) : Number(dexScreenerData.pairs[0].marketCap || 0);
+                              const mcap = primaryPair.fdv ? Number(primaryPair.fdv) : Number(primaryPair.marketCap || 0);
                               return mcap > 0 ? (
                                 <TooltipContent>
                                   <p>${mcap.toLocaleString()}</p>
@@ -3010,8 +3064,8 @@ function GeickoPageContent() {
                         <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liq/MCAP</div>
                         <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
                           {(() => {
-                            const liquidity = Number(dexScreenerData.pairs[0].liquidity?.usd || 0);
-                            const mcap = dexScreenerData.pairs[0].fdv ? Number(dexScreenerData.pairs[0].fdv) : Number(dexScreenerData.pairs[0].marketCap || 0);
+                            const liquidity = Number(primaryPair.liquidity?.usd || 0);
+                            const mcap = primaryPair.fdv ? Number(primaryPair.fdv) : Number(primaryPair.marketCap || 0);
                             const ratio = mcap > 0 ? liquidity / mcap : 0;
                             return ratio > 0 ? `${(ratio * 100).toFixed(1)}%` : '—';
                           })()}
@@ -3054,7 +3108,7 @@ function GeickoPageContent() {
             </div>
 
             {/* Token Amount Calculator */}
-            {dexScreenerData?.pairs?.[0] && (
+            {primaryPair && (
               <div className="mb-2">
                 <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-2 shadow-[0_10px_35px_rgba(0,0,0,0.35)]">
                   <div className="mb-2">
@@ -3070,7 +3124,7 @@ function GeickoPageContent() {
                         className="w-full bg-slate-900/40 border border-white/10 rounded px-3 py-2 pr-16 text-white text-sm font-semibold focus:outline-none focus:border-orange-500 transition-colors backdrop-blur"
                       />
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium pointer-events-none">
-                        {dexScreenerData.pairs[0].baseToken?.symbol || 'TOKEN'}
+                        {primaryPair.baseToken?.symbol || 'TOKEN'}
                       </div>
                     </div>
                     <div className="flex items-center justify-center my-1">
@@ -3084,8 +3138,8 @@ function GeickoPageContent() {
                     <div className="text-lg font-bold text-white flex items-center justify-between">
                       {(() => {
                         const amount = Number(tokenAmount) || 0;
-                        const priceUsd = Number(dexScreenerData.pairs[0].priceUsd || 0);
-                        const priceNative = Number(dexScreenerData.pairs[0].priceNative || 0);
+                        const priceUsd = Number(primaryPair.priceUsd || 0);
+                        const priceNative = Number(primaryPair.priceNative || 0);
                         const totalUsd = amount * priceUsd;
                         const totalWpls = amount * priceNative;
 

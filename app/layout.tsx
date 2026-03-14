@@ -12,10 +12,7 @@ import {
   IconChartBar,
   IconSearch,
   IconRocket,
-  IconHeart,
   IconHexagon,
-  IconMail,
-  IconDeviceGamepad2,
   IconPhoneOutgoing,
   IconChevronDown,
   IconX,
@@ -158,45 +155,10 @@ export default function RootLayout({
       ),
     },
     {
-      label: "Happy Pulse",
-      href: "https://happypulse.vercel.app/",
-      icon: (
-        <IconHeart className="h-5 w-5 shrink-0 text-white" />
-      ),
-    },
-    {
-      label: "MassMailer",
-      href: "https://www.pulsechaintester.xyz/",
-      icon: (
-        <IconMail className="h-5 w-5 shrink-0 text-white" />
-      ),
-    },
-    {
-      label: "API Endpoints",
-      href: "/admin-stats",
-      icon: (
-        <IconPhoneOutgoing className="h-5 w-5 shrink-0 text-white" />
-      ),
-    },
-    {
       label: "GOLD Badges Admin",
       href: "/admin/gold-badges",
       icon: (
         <IconPhoneOutgoing className="h-5 w-5 shrink-0 text-white" />
-      ),
-    },
-    {
-      label: "Hextroids",
-      href: "https://pulsegame.vercel.app",
-      icon: (
-        <IconRocket className="h-5 w-5 shrink-0 text-white" />
-      ),
-    },
-    {
-      label: "Stacker",
-      href: "/stacker-game",
-      icon: (
-        <IconDeviceGamepad2 className="h-5 w-5 shrink-0 text-white" />
       ),
     },
   ];

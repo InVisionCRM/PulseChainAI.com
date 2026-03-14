@@ -33,6 +33,10 @@ interface TokenMetrics {
     ownerAddress: string | null;
     isRenounced: boolean;
     renounceTxHash: string | null;
+    /** Creation tx "to" address — used to detect pump.tires tokens launched via factory (user called factory) */
+    creationTxTo: string | null;
+    /** True when token was created by or via a known Pump.tires contract (shows badge) */
+    isPumpTiresToken: boolean;
   };
   totalSupply: {
     supply: string;
@@ -199,10 +203,17 @@ async function calculateSmartContractShare(
   }
 }
 
+/** Known Pump.tires contract addresses (factory / deployer). Tokens created by or via these show the badge. */
+const PUMP_TIRES_ADDRESSES = new Set([
+  PUMP_TIRES_CREATOR.toLowerCase(),
+  // Add other known pump.tires factory/deployer addresses here if needed
+]);
+
 async function getOwnershipData(address: string) {
   try {
     let creatorAddress: string | null = null;
     let creationTxHash: string | null = null;
+    let creationTxTo: string | null = null;
     let ownerAddress: string | null = null;
     let isRenounced = false;
     let renounceTxHash: string | null = null;
@@ -220,9 +231,10 @@ async function getOwnershipData(address: string) {
     const isHexToken = address?.toLowerCase() === '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
 
     if (creationTxHash) {
-      // Fetch creation transaction to get owner (from address)
+      // Fetch creation transaction to get owner (from) and creation tx "to" (e.g. pump.tires factory)
       const creationTx = await fetchJson(`${BASE_URL}/transactions/${creationTxHash}`).catch(() => null);
       ownerAddress = creationTx?.from?.hash || creationTx?.from || null;
+      creationTxTo = creationTx?.to?.hash || creationTx?.to || null;
     }
 
     // Check if ownership was renounced by checking creator's transactions
@@ -246,12 +258,17 @@ async function getOwnershipData(address: string) {
     }
 
     const finalIsRenounced = isHexToken ? true : isRenounced;
+    const isPumpTiresToken =
+      PUMP_TIRES_ADDRESSES.has((creatorAddress || '').toLowerCase()) ||
+      PUMP_TIRES_ADDRESSES.has((creationTxTo || '').toLowerCase());
 
     return {
       creatorAddress,
       ownerAddress: ownerAddress || creatorAddress,
       isRenounced: finalIsRenounced,
       renounceTxHash: isHexToken ? 'HEX_TOKEN_EXCEPTION' : renounceTxHash,
+      creationTxTo,
+      isPumpTiresToken,
     };
   } catch (error) {
     console.error('Failed to get ownership data:', error);
@@ -260,6 +277,8 @@ async function getOwnershipData(address: string) {
       ownerAddress: null,
       isRenounced: false,
       renounceTxHash: null,
+      creationTxTo: null,
+      isPumpTiresToken: false,
     };
   }
 }

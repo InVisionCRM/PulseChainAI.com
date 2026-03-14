@@ -39,7 +39,9 @@ export default function GeickoTabNavigation({
                   ? isGoldTab
                     ? 'text-amber-400 bg-brand-navy border-amber-500/50 shadow-sm'
                     : 'text-cyan-500 bg-brand-navy border-gray-700 shadow-sm'
-                  : 'text-gray-400 bg-gray-800/50 border-gray-700 hover:text-white hover:bg-gray-800/80'
+                  : isGoldTab
+                    ? 'text-amber-400/90 bg-amber-950/30 border-amber-500/30 hover:text-amber-300 hover:bg-amber-950/50'
+                    : 'text-gray-400 bg-gray-800/50 border-gray-700 hover:text-white hover:bg-gray-800/80'
               }`}
             >
               {tab.label}

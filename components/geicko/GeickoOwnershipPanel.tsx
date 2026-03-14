@@ -42,17 +42,20 @@ export default function GeickoOwnershipPanel({
       ) : (
         <div className="text-center">
           <div className="text-base text-red-400 font-semibold">Not Renounced</div>
-          {ownershipData.ownerAddress && (
-            <a
-              href={`https://scan.pulsechain.com/address/${ownershipData.ownerAddress}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
-              title={ownershipData.ownerAddress}
-            >
-              ...{ownershipData.ownerAddress.slice(-6)}
-            </a>
-          )}
+          {(() => {
+            const ownerOrCreator = ownershipData.ownerAddress || ownershipData.creatorAddress;
+            return ownerOrCreator ? (
+              <a
+                href={`https://scan.pulsechain.com/address/${ownerOrCreator}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
+                title={ownerOrCreator}
+              >
+                ...{ownerOrCreator.slice(-6)}
+              </a>
+            ) : null;
+          })()}
         </div>
       )}
     </div>

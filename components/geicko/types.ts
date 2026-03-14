@@ -23,6 +23,10 @@ export interface OwnershipData {
   ownerAddress: string | null;
   isRenounced: boolean;
   renounceTxHash: string | null;
+  /** Set when token was created via a call to this address (e.g. pump.tires factory); used for badge. */
+  creationTxTo?: string | null;
+  /** True when token was created by or via a known Pump.tires contract (server-computed). */
+  isPumpTiresToken?: boolean;
   isLoading: boolean;
 }
 

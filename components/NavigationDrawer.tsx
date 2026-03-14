@@ -4,11 +4,7 @@ import {
   IconBook,
   IconCurrencyDollar,
   IconChartBar,
-  IconHeart,
-  IconMail,
   IconPhoneOutgoing,
-  IconRocket as IconHextroids,
-  IconDeviceGamepad2,
   IconX,
 } from "@tabler/icons-react";
 import {
@@ -60,37 +56,9 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
       icon: <IconChartBar className="h-8 w-8" />,
     },
     {
-      label: "Happy Pulse",
-      href: "https://happypulse.vercel.app/",
-      icon: <IconHeart className="h-8 w-8" />,
-      external: true,
-    },
-    {
-      label: "MassMailer",
-      href: "https://www.pulsechaintester.xyz/",
-      icon: <IconMail className="h-8 w-8" />,
-      external: true,
-    },
-    {
-      label: "API Endpoints",
-      href: "/admin-stats",
-      icon: <IconPhoneOutgoing className="h-8 w-8" />,
-    },
-    {
       label: "GOLD Badges Admin",
       href: "/admin/gold-badges",
       icon: <IconPhoneOutgoing className="h-8 w-8" />,
-    },
-    {
-      label: "Hextroids",
-      href: "https://pulsegame.vercel.app",
-      icon: <IconHextroids className="h-8 w-8" />,
-      external: true,
-    },
-    {
-      label: "Stacker",
-      href: "/stacker-game",
-      icon: <IconDeviceGamepad2 className="h-8 w-8" />,
     },
   ];
 
