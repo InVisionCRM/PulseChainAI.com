@@ -1686,13 +1686,13 @@ function GeickoPageContent() {
                           aria-label="Select trading pair"
                           value={displayPair?.pairAddress ?? ''}
                           onChange={(e) => setSelectedPairAddress(e.target.value || null)}
-                          className="text-lg p-1 font-bold text-white rounded-tl-lg bg-white/10 border border-white/20 backdrop-blur-md tracking-tight cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-400/50 pr-6 appearance-none bg-no-repeat bg-[length:10px] bg-[position:right_0.25rem_center]"
+                          className="w-auto max-w-[160px] text-xl font-bold text-white rounded-tl-lg bg-white/10 border border-white/20 backdrop-blur-md tracking-tight cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-400/50 pr-6 appearance-none bg-no-repeat bg-[length:10px] bg-[position:right_0.25rem_center]"
                           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}
                         >
                           {(dexScreenerData?.pairs ?? [])
                             .sort((a: { liquidity?: { usd?: number } }, b: { liquidity?: { usd?: number } }) => Number(b?.liquidity?.usd ?? 0) - Number(a?.liquidity?.usd ?? 0))
                             .map((p: { pairAddress?: string; baseToken?: { symbol?: string }; quoteToken?: { symbol?: string }; liquidity?: { usd?: number }; volume?: { h24?: number }; priceChange?: { h24?: number } }) => (
-                              <option key={p.pairAddress} value={p.pairAddress ?? ''} className="bg-gray-900 text-white">
+                              <option key={p.pairAddress} value={p.pairAddress ?? ''} className="bg-gray-900 text-white text-sm">
                                 {[p.baseToken?.symbol, p.quoteToken?.symbol].filter(Boolean).join(' / ') || 'Pair'}
                               </option>
                             ))}
@@ -2585,13 +2585,13 @@ function GeickoPageContent() {
                             aria-label="Select trading pair"
                             value={displayPair?.pairAddress ?? ''}
                             onChange={(e) => setSelectedPairAddress(e.target.value || null)}
-                            className="text-2xl font-bold text-white tracking-tight bg-gray-800/80 border border-gray-600/50 rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-500/50 pr-8 appearance-none bg-no-repeat bg-[length:12px] bg-[position:right_0.5rem_center]"
+                            className="w-auto max-w-[220px] text-2xl font-bold text-white tracking-tight bg-gray-800/80 border border-gray-600/50 rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-500/50 pr-8 appearance-none bg-no-repeat bg-[length:12px] bg-[position:right_0.5rem_center]"
                             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2388c0d0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}
                           >
                             {(dexScreenerData?.pairs ?? [])
                               .sort((a: { liquidity?: { usd?: number } }, b: { liquidity?: { usd?: number } }) => Number(b?.liquidity?.usd ?? 0) - Number(a?.liquidity?.usd ?? 0))
                               .map((p: { pairAddress?: string; baseToken?: { symbol?: string }; quoteToken?: { symbol?: string }; liquidity?: { usd?: number }; volume?: { h24?: number }; priceChange?: { h24?: number } }) => (
-                                <option key={p.pairAddress} value={p.pairAddress ?? ''} className="bg-gray-900 text-white">
+                                <option key={p.pairAddress} value={p.pairAddress ?? ''} className="bg-gray-900 text-white text-sm">
                                   {[p.baseToken?.symbol, p.quoteToken?.symbol].filter(Boolean).join(' / ') || 'Pair'}
                                 </option>
                               ))}
