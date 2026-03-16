@@ -1293,6 +1293,9 @@ function GeickoPageContent() {
     if (!currentInList) setSelectedPairAddress(primaryPair.pairAddress);
   }, [apiTokenAddress, primaryPair?.pairAddress, dexScreenerData?.pairs, selectedPairAddress]);
 
+  // Use primaryPair when displayPair not yet set (e.g. before effect runs) so mobile/header always show content when we have pair data
+  const effectivePair = displayPair ?? primaryPair;
+
   const websiteCandidates = [
     ...(profileData?.profile?.websites || []),
     ...(profileData?.profile?.cmsLinks || []),
@@ -1641,7 +1644,7 @@ function GeickoPageContent() {
           <div className="flex items-center justify-center py-4">
             <LoaderThree />
           </div>
-        ) : displayPair ? (
+        ) : effectivePair ? (
           <div className="px-2 mb-2 pt-2">
             <div className="bg-gray-900/80 border border-gray-800 rounded-2xl overflow-hidden shadow-[0_12px_35px_rgba(0,0,0,0.45)]">
               <div className="relative h-40 border-b border-gray-800/70 bg-slate-900">
@@ -1691,15 +1694,12 @@ function GeickoPageContent() {
                             .map((p: { pairAddress?: string; baseToken?: { symbol?: string }; quoteToken?: { symbol?: string }; liquidity?: { usd?: number }; volume?: { h24?: number }; priceChange?: { h24?: number } }) => (
                               <option key={p.pairAddress} value={p.pairAddress ?? ''} className="bg-gray-900 text-white">
                                 {[p.baseToken?.symbol, p.quoteToken?.symbol].filter(Boolean).join(' / ') || 'Pair'}
-                                {p.liquidity?.usd != null ? ` · ${formatCurrencyCompact(p.liquidity.usd)} liq` : ''}
-                                {p.volume?.h24 != null ? ` · ${formatCurrencyCompact(p.volume.h24)} vol` : ''}
-                                {p.priceChange?.h24 != null ? ` · ${formatPercentChange(p.priceChange.h24)}` : ''}
                               </option>
                             ))}
                         </select>
                       ) : (
                         <div className="text-lg p-1 font-bold text-white rounded-tl-lg bg-transparent backdrop-blur-md tracking-tight">
-                          {baseSymbol} <span className="text-white pb-1 bg-transparent">/</span> {quoteSymbol}
+                          {(effectivePair?.baseToken?.symbol ?? baseSymbol)} <span className="text-white pb-1 bg-transparent">/</span> {(effectivePair?.quoteToken?.symbol ?? quoteSymbol)}
                         </div>
                       )}
                       <div className="text-xs text-white pb-1 text-left pl-2 bg-transparent backdrop-blur-xs">
@@ -1708,11 +1708,14 @@ function GeickoPageContent() {
                     </div>
                     <div className="text-center justify-center">
                       <div className="text-lg p-1 font-semibold text-white rounded-tr-lg bg-transparent backdrop-blur-md">
-                        ${formattedPrice}
+                        ${((): string => {
+                          const p = Number(effectivePair?.priceUsd || 0);
+                          return p >= 1 ? p.toFixed(4) : p.toFixed(6);
+                        })()}
                       </div>
-                      <div className={`text-xs text-center pb-1 justify-center font-semibold p-1 bg-transparent backdrop-blur-md ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {priceChange >= 0 ? '↑' :  '↓'}
-                        {Math.abs(priceChange).toFixed(2)}%
+                      <div className={`text-xs text-center pb-1 justify-center font-semibold p-1 bg-transparent backdrop-blur-md ${Number(effectivePair?.priceChange?.h24 ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {Number(effectivePair?.priceChange?.h24 ?? 0) >= 0 ? '↑' : '↓'}
+                        {Math.abs(Number(effectivePair?.priceChange?.h24 ?? 0)).toFixed(2)}%
                       </div>
                     </div>
                   </div>
@@ -1782,7 +1785,7 @@ function GeickoPageContent() {
       {/* Mobile Stats - Top of mobile layout */}
       <div className="md:hidden">
         {/* Stats Grid - Same layout as mobile single panel */}
-        {displayPair && (
+        {effectivePair && (
           <div className="block mb-1 px-1">
             <div className="grid grid-cols-2 gap-1">
               {/* Left Column */}
@@ -2075,13 +2078,15 @@ function GeickoPageContent() {
                       <TooltipTrigger asChild>
                         <span>
                           {(() => {
-                            const usdLiquidity = Number(displayPair.liquidity?.usd || 0);
+                            const p = displayPair ?? effectivePair;
+                            const usdLiquidity = Number(p?.liquidity?.usd || 0);
                             return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
                           })()}
                         </span>
                       </TooltipTrigger>
                       {(() => {
-                        const usdLiquidity = Number(displayPair.liquidity?.usd || 0);
+                        const p = displayPair ?? effectivePair;
+                        const usdLiquidity = Number(p?.liquidity?.usd || 0);
                         return usdLiquidity > 0 ? (
                           <TooltipContent>
                             <p>${usdLiquidity.toLocaleString()}</p>
@@ -2097,8 +2102,9 @@ function GeickoPageContent() {
                   <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liq/MCAP</div>
                   <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
                     {(() => {
-                      const liquidity = Number(displayPair.liquidity?.usd || 0);
-                      const mcap = displayPair.fdv ? Number(displayPair.fdv) : Number(displayPair.marketCap || 0);
+                      const p = displayPair ?? effectivePair;
+                      const liquidity = Number(p?.liquidity?.usd || 0);
+                      const mcap = p?.fdv ? Number(p.fdv) : Number(p?.marketCap || 0);
                       const ratio = mcap > 0 ? liquidity / mcap : 0;
                       return ratio > 0 ? `${(ratio * 100).toFixed(1)}%` : '—';
                     })()}
@@ -2568,7 +2574,7 @@ function GeickoPageContent() {
               <div className="flex items-center justify-center py-4">
                 <LoaderThree />
               </div>
-            ) : displayPair ? (
+            ) : effectivePair ? (
               <div className="px-2 mb-2 pt-0">
                 <div className="bg-gray-900/80 border border-gray-800 rounded-2xl overflow-hidden shadow-[0_12px_35px_rgba(0,0,0,0.45)]">
                   <div className="px-4 pt-2 pb-3 border-b border-gray-800/70">
@@ -2587,15 +2593,12 @@ function GeickoPageContent() {
                               .map((p: { pairAddress?: string; baseToken?: { symbol?: string }; quoteToken?: { symbol?: string }; liquidity?: { usd?: number }; volume?: { h24?: number }; priceChange?: { h24?: number } }) => (
                                 <option key={p.pairAddress} value={p.pairAddress ?? ''} className="bg-gray-900 text-white">
                                   {[p.baseToken?.symbol, p.quoteToken?.symbol].filter(Boolean).join(' / ') || 'Pair'}
-                                  {p.liquidity?.usd != null ? ` · ${formatCurrencyCompact(p.liquidity.usd)} liq` : ''}
-                                  {p.volume?.h24 != null ? ` · ${formatCurrencyCompact(p.volume.h24)} vol` : ''}
-                                  {p.priceChange?.h24 != null ? ` · ${formatPercentChange(p.priceChange.h24)}` : ''}
                                 </option>
                               ))}
                           </select>
                         ) : (
                           <div className="text-2xl font-bold text-white tracking-tight">
-                            {baseSymbol} <span className="text-gray-500">/</span> {quoteSymbol}
+                            {(effectivePair?.baseToken?.symbol ?? baseSymbol)} <span className="text-gray-500">/</span> {(effectivePair?.quoteToken?.symbol ?? quoteSymbol)}
                           </div>
                         )}
                         <div className="text-xs text-gray-400 mt-1 truncate">
@@ -2604,11 +2607,14 @@ function GeickoPageContent() {
                       </div>
                       <div className="text-right">
                         <div className="text-xl font-semibold text-white">
-                          ${formattedPrice}
+                          ${((): string => {
+                            const p = Number(effectivePair?.priceUsd || 0);
+                            return p >= 1 ? p.toFixed(4) : p.toFixed(6);
+                          })()}
                         </div>
-                        <div className={`text-xs font-semibold ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {priceChange >= 0 ? '↑' : '↓'}
-                          {Math.abs(priceChange).toFixed(2)}%
+                        <div className={`text-xs font-semibold ${Number(effectivePair?.priceChange?.h24 ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {Number(effectivePair?.priceChange?.h24 ?? 0) >= 0 ? '↑' : '↓'}
+                          {Math.abs(Number(effectivePair?.priceChange?.h24 ?? 0)).toFixed(2)}%
                         </div>
 
 
