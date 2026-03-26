@@ -69,7 +69,7 @@ const SidebarGroup = ({
           <motion.span
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-neutral-200 text-lg transition duration-150 whitespace-pre inline-block !p-0 !m-0 md:opacity-0 md:w-0 md:overflow-hidden md:translate-x-0 group-hover/sidebar:opacity-100 group-hover/sidebar:w-auto group-hover/sidebar:overflow-visible group-hover/sidebar:translate-x-1 md:ml-0"
+            className="text-neutral-200 text-lg transition duration-150 whitespace-pre inline-block !p-0 !m-0"
           >
             {label}
           </motion.span>
@@ -206,7 +206,7 @@ export default function RootLayout({
 
                     <SidebarGroup
                       label="Community Builders"
-                      icon={<IconRocket className="h-5 w-5 shrink-0 text-white" />}
+                      icon={<span className="h-5 w-5 shrink-0" />}
                       initiallyOpen
                       links={[
                         {
