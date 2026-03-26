@@ -204,6 +204,19 @@ export default function RootLayout({
                       <SidebarLink key={idx} link={link} />
                     ))}
 
+                    <SidebarGroup
+                      label="Community Builders"
+                      icon={<IconRocket className="h-5 w-5 shrink-0 text-white" />}
+                      initiallyOpen
+                      links={[
+                        {
+                          label: "PLStart.me",
+                          href: "https://plstart.me",
+                          icon: <IconRocket className="h-5 w-5 shrink-0 text-white" />,
+                        },
+                      ]}
+                    />
+
                     {/* Sponsored by Section */}
                     <div className="mt-6">
                       <motion.div
