@@ -209,17 +209,50 @@ const PUMP_TIRES_ADDRESSES = new Set([
   // Add other known pump.tires factory/deployer addresses here if needed
 ]);
 
+const PLC_RPC_URL = 'https://rpc.pulsechain.com';
+// keccak256("owner()") = 0x8da5cb5b
+const OWNER_SELECTOR = '0x8da5cb5b';
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+/**
+ * Calls owner() on the contract via eth_call.
+ * Returns the owner address, or null if the contract has no owner() function
+ * (reverts) or returns the zero address.
+ */
+async function getOnChainOwner(contractAddress: string): Promise<string | null> {
+  try {
+    const response = await fetch(PLC_RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'eth_call',
+        params: [{ to: contractAddress, data: OWNER_SELECTOR }, 'latest'],
+        id: 1,
+      }),
+    });
+    const json = await response.json();
+    // A revert or missing function returns an error or '0x'
+    if (json.error || !json.result || json.result === '0x') return null;
+    // Result is a 32-byte padded address — extract the last 20 bytes
+    const raw = json.result as string;
+    const addr = '0x' + raw.slice(-40);
+    if (addr.toLowerCase() === ZERO_ADDRESS) return null;
+    return addr;
+  } catch {
+    return null;
+  }
+}
+
 async function getOwnershipData(address: string) {
   try {
     let creatorAddress: string | null = null;
     let creationTxHash: string | null = null;
     let creationTxTo: string | null = null;
-    let ownerAddress: string | null = null;
-    let isRenounced = false;
     let renounceTxHash: string | null = null;
 
     // Fetch address info and token info in parallel
-    const [addressInfo, tokenInfo] = await Promise.all([
+    const [addressInfo] = await Promise.all([
       fetchJson(`${BASE_URL}/addresses/${address}`).catch(() => null),
       fetchJson(`${BASE_URL}/tokens/${address}`).catch(() => null)
     ]);
@@ -231,21 +264,30 @@ async function getOwnershipData(address: string) {
     const isHexToken = address?.toLowerCase() === '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
 
     if (creationTxHash) {
-      // Fetch creation transaction to get owner (from) and creation tx "to" (e.g. pump.tires factory)
       const creationTx = await fetchJson(`${BASE_URL}/transactions/${creationTxHash}`).catch(() => null);
-      ownerAddress = creationTx?.from?.hash || creationTx?.from || null;
       creationTxTo = creationTx?.to?.hash || creationTx?.to || null;
     }
 
-    // Check if ownership was renounced by checking creator's transactions
-    if (creatorAddress && !isHexToken) {
+    // Primary source of truth: call owner() on-chain.
+    // null means the contract has no owner() or it returned address(0) — treat as renounced/no-owner.
+    const onChainOwner = isHexToken ? null : await getOnChainOwner(address);
+
+    // ownerAddress is the live on-chain owner (null = no owner / renounced)
+    const ownerAddress = onChainOwner;
+
+    let isRenounced = onChainOwner === null;
+
+    // If on-chain still shows an owner, also check the creator's tx history for a
+    // renounceOwnership call directed at this contract, as a belt-and-suspenders check.
+    if (!isRenounced && creatorAddress) {
       try {
         const creatorTxs = await fetchJson(
           `${BASE_URL}/addresses/${creatorAddress}/transactions?limit=100`
         );
 
         const renounceTx = (creatorTxs?.items || []).find((tx: any) =>
-          (tx?.method || '').toLowerCase() === 'renounceownership'
+          (tx?.method || '').toLowerCase() === 'renounceownership' &&
+          (tx?.to?.hash || tx?.to || '').toLowerCase() === address.toLowerCase()
         );
 
         if (renounceTx) {
@@ -264,7 +306,7 @@ async function getOwnershipData(address: string) {
 
     return {
       creatorAddress,
-      ownerAddress: ownerAddress || creatorAddress,
+      ownerAddress,
       isRenounced: finalIsRenounced,
       renounceTxHash: isHexToken ? 'HEX_TOKEN_EXCEPTION' : renounceTxHash,
       creationTxTo,
