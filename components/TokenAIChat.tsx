@@ -95,6 +95,7 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
   const [dexData, setDexData] = useState<DexScreenerData | null>(null);
   const [chatInput, setChatInput] = useState<string>('');
   const [activeTabbedContent, setActiveTabbedContent] = useState<number>(0);
+  const [mode, setMode] = useState<'pro' | 'simple'>('pro');
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto scroll to bottom when new messages arrive
@@ -187,6 +188,7 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
           contractData: payloadContractData,
           tokenInfo,
           dexScreenerData: dexData,
+          mode,
         })
       });
 
@@ -221,7 +223,7 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
     } finally {
       setIsLoadingChat(false);
     }
-  }, [contractAddress, contractData, tokenInfo, dexData]);
+  }, [contractAddress, contractData, tokenInfo, dexData, mode]);
 
   const handleSendMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -338,11 +340,7 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
     return <div className="space-y-1">{renderMarkdown(cleanedText)}</div>;
   };
 
-  const quickQuestions = [
-    "Analyze this contract",
-    "Does this token have taxes",
-    "What does this contract do?"
-  ];
+  const quickQuestions = ["Analyze this contract", "Does this token have taxes", "What does this contract do?"];
 
   return (
     <div
@@ -350,10 +348,38 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
     >
       <div className="absolute inset-0 bg-black/10 pointer-events-none" />
       <div className="relative px-3 pt-1 text-center space-y-1">
-        <div className="w-full rounded-md px-4 py-3 text-center">
+        <div className="w-full rounded-md px-4 py-2 text-center">
           <h2 className="text-lg sm:text-xl font-bold text-slate-500">
             <span className="text-purple-500">MORBIUS</span> Contract Reader
           </h2>
+          {/* Mode toggle */}
+          <div className="flex items-center justify-center gap-3 mt-1.5">
+            <span className={`text-xs font-semibold transition-colors duration-200 ${mode === 'pro' ? 'text-purple-400' : 'text-gray-500'}`}>
+              Pro
+            </span>
+            <button
+              onClick={() => setMode(m => m === 'pro' ? 'simple' : 'pro')}
+              className="relative inline-flex h-6 w-11 items-center rounded-full border border-white/20 transition-colors duration-300 focus:outline-none"
+              style={{
+                background: mode === 'simple'
+                  ? 'linear-gradient(135deg, #22c55e, #16a34a)'
+                  : 'linear-gradient(135deg, #a855f7, #7c3aed)',
+              }}
+              title={mode === 'pro' ? 'Switch to Simple mode' : 'Switch to Pro mode'}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                  mode === 'simple' ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+            <span className={`text-xs font-semibold transition-colors duration-200 ${mode === 'simple' ? 'text-green-400' : 'text-gray-500'}`}>
+              Simple
+            </span>
+          </div>
+          {mode === 'simple' && (
+            <p className="text-[10px] text-green-400/70 mt-1">Plain english — no code knowledge needed</p>
+          )}
         </div>
       </div>
       <div className="relative flex flex-col h-full flex-1 min-h-0">

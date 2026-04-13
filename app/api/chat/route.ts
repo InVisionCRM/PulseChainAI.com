@@ -1,38 +1,9 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest } from 'next/server';
 
-// Helper function to attempt API call with fallback
-async function generateWithFallback(message: string, contractContext: any) {
-  const primaryKey = process.env.GEMINI_API_KEY;
-  const fallbackKey = process.env.GEMINI_API_KEY_FALLBACK;
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
-  if (!primaryKey && !fallbackKey) {
-    throw new Error('No API keys configured');
-  }
-
-  const keys = [primaryKey, fallbackKey].filter(Boolean);
-  let lastError: any;
-
-  for (let i = 0; i < keys.length; i++) {
-    const apiKey = keys[i];
-    const keyLabel = i === 0 ? 'primary' : 'fallback';
-
-    try {
-      console.log(`Attempting with ${keyLabel} API key...`);
-      const ai = new GoogleGenAI({ apiKey });
-
-      const result = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [{
-          role: 'user',
-          parts: [{ text: message }]
-        }],
-        config: {
-          temperature: 0.5,
-          topK: 10,
-          topP: 0.25,
-          maxOutputTokens: 4000,
-          systemInstruction: `You are a world-class expert in Solidity and smart contract analyzing. You are an expert and breaking things down into simple terms for the user. Analyze the provided smart contract source code to answer questions using the AI Smart Contract Response Formatting Guide. .The user has loaded the contract named '${contractContext.name}' at address ${contractContext.address}.
+const PRO_SYSTEM_PROMPT = (contractContext: any) => `You are a world-class expert in Solidity and smart contract analyzing. You are an expert and breaking things down into simple terms for the user. Analyze the provided smart contract source code to answer questions using the AI Smart Contract Response Formatting Guide. .The user has loaded the contract named '${contractContext.name}' at address ${contractContext.address}.
 
 \`\`\`solidity
 ${contractContext.source_code}
@@ -104,7 +75,68 @@ Hashtag Categories:
 - #functionality - Core contract features
 - #interaction - How to interact with functions
 
-Keep responses focused, actionable, and easy to scan.`,
+Keep responses focused, actionable, and easy to scan.`;
+
+const SIMPLE_SYSTEM_PROMPT = (contractContext: any) => `You are a friendly guide helping everyday people understand crypto token contracts — no coding knowledge required. The user has loaded the token contract named '${contractContext.name}'.
+
+Here is the contract code for reference (you don't need to mention the code directly — just use it to answer questions):
+\`\`\`solidity
+${contractContext.source_code}
+\`\`\`
+
+Token Info:
+- Name: ${contractContext.name}
+${contractContext.token_info ? `- Token: ${contractContext.token_info.name} (${contractContext.token_info.symbol})` : ''}
+${contractContext.dex_data ? `- Current Price: $${contractContext.dex_data.price}` : ''}
+
+## Your Rules:
+- NEVER use technical jargon, Solidity terms, or code references
+- Speak like you're explaining to a friend who has never seen code
+- Use real-world analogies (e.g. "think of it like a vending machine that...")
+- Keep answers SHORT — 2-4 sentences for simple questions, a short paragraph for complex ones
+- Use plain bullet points for lists, no headers or formatting symbols
+- Use emojis sparingly to make answers friendly ✅ ⚠️
+- For taxes/fees: always give the exact percentage number and explain where the money goes in plain english (e.g. "2% goes to the team wallet, 1% gets burned forever")
+- For ownership/safety: explain what it means for the user's money, not the technical details
+- For risks: be honest but calm — say "this could be a concern because..." not technical warnings
+- NEVER say "the contract", say "this token" or "this project"
+- End every response with one simple follow-up question the user might want to ask next`;
+
+// Helper function to attempt API call with fallback across all configured keys
+async function generateWithFallback(message: string, contractContext: any, mode: 'pro' | 'simple' = 'pro') {
+  const keys = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_FALLBACK,
+    process.env.GEMINI_API_KEY_FALLBACK_2,
+    process.env.GEMINI_API_KEY_FALLBACK_3,
+  ].filter(Boolean) as string[];
+
+  if (keys.length === 0) {
+    throw new Error('No API keys configured');
+  }
+
+  let lastError: any;
+
+  for (let i = 0; i < keys.length; i++) {
+    const apiKey = keys[i];
+    const keyLabel = i === 0 ? 'primary' : `fallback_${i}`;
+
+    try {
+      console.log(`Attempting with ${keyLabel} API key...`);
+      const ai = new GoogleGenAI({ apiKey });
+
+      const result = await ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: [{
+          role: 'user',
+          parts: [{ text: message }]
+        }],
+        config: {
+          temperature: mode === 'simple' ? 0.7 : 0.5,
+          topK: mode === 'simple' ? 20 : 10,
+          topP: mode === 'simple' ? 0.9 : 0.25,
+          maxOutputTokens: 8192,
+          systemInstruction: mode === 'simple' ? SIMPLE_SYSTEM_PROMPT(contractContext) : PRO_SYSTEM_PROMPT(contractContext),
         },
       });
 
@@ -140,7 +172,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     console.log('Chat API received body:', JSON.stringify(body, null, 2));
 
-    const { message, contractData, tokenInfo, dexScreenerData } = body;
+    const { message, contractData, tokenInfo, dexScreenerData, mode } = body;
+    const chatMode: 'pro' | 'simple' = mode === 'simple' ? 'simple' : 'pro';
 
     console.log('Extracted data:', {
       hasMessage: !!message,
@@ -177,15 +210,23 @@ export async function POST(req: NextRequest) {
     console.log('Built contract context:', contractContext);
 
     // Use fallback function to generate content
-    const result = await generateWithFallback(message, contractContext);
+    const result = await generateWithFallback(message, contractContext, chatMode);
 
     console.log('Gemini API result received');
 
-    // Extract response text using the correct Gemini API structure
-    const response = result.text;
+    // Extract response text — fall back to manually joining parts if .text is undefined
+    // (Gemini 2.5 Flash can return only thought parts when tokens are tight)
+    let response = result.text;
+    if (!response) {
+      const parts = result.candidates?.[0]?.content?.parts ?? [];
+      response = parts
+        .filter((p: any) => typeof p.text === 'string' && !p.thought)
+        .map((p: any) => p.text)
+        .join('') || null;
+    }
 
     if (!response) {
-      console.error('No response text found in result');
+      console.error('No response text found in result', JSON.stringify(result.candidates?.[0]));
       throw new Error('No response text received from Gemini API');
     }
 
