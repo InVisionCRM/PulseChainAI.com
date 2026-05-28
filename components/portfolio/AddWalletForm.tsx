@@ -99,13 +99,23 @@ export function AddWalletForm() {
               key={c.id}
               type="button"
               onClick={() => toggleChain(c.id)}
-              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+              aria-pressed={active}
+              className="px-3 py-1 rounded-full text-xs font-semibold border transition-colors"
+              style={
                 active
-                  ? 'bg-orange-500/20 border-orange-500/60 text-orange-200'
-                  : 'bg-white/5 border-white/15 text-white/60 hover:text-white'
-              }`}
+                  ? {
+                      backgroundColor: 'rgba(249, 115, 22, 0.35)',
+                      borderColor: 'rgba(249, 115, 22, 0.9)',
+                      color: '#fff',
+                    }
+                  : {
+                      backgroundColor: 'transparent',
+                      borderColor: 'rgba(255, 255, 255, 0.2)',
+                      color: 'rgba(255, 255, 255, 0.4)',
+                    }
+              }
             >
-              {c.label}
+              {active ? '✓ ' : ''}{c.label}
             </button>
           );
         })}

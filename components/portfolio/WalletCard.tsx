@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import {
   IconChevronDown,
   IconCopy,
@@ -20,6 +20,28 @@ const CHAIN_LABEL: Record<ChainId, string> = {
 const CHAIN_COLOR: Record<ChainId, string> = {
   ethereum: 'bg-indigo-500/20 text-indigo-200 border-indigo-500/40',
   pulsechain: 'bg-fuchsia-500/20 text-fuchsia-200 border-fuchsia-500/40',
+};
+
+// Inline styles bypass any Tailwind JIT gaps for these specific RGBs
+// (we hit one with text-cyan-50 earlier and don't want to rediscover it
+// for the chain-filter pills).
+const CHAIN_ACTIVE_STYLE: Record<ChainId, CSSProperties> = {
+  ethereum: {
+    backgroundColor: 'rgba(99, 102, 241, 0.3)',
+    borderColor: 'rgba(99, 102, 241, 0.75)',
+    color: '#fff',
+  },
+  pulsechain: {
+    backgroundColor: 'rgba(217, 70, 239, 0.3)',
+    borderColor: 'rgba(217, 70, 239, 0.75)',
+    color: '#fff',
+  },
+};
+
+const CHAIN_INACTIVE_STYLE: CSSProperties = {
+  backgroundColor: 'transparent',
+  borderColor: 'rgba(255, 255, 255, 0.15)',
+  color: 'rgba(255, 255, 255, 0.35)',
 };
 
 const truncate = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
@@ -46,7 +68,8 @@ const fmtChange = (n: number | undefined) => {
   return `${sign}${n.toFixed(2)}%`;
 };
 
-type SortKey = 'value' | 'balance' | 'change';
+type SortKey = 'symbol' | 'balance' | 'change' | 'price' | 'value';
+type SortDir = 'asc' | 'desc';
 
 interface Props {
   wallet: PortfolioWallet;
@@ -58,19 +81,90 @@ export function WalletCard({ wallet }: Props) {
 
   const [expanded, setExpanded] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>('value');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [activeChains, setActiveChains] = useState<Set<ChainId>>(
+    () => new Set(wallet.chains),
+  );
   const [copied, setCopied] = useState(false);
 
+  const filteredTokens = useMemo(
+    () => tokens.filter((t) => activeChains.has(t.chain)),
+    [tokens, activeChains],
+  );
+
+  const filteredTotalUsd = useMemo(
+    () => filteredTokens.reduce((sum, t) => sum + (t.valueUsd ?? 0), 0),
+    [filteredTokens],
+  );
+
   const sortedTokens = useMemo(() => {
-    const copy = [...tokens];
+    const copy = [...filteredTokens];
+    const dir = sortDir === 'asc' ? 1 : -1;
     copy.sort((a, b) => {
-      if (sortKey === 'balance') return b.balanceFormatted - a.balanceFormatted;
-      if (sortKey === 'change') {
-        return (b.priceChange24h ?? -Infinity) - (a.priceChange24h ?? -Infinity);
+      let cmp = 0;
+      switch (sortKey) {
+        case 'symbol':
+          cmp = a.symbol.localeCompare(b.symbol);
+          break;
+        case 'balance':
+          cmp = a.balanceFormatted - b.balanceFormatted;
+          break;
+        case 'change': {
+          // Missing values always sort to the bottom regardless of dir.
+          const aHas = a.priceChange24h != null;
+          const bHas = b.priceChange24h != null;
+          if (!aHas && !bHas) cmp = 0;
+          else if (!aHas) return 1;
+          else if (!bHas) return -1;
+          else cmp = (a.priceChange24h as number) - (b.priceChange24h as number);
+          break;
+        }
+        case 'price': {
+          const aHas = a.priceUsd != null;
+          const bHas = b.priceUsd != null;
+          if (!aHas && !bHas) cmp = 0;
+          else if (!aHas) return 1;
+          else if (!bHas) return -1;
+          else cmp = (a.priceUsd as number) - (b.priceUsd as number);
+          break;
+        }
+        case 'value':
+        default: {
+          const aHas = a.valueUsd != null;
+          const bHas = b.valueUsd != null;
+          if (!aHas && !bHas) cmp = 0;
+          else if (!aHas) return 1;
+          else if (!bHas) return -1;
+          else cmp = (a.valueUsd as number) - (b.valueUsd as number);
+          break;
+        }
       }
-      return (b.valueUsd ?? 0) - (a.valueUsd ?? 0);
+      return cmp * dir;
     });
     return copy;
-  }, [tokens, sortKey]);
+  }, [filteredTokens, sortKey, sortDir]);
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      // Sensible default direction per column: value/balance/change/price
+      // are most useful big→small, symbol alphabetical A→Z.
+      setSortDir(key === 'symbol' ? 'asc' : 'desc');
+    }
+  };
+
+  const toggleChainFilter = (c: ChainId) => {
+    setActiveChains((prev) => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c);
+      else next.add(c);
+      return next;
+    });
+  };
+
+  const totalsDiffer = Math.abs(filteredTotalUsd - totalUsd) > 0.005;
 
   const copyAddress = async () => {
     try {
@@ -114,22 +208,38 @@ export function WalletCard({ wallet }: Props) {
         {copied && <span className="text-xs text-green-300">Copied</span>}
 
         <div className="flex items-center gap-1.5">
-          {wallet.chains.map((c) => (
-            <span
-              key={c}
-              className={`text-[10px] uppercase tracking-wide font-bold px-2 py-0.5 rounded border ${CHAIN_COLOR[c]}`}
-            >
-              {CHAIN_LABEL[c]}
-            </span>
-          ))}
+          {wallet.chains.map((c) => {
+            const active = activeChains.has(c);
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => toggleChainFilter(c)}
+                aria-pressed={active}
+                title={active ? `Hide ${CHAIN_LABEL[c]} tokens` : `Show ${CHAIN_LABEL[c]} tokens`}
+                className="text-[10px] uppercase tracking-wide font-bold px-2 py-0.5 rounded border transition-colors hover:brightness-125"
+                style={active ? CHAIN_ACTIVE_STYLE[c] : CHAIN_INACTIVE_STYLE}
+              >
+                {CHAIN_LABEL[c]}
+              </button>
+            );
+          })}
         </div>
 
         <div className="ml-auto flex items-center gap-3">
           <div className="text-right">
             <div className="text-xs text-white/50 uppercase tracking-wide">Total</div>
             <div className="text-lg font-semibold text-white tabular-nums">
-              {fmtUsd(totalUsd, { compact: true })}
+              {fmtUsd(filteredTotalUsd, { compact: true })}
             </div>
+            {totalsDiffer && (
+              <div
+                className="text-[10px] uppercase tracking-wide tabular-nums"
+                style={{ color: 'rgba(255, 255, 255, 0.4)' }}
+              >
+                of {fmtUsd(totalUsd, { compact: true })}
+              </div>
+            )}
           </div>
           <button
             type="button"
@@ -183,11 +293,16 @@ export function WalletCard({ wallet }: Props) {
                 ? 'No tokens found at this address.'
                 : 'Tap refresh to load this wallet.'}
             </div>
+          ) : filteredTokens.length === 0 ? (
+            <div className="text-sm text-white/50 text-center py-8">
+              No tokens visible — toggle a chain badge above to show them.
+            </div>
           ) : (
             <TokenTable
               tokens={sortedTokens}
               sortKey={sortKey}
-              onSortChange={setSortKey}
+              sortDir={sortDir}
+              onSort={handleSort}
             />
           )}
         </div>
@@ -212,15 +327,28 @@ function SkeletonRows() {
 function TokenTable({
   tokens,
   sortKey,
-  onSortChange,
+  sortDir,
+  onSort,
 }: {
   tokens: PortfolioToken[];
   sortKey: SortKey;
-  onSortChange: (k: SortKey) => void;
+  sortDir: SortDir;
+  onSort: (k: SortKey) => void;
 }) {
   const [expandedLp, setExpandedLp] = useState<Record<string, boolean>>({});
   const toggleLp = (key: string) =>
     setExpandedLp((p) => ({ ...p, [key]: !p[key] }));
+
+  const header = (key: SortKey, label: string, align: 'left' | 'right') => (
+    <SortButton
+      active={sortKey === key}
+      dir={sortDir}
+      align={align}
+      onClick={() => onSort(key)}
+    >
+      {label}
+    </SortButton>
+  );
 
   return (
     <div className="overflow-x-auto -mx-1">
@@ -228,19 +356,11 @@ function TokenTable({
         <thead>
           <tr className="text-left text-[11px] uppercase tracking-wide text-white/50 border-b border-white/10">
             <th className="font-semibold px-2 py-2 w-8 text-right">#</th>
-            <th className="font-semibold px-2 py-2">Token</th>
-            <th className="font-semibold px-2 py-2 text-right">Balance</th>
-            <th className="font-semibold px-2 py-2 text-right">
-              <SortButton active={sortKey === 'change'} onClick={() => onSortChange('change')}>
-                24h
-              </SortButton>
-            </th>
-            <th className="font-semibold px-2 py-2 text-right">Price</th>
-            <th className="font-semibold px-2 py-2 text-right">
-              <SortButton active={sortKey === 'value'} onClick={() => onSortChange('value')}>
-                Value
-              </SortButton>
-            </th>
+            <th className="font-semibold px-2 py-2">{header('symbol', 'Token', 'left')}</th>
+            <th className="font-semibold px-2 py-2 text-right">{header('balance', 'Balance', 'right')}</th>
+            <th className="font-semibold px-2 py-2 text-right">{header('change', '24h', 'right')}</th>
+            <th className="font-semibold px-2 py-2 text-right">{header('price', 'Price', 'right')}</th>
+            <th className="font-semibold px-2 py-2 text-right">{header('value', 'Value', 'right')}</th>
           </tr>
         </thead>
         <tbody>
@@ -411,21 +531,38 @@ function SideIcon({ side }: { side: LpUnderlying }) {
 
 function SortButton({
   active,
+  dir,
+  align,
   onClick,
   children,
 }: {
   active: boolean;
+  dir: SortDir;
+  align: 'left' | 'right';
   onClick: () => void;
   children: React.ReactNode;
 }) {
+  const arrow = !active ? '' : dir === 'desc' ? ' ↓' : ' ↑';
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`hover:text-white transition-colors ${active ? 'text-white' : ''}`}
+      className={`inline-flex items-center gap-0.5 hover:text-white transition-colors ${
+        active ? 'text-white' : 'text-white/50'
+      }`}
+      style={{ width: align === 'right' ? 'auto' : undefined }}
     >
-      {children}
-      {active && ' ↓'}
+      {align === 'left' ? (
+        <>
+          {children}
+          {arrow && <span className="ml-0.5">{arrow.trim()}</span>}
+        </>
+      ) : (
+        <>
+          {children}
+          {arrow && <span className="ml-0.5">{arrow.trim()}</span>}
+        </>
+      )}
     </button>
   );
 }
