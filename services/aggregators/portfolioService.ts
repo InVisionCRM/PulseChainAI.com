@@ -6,7 +6,6 @@
 
 import { pulsechainApi } from '../blockchain/pulsechainApi';
 import { moralisApi } from '../blockchain/moralisApi';
-import { dexscreenerApi } from '../blockchain/dexscreenerApi';
 import { validateAddress } from '../core/errors';
 import { CHAIN_MORALIS_ID } from '../core/types';
 import { resolveTokenIcon } from '../../lib/services/token-icon-resolver';
@@ -18,18 +17,20 @@ import type {
   PortfolioToken,
 } from '../core/types';
 
-interface PriceCacheEntry {
-  priceUsd: number;
-  priceChange24h?: number;
-  fetchedAt: number;
+// Server-side price proxy — see app/api/portfolio/prices/route.ts.
+// We call this once per portfolio refresh with the full token-address list
+// instead of hammering DexScreener with one fetch-per-token from the browser
+// (which trips intermittent ERR_FAILED in the network panel and shows as
+// missing prices in the UI).
+const PRICE_PROXY_URL = '/api/portfolio/prices';
+
+interface PriceProxyEntry {
+  priceUsd: number | null;
+  priceChange24h: number | null;
+  name: string | null;
+  symbol: string | null;
+  logoURI: string | null;
 }
-
-const PRICE_CACHE_TTL_MS = 60_000;
-const PRICE_FETCH_BATCH = 5;
-const priceCache = new Map<string, PriceCacheEntry>();
-
-const priceKey = (chain: ChainId, address: string) =>
-  `${chain}:${address.toLowerCase()}`;
 
 function toBalanceFormatted(raw: string, decimals: number): number {
   if (!raw) return 0;
@@ -137,59 +138,44 @@ async function fetchEthereumTokens(
   return { tokens, error: null };
 }
 
-async function enrichPrice(token: PortfolioToken): Promise<PortfolioToken> {
-  const key = priceKey(token.chain, token.address);
-  const cached = priceCache.get(key);
-  if (cached && Date.now() - cached.fetchedAt < PRICE_CACHE_TTL_MS) {
-    return applyPrice(token, cached.priceUsd, cached.priceChange24h);
-  }
-
-  try {
-    const profile = await dexscreenerApi.getTokenProfile(token.address);
-    if (profile.success && profile.data?.marketData) {
-      const priceRaw = profile.data.marketData.priceUsd;
-      const changeRaw = profile.data.marketData.priceChange;
-      const priceUsd = typeof priceRaw === 'string' ? parseFloat(priceRaw) : Number(priceRaw);
-      let change24h: number | undefined;
-      if (changeRaw != null) {
-        const parsed = typeof changeRaw === 'object' ? changeRaw.h24 : parseFloat(String(changeRaw));
-        if (Number.isFinite(parsed)) change24h = parsed;
-      }
-      if (Number.isFinite(priceUsd)) {
-        priceCache.set(key, { priceUsd, priceChange24h: change24h, fetchedAt: Date.now() });
-        return applyPrice(token, priceUsd, change24h);
-      }
-    }
-  } catch {
-    // fall through, return token without price
-  }
-
-  // Negative-cache so we don't refetch unknown tokens every render.
-  priceCache.set(key, { priceUsd: NaN, fetchedAt: Date.now() });
-  return token;
-}
-
-function applyPrice(token: PortfolioToken, priceUsd: number, change24h?: number): PortfolioToken {
+function applyPrice(token: PortfolioToken, priceUsd: number, change24h?: number | null): PortfolioToken {
   if (!Number.isFinite(priceUsd) || priceUsd === 0) return token;
   return {
     ...token,
     priceUsd,
-    priceChange24h: change24h,
+    priceChange24h: change24h ?? undefined,
     valueUsd: token.balanceFormatted * priceUsd,
   };
 }
 
-async function enrichInBatches(
-  tokens: PortfolioToken[],
-  batchSize: number,
-): Promise<PortfolioToken[]> {
-  const out: PortfolioToken[] = [];
-  for (let i = 0; i < tokens.length; i += batchSize) {
-    const slice = tokens.slice(i, i + batchSize);
-    const enriched = await Promise.all(slice.map(enrichPrice));
-    out.push(...enriched);
+async function fetchPriceMap(
+  addresses: string[],
+): Promise<Record<string, PriceProxyEntry>> {
+  if (addresses.length === 0) return {};
+  try {
+    const res = await fetch(PRICE_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ addresses }),
+    });
+    if (!res.ok) return {};
+    const data = (await res.json()) as { prices?: Record<string, PriceProxyEntry> };
+    return data.prices || {};
+  } catch {
+    return {};
   }
-  return out;
+}
+
+async function enrichWithPrices(tokens: PortfolioToken[]): Promise<PortfolioToken[]> {
+  const addresses = Array.from(
+    new Set(tokens.map((t) => t.address.toLowerCase())),
+  );
+  const priceMap = await fetchPriceMap(addresses);
+  return tokens.map((t) => {
+    const entry = priceMap[t.address.toLowerCase()];
+    if (!entry || entry.priceUsd == null) return t;
+    return applyPrice(t, entry.priceUsd, entry.priceChange24h ?? undefined);
+  });
 }
 
 async function resolveMissingIcons(tokens: PortfolioToken[]): Promise<PortfolioToken[]> {
@@ -234,7 +220,7 @@ class PortfolioService {
       }
     }
 
-    const priced = await enrichInBatches(tokens, PRICE_FETCH_BATCH);
+    const priced = await enrichWithPrices(tokens);
     const withIcons = await resolveMissingIcons(priced);
 
     withIcons.sort((a, b) => {
@@ -258,9 +244,6 @@ class PortfolioService {
     };
   }
 
-  clearPriceCache(): void {
-    priceCache.clear();
-  }
 }
 
 export const portfolioService = new PortfolioService();
