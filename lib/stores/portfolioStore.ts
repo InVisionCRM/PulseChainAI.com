@@ -18,9 +18,18 @@ interface SnapshotState {
   error: string | null;
 }
 
+export interface PortfolioHistoryPoint {
+  ts: number;
+  totalUsd: number;
+}
+
 interface PortfolioStore {
   wallets: PortfolioWallet[];
   snapshotsByAddress: Record<string, SnapshotState>;
+  // Aggregate value-over-time. Each refreshAll appends (or replaces) the
+  // most recent point — see recordSnapshot for the throttle. Persisted to
+  // localStorage so the chart survives reloads.
+  history: PortfolioHistoryPoint[];
 
   addWallet: (address: string, label?: string, chains?: ChainId[]) => boolean;
   removeWallet: (address: string) => void;
@@ -30,10 +39,13 @@ interface PortfolioStore {
   refreshWallet: (address: string) => Promise<void>;
   refreshAll: () => Promise<void>;
   clearSnapshots: () => void;
+  clearHistory: () => void;
 }
 
 const DEFAULT_CHAINS: ChainId[] = ['ethereum', 'pulsechain'];
 const ADDRESS_RX = /^0x[a-fA-F0-9]{40}$/;
+const HISTORY_THROTTLE_MS = 60 * 60 * 1000; // 1 hour
+const HISTORY_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
 
 const normaliseAddress = (a: string) => a.trim().toLowerCase();
 
@@ -42,6 +54,7 @@ export const usePortfolioStore = create<PortfolioStore>()(
     (set, get) => ({
       wallets: [],
       snapshotsByAddress: {},
+      history: [],
 
       addWallet: (address, label, chains) => {
         if (!ADDRESS_RX.test(address.trim())) return false;
@@ -124,15 +137,46 @@ export const usePortfolioStore = create<PortfolioStore>()(
       refreshAll: async () => {
         const wallets = get().wallets;
         await Promise.all(wallets.map((w) => get().refreshWallet(w.address)));
+        // Snapshot the aggregate total *after* every wallet has resolved.
+        const { wallets: w, snapshotsByAddress } = get();
+        const totalUsd = w.reduce((sum, wal) => {
+          const snap = snapshotsByAddress[wal.address]?.snapshot;
+          return sum + (snap?.totalValueUsd ?? 0);
+        }, 0);
+        if (!Number.isFinite(totalUsd) || totalUsd === 0) return;
+
+        const now = Date.now();
+        set((state) => {
+          const last = state.history[state.history.length - 1];
+          let history: PortfolioHistoryPoint[];
+          if (last && now - last.ts < HISTORY_THROTTLE_MS) {
+            // Same hour bucket — replace the last point so the chart stays
+            // current without ballooning the history array on every refresh.
+            history = [
+              ...state.history.slice(0, -1),
+              { ts: now, totalUsd },
+            ];
+          } else {
+            history = [...state.history, { ts: now, totalUsd }];
+          }
+          const cutoff = now - HISTORY_MAX_AGE_MS;
+          history = history.filter((p) => p.ts >= cutoff);
+          return { history };
+        });
       },
 
       clearSnapshots: () => set({ snapshotsByAddress: {} }),
+      clearHistory: () => set({ history: [] }),
     }),
     {
       name: 'morbius-portfolio-v1',
       storage: createJSONStorage(() => localStorage),
-      // Only persist the wallet list — snapshots are ephemeral.
-      partialize: (state) => ({ wallets: state.wallets }),
+      // Persist the wallet list AND the value history; snapshots are
+      // ephemeral and re-fetched on demand.
+      partialize: (state) => ({
+        wallets: state.wallets,
+        history: state.history,
+      }),
     },
   ),
 );

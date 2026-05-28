@@ -5,6 +5,7 @@ import { IconWallet, IconRefresh } from '@tabler/icons-react';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { AddWalletForm } from '@/components/portfolio/AddWalletForm';
 import { WalletCard } from '@/components/portfolio/WalletCard';
+import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
 
 const fmtUsd = (n: number) => {
   if (!Number.isFinite(n)) return '$0.00';
@@ -77,6 +78,8 @@ export default function PortfolioPage() {
         </header>
 
         <AddWalletForm />
+
+        {wallets.length > 0 && <PortfolioChart />}
 
         {wallets.length === 0 ? (
           <EmptyState />
