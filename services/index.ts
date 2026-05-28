@@ -44,6 +44,7 @@ export const getAddressTransactions = (address: string, limit?: number, offset?:
 export const getAddressTokenBalances = (address: string) => 
   pulsechainApi.getAddressTokenBalances(address);
 export const getTransaction = (hash: string) => pulsechainApi.getTransaction(hash);
+export const getTransactionByHash = (hash: string) => pulsechainApi.getTransaction(hash);
 export const getBurnedTokens = (address: string) => tokenService.getBurnedTokens(address);
 
 // DEXScreener compatibility

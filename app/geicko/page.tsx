@@ -10,7 +10,7 @@ import LiquidityTab from '@/components/LiquidityTab';
 import { LoaderOne, LoaderThree } from "@/components/ui/loader";
 import { Copy, Download, Info } from 'lucide-react';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem, ContractAuditResult } from '../../types';
-import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '../../services/pulsechainService';
+import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '@/services';
 import { analyzeContractAudit } from '../../services/contractAuditService';
 import ContractAuditPanel from '@/components/ContractAuditPanel';
 import {

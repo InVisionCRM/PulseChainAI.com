@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 // import TokenAIChat from '@/components/TokenAIChat';
-import { search, fetchDexScreenerData } from '@/services/pulsechainService';
-import { dexscreenerApi } from '@/services';
+import { search, fetchDexScreenerData, dexscreenerApi } from '@/services';
 import type { DexScreenerData, SearchResultItem } from '@/types';
 import { searchCache } from '@/lib/searchCache';
 // import AdminStatsPanel from '@/components/AdminStatsPanel';

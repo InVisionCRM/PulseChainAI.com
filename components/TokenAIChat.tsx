@@ -4,7 +4,7 @@ import React, { useState, useCallback, useRef, useEffect, type JSX } from 'react
 import { LoaderThree } from "@/components/ui/loader";
 import type { Message, ContractData, TokenInfo, DexScreenerData } from '../types';
 import SendIcon from '@/components/icons/SendIcon';
-import { fetchContract, fetchTokenInfo, fetchDexScreenerData } from '@/services/pulsechainService';
+import { fetchContract, fetchTokenInfo, fetchDexScreenerData } from '@/services';
 
 interface TokenAIChatProps {
   contractAddress?: string;

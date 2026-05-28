@@ -3,8 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { LoaderThree } from "@/components/ui/loader";
 import SourceCodeTab from '@/components/SourceCodeTab';
-import { fetchContract, fetchReadMethods } from '../services/pulsechainService';
-import { fetchReadMethodsWithValues } from '../services/index';
+import { fetchContract, fetchReadMethods, fetchReadMethodsWithValues } from '@/services';
 import type { ContractData, AbiItem } from '../types';
 
 interface TokenContractViewProps {

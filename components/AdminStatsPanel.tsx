@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
-import { pulsechainApi } from '@/services';
-import { fetchDexScreenerData, search } from '@/services/pulsechainService';
-import { TokenInfoDetailed } from '@/services/core/types';
+import { pulsechainApi, fetchDexScreenerData, search, type TokenInfoDetailed } from '@/services';
 import { Button } from '@/components/ui/stateful-button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 

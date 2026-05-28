@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { search } from '@/services/pulsechainService';
+import { search } from '@/services';
 import { useCanvasStore, type TokenCard } from '@/lib/stores/canvasStore';
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, useDraggable, MouseSensor, TouchSensor, useSensor, useSensors, DragMoveEvent } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
