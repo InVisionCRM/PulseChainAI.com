@@ -13,6 +13,7 @@ export { dexscreenerApi } from './blockchain/dexscreenerApi';
 
 // Aggregated services
 export { tokenService } from './aggregators/tokenService';
+export { portfolioService } from './aggregators/portfolioService';
 
 // Legacy compatibility - Re-export commonly used functions for backwards compatibility
 import { tokenService } from './aggregators/tokenService';

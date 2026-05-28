@@ -124,28 +124,18 @@ The portfolio tracker depends entirely on having one clean way to fetch balances
 
 **Result: one import path; no more duplicate "get token info" calls; new portfolio code has obvious primitives to reach for.**
 
-### Phase 4 — Portfolio foundations (4–6 hours)
-Now we add the *new* infrastructure the tracker needs, before writing any UI.
+### Phase 4 — Portfolio foundations ✅ COMPLETE
+Added the four primitives the tracker UI needs. Nothing imports them yet, so the app behaves identically — they're inert until Phase 5 wires them in.
 
-1. **`lib/stores/portfolioStore.ts`** (Zustand) with persistent localStorage middleware:
-   ```ts
-   {
-     wallets: { address: string; label?: string; chains: ('ethereum'|'pulsechain')[] }[],
-     balancesByAddress: Record<address, { tokens: PortfolioToken[]; fetchedAt: number }>,
-     pricesByToken: Record<address, { priceUsd: number; change24h: number; fetchedAt: number }>,
-     addWallet, removeWallet, refreshWallet, refreshAll
-   }
-   ```
-2. **`services/aggregators/portfolioService.ts`** — multi-chain orchestrator that:
-   - Takes a wallet address.
-   - Calls `pulsechainApi.getAddressTokenBalances` (PRC-20) **and** `moralisApi.getWalletTokenBalances` for Ethereum (ERC-20) in parallel.
-   - Enriches with prices from `dexscreenerApi.getTokenProfile` (with cache).
-   - Returns a unified `PortfolioToken[]` regardless of chain.
-   - This is essentially `GeickoPortfolioModal.fetchPortfolio` extracted, generalized to multi-chain, and made cache-aware.
-3. **`lib/services/token-icon-resolver.ts`** — single function that takes a token address + chain and returns a logo URL, trying (in order) DexScreener, PulseChain explorer, Moralis. Both `GeickoPortfolioModal` and `TokenTable` already re-implement variants of this; extract once.
-4. **`hooks/usePortfolio.ts`** — convenience hook wrapping the store + service for components: `usePortfolio(walletAddress) → { tokens, totalUsd, isLoading, refresh }`.
+1. **`services/core/types.ts`** — added `ChainId`, `CHAIN_MORALIS_ID`, `CHAIN_NATIVE_SYMBOL`, `PortfolioWallet`, `PortfolioToken`, `PortfolioFetchError`, `PortfolioSnapshot`.
+2. **`services/aggregators/portfolioService.ts`** — `getPortfolio(wallet, chains)` fans out to `pulsechainApi.getAddressTokenBalances` (PRC-20) and `moralisApi.getWalletTokenBalances` (ERC-20, with chain override to `'0x1'`) in parallel, normalises to a unified `PortfolioToken[]`, enriches with batched DexScreener prices (1-min cached), falls back to the icon resolver for tokens with no logo, sorts by USD value, and returns a snapshot. Per-chain failures degrade gracefully into `snapshot.errors`.
+3. **`services/blockchain/moralisApi.ts`** — `getWalletTokenBalances` now accepts an optional `chain` parameter (additive, backwards-compatible).
+4. **`lib/services/token-icon-resolver.ts`** — `resolveTokenIcon(address, chain, hint?)`. 10-min cached. Replaces ad-hoc icon resolution scattered across `GeickoPortfolioModal` and `TokenTable`.
+5. **`lib/stores/portfolioStore.ts`** — Zustand store persisted to localStorage under `morbius-portfolio-v1`. Only wallets persist; snapshots are ephemeral.
+6. **`hooks/usePortfolio.ts`** — `usePortfolio(addr) → { snapshot, tokens, totalUsd, isLoading, error, refresh, isTracked }`. Dedupes initial fetch via ref so multiple components mounting for the same wallet share one snapshot.
+7. **`services/index.ts`** — re-exports `portfolioService` alongside `tokenService`.
 
-**Result: portfolio tracker is now a UI exercise, not an architecture exercise.**
+Verified with `tsc --noEmit`: new modules type-check clean. 9 pre-existing errors in `StakingOverview.tsx` and `TreasuryTracker.tsx` (JSX syntax breakage) are unrelated.
 
 ### Phase 5 — Build the portfolio tracker (separate engagement)
 With Phases 0–4 done:

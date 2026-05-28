@@ -337,3 +337,51 @@ export interface NFTInstance {
   metadata?: any;
   image_url?: string;
 }
+
+// Portfolio tracker types
+export type ChainId = 'ethereum' | 'pulsechain';
+
+export const CHAIN_NATIVE_SYMBOL: Record<ChainId, string> = {
+  ethereum: 'ETH',
+  pulsechain: 'PLS',
+};
+
+export const CHAIN_MORALIS_ID: Record<ChainId, string> = {
+  ethereum: '0x1',
+  pulsechain: '0x171',
+};
+
+export interface PortfolioWallet {
+  address: string;
+  label?: string;
+  chains: ChainId[];
+  addedAt: number;
+}
+
+export interface PortfolioToken {
+  address: string;
+  chain: ChainId;
+  name: string;
+  symbol: string;
+  decimals: number;
+  balance: string;
+  balanceFormatted: number;
+  logoURI?: string;
+  priceUsd?: number;
+  priceChange24h?: number;
+  valueUsd?: number;
+}
+
+export interface PortfolioFetchError {
+  chain: ChainId;
+  stage: 'balances' | 'prices';
+  message: string;
+}
+
+export interface PortfolioSnapshot {
+  walletAddress: string;
+  tokens: PortfolioToken[];
+  totalValueUsd: number;
+  fetchedAt: number;
+  errors: PortfolioFetchError[];
+}
