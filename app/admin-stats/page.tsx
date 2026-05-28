@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
-import { pulsechainApi } from '@/services';
-import { fetchDexScreenerData, search } from '@/services/pulsechainService';
+import { pulsechainApi, fetchDexScreenerData, search } from '@/services';
 import { Button } from '@/components/ui/stateful-button';
 import { LoaderThree } from '@/components/ui/loader';
 import { LoaderWithPercent } from '@/components/ui/loader-with-percent';

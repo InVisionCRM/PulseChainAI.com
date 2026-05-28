@@ -14,9 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList } from "@/components/ui/navigation-menu";
 
 import type { Message, ContractData, TokenInfo, AbiItem, ExplainedFunction, SearchResultItem, Transaction, TokenBalance, DexScreenerData, AddressInfo } from '../../types';
-import { fetchContract, fetchTokenInfo, search, fetchReadMethods, fetchDexScreenerData, fetchAddressInfo, getTransactionByHash, getAddressTransactions } from '../../services/pulsechainService';
-import { fetchReadMethodsWithValues } from '../../services/index';
-import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
+import { fetchContract, fetchTokenInfo, search, fetchReadMethods, fetchReadMethodsWithValues, fetchDexScreenerData, fetchAddressInfo, getTransactionByHash, getAddressTransactions, dexscreenerApi } from '@/services';
 import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { useApiKey } from '../../lib/hooks/useApiKey';
 import { useGemini } from '../../lib/hooks/useGemini';

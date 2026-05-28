@@ -13,6 +13,7 @@ export { dexscreenerApi } from './blockchain/dexscreenerApi';
 
 // Aggregated services
 export { tokenService } from './aggregators/tokenService';
+export { portfolioService } from './aggregators/portfolioService';
 
 // Legacy compatibility - Re-export commonly used functions for backwards compatibility
 import { tokenService } from './aggregators/tokenService';
@@ -44,6 +45,7 @@ export const getAddressTransactions = (address: string, limit?: number, offset?:
 export const getAddressTokenBalances = (address: string) => 
   pulsechainApi.getAddressTokenBalances(address);
 export const getTransaction = (hash: string) => pulsechainApi.getTransaction(hash);
+export const getTransactionByHash = (hash: string) => pulsechainApi.getTransaction(hash);
 export const getBurnedTokens = (address: string) => tokenService.getBurnedTokens(address);
 
 // DEXScreener compatibility

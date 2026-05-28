@@ -5,6 +5,7 @@ import {
   IconCurrencyDollar,
   IconChartBar,
   IconPhoneOutgoing,
+  IconWallet,
   IconX,
 } from "@tabler/icons-react";
 import {
@@ -29,15 +30,9 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
 
   const moreNavItems = [
     {
-      label: "HEX Dashboard",
-      href: "/hex-dashboard",
-      icon: (
-        <img
-          src="/HEXagon (1).svg"
-          alt="HEX Dashboard"
-          className="h-8 w-8"
-        />
-      ),
+      label: "Portfolio",
+      href: "/portfolio",
+      icon: <IconWallet className="h-8 w-8" />,
     },
     {
       label: "Learn AI",
@@ -49,11 +44,6 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
       href: "https://win.morbius.io",
       icon: <IconCurrencyDollar className="h-8 w-8" />,
       external: true,
-    },
-    {
-      label: "PulseChain Stats",
-      href: "/pulsechain-stats",
-      icon: <IconChartBar className="h-8 w-8" />,
     },
     {
       label: "GOLD Badges Admin",

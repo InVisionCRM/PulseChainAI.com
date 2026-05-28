@@ -179,18 +179,24 @@ export class MoralisApiClient {
     }
   }
 
-  // Get wallet token balances
-  async getWalletTokenBalances(address: string): Promise<ApiResponse<TokenBalance[]>> {
+  // Get wallet token balances. Pass `chain` (Moralis hex chain id) to override
+  // the default PulseChain id — needed for the portfolio tracker which queries
+  // both Ethereum ('0x1') and PulseChain ('0x171') from the same wallet.
+  async getWalletTokenBalances(
+    address: string,
+    chain?: string,
+  ): Promise<ApiResponse<TokenBalance[]>> {
     validateAddress(address);
-    
+
     if (!this.isAvailable()) {
       return { error: 'Moralis not initialized', success: false };
     }
 
     try {
+      const targetChain = chain || this.chainId;
       const response = await withRetry(async () => {
         return await Moralis.EvmApi.token.getWalletTokenBalances({
-          chain: this.chainId,
+          chain: targetChain,
           address
         });
       }, 3, 1000, 'moralis');

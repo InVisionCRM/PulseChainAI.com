@@ -5,7 +5,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ThreeDMarquee } from "./3d-marquee";
 import { PlaceholdersAndVanishInput } from "./placeholders-and-vanish-input";
-import { search } from "@/services/pulsechainService";
+import { search } from "@/services";
 import type { SearchResultItem } from "@/types";
 
 export const HeroHighlight = ({

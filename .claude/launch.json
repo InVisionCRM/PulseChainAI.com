@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pulse-dev",
+      "runtimeExecutable": "/Users/kyle/.nvm/versions/node/v22.14.0/bin/npm",
+      "runtimeArgs": ["run", "dev"],
+      "env": {
+        "PATH": "/Users/kyle/.nvm/versions/node/v22.14.0/bin:/usr/local/bin:/usr/bin:/bin"
+      },
+      "port": 3000
+    }
+  ]
+}

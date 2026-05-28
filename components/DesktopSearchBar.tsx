@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { IconSearch } from "@tabler/icons-react";
-import { search } from "@/services/pulsechainService";
+import { search } from "@/services";
 import { searchCache } from "@/lib/searchCache";
 import type { SearchResultItem } from "@/types";
 import { Check } from "lucide-react";

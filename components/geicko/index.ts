@@ -20,12 +20,6 @@ export { default as GeickoSearchBar } from './GeickoSearchBar';
 export { default as GeickoTabNavigation } from './GeickoTabNavigation';
 export { default as GeickoMobileTokenHeader } from './GeickoMobileTokenHeader';
 
-// Export components - Phase 4 (Rabby Mode)
-export { default as GeickoRabbyHeader } from './GeickoRabbyHeader';
-export { default as GeickoRabbyActionButtons } from './GeickoRabbyActionButtons';
-export { default as GeickoRabbyInfoCards } from './GeickoRabbyInfoCards';
-export { default as GeickoRabbyTransactionsList } from './GeickoRabbyTransactionsList';
-
 // Export components - Phase 5 (Metrics Panels)
 export { default as GeickoOwnershipPanel } from './GeickoOwnershipPanel';
 export { default as GeickoMetricsGrid } from './GeickoMetricsGrid';
@@ -48,10 +42,6 @@ export type { GeickoClassicHeaderProps } from './GeickoClassicHeader';
 export type { GeickoSearchBarProps } from './GeickoSearchBar';
 export type { GeickoTabNavigationProps } from './GeickoTabNavigation';
 export type { GeickoMobileTokenHeaderProps } from './GeickoMobileTokenHeader';
-export type { GeickoRabbyHeaderProps } from './GeickoRabbyHeader';
-export type { GeickoRabbyActionButtonsProps, RabbyAction } from './GeickoRabbyActionButtons';
-export type { GeickoRabbyInfoCardsProps } from './GeickoRabbyInfoCards';
-export type { GeickoRabbyTransactionsListProps } from './GeickoRabbyTransactionsList';
 export type { GeickoOwnershipPanelProps } from './GeickoOwnershipPanel';
 export type { GeickoMetricsGridProps } from './GeickoMetricsGrid';
 export type { GeickoMarketStatsPanelProps } from './GeickoMarketStatsPanel';

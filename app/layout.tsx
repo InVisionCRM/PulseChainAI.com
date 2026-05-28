@@ -18,6 +18,7 @@ import {
   IconX,
   IconCurrencyDollar,
   IconBook,
+  IconWallet,
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -123,14 +124,10 @@ export default function RootLayout({
       ),
     },
     {
-      label: "Hex Dashboard",
-      href: "/hex-dashboard",
+      label: "Portfolio",
+      href: "/portfolio",
       icon: (
-        <img
-          src="/HEXagon (1).svg"
-          alt="HEX Dashboard"
-          className="h-5 w-5 shrink-0"
-        />
+        <IconWallet className="h-5 w-5 shrink-0 text-white" />
       ),
     },
     {
@@ -145,13 +142,6 @@ export default function RootLayout({
       href: "https://win.morbius.io",
       icon: (
         <IconCurrencyDollar className="h-5 w-5 shrink-0 text-white" />
-      ),
-    },
-    {
-      label: "PulseChain Stats",
-      href: "/pulsechain-stats",
-      icon: (
-        <IconChartBar className="h-5 w-5 shrink-0 text-white text-center items-center justify-center" />
       ),
     },
     {

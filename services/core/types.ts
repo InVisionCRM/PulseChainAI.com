@@ -337,3 +337,92 @@ export interface NFTInstance {
   metadata?: any;
   image_url?: string;
 }
+
+// Portfolio tracker types
+export type ChainId = 'ethereum' | 'pulsechain';
+
+export const CHAIN_NATIVE_SYMBOL: Record<ChainId, string> = {
+  ethereum: 'ETH',
+  pulsechain: 'PLS',
+};
+
+export const CHAIN_MORALIS_ID: Record<ChainId, string> = {
+  ethereum: '0x1',
+  pulsechain: '0x171',
+};
+
+// Native gas tokens can't be priced directly via DexScreener — instead we
+// piggy-back on the price of the wrapped equivalent (1 PLS = 1 WPLS by
+// definition of the wrapper contract, same for ETH/WETH).
+export const WRAPPED_NATIVE: Record<ChainId, string> = {
+  ethereum: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
+  pulsechain: '0xa1077a294dde1b09bb078844df40758a5d0f9a27', // WPLS
+};
+
+// Marker address for native gas-token rows. EVM convention is the zero
+// address, but Aave-style 0xEee...eEE is also seen — we just need any
+// non-real-token sentinel so the dedupe key doesn't collide with the
+// wrapped contract.
+export const NATIVE_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+export interface PortfolioWallet {
+  address: string;
+  label?: string;
+  chains: ChainId[];
+  addedAt: number;
+}
+
+export interface PortfolioToken {
+  address: string;
+  chain: ChainId;
+  name: string;
+  symbol: string;
+  decimals: number;
+  balance: string;
+  balanceFormatted: number;
+  logoURI?: string;
+  priceUsd?: number;
+  priceChange24h?: number;
+  valueUsd?: number;
+  isNative?: boolean;
+  isLp?: boolean;
+  lp?: LpBreakdown;
+}
+
+// A single side of a V2-style LP position (e.g. WPLS/PLSX).
+export interface LpUnderlying {
+  address: string;
+  symbol: string;
+  name: string;
+  amountFormatted: number;
+  priceUsd?: number;
+  valueUsd?: number;
+  logoURI?: string;
+  weightPct: number;
+}
+
+// The user's slice of a Uniswap-V2-style PulseX LP, computed from the
+// pool reserves and the LP's totalSupply.
+export interface LpBreakdown {
+  pairAddress: string;
+  dexId?: string;
+  totalSupply: number;
+  userShare: number;
+  totalLiquidityUsd?: number;
+  userValueUsd?: number;
+  sides: [LpUnderlying, LpUnderlying];
+}
+
+export interface PortfolioFetchError {
+  chain: ChainId;
+  stage: 'balances' | 'prices';
+  message: string;
+}
+
+export interface PortfolioSnapshot {
+  walletAddress: string;
+  tokens: PortfolioToken[];
+  totalValueUsd: number;
+  fetchedAt: number;
+  errors: PortfolioFetchError[];
+}

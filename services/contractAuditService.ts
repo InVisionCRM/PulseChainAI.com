@@ -1,5 +1,5 @@
 import type { ContractData, AbiItem, ContractAuditResult } from '@/types';
-import { fetchAddressInfo } from './pulsechainService';
+import { fetchAddressInfo } from './index';
 
 const PUMP_TIRES_CREATOR = '0x6538A83a81d855B965983161AF6a83e616D16fD5';
 
