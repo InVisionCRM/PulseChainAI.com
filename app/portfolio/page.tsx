@@ -6,6 +6,7 @@ import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { AddWalletForm } from '@/components/portfolio/AddWalletForm';
 import { WalletCard } from '@/components/portfolio/WalletCard';
 import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
+import { WatchlistPanel } from '@/components/portfolio/WatchlistPanel';
 
 const fmtUsd = (n: number) => {
   if (!Number.isFinite(n)) return '$0.00';
@@ -35,7 +36,7 @@ export default function PortfolioPage() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-[#0C2340] via-[#0d2a4d] to-[#0C2340]">
-      <div className="mx-auto max-w-6xl px-4 py-8 md:py-12 space-y-6">
+      <div className="mx-auto max-w-7xl px-4 py-8 md:py-12 space-y-6">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-orange-400/80 text-xs font-semibold uppercase tracking-wider">
@@ -77,19 +78,22 @@ export default function PortfolioPage() {
           )}
         </header>
 
-        <AddWalletForm />
-
-        {wallets.length > 0 && <PortfolioChart />}
-
-        {wallets.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <div className="space-y-4">
-            {wallets.map((w) => (
-              <WalletCard key={w.address} wallet={w} />
-            ))}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+          <div className="space-y-6 min-w-0">
+            <AddWalletForm />
+            {wallets.length > 0 && <PortfolioChart />}
+            {wallets.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <div className="space-y-4">
+                {wallets.map((w) => (
+                  <WalletCard key={w.address} wallet={w} />
+                ))}
+              </div>
+            )}
           </div>
-        )}
+          <WatchlistPanel />
+        </div>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import {
 } from '@tabler/icons-react';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
+import { ApprovalsPanel } from '@/components/portfolio/ApprovalsPanel';
 import type { ChainId, LpUnderlying, PortfolioToken, PortfolioWallet } from '@/services';
 
 const CHAIN_LABEL: Record<ChainId, string> = {
@@ -305,6 +306,10 @@ export function WalletCard({ wallet }: Props) {
               onSort={handleSort}
             />
           )}
+          <ApprovalsPanel
+            walletAddress={wallet.address}
+            chains={wallet.chains}
+          />
         </div>
       )}
     </section>
