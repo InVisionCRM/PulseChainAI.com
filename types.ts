@@ -1,3 +1,11 @@
+// Legacy type definitions used by app/geicko, app/ai-agent, and several
+// older components. The canonical home for new types is
+// services/core/types.ts (re-exported from "@/services"). Some interfaces
+// here (TokenInfo, ContractData, SearchResultItem, Transaction, etc.)
+// have intentionally different shapes than their core counterparts —
+// migrating callers happens in Phase 3 alongside the service consolidation,
+// not here.
+
 export interface Message {
   id: string;
   text: string;
@@ -221,8 +229,8 @@ export interface QuickAudit {
     hasExternalContractRisk: boolean;
     canMint: boolean;
     canBurn: boolean;
-    canslate-950list: boolean;
-    canMultislate-950list: boolean;
+    canBlacklist: boolean;
+    canMultiBlacklist: boolean;
     canWhitelist: boolean;
     canUpdateFees: boolean;
     canUpdateMaxWallet: boolean;

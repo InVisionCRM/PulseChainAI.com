@@ -102,14 +102,14 @@ No behavior change. Just removing files nothing imports.
 
 **Result: ~50 files gone, ~600KB removed, zero behavior change.**
 
-### Phase 2 — Type unification (2 hours)
-Make a single source of truth so the portfolio tracker has stable types to import.
+### Phase 2 — Type triage (30 min) — *scoped down from original plan*
+Original plan said "make root types.ts a re-export shim". Verification revealed the two type homes have **overlapping names with conflicting shapes** (root `TokenInfo` uses `holders: string`, core uses `holders: number`; same for `ContractData`, `Transaction`, `SearchResultItem`). A naïve re-export would break every legacy caller. Real unification has to happen in Phase 3 alongside service migration, file by file.
 
-1. In `services/core/types.ts`, add any types from root `types.ts` that aren't already there (e.g., `DexScreenerData`, `TransactionData`, `Message`).
-2. Change root `types.ts` to a **re-export shim only**: `export * from '@/services/core/types';`. Keeps existing imports working.
-3. Fix the typo bug in `types.ts:224`: `canslate-950list` / `canMultislate-950list` are clearly the result of a global find-replace gone wrong on `blacklist`. Restore to `canBlacklist` / `canMultiBlacklist`.
+Realistic Phase 2:
+1. Fix the typo bug in `types.ts:224`: `canslate-950list` / `canMultislate-950list` are clearly the result of a global Tailwind find-replace gone wrong on `blacklist`. Restored to `canBlacklist` / `canMultiBlacklist`. (Callers in `app/geicko/page.tsx` and `app/ai-agent/page.tsx` already reference `canBlacklist`, so the interface was silently lying.)
+2. Add a header comment to `types.ts` noting that `services/core/types.ts` is the canonical home for new types and that the overlap is intentional during the migration.
 
-**Result: one type home; new portfolio code imports from `@/services` cleanly.**
+**Result: bug fixed, future direction documented; no behavior change.**
 
 ### Phase 3 — Service consolidation (4–6 hours, the most important phase)
 The portfolio tracker depends entirely on having one clean way to fetch balances + prices. Get this right and Phase 5 becomes easy.
