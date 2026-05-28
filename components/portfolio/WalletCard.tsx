@@ -361,7 +361,10 @@ function LpSideRow({ side, chain }: { side: LpUnderlying; chain: ChainId }) {
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="font-medium text-white truncate">{side.symbol}</span>
-              <span className="text-[10px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded bg-cyan-400/20 text-cyan-50 border border-cyan-400/50">
+              <span
+                className="text-[10px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 border border-cyan-400/50"
+                style={{ color: '#cffafe' }}
+              >
                 {side.weightPct.toFixed(1)}%
               </span>
             </div>
