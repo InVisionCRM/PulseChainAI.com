@@ -7,13 +7,35 @@ import { NextRequest, NextResponse } from 'next/server';
 // the user's share of each underlying side.
 
 const DEX_PAIRS_URL = 'https://api.dexscreener.com/latest/dex/pairs';
-const RPC_URL: Record<string, string> = {
-  pulsechain: 'https://rpc.pulsechain.com',
-  ethereum: 'https://eth.llamarpc.com',
+
+// Multiple RPC endpoints per chain. We try each in order and use the
+// first one that responds — rpc.pulsechain.com has been timing out for
+// stretches, and the public PulseChain RPC pool in general is uneven.
+// Order curated by the project owner; first match wins.
+const RPC_URLS: Record<string, string[]> = {
+  pulsechain: [
+    'https://rpc.pulsechainrpc.com',
+    'https://pulsechain-rpc.publicnode.com',
+    'https://rpc.gigatheminter.com',
+    'https://rpc-pulsechain.g4mm4.io',
+  ],
+  ethereum: [
+    'https://eth.llamarpc.com',
+    'https://ethereum-rpc.publicnode.com',
+    'https://rpc.ankr.com/eth',
+  ],
 };
+
+// Blockscout token endpoint — fallback when every RPC is down.
+const BLOCKSCOUT_TOKEN_URL: Record<string, string> = {
+  pulsechain: 'https://api.scan.pulsechain.com/api/v2/tokens',
+  ethereum: 'https://eth.blockscout.com/api/v2/tokens',
+};
+
 // totalSupply() — first 4 bytes of keccak256("totalSupply()")
 const TOTAL_SUPPLY_SELECTOR = '0x18160ddd';
 const FETCH_TIMEOUT_MS = 8_000;
+const RPC_TIMEOUT_MS = 4_000;
 const CACHE_TTL_MS = 60_000;
 
 // DexScreener returns a Cloudflare HTML challenge for fetches without a
@@ -121,18 +143,12 @@ async function fetchPairBatch(
   }
 }
 
-async function fetchTotalSupply(
-  chainId: ChainId,
+async function callRpc(
+  url: string,
   address: string,
-): Promise<{ raw: string | null; decimals: number }> {
-  // PulseScan and Etherscan-style token endpoints are explorer APIs that
-  // often 502 under load. Going directly to the chain's JSON-RPC is both
-  // faster and more reliable — `totalSupply()` is a standard ERC-20 read.
-  const rpcUrl = RPC_URL[chainId];
-  if (!rpcUrl) return { raw: null, decimals: 18 };
-
+): Promise<string | null> {
   try {
-    const res = await fetch(rpcUrl, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -141,20 +157,60 @@ async function fetchTotalSupply(
         params: [{ to: address, data: TOTAL_SUPPLY_SELECTOR }, 'latest'],
         id: 1,
       }),
+      signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { result?: string; error?: any };
+    if (!data.result || data.error) return null;
+    return data.result;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchTotalSupplyFromBlockscout(
+  chainId: ChainId,
+  address: string,
+): Promise<string | null> {
+  const url = BLOCKSCOUT_TOKEN_URL[chainId];
+  if (!url) return null;
+  try {
+    const res = await fetch(`${url}/${address}`, {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
-    if (!res.ok) return { raw: null, decimals: 18 };
-    const data = (await res.json()) as { result?: string; error?: any };
-    if (!data.result || data.error) return { raw: null, decimals: 18 };
-    // result is 32-byte hex; parse as BigInt then back to decimal string
-    const hex = data.result.startsWith('0x') ? data.result : `0x${data.result}`;
-    if (hex === '0x' || hex === '0x0') return { raw: '0', decimals: 18 };
-    const big = BigInt(hex);
-    // V2 LP tokens are always 18 decimals (hardcoded in Uniswap V2 Pair).
-    return { raw: big.toString(), decimals: 18 };
+    if (!res.ok) return null;
+    const data = (await res.json()) as { total_supply?: string };
+    return data?.total_supply || null;
   } catch {
-    return { raw: null, decimals: 18 };
+    return null;
   }
+}
+
+async function fetchTotalSupply(
+  chainId: ChainId,
+  address: string,
+): Promise<{ raw: string | null; decimals: number }> {
+  // Try each configured RPC in order; first non-empty wins. V2 LP tokens
+  // are always 18 decimals (hardcoded in the Uniswap V2 Pair contract).
+  const urls = RPC_URLS[chainId] || [];
+  for (const url of urls) {
+    const result = await callRpc(url, address);
+    if (!result) continue;
+    const hex = result.startsWith('0x') ? result : `0x${result}`;
+    if (hex === '0x' || hex === '0x0') return { raw: '0', decimals: 18 };
+    try {
+      const big = BigInt(hex);
+      return { raw: big.toString(), decimals: 18 };
+    } catch {
+      // try next RPC
+    }
+  }
+
+  // Every RPC failed — fall back to the explorer's token endpoint.
+  const blockscoutSupply = await fetchTotalSupplyFromBlockscout(chainId, address);
+  if (blockscoutSupply) return { raw: blockscoutSupply, decimals: 18 };
+
+  return { raw: null, decimals: 18 };
 }
 
 function deriveSidePrice(

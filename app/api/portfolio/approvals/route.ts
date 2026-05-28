@@ -14,13 +14,16 @@ const BLOCKSCOUT_BASE: Record<ChainId, string> = {
   ethereum: 'https://eth.blockscout.com/api/v2',
 };
 
-// `approve(address,uint256)`
-const APPROVE_METHOD_ID = '0x095ea7b3';
 // Anything above this is functionally "unlimited" (real ERC-20 supplies
 // don't reach 1e60). Bigger than 2**200, smaller than 2**256.
 const UNLIMITED_THRESHOLD = 10n ** 60n;
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_TOKEN_INFO_LOOKUPS = 30;
+// Blockscout V2 doesn't accept a method/method_id filter on the
+// transactions endpoint (returns 422), so we fetch outbound txs in
+// pages and filter for approve() client-side. Cap at a few pages so we
+// don't spend forever on busy addresses.
+const MAX_TX_PAGES = 6;
 
 interface ApprovalEntry {
   token: {
@@ -51,16 +54,49 @@ async function fetchWithTimeout(url: string): Promise<Response | null> {
   }
 }
 
+function buildTxUrl(
+  chain: ChainId,
+  address: string,
+  next: Record<string, string | number> | null,
+): string {
+  const base = `${BLOCKSCOUT_BASE[chain]}/addresses/${address}/transactions?filter=from`;
+  if (!next) return base;
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(next)) params.set(k, String(v));
+  return `${base}&${params.toString()}`;
+}
+
+function isApprove(tx: any): boolean {
+  // Prefer the explorer's decoded method name; fall back to the raw call
+  // signature on decoded_input for older blocks where method is absent.
+  if (tx?.method === 'approve') return true;
+  const call = tx?.decoded_input?.method_call;
+  return typeof call === 'string' && call.startsWith('approve(');
+}
+
 async function fetchApprovalTxs(chain: ChainId, address: string): Promise<any[]> {
-  const url = `${BLOCKSCOUT_BASE[chain]}/addresses/${address}/transactions?filter=from&method_id=${APPROVE_METHOD_ID}`;
-  const r = await fetchWithTimeout(url);
-  if (!r || !r.ok) return [];
-  try {
-    const d = await r.json();
-    return Array.isArray(d?.items) ? d.items : [];
-  } catch {
-    return [];
+  // Blockscout V2 ignores (in fact 422s on) method/method_id filters on
+  // the address transactions endpoint, so we walk pages of outbound txs
+  // and filter for approve() client-side. Cap at MAX_TX_PAGES so we
+  // don't spend forever on heavy wallets.
+  const approves: any[] = [];
+  let next: Record<string, string | number> | null = null;
+  for (let i = 0; i < MAX_TX_PAGES; i++) {
+    const r = await fetchWithTimeout(buildTxUrl(chain, address, next));
+    if (!r || !r.ok) break;
+    let d: any;
+    try {
+      d = await r.json();
+    } catch {
+      break;
+    }
+    const items = Array.isArray(d?.items) ? d.items : [];
+    for (const tx of items) if (isApprove(tx)) approves.push(tx);
+    const np = d?.next_page_params;
+    if (!np || typeof np !== 'object') break;
+    next = np;
   }
+  return approves;
 }
 
 interface ParsedApprove {
