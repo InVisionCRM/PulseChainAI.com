@@ -18,6 +18,7 @@ import {
   IconX,
   IconCurrencyDollar,
   IconBook,
+  IconWallet,
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -120,6 +121,13 @@ export default function RootLayout({
       href: "/geicko",
       icon: (
         <IconCode className="h-5 w-5 shrink-0 text-white" />
+      ),
+    },
+    {
+      label: "Portfolio",
+      href: "/portfolio",
+      icon: (
+        <IconWallet className="h-5 w-5 shrink-0 text-white" />
       ),
     },
     {

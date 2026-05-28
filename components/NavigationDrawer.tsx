@@ -5,6 +5,7 @@ import {
   IconCurrencyDollar,
   IconChartBar,
   IconPhoneOutgoing,
+  IconWallet,
   IconX,
 } from "@tabler/icons-react";
 import {
@@ -28,6 +29,11 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
   };
 
   const moreNavItems = [
+    {
+      label: "Portfolio",
+      href: "/portfolio",
+      icon: <IconWallet className="h-8 w-8" />,
+    },
     {
       label: "Learn AI",
       href: "/learn-ai",
