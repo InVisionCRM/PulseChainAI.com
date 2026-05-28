@@ -7,6 +7,7 @@ import { AddWalletForm } from '@/components/portfolio/AddWalletForm';
 import { WalletCard } from '@/components/portfolio/WalletCard';
 import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
 import { WatchlistPanel } from '@/components/portfolio/WatchlistPanel';
+import { TokenInsightsCard } from '@/components/portfolio/TokenInsightsCard';
 
 const fmtUsd = (n: number) => {
   if (!Number.isFinite(n)) return '$0.00';
@@ -106,6 +107,7 @@ export default function PortfolioPage() {
           <WatchlistPanel />
         </div>
       </div>
+      <TokenInsightsCard />
     </div>
   );
 }

@@ -7,9 +7,11 @@ import {
   IconRefresh,
   IconTrash,
   IconAlertTriangle,
+  IconChartHistogram,
 } from '@tabler/icons-react';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
+import { useInsightsStore } from '@/lib/stores/insightsStore';
 import { ApprovalsPanel } from '@/components/portfolio/ApprovalsPanel';
 import type { ChainId, LpUnderlying, PortfolioToken, PortfolioWallet } from '@/services';
 
@@ -87,6 +89,7 @@ export function WalletCard({ wallet }: Props) {
     () => new Set(wallet.chains),
   );
   const [copied, setCopied] = useState(false);
+  const openInsights = useInsightsStore((s) => s.openInsights);
 
   const filteredTokens = useMemo(
     () => tokens.filter((t) => activeChains.has(t.chain)),
@@ -304,6 +307,7 @@ export function WalletCard({ wallet }: Props) {
               sortKey={sortKey}
               sortDir={sortDir}
               onSort={handleSort}
+              onOpenInsights={openInsights}
             />
           )}
           <ApprovalsPanel
@@ -334,11 +338,13 @@ function TokenTable({
   sortKey,
   sortDir,
   onSort,
+  onOpenInsights,
 }: {
   tokens: PortfolioToken[];
   sortKey: SortKey;
   sortDir: SortDir;
   onSort: (k: SortKey) => void;
+  onOpenInsights: (t: PortfolioToken) => void;
 }) {
   const [expandedLp, setExpandedLp] = useState<Record<string, boolean>>({});
   const toggleLp = (key: string) =>
@@ -408,6 +414,15 @@ function TokenTable({
                             />
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => onOpenInsights(t)}
+                          aria-label={`Open insights for ${t.symbol}`}
+                          title={`Insights — ${t.symbol}`}
+                          className="ml-auto inline-flex items-center justify-center h-6 w-6 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                        >
+                          <IconChartHistogram className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                       <div className="text-xs text-white/50 truncate">{t.name}</div>
                     </div>
