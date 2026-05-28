@@ -137,13 +137,6 @@ export default function RootLayout({
       ),
     },
     {
-      label: "PulseChain Stats",
-      href: "/pulsechain-stats",
-      icon: (
-        <IconChartBar className="h-5 w-5 shrink-0 text-white text-center items-center justify-center" />
-      ),
-    },
-    {
       label: "GOLD Badges Admin",
       href: "/admin/gold-badges",
       icon: (

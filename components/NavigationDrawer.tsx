@@ -40,11 +40,6 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
       external: true,
     },
     {
-      label: "PulseChain Stats",
-      href: "/pulsechain-stats",
-      icon: <IconChartBar className="h-8 w-8" />,
-    },
-    {
       label: "GOLD Badges Admin",
       href: "/admin/gold-badges",
       icon: <IconPhoneOutgoing className="h-8 w-8" />,
