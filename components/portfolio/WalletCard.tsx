@@ -356,34 +356,53 @@ function LpSideRow({ side, chain }: { side: LpUnderlying; chain: ChainId }) {
       <td />
       <td className="px-2 py-2 pl-6">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="text-cyan-300/60 text-xs">↳</div>
-          <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[9px] text-white/60 font-semibold shrink-0">
-            {side.symbol.slice(0, 3).toUpperCase()}
-          </div>
+          <div className="text-cyan-300/70 text-xs">↳</div>
+          <SideIcon side={side} />
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="font-medium text-white/90 truncate">{side.symbol}</span>
-              <span className="text-[9px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-200 border border-cyan-500/30">
+              <span className="font-medium text-white truncate">{side.symbol}</span>
+              <span className="text-[10px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded bg-cyan-400/20 text-cyan-50 border border-cyan-400/50">
                 {side.weightPct.toFixed(1)}%
               </span>
             </div>
-            <div className="text-[11px] text-white/40 truncate">{side.name}</div>
+            <div className="text-[11px] text-white/50 truncate">{side.name}</div>
           </div>
         </div>
       </td>
-      <td className="px-2 py-2 text-right text-white/80 tabular-nums">
+      <td className="px-2 py-2 text-right text-white/85 tabular-nums">
         {side.amountFormatted.toLocaleString(undefined, {
           maximumFractionDigits: side.amountFormatted < 1 ? 6 : 4,
         })}
       </td>
       <td className="px-2 py-2 text-right text-white/30">—</td>
-      <td className="px-2 py-2 text-right text-white/70 tabular-nums">
+      <td className="px-2 py-2 text-right text-white/75 tabular-nums">
         {side.priceUsd != null ? fmtUsd(side.priceUsd) : <span className="text-white/30">—</span>}
       </td>
       <td className="px-2 py-2 text-right text-white tabular-nums">
         {side.valueUsd != null ? fmtUsd(side.valueUsd) : <span className="text-white/30">—</span>}
       </td>
     </tr>
+  );
+}
+
+function SideIcon({ side }: { side: LpUnderlying }) {
+  return (
+    <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center overflow-hidden shrink-0">
+      {side.logoURI ? (
+        <img
+          src={side.logoURI}
+          alt={side.symbol}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).style.display = 'none';
+          }}
+        />
+      ) : (
+        <span className="text-[9px] text-white font-semibold">
+          {side.symbol.slice(0, 3).toUpperCase()}
+        </span>
+      )}
+    </div>
   );
 }
 

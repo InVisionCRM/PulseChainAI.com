@@ -240,20 +240,74 @@ async function enrichWithPrices(tokens: PortfolioToken[]): Promise<PortfolioToke
     // the wrapped equivalent (1 PLS ≡ 1 WPLS, 1 ETH ≡ 1 WETH).
     if (t.isNative) addresses.add(WRAPPED_NATIVE[t.chain]);
     else addresses.add(t.address.toLowerCase());
+
+    // Also include underlying LP sides — when a pair isn't on DexScreener,
+    // the LP route returns null prices, but each side is typically still
+    // listed as its own token. This gives the breakdown rows real prices
+    // and logos.
+    if (t.lp) {
+      for (const side of t.lp.sides) {
+        if (side.address) addresses.add(side.address.toLowerCase());
+      }
+    }
   }
+
   const priceMap = await fetchPriceMap([...addresses]);
 
+  const lookupPriceFor = (token: PortfolioToken) =>
+    token.isNative
+      ? priceMap[WRAPPED_NATIVE[token.chain]]
+      : priceMap[token.address.toLowerCase()];
+
   return tokens.map((t) => {
-    const lookupAddr = t.isNative
-      ? WRAPPED_NATIVE[t.chain]
-      : t.address.toLowerCase();
-    const entry = priceMap[lookupAddr];
-    if (!entry || entry.priceUsd == null) return t;
-    // For native rows, also borrow the wrapped token's logo so the UI has
-    // something to render (DexScreener's WPLS/WETH logo).
-    const next = applyPrice(t, entry.priceUsd, entry.priceChange24h ?? undefined);
+    const entry = lookupPriceFor(t);
+
+    // First, enrich the LP underlying sides if any. Even if the LP row
+    // itself has no DexScreener price, the sides may.
+    let next: PortfolioToken = t;
+    if (t.lp) {
+      const sides = t.lp.sides.map((side) => {
+        const sideEntry = priceMap[side.address.toLowerCase()];
+        if (!sideEntry) return side;
+        const priceUsd = side.priceUsd ?? (sideEntry.priceUsd ?? undefined);
+        const valueUsd =
+          priceUsd != null ? side.amountFormatted * priceUsd : side.valueUsd;
+        const logoURI = side.logoURI ?? sideEntry.logoURI ?? undefined;
+        return { ...side, priceUsd, valueUsd, logoURI };
+      }) as typeof t.lp.sides;
+
+      // Recompute weights from the now-fully-priced reserves where possible.
+      const totalSideValue = sides.reduce(
+        (sum, s) => sum + (s.valueUsd ?? 0),
+        0,
+      );
+      const weighted = totalSideValue > 0
+        ? (sides.map((s) => ({
+            ...s,
+            weightPct: s.valueUsd != null
+              ? (s.valueUsd / totalSideValue) * 100
+              : s.weightPct,
+          })) as typeof t.lp.sides)
+        : sides;
+
+      // If the LP route didn't have a totalLiquidityUsd or userValueUsd,
+      // derive them from the now-priced sides.
+      const userValueUsd =
+        t.lp.userValueUsd ?? (weighted[0].valueUsd ?? 0) + (weighted[1].valueUsd ?? 0);
+
+      next = {
+        ...t,
+        lp: { ...t.lp, sides: weighted, userValueUsd },
+        valueUsd: t.valueUsd ?? userValueUsd ?? undefined,
+      };
+    }
+
+    if (!entry || entry.priceUsd == null) return next;
+
+    // Then price the LP-or-regular token row itself.
+    next = applyPrice(next, entry.priceUsd, entry.priceChange24h ?? undefined);
     if (t.isNative && !next.logoURI && entry.logoURI) {
-      return { ...next, logoURI: entry.logoURI };
+      next = { ...next, logoURI: entry.logoURI };
     }
     return next;
   });
@@ -413,9 +467,12 @@ class PortfolioService {
       }
     }
 
-    const priced = await enrichWithPrices(tokens);
-    const withLp = await enrichLpTokens(priced);
-    const withIcons = await resolveMissingIcons(withLp);
+    // Order matters: detect LP breakdowns first so enrichWithPrices can
+    // include the LP underlying token addresses in its proxy call, fixing
+    // both missing prices and missing logos on the sub-rows.
+    const withLp = await enrichLpTokens(tokens);
+    const priced = await enrichWithPrices(withLp);
+    const withIcons = await resolveMissingIcons(priced);
 
     withIcons.sort((a, b) => {
       const av = a.valueUsd ?? 0;
