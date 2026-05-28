@@ -43,6 +43,20 @@ interface Website {
   url: string;
 }
 
+interface PairSummary {
+  pairAddress: string;
+  dexId: string;
+  url: string;
+  baseSymbol: string;
+  quoteSymbol: string;
+  liquidityUsd: number | null;
+  volume24h: number | null;
+  txns24h: number | null;
+  priceUsd: number | null;
+  priceChange24h: number | null;
+  fdv: number | null;
+}
+
 interface InsightsResponse {
   address: string;
   chain: ChainId;
@@ -57,6 +71,7 @@ interface InsightsResponse {
   liquidityUsd: number | null;
   pairCount: number;
   primaryPairUrl: string | null;
+  topPairs: PairSummary[];
   creatorAddress: string | null;
   isPumpTires: boolean;
   ownershipRenounced: boolean | null;
@@ -271,6 +286,29 @@ async function buildInsights(
     pair?.profile?.headerImageUrl ||
     null;
 
+  // Top pairs by liquidity for the Liquidity tab.
+  const allPairs: any[] = Array.isArray(dexData?.pairs) ? dexData.pairs : [];
+  const topPairs: PairSummary[] = allPairs
+    .filter((p) => p?.pairAddress)
+    .map((p) => ({
+      pairAddress: String(p.pairAddress).toLowerCase(),
+      dexId: String(p.dexId || 'dex'),
+      url: String(p.url || ''),
+      baseSymbol: String(p?.baseToken?.symbol || '???'),
+      quoteSymbol: String(p?.quoteToken?.symbol || '???'),
+      liquidityUsd: Number(p?.liquidity?.usd) || null,
+      volume24h: Number(p?.volume?.h24) || null,
+      txns24h:
+        (Number(p?.txns?.h24?.buys) || 0) +
+        (Number(p?.txns?.h24?.sells) || 0) || null,
+      priceUsd: p?.priceUsd ? Number(p.priceUsd) : null,
+      priceChange24h:
+        p?.priceChange?.h24 != null ? Number(p.priceChange.h24) : null,
+      fdv: Number(p?.fdv) || null,
+    }))
+    .sort((a, b) => (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0))
+    .slice(0, 6);
+
   return {
     address: address.toLowerCase(),
     chain,
@@ -283,8 +321,9 @@ async function buildInsights(
     fdv: Number.isFinite(fdv) ? (fdv as number) : null,
     totalSupply,
     liquidityUsd,
-    pairCount: Array.isArray(dexData?.pairs) ? dexData.pairs.length : 0,
+    pairCount: allPairs.length,
     primaryPairUrl: pair?.url || null,
+    topPairs,
     creatorAddress,
     isPumpTires,
     ownershipRenounced,
