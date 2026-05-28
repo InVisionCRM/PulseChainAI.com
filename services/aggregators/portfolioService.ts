@@ -4,11 +4,8 @@
 // snapshot. Per-chain failures degrade gracefully into the errors array on
 // the snapshot so the UI can show partial data.
 
-import { pulsechainApi } from '../blockchain/pulsechainApi';
-import { moralisApi } from '../blockchain/moralisApi';
 import { validateAddress } from '../core/errors';
 import {
-  CHAIN_MORALIS_ID,
   NATIVE_TOKEN_ADDRESS,
   WRAPPED_NATIVE,
 } from '../core/types';
@@ -22,6 +19,24 @@ import type {
   PortfolioSnapshot,
   PortfolioToken,
 } from '../core/types';
+
+// Both chains have a Blockscout instance with the same API surface, so
+// we can fetch ERC-20/PRC-20 wallet balances + the native coin balance
+// the same way for either. No Moralis, no API key. The previous Moralis
+// path required MORALIS_API_KEY which only works server-side, and that
+// asymmetry showed up to users as an "ETHEREUM Moralis unavailable"
+// banner whenever they tracked an ETH wallet.
+const BLOCKSCOUT_BASE: Record<ChainId, string> = {
+  pulsechain: 'https://api.scan.pulsechain.com/api/v2',
+  ethereum: 'https://eth.blockscout.com/api/v2',
+};
+
+// Cap how many tokens we'll try to price per chain per wallet. Some Ethereum
+// addresses (Vitalik's wallet, anything that's done a lot of airdrops) hold
+// thousands of dust ERC-20s, and we shouldn't fan out a DexScreener lookup
+// for every one of them. We prefer tokens the explorer already has metadata
+// for (icon_url or exchange_rate is a decent proxy for "not spam").
+const TOKEN_LIMIT_PER_CHAIN = 150;
 
 // Server-side proxies — see app/api/portfolio/{prices,lp}/route.ts.
 // Both exist because direct browser fetches to DexScreener are either
@@ -85,122 +100,122 @@ function toBalanceFormatted(raw: string, decimals: number): number {
   }
 }
 
-async function fetchPulseChainTokens(
+// Single Blockscout-shaped fetcher that works for both chains. Returns
+// the user's native balance via the address-info endpoint and the ERC-20
+// balances via the token-balances endpoint — the two are called in
+// parallel since they don't depend on each other.
+async function fetchBlockscoutTokens(
+  chain: ChainId,
   walletAddress: string,
 ): Promise<{ tokens: PortfolioToken[]; error: PortfolioFetchError | null }> {
-  // Fetch ERC-20 balances and address info in parallel — the address info
-  // gives us native PLS via its coin_balance field, which the token-balances
-  // endpoint doesn't include.
-  const [balancesResp, infoResp] = await Promise.all([
-    pulsechainApi.getAddressTokenBalances(walletAddress),
-    pulsechainApi.getAddressInfo(walletAddress),
+  const base = BLOCKSCOUT_BASE[chain];
+  const nativeName = chain === 'pulsechain' ? 'Pulse' : 'Ether';
+  const nativeSymbol = chain === 'pulsechain' ? 'PLS' : 'ETH';
+
+  const [balancesRes, infoRes] = await Promise.allSettled([
+    fetch(`${base}/addresses/${walletAddress}/token-balances`),
+    fetch(`${base}/addresses/${walletAddress}`),
   ]);
 
   const tokens: PortfolioToken[] = [];
 
-  // Native PLS
-  if (infoResp.success && infoResp.data) {
-    const coinRaw = String((infoResp.data as any).coin_balance || '0');
-    if (coinRaw !== '0' && coinRaw !== '') {
-      tokens.push({
-        address: NATIVE_TOKEN_ADDRESS,
-        chain: 'pulsechain',
-        name: 'Pulse',
-        symbol: 'PLS',
-        decimals: 18,
-        balance: coinRaw,
-        balanceFormatted: toBalanceFormatted(coinRaw, 18),
-        isNative: true,
-      });
+  if (infoRes.status === 'fulfilled' && infoRes.value.ok) {
+    try {
+      const info = await infoRes.value.json();
+      const coinRaw = String(info?.coin_balance || '0');
+      if (coinRaw !== '0' && coinRaw !== '') {
+        tokens.push({
+          address: NATIVE_TOKEN_ADDRESS,
+          chain,
+          name: nativeName,
+          symbol: nativeSymbol,
+          decimals: 18,
+          balance: coinRaw,
+          balanceFormatted: toBalanceFormatted(coinRaw, 18),
+          isNative: true,
+        });
+      }
+    } catch {
+      // best-effort — fall through with whatever we have
     }
   }
 
-  if (!balancesResp.success || !balancesResp.data) {
+  if (balancesRes.status !== 'fulfilled' || !balancesRes.value.ok) {
     return {
       tokens,
       error: {
-        chain: 'pulsechain',
+        chain,
         stage: 'balances',
-        message: balancesResp.error || 'PulseChain balances unavailable',
+        message: `${chain === 'pulsechain' ? 'PulseChain' : 'Ethereum'} balances unavailable`,
       },
     };
   }
 
-  const items = Array.isArray(balancesResp.data) ? balancesResp.data : balancesResp.data.items || [];
-  for (const item of items) {
-    const tokenAddress = item.token?.address || item.contractAddress;
-    if (!tokenAddress) continue;
-    const decimalsRaw = item.token?.decimals ?? item.decimals ?? 18;
-    const decimals = typeof decimalsRaw === 'string' ? parseInt(decimalsRaw, 10) : decimalsRaw;
-    const balance = String(item.value ?? item.balance ?? '0');
-    if (balance === '0' || balance === '') continue;
-    const finalDecimals = Number.isFinite(decimals) ? decimals : 18;
-    const symbol = item.token?.symbol || '???';
-    const name = item.token?.name || 'Unknown';
-    tokens.push({
-      address: tokenAddress.toLowerCase(),
-      chain: 'pulsechain',
-      name,
-      symbol,
-      decimals: finalDecimals,
-      balance,
-      balanceFormatted: toBalanceFormatted(balance, finalDecimals),
-      logoURI: item.token?.icon_url || undefined,
-      isLp: isLpToken(symbol, name),
-    });
-  }
-
-  return { tokens, error: null };
-}
-
-async function fetchEthereumTokens(
-  walletAddress: string,
-): Promise<{ tokens: PortfolioToken[]; error: PortfolioFetchError | null }> {
-  if (!moralisApi.isAvailable()) {
-    const ok = await moralisApi.initialize();
-    if (!ok) {
-      return {
-        tokens: [],
-        error: {
-          chain: 'ethereum',
-          stage: 'balances',
-          message: 'Moralis unavailable — set MORALIS_API_KEY',
-        },
-      };
-    }
-  }
-
-  const resp = await moralisApi.getWalletTokenBalances(walletAddress, CHAIN_MORALIS_ID.ethereum);
-  if (!resp.success || !resp.data) {
+  let data: any;
+  try {
+    data = await balancesRes.value.json();
+  } catch {
     return {
-      tokens: [],
+      tokens,
       error: {
-        chain: 'ethereum',
+        chain,
         stage: 'balances',
-        message: resp.error || 'Moralis balances unavailable',
+        message: 'Balance response was not JSON',
       },
     };
   }
 
-  const tokens: PortfolioToken[] = resp.data
-    .map((bal): PortfolioToken | null => {
-      const tokenAddress = bal.token?.address;
+  const items: any[] = Array.isArray(data) ? data : data.items || [];
+
+  // Normalise every item, drop zero balances, then rank by "looks like a
+  // real token" so the top TOKEN_LIMIT_PER_CHAIN we keep are the ones the
+  // user actually cares about. Spam ERC-20s typically have no icon, no
+  // exchange_rate, and no market cap.
+  const candidates = items
+    .map((item): { token: PortfolioToken; quality: number } | null => {
+      const t = item.token || {};
+      // PulseScan uses `address`, eth.blockscout uses `address_hash`.
+      const tokenAddress: string | undefined =
+        t.address || t.address_hash || item.contractAddress;
       if (!tokenAddress) return null;
-      const decimals = bal.token?.decimals ?? 18;
-      const balance = String(bal.value ?? '0');
+
+      const decimalsRaw = t.decimals ?? item.decimals ?? 18;
+      const decimals = typeof decimalsRaw === 'string' ? parseInt(decimalsRaw, 10) : decimalsRaw;
+      const balance = String(item.value ?? item.balance ?? '0');
       if (balance === '0' || balance === '') return null;
+
+      const finalDecimals = Number.isFinite(decimals) ? decimals : 18;
+      const symbol = t.symbol || '???';
+      const name = t.name || 'Unknown';
+
+      // Quality score: explorer-derived signals only, no network calls.
+      let quality = 0;
+      if (t.icon_url) quality += 2;
+      if (t.exchange_rate != null) quality += 2;
+      if (t.circulating_market_cap != null) quality += 1;
+      if (t.holders_count != null && Number(t.holders_count) > 100) quality += 1;
+
       return {
-        address: tokenAddress.toLowerCase(),
-        chain: 'ethereum',
-        name: bal.token?.name || 'Unknown',
-        symbol: bal.token?.symbol || '???',
-        decimals,
-        balance,
-        balanceFormatted: toBalanceFormatted(balance, decimals),
-        logoURI: (bal.token as any)?.icon_url || (bal.token as any)?.logo || undefined,
+        token: {
+          address: tokenAddress.toLowerCase(),
+          chain,
+          name,
+          symbol,
+          decimals: finalDecimals,
+          balance,
+          balanceFormatted: toBalanceFormatted(balance, finalDecimals),
+          logoURI: t.icon_url || undefined,
+          isLp: chain === 'pulsechain' ? isLpToken(symbol, name) : false,
+        },
+        quality,
       };
     })
-    .filter((t): t is PortfolioToken => t !== null);
+    .filter((x): x is { token: PortfolioToken; quality: number } => x !== null)
+    .sort((a, b) => b.quality - a.quality);
+
+  for (const { token } of candidates.slice(0, TOKEN_LIMIT_PER_CHAIN)) {
+    tokens.push(token);
+  }
 
   return { tokens, error: null };
 }
@@ -447,8 +462,8 @@ class PortfolioService {
     }
 
     const fetchers: Promise<{ tokens: PortfolioToken[]; error: PortfolioFetchError | null }>[] = [];
-    if (chains.includes('pulsechain')) fetchers.push(fetchPulseChainTokens(walletAddress));
-    if (chains.includes('ethereum')) fetchers.push(fetchEthereumTokens(walletAddress));
+    if (chains.includes('pulsechain')) fetchers.push(fetchBlockscoutTokens('pulsechain', walletAddress));
+    if (chains.includes('ethereum')) fetchers.push(fetchBlockscoutTokens('ethereum', walletAddress));
 
     const results = await Promise.allSettled(fetchers);
     const tokens: PortfolioToken[] = [];
