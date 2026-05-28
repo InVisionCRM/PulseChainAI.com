@@ -43,10 +43,6 @@ import {
   GeickoOwnershipPanel,
   GeickoMetricsGrid,
   GeickoMarketStatsPanel,
-  GeickoRabbyHeader,
-  GeickoRabbyActionButtons,
-  GeickoRabbyInfoCards,
-  GeickoRabbyTransactionsList,
   GeickoToast,
   type OwnershipData,
 } from '@/components/geicko';
@@ -116,7 +112,6 @@ function GeickoPageContent() {
   const [holdersCount, setHoldersCount] = useState<number | null>(null);
   const [creationDate, setCreationDate] = useState<string | null>(null);
   const [activeSocialTab, setActiveSocialTab] = useState<string | null>(null);
-  const [uiPreset, setUiPreset] = useState<'classic' | 'rabby1'>('classic');
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
 
   // Copy confirmation toast state
@@ -1214,41 +1209,7 @@ function GeickoPageContent() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem('geicko-ui-preset');
-    if (stored === 'rabby1' || stored === 'classic') {
-      setUiPreset(stored);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem('geicko-ui-preset', uiPreset);
-  }, [uiPreset]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const handleCustomPresetChange = (event: Event) => {
-      const customEvent = event as CustomEvent<'classic' | 'rabby1'>;
-      const preset = customEvent.detail;
-      if (preset === 'classic' || preset === 'rabby1') {
-        setUiPreset(preset);
-      }
-    };
-
-    const handleStoragePresetChange = (event: StorageEvent) => {
-      if (event.key === 'geicko-ui-preset' && (event.newValue === 'classic' || event.newValue === 'rabby1')) {
-        setUiPreset(event.newValue);
-      }
-    };
-
-    window.addEventListener('geicko-ui-preset-change', handleCustomPresetChange as EventListener);
-    window.addEventListener('storage', handleStoragePresetChange);
-
-    return () => {
-      window.removeEventListener('geicko-ui-preset-change', handleCustomPresetChange as EventListener);
-      window.removeEventListener('storage', handleStoragePresetChange);
-    };
+    window.localStorage.removeItem('geicko-ui-preset');
   }, []);
 
   // Prefer WPLS pair so price/liquidity reflect Token/WPLS, not another quote (e.g. USDC)
@@ -1401,7 +1362,6 @@ function GeickoPageContent() {
     }
   }, [websiteLink, twitterLink, telegramLink, activeSocialTab]);
 
-  const isRabbyUI = uiPreset === 'rabby1';
   const baseSymbol = displayPair?.baseToken?.symbol || dexScreenerData?.tokenInfo?.symbol || tokenInfo?.symbol || 'Token';
   const quoteSymbol = displayPair?.quoteToken?.symbol || 'WPLS';
   const tokenNameDisplay = dexScreenerData?.tokenInfo?.name || tokenInfo?.name || displayPair?.baseToken?.name || 'Token';
@@ -1521,111 +1481,6 @@ function GeickoPageContent() {
     { id: 'audit', label: 'Audit' },
   ];
 
-
-  const rabbyActions = [
-    {
-      label: 'Swap',
-      icon: '⇄',
-      description: 'Trade instantly',
-      onClick: () => setActiveTab('switch'),
-    },
-    {
-      label: 'Holders',
-      icon: '👥',
-      description: 'Top wallets',
-      onClick: () => setActiveTab('holders'),
-    },
-    {
-      label: 'Code',
-      icon: '{ }',
-      description: 'Contract view',
-      onClick: () => setActiveTab('contract'),
-    },
-    {
-      label: 'Website',
-      icon: '🌐',
-      description: 'Official site',
-      onClick: () => setActiveTab('website'),
-    },
-    {
-      label: 'Stats',
-      icon: '📊',
-      description: 'Advanced analytics',
-      onClick: () => setActiveTab('stats'),
-    },
-    {
-      label: 'Bridge',
-      icon: '🌉',
-      description: 'PulseChain hub',
-      onClick: () => openExternalLink('https://bridge.pulsechain.com/'),
-    },
-    // {
-    //   label: 'Settings',
-    //   icon: '⚙️',
-    //   description: 'Personalize UI',
-    //   onClick: openPortfolioSettings,
-    // },
-  ];
-
-  if (isRabbyUI) {
-    const walletAddress = apiTokenAddress;
-    const displayAddress = walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : '0x—';
-    const heroPrice = Number(displayPair?.priceUsd || 0);
-    const heroPriceDisplay = heroPrice ? `$${heroPrice.toFixed(heroPrice >= 1 ? 2 : 4)}` : '$0.0000';
-    const heroChangeDisplay = formatPercentChange(priceChange);
-    const heroVolumeDisplay = formatCurrencyCompact(displayPair?.volume?.h24);
-    const heroLiquidityDisplay = formatCurrencyCompact(displayPair?.liquidity?.usd);
-    const limitedTransactions = transactions.slice(0, 4);
-    const sparklinePath = 'M0 80 C80 20 160 110 240 50 C320 90 400 30 480 70';
-
-    return (
-      <>
-        <div className="min-h-screen bg-[#eef2ff] text-[#0f172a]">
-          <GeickoRabbyHeader
-            walletAddress={walletAddress}
-            primaryPair={displayPair}
-            priceChange={priceChange}
-            onCopyAddress={handleCopyAddress}
-            onOpenChart={() => setActiveTab('switch')}
-          />
-
-          <main className="px-4 sm:px-8 mt-10 pb-12 space-y-5">
-            <GeickoRabbyActionButtons onTabChange={setActiveTab} onExternalLink={openExternalLink} />
-
-            <GeickoRabbyInfoCards primaryPair={displayPair} />
-
-            <section className="bg-white rounded-2xl shadow-[0_12px_40px_rgba(15,23,42,0.08)] px-4 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500">📦</div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">No Dapp found</p>
-                  <p className="text-xs text-slate-500">Connect a dapp to get started.</p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push('/apps')}
-                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
-              >
-                Explore →
-              </button>
-            </section>
-
-            <GeickoRabbyTransactionsList
-              transactions={limitedTransactions}
-              formatDate={formatDateUTC}
-            />
-          </main>
-        </div>
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-[1000]">
-          <div className="rounded-xl bg-white/10 border border-white/20 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.35)] text-white text-sm">
-            {toast.message}
-          </div>
-        </div>
-      )}
-      </>
-    );
-  }
 
   return (
     <>
@@ -1792,7 +1647,7 @@ function GeickoPageContent() {
               <div className="space-y-0.5">
                 {/* Contract Address */}
                 {apiTokenAddress && (
-                  <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
+                  <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                     <div className="flex flex-col space-y-1 items-center">
                       <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Contract</span>
                       <div className="flex items-center justify-center gap-1">
@@ -1816,7 +1671,7 @@ function GeickoPageContent() {
                   </div>
                 )}
                 {/* Decimals */}
-                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
+                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Decimals</span>
                     <span className="text-xs text-white font-semibold">
@@ -1826,7 +1681,7 @@ function GeickoPageContent() {
                 </div>
 
                 {/* Supply & Token Info */}
-                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
+                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                   <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Supply Info</div>
                   <div className="space-y-0.5">
                     <div className="flex items-center justify-between">
@@ -1894,7 +1749,7 @@ function GeickoPageContent() {
                 </div>
 
                 {/* Supply Held */}
-                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
+                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                   <div className="flex items-center justify-between mb-1">
                     <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center flex-1">Supply Held</div>
                     <Tooltip>
@@ -1941,7 +1796,7 @@ function GeickoPageContent() {
                 </div>
 
                 {/* Smart Contract Holder Share */}
-                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
+                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                   <div className="flex items-center justify-between mb-1">
                     <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center flex-1">Supply In Contracts</div>
                     <Tooltip>
@@ -2006,7 +1861,7 @@ function GeickoPageContent() {
               {/* Right Column */}
               <div className="space-y-0.5">
                 {/* Creator */}
-                <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
+                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                   <div className="flex flex-col space-y-1 items-center">
                     <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Creator</span>
                     <div className="flex items-center justify-center gap-1">
@@ -2038,7 +1893,7 @@ function GeickoPageContent() {
                 </div>
 
                 {/* Ownership Status */}
-                <div className="relative h-16 bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
+                <div className="relative h-16 bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                   <div className="absolute left-1/2 -translate-x-1/2 top-2 text-xs text-gray-400 font-medium uppercase tracking-wider">Ownership</div>
                   {ownershipData.isLoading ? (
                     <div className="text-center text-gray-500 text-sm">Loading...</div>
@@ -2191,7 +2046,6 @@ function GeickoPageContent() {
           <GeickoTabNavigation
             activeTab={activeTab}
             tabs={tabOptions}
-            variant={isRabbyUI ? 'rabby' : 'classic'}
             onTabChange={setActiveTab}
           />
 
@@ -2727,7 +2581,7 @@ function GeickoPageContent() {
                     <div className="space-y-0.5">
                       {/* Contract Address */}
                       {apiTokenAddress && (
-                        <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
+                        <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                           <div className="flex flex-col space-y-1 items-center">
                             <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Contract</span>
                             <div className="flex items-center justify-center gap-1">
@@ -2751,7 +2605,7 @@ function GeickoPageContent() {
                         </div>
                       )}
                       {/* Decimals */}
-                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
+                      <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Decimals</span>
                           <span className="text-xs text-white font-semibold">
@@ -2761,7 +2615,7 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Supply & Token Info */}
-                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
+                      <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                         <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Supply Info</div>
                         <div className="space-y-0.5">
                           <div className="flex items-center justify-between">
@@ -2829,7 +2683,7 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Supply Held */}
-                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
+                      <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                         <div className="flex items-center justify-between mb-1">
                           <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center flex-1">Supply Held</div>
                           <Tooltip>
@@ -2876,7 +2730,7 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Smart Contract Holder Share */}
-                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
+                      <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                         <div className="flex items-center justify-between mb-1">
                           <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center flex-1">Supply In Contracts</div>
                           <Tooltip>
@@ -2967,7 +2821,7 @@ function GeickoPageContent() {
                     {/* Right Column */}
                     <div className="space-y-0.5">
                       {/* Creator */}
-                      <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
+                      <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                         <div className="flex flex-col space-y-1 items-center">
                           <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Creator</span>
                           <div className="flex items-center justify-center gap-1">
@@ -2999,7 +2853,7 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Ownership Status */}
-                      <div className="relative h-16 bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-3">
+                      <div className="relative h-16 bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                         <div className="absolute left-1/2 -translate-x-1/2 top-2 text-xs text-gray-400 font-medium uppercase tracking-wider">Ownership</div>
                         {ownershipData.isLoading ? (
                           <div className="text-center text-gray-500 text-sm">Loading...</div>

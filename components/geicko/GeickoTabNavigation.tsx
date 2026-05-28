@@ -8,8 +8,6 @@ export interface GeickoTabNavigationProps {
   onTabChange: (tab: ActiveTab) => void;
   /** Array of tab configurations */
   tabs: TabConfig[];
-  /** UI variant (classic or rabby) */
-  variant?: 'classic' | 'rabby';
 }
 
 // Per-tab color config: [activeText, activeBorder, inactiveText, inactiveBg, inactiveBorder, hoverText, hoverBg]
@@ -36,10 +34,7 @@ export default function GeickoTabNavigation({
   activeTab,
   onTabChange,
   tabs,
-  variant = 'classic',
 }: GeickoTabNavigationProps) {
-  const isRabby = variant === 'rabby';
-
   return (
     <div className="px-2 md:px-3 relative z-30 -mb-1">
       <div className="flex h-8 bg-transparent overflow-x-auto scrollbar-hide">

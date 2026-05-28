@@ -123,17 +123,6 @@ export default function RootLayout({
       ),
     },
     {
-      label: "Hex Dashboard",
-      href: "/hex-dashboard",
-      icon: (
-        <img
-          src="/HEXagon (1).svg"
-          alt="HEX Dashboard"
-          className="h-5 w-5 shrink-0"
-        />
-      ),
-    },
-    {
       label: "Learn AI",
       href: "/learn-ai",
       icon: (

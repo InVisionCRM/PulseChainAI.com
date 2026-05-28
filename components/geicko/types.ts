@@ -5,9 +5,6 @@
 // Re-export shared types from main types file
 export type { ContractData, TokenInfo, DexScreenerData, SearchResultItem } from '../../types';
 
-// UI preset modes
-export type UIPreset = 'classic' | 'rabby1';
-
 // Active tab identifiers
 export type ActiveTab = 'gold' | 'chart' | 'holders' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats' | 'audit';
 

@@ -29,17 +29,6 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
 
   const moreNavItems = [
     {
-      label: "HEX Dashboard",
-      href: "/hex-dashboard",
-      icon: (
-        <img
-          src="/HEXagon (1).svg"
-          alt="HEX Dashboard"
-          className="h-8 w-8"
-        />
-      ),
-    },
-    {
       label: "Learn AI",
       href: "/learn-ai",
       icon: <IconBook className="h-8 w-8" />,
