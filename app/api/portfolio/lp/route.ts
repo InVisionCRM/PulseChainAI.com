@@ -32,8 +32,13 @@ const BLOCKSCOUT_TOKEN_URL: Record<string, string> = {
   ethereum: 'https://eth.blockscout.com/api/v2/tokens',
 };
 
-// totalSupply() — first 4 bytes of keccak256("totalSupply()")
+// keccak256 selectors for V2 pair / ERC-20 reads we care about
 const TOTAL_SUPPLY_SELECTOR = '0x18160ddd';
+const GET_RESERVES_SELECTOR = '0x0902f1ac';
+const TOKEN0_SELECTOR = '0x0dfe1681';
+const TOKEN1_SELECTOR = '0xd21220a7';
+const DECIMALS_SELECTOR = '0x313ce567';
+
 const FETCH_TIMEOUT_MS = 8_000;
 const RPC_TIMEOUT_MS = 4_000;
 const CACHE_TTL_MS = 60_000;
@@ -143,9 +148,10 @@ async function fetchPairBatch(
   }
 }
 
-async function callRpc(
+async function callRpcRaw(
   url: string,
-  address: string,
+  to: string,
+  data: string,
 ): Promise<string | null> {
   try {
     const res = await fetch(url, {
@@ -154,18 +160,116 @@ async function callRpc(
       body: JSON.stringify({
         jsonrpc: '2.0',
         method: 'eth_call',
-        params: [{ to: address, data: TOTAL_SUPPLY_SELECTOR }, 'latest'],
+        params: [{ to, data }, 'latest'],
         id: 1,
       }),
       signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
     });
     if (!res.ok) return null;
-    const data = (await res.json()) as { result?: string; error?: any };
-    if (!data.result || data.error) return null;
-    return data.result;
+    const json = (await res.json()) as { result?: string; error?: any };
+    if (!json.result || json.error) return null;
+    return json.result;
   } catch {
     return null;
   }
+}
+
+async function callContract(
+  chainId: ChainId,
+  to: string,
+  data: string,
+): Promise<string | null> {
+  const urls = RPC_URLS[chainId] || [];
+  for (const url of urls) {
+    const result = await callRpcRaw(url, to, data);
+    if (result) return result;
+  }
+  return null;
+}
+
+// Back-compat: totalSupply via the multi-RPC pool.
+async function callRpc(url: string, address: string): Promise<string | null> {
+  return callRpcRaw(url, address, TOTAL_SUPPLY_SELECTOR);
+}
+
+function decodeAddress(hex: string | null): string | null {
+  if (!hex) return null;
+  const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
+  if (clean.length < 40) return null;
+  return ('0x' + clean.slice(-40)).toLowerCase();
+}
+
+function decodeUint(hex: string | null): bigint | null {
+  if (!hex) return null;
+  const norm = hex.startsWith('0x') ? hex : `0x${hex}`;
+  if (norm === '0x' || norm === '0x0') return 0n;
+  try {
+    return BigInt(norm);
+  } catch {
+    return null;
+  }
+}
+
+function decodeReserves(hex: string | null): { r0: bigint; r1: bigint } | null {
+  if (!hex) return null;
+  const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
+  if (clean.length < 128) return null;
+  try {
+    const r0 = BigInt('0x' + clean.slice(0, 64));
+    const r1 = BigInt('0x' + clean.slice(64, 128));
+    return { r0, r1 };
+  } catch {
+    return null;
+  }
+}
+
+function bigIntToFloat(value: bigint, decimals: number): number {
+  if (decimals <= 0) return Number(value);
+  const divisor = 10n ** BigInt(decimals);
+  const whole = Number(value / divisor);
+  const fraction = Number(value % divisor) / Number(divisor);
+  return whole + fraction;
+}
+
+// V2 pair on-chain reads: getReserves() + token0()/token1(). Used when
+// DexScreener doesn't index the pair and returns reserves of 0 — without
+// this, the breakdown sub-rows show 0 amounts even though the underlying
+// pool genuinely holds tokens.
+async function fetchOnChainPairState(
+  chainId: ChainId,
+  pairAddress: string,
+): Promise<{
+  token0Address: string | null;
+  token1Address: string | null;
+  reserve0Raw: bigint | null;
+  reserve1Raw: bigint | null;
+} | null> {
+  const [reservesHex, token0Hex, token1Hex] = await Promise.all([
+    callContract(chainId, pairAddress, GET_RESERVES_SELECTOR),
+    callContract(chainId, pairAddress, TOKEN0_SELECTOR),
+    callContract(chainId, pairAddress, TOKEN1_SELECTOR),
+  ]);
+  const reserves = decodeReserves(reservesHex);
+  const token0Address = decodeAddress(token0Hex);
+  const token1Address = decodeAddress(token1Hex);
+  if (!reserves || !token0Address || !token1Address) return null;
+  return {
+    token0Address,
+    token1Address,
+    reserve0Raw: reserves.r0,
+    reserve1Raw: reserves.r1,
+  };
+}
+
+async function fetchTokenDecimals(
+  chainId: ChainId,
+  address: string,
+): Promise<number> {
+  const hex = await callContract(chainId, address, DECIMALS_SELECTOR);
+  const value = decodeUint(hex);
+  if (value == null) return 18;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 && n < 100 ? n : 18;
 }
 
 async function fetchTotalSupplyFromBlockscout(
@@ -275,6 +379,83 @@ function buildLpInfo(
   };
 }
 
+// When DexScreener doesn't index a pair, pair.liquidity.{base,quote} are
+// 0 — which would render LP sub-rows as "0 amount × $price = $0". Try
+// to fill the gap from chain: getReserves() + token0()/token1() +
+// decimals() per side. Returns the original LpInfo unmodified if either
+// side already has a non-zero reserve (DexScreener data wins).
+async function enrichWithOnChainReserves(info: LpInfo): Promise<LpInfo> {
+  if (info.token0.reserveFormatted > 0 || info.token1.reserveFormatted > 0) {
+    return info;
+  }
+
+  const state = await fetchOnChainPairState(info.chainId, info.pairAddress);
+  if (!state || state.reserve0Raw == null || state.reserve1Raw == null) {
+    return info;
+  }
+
+  const [d0, d1] = await Promise.all([
+    fetchTokenDecimals(info.chainId, state.token0Address!),
+    fetchTokenDecimals(info.chainId, state.token1Address!),
+  ]);
+
+  const reserve0 = bigIntToFloat(state.reserve0Raw, d0);
+  const reserve1 = bigIntToFloat(state.reserve1Raw, d1);
+
+  // On-chain token0/token1 ordering is canonical; if DexScreener's
+  // base/quote came in swapped, map the on-chain reserves to whichever
+  // side has the matching address. Otherwise apply by position.
+  const t0Addr = state.token0Address!.toLowerCase();
+  const t1Addr = state.token1Address!.toLowerCase();
+
+  let nextToken0 = { ...info.token0 };
+  let nextToken1 = { ...info.token1 };
+
+  if (info.token0.address === t0Addr && info.token1.address === t1Addr) {
+    nextToken0.reserveFormatted = reserve0;
+    nextToken1.reserveFormatted = reserve1;
+  } else if (info.token0.address === t1Addr && info.token1.address === t0Addr) {
+    nextToken0.reserveFormatted = reserve1;
+    nextToken1.reserveFormatted = reserve0;
+  } else {
+    // DexScreener pair didn't include real token addresses (or pair
+    // entry missing entirely). Materialise sides from on-chain data so
+    // the breakdown is still meaningful. Symbol/name will be filled by
+    // the prices-proxy enrichment downstream.
+    nextToken0 = {
+      address: t0Addr,
+      symbol: info.token0.symbol === '???' ? 'token0' : info.token0.symbol,
+      name: info.token0.name === 'Unknown' ? '' : info.token0.name,
+      reserveFormatted: reserve0,
+      priceUsd: info.token0.priceUsd,
+    };
+    nextToken1 = {
+      address: t1Addr,
+      symbol: info.token1.symbol === '???' ? 'token1' : info.token1.symbol,
+      name: info.token1.name === 'Unknown' ? '' : info.token1.name,
+      reserveFormatted: reserve1,
+      priceUsd: info.token1.priceUsd,
+    };
+  }
+
+  // Recompute TVL from the now-populated reserves where we have prices.
+  let totalLiquidityUsd = info.totalLiquidityUsd;
+  if (totalLiquidityUsd == null) {
+    const v0 = nextToken0.priceUsd != null ? nextToken0.reserveFormatted * nextToken0.priceUsd : null;
+    const v1 = nextToken1.priceUsd != null ? nextToken1.reserveFormatted * nextToken1.priceUsd : null;
+    if (v0 != null && v1 != null) totalLiquidityUsd = v0 + v1;
+    else if (v0 != null) totalLiquidityUsd = v0 * 2; // V2 constant-product: sides are equal in value
+    else if (v1 != null) totalLiquidityUsd = v1 * 2;
+  }
+
+  return {
+    ...info,
+    token0: nextToken0,
+    token1: nextToken1,
+    totalLiquidityUsd,
+  };
+}
+
 async function resolveOne(chainId: ChainId, address: string): Promise<LpInfo | null> {
   const key = `${chainId}:${address}`;
   const cached = lpCache.get(key);
@@ -289,7 +470,9 @@ async function resolveOne(chainId: ChainId, address: string): Promise<LpInfo | n
     return null;
   }
   const totalSupply = await fetchTotalSupply(chainId, address);
-  const info = buildLpInfo(chainId, address, pair, totalSupply);
+  const info = await enrichWithOnChainReserves(
+    buildLpInfo(chainId, address, pair, totalSupply),
+  );
   lpCache.set(key, info);
   return info;
 }
@@ -324,15 +507,36 @@ export async function POST(req: NextRequest) {
   );
 
   const lps: Record<string, LpInfo | null> = {};
-  for (let i = 0; i < addresses.length; i++) {
-    const addr = addresses[i];
-    const pair = allPairs[addr];
-    if (!pair) {
-      lps[addr] = null;
-      lpCache.set(`${chainId}:${addr}`, null);
-      continue;
-    }
-    const info = buildLpInfo(chainId, addr, pair, supplies[i]);
+  // Fill in on-chain reserves for any LP DexScreener doesn't track.
+  // Done after the batch pair lookup so we can fan these out in parallel
+  // — each enrichWithOnChainReserves issues up to 5 eth_calls.
+  const enriched = await Promise.all(
+    addresses.map(async (addr, i) => {
+      const pair = allPairs[addr];
+      if (!pair) {
+        // No DexScreener entry at all — try a pure on-chain path so the
+        // breakdown still surfaces. We synthesize an empty pair shell so
+        // buildLpInfo + enrichWithOnChainReserves can populate it.
+        const shell = {
+          baseToken: { address: '', symbol: '???', name: 'Unknown' },
+          quoteToken: { address: '', symbol: '???', name: 'Unknown' },
+          liquidity: { base: 0, quote: 0, usd: null },
+          priceUsd: null,
+          priceNative: null,
+          dexId: null,
+        };
+        const built = buildLpInfo(chainId, addr, shell, supplies[i]);
+        const info = await enrichWithOnChainReserves(built);
+        return { addr, info };
+      }
+      const info = await enrichWithOnChainReserves(
+        buildLpInfo(chainId, addr, pair, supplies[i]),
+      );
+      return { addr, info };
+    }),
+  );
+
+  for (const { addr, info } of enriched) {
     lps[addr] = info;
     lpCache.set(`${chainId}:${addr}`, info);
   }
