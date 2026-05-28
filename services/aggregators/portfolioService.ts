@@ -7,22 +7,28 @@
 import { pulsechainApi } from '../blockchain/pulsechainApi';
 import { moralisApi } from '../blockchain/moralisApi';
 import { validateAddress } from '../core/errors';
-import { CHAIN_MORALIS_ID } from '../core/types';
+import {
+  CHAIN_MORALIS_ID,
+  NATIVE_TOKEN_ADDRESS,
+  WRAPPED_NATIVE,
+} from '../core/types';
 import { resolveTokenIcon } from '../../lib/services/token-icon-resolver';
 import type {
   ApiResponse,
   ChainId,
+  LpBreakdown,
+  LpUnderlying,
   PortfolioFetchError,
   PortfolioSnapshot,
   PortfolioToken,
 } from '../core/types';
 
-// Server-side price proxy — see app/api/portfolio/prices/route.ts.
-// We call this once per portfolio refresh with the full token-address list
-// instead of hammering DexScreener with one fetch-per-token from the browser
-// (which trips intermittent ERR_FAILED in the network panel and shows as
-// missing prices in the UI).
+// Server-side proxies — see app/api/portfolio/{prices,lp}/route.ts.
+// Both exist because direct browser fetches to DexScreener are either
+// blocked by Cloudflare (without a real User-Agent) or trip intermittent
+// ERR_FAILED under load.
 const PRICE_PROXY_URL = '/api/portfolio/prices';
+const LP_PROXY_URL = '/api/portfolio/lp';
 
 interface PriceProxyEntry {
   priceUsd: number | null;
@@ -30,6 +36,39 @@ interface PriceProxyEntry {
   name: string | null;
   symbol: string | null;
   logoURI: string | null;
+}
+
+interface LpProxyEntry {
+  pairAddress: string;
+  dexId: string | null;
+  chainId: ChainId;
+  token0: {
+    address: string;
+    symbol: string;
+    name: string;
+    reserveFormatted: number;
+    priceUsd: number | null;
+  };
+  token1: {
+    address: string;
+    symbol: string;
+    name: string;
+    reserveFormatted: number;
+    priceUsd: number | null;
+  };
+  totalSupplyFormatted: number | null;
+  totalLiquidityUsd: number | null;
+}
+
+// Heuristic match for V2-style PulseX LP tokens. The explorer balance row
+// has type === 'ERC-20' (LP tokens are still ERC-20), so we have to fall
+// back to symbol/name patterns. PLP is PulseX V2, PLT was V1.
+function isLpToken(symbol: string, name: string): boolean {
+  const s = symbol.toUpperCase();
+  if (s === 'PLP' || s === 'PLT' || s === 'PLP-LP') return true;
+  const n = name.toLowerCase();
+  if (n.includes('pulsex') && n.includes('lp')) return true;
+  return false;
 }
 
 function toBalanceFormatted(raw: string, decimals: number): number {
@@ -49,39 +88,67 @@ function toBalanceFormatted(raw: string, decimals: number): number {
 async function fetchPulseChainTokens(
   walletAddress: string,
 ): Promise<{ tokens: PortfolioToken[]; error: PortfolioFetchError | null }> {
-  const resp = await pulsechainApi.getAddressTokenBalances(walletAddress);
-  if (!resp.success || !resp.data) {
+  // Fetch ERC-20 balances and address info in parallel — the address info
+  // gives us native PLS via its coin_balance field, which the token-balances
+  // endpoint doesn't include.
+  const [balancesResp, infoResp] = await Promise.all([
+    pulsechainApi.getAddressTokenBalances(walletAddress),
+    pulsechainApi.getAddressInfo(walletAddress),
+  ]);
+
+  const tokens: PortfolioToken[] = [];
+
+  // Native PLS
+  if (infoResp.success && infoResp.data) {
+    const coinRaw = String((infoResp.data as any).coin_balance || '0');
+    if (coinRaw !== '0' && coinRaw !== '') {
+      tokens.push({
+        address: NATIVE_TOKEN_ADDRESS,
+        chain: 'pulsechain',
+        name: 'Pulse',
+        symbol: 'PLS',
+        decimals: 18,
+        balance: coinRaw,
+        balanceFormatted: toBalanceFormatted(coinRaw, 18),
+        isNative: true,
+      });
+    }
+  }
+
+  if (!balancesResp.success || !balancesResp.data) {
     return {
-      tokens: [],
+      tokens,
       error: {
         chain: 'pulsechain',
         stage: 'balances',
-        message: resp.error || 'PulseChain balances unavailable',
+        message: balancesResp.error || 'PulseChain balances unavailable',
       },
     };
   }
 
-  const items = Array.isArray(resp.data) ? resp.data : resp.data.items || [];
-  const tokens: PortfolioToken[] = items
-    .map((item: any): PortfolioToken | null => {
-      const tokenAddress = item.token?.address || item.contractAddress;
-      if (!tokenAddress) return null;
-      const decimalsRaw = item.token?.decimals ?? item.decimals ?? 18;
-      const decimals = typeof decimalsRaw === 'string' ? parseInt(decimalsRaw, 10) : decimalsRaw;
-      const balance = String(item.value ?? item.balance ?? '0');
-      if (balance === '0' || balance === '') return null;
-      return {
-        address: tokenAddress.toLowerCase(),
-        chain: 'pulsechain',
-        name: item.token?.name || 'Unknown',
-        symbol: item.token?.symbol || '???',
-        decimals: Number.isFinite(decimals) ? decimals : 18,
-        balance,
-        balanceFormatted: toBalanceFormatted(balance, Number.isFinite(decimals) ? decimals : 18),
-        logoURI: item.token?.icon_url || undefined,
-      };
-    })
-    .filter((t): t is PortfolioToken => t !== null);
+  const items = Array.isArray(balancesResp.data) ? balancesResp.data : balancesResp.data.items || [];
+  for (const item of items) {
+    const tokenAddress = item.token?.address || item.contractAddress;
+    if (!tokenAddress) continue;
+    const decimalsRaw = item.token?.decimals ?? item.decimals ?? 18;
+    const decimals = typeof decimalsRaw === 'string' ? parseInt(decimalsRaw, 10) : decimalsRaw;
+    const balance = String(item.value ?? item.balance ?? '0');
+    if (balance === '0' || balance === '') continue;
+    const finalDecimals = Number.isFinite(decimals) ? decimals : 18;
+    const symbol = item.token?.symbol || '???';
+    const name = item.token?.name || 'Unknown';
+    tokens.push({
+      address: tokenAddress.toLowerCase(),
+      chain: 'pulsechain',
+      name,
+      symbol,
+      decimals: finalDecimals,
+      balance,
+      balanceFormatted: toBalanceFormatted(balance, finalDecimals),
+      logoURI: item.token?.icon_url || undefined,
+      isLp: isLpToken(symbol, name),
+    });
+  }
 
   return { tokens, error: null };
 }
@@ -167,14 +234,140 @@ async function fetchPriceMap(
 }
 
 async function enrichWithPrices(tokens: PortfolioToken[]): Promise<PortfolioToken[]> {
-  const addresses = Array.from(
-    new Set(tokens.map((t) => t.address.toLowerCase())),
-  );
-  const priceMap = await fetchPriceMap(addresses);
+  const addresses = new Set<string>();
+  for (const t of tokens) {
+    // Native PLS/ETH aren't tradable as themselves on DEXes; piggy-back on
+    // the wrapped equivalent (1 PLS ≡ 1 WPLS, 1 ETH ≡ 1 WETH).
+    if (t.isNative) addresses.add(WRAPPED_NATIVE[t.chain]);
+    else addresses.add(t.address.toLowerCase());
+  }
+  const priceMap = await fetchPriceMap([...addresses]);
+
   return tokens.map((t) => {
-    const entry = priceMap[t.address.toLowerCase()];
+    const lookupAddr = t.isNative
+      ? WRAPPED_NATIVE[t.chain]
+      : t.address.toLowerCase();
+    const entry = priceMap[lookupAddr];
     if (!entry || entry.priceUsd == null) return t;
-    return applyPrice(t, entry.priceUsd, entry.priceChange24h ?? undefined);
+    // For native rows, also borrow the wrapped token's logo so the UI has
+    // something to render (DexScreener's WPLS/WETH logo).
+    const next = applyPrice(t, entry.priceUsd, entry.priceChange24h ?? undefined);
+    if (t.isNative && !next.logoURI && entry.logoURI) {
+      return { ...next, logoURI: entry.logoURI };
+    }
+    return next;
+  });
+}
+
+async function fetchLpMap(
+  chain: ChainId,
+  addresses: string[],
+): Promise<Record<string, LpProxyEntry>> {
+  if (addresses.length === 0) return {};
+  try {
+    const res = await fetch(LP_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chain, addresses }),
+    });
+    if (!res.ok) return {};
+    const data = (await res.json()) as { lps?: Record<string, LpProxyEntry | null> };
+    const out: Record<string, LpProxyEntry> = {};
+    for (const [addr, info] of Object.entries(data.lps || {})) {
+      if (info) out[addr] = info;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function computeLpBreakdown(
+  token: PortfolioToken,
+  info: LpProxyEntry,
+): LpBreakdown | null {
+  if (!info.totalSupplyFormatted || info.totalSupplyFormatted === 0) return null;
+  const userShare = token.balanceFormatted / info.totalSupplyFormatted;
+  const userValueUsd = info.totalLiquidityUsd != null
+    ? userShare * info.totalLiquidityUsd
+    : undefined;
+
+  const make = (side: LpProxyEntry['token0']): LpUnderlying => {
+    const amountFormatted = userShare * side.reserveFormatted;
+    const valueUsd =
+      side.priceUsd != null ? amountFormatted * side.priceUsd : undefined;
+    const sideValue =
+      side.priceUsd != null ? side.reserveFormatted * side.priceUsd : null;
+    const totalSidesValue =
+      (info.token0.priceUsd != null
+        ? info.token0.reserveFormatted * info.token0.priceUsd
+        : 0) +
+      (info.token1.priceUsd != null
+        ? info.token1.reserveFormatted * info.token1.priceUsd
+        : 0);
+    const weightPct =
+      sideValue != null && totalSidesValue > 0
+        ? (sideValue / totalSidesValue) * 100
+        : 50;
+    return {
+      address: side.address,
+      symbol: side.symbol,
+      name: side.name,
+      amountFormatted,
+      priceUsd: side.priceUsd ?? undefined,
+      valueUsd,
+      weightPct,
+    };
+  };
+
+  return {
+    pairAddress: info.pairAddress,
+    dexId: info.dexId ?? undefined,
+    totalSupply: info.totalSupplyFormatted,
+    userShare,
+    totalLiquidityUsd: info.totalLiquidityUsd ?? undefined,
+    userValueUsd,
+    sides: [make(info.token0), make(info.token1)],
+  };
+}
+
+async function enrichLpTokens(tokens: PortfolioToken[]): Promise<PortfolioToken[]> {
+  // Group LP addresses per chain — only PulseChain is wired up today but the
+  // signature is chain-aware so adding Ethereum later is mechanical.
+  const lpAddrsByChain = new Map<ChainId, Set<string>>();
+  for (const t of tokens) {
+    if (!t.isLp) continue;
+    let set = lpAddrsByChain.get(t.chain);
+    if (!set) {
+      set = new Set();
+      lpAddrsByChain.set(t.chain, set);
+    }
+    set.add(t.address.toLowerCase());
+  }
+  if (lpAddrsByChain.size === 0) return tokens;
+
+  const lpMaps = await Promise.all(
+    [...lpAddrsByChain.entries()].map(async ([chain, set]) => {
+      const map = await fetchLpMap(chain, [...set]);
+      return [chain, map] as const;
+    }),
+  );
+  const byChain: Record<string, Record<string, LpProxyEntry>> = {};
+  for (const [chain, map] of lpMaps) byChain[chain] = map;
+
+  return tokens.map((t) => {
+    if (!t.isLp) return t;
+    const info = byChain[t.chain]?.[t.address.toLowerCase()];
+    if (!info) return t;
+    const breakdown = computeLpBreakdown(t, info);
+    if (!breakdown) return t;
+    return {
+      ...t,
+      lp: breakdown,
+      // If the LP itself has no DexScreener price (most don't), use the
+      // user's underlying value as the row's valueUsd so sorting works.
+      valueUsd: t.valueUsd ?? breakdown.userValueUsd,
+    };
   });
 }
 
@@ -221,7 +414,8 @@ class PortfolioService {
     }
 
     const priced = await enrichWithPrices(tokens);
-    const withIcons = await resolveMissingIcons(priced);
+    const withLp = await enrichLpTokens(priced);
+    const withIcons = await resolveMissingIcons(withLp);
 
     withIcons.sort((a, b) => {
       const av = a.valueUsd ?? 0;
