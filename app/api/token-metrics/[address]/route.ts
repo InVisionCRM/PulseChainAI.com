@@ -65,85 +65,92 @@ async function fetchJson(url: string) {
   return res.json();
 }
 
-async function calculateBurnedTokens(address: string, decimals: number, totalSupply: number) {
+// Fetch the top-N holders once per request and share the response between
+// calculateBurnedTokens / calculateSupplyHeld / calculateSmartContractShare.
+// Previously each branch made its own call (3× PulseScan calls for the
+// same data), and burned-tokens paginated 10 pages sequentially. For
+// every token we've sampled the burn-address holder is in the top 50
+// anyway, so a single 50-row page is sufficient and drops the slowest
+// branch from up-to-10 sequential calls to one.
+type HoldersItem = {
+  address?: { hash?: string; is_contract?: boolean };
+  value?: string;
+};
+
+async function fetchTopHolders(address: string): Promise<HoldersItem[]> {
   try {
-    const limit = 50;
-    let nextParams: Record<string, string> | undefined = undefined;
-    let deadValueRaw = 0;
-
-    // Paginate through holders to calculate burned tokens (up to 10 pages)
-    for (let i = 0; i < 10; i++) {
-      const qs = new URLSearchParams({ limit: String(limit) });
-      if (nextParams) {
-        Object.entries(nextParams).forEach(([k, v]) => qs.set(k, String(v)));
-      }
-
-      const data = await fetchJson(`${BASE_URL}/tokens/${address}/holders?${qs.toString()}`);
-      const items: Array<{ address?: { hash?: string }; value?: string }> =
-        Array.isArray(data?.items) ? data.items : [];
-
-      // Calculate burned tokens on this page
-      const burnedOnPage = items.reduce(
-        (sum, it) => sum + (isBurnAddress(it.address?.hash || '') ? Number(it.value || '0') : 0),
-        0
-      );
-      deadValueRaw += burnedOnPage;
-
-      // If no more pages, stop pagination
-      if (!data?.next_page_params) break;
-      nextParams = data.next_page_params as Record<string, string>;
-    }
-
-    const burnedAmount = decimals ? deadValueRaw / Math.pow(10, decimals) : deadValueRaw;
-    const burnedPct = totalSupply > 0 ? (deadValueRaw / totalSupply) * 100 : 0;
-    return { amount: burnedAmount, percent: burnedPct };
-  } catch (error) {
-    console.error('Failed to calculate burned tokens:', error);
-    return null;
-  }
-}
-
-async function calculateSupplyHeld(address: string, totalSupply: number) {
-  try {
-    const data = await fetchJson(`${BASE_URL}/tokens/${address}/holders?limit=50`);
-    const items: Array<{ address?: { hash?: string; is_contract?: boolean }; value?: string }> =
-      Array.isArray(data?.items) ? data.items : [];
-
-    // Exclude burn addresses and contract addresses so "Supply Held" = EOA/non-burn only
-    const eoaOnly = items.filter(
-      (holder) =>
-        !isBurnAddress(holder.address?.hash || '') && !holder.address?.is_contract
+    const data = await fetchJson(
+      `${BASE_URL}/tokens/${address}/holders?limit=50`,
     );
-
-    let top10Sum = 0;
-    let top20Sum = 0;
-    let top50Sum = 0;
-
-    eoaOnly.forEach((holder, index) => {
-      const value = Number(holder.value || 0);
-      if (index < 10) top10Sum += value;
-      if (index < 20) top20Sum += value;
-      if (index < 50) top50Sum += value;
-    });
-
-    return {
-      top10: totalSupply > 0 ? (top10Sum / totalSupply) * 100 : 0,
-      top20: totalSupply > 0 ? (top20Sum / totalSupply) * 100 : 0,
-      top50: totalSupply > 0 ? (top50Sum / totalSupply) * 100 : 0,
-    };
-  } catch (error) {
-    console.error('Failed to calculate supply held:', error);
-    return { top10: 0, top20: 0, top50: 0 };
+    return Array.isArray(data?.items) ? data.items : [];
+  } catch {
+    return [];
   }
 }
+
+function calculateBurnedFromHolders(
+  holders: HoldersItem[],
+  decimals: number,
+  totalSupply: number,
+) {
+  const deadValueRaw = holders.reduce(
+    (sum, it) =>
+      sum + (isBurnAddress(it.address?.hash || '') ? Number(it.value || '0') : 0),
+    0,
+  );
+  const burnedAmount = decimals ? deadValueRaw / Math.pow(10, decimals) : deadValueRaw;
+  const burnedPct = totalSupply > 0 ? (deadValueRaw / totalSupply) * 100 : 0;
+  return { amount: burnedAmount, percent: burnedPct };
+}
+
+function calculateSupplyHeldFromHolders(
+  holders: HoldersItem[],
+  totalSupply: number,
+) {
+  // Exclude burn addresses and contract addresses so "Supply Held" = EOA/non-burn only
+  const eoaOnly = holders.filter(
+    (holder) =>
+      !isBurnAddress(holder.address?.hash || '') && !holder.address?.is_contract,
+  );
+
+  let top10Sum = 0;
+  let top20Sum = 0;
+  let top50Sum = 0;
+
+  eoaOnly.forEach((holder, index) => {
+    const value = Number(holder.value || 0);
+    if (index < 10) top10Sum += value;
+    if (index < 20) top20Sum += value;
+    if (index < 50) top50Sum += value;
+  });
+
+  return {
+    top10: totalSupply > 0 ? (top10Sum / totalSupply) * 100 : 0,
+    top20: totalSupply > 0 ? (top20Sum / totalSupply) * 100 : 0,
+    top50: totalSupply > 0 ? (top50Sum / totalSupply) * 100 : 0,
+  };
+}
+
+// DexScreener returns a Cloudflare HTML challenge for fetches without a
+// real User-Agent — silently kills the JSON parse and stalls this branch
+// of the metrics fan-out. Same UA every other DexScreener-hitting route
+// in this repo uses.
+const DEX_HEADERS = {
+  Accept: 'application/json',
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+    '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+};
 
 async function fetchTokenPairAddresses(tokenAddress: string): Promise<Set<string>> {
   try {
     const res = await fetch(
       `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`,
-      { next: { revalidate: CACHE_DURATION } }
+      { headers: DEX_HEADERS, next: { revalidate: CACHE_DURATION } },
     );
     if (!res.ok) return new Set();
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) return new Set();
     const data = await res.json();
     const pairs = Array.isArray(data?.pairs) ? data.pairs : [];
     const set = new Set<string>();
@@ -156,20 +163,16 @@ async function fetchTokenPairAddresses(tokenAddress: string): Promise<Set<string
   }
 }
 
-async function calculateSmartContractShare(
-  address: string,
+function calculateSmartContractShareFromHolders(
+  holders: HoldersItem[],
   totalSupply: number,
-  pairAddresses: Set<string>
+  pairAddresses: Set<string>,
 ) {
   try {
-    const data = await fetchJson(`${BASE_URL}/tokens/${address}/holders?limit=50`);
-    const items: Array<{ address?: { hash?: string; is_contract?: boolean }; value?: string }> =
-      Array.isArray(data?.items) ? data.items : [];
-
     let contractSum = 0;
     const contractHolders: Array<{ address: string; value: string; percent: number; type: 'LP' | 'Contract' }> = [];
 
-    items.forEach((holder) => {
+    holders.forEach((holder) => {
       if (holder.address?.is_contract && holder.address?.hash) {
         const value = holder.value || '0';
         const valueNum = Number(value);
@@ -369,20 +372,24 @@ export async function GET(
     // Fetch pair addresses for LP detection (used in smart contract share)
     const pairAddresses = await fetchTokenPairAddresses(address);
 
-    // Run all calculations in parallel (smartContractShare uses pairAddresses)
-    const [
-      burnedTokens,
-      supplyHeld,
-      smartContractShare,
-      ownershipData,
-      creationDate
-    ] = await Promise.all([
-      calculateBurnedTokens(address, decimals, totalSupply),
-      calculateSupplyHeld(address, totalSupply),
-      calculateSmartContractShare(address, totalSupply, pairAddresses),
+    // Fetch the top-50 holders once and share it across the three branches
+    // that need them. Previously each branch made its own PulseScan call
+    // (3× duplicate work), and the burned-tokens branch paginated up to
+    // 10 pages sequentially. One holders fetch + three sync derivations
+    // is enough — burn addresses always sit in the top 50.
+    const [holders, ownershipData, creationDate] = await Promise.all([
+      fetchTopHolders(address),
       getOwnershipData(address),
-      getCreationDate(address)
+      getCreationDate(address),
     ]);
+
+    const burnedTokens = calculateBurnedFromHolders(holders, decimals, totalSupply);
+    const supplyHeld = calculateSupplyHeldFromHolders(holders, totalSupply);
+    const smartContractShare = calculateSmartContractShareFromHolders(
+      holders,
+      totalSupply,
+      pairAddresses,
+    );
 
     const metrics: TokenMetrics = {
       burnedTokens,

@@ -41,64 +41,6 @@ export function TopTickerBar() {
   const [isPaused, setIsPaused] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
-  const fetchPriorityTokenData = async (contractAddress: string): Promise<TokenData | null> => {
-    try {
-      const searchResponse = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${contractAddress}`);
-      const searchData = await searchResponse.json();
-
-      // Find PulseChain pairs that include WPLS
-      const wplsPairs = searchData.pairs?.filter((pair: any) => {
-        if (pair.chainId !== 'pulsechain') return false;
-
-        const token0Address = pair.baseToken?.address?.toLowerCase();
-        const token1Address = pair.quoteToken?.address?.toLowerCase();
-        const wplsAddr = '0xA1077a294dDE1B09bB078844df40758a5D0f9a27'.toLowerCase();
-
-        // Check if this pair includes WPLS and matches our target token
-        const hasWPLS = token0Address === wplsAddr || token1Address === wplsAddr;
-        if (!hasWPLS) return false;
-
-        // Check if the other token matches our search
-        const targetAddr = contractAddress.toLowerCase();
-        return token0Address === targetAddr || token1Address === targetAddr;
-      });
-
-      if (!wplsPairs || wplsPairs.length === 0) {
-        console.log(`⚠️ No WPLS pair found for ${contractAddress}`);
-        return null;
-      }
-
-      // Use the first matching pair
-      const pair = wplsPairs[0];
-
-      // Determine which token is the target (not WPLS)
-      const isBaseToken = pair.baseToken.address.toLowerCase() === contractAddress.toLowerCase();
-      const targetToken = isBaseToken ? pair.baseToken : pair.quoteToken;
-      const wplsToken = isBaseToken ? pair.quoteToken : pair.baseToken;
-
-      const tokenData: TokenData = {
-        address: targetToken.address,
-        symbol: targetToken.symbol,
-        name: targetToken.name,
-        priceUsd: parseFloat(pair.priceUsd || '0'),
-        priceChange24h: parseFloat(pair.priceChange?.h24 || '0'),
-        volume24h: parseFloat(pair.volume?.h24 || '0'),
-        liquidity: parseFloat(pair.liquidity?.usd || '0'),
-        fdv: pair.fdv ? parseFloat(pair.fdv) : undefined,
-        marketCap: pair.marketCap ? parseFloat(pair.marketCap) : undefined,
-        txCount24h: pair.txns?.h24 ? parseInt(pair.txns.h24) : undefined,
-        buys24h: pair.txns?.h24buys ? parseInt(pair.txns.h24buys) : undefined,
-        sells24h: pair.txns?.h24sells ? parseInt(pair.txns.h24sells) : undefined,
-        dexId: pair.dexId || 'unknown'
-      };
-
-      return tokenData;
-    } catch (error) {
-      console.error(`❌ Failed to fetch priority token ${contractAddress}:`, error);
-      return null;
-    }
-  };
-
   // Order from API matches admin GOLD badge list (Save order in admin updates this)
   useEffect(() => {
     fetch('/api/gold-badges')
@@ -117,11 +59,24 @@ export function TopTickerBar() {
     const list = priorityAddresses.length > 0 ? priorityAddresses : GOLD_BADGES_FALLBACK;
     if (list.length === 0) return;
 
+    // Single server-proxied call replaces the previous fan-out of browser
+    // fetches to api.dexscreener.com. Direct browser calls were silently
+    // hitting Cloudflare's HTML challenge (no real User-Agent) and
+    // resolving to null for every token, which is why the ticker bar
+    // had been rendering nothing. The server route filters to PulseChain
+    // pairs that include WPLS and returns the exact same shape this
+    // component (and TickerCardWithPopover) already consume.
     const fetchTokens = async () => {
       try {
-        const tokenPromises = list.map((address) => fetchPriorityTokenData(address));
-        const fetchedTokens = (await Promise.all(tokenPromises)).filter(Boolean) as TokenData[];
-        if (fetchedTokens.length > 0) setTokens(fetchedTokens);
+        const res = await fetch('/api/portfolio/ticker-pairs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ addresses: list }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const fetched: TokenData[] = Array.isArray(data?.tokens) ? data.tokens : [];
+        if (fetched.length > 0) setTokens(fetched);
       } catch (error) {
         console.error('❌ Failed to fetch priority tokens:', error);
       }
