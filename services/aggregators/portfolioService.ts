@@ -20,16 +20,14 @@ import type {
   PortfolioToken,
 } from '../core/types';
 
-// Both chains have a Blockscout instance with the same API surface, so
-// we can fetch ERC-20/PRC-20 wallet balances + the native coin balance
-// the same way for either. No Moralis, no API key. The previous Moralis
-// path required MORALIS_API_KEY which only works server-side, and that
-// asymmetry showed up to users as an "ETHEREUM Moralis unavailable"
-// banner whenever they tracked an ETH wallet.
-const BLOCKSCOUT_BASE: Record<ChainId, string> = {
-  pulsechain: 'https://api.scan.pulsechain.com/api/v2',
-  ethereum: 'https://eth.blockscout.com/api/v2',
-};
+// Both chains have a Blockscout instance with the same API surface. The
+// actual cross-origin call to the explorer happens server-side via
+// /api/portfolio/balances — browser-direct fetches to
+// api.scan.pulsechain.com / eth.blockscout.com worked locally but hung
+// in production (CORS + rate-limit posture). Every other external call
+// we make (prices, lp, approvals, insights, audit) is already proxied;
+// this matches the pattern.
+const BALANCES_PROXY_URL = '/api/portfolio/balances';
 
 // Cap how many tokens we'll try to price per chain per wallet. Some Ethereum
 // addresses (Vitalik's wallet, anything that's done a lot of airdrops) hold
@@ -108,39 +106,44 @@ async function fetchBlockscoutTokens(
   chain: ChainId,
   walletAddress: string,
 ): Promise<{ tokens: PortfolioToken[]; error: PortfolioFetchError | null }> {
-  const base = BLOCKSCOUT_BASE[chain];
   const nativeName = chain === 'pulsechain' ? 'Pulse' : 'Ether';
   const nativeSymbol = chain === 'pulsechain' ? 'PLS' : 'ETH';
 
-  const [balancesRes, infoRes] = await Promise.allSettled([
-    fetch(`${base}/addresses/${walletAddress}/token-balances`),
-    fetch(`${base}/addresses/${walletAddress}`),
-  ]);
+  // /api/portfolio/balances enumerates token contracts via RPC eth_getLogs
+  // and reads balanceOf + decimals for each. Names / symbols / logos /
+  // prices all come downstream from the DexScreener prices proxy.
+  let proxyData: {
+    tokens?: Array<{ address: string; balanceRaw: string; decimals: number }>;
+    nativeBalanceRaw?: string | null;
+  } | null = null;
+  try {
+    const res = await fetch(BALANCES_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: walletAddress, chain }),
+    });
+    if (res.ok) proxyData = await res.json();
+  } catch {
+    // proxyData stays null -> "balances unavailable" error below
+  }
 
   const tokens: PortfolioToken[] = [];
 
-  if (infoRes.status === 'fulfilled' && infoRes.value.ok) {
-    try {
-      const info = await infoRes.value.json();
-      const coinRaw = String(info?.coin_balance || '0');
-      if (coinRaw !== '0' && coinRaw !== '') {
-        tokens.push({
-          address: NATIVE_TOKEN_ADDRESS,
-          chain,
-          name: nativeName,
-          symbol: nativeSymbol,
-          decimals: 18,
-          balance: coinRaw,
-          balanceFormatted: toBalanceFormatted(coinRaw, 18),
-          isNative: true,
-        });
-      }
-    } catch {
-      // best-effort — fall through with whatever we have
-    }
+  const nativeRaw = proxyData?.nativeBalanceRaw;
+  if (nativeRaw && nativeRaw !== '0') {
+    tokens.push({
+      address: NATIVE_TOKEN_ADDRESS,
+      chain,
+      name: nativeName,
+      symbol: nativeSymbol,
+      decimals: 18,
+      balance: nativeRaw,
+      balanceFormatted: toBalanceFormatted(nativeRaw, 18),
+      isNative: true,
+    });
   }
 
-  if (balancesRes.status !== 'fulfilled' || !balancesRes.value.ok) {
+  if (!proxyData || !Array.isArray(proxyData.tokens)) {
     return {
       tokens,
       error: {
@@ -151,70 +154,23 @@ async function fetchBlockscoutTokens(
     };
   }
 
-  let data: any;
-  try {
-    data = await balancesRes.value.json();
-  } catch {
-    return {
-      tokens,
-      error: {
-        chain,
-        stage: 'balances',
-        message: 'Balance response was not JSON',
-      },
-    };
-  }
-
-  const items: any[] = Array.isArray(data) ? data : data.items || [];
-
-  // Normalise every item, drop zero balances, then rank by "looks like a
-  // real token" so the top TOKEN_LIMIT_PER_CHAIN we keep are the ones the
-  // user actually cares about. Spam ERC-20s typically have no icon, no
-  // exchange_rate, and no market cap.
-  const candidates = items
-    .map((item): { token: PortfolioToken; quality: number } | null => {
-      const t = item.token || {};
-      // PulseScan uses `address`, eth.blockscout uses `address_hash`.
-      const tokenAddress: string | undefined =
-        t.address || t.address_hash || item.contractAddress;
-      if (!tokenAddress) return null;
-
-      const decimalsRaw = t.decimals ?? item.decimals ?? 18;
-      const decimals = typeof decimalsRaw === 'string' ? parseInt(decimalsRaw, 10) : decimalsRaw;
-      const balance = String(item.value ?? item.balance ?? '0');
-      if (balance === '0' || balance === '') return null;
-
-      const finalDecimals = Number.isFinite(decimals) ? decimals : 18;
-      const symbol = t.symbol || '???';
-      const name = t.name || 'Unknown';
-
-      // Quality score: explorer-derived signals only, no network calls.
-      let quality = 0;
-      if (t.icon_url) quality += 2;
-      if (t.exchange_rate != null) quality += 2;
-      if (t.circulating_market_cap != null) quality += 1;
-      if (t.holders_count != null && Number(t.holders_count) > 100) quality += 1;
-
-      return {
-        token: {
-          address: tokenAddress.toLowerCase(),
-          chain,
-          name,
-          symbol,
-          decimals: finalDecimals,
-          balance,
-          balanceFormatted: toBalanceFormatted(balance, finalDecimals),
-          logoURI: t.icon_url || undefined,
-          isLp: chain === 'pulsechain' ? isLpToken(symbol, name) : false,
-        },
-        quality,
-      };
-    })
-    .filter((x): x is { token: PortfolioToken; quality: number } => x !== null)
-    .sort((a, b) => b.quality - a.quality);
-
-  for (const { token } of candidates.slice(0, TOKEN_LIMIT_PER_CHAIN)) {
-    tokens.push(token);
+  // Names / symbols / logos are added by enrichWithPrices via the
+  // DexScreener proxy. Until that runs we use the contract address as a
+  // placeholder symbol so the UI has something stable to key on.
+  for (const t of proxyData.tokens.slice(0, TOKEN_LIMIT_PER_CHAIN)) {
+    if (!t?.address || !t.balanceRaw) continue;
+    const decimals = Number.isFinite(t.decimals) ? t.decimals : 18;
+    const short = `${t.address.slice(0, 6)}…${t.address.slice(-4)}`;
+    tokens.push({
+      address: t.address.toLowerCase(),
+      chain,
+      name: short,
+      symbol: short,
+      decimals,
+      balance: t.balanceRaw,
+      balanceFormatted: toBalanceFormatted(t.balanceRaw, decimals),
+      isLp: false, // can't tell yet; flagged later in enrichLpTokens if it's a PulseX pair
+    });
   }
 
   return { tokens, error: null };
@@ -277,9 +233,21 @@ async function enrichWithPrices(tokens: PortfolioToken[]): Promise<PortfolioToke
   return tokens.map((t) => {
     const entry = lookupPriceFor(t);
 
-    // First, enrich the LP underlying sides if any. Even if the LP row
-    // itself has no DexScreener price, the sides may.
+    // Apply names/symbols/logos from the DexScreener proxy. Balances now
+    // come from RPC enumeration with placeholder symbol/name (truncated
+    // address), so this is where they become human-readable.
     let next: PortfolioToken = t;
+    if (entry && !t.isNative) {
+      next = {
+        ...next,
+        name: entry.name || next.name,
+        symbol: entry.symbol || next.symbol,
+        logoURI: next.logoURI || entry.logoURI || undefined,
+      };
+    }
+
+    // Then enrich any LP underlying sides. Even if the LP row itself has
+    // no DexScreener price, the sides may.
     if (t.lp) {
       const sides = t.lp.sides.map((side) => {
         const sideEntry = priceMap[side.address.toLowerCase()];
@@ -482,12 +450,20 @@ class PortfolioService {
       }
     }
 
-    // Order matters: detect LP breakdowns first so enrichWithPrices can
-    // include the LP underlying token addresses in its proxy call, fixing
-    // both missing prices and missing logos on the sub-rows.
-    const withLp = await enrichLpTokens(tokens);
-    const priced = await enrichWithPrices(withLp);
-    const withIcons = await resolveMissingIcons(priced);
+    // Balances now come from /api/portfolio/balances (RPC eth_getLogs +
+    // batched balanceOf) without any name/symbol/logo, so prices must run
+    // first to make rows human-readable. LP detection then keys on the
+    // freshly-fetched symbol/name. If any LPs were found, run prices a
+    // second time to enrich the underlying side addresses; this call is
+    // mostly served from the proxy's 60s cache.
+    const priced = await enrichWithPrices(tokens);
+    const flagged = priced.map((t) =>
+      !t.isNative && isLpToken(t.symbol, t.name) ? { ...t, isLp: true } : t,
+    );
+    const hasLp = flagged.some((t) => t.isLp);
+    const withLp = hasLp ? await enrichLpTokens(flagged) : flagged;
+    const final = hasLp ? await enrichWithPrices(withLp) : flagged;
+    const withIcons = await resolveMissingIcons(final);
 
     withIcons.sort((a, b) => {
       const av = a.valueUsd ?? 0;
