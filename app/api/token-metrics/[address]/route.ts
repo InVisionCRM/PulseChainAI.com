@@ -212,19 +212,28 @@ const PUMP_TIRES_ADDRESSES = new Set([
   // Add other known pump.tires factory/deployer addresses here if needed
 ]);
 
-const PLC_RPC_URL = 'https://rpc.pulsechain.com';
+// User-curated PulseChain RPC pool — same order as /api/portfolio/lp and
+// /api/portfolio/balances. rpc.pulsechain.com (the previous single
+// endpoint used here) has been timing out for stretches and was the
+// reason the geicko sidebar took 10+ seconds to load owner() data.
+const PLC_RPC_URLS = [
+  'https://rpc.pulsechainrpc.com',
+  'https://pulsechain-rpc.publicnode.com',
+  'https://rpc.gigatheminter.com',
+  'https://rpc-pulsechain.g4mm4.io',
+];
+const RPC_TIMEOUT_MS = 4_000;
+
 // keccak256("owner()") = 0x8da5cb5b
 const OWNER_SELECTOR = '0x8da5cb5b';
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-/**
- * Calls owner() on the contract via eth_call.
- * Returns the owner address, or null if the contract has no owner() function
- * (reverts) or returns the zero address.
- */
-async function getOnChainOwner(contractAddress: string): Promise<string | null> {
+async function callOwnerRpc(
+  url: string,
+  contractAddress: string,
+): Promise<string | null> {
   try {
-    const response = await fetch(PLC_RPC_URL, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -233,18 +242,32 @@ async function getOnChainOwner(contractAddress: string): Promise<string | null> 
         params: [{ to: contractAddress, data: OWNER_SELECTOR }, 'latest'],
         id: 1,
       }),
+      signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
     });
+    if (!response.ok) return null;
     const json = await response.json();
-    // A revert or missing function returns an error or '0x'
-    if (json.error || !json.result || json.result === '0x') return null;
-    // Result is a 32-byte padded address — extract the last 20 bytes
-    const raw = json.result as string;
-    const addr = '0x' + raw.slice(-40);
-    if (addr.toLowerCase() === ZERO_ADDRESS) return null;
-    return addr;
+    if (json?.error || !json?.result) return null;
+    return json.result as string;
   } catch {
     return null;
   }
+}
+
+/**
+ * Calls owner() on the contract via eth_call, walking the curated RPC
+ * pool until one responds. Returns the owner address, or null if the
+ * contract has no owner() function or returns the zero address.
+ */
+async function getOnChainOwner(contractAddress: string): Promise<string | null> {
+  for (const url of PLC_RPC_URLS) {
+    const raw = await callOwnerRpc(url, contractAddress);
+    if (!raw || raw === '0x') continue;
+    // 32-byte padded address — extract the last 20 bytes
+    const addr = '0x' + raw.slice(-40);
+    if (addr.toLowerCase() === ZERO_ADDRESS) return null;
+    return addr;
+  }
+  return null;
 }
 
 async function getOwnershipData(address: string) {
