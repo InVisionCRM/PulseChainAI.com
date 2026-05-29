@@ -26,7 +26,20 @@ export const fetchContract = (address: string) => pulsechainApi.getContract(addr
 export const fetchAddressInfo = (address: string) => pulsechainApi.getAddressInfo(address);
 export const fetchReadMethods = (address: string) => pulsechainApi.getContractReadMethods(address);
 export const fetchReadMethodsWithValues = (address: string) => pulsechainApi.getContractReadMethodsWithValues(address);
-export const search = (query: string) => pulsechainApi.search(query);
+// search() preserves the legacy contract — returns SearchResultItem[]
+// directly. The canonical pulsechainApi.search() wraps in ApiResponse,
+// but every back-compat caller of the facade (HeroTokenAiChat,
+// DesktopSearchBar, MobileSearchBar, hero-highlight, stat-counter-
+// builder, admin-stats, AdminStatsPanel, etc.) was written against the
+// pre-Phase-3 array shape and breaks with `e.slice is not a function`
+// if we hand back the wrapper.
+export const search = async (query: string) => {
+  const resp = await pulsechainApi.search(query);
+  if (!resp.success || !resp.data) return [];
+  return Array.isArray((resp.data as any)?.items)
+    ? (resp.data as any).items
+    : [];
+};
 export const fetchCreatorTransactions = (address: string, limit?: number) => 
   pulsechainApi.getCreatorTransactions(address, limit);
 export const fetchAddressTokenBalances = (address: string) => 
