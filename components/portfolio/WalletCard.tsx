@@ -8,11 +8,17 @@ import {
   IconTrash,
   IconAlertTriangle,
   IconChartHistogram,
+  IconAdjustmentsHorizontal,
 } from '@tabler/icons-react';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { useInsightsStore } from '@/lib/stores/insightsStore';
 import { ApprovalsPanel } from '@/components/portfolio/ApprovalsPanel';
+import { ManageTokensModal } from '@/components/portfolio/ManageTokensModal';
+import {
+  applyTokenVisibility,
+  autoHiddenForReview,
+} from '@/lib/portfolio/tokenVisibility';
 import type { ChainId, LpUnderlying, PortfolioToken, PortfolioWallet } from '@/services';
 
 const CHAIN_LABEL: Record<ChainId, string> = {
@@ -91,9 +97,40 @@ export function WalletCard({ wallet }: Props) {
   const [copied, setCopied] = useState(false);
   const openInsights = useInsightsStore((s) => s.openInsights);
 
-  const filteredTokens = useMemo(
+  const tokenSettings = usePortfolioStore(
+    (s) => s.walletTokenSettings[wallet.address.toLowerCase()],
+  );
+  const markSeen = usePortfolioStore((s) => s.markInitialReviewSeen);
+  const [manageOpen, setManageOpen] = useState(false);
+
+  const effectiveSettings = tokenSettings ?? {
+    hidden: [],
+    forced: [],
+    hideDust: true,
+    dustThresholdUsd: 1,
+    seenInitialReview: false,
+  };
+
+  // First filter to active chains, then apply per-wallet visibility (manual
+  // hidden/forced + dust + spam heuristic). The Manage Tokens modal sees the
+  // full pre-visibility list so users can un-hide things.
+  const chainFiltered = useMemo(
     () => tokens.filter((t) => activeChains.has(t.chain)),
     [tokens, activeChains],
+  );
+
+  const visibility = useMemo(
+    () => applyTokenVisibility(chainFiltered, effectiveSettings),
+    [chainFiltered, effectiveSettings],
+  );
+  const filteredTokens = visibility.visible;
+  const hiddenForChain = visibility.hidden;
+
+  // "Tokens hidden by default that the user hasn't reviewed yet" — drives
+  // the call-to-review banner when a freshly added wallet auto-hides spam.
+  const pendingReview = useMemo(
+    () => autoHiddenForReview(chainFiltered, effectiveSettings),
+    [chainFiltered, effectiveSettings],
   );
 
   const filteredTotalUsd = useMemo(
@@ -247,6 +284,30 @@ export function WalletCard({ wallet }: Props) {
           </div>
           <button
             type="button"
+            onClick={() => setManageOpen(true)}
+            className="text-white/70 hover:text-white relative"
+            title={
+              hiddenForChain.length > 0
+                ? `Manage tokens (${hiddenForChain.length} hidden)`
+                : 'Manage tokens'
+            }
+            aria-label="Manage tokens"
+          >
+            <IconAdjustmentsHorizontal className="h-5 w-5" />
+            {hiddenForChain.length > 0 && (
+              <span
+                className="absolute -top-1 -right-1 text-[9px] font-bold rounded-full px-1 leading-none py-0.5 min-w-[16px] text-center"
+                style={{
+                  backgroundColor: 'rgba(168, 85, 247, 0.85)',
+                  color: '#fff',
+                }}
+              >
+                {hiddenForChain.length}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
             onClick={refresh}
             disabled={isLoading}
             className="text-white/70 hover:text-white disabled:opacity-40"
@@ -269,6 +330,27 @@ export function WalletCard({ wallet }: Props) {
 
       {expanded && (
         <div className="p-4 space-y-3">
+          {/* First-load: tell the user we auto-hid some tokens, give them a
+              one-click path to review. Once they open the modal we mark it
+              "seen" and stop showing this banner for this wallet. */}
+          {!effectiveSettings.seenInitialReview && pendingReview.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setManageOpen(true)}
+              className="w-full rounded-lg border border-purple-400/40 bg-purple-500/10 px-3 py-2 text-xs text-purple-100 hover:bg-purple-500/15 transition-colors text-left flex items-center gap-2"
+            >
+              <IconAdjustmentsHorizontal className="h-4 w-4 text-purple-300 shrink-0" />
+              <span>
+                Detected{' '}
+                <span className="font-semibold">
+                  {pendingReview.length} token{pendingReview.length === 1 ? '' : 's'}
+                </span>{' '}
+                hidden by default (dust or likely spam).{' '}
+                <span className="underline">Review</span>
+              </span>
+            </button>
+          )}
+
           {snapshot?.errors && snapshot.errors.length > 0 && (
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200 space-y-1">
               {snapshot.errors.map((err, i) => (
@@ -316,6 +398,17 @@ export function WalletCard({ wallet }: Props) {
           />
         </div>
       )}
+
+      <ManageTokensModal
+        walletAddress={wallet.address}
+        walletLabel={wallet.label || truncate(wallet.address)}
+        tokens={chainFiltered}
+        open={manageOpen}
+        onClose={() => {
+          markSeen(wallet.address);
+          setManageOpen(false);
+        }}
+      />
     </section>
   );
 }

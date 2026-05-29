@@ -98,10 +98,27 @@ function toBalanceFormatted(raw: string, decimals: number): number {
   }
 }
 
-// Single Blockscout-shaped fetcher that works for both chains. Returns
-// the user's native balance via the address-info endpoint and the ERC-20
-// balances via the token-balances endpoint — the two are called in
-// parallel since they don't depend on each other.
+// Server-proxied Blockscout token enumeration. The route returns every
+// non-zero balance the wallet holds, plus the basic metadata Blockscout
+// already knows (name, symbol, decimals, icon). NFTs are filtered
+// upstream. Names / symbols / logos / prices still get enriched
+// downstream via the DexScreener prices proxy where Blockscout's data
+// is sparse.
+interface BlockscoutBalanceItem {
+  address: string;
+  balanceRaw: string;
+  decimals: number;
+  symbol?: string;
+  name?: string;
+  iconUrl?: string;
+  isVerified?: boolean;
+  exchangeRate?: number | null;
+  circulatingMarketCap?: number | null;
+  holdersCount?: number | null;
+  totalSupplyRaw?: string | null;
+  type?: string;
+}
+
 async function fetchBlockscoutTokens(
   chain: ChainId,
   walletAddress: string,
@@ -109,11 +126,8 @@ async function fetchBlockscoutTokens(
   const nativeName = chain === 'pulsechain' ? 'Pulse' : 'Ether';
   const nativeSymbol = chain === 'pulsechain' ? 'PLS' : 'ETH';
 
-  // /api/portfolio/balances enumerates token contracts via RPC eth_getLogs
-  // and reads balanceOf + decimals for each. Names / symbols / logos /
-  // prices all come downstream from the DexScreener prices proxy.
   let proxyData: {
-    tokens?: Array<{ address: string; balanceRaw: string; decimals: number }>;
+    tokens?: BlockscoutBalanceItem[];
     nativeBalanceRaw?: string | null;
   } | null = null;
   try {
@@ -154,22 +168,39 @@ async function fetchBlockscoutTokens(
     };
   }
 
-  // Names / symbols / logos are added by enrichWithPrices via the
-  // DexScreener proxy. Until that runs we use the contract address as a
-  // placeholder symbol so the UI has something stable to key on.
-  for (const t of proxyData.tokens.slice(0, TOKEN_LIMIT_PER_CHAIN)) {
-    if (!t?.address || !t.balanceRaw) continue;
+  // Rank by "looks like a real token" so the top TOKEN_LIMIT_PER_CHAIN
+  // we keep are the ones the user actually cares about. Spam ERC-20s
+  // typically have no icon, no exchange_rate, no market cap. This is the
+  // first cut — the per-wallet "manage tokens" modal also lets users
+  // explicitly include/exclude tokens after the fact.
+  const ranked = proxyData.tokens
+    .filter((t) => t?.address && t.balanceRaw && t.balanceRaw !== '0')
+    .map((t) => {
+      let quality = 0;
+      if (t.iconUrl) quality += 2;
+      if (t.exchangeRate != null) quality += 2;
+      if (t.circulatingMarketCap != null) quality += 1;
+      if (t.holdersCount != null && t.holdersCount > 100) quality += 1;
+      if (t.isVerified) quality += 1;
+      return { t, quality };
+    })
+    .sort((a, b) => b.quality - a.quality);
+
+  for (const { t } of ranked.slice(0, TOKEN_LIMIT_PER_CHAIN)) {
     const decimals = Number.isFinite(t.decimals) ? t.decimals : 18;
     const short = `${t.address.slice(0, 6)}…${t.address.slice(-4)}`;
+    const symbol = t.symbol || short;
+    const name = t.name || short;
     tokens.push({
       address: t.address.toLowerCase(),
       chain,
-      name: short,
-      symbol: short,
+      name,
+      symbol,
       decimals,
       balance: t.balanceRaw,
       balanceFormatted: toBalanceFormatted(t.balanceRaw, decimals),
-      isLp: false, // can't tell yet; flagged later in enrichLpTokens if it's a PulseX pair
+      logoURI: t.iconUrl || undefined,
+      // isLp filled later in enrichLpTokens once we know the symbol.
     });
   }
 
