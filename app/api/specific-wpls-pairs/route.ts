@@ -1,5 +1,17 @@
 import { NextResponse } from 'next/server';
 
+// DexScreener returns a Cloudflare HTML challenge for fetches without a
+// real browser User-Agent. Without this the search/pair responses come
+// back as text/html, the JSON parse fails silently, and TopTokensList
+// renders an empty grid. Mirrors the headers used by every other
+// DexScreener-hitting route in the repo.
+const DEX_HEADERS = {
+  Accept: 'application/json',
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+    '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+};
+
 // Specific tokens to display with their WPLS pairs
 const SPECIFIC_TOKENS = [
   { symbol: 'WPLS', address: null }, // WPLS paired with itself isn't useful, but we'll fetch WPLS data
@@ -61,10 +73,8 @@ export async function GET() {
         const response = await fetch(
           `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(searchQuery)}`,
           {
-            headers: {
-              'Accept': 'application/json',
-            },
-          }
+            headers: DEX_HEADERS,
+          },
         );
 
         if (!response.ok) {
@@ -147,7 +157,10 @@ export async function GET() {
     // Manually fetch and append any manual WPLS pairs
     for (const manual of MANUAL_WPLS_PAIRS) {
       try {
-        const pairRes = await fetch(`https://api.dexscreener.com/latest/dex/pairs/pulsechain/${manual.pairAddress}`);
+        const pairRes = await fetch(
+          `https://api.dexscreener.com/latest/dex/pairs/pulsechain/${manual.pairAddress}`,
+          { headers: DEX_HEADERS },
+        );
         if (!pairRes.ok) {
           console.log(`   ⚠️ Failed to fetch manual pair ${manual.symbol}: ${pairRes.status}`);
           continue;
