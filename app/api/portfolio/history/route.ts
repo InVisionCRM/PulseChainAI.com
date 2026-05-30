@@ -8,6 +8,7 @@ import {
   type TxActionType,
   type WalletTransaction,
   type WalletHistoryResponse,
+  type HistoryCursor,
 } from '@/services';
 import { looksLikeSpamRaw } from '@/lib/portfolio/tokenVisibility';
 import { labelFor, protocolFor } from '@/lib/portfolio/protocols';
@@ -40,11 +41,6 @@ const CACHE_TTL_MS = 20_000;
 const ADDRESS_RX = /^0x[a-f0-9]{40}$/;
 
 type PageParams = Record<string, string | number> | null;
-
-interface Cursor {
-  tx: PageParams;
-  tt: PageParams;
-}
 
 // ── fetch helpers ───────────────────────────────────────────────────────
 
@@ -332,6 +328,369 @@ function assembleTx(
   };
 }
 
+interface PathResult {
+  items: WalletTransaction[];
+  nextCursor: HistoryCursor | null;
+}
+
+// ── Blockscout path ─────────────────────────────────────────────────────
+
+async function fetchViaBlockscout(
+  chain: ChainId,
+  wallet: string,
+  cursor: HistoryCursor | null,
+): Promise<PathResult> {
+  // Spine: one transactions page.
+  const txBase = `${BLOCKSCOUT_BASE[chain]}/addresses/${wallet}/transactions`;
+  const txData = await fetchJson(withParams(txBase, cursor?.tx ?? null));
+  const txItems: any[] = Array.isArray(txData?.items) ? txData.items : [];
+
+  // Sweep transfers to cover this page's oldest timestamp.
+  const windowFloorTs = txItems.reduce((min, tx) => {
+    const ts = tsOf(tx?.timestamp);
+    return ts > 0 && ts < min ? ts : min;
+  }, Number.POSITIVE_INFINITY);
+  const sweep = await sweepTransfers(
+    chain,
+    wallet,
+    cursor?.tt ?? null,
+    Number.isFinite(windowFloorTs) ? windowFloorTs : 0,
+  );
+
+  const items = txItems
+    .map((tx) => assembleTx(chain, wallet, tx, sweep.flowsByHash))
+    .filter((x): x is WalletTransaction => x !== null)
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  const txNext: PageParams =
+    txData?.next_page_params && typeof txData.next_page_params === 'object'
+      ? txData.next_page_params
+      : null;
+  const nextCursor: HistoryCursor | null =
+    txNext || sweep.next
+      ? { source: 'blockscout', tx: txNext, tt: sweep.next }
+      : null;
+
+  return { items, nextCursor };
+}
+
+// ── Otterscan path — PulseChain primary ─────────────────────────────────
+//
+// PulseChain's Blockscout host is unreliable, so we read history straight
+// from g4mm4's Erigon archive node via the Otterscan ots_* namespace. Its
+// address index covers sender, receiver, AND log participants, so inbound
+// ERC-20 receives are included (verified). We decode receipt logs into flows
+// and resolve token symbol/decimals via eth_call (cached module-wide).
+
+const OTTERSCAN_RPC = 'https://rpc-pulsechain.g4mm4.io';
+const OTS_PAGE_SIZE = 25;
+const RPC_TIMEOUT_MS = 12_000;
+const TRANSFER_TOPIC =
+  '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+const DECIMALS_SELECTOR = '0x313ce567';
+const SYMBOL_SELECTOR = '0x95d89b41';
+
+// 4-byte selector → friendly method label. deriveAction() pattern-matches on
+// these, so covering the common ERC-20 / PulseX-router calls is what counts.
+const SELECTOR_METHODS: Record<string, string> = {
+  '0xa9059cbb': 'transfer',
+  '0x23b872dd': 'transferFrom',
+  '0x095ea7b3': 'approve',
+  '0xd0e30db0': 'deposit',
+  '0x2e1a7d4d': 'withdraw',
+  '0x38ed1739': 'swapExactTokensForTokens',
+  '0x7ff36ab5': 'swapExactETHForTokens',
+  '0x18cbafe5': 'swapExactTokensForETH',
+  '0x8803dbee': 'swapTokensForExactTokens',
+  '0xfb3bdb41': 'swapETHForExactTokens',
+  '0x4a25d94a': 'swapTokensForExactETH',
+  '0x5c11d795': 'swapExactTokensForTokensSupportingFeeOnTransferTokens',
+  '0xb6f9de95': 'swapExactETHForTokensSupportingFeeOnTransferTokens',
+  '0x791ac947': 'swapExactTokensForETHSupportingFeeOnTransferTokens',
+  '0xe8e33700': 'addLiquidity',
+  '0xf305d719': 'addLiquidityETH',
+  '0xbaa2abde': 'removeLiquidity',
+  '0x02751cec': 'removeLiquidityETH',
+  '0xaf2979eb': 'removeLiquidityETHSupportingFeeOnTransferTokens',
+  '0xded9382a': 'removeLiquidityETHWithPermit',
+};
+
+const hexToBig = (h: unknown): bigint => {
+  try {
+    return BigInt(String(h));
+  } catch {
+    return 0n;
+  }
+};
+
+async function rpc(method: string, params: unknown[]): Promise<any | null> {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), RPC_TIMEOUT_MS);
+  try {
+    const r = await fetch(OTTERSCAN_RPC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+      signal: controller.signal,
+    });
+    if (!r.ok) return null;
+    const d: any = await r.json();
+    return d?.error || d?.result === undefined ? null : d.result;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function rpcBatch(
+  calls: { method: string; params: unknown[] }[],
+): Promise<(any | null)[]> {
+  if (calls.length === 0) return [];
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), RPC_TIMEOUT_MS);
+  try {
+    const body = calls.map((c, i) => ({
+      jsonrpc: '2.0',
+      id: i,
+      method: c.method,
+      params: c.params,
+    }));
+    const r = await fetch(OTTERSCAN_RPC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    if (!r.ok) return calls.map(() => null);
+    const arr: any = await r.json();
+    if (!Array.isArray(arr)) return calls.map(() => null);
+    const out: (any | null)[] = new Array(calls.length).fill(null);
+    for (const x of arr) {
+      if (typeof x?.id === 'number' && x.id < out.length) {
+        out[x.id] = x?.error || x?.result === undefined ? null : x.result;
+      }
+    }
+    return out;
+  } catch {
+    return calls.map(() => null);
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// Decode a symbol() return — ABI dynamic string, or legacy bytes32.
+function decodeAbiString(hex: unknown): string {
+  if (typeof hex !== 'string' || !hex.startsWith('0x')) return '';
+  const data = hex.slice(2);
+  if (data.length === 0) return '';
+  if (data.length >= 128) {
+    const len = parseInt(data.slice(64, 128), 16);
+    if (Number.isFinite(len) && len > 0 && len <= 128 && data.length >= 128 + len * 2) {
+      try {
+        const s = Buffer.from(data.slice(128, 128 + len * 2), 'hex')
+          .toString('utf8')
+          .replace(/\0+$/, '')
+          .trim();
+        if (s) return s;
+      } catch {
+        /* fall through to bytes32 */
+      }
+    }
+  }
+  try {
+    const s = Buffer.from(data.slice(0, 64), 'hex')
+      .toString('utf8')
+      .replace(/\0+$/, '')
+      .trim();
+    return /^[\x20-\x7e]+$/.test(s) ? s : '';
+  } catch {
+    return '';
+  }
+}
+
+interface TokenMeta {
+  symbol: string;
+  decimals: number;
+}
+const tokenMetaCache = new Map<string, TokenMeta>();
+
+async function resolveTokenMeta(addresses: string[]): Promise<void> {
+  const missing = [...new Set(addresses.map((a) => a.toLowerCase()))].filter(
+    (a) => a && !tokenMetaCache.has(a),
+  );
+  if (missing.length === 0) return;
+  const calls = missing.flatMap((addr) => [
+    { method: 'eth_call', params: [{ to: addr, data: DECIMALS_SELECTOR }, 'latest'] },
+    { method: 'eth_call', params: [{ to: addr, data: SYMBOL_SELECTOR }, 'latest'] },
+  ]);
+  const res = await rpcBatch(calls);
+  missing.forEach((addr, i) => {
+    const decHex = res[i * 2];
+    let decimals = 18;
+    if (typeof decHex === 'string' && decHex !== '0x') {
+      const d = parseInt(decHex, 16);
+      if (Number.isFinite(d) && d >= 0 && d <= 36) decimals = d;
+    }
+    const symbol = decodeAbiString(res[i * 2 + 1]) || `${addr.slice(0, 6)}…`;
+    tokenMetaCache.set(addr, { symbol, decimals });
+  });
+}
+
+function assembleFromOts(wallet: string, tx: any, receipt: any): WalletTransaction | null {
+  const hash = String(tx?.hash || '').toLowerCase();
+  if (!hash) return null;
+  const from = String(tx?.from || '').toLowerCase();
+  const to = String(tx?.to || '').toLowerCase();
+  const timestamp = Number(receipt?.timestamp ?? 0) * 1000;
+
+  // Flows from receipt logs — ERC-20 Transfer where the wallet is a party.
+  const rawFlows: TokenFlow[] = [];
+  const logs: any[] = Array.isArray(receipt?.logs) ? receipt.logs : [];
+  for (const log of logs) {
+    const topics: string[] = Array.isArray(log?.topics) ? log.topics : [];
+    if (topics.length !== 3 || topics[0]?.toLowerCase() !== TRANSFER_TOPIC) continue;
+    const lfrom = ('0x' + topics[1].slice(26)).toLowerCase();
+    const lto = ('0x' + topics[2].slice(26)).toLowerCase();
+    const direction: 'in' | 'out' | null =
+      lto === wallet ? 'in' : lfrom === wallet ? 'out' : null;
+    if (!direction) continue;
+    const token = String(log?.address || '').toLowerCase();
+    const meta = tokenMetaCache.get(token) || {
+      symbol: `${token.slice(0, 6)}…`,
+      decimals: 18,
+    };
+    rawFlows.push({
+      direction,
+      tokenAddress: token,
+      symbol: meta.symbol,
+      decimals: meta.decimals,
+      amountFormatted: formatUnits(hexToBig(log?.data).toString(), meta.decimals),
+      isLp: looksLikeLp(meta.symbol, ''),
+      isScam: looksLikeSpamRaw({
+        name: meta.symbol,
+        symbol: meta.symbol,
+        hasPrice: false,
+        hasLogo: false,
+      }),
+    });
+  }
+
+  // Native value leg.
+  const nativeBig = hexToBig(tx?.value);
+  if (nativeBig > 0n) {
+    const dir: 'in' | 'out' | null =
+      from === wallet ? 'out' : to === wallet ? 'in' : null;
+    if (dir) {
+      rawFlows.push({
+        direction: dir,
+        tokenAddress: NATIVE_TOKEN_ADDRESS,
+        symbol: CHAIN_NATIVE_SYMBOL.pulsechain,
+        decimals: 18,
+        amountFormatted: formatUnits(nativeBig.toString(), 18),
+        isNative: true,
+      });
+    }
+  }
+
+  const flows = aggregateFlows(rawFlows);
+  const hasIn = flows.some((f) => f.direction === 'in');
+  const hasOut = flows.some((f) => f.direction === 'out');
+
+  const input = String(tx?.input || tx?.data || '');
+  const selector = input.slice(0, 10).toLowerCase();
+  const method = SELECTOR_METHODS[selector];
+  const toIsWrapped = to === WRAPPED_NATIVE.pulsechain;
+  const action = deriveAction(method || '', toIsWrapped, hasIn, hasOut);
+
+  const status: WalletTransaction['status'] =
+    receipt?.status === '0x0' || receipt?.status === 0 ? 'failed' : 'success';
+
+  // Gas is only paid by the sender.
+  let gasFeeNative: number | undefined;
+  if (from === wallet) {
+    const gasUsed = hexToBig(receipt?.gasUsed);
+    const gasPrice = hexToBig(receipt?.effectiveGasPrice ?? tx?.gasPrice);
+    if (gasUsed > 0n && gasPrice > 0n) {
+      gasFeeNative = formatUnits((gasUsed * gasPrice).toString(), 18);
+    }
+  }
+
+  const counterparty =
+    action === 'receive' ? from || undefined : to || undefined;
+  const proto = protocolFor('pulsechain', counterparty);
+
+  return {
+    hash,
+    chain: 'pulsechain',
+    timestamp,
+    action,
+    method: method || (selector.length === 10 && selector !== '0x' ? selector : undefined),
+    status,
+    flows,
+    counterparty,
+    counterpartyLabel: labelFor('pulsechain', counterparty, null),
+    protocol: proto ? { name: proto.name, kind: proto.kind } : undefined,
+    gasFeeNative,
+    isScam: flows.some((f) => f.isScam),
+  };
+}
+
+// Returns null (not an empty page) when the node is unreachable, so the
+// caller can fall back to Blockscout.
+async function fetchViaOtterscan(
+  wallet: string,
+  startBlock: number | null,
+): Promise<PathResult | null> {
+  const res = await rpc('ots_searchTransactionsBefore', [
+    wallet,
+    startBlock ?? 0,
+    OTS_PAGE_SIZE,
+  ]);
+  if (!res || !Array.isArray(res.txs)) return null;
+
+  const txs: any[] = res.txs;
+  const receipts: any[] = Array.isArray(res.receipts) ? res.receipts : [];
+  const rcByHash = new Map<string, any>();
+  for (const rc of receipts) {
+    const h = String(rc?.transactionHash || '').toLowerCase();
+    if (h) rcByHash.set(h, rc);
+  }
+
+  // One batched eth_call sweep for every token touched on this page.
+  const tokenAddrs: string[] = [];
+  for (const rc of receipts) {
+    for (const log of rc?.logs || []) {
+      if (
+        Array.isArray(log?.topics) &&
+        log.topics.length === 3 &&
+        log.topics[0]?.toLowerCase() === TRANSFER_TOPIC &&
+        log?.address
+      ) {
+        tokenAddrs.push(String(log.address).toLowerCase());
+      }
+    }
+  }
+  await resolveTokenMeta(tokenAddrs);
+
+  const items = txs
+    .map((tx) =>
+      assembleFromOts(wallet, tx, rcByHash.get(String(tx?.hash || '').toLowerCase())),
+    )
+    .filter((x): x is WalletTransaction => x !== null)
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  let nextCursor: HistoryCursor | null = null;
+  if (!res.lastPage && txs.length > 0) {
+    const minBlock = txs.reduce((m, t) => {
+      const b = Number(hexToBig(t?.blockNumber));
+      return b > 0 && b < m ? b : m;
+    }, Number.POSITIVE_INFINITY);
+    if (Number.isFinite(minBlock)) nextCursor = { source: 'otterscan', block: minBlock };
+  }
+  return { items, nextCursor };
+}
+
 // ── tiny first-page cache ───────────────────────────────────────────────
 
 const cache = new Map<string, { payload: WalletHistoryResponse; at: number }>();
@@ -350,11 +709,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid address' }, { status: 400 });
   }
 
-  const cursor: Cursor =
-    body?.cursor && typeof body.cursor === 'object'
-      ? { tx: body.cursor.tx ?? null, tt: body.cursor.tt ?? null }
-      : { tx: null, tt: null };
-  const isFirstPage = !cursor.tx && !cursor.tt;
+  const cursor: HistoryCursor | null =
+    body?.cursor && typeof body.cursor === 'object' ? body.cursor : null;
+  const isFirstPage = !cursor;
 
   if (isFirstPage) {
     const hit = cache.get(`${chain}:${wallet}`);
@@ -363,40 +720,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Spine: one transactions page.
-  const txBase = `${BLOCKSCOUT_BASE[chain]}/addresses/${wallet}/transactions`;
-  const txData = await fetchJson(withParams(txBase, cursor.tx));
-  const txItems: any[] = Array.isArray(txData?.items) ? txData.items : [];
-
-  // Sweep transfers to cover this page's oldest timestamp.
-  const windowFloorTs = txItems.reduce((min, tx) => {
-    const ts = tsOf(tx?.timestamp);
-    return ts > 0 && ts < min ? ts : min;
-  }, Number.POSITIVE_INFINITY);
-  const sweep = await sweepTransfers(
-    chain,
-    wallet,
-    cursor.tt,
-    Number.isFinite(windowFloorTs) ? windowFloorTs : 0,
-  );
-
-  const items = txItems
-    .map((tx) => assembleTx(chain, wallet, tx, sweep.flowsByHash))
-    .filter((x): x is WalletTransaction => x !== null)
-    .sort((a, b) => b.timestamp - a.timestamp);
-
-  const txNext: PageParams =
-    txData?.next_page_params && typeof txData.next_page_params === 'object'
-      ? txData.next_page_params
-      : null;
-  const nextCursor: Cursor | null =
-    txNext || sweep.next ? { tx: txNext, tt: sweep.next } : null;
+  let result: PathResult;
+  if (chain === 'pulsechain' && cursor?.source !== 'blockscout') {
+    // PulseChain primary: Otterscan on g4mm4's Erigon node. Fall back to
+    // Blockscout (fresh first page) only if the node is unreachable.
+    const ots = await fetchViaOtterscan(wallet, cursor?.block ?? null);
+    result = ots ?? (await fetchViaBlockscout('pulsechain', wallet, null));
+  } else {
+    result = await fetchViaBlockscout(chain, wallet, cursor);
+  }
 
   const payload: WalletHistoryResponse = {
     chain,
     address: wallet,
-    items,
-    nextCursor,
+    items: result.items,
+    nextCursor: result.nextCursor,
     fetchedAt: Date.now(),
   };
 

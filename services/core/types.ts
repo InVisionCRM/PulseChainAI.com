@@ -490,13 +490,16 @@ export interface WalletTransaction {
   isScam?: boolean; // any flow flagged scam
 }
 
-// Opaque pagination cursor for the history feed. The feed merges two
-// independently-paged Blockscout streams (transactions + token-transfers),
-// so the cursor carries both page-param bags. Clients treat it as opaque and
-// hand it back verbatim on "load more".
+// Opaque pagination cursor for the history feed. Clients treat it as opaque
+// and hand it back verbatim on "load more". It spans two possible sources:
+//   • Otterscan (PulseChain primary) pages by block number (`block`).
+//   • Blockscout merges two independently-paged streams (`tx` + `tt`).
+// `source` records which path produced it so "load more" stays on that path.
 export interface HistoryCursor {
-  tx: Record<string, string | number> | null;
-  tt: Record<string, string | number> | null;
+  source?: 'otterscan' | 'blockscout';
+  block?: number | null;
+  tx?: Record<string, string | number> | null;
+  tt?: Record<string, string | number> | null;
 }
 
 export interface WalletHistoryResponse {
