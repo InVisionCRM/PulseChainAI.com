@@ -15,6 +15,7 @@ import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { useInsightsStore } from '@/lib/stores/insightsStore';
 import { useManageTokensStore } from '@/lib/stores/manageTokensStore';
 import { ApprovalsPanel } from '@/components/portfolio/ApprovalsPanel';
+import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
 import {
   applyTokenVisibility,
   autoHiddenForReview,
@@ -118,6 +119,7 @@ export function WalletCard({ wallet }: Props) {
   const removeWallet = usePortfolioStore((s) => s.removeWallet);
 
   const [expanded, setExpanded] = useState(true);
+  const [view, setView] = useState<'tokens' | 'activity'>('tokens');
   const [sortKey, setSortKey] = useState<SortKey>('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [activeChains, setActiveChains] = useState<Set<ChainId>>(
@@ -358,72 +360,101 @@ export function WalletCard({ wallet }: Props) {
 
       {expanded && (
         <div className="p-4 space-y-3">
-          {/* First-load: tell the user we auto-hid some tokens, give them a
-              one-click path to review. Once they open the modal we mark it
-              "seen" and stop showing this banner for this wallet. */}
-          {!effectiveSettings.seenInitialReview && pendingReview.length > 0 && (
+          {/* Tokens | Activity switch — Activity is the DeBank-style decoded
+              transaction history; Tokens is the holdings table + approvals. */}
+          <div className="inline-flex rounded-lg border border-white/12 bg-white/5 p-0.5">
             <button
               type="button"
-              onClick={() => openManageTokens(wallet.address)}
-              className="w-full rounded-lg border border-purple-400/40 bg-purple-500/10 px-3 py-2 text-xs text-purple-100 hover:bg-purple-500/15 transition-colors text-left flex items-center gap-2"
+              onClick={() => setView('tokens')}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                view === 'tokens' ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white/80'
+              }`}
             >
-              <IconAdjustmentsHorizontal className="h-4 w-4 text-purple-300 shrink-0" />
-              <span>
-                Detected{' '}
-                <span className="font-semibold">
-                  {pendingReview.length} token{pendingReview.length === 1 ? '' : 's'}
-                </span>{' '}
-                hidden by default (dust or likely spam).{' '}
-                <span className="underline">Review</span>
-              </span>
+              Tokens
             </button>
-          )}
+            <button
+              type="button"
+              onClick={() => setView('activity')}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                view === 'activity' ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white/80'
+              }`}
+            >
+              Activity
+            </button>
+          </div>
 
-          {snapshot?.errors && snapshot.errors.length > 0 && (
-            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200 space-y-1">
-              {snapshot.errors.map((err, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <IconAlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  <span>
-                    <span className="font-semibold uppercase mr-1">{err.chain}</span>
-                    {err.message}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {error && (
-            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-              {error}
-            </div>
-          )}
-
-          {isLoading && tokens.length === 0 ? (
-            <SkeletonRows />
-          ) : tokens.length === 0 ? (
-            <div className="text-sm text-white/50 text-center py-8">
-              {snapshot
-                ? 'No tokens found at this address.'
-                : 'Tap refresh to load this wallet.'}
-            </div>
-          ) : filteredTokens.length === 0 ? (
-            <div className="text-sm text-white/50 text-center py-8">
-              No tokens visible — toggle a chain badge above to show them.
-            </div>
+          {view === 'activity' ? (
+            <ActivityFeed walletAddress={wallet.address} chains={wallet.chains} />
           ) : (
-            <TokenTable
-              tokens={sortedTokens}
-              sortKey={sortKey}
-              sortDir={sortDir}
-              onSort={handleSort}
-              onOpenInsights={openInsights}
-            />
+            <>
+              {/* First-load: tell the user we auto-hid some tokens, give them a
+                  one-click path to review. Once they open the modal we mark it
+                  "seen" and stop showing this banner for this wallet. */}
+              {!effectiveSettings.seenInitialReview && pendingReview.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => openManageTokens(wallet.address)}
+                  className="w-full rounded-lg border border-purple-400/40 bg-purple-500/10 px-3 py-2 text-xs text-purple-100 hover:bg-purple-500/15 transition-colors text-left flex items-center gap-2"
+                >
+                  <IconAdjustmentsHorizontal className="h-4 w-4 text-purple-300 shrink-0" />
+                  <span>
+                    Detected{' '}
+                    <span className="font-semibold">
+                      {pendingReview.length} token{pendingReview.length === 1 ? '' : 's'}
+                    </span>{' '}
+                    hidden by default (dust or likely spam).{' '}
+                    <span className="underline">Review</span>
+                  </span>
+                </button>
+              )}
+
+              {snapshot?.errors && snapshot.errors.length > 0 && (
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200 space-y-1">
+                  {snapshot.errors.map((err, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <IconAlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span>
+                        <span className="font-semibold uppercase mr-1">{err.chain}</span>
+                        {err.message}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {error && (
+                <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                  {error}
+                </div>
+              )}
+
+              {isLoading && tokens.length === 0 ? (
+                <SkeletonRows />
+              ) : tokens.length === 0 ? (
+                <div className="text-sm text-white/50 text-center py-8">
+                  {snapshot
+                    ? 'No tokens found at this address.'
+                    : 'Tap refresh to load this wallet.'}
+                </div>
+              ) : filteredTokens.length === 0 ? (
+                <div className="text-sm text-white/50 text-center py-8">
+                  No tokens visible — toggle a chain badge above to show them.
+                </div>
+              ) : (
+                <TokenTable
+                  tokens={sortedTokens}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  onOpenInsights={openInsights}
+                />
+              )}
+              <ApprovalsPanel
+                walletAddress={wallet.address}
+                chains={wallet.chains}
+              />
+            </>
           )}
-          <ApprovalsPanel
-            walletAddress={wallet.address}
-            chains={wallet.chains}
-          />
         </div>
       )}
     </section>
