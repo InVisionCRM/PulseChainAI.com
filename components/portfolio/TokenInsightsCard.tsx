@@ -35,6 +35,13 @@ const TokenAIChat = dynamic(() => import('@/components/TokenAIChat'), {
   ),
 });
 
+// The native candle chart pulls in lightweight-charts — lazy-load it only
+// when the Chart tab is opened.
+const CandleChart = dynamic(() => import('@/components/portfolio/CandleChart'), {
+  ssr: false,
+  loading: () => <div className="h-[460px] rounded-lg bg-white/5 animate-pulse" />,
+});
+
 // Chain marks overlaid as a small logo badge on the token icon (matches
 // WalletCard / WatchlistPanel) instead of a text pill. Assets live in public/.
 const CHAIN_LOGO: Record<ChainId, string> = {
@@ -433,7 +440,7 @@ function CardBody({
         <OverviewTab token={token} insights={insights} loading={loading} />
       )}
       {tab === 'chart' && (
-        <ChartTab token={token} insights={insights} loading={loading} />
+        <ChartTab token={token} insights={insights} />
       )}
       {tab === 'liquidity' && (
         <LiquidityTab insights={insights} loading={loading} />
@@ -559,39 +566,14 @@ function LiquidityTab({
 function ChartTab({
   token,
   insights,
-  loading,
 }: {
   token: PortfolioToken;
   insights: Insights | null;
-  loading: boolean;
 }) {
+  // Native GeckoTerminal candles first; CandleChart auto-falls back to the
+  // DexScreener embed (using this pair) when no native OHLC is available.
   const pairAddress = insights?.topPairs?.[0]?.pairAddress ?? null;
-
-  if (loading && !insights) {
-    return <div className="h-[460px] rounded-lg bg-white/5 animate-pulse" />;
-  }
-  if (!pairAddress) {
-    return (
-      <div className="text-sm text-white/50 text-center py-8">
-        No DexScreener pool indexed for this token — chart unavailable.
-      </div>
-    );
-  }
-  // token.chain ('ethereum' | 'pulsechain') is already DexScreener's URL slug.
-  const src =
-    `https://dexscreener.com/${token.chain}/${pairAddress}` +
-    `?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&theme=dark&chartStyle=0&chartType=usd&interval=15`;
-  return (
-    <div className="h-[460px] -mx-2 rounded-lg overflow-hidden border border-white/10 bg-black/30">
-      <iframe
-        src={src}
-        title={`DexScreener chart for ${token.symbol}`}
-        className="w-full h-full"
-        style={{ border: 0 }}
-        loading="lazy"
-      />
-    </div>
-  );
+  return <CandleChart token={token} pairAddress={pairAddress} />;
 }
 
 function ChatTab({ token }: { token: PortfolioToken }) {

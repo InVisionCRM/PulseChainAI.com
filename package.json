@@ -59,6 +59,7 @@
     "embla-carousel-react": "^8.6.0",
     "form-data": "^4.0.4",
     "input-otp": "^1.4.2",
+    "lightweight-charts": "^4.2.0",
     "lucide-react": "^0.536.0",
     "moralis": "^2.27.2",
     "motion": "^12.23.24",
