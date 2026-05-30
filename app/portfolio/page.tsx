@@ -8,6 +8,7 @@ import { WalletCard } from '@/components/portfolio/WalletCard';
 import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
 import { WatchlistPanel } from '@/components/portfolio/WatchlistPanel';
 import { TokenInsightsCard } from '@/components/portfolio/TokenInsightsCard';
+import { ManageTokensModal } from '@/components/portfolio/ManageTokensModal';
 
 const fmtUsd = (n: number) => {
   if (!Number.isFinite(n)) return '$0.00';
@@ -47,22 +48,6 @@ export default function PortfolioPage() {
             <h1 className="mt-1 text-3xl md:text-4xl font-bold text-white">
               Your wallets, all in one place
             </h1>
-            <p
-              className="mt-2 leading-none font-black uppercase tracking-tight select-none"
-              style={{
-                fontSize: 'clamp(3.5rem, 8vw, 6rem)',
-                background:
-                  'linear-gradient(135deg, #c084fc 0%, #a855f7 35%, #7e22ce 70%, #4c1d95 100%)',
-                WebkitBackgroundClip: 'text',
-                backgroundClip: 'text',
-                color: 'transparent',
-                filter:
-                  'drop-shadow(0 0 18px rgba(168, 85, 247, 0.45)) drop-shadow(0 4px 16px rgba(76, 29, 149, 0.35))',
-                letterSpacing: '-0.04em',
-              }}
-            >
-              MORBY
-            </p>
           </div>
 
           {wallets.length > 0 && (
@@ -108,6 +93,7 @@ export default function PortfolioPage() {
         </div>
       </div>
       <TokenInsightsCard />
+      <ManageTokensModal />
     </div>
   );
 }

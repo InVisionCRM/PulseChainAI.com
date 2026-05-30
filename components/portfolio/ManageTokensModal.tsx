@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   IconX,
   IconAlertTriangle,
@@ -8,19 +9,14 @@ import {
   IconRestore,
 } from '@tabler/icons-react';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
+import { useManageTokensStore } from '@/lib/stores/manageTokensStore';
 import {
   applyTokenVisibility,
   tokenAutoState,
 } from '@/lib/portfolio/tokenVisibility';
 import type { ChainId, PortfolioToken } from '@/services';
 
-interface Props {
-  walletAddress: string;
-  walletLabel: string;
-  tokens: PortfolioToken[];
-  open: boolean;
-  onClose: () => void;
-}
+const truncate = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 
 const CHAIN_LABEL: Record<ChainId, string> = {
   ethereum: 'ETH',
@@ -46,15 +42,25 @@ const fmtBalance = (n: number) =>
     maximumFractionDigits: n < 1 ? 6 : 4,
   });
 
-export function ManageTokensModal({
-  walletAddress,
-  walletLabel,
-  tokens,
-  open,
-  onClose,
-}: Props) {
+// Rendered once at the portfolio page level. Reads its open/active-wallet
+// state from manageTokensStore so any WalletCard can trigger it without
+// prop-drilling. Portals to document.body so the fixed overlay can't be
+// trapped or clipped by an ancestor's containing block (e.g. a WalletCard's
+// backdrop-blur-xl + overflow-hidden).
+export function ManageTokensModal() {
+  const walletAddress = useManageTokensStore((s) => s.walletAddress);
+  const close = useManageTokensStore((s) => s.close);
+
+  const wallet = usePortfolioStore((s) =>
+    walletAddress
+      ? s.wallets.find((w) => w.address === walletAddress) ?? null
+      : null,
+  );
+  const snapshot = usePortfolioStore((s) =>
+    walletAddress ? s.snapshotsByAddress[walletAddress]?.snapshot ?? null : null,
+  );
   const settings = usePortfolioStore((s) =>
-    s.walletTokenSettings[walletAddress.toLowerCase()],
+    walletAddress ? s.walletTokenSettings[walletAddress] : undefined,
   );
   const setTokenHidden = usePortfolioStore((s) => s.setTokenHidden);
   const setTokenForced = usePortfolioStore((s) => s.setTokenForced);
@@ -72,10 +78,36 @@ export function ManageTokensModal({
       seenInitialReview: false,
     };
 
+  const tokens: PortfolioToken[] = snapshot?.tokens ?? [];
+  const walletLabel =
+    wallet?.label || (wallet ? truncate(wallet.address) : '');
+
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'visible' | 'hidden' | 'spam' | 'dust'>(
     'all',
   );
+
+  // Reset transient UI state when the active wallet changes (or the modal
+  // closes), and lock body scroll while open.
+  useEffect(() => {
+    if (!walletAddress) return;
+    setQuery('');
+    setFilter('all');
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = 'auto';
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [walletAddress, close]);
+
+  const handleClose = () => {
+    if (walletAddress) markSeen(walletAddress);
+    close();
+  };
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -121,7 +153,7 @@ export function ManageTokensModal({
     [tokens, effectiveSettings],
   );
 
-  if (!open) return null;
+  if (!walletAddress || !wallet) return null;
 
   const toggleVisibility = (token: PortfolioToken, shouldBeVisible: boolean) => {
     const addr = token.address;
@@ -134,14 +166,11 @@ export function ManageTokensModal({
     }
   };
 
-  return (
+  const overlay = (
     <>
       <div
         className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[90]"
-        onClick={() => {
-          markSeen(walletAddress);
-          onClose();
-        }}
+        onClick={handleClose}
       />
       <div className="fixed inset-0 z-[100] grid place-items-center p-4 pointer-events-none">
         <div
@@ -164,10 +193,7 @@ export function ManageTokensModal({
             </div>
             <button
               type="button"
-              onClick={() => {
-                markSeen(walletAddress);
-                onClose();
-              }}
+              onClick={handleClose}
               className="h-8 w-8 grid place-items-center rounded-full bg-white/10 hover:bg-white/20 text-white shrink-0"
               aria-label="Close"
               title="Close (Esc)"
@@ -365,4 +391,7 @@ export function ManageTokensModal({
       </div>
     </>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(overlay, document.body);
 }

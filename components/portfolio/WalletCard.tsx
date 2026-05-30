@@ -13,8 +13,8 @@ import {
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { useInsightsStore } from '@/lib/stores/insightsStore';
+import { useManageTokensStore } from '@/lib/stores/manageTokensStore';
 import { ApprovalsPanel } from '@/components/portfolio/ApprovalsPanel';
-import { ManageTokensModal } from '@/components/portfolio/ManageTokensModal';
 import {
   applyTokenVisibility,
   autoHiddenForReview,
@@ -26,9 +26,16 @@ const CHAIN_LABEL: Record<ChainId, string> = {
   pulsechain: 'PLS',
 };
 
-const CHAIN_COLOR: Record<ChainId, string> = {
-  ethereum: 'bg-indigo-500/20 text-indigo-200 border-indigo-500/40',
-  pulsechain: 'bg-fuchsia-500/20 text-fuchsia-200 border-fuchsia-500/40',
+// Real chain marks, overlaid as a small badge on the token icon (DeBank /
+// Zapper / Zerion convention) instead of a text pill. Assets live in public/.
+const CHAIN_LOGO: Record<ChainId, string> = {
+  ethereum: '/ethlogo.svg',
+  pulsechain: '/LogoVector.svg',
+};
+
+const CHAIN_NAME: Record<ChainId, string> = {
+  ethereum: 'Ethereum',
+  pulsechain: 'PulseChain',
 };
 
 // Inline styles bypass any Tailwind JIT gaps for these specific RGBs
@@ -100,8 +107,7 @@ export function WalletCard({ wallet }: Props) {
   const tokenSettings = usePortfolioStore(
     (s) => s.walletTokenSettings[wallet.address.toLowerCase()],
   );
-  const markSeen = usePortfolioStore((s) => s.markInitialReviewSeen);
-  const [manageOpen, setManageOpen] = useState(false);
+  const openManageTokens = useManageTokensStore((s) => s.openForWallet);
 
   const effectiveSettings = tokenSettings ?? {
     hidden: [],
@@ -284,7 +290,7 @@ export function WalletCard({ wallet }: Props) {
           </div>
           <button
             type="button"
-            onClick={() => setManageOpen(true)}
+            onClick={() => openManageTokens(wallet.address)}
             className="text-white/70 hover:text-white relative"
             title={
               hiddenForChain.length > 0
@@ -336,7 +342,7 @@ export function WalletCard({ wallet }: Props) {
           {!effectiveSettings.seenInitialReview && pendingReview.length > 0 && (
             <button
               type="button"
-              onClick={() => setManageOpen(true)}
+              onClick={() => openManageTokens(wallet.address)}
               className="w-full rounded-lg border border-purple-400/40 bg-purple-500/10 px-3 py-2 text-xs text-purple-100 hover:bg-purple-500/15 transition-colors text-left flex items-center gap-2"
             >
               <IconAdjustmentsHorizontal className="h-4 w-4 text-purple-300 shrink-0" />
@@ -398,17 +404,6 @@ export function WalletCard({ wallet }: Props) {
           />
         </div>
       )}
-
-      <ManageTokensModal
-        walletAddress={wallet.address}
-        walletLabel={wallet.label || truncate(wallet.address)}
-        tokens={chainFiltered}
-        open={manageOpen}
-        onClose={() => {
-          markSeen(wallet.address);
-          setManageOpen(false);
-        }}
-      />
     </section>
   );
 }
@@ -439,10 +434,6 @@ function TokenTable({
   onSort: (k: SortKey) => void;
   onOpenInsights: (t: PortfolioToken) => void;
 }) {
-  const [expandedLp, setExpandedLp] = useState<Record<string, boolean>>({});
-  const toggleLp = (key: string) =>
-    setExpandedLp((p) => ({ ...p, [key]: !p[key] }));
-
   const header = (key: SortKey, label: string, align: 'left' | 'right') => (
     <SortButton
       active={sortKey === key}
@@ -470,7 +461,6 @@ function TokenTable({
         <tbody>
           {tokens.flatMap((t, i) => {
             const key = `${t.chain}:${t.address}`;
-            const isExpanded = !!expandedLp[key];
             const rows: React.ReactNode[] = [
               <tr
                 key={key}
@@ -483,29 +473,10 @@ function TokenTable({
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="font-semibold text-white truncate">{t.symbol}</span>
-                        <span
-                          className={`text-[9px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded border ${CHAIN_COLOR[t.chain]}`}
-                        >
-                          {CHAIN_LABEL[t.chain]}
-                        </span>
-                        {t.isNative && (
-                          <span className="text-[9px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-200 border border-amber-500/40">
-                            Native
-                          </span>
-                        )}
                         {t.isLp && (
-                          <button
-                            type="button"
-                            onClick={() => toggleLp(key)}
-                            className="inline-flex items-center gap-0.5 text-[9px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-200 border border-cyan-500/40 hover:bg-cyan-500/25"
-                            aria-expanded={isExpanded}
-                            title={isExpanded ? 'Hide breakdown' : 'Show LP breakdown'}
-                          >
+                          <span className="text-[9px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-200 border border-cyan-500/40">
                             LP
-                            <IconChevronDown
-                              className={`h-3 w-3 transition-transform ${isExpanded ? '' : '-rotate-90'}`}
-                            />
-                          </button>
+                          </span>
                         )}
                         <button
                           type="button"
@@ -543,7 +514,7 @@ function TokenTable({
               </tr>,
             ];
 
-            if (t.isLp && t.lp && isExpanded) {
+            if (t.isLp && t.lp) {
               for (const side of t.lp.sides) {
                 rows.push(
                   <LpSideRow
@@ -682,21 +653,45 @@ function SortButton({
 
 function TokenIcon({ token }: { token: PortfolioToken }) {
   return (
-    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden shrink-0">
-      {token.logoURI ? (
-        <img
-          src={token.logoURI}
-          alt={token.symbol}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).style.display = 'none';
-          }}
-        />
-      ) : (
-        <span className="text-[10px] text-white/60 font-semibold">
-          {token.symbol.slice(0, 3).toUpperCase()}
-        </span>
-      )}
+    <div className="relative w-8 h-8 shrink-0">
+      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+        {token.logoURI ? (
+          <img
+            src={token.logoURI}
+            alt={token.symbol}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        ) : (
+          <span className="text-[10px] text-white/60 font-semibold">
+            {token.symbol.slice(0, 3).toUpperCase()}
+          </span>
+        )}
+      </div>
+      <ChainBadge chain={token.chain} />
     </div>
+  );
+}
+
+// Small chain mark overhanging the token icon's bottom-right corner. The
+// ring matches the card background so the badge reads as a separate chip;
+// PulseChain's pink mark sits on dark, Ethereum's diamond on white.
+function ChainBadge({ chain }: { chain: ChainId }) {
+  const isEth = chain === 'ethereum';
+  return (
+    <span
+      title={CHAIN_NAME[chain]}
+      className={`absolute -bottom-[3px] -right-[3px] h-3.5 w-3.5 rounded-full overflow-hidden flex items-center justify-center ring-2 ring-[#0e2747] ${
+        isEth ? 'bg-white' : 'bg-[#0b1f3a]'
+      }`}
+    >
+      <img
+        src={CHAIN_LOGO[chain]}
+        alt={CHAIN_NAME[chain]}
+        className="h-full w-full object-contain p-[1px]"
+      />
+    </span>
   );
 }
