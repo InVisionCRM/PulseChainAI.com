@@ -426,3 +426,84 @@ export interface PortfolioSnapshot {
   fetchedAt: number;
   errors: PortfolioFetchError[];
 }
+
+// ── Wallet activity / transaction history ───────────────────────────────
+//
+// One decoded transaction in a wallet's history feed (DeBank-style). Built
+// server-side in /api/portfolio/history by merging Blockscout's address
+// `/transactions` (method, gas, status, native value, counterparty) with
+// `/token-transfers` (the per-token in/out flows), keyed by tx hash.
+
+// Coarse action category, derived from the decoded method + the shape of the
+// token flows. Drives the row glyph, colour, and the feed's filter chips.
+export type TxActionType =
+  | 'swap'
+  | 'send'
+  | 'receive'
+  | 'approve'
+  | 'add_lp'
+  | 'remove_lp'
+  | 'stake'
+  | 'unstake'
+  | 'claim'
+  | 'wrap'
+  | 'unwrap'
+  | 'contract';
+
+// A single asset movement within a transaction, signed relative to the
+// wallet: `direction: 'in'` is a credit (+), `'out'` is a debit (−). Native
+// gas-coin movements use NATIVE_TOKEN_ADDRESS as the tokenAddress.
+export interface TokenFlow {
+  direction: 'in' | 'out';
+  tokenAddress: string;
+  symbol: string;
+  name?: string;
+  decimals: number;
+  amountFormatted: number;
+  logoURI?: string;
+  isNative?: boolean;
+  isLp?: boolean;
+  // Current-price USD value of this leg. Historical (at-tx-time) pricing is
+  // deferred to the P&L feature; absent when the token has no known price.
+  valueUsd?: number;
+  // Flagged by the spam heuristic (see looksLikeSpamRaw). The feed hides
+  // these behind the "Hide scam" toggle.
+  isScam?: boolean;
+}
+
+export interface WalletTransaction {
+  hash: string;
+  chain: ChainId;
+  timestamp: number; // ms epoch
+  action: TxActionType;
+  // Decoded method label, e.g. "swapExactTokensForTokens" / "approve".
+  method?: string;
+  status: 'success' | 'failed' | 'pending';
+  // Inflows then outflows; the UI may re-group but order is stable.
+  flows: TokenFlow[];
+  // The contract / counterparty the wallet interacted with.
+  counterparty?: string; // lowercased address
+  counterpartyLabel?: string; // ENS / public tag / curated protocol name
+  protocol?: { name: string; kind?: string }; // curated project, when known
+  gasFeeNative?: number; // gas paid in the chain's native coin
+  gasFeeUsd?: number;
+  isScam?: boolean; // any flow flagged scam
+}
+
+// Opaque pagination cursor for the history feed. The feed merges two
+// independently-paged Blockscout streams (transactions + token-transfers),
+// so the cursor carries both page-param bags. Clients treat it as opaque and
+// hand it back verbatim on "load more".
+export interface HistoryCursor {
+  tx: Record<string, string | number> | null;
+  tt: Record<string, string | number> | null;
+}
+
+export interface WalletHistoryResponse {
+  chain: ChainId;
+  address: string;
+  items: WalletTransaction[];
+  // null when both streams are fully paged.
+  nextCursor: HistoryCursor | null;
+  fetchedAt: number;
+}
