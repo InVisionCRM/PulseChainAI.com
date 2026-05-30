@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import {
   IconSearch,
   IconStar,
@@ -22,22 +22,16 @@ const BLOCKSCOUT_BASE: Record<ChainId, string> = {
   ethereum: 'https://eth.blockscout.com/api/v2',
 };
 
-const CHAIN_PILL: Record<ChainId, CSSProperties> = {
-  ethereum: {
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
-    borderColor: 'rgba(99, 102, 241, 0.5)',
-    color: '#c7d2fe',
-  },
-  pulsechain: {
-    backgroundColor: 'rgba(217, 70, 239, 0.15)',
-    borderColor: 'rgba(217, 70, 239, 0.5)',
-    color: '#f5d0fe',
-  },
+// Real chain marks overlaid as a small badge on the token icon (DeBank /
+// Zapper / Zerion convention) instead of a text pill. Mirrors WalletCard.
+const CHAIN_LOGO: Record<ChainId, string> = {
+  ethereum: '/ethlogo.svg',
+  pulsechain: '/LogoVector.svg',
 };
 
-const CHAIN_LABEL: Record<ChainId, string> = {
-  ethereum: 'ETH',
-  pulsechain: 'PLS',
+const CHAIN_NAME: Record<ChainId, string> = {
+  ethereum: 'Ethereum',
+  pulsechain: 'PulseChain',
 };
 
 interface SearchHit {
@@ -236,19 +230,13 @@ export function WatchlistPanel() {
                 }}
                 className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/10 text-left"
               >
-                <Icon32 logoURI={h.logoURI} symbol={h.symbol} />
+                <Icon32 logoURI={h.logoURI} symbol={h.symbol} chain={h.chain} />
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium text-white truncate">
                     {h.symbol}
                   </div>
                   <div className="text-xs text-white/50 truncate">{h.name}</div>
                 </div>
-                <span
-                  className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border"
-                  style={CHAIN_PILL[h.chain]}
-                >
-                  {CHAIN_LABEL[h.chain]}
-                </span>
               </button>
             ))}
           </div>
@@ -274,18 +262,10 @@ export function WatchlistPanel() {
                 key={`${t.chain}:${t.address}`}
                 className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5"
               >
-                <Icon32 logoURI={logo} symbol={sym} />
+                <Icon32 logoURI={logo} symbol={sym} chain={t.chain} />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium text-white truncate">
-                      {sym}
-                    </span>
-                    <span
-                      className="text-[9px] uppercase font-bold px-1 py-px rounded border"
-                      style={CHAIN_PILL[t.chain]}
-                    >
-                      {CHAIN_LABEL[t.chain]}
-                    </span>
+                  <div className="text-sm font-medium text-white truncate">
+                    {sym}
                   </div>
                   <div className="text-[10px] text-white/40 truncate">{name}</div>
                 </div>
@@ -324,23 +304,46 @@ export function WatchlistPanel() {
   );
 }
 
-function Icon32({ logoURI, symbol }: { logoURI?: string | null; symbol: string }) {
+function Icon32({
+  logoURI,
+  symbol,
+  chain,
+}: {
+  logoURI?: string | null;
+  symbol: string;
+  chain: ChainId;
+}) {
+  const isEth = chain === 'ethereum';
   return (
-    <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center overflow-hidden shrink-0">
-      {logoURI ? (
+    <div className="relative w-7 h-7 shrink-0">
+      <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+        {logoURI ? (
+          <img
+            src={logoURI}
+            alt={symbol}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        ) : (
+          <span className="text-[9px] text-white font-semibold">
+            {symbol.slice(0, 3).toUpperCase()}
+          </span>
+        )}
+      </div>
+      <span
+        title={CHAIN_NAME[chain]}
+        className={`absolute -bottom-[3px] -right-[3px] h-3 w-3 rounded-full overflow-hidden flex items-center justify-center ring-2 ring-[#0e2747] ${
+          isEth ? 'bg-white' : 'bg-[#0b1f3a]'
+        }`}
+      >
         <img
-          src={logoURI}
-          alt={symbol}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).style.display = 'none';
-          }}
+          src={CHAIN_LOGO[chain]}
+          alt={CHAIN_NAME[chain]}
+          className="h-full w-full object-contain p-[1px]"
         />
-      ) : (
-        <span className="text-[9px] text-white font-semibold">
-          {symbol.slice(0, 3).toUpperCase()}
-        </span>
-      )}
+      </span>
     </div>
   );
 }

@@ -13,8 +13,8 @@ import {
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { useInsightsStore } from '@/lib/stores/insightsStore';
+import { useManageTokensStore } from '@/lib/stores/manageTokensStore';
 import { ApprovalsPanel } from '@/components/portfolio/ApprovalsPanel';
-import { ManageTokensModal } from '@/components/portfolio/ManageTokensModal';
 import {
   applyTokenVisibility,
   autoHiddenForReview,
@@ -26,9 +26,16 @@ const CHAIN_LABEL: Record<ChainId, string> = {
   pulsechain: 'PLS',
 };
 
-const CHAIN_COLOR: Record<ChainId, string> = {
-  ethereum: 'bg-indigo-500/20 text-indigo-200 border-indigo-500/40',
-  pulsechain: 'bg-fuchsia-500/20 text-fuchsia-200 border-fuchsia-500/40',
+// Real chain marks, overlaid as a small badge on the token icon (DeBank /
+// Zapper / Zerion convention) instead of a text pill. Assets live in public/.
+const CHAIN_LOGO: Record<ChainId, string> = {
+  ethereum: '/ethlogo.svg',
+  pulsechain: '/LogoVector.svg',
+};
+
+const CHAIN_NAME: Record<ChainId, string> = {
+  ethereum: 'Ethereum',
+  pulsechain: 'PulseChain',
 };
 
 // Inline styles bypass any Tailwind JIT gaps for these specific RGBs
@@ -80,6 +87,28 @@ const fmtChange = (n: number | undefined) => {
 type SortKey = 'symbol' | 'balance' | 'change' | 'price' | 'value';
 type SortDir = 'asc' | 'desc';
 
+// Wallet contents are grouped into labeled sections. Only categories that
+// actually hold something render a header — empty ones (e.g. Staked/Farm,
+// which have no detector yet) are omitted entirely. Adding a category later
+// is: extend the union, add a CATEGORY_ORDER row, and teach categorize() the
+// signal — the section then appears on its own.
+type WalletCategory = 'tokens' | 'lp' | 'staked' | 'farm';
+
+const CATEGORY_ORDER: { key: WalletCategory; label: string; accent: string }[] = [
+  { key: 'tokens', label: 'Tokens', accent: 'rgba(255,255,255,0.6)' },
+  { key: 'lp', label: 'LP', accent: '#67e8f9' }, // cyan-300, matches LP rows
+  { key: 'staked', label: 'Staked', accent: '#c4b5fd' }, // violet-300
+  { key: 'farm', label: 'Farm', accent: '#86efac' }, // green-300
+];
+
+function categorize(t: PortfolioToken): WalletCategory {
+  if (t.isLp) return 'lp';
+  // Staked / farm positions aren't detected yet. When a detector lands,
+  // branch here (e.g. `if (t.isStaked) return 'staked'`) and the matching
+  // section starts rendering automatically.
+  return 'tokens';
+}
+
 interface Props {
   wallet: PortfolioWallet;
 }
@@ -100,8 +129,7 @@ export function WalletCard({ wallet }: Props) {
   const tokenSettings = usePortfolioStore(
     (s) => s.walletTokenSettings[wallet.address.toLowerCase()],
   );
-  const markSeen = usePortfolioStore((s) => s.markInitialReviewSeen);
-  const [manageOpen, setManageOpen] = useState(false);
+  const openManageTokens = useManageTokensStore((s) => s.openForWallet);
 
   const effectiveSettings = tokenSettings ?? {
     hidden: [],
@@ -284,7 +312,7 @@ export function WalletCard({ wallet }: Props) {
           </div>
           <button
             type="button"
-            onClick={() => setManageOpen(true)}
+            onClick={() => openManageTokens(wallet.address)}
             className="text-white/70 hover:text-white relative"
             title={
               hiddenForChain.length > 0
@@ -336,7 +364,7 @@ export function WalletCard({ wallet }: Props) {
           {!effectiveSettings.seenInitialReview && pendingReview.length > 0 && (
             <button
               type="button"
-              onClick={() => setManageOpen(true)}
+              onClick={() => openManageTokens(wallet.address)}
               className="w-full rounded-lg border border-purple-400/40 bg-purple-500/10 px-3 py-2 text-xs text-purple-100 hover:bg-purple-500/15 transition-colors text-left flex items-center gap-2"
             >
               <IconAdjustmentsHorizontal className="h-4 w-4 text-purple-300 shrink-0" />
@@ -398,17 +426,6 @@ export function WalletCard({ wallet }: Props) {
           />
         </div>
       )}
-
-      <ManageTokensModal
-        walletAddress={wallet.address}
-        walletLabel={wallet.label || truncate(wallet.address)}
-        tokens={chainFiltered}
-        open={manageOpen}
-        onClose={() => {
-          markSeen(wallet.address);
-          setManageOpen(false);
-        }}
-      />
     </section>
   );
 }
@@ -439,10 +456,6 @@ function TokenTable({
   onSort: (k: SortKey) => void;
   onOpenInsights: (t: PortfolioToken) => void;
 }) {
-  const [expandedLp, setExpandedLp] = useState<Record<string, boolean>>({});
-  const toggleLp = (key: string) =>
-    setExpandedLp((p) => ({ ...p, [key]: !p[key] }));
-
   const header = (key: SortKey, label: string, align: 'left' | 'right') => (
     <SortButton
       active={sortKey === key}
@@ -453,6 +466,22 @@ function TokenTable({
       {label}
     </SortButton>
   );
+
+  // Partition the (already sorted) tokens into wallet categories, preserving
+  // the sort order within each. Only non-empty categories become sections,
+  // so a wallet holding just plain tokens shows a single "Tokens" header and
+  // nothing for LP/Staked/Farm.
+  const grouped: Record<WalletCategory, PortfolioToken[]> = {
+    tokens: [],
+    lp: [],
+    staked: [],
+    farm: [],
+  };
+  for (const t of tokens) grouped[categorize(t)].push(t);
+  const sections = CATEGORY_ORDER.map((c) => ({
+    ...c,
+    items: grouped[c.key],
+  })).filter((s) => s.items.length > 0);
 
   return (
     <div className="overflow-x-auto -mx-1">
@@ -468,118 +497,163 @@ function TokenTable({
           </tr>
         </thead>
         <tbody>
-          {tokens.flatMap((t, i) => {
-            const key = `${t.chain}:${t.address}`;
-            const isExpanded = !!expandedLp[key];
-            const rows: React.ReactNode[] = [
-              <tr
-                key={key}
-                className="border-b border-white/5 hover:bg-white/5 transition-colors"
-              >
-                <td className="px-2 py-2 text-white/40 tabular-nums text-right">{i + 1}</td>
-                <td className="px-2 py-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <TokenIcon token={t} />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-white truncate">{t.symbol}</span>
-                        <span
-                          className={`text-[9px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded border ${CHAIN_COLOR[t.chain]}`}
-                        >
-                          {CHAIN_LABEL[t.chain]}
-                        </span>
-                        {t.isNative && (
-                          <span className="text-[9px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-200 border border-amber-500/40">
-                            Native
-                          </span>
-                        )}
-                        {t.isLp && (
-                          <button
-                            type="button"
-                            onClick={() => toggleLp(key)}
-                            className="inline-flex items-center gap-0.5 text-[9px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-200 border border-cyan-500/40 hover:bg-cyan-500/25"
-                            aria-expanded={isExpanded}
-                            title={isExpanded ? 'Hide breakdown' : 'Show LP breakdown'}
-                          >
-                            LP
-                            <IconChevronDown
-                              className={`h-3 w-3 transition-transform ${isExpanded ? '' : '-rotate-90'}`}
-                            />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => onOpenInsights(t)}
-                          aria-label={`Open insights for ${t.symbol}`}
-                          title={`Insights — ${t.symbol}`}
-                          className="ml-auto inline-flex items-center justify-center h-6 w-6 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-                        >
-                          <IconChartHistogram className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      <div className="text-xs text-white/50 truncate">{t.name}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-2 py-2 text-right text-white tabular-nums">
-                  {fmtBalance(t.balanceFormatted)}
-                </td>
-                <td className="px-2 py-2 text-right tabular-nums">
-                  {(() => {
-                    const txt = fmtChange(t.priceChange24h);
-                    if (!txt) return <span className="text-white/30">—</span>;
-                    const positive = (t.priceChange24h ?? 0) >= 0;
-                    return (
-                      <span className={positive ? 'text-green-400' : 'text-red-400'}>{txt}</span>
-                    );
-                  })()}
-                </td>
-                <td className="px-2 py-2 text-right text-white/80 tabular-nums">
-                  {t.priceUsd != null ? fmtUsd(t.priceUsd) : <span className="text-white/30">—</span>}
-                </td>
-                <td className="px-2 py-2 text-right text-white font-semibold tabular-nums">
-                  {t.valueUsd != null ? fmtUsd(t.valueUsd) : <span className="text-white/30">—</span>}
-                </td>
-              </tr>,
+          {sections.flatMap((section, si) => {
+            const total = section.items.reduce(
+              (sum, t) => sum + (t.valueUsd ?? 0),
+              0,
+            );
+            return [
+              <SectionHeaderRow
+                key={`hdr:${section.key}`}
+                label={section.label}
+                accent={section.accent}
+                count={section.items.length}
+                total={total}
+                isFirst={si === 0}
+              />,
+              ...renderTokenRows(section.items, onOpenInsights),
             ];
-
-            if (t.isLp && t.lp && isExpanded) {
-              for (const side of t.lp.sides) {
-                rows.push(
-                  <LpSideRow
-                    key={`${key}:${side.address}`}
-                    side={side}
-                    chain={t.chain}
-                  />,
-                );
-              }
-              if (t.lp.totalLiquidityUsd != null) {
-                rows.push(
-                  <tr key={`${key}:meta`} className="border-b border-white/5 bg-cyan-500/5">
-                    <td />
-                    <td colSpan={5} className="px-2 py-1.5 text-[11px] text-cyan-200/80">
-                      Pool TVL{' '}
-                      <span className="font-semibold">
-                        {fmtUsd(t.lp.totalLiquidityUsd, { compact: true })}
-                      </span>
-                      {' · '}Your share{' '}
-                      <span className="font-semibold">
-                        {(t.lp.userShare * 100).toLocaleString(undefined, {
-                          maximumFractionDigits: 4,
-                        })}
-                        %
-                      </span>
-                    </td>
-                  </tr>,
-                );
-              }
-            }
-
-            return rows;
           })}
         </tbody>
       </table>
     </div>
+  );
+}
+
+// Renders the <tr> rows for one category's tokens (plus any LP underlying and
+// pool-meta rows). Row numbering restarts per section. Kept as a free
+// function so every section reuses identical row markup.
+function renderTokenRows(
+  tokens: PortfolioToken[],
+  onOpenInsights: (t: PortfolioToken) => void,
+): React.ReactNode[] {
+  return tokens.flatMap((t, i) => {
+    const key = `${t.chain}:${t.address}`;
+    const rows: React.ReactNode[] = [
+      <tr
+        key={key}
+        className="border-b border-white/5 hover:bg-white/5 transition-colors"
+      >
+        <td className="px-2 py-2 text-white/40 tabular-nums text-right">{i + 1}</td>
+        <td className="px-2 py-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <TokenIcon token={t} />
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-white truncate">{t.symbol}</span>
+                {t.isLp && (
+                  <span className="text-[9px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-200 border border-cyan-500/40">
+                    LP
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onOpenInsights(t)}
+                  aria-label={`Open insights for ${t.symbol}`}
+                  title={`Insights — ${t.symbol}`}
+                  className="ml-auto inline-flex items-center justify-center h-6 w-6 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <IconChartHistogram className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <div className="text-xs text-white/50 truncate">{t.name}</div>
+            </div>
+          </div>
+        </td>
+        <td className="px-2 py-2 text-right text-white tabular-nums">
+          {fmtBalance(t.balanceFormatted)}
+        </td>
+        <td className="px-2 py-2 text-right tabular-nums">
+          {(() => {
+            const txt = fmtChange(t.priceChange24h);
+            if (!txt) return <span className="text-white/30">—</span>;
+            const positive = (t.priceChange24h ?? 0) >= 0;
+            return (
+              <span className={positive ? 'text-green-400' : 'text-red-400'}>{txt}</span>
+            );
+          })()}
+        </td>
+        <td className="px-2 py-2 text-right text-white/80 tabular-nums">
+          {t.priceUsd != null ? fmtUsd(t.priceUsd) : <span className="text-white/30">—</span>}
+        </td>
+        <td className="px-2 py-2 text-right text-white font-semibold tabular-nums">
+          {t.valueUsd != null ? fmtUsd(t.valueUsd) : <span className="text-white/30">—</span>}
+        </td>
+      </tr>,
+    ];
+
+    if (t.isLp && t.lp) {
+      for (const side of t.lp.sides) {
+        rows.push(
+          <LpSideRow
+            key={`${key}:${side.address}`}
+            side={side}
+            chain={t.chain}
+          />,
+        );
+      }
+      if (t.lp.totalLiquidityUsd != null) {
+        rows.push(
+          <tr key={`${key}:meta`} className="border-b border-white/5 bg-cyan-500/5">
+            <td />
+            <td colSpan={5} className="px-2 py-1.5 text-[11px] text-cyan-200/80">
+              Pool TVL{' '}
+              <span className="font-semibold">
+                {fmtUsd(t.lp.totalLiquidityUsd, { compact: true })}
+              </span>
+              {' · '}Your share{' '}
+              <span className="font-semibold">
+                {(t.lp.userShare * 100).toLocaleString(undefined, {
+                  maximumFractionDigits: 4,
+                })}
+                %
+              </span>
+            </td>
+          </tr>,
+        );
+      }
+    }
+
+    return rows;
+  });
+}
+
+// One labeled divider row between category groups. Spans the full table
+// width; the rule fills the gap between the accent-colored label (with item
+// count) and the section's summed USD value.
+function SectionHeaderRow({
+  label,
+  accent,
+  count,
+  total,
+  isFirst,
+}: {
+  label: string;
+  accent: string;
+  count: number;
+  total: number;
+  isFirst: boolean;
+}) {
+  return (
+    <tr>
+      <td colSpan={6} className={`px-2 pb-1.5 ${isFirst ? 'pt-1' : 'pt-5'}`}>
+        <div className="flex items-center gap-2">
+          <span
+            className="text-[11px] uppercase tracking-wider font-bold"
+            style={{ color: accent }}
+          >
+            {label}
+          </span>
+          <span className="text-[10px] font-semibold text-white/30 tabular-nums">
+            {count}
+          </span>
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-[11px] tabular-nums text-white/45">
+            {fmtUsd(total, { compact: true })}
+          </span>
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -682,21 +756,45 @@ function SortButton({
 
 function TokenIcon({ token }: { token: PortfolioToken }) {
   return (
-    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden shrink-0">
-      {token.logoURI ? (
-        <img
-          src={token.logoURI}
-          alt={token.symbol}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).style.display = 'none';
-          }}
-        />
-      ) : (
-        <span className="text-[10px] text-white/60 font-semibold">
-          {token.symbol.slice(0, 3).toUpperCase()}
-        </span>
-      )}
+    <div className="relative w-8 h-8 shrink-0">
+      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+        {token.logoURI ? (
+          <img
+            src={token.logoURI}
+            alt={token.symbol}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        ) : (
+          <span className="text-[10px] text-white/60 font-semibold">
+            {token.symbol.slice(0, 3).toUpperCase()}
+          </span>
+        )}
+      </div>
+      <ChainBadge chain={token.chain} />
     </div>
+  );
+}
+
+// Small chain mark overhanging the token icon's bottom-right corner. The
+// ring matches the card background so the badge reads as a separate chip;
+// PulseChain's pink mark sits on dark, Ethereum's diamond on white.
+function ChainBadge({ chain }: { chain: ChainId }) {
+  const isEth = chain === 'ethereum';
+  return (
+    <span
+      title={CHAIN_NAME[chain]}
+      className={`absolute -bottom-[3px] -right-[3px] h-3.5 w-3.5 rounded-full overflow-hidden flex items-center justify-center ring-2 ring-[#0e2747] ${
+        isEth ? 'bg-white' : 'bg-[#0b1f3a]'
+      }`}
+    >
+      <img
+        src={CHAIN_LOGO[chain]}
+        alt={CHAIN_NAME[chain]}
+        className="h-full w-full object-contain p-[1px]"
+      />
+    </span>
   );
 }

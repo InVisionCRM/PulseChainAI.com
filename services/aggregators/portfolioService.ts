@@ -73,10 +73,28 @@ interface LpProxyEntry {
   totalLiquidityUsd: number | null;
 }
 
+// Known V2-style LP token addresses (PulseChain). Address matching is the
+// reliable signal: when Blockscout is down the balances route falls back to
+// the curated RPC path, which returns LP balances with no symbol/name — and
+// the DexScreener *prices* proxy can't name a *pair* address, so the row's
+// symbol stays a truncated address and the symbol/name heuristic below never
+// fires. Mirror of the LP entries in
+// app/api/portfolio/balances/route.ts → FALLBACK_TOKENS.
+const KNOWN_LP_ADDRESSES = new Set<string>([
+  '0xb876257c7550010f14a527d2bf8fda9360f8597b', // Morbius/WPLS LP
+  '0xdbed78e14e230158ec01e534749bd5ae5ed0816f', // RICH/Morbius LP
+  '0xe56043671df55de5cdf8459710433c10324de0ae', // WPLS/DAI LP
+  '0x6753560538eca67617a9ce605178f788be7e524e', // WPLS/USDC LP
+  '0x1b45b9148791d3a104184cd5dfe5ce57193a3ee9', // HEX/WPLS LP
+  '0x322df7921f28f1146cdf62afdac0d6bc0ab80711', // PLSX/WPLS LP
+  '0xf1f4ee610b2babb05c635f726ef8b0c568c8dc65', // INC/WPLS LP
+]);
+
 // Heuristic match for V2-style PulseX LP tokens. The explorer balance row
-// has type === 'ERC-20' (LP tokens are still ERC-20), so we have to fall
-// back to symbol/name patterns. PLP is PulseX V2, PLT was V1.
-function isLpToken(symbol: string, name: string): boolean {
+// has type === 'ERC-20' (LP tokens are still ERC-20), so we fall back to the
+// known-address set plus symbol/name patterns. PLP is PulseX V2, PLT was V1.
+function isLpToken(symbol: string, name: string, address: string): boolean {
+  if (KNOWN_LP_ADDRESSES.has(address.toLowerCase())) return true;
   const s = symbol.toUpperCase();
   if (s === 'PLP' || s === 'PLT' || s === 'PLP-LP') return true;
   const n = name.toLowerCase();
@@ -429,8 +447,21 @@ async function enrichLpTokens(tokens: PortfolioToken[]): Promise<PortfolioToken[
     if (!info) return t;
     const breakdown = computeLpBreakdown(t, info);
     if (!breakdown) return t;
+
+    // When the balances fetch couldn't name the LP — the RPC-fallback path
+    // strips symbol/name, and DexScreener can't name a pair address — the
+    // row's symbol is a truncated address like "0xdbed…816f". Now that the
+    // underlying sides are resolved, relabel it "RICH/Morbius LP".
+    const [a, b] = breakdown.sides;
+    const sidesNamed = ![a.symbol, b.symbol].some(
+      (s) => !s || s === '???' || s === 'token0' || s === 'token1',
+    );
+    const relabel = t.symbol.includes('…') && sidesNamed;
+
     return {
       ...t,
+      symbol: relabel ? `${a.symbol}/${b.symbol} LP` : t.symbol,
+      name: relabel ? 'PulseX LP' : t.name,
       lp: breakdown,
       // If the LP itself has no DexScreener price (most don't), use the
       // user's underlying value as the row's valueUsd so sorting works.
@@ -489,7 +520,7 @@ class PortfolioService {
     // mostly served from the proxy's 60s cache.
     const priced = await enrichWithPrices(tokens);
     const flagged = priced.map((t) =>
-      !t.isNative && isLpToken(t.symbol, t.name) ? { ...t, isLp: true } : t,
+      !t.isNative && isLpToken(t.symbol, t.name, t.address) ? { ...t, isLp: true } : t,
     );
     const hasLp = flagged.some((t) => t.isLp);
     const withLp = hasLp ? await enrichLpTokens(flagged) : flagged;

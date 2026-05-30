@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -14,19 +15,14 @@ import {
   IconExternalLink,
   IconAlertTriangle,
   IconChartCandle,
+  IconChartLine,
   IconShield,
-  IconShieldCheck,
-  IconShieldX,
   IconRobot,
-  IconCircleCheck,
-  IconCircleX,
-  IconCircleMinus,
 } from '@tabler/icons-react';
 import dynamic from 'next/dynamic';
 import { useOutsideClick } from '@/hooks/use-outside-click';
 import { useInsightsStore } from '@/lib/stores/insightsStore';
 import type { ChainId, PortfolioToken } from '@/services';
-import type { ContractAuditResult } from '@/types';
 
 // TokenAIChat is heavy (pulls the whole geicko chat stack). Lazy-load
 // only when the user opens the AI tab.
@@ -39,9 +35,23 @@ const TokenAIChat = dynamic(() => import('@/components/TokenAIChat'), {
   ),
 });
 
-const CHAIN_LABEL: Record<ChainId, string> = {
-  ethereum: 'ETH',
-  pulsechain: 'PLS',
+// The native candle chart pulls in lightweight-charts — lazy-load it only
+// when the Chart tab is opened.
+const CandleChart = dynamic(() => import('@/components/portfolio/CandleChart'), {
+  ssr: false,
+  loading: () => <div className="h-[460px] rounded-lg bg-white/5 animate-pulse" />,
+});
+
+// Chain marks overlaid as a small logo badge on the token icon (matches
+// WalletCard / WatchlistPanel) instead of a text pill. Assets live in public/.
+const CHAIN_LOGO: Record<ChainId, string> = {
+  ethereum: '/ethlogo.svg',
+  pulsechain: '/LogoVector.svg',
+};
+
+const CHAIN_NAME: Record<ChainId, string> = {
+  ethereum: 'Ethereum',
+  pulsechain: 'PulseChain',
 };
 
 const fmtUsd = (n: number | null | undefined) => {
@@ -110,15 +120,7 @@ interface Insights {
   ownershipRenounced: boolean | null;
 }
 
-interface AuditSummary {
-  supported: boolean;
-  reason?: string;
-  contractName: string | null;
-  isVerified: boolean | null;
-  result: ContractAuditResult | null;
-}
-
-type TabId = 'overview' | 'liquidity' | 'audit' | 'chat';
+type TabId = 'overview' | 'chart' | 'liquidity' | 'chat';
 
 const SOCIAL_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   twitter: IconBrandTwitter,
@@ -131,8 +133,9 @@ const SOCIAL_ICON: Record<string, React.ComponentType<{ className?: string }>> =
 
 // Rendered once at the portfolio page level. Reads its open/close state
 // from the insightsStore so any WalletCard row can trigger it without
-// prop-drilling, and the overlay doesn't sit inside a backdrop-blur
-// containing block.
+// prop-drilling. Portals to document.body so the fixed overlay can't be
+// trapped or clipped by an ancestor's containing block (e.g. a WalletCard's
+// backdrop-blur-xl + overflow-hidden).
 export function TokenInsightsCard() {
   const token = useInsightsStore((s) => s.activeToken);
   const onClose = useInsightsStore((s) => s.closeInsights);
@@ -140,42 +143,15 @@ export function TokenInsightsCard() {
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<TabId>('overview');
-  const [audit, setAudit] = useState<AuditSummary | null>(null);
-  const [auditLoading, setAuditLoading] = useState(false);
 
   useOutsideClick(ref, () => {
     if (token) onClose();
   });
 
-  // Reset tab + lazy data caches when the open token changes.
+  // Reset tab when the open token changes.
   useEffect(() => {
     setTab('overview');
-    setAudit(null);
   }, [token?.address, token?.chain]);
-
-  // Lazy-fetch audit only when the user opens the Audit tab.
-  useEffect(() => {
-    if (!token || tab !== 'audit' || audit) return;
-    let cancelled = false;
-    setAuditLoading(true);
-    fetch('/api/portfolio/audit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ address: token.address, chain: token.chain }),
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (cancelled) return;
-        setAudit((d?.audit as AuditSummary) ?? null);
-        setAuditLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) setAuditLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [token, tab, audit]);
 
   useEffect(() => {
     if (!token) return;
@@ -217,7 +193,8 @@ export function TokenInsightsCard() {
     };
   }, [token]);
 
-  return (
+  if (typeof document === 'undefined') return null;
+  return createPortal(
     <AnimatePresence>
       {token && (
         <>
@@ -251,15 +228,14 @@ export function TokenInsightsCard() {
                 insights={insights}
                 loading={loading}
                 tab={tab}
-                audit={audit}
-                auditLoading={auditLoading}
               />
               <CardFooter token={token} />
             </motion.div>
           </div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
 
@@ -300,18 +276,32 @@ function CardHeader({
 
       <div className={`px-6 ${headerImg ? '-mt-12 relative' : 'pt-6'}`}>
         <div className="flex items-start gap-4">
-          <div className="h-16 w-16 rounded-2xl bg-white/10 border border-white/20 overflow-hidden grid place-items-center shrink-0">
-            {iconImg ? (
+          <div className="relative shrink-0">
+            <div className="h-16 w-16 rounded-2xl bg-white/10 border border-white/20 overflow-hidden grid place-items-center">
+              {iconImg ? (
+                <img
+                  src={iconImg}
+                  alt={token.symbol}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-white/70 font-semibold text-sm">
+                  {token.symbol.slice(0, 3).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <span
+              title={CHAIN_NAME[token.chain]}
+              className={`absolute -bottom-1.5 -right-1.5 h-6 w-6 rounded-full overflow-hidden flex items-center justify-center ring-2 ring-[#0F1A2E] ${
+                token.chain === 'ethereum' ? 'bg-white' : 'bg-[#0b1f3a]'
+              }`}
+            >
               <img
-                src={iconImg}
-                alt={token.symbol}
-                className="w-full h-full object-cover"
+                src={CHAIN_LOGO[token.chain]}
+                alt={CHAIN_NAME[token.chain]}
+                className="h-full w-full object-contain p-0.5"
               />
-            ) : (
-              <span className="text-white/70 font-semibold text-sm">
-                {token.symbol.slice(0, 3).toUpperCase()}
-              </span>
-            )}
+            </span>
           </div>
 
           <div className="min-w-0 flex-1 pt-1">
@@ -319,22 +309,6 @@ function CardHeader({
               <h2 className="text-2xl font-bold text-white truncate">
                 {token.symbol}
               </h2>
-              <span
-                className="text-[10px] uppercase tracking-wide font-bold px-2 py-0.5 rounded border"
-                style={{
-                  backgroundColor:
-                    token.chain === 'ethereum'
-                      ? 'rgba(99, 102, 241, 0.2)'
-                      : 'rgba(217, 70, 239, 0.2)',
-                  borderColor:
-                    token.chain === 'ethereum'
-                      ? 'rgba(99, 102, 241, 0.5)'
-                      : 'rgba(217, 70, 239, 0.5)',
-                  color: '#fff',
-                }}
-              >
-                {CHAIN_LABEL[token.chain]}
-              </span>
               {token.isNative && (
                 <span
                   className="text-[10px] uppercase tracking-wide font-bold px-2 py-0.5 rounded border"
@@ -414,8 +388,8 @@ function TabBar({
 }) {
   const tabs: { id: TabId; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'overview', label: 'Overview', Icon: IconShield },
+    { id: 'chart', label: 'Chart', Icon: IconChartLine },
     { id: 'liquidity', label: 'Liquidity', Icon: IconChartCandle },
-    { id: 'audit', label: 'Audit', Icon: IconShieldCheck },
     { id: 'chat', label: 'AI Chat', Icon: IconRobot },
   ];
   return (
@@ -454,30 +428,22 @@ function CardBody({
   insights,
   loading,
   tab,
-  audit,
-  auditLoading,
 }: {
   token: PortfolioToken;
   insights: Insights | null;
   loading: boolean;
   tab: TabId;
-  audit: AuditSummary | null;
-  auditLoading: boolean;
 }) {
   return (
     <div className="px-6 py-5 min-h-[200px]">
       {tab === 'overview' && (
         <OverviewTab token={token} insights={insights} loading={loading} />
       )}
+      {tab === 'chart' && (
+        <ChartTab token={token} insights={insights} />
+      )}
       {tab === 'liquidity' && (
         <LiquidityTab insights={insights} loading={loading} />
-      )}
-      {tab === 'audit' && (
-        <AuditTab
-          token={token}
-          audit={audit}
-          loading={auditLoading}
-        />
       )}
       {tab === 'chat' && <ChatTab token={token} />}
     </div>
@@ -597,172 +563,17 @@ function LiquidityTab({
   );
 }
 
-function AuditTab({
+function ChartTab({
   token,
-  audit,
-  loading,
+  insights,
 }: {
   token: PortfolioToken;
-  audit: AuditSummary | null;
-  loading: boolean;
+  insights: Insights | null;
 }) {
-  if (loading) {
-    return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {Array.from({ length: 9 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-12 rounded-lg bg-white/5 animate-pulse"
-          />
-        ))}
-      </div>
-    );
-  }
-
-  if (!audit) {
-    return (
-      <div className="text-sm text-white/50 text-center py-8">
-        Audit data unavailable.
-      </div>
-    );
-  }
-
-  if (!audit.supported) {
-    return (
-      <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-        <div className="flex items-start gap-3">
-          <IconShieldX className="h-5 w-5 text-amber-300 mt-0.5 shrink-0" />
-          <div>
-            <div className="font-semibold text-white">
-              Audit not yet supported on this chain
-            </div>
-            <div className="mt-1 text-white/60 text-xs">
-              {audit.reason || 'Try the full analyzer for a manual review.'}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!audit.result) {
-    return (
-      <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-        <div className="flex items-start gap-3">
-          <IconAlertTriangle className="h-5 w-5 text-amber-300 mt-0.5 shrink-0" />
-          <div>
-            <div className="font-semibold text-white">
-              {audit.reason || 'Audit unavailable'}
-            </div>
-            {audit.contractName && (
-              <div className="mt-1 text-white/60 text-xs">
-                Contract: {audit.contractName}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const r = audit.result;
-  // Each flag: "good" outcome should be GREEN (e.g. ownership renounced =
-  // good). "Risk" outcomes are RED. Some are neutral until proven bad.
-  const flags: Array<{
-    label: string;
-    good: boolean | null;
-    note?: string;
-  }> = [
-    { label: 'Source verified', good: audit.isVerified ?? null },
-    { label: 'Ownership renounced', good: r.ownershipRenounced },
-    { label: 'Hidden owner', good: r.hiddenOwner === false ? true : r.hiddenOwner === true ? false : null },
-    { label: 'Honeypot', good: r.honeypot === false ? true : false },
-    { label: 'Proxy contract', good: r.proxyContract === false ? true : false },
-    { label: 'Mintable', good: r.mintable === false ? true : false },
-    { label: 'Transfer pausable', good: r.transferPausable === false ? true : false },
-    { label: 'Trading cooldown', good: r.tradingCooldown === false ? true : false },
-    { label: 'Has blacklist', good: r.hasBlacklist === false ? true : false },
-    { label: 'Has whitelist', good: r.hasWhitelist === false ? true : false },
-    { label: 'Buy tax', good: r.buyTax === false ? true : false },
-    { label: 'Sell tax', good: r.sellTax === false ? true : false },
-  ];
-
-  return (
-    <div className="space-y-4">
-      {audit.contractName && (
-        <div className="text-xs text-white/50">
-          Contract:{' '}
-          <span className="text-white/80 font-semibold">{audit.contractName}</span>
-        </div>
-      )}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {flags.map((f) => (
-          <FlagPill key={f.label} label={f.label} good={f.good} />
-        ))}
-      </div>
-      {r.hasSuspiciousFunctions && r.suspiciousFunctions.length > 0 && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
-          <div className="flex items-center gap-2 text-amber-200 font-semibold text-sm">
-            <IconAlertTriangle className="h-4 w-4" />
-            Suspicious functions detected
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {r.suspiciousFunctions.slice(0, 12).map((fn) => (
-              <code
-                key={fn}
-                className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-100 border border-amber-500/40"
-              >
-                {fn}
-              </code>
-            ))}
-            {r.suspiciousFunctions.length > 12 && (
-              <span className="text-[11px] text-amber-200/70">
-                +{r.suspiciousFunctions.length - 12} more
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FlagPill({
-  label,
-  good,
-}: {
-  label: string;
-  good: boolean | null;
-}) {
-  const Icon =
-    good === true ? IconCircleCheck : good === false ? IconCircleX : IconCircleMinus;
-  const color =
-    good === true
-      ? 'rgba(34, 197, 94, 0.9)'
-      : good === false
-        ? 'rgba(239, 68, 68, 0.9)'
-        : 'rgba(255, 255, 255, 0.35)';
-  const bg =
-    good === true
-      ? 'rgba(34, 197, 94, 0.08)'
-      : good === false
-        ? 'rgba(239, 68, 68, 0.08)'
-        : 'rgba(255, 255, 255, 0.04)';
-  const border =
-    good === true
-      ? 'rgba(34, 197, 94, 0.3)'
-      : good === false
-        ? 'rgba(239, 68, 68, 0.3)'
-        : 'rgba(255, 255, 255, 0.1)';
-  return (
-    <div
-      className="flex items-center gap-2 rounded-lg px-2.5 py-2"
-      style={{ backgroundColor: bg, border: `1px solid ${border}` }}
-    >
-      <Icon className="h-4 w-4 shrink-0" style={{ color }} />
-      <span className="text-xs font-medium text-white truncate">{label}</span>
-    </div>
-  );
+  // Native GeckoTerminal candles first; CandleChart auto-falls back to the
+  // DexScreener embed (using this pair) when no native OHLC is available.
+  const pairAddress = insights?.topPairs?.[0]?.pairAddress ?? null;
+  return <CandleChart token={token} pairAddress={pairAddress} />;
 }
 
 function ChatTab({ token }: { token: PortfolioToken }) {
