@@ -28,6 +28,11 @@ const PROTOCOLS: Record<ChainId, Record<string, ProtocolInfo>> = {
     '0x98bf93ebf5c380c0e6ae8e192a7e2ae08edacc02': { name: 'PulseX', kind: 'dex' },
     '0x165c3410fc91ef562c50559f7d2289febed552d9': { name: 'PulseX V2', kind: 'dex' },
     '0xa1077a294dde1b09bb078844df40758a5d0f9a27': { name: 'Wrapped PLS', kind: 'token' },
+    // Major token contracts — labels approve/stake counterparties (where the
+    // tx `to` is the token itself) rather than showing a bare address.
+    '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39': { name: 'HEX', kind: 'farm' },
+    '0x95b303987a60c71504d99aa1b13b4da07b0790ab': { name: 'PLSX', kind: 'token' },
+    '0x2fa878ab3f87cc1c9737fc071108f904c0b0c95d': { name: 'INC', kind: 'token' },
   },
   ethereum: {
     '0x7a250d5630b4cf539739df2c5dacb4c659f2488d': { name: 'Uniswap V2', kind: 'dex' },
