@@ -95,10 +95,10 @@ const CreatorTab: React.FC<{
                 <h3 className="text-lg font-bold text-white mb-2">Creator Details</h3>
                 <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
                     {creatorAddress && (
-                        <InfoRow label="Address" value={creatorAddress} link={`https://scan.pulsechain.com/address/${creatorAddress}`} />
+                        <InfoRow label="Address" value={creatorAddress} link={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${creatorAddress}`} />
                     )}
                     {creationTxHash && (
-                         <InfoRow label="Creation Tx" value={creationTxHash} link={`https://scan.pulsechain.com/tx/${creationTxHash}`} />
+                         <InfoRow label="Creation Tx" value={creationTxHash} link={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${creationTxHash}`} />
                     )}
                 </div>
             </section>
@@ -126,7 +126,7 @@ const CreatorTab: React.FC<{
                                    <div className="flex justify-between items-center text-sm">
                                        <div>
                                            <span className="text-slate-400 mr-2">Tx:</span>
-                                           <a href={`https://scan.pulsechain.com/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" className="font-mono text-blue-400 hover:underline">{truncateHash(tx.hash)}</a>
+                                           <a href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" className="font-mono text-blue-400 hover:underline">{truncateHash(tx.hash)}</a>
                                        </div>
                                        <span className="text-slate-500 text-xs">
                                            {new Date(tx.timestamp).toLocaleString()}
@@ -135,7 +135,7 @@ const CreatorTab: React.FC<{
                                    {tx.to && (
                                     <div className="text-xs mt-1">
                                         <span className="text-slate-400 mr-2">Contract:</span>
-                                        <a href={`https://scan.pulsechain.com/address/${tx.to.hash}`} target="_blank" rel="noopener noreferrer" className="font-mono text-cyan-400 hover:underline">{tx.to.name || tx.to.hash}</a>
+                                        <a href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${tx.to.hash}`} target="_blank" rel="noopener noreferrer" className="font-mono text-cyan-400 hover:underline">{tx.to.name || tx.to.hash}</a>
                                     </div>
                                    )}
                                </li>

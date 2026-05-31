@@ -375,7 +375,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
               Etherscan
             </a>
             <a
-              href={`https://scan.mypinata.cloud/ipfs/bafybeih3olry3is4e4lzm7rus5l3h6zrphcal5a7ayfkhzm5oivjro2cp4/#/address/${stakerAddress}`}
+              href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${stakerAddress}`}
               target="_blank"
               rel="noopener noreferrer"
               className="px-2 py-1 bg-blue-500/30 hover:bg-blue-500/40 text-white text-xs font-medium rounded transition-colors backdrop-blur-sm"

@@ -1868,7 +1868,7 @@ function GeickoPageContent() {
                       {ownershipData.creatorAddress ? (
                         <>
                           <a
-                            href={`https://scan.pulsechain.com/address/${ownershipData.creatorAddress}`}
+                            href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${ownershipData.creatorAddress}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-400 hover:text-blue-300 font-mono text-xs"
@@ -1911,7 +1911,7 @@ function GeickoPageContent() {
                         const addr = ownershipData.ownerAddress || ownershipData.creatorAddress;
                         return addr ? (
                           <a
-                            href={`https://scan.pulsechain.com/address/${addr}`}
+                            href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${addr}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
@@ -2828,7 +2828,7 @@ function GeickoPageContent() {
                             {ownershipData.creatorAddress ? (
                               <>
                                 <a
-                                  href={`https://scan.pulsechain.com/address/${ownershipData.creatorAddress}`}
+                                  href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${ownershipData.creatorAddress}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-blue-400 hover:text-blue-300 font-mono text-xs"
@@ -2871,7 +2871,7 @@ function GeickoPageContent() {
                               const addr = ownershipData.ownerAddress || ownershipData.creatorAddress;
                               return addr ? (
                                 <a
-                                  href={`https://scan.pulsechain.com/address/${addr}`}
+                                  href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${addr}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"

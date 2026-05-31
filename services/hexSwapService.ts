@@ -192,7 +192,7 @@ export class HexSwapService {
       case 'ethereum':
         return `https://etherscan.io/tx/${txHash}`;
       case 'pulsechain':
-        return `https://scan.pulsechain.com/tx/${txHash}`;
+        return `https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${txHash}`;
       default:
         return `https://etherscan.io/tx/${txHash}`;
     }
