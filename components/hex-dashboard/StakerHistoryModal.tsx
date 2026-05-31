@@ -7,6 +7,7 @@ import { liquidHexBalanceService, type LiquidHexBalances } from '@/services/liqu
 import { hexSwapService, type HexSwap, type SwapResponse } from '@/services/hexSwapService';
 import { GridPattern } from '@/components/magicui/grid-pattern';
 import { OptimizedImage } from '@/components/ui/optimized-image';
+import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
 
 interface StakerHistoryModalProps {
   stakerAddress: string | null;
@@ -375,7 +376,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
               Etherscan
             </a>
             <a
-              href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${stakerAddress}`}
+              href={pulsechainAddressUrl(stakerAddress)}
               target="_blank"
               rel="noopener noreferrer"
               className="px-2 py-1 bg-blue-500/30 hover:bg-blue-500/40 text-white text-xs font-medium rounded transition-colors backdrop-blur-sm"

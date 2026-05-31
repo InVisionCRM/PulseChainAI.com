@@ -12,6 +12,7 @@ import {
 } from '@/services';
 import { looksLikeSpamRaw } from '@/lib/portfolio/tokenVisibility';
 import { labelFor, protocolFor } from '@/lib/portfolio/protocols';
+import { fetchUsdPrices } from '@/lib/portfolio/dexPrices';
 
 // DeBank-style decoded transaction history for a wallet.
 //
@@ -413,6 +414,9 @@ const SELECTOR_METHODS: Record<string, string> = {
   '0x02751cec': 'removeLiquidityETH',
   '0xaf2979eb': 'removeLiquidityETHSupportingFeeOnTransferTokens',
   '0xded9382a': 'removeLiquidityETHWithPermit',
+  '0xac9650d8': 'multicall',
+  '0x5ae401dc': 'multicall',
+  '0x3593564c': 'execute',
 };
 
 const hexToBig = (h: unknown): bigint => {
@@ -545,7 +549,11 @@ function assembleFromOts(wallet: string, tx: any, receipt: any): WalletTransacti
   const timestamp = Number(receipt?.timestamp ?? 0) * 1000;
 
   // Flows from receipt logs — ERC-20 Transfer where the wallet is a party.
+  // Capture the "other party" so plain sends/receives show the real
+  // counterparty (the log peer) instead of the tx's `to` (the token contract).
   const rawFlows: TokenFlow[] = [];
+  let outPeer: string | undefined;
+  let inPeer: string | undefined;
   const logs: any[] = Array.isArray(receipt?.logs) ? receipt.logs : [];
   for (const log of logs) {
     const topics: string[] = Array.isArray(log?.topics) ? log.topics : [];
@@ -555,6 +563,8 @@ function assembleFromOts(wallet: string, tx: any, receipt: any): WalletTransacti
     const direction: 'in' | 'out' | null =
       lto === wallet ? 'in' : lfrom === wallet ? 'out' : null;
     if (!direction) continue;
+    if (direction === 'out' && !outPeer) outPeer = lto;
+    if (direction === 'in' && !inPeer) inPeer = lfrom;
     const token = String(log?.address || '').toLowerCase();
     const meta = tokenMetaCache.get(token) || {
       symbol: `${token.slice(0, 6)}…`,
@@ -616,8 +626,17 @@ function assembleFromOts(wallet: string, tx: any, receipt: any): WalletTransacti
     }
   }
 
+  // Prefer the real log peer; ignore mint/burn (zero address) and self, where
+  // the meaningful counterparty is the contract the wallet interacted with.
+  const ZERO = '0x0000000000000000000000000000000000000000';
+  const realPeer = (p: string | undefined) =>
+    p && p !== ZERO && p !== wallet ? p : undefined;
   const counterparty =
-    action === 'receive' ? from || undefined : to || undefined;
+    action === 'send'
+      ? (realPeer(outPeer) ?? to) || undefined
+      : action === 'receive'
+        ? (realPeer(inPeer) ?? (from !== wallet ? from : to)) || undefined
+        : to || undefined;
   const proto = protocolFor('pulsechain', counterparty);
 
   return {
@@ -679,6 +698,24 @@ async function fetchViaOtterscan(
     )
     .filter((x): x is WalletTransaction => x !== null)
     .sort((a, b) => b.timestamp - a.timestamp);
+
+  // Current-USD pricing (DexScreener) for flows — the Otterscan path has no
+  // exchange_rate like Blockscout does. Native PLS prices via WPLS.
+  const priceAddrs: string[] = [];
+  for (const it of items) {
+    for (const f of it.flows) {
+      priceAddrs.push(f.isNative ? WRAPPED_NATIVE.pulsechain : f.tokenAddress);
+    }
+  }
+  const prices = await fetchUsdPrices(priceAddrs);
+  for (const it of items) {
+    for (const f of it.flows) {
+      if (f.valueUsd != null) continue;
+      const addr = (f.isNative ? WRAPPED_NATIVE.pulsechain : f.tokenAddress).toLowerCase();
+      const p = prices.get(addr);
+      if (p != null) f.valueUsd = f.amountFormatted * p;
+    }
+  }
 
   let nextCursor: HistoryCursor | null = null;
   if (!res.lastPage && txs.length > 0) {

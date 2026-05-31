@@ -22,5 +22,10 @@ export const pulsechainAddressUrl = (addr: string) => `${BASE}/address/${addr}`;
 export const pulsechainTokenUrl = (addr: string) => `${BASE}/address/${addr}`;
 export const pulsechainBlockUrl = (block: string | number) => `${BASE}/block/${block}`;
 
+// Generic builder for a caller that already has an Otterscan path segment
+// (e.g. "tx/0x…" or "address/0x…"). Leading slashes are tolerated.
+export const pulsechainExplorerUrl = (path: string) =>
+  `${BASE}/${String(path).replace(/^\/+/, '')}`;
+
 // Display label for the explorer link text.
 export const PULSECHAIN_EXPLORER_NAME = 'Otterscan';
