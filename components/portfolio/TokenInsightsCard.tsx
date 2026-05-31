@@ -18,11 +18,14 @@ import {
   IconChartLine,
   IconShield,
   IconRobot,
+  IconArrowsExchange,
 } from '@tabler/icons-react';
 import dynamic from 'next/dynamic';
 import { useOutsideClick } from '@/hooks/use-outside-click';
 import { useInsightsStore } from '@/lib/stores/insightsStore';
 import type { ChainId, PortfolioToken } from '@/services';
+import { WRAPPED_NATIVE } from '@/services';
+import { pulsechainTokenUrl } from '@/lib/pulsechainExplorer';
 
 // TokenAIChat is heavy (pulls the whole geicko chat stack). Lazy-load
 // only when the user opens the AI tab.
@@ -467,6 +470,7 @@ function OverviewTab({
         </p>
       )}
       <StatsGrid token={token} insights={insights} loading={loading} />
+      <ActionsRow token={token} insights={insights} />
       <LinksRow insights={insights} loading={loading} />
     </div>
   );
@@ -649,6 +653,62 @@ function StatsGrid({
             )}
           </div>
         </div>
+      ))}
+    </div>
+  );
+}
+
+// Quick outbound actions for a token: chart, explorer, swap. Native coins use
+// their wrapped equivalent so the links resolve to a real contract.
+function ActionsRow({
+  token,
+  insights,
+}: {
+  token: PortfolioToken;
+  insights: Insights | null;
+}) {
+  const addr = token.isNative ? WRAPPED_NATIVE[token.chain] : token.address;
+  const chainSlug = token.chain === 'ethereum' ? 'ethereum' : 'pulsechain';
+  const actions: Array<{
+    label: string;
+    href: string;
+    Icon: React.ComponentType<{ className?: string }>;
+  }> = [
+    {
+      label: 'DexScreener',
+      href: insights?.primaryPairUrl ?? `https://dexscreener.com/${chainSlug}/${addr}`,
+      Icon: IconChartLine,
+    },
+    {
+      label: token.chain === 'ethereum' ? 'Etherscan' : 'Otterscan',
+      href:
+        token.chain === 'ethereum'
+          ? `https://etherscan.io/token/${addr}`
+          : pulsechainTokenUrl(addr),
+      Icon: IconExternalLink,
+    },
+    {
+      label: 'Swap',
+      href:
+        token.chain === 'ethereum'
+          ? `https://app.uniswap.org/#/swap?outputCurrency=${addr}`
+          : `https://app.pulsex.com/swap?outputCurrency=${addr}`,
+      Icon: IconArrowsExchange,
+    },
+  ];
+  return (
+    <div className="flex flex-wrap gap-2">
+      {actions.map(({ label, href, Icon }) => (
+        <a
+          key={label}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-white/80 hover:text-white transition-colors"
+        >
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+        </a>
       ))}
     </div>
   );
