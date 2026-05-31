@@ -9,6 +9,7 @@ import {
   IconAlertTriangle,
   IconChartHistogram,
   IconAdjustmentsHorizontal,
+  IconShieldHalf,
 } from '@tabler/icons-react';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
@@ -293,6 +294,16 @@ export function WalletCard({ wallet }: Props) {
               </div>
             )}
           </div>
+          <a
+            href={`https://revoke.cash/address/${wallet.address}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white/70 hover:text-amber-300"
+            title="Check & revoke token approvals on revoke.cash"
+            aria-label="Revoke approvals on revoke.cash"
+          >
+            <IconShieldHalf className="h-5 w-5" />
+          </a>
           <button
             type="button"
             onClick={() => openManageTokens(wallet.address)}
