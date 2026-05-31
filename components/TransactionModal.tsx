@@ -448,7 +448,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                     <div className="flex items-center gap-2">
                       <span className="text-gray-400 text-sm">{formatDetailedTimeAgo(tx.timestamp)}</span>
                       <button 
-                        onClick={() => handleExternalLinkClick(`https://scan.pulsechain.com/tx/${tx.txHash}`)}
+                        onClick={() => handleExternalLinkClick(`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${tx.txHash}`)}
                         className="p-1 text-gray-400 hover:text-white transition-colors"
                       >
                         <ExternalLink className="w-3 h-3" />
@@ -482,7 +482,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                           </div>
                           <div className="flex items-center gap-1">
                             <button 
-                              onClick={() => handleExternalLinkClick(`https://scan.pulsechain.com/token/${asset.tokenAddress}`)}
+                              onClick={() => handleExternalLinkClick(`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${asset.tokenAddress}`)}
                               className="p-1 text-gray-400 hover:text-white transition-colors"
                             >
                               <ExternalLink className="w-3 h-3" />
@@ -523,7 +523,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                           </div>
                           <div className="flex items-center gap-1">
                             <button 
-                              onClick={() => handleExternalLinkClick(`https://scan.pulsechain.com/token/${asset.tokenAddress}`)}
+                              onClick={() => handleExternalLinkClick(`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${asset.tokenAddress}`)}
                               className="p-1 text-gray-400 hover:text-white transition-colors"
                             >
                               <ExternalLink className="w-3 h-3" />

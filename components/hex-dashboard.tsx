@@ -3230,7 +3230,7 @@ const HEXDataDashboard = () => {
                                 </td>
                                 <td className="px-1 py-1 whitespace-nowrap text-sm text-slate-300 font-mono">
                                   <a
-                                    href={`https://scan.pulsechain.com/address/${stake.stakerAddr}`}
+                                    href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${stake.stakerAddr}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="hover:text-white font-semibold   font-bold font-bold transition-colors"
@@ -3262,7 +3262,7 @@ const HEXDataDashboard = () => {
                                 </td>
                                 <td className="px-1 py-1 whitespace-nowrap text-sm text-slate-500 font-mono">
                                   <a
-                                    href={`https://scan.pulsechain.com/tx/${stake.transactionHash}`}
+                                    href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${stake.transactionHash}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="hover:text-white font-semibold   font-bold font-bold transition-colors"
@@ -3461,7 +3461,7 @@ const HEXDataDashboard = () => {
                                   </td>
                                   <td className="px-1 py-1 whitespace-nowrap text-sm text-slate-500 font-mono">
                                     <a
-                                      href={`https://scan.pulsechain.com/tx/${stake.transactionHash}`}
+                                      href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${stake.transactionHash}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="hover:text-white font-semibold   font-bold font-bold transition-colors"

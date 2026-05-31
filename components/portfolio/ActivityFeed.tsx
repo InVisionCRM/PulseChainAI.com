@@ -26,6 +26,7 @@ import type {
   WalletTransaction,
   WalletHistoryResponse,
 } from '@/services';
+import { pulsechainTxUrl, PULSECHAIN_EXPLORER_NAME } from '@/lib/pulsechainExplorer';
 
 interface Props {
   walletAddress: string;
@@ -52,12 +53,13 @@ const NATIVE_SYMBOL: Record<ChainId, string> = {
   ethereum: 'ETH',
   pulsechain: 'PLS',
 };
+// PulseChain → Otterscan-on-IPFS (see lib/pulsechainExplorer); Ethereum → Etherscan.
 const EXPLORER_TX: Record<ChainId, (h: string) => string> = {
-  pulsechain: (h) => `https://scan.pulsechain.com/tx/${h}`,
+  pulsechain: pulsechainTxUrl,
   ethereum: (h) => `https://etherscan.io/tx/${h}`,
 };
 const EXPLORER_NAME: Record<ChainId, string> = {
-  pulsechain: 'PulseScan',
+  pulsechain: PULSECHAIN_EXPLORER_NAME,
   ethereum: 'Etherscan',
 };
 
