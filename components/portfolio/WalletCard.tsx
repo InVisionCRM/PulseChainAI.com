@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useState } from 'react';
 import {
   IconChevronDown,
   IconCopy,
@@ -22,13 +22,9 @@ import {
 } from '@/lib/portfolio/tokenVisibility';
 import type { ChainId, LpUnderlying, PortfolioToken, PortfolioWallet } from '@/services';
 
-const CHAIN_LABEL: Record<ChainId, string> = {
-  ethereum: 'ETH',
-  pulsechain: 'PLS',
-};
-
-// Real chain marks, overlaid as a small badge on the token icon (DeBank /
-// Zapper / Zerion convention) instead of a text pill. Assets live in public/.
+// Real chain marks. Used as the small badge on token icons (DeBank / Zapper /
+// Zerion convention) and as the wallet-header chain-filter toggles — full
+// colour when that chain is active, greyscale when it isn't. Assets in public/.
 const CHAIN_LOGO: Record<ChainId, string> = {
   ethereum: '/ethlogo.svg',
   pulsechain: '/LogoVector.svg',
@@ -37,28 +33,6 @@ const CHAIN_LOGO: Record<ChainId, string> = {
 const CHAIN_NAME: Record<ChainId, string> = {
   ethereum: 'Ethereum',
   pulsechain: 'PulseChain',
-};
-
-// Inline styles bypass any Tailwind JIT gaps for these specific RGBs
-// (we hit one with text-cyan-50 earlier and don't want to rediscover it
-// for the chain-filter pills).
-const CHAIN_ACTIVE_STYLE: Record<ChainId, CSSProperties> = {
-  ethereum: {
-    backgroundColor: 'rgba(99, 102, 241, 0.3)',
-    borderColor: 'rgba(99, 102, 241, 0.75)',
-    color: '#fff',
-  },
-  pulsechain: {
-    backgroundColor: 'rgba(217, 70, 239, 0.3)',
-    borderColor: 'rgba(217, 70, 239, 0.75)',
-    color: '#fff',
-  },
-};
-
-const CHAIN_INACTIVE_STYLE: CSSProperties = {
-  backgroundColor: 'transparent',
-  borderColor: 'rgba(255, 255, 255, 0.15)',
-  color: 'rgba(255, 255, 255, 0.35)',
 };
 
 const truncate = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
@@ -278,7 +252,7 @@ export function WalletCard({ wallet }: Props) {
         </button>
         {copied && <span className="text-xs text-green-300">Copied</span>}
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           {wallet.chains.map((c) => {
             const active = activeChains.has(c);
             return (
@@ -287,11 +261,18 @@ export function WalletCard({ wallet }: Props) {
                 type="button"
                 onClick={() => toggleChainFilter(c)}
                 aria-pressed={active}
-                title={active ? `Hide ${CHAIN_LABEL[c]} tokens` : `Show ${CHAIN_LABEL[c]} tokens`}
-                className="text-[10px] uppercase tracking-wide font-bold px-2 py-0.5 rounded border transition-colors hover:brightness-125"
-                style={active ? CHAIN_ACTIVE_STYLE[c] : CHAIN_INACTIVE_STYLE}
+                title={active ? `Hide ${CHAIN_NAME[c]} tokens` : `Show ${CHAIN_NAME[c]} tokens`}
+                className={`flex items-center justify-center h-7 w-7 rounded-md border transition-all ${
+                  active
+                    ? 'border-white/10 bg-white/[0.08]'
+                    : 'border-transparent opacity-60 grayscale hover:opacity-90'
+                }`}
               >
-                {CHAIN_LABEL[c]}
+                <img
+                  src={CHAIN_LOGO[c]}
+                  alt={CHAIN_NAME[c]}
+                  className="h-4 w-4 object-contain"
+                />
               </button>
             );
           })}
