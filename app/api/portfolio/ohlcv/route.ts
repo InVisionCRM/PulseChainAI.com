@@ -21,7 +21,15 @@ const GT_NETWORK: Record<ChainId, string> = {
 };
 
 const GT_BASE = 'https://api.geckoterminal.com/api/v2';
-const GT_HEADERS = { Accept: 'application/json;version=20230302' };
+// A real browser User-Agent makes GeckoTerminal's free tier noticeably more
+// reliable (same trick as the prices proxy) — fewer edge rejections, which is
+// what made the chart flap to the DexScreener embed on transient blips.
+const GT_HEADERS = {
+  Accept: 'application/json;version=20230302',
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+    '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+};
 const FETCH_TIMEOUT_MS = 9_000;
 const ADDRESS_RX = /^0x[a-f0-9]{40}$/i;
 
@@ -50,21 +58,33 @@ const TF_MAP: Record<string, { res: 'minute' | 'hour' | 'day'; agg: number }> = 
 interface Candle { time: number; open: number; high: number; low: number; close: number; }
 interface VolumePoint { time: number; value: number; }
 
-async function gtFetch(url: string, revalidate: number): Promise<any | null> {
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const r = await fetch(url, {
-      headers: GT_HEADERS,
-      signal: controller.signal,
-      next: { revalidate },
-    });
-    if (!r.ok) return null;
-    return await r.json();
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(t);
+// Retries transient failures (429 / 5xx / network / timeout) with a short
+// backoff, so a single rate-limit blip doesn't surface as "no candles" — which
+// the chart used to treat as "this token has no native data, swap to the
+// DexScreener embed."
+async function gtFetch(
+  url: string,
+  revalidate: number,
+  retries = 2,
+): Promise<any | null> {
+  for (let attempt = 0; ; attempt++) {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const r = await fetch(url, {
+        headers: GT_HEADERS,
+        signal: controller.signal,
+        next: { revalidate },
+      });
+      if (r.ok) return await r.json();
+      const retryable = r.status === 429 || r.status >= 500;
+      if (!retryable || attempt >= retries) return null;
+    } catch {
+      if (attempt >= retries) return null;
+    } finally {
+      clearTimeout(t);
+    }
+    await new Promise((res) => setTimeout(res, 300 * (attempt + 1)));
   }
 }
 

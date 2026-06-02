@@ -13,9 +13,14 @@ import {
 import { IconChartCandle, IconChartLine } from '@tabler/icons-react';
 import type { PortfolioToken } from '@/services';
 
-// Native candlestick chart (GeckoTerminal OHLCV) with a custom "aurora"
-// theme, falling back to the DexScreener embed when no native candles exist.
-// Deliberately no data-source footer line.
+// Native candlestick chart (GeckoTerminal OHLCV) with a custom "aurora" theme.
+//
+// The chart SOURCE (native vs the DexScreener embed) is decided ONCE per token
+// and 'native' is sticky: as soon as we've shown native candles we stay native
+// across every timeframe, so changing the interval only refreshes candles and
+// never swaps the whole chart out from under you. A transient empty/rate-limit
+// on one timeframe keeps the last-good candles instead of collapsing to the
+// embed. We only use DexScreener when a token genuinely has no native pool.
 
 const UP = '#2EE6A6'; // mint
 const DOWN = '#FB6F92'; // rose
@@ -44,7 +49,10 @@ interface OhlcvResponse {
   error?: string;
 }
 
-type Status = 'loading' | 'ready' | 'fallback' | 'empty';
+// Per-token chart source; 'pending' until the first response resolves it.
+type Source = 'pending' | 'native' | 'dex' | 'none';
+// Per-timeframe load state (only meaningful while source === 'native').
+type TfStatus = 'loading' | 'ok' | 'empty';
 
 function fmtPrice(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return '—';
@@ -70,7 +78,8 @@ export default function CandleChart({
 }) {
   const [timeframe, setTimeframe] = useState<Timeframe>('15m');
   const [chartType, setChartType] = useState<'candle' | 'line'>('candle');
-  const [status, setStatus] = useState<Status>('loading');
+  const [source, setSource] = useState<Source>('pending');
+  const [tfStatus, setTfStatus] = useState<TfStatus>('loading');
   const [data, setData] = useState<OhlcvResponse | null>(null);
   const [legend, setLegend] = useState<Candle | null>(null);
 
@@ -86,10 +95,17 @@ export default function CandleChart({
   const pairRef = useRef<string | null | undefined>(pairAddress);
   pairRef.current = pairAddress;
 
-  // Fetch native OHLCV whenever the token or timeframe changes.
+  // Reset the per-token source decision when the token changes.
+  useEffect(() => {
+    setSource('pending');
+    setData(null);
+  }, [token.chain, token.address]);
+
+  // Fetch native OHLCV whenever the token or timeframe changes. The first
+  // resolved response decides the source; 'native' is sticky thereafter.
   useEffect(() => {
     let cancelled = false;
-    setStatus('loading');
+    setTfStatus('loading');
     const params = new URLSearchParams({
       chain: token.chain,
       address: token.address,
@@ -99,28 +115,33 @@ export default function CandleChart({
       .then((r) => r.json())
       .then((d: OhlcvResponse) => {
         if (cancelled) return;
-        if (d?.candles?.length) {
-          setData(d);
-          setStatus('ready');
-        } else {
-          setData(null);
-          setStatus(pairRef.current ? 'fallback' : 'empty');
-        }
+        const hasCandles = !!d?.candles?.length;
+        // Only replace the series when we actually got candles — a transient
+        // empty keeps the last-good chart instead of clearing it.
+        if (hasCandles) setData(d);
+        setTfStatus(hasCandles ? 'ok' : 'empty');
+        setSource((prev) => {
+          if (prev === 'native') return 'native'; // sticky — never leave on a tf blip
+          if (hasCandles) return 'native';
+          if (d?.error === 'no-pool') return pairRef.current ? 'dex' : 'none';
+          if (d?.pool) return 'native'; // pool exists; this empty was transient
+          return pairRef.current ? 'dex' : 'none';
+        });
       })
       .catch(() => {
         if (cancelled) return;
-        setData(null);
-        setStatus(pairRef.current ? 'fallback' : 'empty');
+        setTfStatus('empty');
+        // Network blip: keep native if already established; otherwise embed.
+        setSource((prev) => (prev === 'native' ? 'native' : pairRef.current ? 'dex' : 'none'));
       });
     return () => {
       cancelled = true;
     };
   }, [token.chain, token.address, timeframe]);
 
-  // If native data was unavailable before the fallback pair was known, upgrade
-  // the empty state to the DexScreener embed once it arrives.
+  // A fallback pair arriving late upgrades a "no chart" state to the embed.
   useEffect(() => {
-    if (pairAddress) setStatus((s) => (s === 'empty' ? 'fallback' : s));
+    if (pairAddress) setSource((s) => (s === 'none' ? 'dex' : s));
   }, [pairAddress]);
 
   // Create the chart + series once.
@@ -248,7 +269,8 @@ export default function CandleChart({
     );
   }, [pairAddress, token.chain]);
 
-  const showNativeChrome = status === 'loading' || status === 'ready';
+  const showNativeChrome = source === 'pending' || source === 'native';
+  const showLoading = source === 'pending' || (source === 'native' && tfStatus === 'loading');
 
   return (
     <div>
@@ -300,7 +322,7 @@ export default function CandleChart({
             non-native states cover it with an overlay. */}
         <div ref={boxRef} className="absolute inset-0" />
 
-        {status === 'ready' && legend && (
+        {source === 'native' && tfStatus === 'ok' && legend && (
           <div
             className="absolute top-3 left-3 z-[4] pointer-events-none inline-flex items-center gap-2 flex-wrap rounded-[11px] px-2.5 py-1.5 text-[11.5px] tabular-nums"
             style={{ background: 'rgba(15,24,46,0.55)', border: '1px solid rgba(255,255,255,0.09)', backdropFilter: 'blur(10px)' }}
@@ -341,13 +363,23 @@ export default function CandleChart({
           </div>
         )}
 
-        {status === 'loading' && (
+        {showLoading && (
           <div className="absolute inset-0 z-[5] grid place-items-center" style={{ background: 'rgba(11,19,34,0.55)' }}>
             <div className="text-xs text-white/50">Loading candles…</div>
           </div>
         )}
 
-        {status === 'fallback' && dsSrc && (
+        {/* Native pool exists but this interval returned nothing — keep the
+            native frame and say so, rather than swapping to the embed. */}
+        {source === 'native' && tfStatus === 'empty' && (
+          <div className="absolute inset-0 z-[5] grid place-items-center px-6 text-center" style={{ background: 'rgba(11,19,34,0.7)' }}>
+            <div className="text-sm text-white/55">
+              No {TF_LABEL[timeframe]} candles for this pool — try another interval.
+            </div>
+          </div>
+        )}
+
+        {source === 'dex' && dsSrc && (
           <iframe
             src={dsSrc}
             title={`DexScreener chart for ${token.symbol}`}
@@ -357,8 +389,8 @@ export default function CandleChart({
           />
         )}
 
-        {/* Empty when there's no native data AND no DexScreener pair to embed. */}
-        {(status === 'empty' || (status === 'fallback' && !dsSrc)) && (
+        {/* No native pool AND no DexScreener pair to embed. */}
+        {(source === 'none' || (source === 'dex' && !dsSrc)) && (
           <div className="absolute inset-0 z-[5] grid place-items-center px-6 text-center" style={{ background: '#0b1322' }}>
             <div className="text-sm text-white/50">No chart data available for this token yet.</div>
           </div>
