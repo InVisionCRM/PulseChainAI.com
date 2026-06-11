@@ -157,7 +157,7 @@ export default function Screener() {
       : rows;
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] space-y-3 px-3 py-4 font-plex md:px-6">
+    <div className="w-full min-w-0 space-y-3">
       <StatsBar stats={stats} fetchedAt={fetchedAt} />
       <FilterBar
         dexes={dexes}
@@ -194,7 +194,7 @@ export default function Screener() {
               load(next, true);
             }}
             disabled={loading}
-            className="rounded border border-carbon-line bg-carbon-surface px-6 py-2 text-xs font-medium text-carbon-muted transition-colors hover:border-carbon-line2 hover:text-carbon-text disabled:opacity-50"
+            className="rounded-xl border border-white/15 bg-white/5 backdrop-blur-xl px-6 py-2 text-xs font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
           >
             {loading ? 'Loading…' : 'Show more'}
           </button>

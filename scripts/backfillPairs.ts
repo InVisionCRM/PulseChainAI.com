@@ -18,6 +18,8 @@
  * Requires DATABASE_URL. Run with: npx tsx scripts/backfillPairs.ts
  */
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { latestBlock, scanPairCreations } from '../lib/screener/logs';
 import { fetchPairsBatch, BATCH_SIZE } from '../lib/screener/dexscreener';
 import {
@@ -30,6 +32,26 @@ import {
   countUnenriched,
 } from '../lib/screener/db';
 import { neon } from '@neondatabase/serverless';
+
+// Standalone tsx runs don't get Next.js's automatic env loading — read the
+// same files Next does. Values already present in the environment win.
+// (DATABASE_URL is read lazily by lib/screener/db, so loading here is early enough.)
+for (const file of ['.env.local', '.env']) {
+  try {
+    const text = readFileSync(resolve(process.cwd(), file), 'utf8');
+    for (const line of text.split('\n')) {
+      const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/.exec(line);
+      if (!m) continue;
+      let value = m[2];
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      if (!(m[1] in process.env)) process.env[m[1]] = value;
+    }
+  } catch {
+    // env file absent — fine, rely on the shell environment
+  }
+}
 
 const CURSOR_KEY = 'backfill_cursor';
 const LAST_SCANNED_KEY = 'last_scanned_block';
@@ -89,9 +111,12 @@ async function enrichPhase(): Promise<void> {
 
   while (remaining > 0) {
     const progressBefore = listed + unlisted;
+    // Oldest first: the fork-era cohort contains every established pair
+    // (WPLS, HEX, PLSX, …), so the table becomes useful within minutes.
+    // The cron's refresh targets newest-first, covering the other end.
     const rows = (await sql.query(
       `SELECT pair_address FROM screener_pairs WHERE listed IS NULL
-       ORDER BY created_block DESC LIMIT 3000`,
+       ORDER BY created_block ASC LIMIT 3000`,
     )) as { pair_address: string }[];
     if (rows.length === 0) break;
 

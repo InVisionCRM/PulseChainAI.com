@@ -52,7 +52,7 @@ export const MobileBottomNav = () => {
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-[#2C3E50] via-[#34495E] to-[#3B6978] border-t border-orange-500/40 backdrop-blur-xl">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0C2340]/90 border-t border-white/10 backdrop-blur-xl">
         <div className="flex items-center justify-around h-16 px-2">
           {navItems.map((item) => {
             const isActive = item.href ? pathname === item.href : false;

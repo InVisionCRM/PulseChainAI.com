@@ -44,6 +44,9 @@ const TABS: { id: ScreenerUiTab; label: string; icon: React.ReactNode }[] = [
   { id: 'watchlist', label: 'Watchlist', icon: <IconStar className="h-3.5 w-3.5" /> },
 ];
 
+const CHIP_ACTIVE = 'bg-orange-500 text-white';
+const CHIP_IDLE = 'border border-white/15 text-white/60 hover:bg-white/10 hover:text-white';
+
 function DexIcon({ dexId }: { dexId: string }) {
   const [failed, setFailed] = React.useState(false);
   if (failed) return null;
@@ -87,17 +90,17 @@ function FiltersPopover({
     return n === null ? null : unit === 'd' ? n * 24 : n;
   };
 
-  const field = 'w-full rounded border border-carbon-line bg-carbon-bg px-2 py-1.5 font-plexmono text-xs text-carbon-text outline-none placeholder:text-carbon-dim focus:border-carbon-gold';
-  const label = 'mb-1 block text-[10px] uppercase tracking-wider text-carbon-dim';
+  const field = 'w-full rounded-lg bg-black/40 border border-white/15 px-2 py-1.5 text-xs text-white tabular-nums outline-none placeholder:text-white/30 focus:border-orange-500/60';
+  const label = 'mb-1 block text-[10px] uppercase tracking-wider text-white/50';
 
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-full z-30 mt-1 w-64 rounded-md border border-carbon-line2 bg-carbon-surface p-3 shadow-xl"
+      className="absolute right-0 top-full z-30 mt-1 w-64 rounded-2xl border border-white/15 bg-[#0d2a4d] p-3 shadow-2xl"
     >
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-medium text-carbon-text">Filters</span>
-        <button onClick={onClose} className="text-carbon-dim hover:text-carbon-text" aria-label="Close filters">
+        <span className="text-xs font-semibold text-white">Filters</span>
+        <button onClick={onClose} className="text-white/50 hover:text-white" aria-label="Close filters">
           <IconX className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -122,7 +125,7 @@ function FiltersPopover({
           <select
             value={unit}
             onChange={(e) => setUnit(e.target.value as 'h' | 'd')}
-            className="rounded border border-carbon-line bg-carbon-bg px-1.5 py-1.5 font-plexmono text-xs text-carbon-muted outline-none"
+            className="rounded-lg bg-black/40 border border-white/15 px-1.5 py-1.5 text-xs text-white/70 outline-none"
             aria-label="Age unit"
           >
             <option value="h">hrs</option>
@@ -132,13 +135,13 @@ function FiltersPopover({
         <div className="flex gap-2 pt-1">
           <button
             onClick={() => onApply({ minLiq: parse(minLiq), minVol24: parse(minVol), minAgeH: toHours(minAge), maxAgeH: toHours(maxAge) })}
-            className="flex-1 rounded bg-carbon-gold px-3 py-1.5 text-xs font-medium text-black transition-opacity hover:opacity-90"
+            className="flex-1 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-orange-400"
           >
             Apply
           </button>
           <button
             onClick={() => onApply({ minLiq: null, minVol24: null, minAgeH: null, maxAgeH: null })}
-            className="rounded border border-carbon-line px-3 py-1.5 text-xs text-carbon-muted transition-colors hover:border-carbon-line2 hover:text-carbon-text"
+            className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/60 transition-colors hover:bg-white/10 hover:text-white"
           >
             Reset
           </button>
@@ -162,10 +165,8 @@ export default function FilterBar({ dexes, dexId, tab, window, filters, onDex, o
       >
         <button
           onClick={() => onDex(null)}
-          className={`flex shrink-0 items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
-            dexId === null
-              ? 'bg-carbon-gold text-black'
-              : 'border border-carbon-line text-carbon-muted hover:border-carbon-line2 hover:text-carbon-text'
+          className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            dexId === null ? CHIP_ACTIVE : CHIP_IDLE
           }`}
         >
           All DEXes
@@ -174,10 +175,8 @@ export default function FilterBar({ dexes, dexId, tab, window, filters, onDex, o
           <button
             key={d.dexId}
             onClick={() => onDex(d.dexId)}
-            className={`flex shrink-0 items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
-              dexId === d.dexId
-                ? 'bg-carbon-gold text-black'
-                : 'border border-carbon-line text-carbon-muted hover:border-carbon-line2 hover:text-carbon-text'
+            className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              dexId === d.dexId ? CHIP_ACTIVE : CHIP_IDLE
             }`}
           >
             <DexIcon dexId={d.dexId} />
@@ -187,13 +186,13 @@ export default function FilterBar({ dexes, dexId, tab, window, filters, onDex, o
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-0.5 overflow-x-auto rounded border border-carbon-line bg-carbon-surface p-0.5">
+        <div className="flex items-center gap-0.5 overflow-x-auto rounded-xl border border-white/15 bg-white/5 backdrop-blur-xl p-0.5">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => onTab(t.id)}
-              className={`flex shrink-0 items-center gap-1 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                tab === t.id ? 'bg-carbon-raised text-carbon-gold' : 'text-carbon-muted hover:text-carbon-text'
+              className={`flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                tab === t.id ? 'bg-white/10 text-orange-300' : 'text-white/60 hover:text-white'
               }`}
             >
               {t.icon}
@@ -202,13 +201,13 @@ export default function FilterBar({ dexes, dexId, tab, window, filters, onDex, o
           ))}
         </div>
 
-        <div className="flex items-center gap-0.5 rounded border border-carbon-line bg-carbon-surface p-0.5">
+        <div className="flex items-center gap-0.5 rounded-xl border border-white/15 bg-white/5 backdrop-blur-xl p-0.5">
           {WINDOWS.map((w) => (
             <button
               key={w.id}
               onClick={() => onWindow(w.id)}
-              className={`rounded px-2.5 py-1 font-plexmono text-xs transition-colors ${
-                window === w.id ? 'bg-carbon-gold font-medium text-black' : 'text-carbon-muted hover:text-carbon-text'
+              className={`rounded-lg px-2.5 py-1 text-xs tabular-nums transition-colors ${
+                window === w.id ? 'bg-orange-500 font-semibold text-white' : 'text-white/60 hover:text-white'
               }`}
             >
               {w.label}
@@ -219,16 +218,16 @@ export default function FilterBar({ dexes, dexId, tab, window, filters, onDex, o
         <div className={`relative ${onServerTab ? '' : 'pointer-events-none opacity-40'}`}>
           <button
             onClick={() => setFiltersOpen((v) => !v)}
-            className={`flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors ${
               activeFilterCount > 0
-                ? 'border-carbon-gold text-carbon-gold'
-                : 'border-carbon-line text-carbon-muted hover:border-carbon-line2 hover:text-carbon-text'
+                ? 'border-orange-500/60 text-orange-300'
+                : 'border-white/15 text-white/60 hover:bg-white/10 hover:text-white'
             }`}
           >
             <IconFilter className="h-3.5 w-3.5" />
             Filters
             {activeFilterCount > 0 ? (
-              <span className="rounded-sm bg-carbon-gold px-1 font-plexmono text-[10px] font-semibold text-black">{activeFilterCount}</span>
+              <span className="rounded bg-orange-500 px-1 text-[10px] font-semibold text-white tabular-nums">{activeFilterCount}</span>
             ) : null}
           </button>
           {filtersOpen ? (
@@ -245,11 +244,11 @@ export default function FilterBar({ dexes, dexId, tab, window, filters, onDex, o
 
         <button
           onClick={onOpenSearch}
-          className="ml-auto flex items-center gap-2 rounded border border-carbon-line bg-carbon-surface px-3 py-1.5 text-xs text-carbon-dim transition-colors hover:border-carbon-line2 hover:text-carbon-text"
+          className="ml-auto flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 backdrop-blur-xl px-3 py-1.5 text-xs text-white/50 transition-colors hover:bg-white/10 hover:text-white"
         >
           <IconSearch className="h-3.5 w-3.5" />
           <span>Search pairs</span>
-          <kbd className="rounded border border-carbon-line2 px-1 font-plexmono text-[10px]">/</kbd>
+          <kbd className="rounded border border-white/20 px-1 text-[10px]">/</kbd>
         </button>
       </div>
     </div>

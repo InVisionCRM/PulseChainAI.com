@@ -48,8 +48,8 @@ export function fmtPct(n: number | null): string {
 }
 
 export function pctClass(n: number | null): string {
-  if (n === null || !Number.isFinite(n) || n === 0) return 'text-carbon-dim';
-  return n > 0 ? 'text-carbon-green' : 'text-carbon-red';
+  if (n === null || !Number.isFinite(n) || n === 0) return 'text-white/40';
+  return n > 0 ? 'text-green-400' : 'text-red-400';
 }
 
 /** 17s / 4m / 7h / 14d / 2mo / 3y */

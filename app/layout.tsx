@@ -1,11 +1,11 @@
 "use client";
-import { Inter, JetBrains_Mono, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next"
 import { TopTickerBar } from "@/components/TopTickerBar";
 import { MobileSearchBar } from "@/components/MobileSearchBar";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
-import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
+import { SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import {
   IconHome,
   IconCode,
@@ -39,20 +39,6 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 });
 
-const plexSans = IBM_Plex_Sans({
-  variable: "--font-plex-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  display: 'swap',
-});
-
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-plex-mono",
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  display: 'swap',
-});
-
 type NavLink = {
   label: string;
   href: string;
@@ -77,21 +63,17 @@ const SidebarGroup = ({
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-2 px-2 py-2 transition duration-200 hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50"
+        className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 transition duration-200 hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50"
       >
         <span className="flex items-center gap-2">
           {icon}
-          <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-neutral-200 text-lg transition duration-150 whitespace-pre inline-block !p-0 !m-0"
-          >
+          <span className="text-white/50 text-xs font-semibold uppercase tracking-wider whitespace-pre inline-block">
             {label}
-          </motion.span>
+          </span>
         </span>
         <IconChevronDown
           className={cn(
-            "h-4 w-4 shrink-0 text-white transition-transform duration-200 md:opacity-0 group-hover/sidebar:md:opacity-100",
+            "h-4 w-4 shrink-0 text-white/50 transition-transform duration-200",
             expanded ? "rotate-180" : "rotate-0"
           )}
         />
@@ -120,7 +102,6 @@ export default function RootLayout({
   const isAICodeReaderPage = pathname === "/ai-agent";
   const isGeickoPage = pathname === "/geicko";
   const isStackerGamePage = pathname === "/stacker-game";
-  const [open, setOpen] = useState(false);
 
   const primaryLinks: NavLink[] = [
     {
@@ -176,32 +157,27 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} ${plexSans.variable} ${plexMono.variable} text-md md:text-base antialiased min-h-screen bg-[#0C2340]`}
+        className={`${inter.variable} ${jetbrainsMono.variable} text-md md:text-base antialiased min-h-screen bg-[#0C2340]`}
       >
         <div className="flex flex-col min-h-screen md:h-screen w-full md:overflow-hidden">
           {!isStackerGamePage && <TopTickerBar />}
           <MobileSearchBar />
           <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
-            <Sidebar open={open} setOpen={setOpen}>
-              <SidebarBody className="gap-10">
-                <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto min-h-0">
-                  <div className="mt-8 flex flex-col gap-2 items-center max-w-[200px] mx-auto text-sm">
-                    {/* Get Morbius Button - visible when sidebar is expanded */}
+            <SidebarBody>
+                <div className="flex flex-1 flex-col overflow-x-hidden min-h-0">
+                  <div className="mt-4 flex w-full flex-col gap-1 text-sm">
+                    {/* Get Morbius Button */}
                     <a
                       href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 group/sidebar py-2 px-2 bg-purple-700/40 backdrop-blur hover:bg-purple-700/50 rounded-md transition duration-200 md:opacity-0 md:w-0 md:overflow-hidden group-hover/sidebar:md:opacity-100 group-hover/sidebar:md:w-auto group-hover/sidebar:md:overflow-visible"
+                      className="flex items-center justify-center gap-2 py-2 px-3 mb-2 bg-orange-500/15 border border-orange-500/40 hover:bg-orange-500/25 rounded-lg transition duration-200"
                       title="Get Morbius"
                     >
-                      <IconRocket className="h-5 w-5 shrink-0 text-white" />
-                      <motion.span
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="text-white text-sm transition duration-150 whitespace-pre inline-block !p-0 !m-0 md:opacity-0 md:w-0 md:overflow-hidden md:translate-x-0 group-hover/sidebar:opacity-100 group-hover/sidebar:w-auto group-hover/sidebar:overflow-visible group-hover/sidebar:translate-x-1 md:ml-0"
-                      >
+                      <IconRocket className="h-5 w-5 shrink-0 text-orange-400" />
+                      <span className="text-white text-sm whitespace-pre inline-block">
                         Get Morbius
-                      </motion.span>
+                      </span>
                     </a>
 
                     {primaryLinks.map((link, idx) => (
@@ -223,13 +199,9 @@ export default function RootLayout({
 
                     {/* Sponsored by Section */}
                     <div className="mt-6">
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="text-neutral-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2 text-center md:hidden group-hover/sidebar:md:block"
-                      >
+                      <div className="text-white/40 text-xs font-semibold uppercase tracking-wider px-2 mb-2 text-center">
                         Sponsored by
-                      </motion.div>
+                      </div>
                       <div className="flex justify-center">
                         <SidebarLink
                           link={{
@@ -243,7 +215,6 @@ export default function RootLayout({
                   </div>
                 </div>
               </SidebarBody>
-            </Sidebar>
             <main className="flex-1 w-full overflow-y-auto pb-20 md:pb-0">
               <ToastProvider>
                 {children}
