@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "db:init": "tsx scripts/initDatabase.ts",
-    "db:sync": "tsx scripts/initDatabase.ts --sync"
+    "db:sync": "tsx scripts/initDatabase.ts --sync",
+    "screener:backfill": "tsx scripts/backfillPairs.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
