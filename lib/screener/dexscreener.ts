@@ -4,7 +4,7 @@
  * Rate limit: 300 req/min on /latest/dex/*.
  */
 
-import type { SearchPair } from './types';
+import type { ScreenerRow, SearchPair } from './types';
 
 const BASE = 'https://api.dexscreener.com';
 export const BATCH_SIZE = 30;
@@ -130,6 +130,52 @@ export async function fetchPairsBatch(addresses: string[]): Promise<Map<string, 
       const row = normalize(p);
       out.set(row.pairAddress, row);
     }
+  }
+  return out;
+}
+
+/**
+ * Resolve a token to its deepest-liquidity pair on each requested chain.
+ * Used by the watchlist, which can track the same address on PulseChain
+ * and Ethereum (e.g. HEX).
+ */
+export async function bestPairsForToken(
+  address: string,
+  chains: Set<string>,
+): Promise<Map<string, ScreenerRow>> {
+  const json = await dsGet(`/latest/dex/tokens/${address}`);
+  const lower = address.toLowerCase();
+  const best = new Map<string, DsPair>();
+  for (const p of json.pairs ?? []) {
+    if (!p || !chains.has(p.chainId)) continue;
+    if (p.baseToken.address.toLowerCase() !== lower) continue;
+    const current = best.get(p.chainId);
+    if (!current || (p.liquidity?.usd ?? 0) > (current.liquidity?.usd ?? 0)) {
+      best.set(p.chainId, p);
+    }
+  }
+  const out = new Map<string, ScreenerRow>();
+  for (const [chain, p] of best) {
+    const m = normalize(p);
+    out.set(chain, {
+      chainId: chain as 'pulsechain' | 'ethereum',
+      pairAddress: m.pairAddress,
+      dexId: m.dexId,
+      label: m.label,
+      baseAddress: m.baseAddress,
+      baseSymbol: m.baseSymbol,
+      baseName: m.baseName,
+      quoteSymbol: m.quoteSymbol,
+      imageUrl: m.imageUrl,
+      priceUsd: m.priceUsd,
+      marketCap: m.marketCap ?? m.fdv,
+      liquidityUsd: m.liquidityUsd,
+      pairCreatedAt: m.pairCreatedAt,
+      txns: { m5: m.txnsM5, h1: m.txnsH1, h6: m.txnsH6, h24: m.txnsH24 },
+      vol: { m5: m.volM5, h1: m.volH1, h6: m.volH6, h24: m.volH24 },
+      chg: { m5: m.chgM5, h1: m.chgH1, h6: m.chgH6, h24: m.chgH24 },
+      gold: false,
+    });
   }
   return out;
 }

@@ -5,34 +5,27 @@ import { useRouter } from 'next/navigation';
 import { IconSearch, IconStar, IconStarFilled, IconX } from '@tabler/icons-react';
 import type { SearchPair } from '@/lib/screener/types';
 import { dexLogo, dexName, fmtAge, fmtPct, fmtPrice, fmtUsd, pctClass, shortAddr } from './format';
+import type { ScreenerWatchlist } from './watchlist';
 
 const RECENT_KEY = 'screener.recent';
-const FAVS_KEY = 'screener.favs';
 const MAX_RECENT = 8;
 
-interface Favorite {
-  pairAddress: string;
-  baseAddress: string;
-  baseSymbol: string;
-  quoteSymbol: string | null;
-  dexId: string | null;
-}
-
-function readJson<T>(key: string, fallback: T): T {
+function readRecent(): string[] {
   try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
+    const raw = localStorage.getItem(RECENT_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
   } catch {
-    return fallback;
+    return [];
   }
 }
 
 interface Props {
   open: boolean;
   onClose: () => void;
+  watchlist: ScreenerWatchlist;
 }
 
-export default function SearchModal({ open, onClose }: Props) {
+export default function SearchModal({ open, onClose, watchlist }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -41,12 +34,10 @@ export default function SearchModal({ open, onClose }: Props) {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
-  const [favs, setFavs] = useState<Favorite[]>([]);
 
   useEffect(() => {
     if (open) {
-      setRecent(readJson<string[]>(RECENT_KEY, []));
-      setFavs(readJson<Favorite[]>(FAVS_KEY, []));
+      setRecent(readRecent());
       setTimeout(() => inputRef.current?.focus(), 0);
     } else {
       setQuery('');
@@ -97,7 +88,7 @@ export default function SearchModal({ open, onClose }: Props) {
   }, [query, open]);
 
   const rememberQuery = useCallback((q: string) => {
-    const next = [q, ...readJson<string[]>(RECENT_KEY, []).filter((x) => x !== q)].slice(0, MAX_RECENT);
+    const next = [q, ...readRecent().filter((x) => x !== q)].slice(0, MAX_RECENT);
     localStorage.setItem(RECENT_KEY, JSON.stringify(next));
     setRecent(next);
   }, []);
@@ -111,35 +102,7 @@ export default function SearchModal({ open, onClose }: Props) {
     [onClose, rememberQuery, router],
   );
 
-  const toggleFav = useCallback((p: SearchPair, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const current = readJson<Favorite[]>(FAVS_KEY, []);
-    const exists = current.some((f) => f.pairAddress === p.pairAddress);
-    const next = exists
-      ? current.filter((f) => f.pairAddress !== p.pairAddress)
-      : [
-          ...current,
-          {
-            pairAddress: p.pairAddress,
-            baseAddress: p.baseAddress,
-            baseSymbol: p.baseSymbol,
-            quoteSymbol: p.quoteSymbol,
-            dexId: p.dexId,
-          },
-        ];
-    localStorage.setItem(FAVS_KEY, JSON.stringify(next));
-    setFavs(next);
-  }, []);
-
-  const removeFav = useCallback((pairAddress: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const next = readJson<Favorite[]>(FAVS_KEY, []).filter((f) => f.pairAddress !== pairAddress);
-    localStorage.setItem(FAVS_KEY, JSON.stringify(next));
-    setFavs(next);
-  }, []);
-
   if (!open) return null;
-  const favSet = new Set(favs.map((f) => f.pairAddress));
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm" onClick={onClose}>
@@ -181,28 +144,33 @@ export default function SearchModal({ open, onClose }: Props) {
                 </div>
               ) : null}
 
-              {favs.length > 0 ? (
+              {watchlist.tokens.length > 0 ? (
                 <div>
-                  <div className="mb-2 text-[11px] uppercase tracking-wider text-carbon-dim">Favorites</div>
+                  <div className="mb-2 text-[11px] uppercase tracking-wider text-carbon-dim">Watchlist</div>
                   <div className="space-y-1">
-                    {favs.map((f) => (
+                    {watchlist.tokens.map((t) => (
                       <div
-                        key={f.pairAddress}
+                        key={`${t.chain}:${t.address}`}
                         onClick={() => {
                           onClose();
-                          router.push(`/geicko?address=${f.baseAddress}`);
+                          router.push(`/geicko?address=${t.address}`);
                         }}
                         className="flex cursor-pointer items-center gap-2 rounded border border-carbon-line px-3 py-2 transition-colors hover:bg-carbon-surface"
                       >
                         <IconStarFilled className="h-3.5 w-3.5 shrink-0 text-carbon-gold" />
-                        <span className="text-sm font-medium text-carbon-text">{f.baseSymbol}</span>
-                        <span className="text-xs text-carbon-dim">/{f.quoteSymbol ?? '?'}</span>
-                        <span className="text-xs text-carbon-dim">{dexName(f.dexId)}</span>
-                        <span className="ml-auto font-plexmono text-[11px] text-carbon-dim">{shortAddr(f.pairAddress)}</span>
+                        <span className="text-sm font-medium text-carbon-text">{t.symbol}</span>
+                        {t.chain === 'ethereum' ? (
+                          <span className="rounded-sm border border-carbon-line2 px-1 py-px font-plexmono text-[9px] uppercase text-carbon-muted">ETH</span>
+                        ) : null}
+                        <span className="truncate text-xs text-carbon-dim">{t.name}</span>
+                        <span className="ml-auto font-plexmono text-[11px] text-carbon-dim">{shortAddr(t.address)}</span>
                         <button
-                          onClick={(e) => removeFav(f.pairAddress, e)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            watchlist.toggle({ address: t.address, chain: t.chain, symbol: t.symbol, name: t.name });
+                          }}
                           className="text-carbon-dim transition-colors hover:text-carbon-red"
-                          aria-label={`Remove ${f.baseSymbol} from favorites`}
+                          aria-label={`Remove ${t.symbol} from watchlist`}
                         >
                           <IconX className="h-3.5 w-3.5" />
                         </button>
@@ -212,7 +180,7 @@ export default function SearchModal({ open, onClose }: Props) {
                 </div>
               ) : null}
 
-              {recent.length === 0 && favs.length === 0 ? (
+              {recent.length === 0 && watchlist.tokens.length === 0 ? (
                 <div className="py-10 text-center text-sm text-carbon-dim">
                   Search any PulseChain pair — every DEX, every token.
                 </div>
@@ -228,7 +196,21 @@ export default function SearchModal({ open, onClose }: Props) {
                 <div className="py-10 text-center text-sm text-carbon-dim">No pairs found for “{query.trim()}”.</div>
               ) : null}
               {results.map((p) => (
-                <SearchRow key={p.pairAddress} pair={p} fav={favSet.has(p.pairAddress)} onOpen={openPair} onFav={toggleFav} />
+                <SearchRow
+                  key={p.pairAddress}
+                  pair={p}
+                  starred={watchlist.has(p.baseAddress)}
+                  onOpen={openPair}
+                  onStar={(pair, e) => {
+                    e.stopPropagation();
+                    watchlist.toggle({
+                      address: pair.baseAddress,
+                      symbol: pair.baseSymbol,
+                      name: pair.baseName ?? pair.baseSymbol,
+                      logoURI: pair.imageUrl ?? undefined,
+                    });
+                  }}
+                />
               ))}
             </div>
           )}
@@ -240,14 +222,14 @@ export default function SearchModal({ open, onClose }: Props) {
 
 function SearchRow({
   pair: p,
-  fav,
+  starred,
   onOpen,
-  onFav,
+  onStar,
 }: {
   pair: SearchPair;
-  fav: boolean;
+  starred: boolean;
   onOpen: (p: SearchPair) => void;
-  onFav: (p: SearchPair, e: React.MouseEvent) => void;
+  onStar: (p: SearchPair, e: React.MouseEvent) => void;
 }) {
   const [logoFailed, setLogoFailed] = useState(false);
   const [dexFailed, setDexFailed] = useState(false);
@@ -295,11 +277,11 @@ function SearchRow({
         <span>TOKEN {shortAddr(p.baseAddress)}</span>
       </div>
       <button
-        onClick={(e) => onFav(p, e)}
-        className={`shrink-0 transition-colors ${fav ? 'text-carbon-gold' : 'text-carbon-dim hover:text-carbon-gold'}`}
-        aria-label={fav ? 'Remove from favorites' : 'Add to favorites'}
+        onClick={(e) => onStar(p, e)}
+        className={`shrink-0 transition-colors ${starred ? 'text-carbon-gold' : 'text-carbon-dim hover:text-carbon-gold'}`}
+        aria-label={starred ? 'Remove from watchlist' : 'Add to watchlist'}
       >
-        {fav ? <IconStarFilled className="h-4 w-4" /> : <IconStar className="h-4 w-4" />}
+        {starred ? <IconStarFilled className="h-4 w-4" /> : <IconStar className="h-4 w-4" />}
       </button>
     </div>
   );

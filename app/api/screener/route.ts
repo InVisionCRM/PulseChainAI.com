@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ensureSchema, listPairs, chainStats, listDexes, type DbScreenerRow } from '@/lib/screener/db';
+import { ensureSchema, listPairs, chainStats, listDexes, SORT_KEYS, type DbScreenerRow, type SortKey } from '@/lib/screener/db';
 import { latestBlock } from '@/lib/screener/logs';
 import { getGoldBadges } from '@/lib/db/goldBadges';
 import type {
@@ -48,12 +48,30 @@ export async function GET(request: NextRequest) {
     const dexId = sp.get('dex') || null;
     const page = Math.max(0, parseInt(sp.get('page') ?? '0', 10) || 0);
 
+    const sortRaw = sp.get('sort');
+    const sort = sortRaw && (SORT_KEYS as readonly string[]).includes(sortRaw) ? (sortRaw as SortKey) : null;
+    if (sortRaw && !sort) return NextResponse.json({ error: `Unknown sort: ${sortRaw}` }, { status: 400 });
+    const dir = sp.get('dir') === 'asc' ? 'asc' : 'desc';
+
+    const numParam = (key: string): number | null => {
+      const raw = sp.get(key);
+      if (raw === null || raw === '') return null;
+      const n = parseFloat(raw);
+      return Number.isFinite(n) && n >= 0 ? n : null;
+    };
+    const filters = {
+      minLiq: numParam('minLiq'),
+      minVol24: numParam('minVol'),
+      minAgeH: numParam('minAgeH'),
+      maxAgeH: numParam('maxAgeH'),
+    };
+
     const gold = await getGoldBadges();
     const goldAddresses = gold.map((g) => g.token_address.toLowerCase());
     const goldSet = new Set(goldAddresses);
 
     const [rows, stats, dexes, block] = await Promise.all([
-      listPairs({ tab, window, dexId, page, pageSize: PAGE_SIZE, goldAddresses }),
+      listPairs({ tab, window, dexId, page, pageSize: PAGE_SIZE, goldAddresses, sort, dir, filters }),
       chainStats(),
       listDexes(),
       // Stats decoration only — a flaky public RPC must not take down the table.

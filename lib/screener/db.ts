@@ -200,6 +200,33 @@ const WINDOW_COLS: Record<ScreenerWindow, { txns: string; vol: string; chg: stri
 /** Liquidity floor for ranked tabs — keeps dust pairs out of the table. */
 const LIQ_FLOOR = 100;
 
+/** Columns a user may explicitly rank by (window-dependent keys resolve per request). */
+export const SORT_KEYS = ['mcap', 'price', 'age', 'txns', 'volume', 'm5', 'h1', 'h6', 'h24', 'liq'] as const;
+export type SortKey = (typeof SORT_KEYS)[number];
+
+function sortColumn(key: SortKey, w: { txns: string; vol: string }): string {
+  switch (key) {
+    case 'mcap': return 'coalesce(market_cap, fdv)';
+    case 'price': return 'price_usd';
+    case 'age': return 'pair_created_at';
+    case 'txns': return w.txns;
+    case 'volume': return w.vol;
+    case 'm5': return 'chg_m5';
+    case 'h1': return 'chg_h1';
+    case 'h6': return 'chg_h6';
+    case 'h24': return 'chg_h24';
+    case 'liq': return 'liquidity_usd';
+  }
+}
+
+export interface ListFilters {
+  minLiq: number | null;
+  minVol24: number | null;
+  /** Pair age bounds in hours. */
+  minAgeH: number | null;
+  maxAgeH: number | null;
+}
+
 export interface ListParams {
   tab: ScreenerTab;
   window: ScreenerWindow;
@@ -207,6 +234,9 @@ export interface ListParams {
   page: number;
   pageSize: number;
   goldAddresses: string[]; // ordered, lowercase base-token addresses
+  sort: SortKey | null;
+  dir: 'asc' | 'desc';
+  filters: ListFilters;
 }
 
 export interface DbScreenerRow {
@@ -238,6 +268,24 @@ export async function listPairs(p: ListParams): Promise<DbScreenerRow[]> {
     where.push(`dex_id = $${params.length}`);
   }
 
+  const f = p.filters;
+  if (f.minLiq !== null) {
+    params.push(f.minLiq);
+    where.push(`liquidity_usd >= $${params.length}`);
+  }
+  if (f.minVol24 !== null) {
+    params.push(f.minVol24);
+    where.push(`vol_h24 >= $${params.length}`);
+  }
+  if (f.minAgeH !== null) {
+    params.push(f.minAgeH);
+    where.push(`pair_created_at <= now() - $${params.length} * interval '1 hour'`);
+  }
+  if (f.maxAgeH !== null) {
+    params.push(f.maxAgeH);
+    where.push(`pair_created_at >= now() - $${params.length} * interval '1 hour'`);
+  }
+
   let order: string;
   switch (p.tab) {
     case 'trending':
@@ -259,6 +307,11 @@ export async function listPairs(p: ListParams): Promise<DbScreenerRow[]> {
       order = `array_position($${params.length}::text[], base_address), vol_h24 DESC NULLS LAST`;
       break;
     }
+  }
+
+  // An explicit column sort overrides the tab's ranking.
+  if (p.sort) {
+    order = `${sortColumn(p.sort, w)} ${p.dir === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`;
   }
 
   params.push(p.pageSize, p.page * p.pageSize);

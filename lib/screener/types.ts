@@ -2,6 +2,17 @@
 
 export type ScreenerWindow = 'm5' | 'h1' | 'h6' | 'h24';
 export type ScreenerTab = 'trending' | 'top' | 'gainers' | 'new' | 'gold';
+/** Client-side tabs: 'watchlist' resolves via /api/watchlist, the rest via /api/screener. */
+export type ScreenerUiTab = ScreenerTab | 'watchlist';
+
+export interface ScreenerFilters {
+  minLiq: number | null;
+  minVol24: number | null;
+  minAgeH: number | null;
+  maxAgeH: number | null;
+}
+
+export const EMPTY_FILTERS: ScreenerFilters = { minLiq: null, minVol24: null, minAgeH: null, maxAgeH: null };
 
 export interface WindowValues {
   m5: number | null;
@@ -11,6 +22,8 @@ export interface WindowValues {
 }
 
 export interface ScreenerRow {
+  /** Omitted for PulseChain rows; set to 'ethereum' for cross-chain watchlist rows. */
+  chainId?: 'pulsechain' | 'ethereum';
   pairAddress: string;
   dexId: string | null;
   label: string | null; // v1 / v2 / v3
