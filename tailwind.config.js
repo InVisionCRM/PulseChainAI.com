@@ -35,23 +35,6 @@ module.exports = {
           navy: '#0C2340',
           orange: '#FA4616',
         },
-        carbon: {
-          bg: '#0B0E11',
-          surface: '#12161C',
-          raised: '#171C23',
-          line: '#1B2127',
-          line2: '#2A3139',
-          text: '#EAECEF',
-          muted: '#A7B1BC',
-          dim: '#717D8A',
-          gold: '#F0B90B',
-          green: '#16C784',
-          red: '#EA3943',
-        },
-      },
-      fontFamily: {
-        plex: ['var(--font-plex-sans)', 'sans-serif'],
-        plexmono: ['var(--font-plex-mono)', 'monospace'],
       },
       borderRadius: {
         lg: 'var(--radius)',

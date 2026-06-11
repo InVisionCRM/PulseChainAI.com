@@ -1,8 +1,8 @@
 "use client";
 import { cn } from "@/lib/utils";
-import React, { useState, createContext, useContext, useEffect, useCallback } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { IconMenu2, IconX, IconSearch, IconSettings, IconDeviceGamepad2, IconHome, IconCode, IconCurrencyDollar, IconBook, IconHeart, IconMail, IconPhoneOutgoing, IconRocket, IconChevronRight } from "@tabler/icons-react";
+import React, { useState, useCallback } from "react";
+import { usePathname } from "next/navigation";
+import { IconX } from "@tabler/icons-react";
 import Image from "next/image";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -15,154 +15,76 @@ interface Links {
   icon: React.JSX.Element | React.ReactNode;
 }
 
-interface SidebarContextProps {
-  open: boolean;
-  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  animate: boolean;
-}
-
-const SidebarContext = createContext<SidebarContextProps | undefined>(
-  undefined
-);
-
-export const useSidebar = () => {
-  const context = useContext(SidebarContext);
-  if (!context) {
-    throw new Error("useSidebar must be used within a SidebarProvider");
-  }
-  return context;
-};
-
-export const SidebarProvider = ({
-  children,
-  open: openProp,
-  setOpen: setOpenProp,
-  animate = true,
-}: {
-  children: React.ReactNode;
-  open?: boolean;
-  setOpen?: React.Dispatch<React.SetStateAction<boolean>>;
-  animate?: boolean;
-}) => {
-  const [openState, setOpenState] = useState(true); // Start open on desktop
-
-  const open = openProp !== undefined ? openProp : openState;
-  const setOpen = setOpenProp !== undefined ? setOpenProp : setOpenState;
-
-  return (
-    <SidebarContext.Provider value={{ open, setOpen, animate: animate }}>
-      {children}
-    </SidebarContext.Provider>
-  );
-};
-
-export const Sidebar = ({
-  children,
-  open,
-  setOpen,
-  animate,
-}: {
-  children: React.ReactNode;
-  open?: boolean;
-  setOpen?: React.Dispatch<React.SetStateAction<boolean>>;
-  animate?: boolean;
-}) => {
-  return (
-    <SidebarProvider open={open} setOpen={setOpen} animate={animate}>
-      {children}
-    </SidebarProvider>
-  );
-};
-
-type MotionDivProps = React.ComponentProps<typeof motion.div>;
-
-export const SidebarBody = (props: MotionDivProps & { children?: React.ReactNode }) => {
-  const { children, ...rest } = props;
-  return (
-    <>
-      <DesktopSidebar {...rest}>{children}</DesktopSidebar>
-      <MobileSidebar {...(props as React.ComponentProps<"div">)} />
-    </>
-  );
-};
-
-export const DesktopSidebar = ({
+/**
+ * Static navigation column. Always visible on md+, sits in normal flow and
+ * pushes content — no rail, no overlay, no animation. Styled to match the
+ * portfolio/glass theme. Mobile navigation is handled by MobileBottomNav.
+ */
+export const SidebarBody = ({
   className,
   children,
-  ...props
-}: Omit<React.ComponentProps<typeof motion.div>, "children"> & { children?: React.ReactNode }) => {
-  const { open, setOpen } = useSidebar();
-
+}: {
+  className?: string;
+  children?: React.ReactNode;
+}) => {
   return (
-    <>
-      {/* Collapsed Sidebar - Always visible on desktop */}
-      <motion.div
-        className={cn(
-          "hidden md:flex h-full w-12 flex-col bg-gradient-to-br from-[#2C3E50] via-[#34495E] to-[#3B6978] border-r border-orange-500/40 relative z-50",
-          "before:absolute before:right-0 before:top-0 before:h-full before:w-[1px] before:bg-gradient-to-b before:from-transparent before:via-orange-500/30 before:to-transparent",
-          className
-        )}
-        onClick={() => setOpen(true)}
-        {...props}
-      >
-        <div className="flex flex-col h-full justify-center cursor-pointer">
-          {/* 3 Breathing Chevron Right Icons */}
-          <div className="flex flex-col items-center justify-center gap-3">
-            <IconChevronRight className="h-5 w-5 text-orange-500/70 breathe-1" />
-            <IconChevronRight className="h-5 w-5 text-orange-500/70 breathe-2" />
-            <IconChevronRight className="h-5 w-5 text-orange-500/70 breathe-3" />
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Expanded Sidebar - Slides in when open */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ x: "-100%", opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: "-100%", opacity: 0 }}
-            transition={{
-              duration: 0.3,
-              ease: "easeInOut",
-            }}
-            className={cn(
-              "fixed h-full w-[40vh] left-0 top-0 bg-gradient-to-br from-[#2C3E50] via-[#34495E] to-[#3B6978] border-r border-orange-500/10 p-4 z-[100] flex flex-col justify-between",
-              "before:absolute before:right-0 before:top-0 before:h-full before:w-[1px] before:bg-gradient-to-b before:from-transparent before:via-orange-500/30 before:to-transparent",
-              className
-            )}
-          >
-            <div className="flex flex-col h-full">
-              {/* Morbius Banner at top */}
-              <div className="absolute top-0 left-0 right-0 z-40">
-                <img
-                  src="/Morbiusbanner.png"
-                  alt="Morbius Banner"
-                  className="w-full h-auto object-cover max-h-24"
-                />
-              </div>
-
-              {/* Close button repositioned */}
-              <div
-                className="absolute top-2 right-2 z-50 text-white cursor-pointer"
-                onClick={() => setOpen(false)}
-              >
-                <IconX className="h-6 w-6" />
-              </div>
-
-              <div className="mt-14 overflow-y-auto scrollbar-hide flex-1 flex flex-col min-h-0">
-                {children}
-                <RichardHeartChat />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+    <aside
+      className={cn(
+        "hidden md:flex h-full w-[230px] shrink-0 flex-col",
+        "bg-white/5 backdrop-blur-xl border-r border-white/10",
+        className,
+      )}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/Morbiusbanner.png"
+        alt="Morbius Banner"
+        className="w-full h-auto object-cover max-h-24 shrink-0 border-b border-white/10"
+      />
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col px-2 pb-3">
+        {children}
+        <RichardHeartChat />
+      </div>
+    </aside>
   );
 };
 
-// Richard Heart Chat Component for Sidebar
+export const SidebarLink = ({
+  link,
+  className,
+  ...props
+}: {
+  link: Links;
+  className?: string;
+}) => {
+  const pathname = usePathname();
+  const active = !link.href.startsWith('http') && pathname === link.href;
+  return (
+    <a
+      href={link.href}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors",
+        active
+          ? "bg-white/10 text-orange-300"
+          : "text-white/80 hover:bg-white/5 hover:text-white",
+        className,
+      )}
+      {...props}
+    >
+      {link.icon}
+      <span
+        className={cn(
+          "text-xs md:text-sm whitespace-pre inline-block",
+          active ? "text-orange-300 font-medium" : "text-white",
+        )}
+      >
+        {link.label}
+      </span>
+    </a>
+  );
+};
+
+// Richard Heart Chat — collapsed button pinned to the column's bottom.
 const RichardHeartChat = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -257,9 +179,9 @@ const RichardHeartChat = () => {
     return (
       <button
         onClick={() => setIsExpanded(true)}
-        className="mt-auto mb-4 flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-purple-600/30 hover:bg-purple-600/40 border border-purple-500/30 transition-colors"
+        className="mt-auto mb-1 flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
       >
-        <div className="w-8 h-8 rounded-full border border-white/40 overflow-hidden flex-shrink-0">
+        <div className="w-8 h-8 rounded-full border border-white/30 overflow-hidden flex-shrink-0">
           <Image
             src="/RH.png"
             alt="Richard Heart"
@@ -275,10 +197,10 @@ const RichardHeartChat = () => {
   }
 
   return (
-    <div className="mt-auto mb-4 flex flex-col bg-purple-600/20 rounded-lg border border-purple-500/30 p-4 max-h-[400px]">
+    <div className="mt-auto mb-1 flex flex-col bg-white/5 rounded-lg border border-white/10 p-4 max-h-[400px]">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full border border-white/40 overflow-hidden flex-shrink-0">
+          <div className="w-8 h-8 rounded-full border border-white/30 overflow-hidden flex-shrink-0">
             <Image
               src="/RH.png"
               alt="Richard Heart"
@@ -345,7 +267,7 @@ const RichardHeartChat = () => {
             }
           }}
           placeholder="Type your message..."
-          className="w-full h-9 rounded-lg bg-white/5 border border-white/15 px-3 pr-10 text-xs text-white placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+          className="w-full h-9 rounded-lg bg-black/40 border border-white/15 px-3 pr-10 text-xs text-white placeholder-white/50 focus:outline-none focus:border-orange-500/60"
           disabled={isSending}
         />
         <button
@@ -354,122 +276,11 @@ const RichardHeartChat = () => {
             setInput('');
           }}
           disabled={!input.trim() || isSending}
-          className="absolute right-1 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center text-xs transition"
+          className="absolute right-1 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-orange-600 hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center text-xs transition"
         >
           →
         </button>
       </div>
     </div>
-  );
-};
-
-const Logo = () => {
-  return (
-    <div className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal">
-      <img 
-        src="/MobiusLogoClean.png" 
-        alt="Mobius Logo" 
-        className="h-6 w-6 shrink-0 object-contain"
-      />
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="font-medium whitespace-pre text-white"
-      >
-        Morbius.io
-      </motion.span>
-    </div>
-  );
-};
-
-const LogoIcon = () => {
-  return (
-    <div className="relative z-20 flex items-center justify-center py-0">
-      <img 
-        src="/MobiusLogoClean.png" 
-        alt="Mobius Logo" 
-        className="h-10 w-10 shrink-0 object-contain"
-      />
-    </div>
-  );
-};
-
-export const MobileSidebar = ({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<"div">) => {
-  const { open, setOpen } = useSidebar();
-
-  return (
-    <>
-      
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ x: "-100%", opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: "-100%", opacity: 0 }}
-            transition={{
-              duration: 0.3,
-              ease: "easeInOut",
-            }}
-            className={cn(
-              "fixed h-full w-[40vh] left-0 top-0 bg-gradient-to-br from-[#2C3E50] via-[#34495E] to-[#3B6978] border-r border-orange-500/10 p-4 z-[100] flex flex-col justify-between",
-              "before:absolute before:right-0 before:top-0 before:h-full before:w-[1px] before:bg-gradient-to-b before:from-transparent before:via-orange-500/30 before:to-transparent",
-              className
-            )}
-          >
-            <div className="flex flex-col justify-between h-full">
-              {/* Morbius Banner at top */}
-              <div className="absolute top-0 left-0 right-0 z-40">
-                <img
-                  src="/Morbiusbanner.png"
-                  alt="Morbius Banner"
-                  className="w-full h-auto object-cover max-h-24"
-                />
-              </div>
-
-              {/* Close button repositioned */}
-              <div
-                className="absolute top-2 right-2 z-50 text-white cursor-pointer"
-                onClick={() => setOpen(false)}
-              >
-                <IconX className="h-6 w-6" />
-              </div>
-
-              <div className="mt-14 overflow-y-auto scrollbar-hide">
-                {children}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
-};
-
-export const SidebarLink = ({
-  link,
-  className,
-  ...props
-}: {
-  link: Links;
-  className?: string;
-}) => {
-  return (
-    <a
-      href={link.href}
-      className={cn(
-        "flex items-center py-2 justify-start justify-center gap-2",
-        className
-      )}
-      {...props}
-    >
-      {link.icon}
-      <span className="text-white text-xs md:text-sm whitespace-pre inline-block">
-        {link.label}
-      </span>
-    </a>
   );
 };
