@@ -342,10 +342,14 @@ export async function chainStats(): Promise<{ vol24: number; txns24: number; pai
 }
 
 export async function listDexes(): Promise<DexInfo[]> {
+  // DexScreener falls back to the raw factory address (or 'unknown') as the
+  // dexId for unindexed forks — those never become filter chips. Their pairs
+  // still appear under "All DEXes".
   const rows = (await sql().query(
     `SELECT dex_id, count(*)::int AS pairs
      FROM screener_pairs
      WHERE listed AND dex_id IS NOT NULL AND liquidity_usd >= ${LIQ_FLOOR}
+       AND dex_id !~* '^0x[0-9a-f]{40}$' AND dex_id <> 'unknown'
      GROUP BY dex_id
      ORDER BY sum(vol_h24) DESC NULLS LAST
      LIMIT 20`,

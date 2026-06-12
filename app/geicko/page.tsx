@@ -1484,11 +1484,10 @@ function GeickoPageContent() {
 
   return (
     <>
-      <div className="min-h-screen bg-slate-900 text-white font-sans px-2 md:px-3 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-[#0C2340] via-[#0d2a4d] to-[#0C2340] text-white font-sans px-2 md:px-3 relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute top-24 left-16 h-64 w-64 bg-gradient-to-br from-blue-700/30 via-cyan-500/10 to-transparent blur-3xl" />
-          <div className="absolute top-10 right-0 h-72 w-72 bg-gradient-to-bl from-purple-700/25 via-fuchsia-500/10 to-transparent blur-3xl" />
-          <div className="absolute bottom-24 left-1/3 h-56 w-56 bg-gradient-to-tr from-emerald-600/20 via-teal-500/10 to-transparent blur-3xl" />
+          <div className="absolute top-24 left-16 h-72 w-72 bg-gradient-to-br from-[#0d2a4d] via-[#0C2340]/40 to-transparent blur-3xl" />
+          <div className="absolute bottom-24 right-1/4 h-64 w-64 bg-gradient-to-tr from-brand-orange/10 via-transparent to-transparent blur-3xl" />
         </div>
       {/* Header Section */}
 
@@ -1525,7 +1524,7 @@ function GeickoPageContent() {
                       href="https://pump.tires"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold shadow-lg border border-amber-300/50 hover:from-orange-400 hover:to-amber-400 transition-all"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 backdrop-blur border border-white/15 text-white text-xs font-semibold tracking-wide hover:bg-white/15 hover:border-white/25 transition-all"
                     >
                       <span aria-hidden>🛞</span>
                       <span>Pump.Tires</span>
@@ -1670,6 +1669,71 @@ function GeickoPageContent() {
                     </div>
                   </div>
                 )}
+                {/* Creator */}
+                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
+                  <div className="flex flex-col space-y-1 items-center">
+                    <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Creator</span>
+                    <div className="flex items-center justify-center gap-1">
+                      {ownershipData.creatorAddress ? (
+                        <>
+                          <a
+                            href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${ownershipData.creatorAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300 font-mono text-xs"
+                            title={ownershipData.creatorAddress}
+                          >
+                            {ownershipData.creatorAddress.slice(0, 6)}...{ownershipData.creatorAddress.slice(-4)}
+                          </a>
+                          <button
+                            onClick={() => handleCopyAddress(ownershipData.creatorAddress!)}
+                            className="flex items-center justify-center w-5 h-5 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                            aria-label="Copy creator address"
+                            title="Copy creator address"
+                          >
+                            <Copy className="w-3 h-3 text-blue-400" />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-xs text-white font-semibold">—</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ownership Status */}
+                <div className="relative h-16 bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
+                  <div className="absolute left-1/2 -translate-x-1/2 top-2 text-xs text-gray-400 font-medium uppercase tracking-wider">Ownership</div>
+                  {ownershipData.isLoading ? (
+                    <div className="text-center text-gray-500 text-sm">Loading...</div>
+                  ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
+                    <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-center">
+                      <div className="text-xs text-green-400 font-semibold">Renounced</div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="absolute top-6 right-1/2 translate-x-1/2 text-center">
+                      <div className="text-xs text-yellow-400 font-semibold">Owner</div>
+                      {(() => {
+                        const addr = ownershipData.ownerAddress || ownershipData.creatorAddress;
+                        return addr ? (
+                          <a
+                            href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${addr}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
+                            title={addr}
+                          >
+                            0x...{addr.slice(-6)}
+                          </a>
+                        ) : null;
+                      })()}
+                    </div>
+                  )}
+                </div>
+
                 {/* Decimals */}
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                   <div className="flex items-center justify-between">
@@ -1860,71 +1924,6 @@ function GeickoPageContent() {
 
               {/* Right Column */}
               <div className="space-y-0.5">
-                {/* Creator */}
-                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                  <div className="flex flex-col space-y-1 items-center">
-                    <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Creator</span>
-                    <div className="flex items-center justify-center gap-1">
-                      {ownershipData.creatorAddress ? (
-                        <>
-                          <a
-                            href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${ownershipData.creatorAddress}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-400 hover:text-blue-300 font-mono text-xs"
-                            title={ownershipData.creatorAddress}
-                          >
-                            {ownershipData.creatorAddress.slice(0, 6)}...{ownershipData.creatorAddress.slice(-4)}
-                          </a>
-                          <button
-                            onClick={() => handleCopyAddress(ownershipData.creatorAddress!)}
-                            className="flex items-center justify-center w-5 h-5 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-                            aria-label="Copy creator address"
-                            title="Copy creator address"
-                          >
-                            <Copy className="w-3 h-3 text-blue-400" />
-                          </button>
-                        </>
-                      ) : (
-                        <span className="text-xs text-white font-semibold">—</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Ownership Status */}
-                <div className="relative h-16 bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                  <div className="absolute left-1/2 -translate-x-1/2 top-2 text-xs text-gray-400 font-medium uppercase tracking-wider">Ownership</div>
-                  {ownershipData.isLoading ? (
-                    <div className="text-center text-gray-500 text-sm">Loading...</div>
-                  ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
-                    <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-center">
-                      <div className="text-xs text-green-400 font-semibold">Renounced</div>
-                      <div className="text-xs text-gray-400 mt-0.5">
-                        {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="absolute top-6 right-1/2 translate-x-1/2 text-center">
-                      <div className="text-xs text-yellow-400 font-semibold">Owner</div>
-                      {(() => {
-                        const addr = ownershipData.ownerAddress || ownershipData.creatorAddress;
-                        return addr ? (
-                          <a
-                            href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${addr}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
-                            title={addr}
-                          >
-                            0x...{addr.slice(-6)}
-                          </a>
-                        ) : null;
-                      })()}
-                    </div>
-                  )}
-                </div>
-
                 {/* Liquidity */}
                 <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
                   <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
@@ -2033,9 +2032,9 @@ function GeickoPageContent() {
       <MobileSearchBar />
 
       {/* Main Content */}
-      <div className="flex flex-col md:flex-row items-start pt-4">
+      <div className="flex flex-col md:flex-row md:items-stretch md:h-[calc(100vh-100px)] md:min-h-[760px] pt-4">
         {/* Left Panel - Chart Section */}
-        <div className="w-full md:flex-[3] min-w-0 bg-slate-850">
+        <div className="w-full md:flex-[3] min-w-0 bg-slate-850 flex flex-col md:h-full md:min-h-0">
           {/* Desktop Search Bar - Above left panel only */}
           <div className="hidden md:block mb-2 px-2">
             <DesktopSearchBar />
@@ -2050,8 +2049,8 @@ function GeickoPageContent() {
           />
 
           {/* Content Tables */}
-          <div className="px-2 md:px-3 py-1 min-w-0">
-          <div className="bg-gray-900 rounded-t-none border-t-0 border border-gray-800 w-full min-w-0 relative z-20 overflow-x-auto rounded-lg">
+          <div className="px-2 md:px-3 py-1 min-w-0 flex-1 min-h-0 flex flex-col">
+          <div className="bg-gray-900 rounded-t-none border-t-0 border border-gray-800 w-full min-w-0 relative z-20 overflow-auto rounded-lg flex-1 min-h-0">
               {/* GOLD Tab */}
               {activeTab === 'gold' && isGoldToken && (
                 <div className="min-h-[360px] p-4 md:p-6 border border-amber-500/30 bg-gradient-to-b from-amber-950/20 to-transparent rounded-b-lg">
@@ -2123,7 +2122,7 @@ function GeickoPageContent() {
 
               {/* Chart Tab */}
               {activeTab === 'chart' && (
-                <div className="min-h-[420px] flex flex-col">
+                <div className="h-full min-h-[420px] flex flex-col">
                   {isLoadingData ? (
                     <div className="flex-1 flex items-center justify-center">
                       <div className="text-center">
@@ -2145,7 +2144,7 @@ function GeickoPageContent() {
 
               {/* Swap Tab */}
               {activeTab === 'switch' && (
-                <div data-switch-tab className="min-h-[600px] w-full">
+                <div data-switch-tab className="h-full min-h-[600px] w-full">
                   <GeickoSwapTab />
                 </div>
               )}
@@ -2170,8 +2169,8 @@ function GeickoPageContent() {
                 <div className="w-full p-4">
                   <div className="relative">
                     <div className="absolute -top-2 -right-2">
-                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                        BETA
+                      <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase bg-brand-orange/15 text-brand-orange border border-brand-orange/30">
+                        Beta
                       </span>
                     </div>
                     <ContractAuditPanel
@@ -2421,7 +2420,7 @@ function GeickoPageContent() {
         </div>
 
         {/* Right Panel - Token Info */}
-        <div className="w-full md:flex-[1.4] min-w-0 bg-gray-900 md:border-l border-gray-800 mt-2 md:mt-0 overflow-hidden">
+        <div className="w-full md:flex-[1.4] min-w-0 bg-gray-900 md:border-l border-gray-800 mt-2 md:mt-0 md:h-full md:min-h-0 md:overflow-y-auto md:pt-3">
           {/* Token Header - Hidden on mobile, shown on desktop */}
           <div className="hidden md:block px-0 mb-1">
             {isLoadingData ? (
@@ -2475,12 +2474,12 @@ function GeickoPageContent() {
                   </div>
                 </div>
               </div>
-                  <div className="relative h-40 border-b border-gray-800/70 bg-gradient-to-r from-gray-900 via-gray-800 to-black">
+                  <div className="relative h-44 border-b border-gray-800/70 bg-gradient-to-r from-gray-900 via-gray-800 to-black">
                     {headerImageUrl ? (
                       <img
                         src={headerImageUrl}
                         alt={`${tokenNameDisplay} header`}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover object-top"
                         data-fallback="false"
                         onError={(e) => {
                           if (e.currentTarget.dataset.fallback === 'true') return;
@@ -2498,7 +2497,7 @@ function GeickoPageContent() {
                           href="https://pump.tires"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold shadow-lg border border-amber-300/50 hover:from-orange-400 hover:to-amber-400 transition-all"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 backdrop-blur border border-white/15 text-white text-xs font-semibold tracking-wide hover:bg-white/15 hover:border-white/25 transition-all"
                         >
                           <span aria-hidden>🛞</span>
                           <span>Pump.Tires</span>
@@ -2604,6 +2603,71 @@ function GeickoPageContent() {
                           </div>
                         </div>
                       )}
+                      {/* Creator */}
+                      <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
+                        <div className="flex flex-col space-y-1 items-center">
+                          <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Creator</span>
+                          <div className="flex items-center justify-center gap-1">
+                            {ownershipData.creatorAddress ? (
+                              <>
+                                <a
+                                  href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${ownershipData.creatorAddress}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:text-blue-300 font-mono text-xs"
+                                  title={ownershipData.creatorAddress}
+                                >
+                                  {ownershipData.creatorAddress.slice(0, 6)}...{ownershipData.creatorAddress.slice(-4)}
+                                </a>
+                                <button
+                                  onClick={() => handleCopyAddress(ownershipData.creatorAddress!)}
+                                  className="flex items-center justify-center w-5 h-5 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                                  aria-label="Copy creator address"
+                                  title="Copy creator address"
+                                >
+                                  <Copy className="w-3 h-3 text-blue-400" />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-xs text-white font-semibold">—</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Ownership Status */}
+                      <div className="relative h-16 bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
+                        <div className="absolute left-1/2 -translate-x-1/2 top-2 text-xs text-gray-400 font-medium uppercase tracking-wider">Ownership</div>
+                        {ownershipData.isLoading ? (
+                          <div className="text-center text-gray-500 text-sm">Loading...</div>
+                        ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
+                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-center">
+                            <div className="text-xs text-green-400 font-semibold">Renounced</div>
+                            <div className="text-xs text-gray-400 mt-0.5">
+                              {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="absolute top-6 right-1/2 translate-x-1/2 text-center">
+                            <div className="text-xs text-yellow-400 font-semibold">Owner</div>
+                            {(() => {
+                              const addr = ownershipData.ownerAddress || ownershipData.creatorAddress;
+                              return addr ? (
+                                <a
+                                  href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${addr}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
+                                  title={addr}
+                                >
+                                  0x...{addr.slice(-6)}
+                                </a>
+                              ) : null;
+                            })()}
+                          </div>
+                        )}
+                      </div>
+
                       {/* Decimals */}
                       <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                         <div className="flex items-center justify-between">
@@ -2790,101 +2854,10 @@ function GeickoPageContent() {
                           </div>
                         )}
                       </div>
-
-                      {/* Burned Tokens */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
-                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
-                        {isLoadingMetrics ? (
-                          <Skeleton className="h-6 w-16" />
-                        ) : burnedTokens ? (
-                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>{burnedTokens.amount.toLocaleString()}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                        ) : (
-                          <div className="text-center text-base text-white font-semibold">—</div>
-                        )}
-                        {burnedTokens && !isLoadingMetrics && (
-                          <div className="absolute top-4 right-2 flex items-center justify-center w-8 h-8 rounded-full border-2 border-green-400">
-                            <span className="text-[8px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
-                          </div>
-                        )}
-                      </div>
                     </div>
 
                     {/* Right Column */}
                     <div className="space-y-0.5">
-                      {/* Creator */}
-                      <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                        <div className="flex flex-col space-y-1 items-center">
-                          <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Creator</span>
-                          <div className="flex items-center justify-center gap-1">
-                            {ownershipData.creatorAddress ? (
-                              <>
-                                <a
-                                  href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${ownershipData.creatorAddress}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-400 hover:text-blue-300 font-mono text-xs"
-                                  title={ownershipData.creatorAddress}
-                                >
-                                  {ownershipData.creatorAddress.slice(0, 6)}...{ownershipData.creatorAddress.slice(-4)}
-                                </a>
-                                <button
-                                  onClick={() => handleCopyAddress(ownershipData.creatorAddress!)}
-                                  className="flex items-center justify-center w-5 h-5 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-                                  aria-label="Copy creator address"
-                                  title="Copy creator address"
-                                >
-                                  <Copy className="w-3 h-3 text-blue-400" />
-                                </button>
-                              </>
-                            ) : (
-                              <span className="text-xs text-white font-semibold">—</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Ownership Status */}
-                      <div className="relative h-16 bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                        <div className="absolute left-1/2 -translate-x-1/2 top-2 text-xs text-gray-400 font-medium uppercase tracking-wider">Ownership</div>
-                        {ownershipData.isLoading ? (
-                          <div className="text-center text-gray-500 text-sm">Loading...</div>
-                        ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
-                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-center">
-                            <div className="text-xs text-green-400 font-semibold">Renounced</div>
-                            <div className="text-xs text-gray-400 mt-0.5">
-                              {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="absolute top-6 right-1/2 translate-x-1/2 text-center">
-                            <div className="text-xs text-yellow-400 font-semibold">Owner</div>
-                            {(() => {
-                              const addr = ownershipData.ownerAddress || ownershipData.creatorAddress;
-                              return addr ? (
-                                <a
-                                  href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${addr}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
-                                  title={addr}
-                                >
-                                  0x...{addr.slice(-6)}
-                                </a>
-                              ) : null;
-                            })()}
-                          </div>
-                        )}
-                      </div>
-
                       {/* Price in WPLS */}
                       <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
                         <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-gray-400 font-medium uppercase tracking-wider">Price (WPLS)</div>
@@ -3026,6 +2999,32 @@ function GeickoPageContent() {
                         {totalLiquidity.pairCount > 0 && (
                           <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-xs text-green-400 font-medium">
                             {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Burned Tokens */}
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
+                        {isLoadingMetrics ? (
+                          <Skeleton className="h-6 w-16" />
+                        ) : burnedTokens ? (
+                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{burnedTokens.amount.toLocaleString()}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        ) : (
+                          <div className="text-center text-base text-white font-semibold">—</div>
+                        )}
+                        {burnedTokens && !isLoadingMetrics && (
+                          <div className="absolute top-4 right-2 flex items-center justify-center w-8 h-8 rounded-full border-2 border-green-400">
+                            <span className="text-[8px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
                           </div>
                         )}
                       </div>
