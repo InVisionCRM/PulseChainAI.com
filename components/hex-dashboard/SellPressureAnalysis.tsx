@@ -343,7 +343,7 @@ export default function SellPressureAnalysis({
                           <a
                             href={network === 'ethereum' 
                               ? `https://etherscan.io/tx/${stake.transactionHash}`
-                              : `https://scan.pulsechain.com/tx/${stake.transactionHash}`
+                              : `https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${stake.transactionHash}`
                             }
                             target="_blank"
                             rel="noopener noreferrer"

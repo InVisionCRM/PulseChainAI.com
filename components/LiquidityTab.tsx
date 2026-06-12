@@ -679,7 +679,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                                   {event.from ? `${event.from.slice(0, 8)}...${event.from.slice(-6)}` : 'Unknown'}
                                 </code>
                                 <a
-                                  href={`https://scan.pulsechain.com/tx/${event.txHash}`}
+                                  href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${event.txHash}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-orange-400/80 hover:text-orange-300"
@@ -717,7 +717,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   </a>
 
                   <a
-                    href={`https://scan.pulsechain.com/address/${pair.pairAddress}`}
+                    href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${pair.pairAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex-1 text-center bg-white/5 border border-white/10 text-white/80 px-2 py-1.5 text-xs font-semibold rounded-md hover:bg-white/10 hover:text-white transition-colors"

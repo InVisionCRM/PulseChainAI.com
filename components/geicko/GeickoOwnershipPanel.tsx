@@ -46,7 +46,7 @@ export default function GeickoOwnershipPanel({
             const ownerOrCreator = ownershipData.ownerAddress || ownershipData.creatorAddress;
             return ownerOrCreator ? (
               <a
-                href={`https://scan.pulsechain.com/address/${ownerOrCreator}`}
+                href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${ownerOrCreator}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"

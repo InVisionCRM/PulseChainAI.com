@@ -30,18 +30,34 @@ const PROMOTIONAL_RX =
   /\b(visit|claim|reward|airdrop|bonus|free|gift|winners?|prize)\b/i;
 const URL_LIKE_RX = /https?:|www\.|\.com|\.io|\.org|\.net|\.xyz|\.app/i;
 
-export function looksLikeSpam(token: PortfolioToken): boolean {
-  if (token.isNative) return false;
-  const hasPrice = token.priceUsd != null;
-  const hasLogo = !!token.logoURI;
-  if (hasPrice || hasLogo) return false;
-  const name = token.name || '';
-  const symbol = token.symbol || '';
+// Raw promo/spam predicate, decoupled from PortfolioToken so server code
+// (e.g. the history route) can flag scam *flows* without building a full
+// token. Spammy only when it has neither price nor logo AND the name/symbol
+// matches a promotional or URL-like pattern.
+export function looksLikeSpamRaw(args: {
+  name?: string;
+  symbol?: string;
+  hasPrice: boolean;
+  hasLogo: boolean;
+}): boolean {
+  if (args.hasPrice || args.hasLogo) return false;
+  const name = args.name || '';
+  const symbol = args.symbol || '';
   return (
     PROMOTIONAL_RX.test(name) ||
     URL_LIKE_RX.test(name) ||
     URL_LIKE_RX.test(symbol)
   );
+}
+
+export function looksLikeSpam(token: PortfolioToken): boolean {
+  if (token.isNative) return false;
+  return looksLikeSpamRaw({
+    name: token.name,
+    symbol: token.symbol,
+    hasPrice: token.priceUsd != null,
+    hasLogo: !!token.logoURI,
+  });
 }
 
 export function isDust(
