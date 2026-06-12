@@ -363,37 +363,36 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
   }
 
   return (
-    <div className="h-full overflow-y-auto space-y-2 p-2 text-white font-sans" style={{ fontFamily: 'Poppins, sans-serif' }}>
+    <div className="h-full overflow-y-auto space-y-2 p-2 text-white font-sans">
       {/* Overview Banner */}
-      <div className="rounded-lg bg-gradient-to-b from-brand-navy to-slate-900 via-slate-800  border border-white/30 backdrop-blur p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+      <div className="rounded-2xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div>
-            <p className="text-sm uppercase tracking-wider text-brand-orange font-medium">Liquidity Intelligence</p>
-            <h3 className="text-sm font-semibold text-white"></h3>
+            <p className="text-xs uppercase tracking-wider text-orange-400/80 font-semibold">Liquidity Intelligence</p>
           </div>
           <div className="flex flex-wrap gap-1.5 text-sm">
-            <span className="px-2 py-0.5 rounded bg-gray-900 border border-emerald-500/25 text-green-400 font-poppins">
+            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-semibold">
               {activePairs.length} Live
             </span>
             {zeroLiquidityPairs.length > 0 && (
-              <span className="px-2 py-0.5 rounded bg-brand-navy border border-brand-orange/40 text-white font-poppins">
+              <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/60 text-xs font-semibold">
                 {zeroLiquidityPairs.length} Inactive
               </span>
             )}
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <div className="bg-gray-900 backdrop-blur rounded border border-brand-orange/40 p-2 text-center">
-            <div className="text-sm text-white font-semibold mb-0.5">Total Liquidity</div>
-            <div className="text-sm font-bold text-green-500">{formatNumber(totalLiquidity)}</div>
+          <div className="bg-white/[0.03] rounded-lg border border-white/10 p-2.5 text-center">
+            <div className="text-[11px] text-white/50 font-medium uppercase tracking-wider mb-1">Total Liquidity</div>
+            <div className="text-sm font-bold text-white tabular-nums">{formatNumber(totalLiquidity)}</div>
           </div>
-          <div className="bg-gray-900 backdrop-blur rounded border border-brand-orange/40 p-2 text-center">
-            <div className="text-sm text-white font-semibold mb-0.5">24h Volume</div>
-            <div className="text-sm font-bold text-green-500">{formatNumber(totalVolume)}</div>
+          <div className="bg-white/[0.03] rounded-lg border border-white/10 p-2.5 text-center">
+            <div className="text-[11px] text-white/50 font-medium uppercase tracking-wider mb-1">24h Volume</div>
+            <div className="text-sm font-bold text-white tabular-nums">{formatNumber(totalVolume)}</div>
           </div>
-          <div className="bg-gray-900 backdrop-blur rounded border border-brand-orange/40 p-2 text-center">
-            <div className="text-sm text-white font-semibold mb-0.5">24h Txns</div>
-            <div className="text-sm font-bold text-green-500">{totalTransactions.toLocaleString()}</div>
+          <div className="bg-white/[0.03] rounded-lg border border-white/10 p-2.5 text-center">
+            <div className="text-[11px] text-white/50 font-medium uppercase tracking-wider mb-1">24h Txns</div>
+            <div className="text-sm font-bold text-white tabular-nums">{totalTransactions.toLocaleString()}</div>
           </div>
         </div>
       </div>
@@ -401,14 +400,14 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
       {/* All Pairs List */}
       <div className="space-y-1.5">
-        <div className="flex justify-center py-1 px-2 bg-gray-900 border-2 border-brand-orange/50">
-          <h4 className="text-sm font-semibold text-white uppercase tracking-wide">Trading Pairs</h4>
-          <div className="text-sm text-slate-400 pl-3 font-medium">{activePairs.length} Active</div>
+        <div className="flex items-center justify-center py-2 px-3 bg-white/[0.03] rounded-lg border border-white/10">
+          <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Trading Pairs</h4>
+          <div className="text-xs text-white/50 pl-3 font-medium">{activePairs.length} Active</div>
         </div>
         {activePairs.map((pair) => (
           <div
             key={pair.pairAddress}
-            className="bg-brand-navy border border-brand-orange/50 rounded-lg overflow-hidden hover:bg-slate-800/50 hover:border-slate-600/50 transition-all"
+            className="bg-white/[0.03] border border-white/10 rounded-xl overflow-hidden hover:bg-white/[0.05] hover:border-white/20 transition-all"
           >
             {/* Collapsed View */}
             <button
@@ -418,21 +417,21 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
               aria-expanded={expandedPairs.has(pair.pairAddress)}
             >
               {/* Header with subtle background */}
-              <div className="bg-gradient-to-r from-brand-navy to-slate-900 border-b border-slate-700/30 px-3 py-2 rounded-t-lg group-hover:from-slate-800/70 group-hover:to-slate-900/50 transition-all duration-200">
+              <div className="border-b border-white/[0.06] px-3 py-2 rounded-t-xl group-hover:bg-white/[0.03] transition-all duration-200">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className={`border px-1.5 py-0.5 rounded text-xs font-semibold ${
+                    <div className={`border px-1.5 py-0.5 rounded-md text-xs font-semibold ${
                       pair.dexId.toLowerCase() === 'pulsex'
-                        ? 'border-blue-500/25 text-blue-300'
-                        : 'border-red-500/25 text-red-400'
+                        ? 'border-white/15 bg-white/5 text-white/80'
+                        : 'border-rose-400/30 bg-rose-500/5 text-rose-300'
                     }`}>
                       {pair.dexId}
                     </div>
-                    <div className="text-md font-bold truncate">
-                      <span className={pair.dexId.toLowerCase() !== 'pulsex' ? 'text-red-400' : 'text-white'}>
+                    <div className="text-sm font-semibold truncate">
+                      <span className={pair.dexId.toLowerCase() !== 'pulsex' ? 'text-rose-300' : 'text-white'}>
                         {pair.baseToken.symbol} /
                       </span>
-                      <span className="text-green-500 font-bold"> {pair.quoteToken.symbol}</span>
+                      <span className="text-white/80 font-semibold"> {pair.quoteToken.symbol}</span>
                     </div>
                     {/* Price difference indicator */}
                     {(() => {
@@ -440,10 +439,10 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                       if (priceDiff === null) return null;
                       const isPositive = priceDiff >= 0;
                       return (
-                        <div className={`flex items-center gap-1 rounded px-1.5 py-1 text-sm font-semibold ${
+                        <div className={`flex items-center gap-1 rounded px-1.5 py-1 text-xs font-semibold tabular-nums ${
                           isPositive
-                            ? 'text-green-500'
-                            : 'text-rose-400'
+                            ? 'text-emerald-300'
+                            : 'text-rose-300'
                         }`}>
                           {isPositive ? '↑' : '↓'}
                           {Math.abs(priceDiff).toFixed(2)}%
@@ -454,7 +453,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
                   <div className="flex items-center">
                     {/* View More button on the right */}
-                    <div className="flex items-center gap-1 px-2 py-1 text-xs font-semibold text-white bg-brand-orange border border-brand-orange/20 rounded md:px-3 md:py-1.5 md:text-sm">
+                    <div className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-white bg-white/10 hover:bg-white/15 border border-white/15 rounded-md transition-colors md:px-3 md:py-1.5">
                       {expandedPairs.has(pair.pairAddress) ? 'View Less' : 'View More'}
                     </div>
                   </div>
@@ -462,24 +461,24 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
               </div>
 
-              <div className="grid grid-cols-3 gap-1.5">
-                <div className="bg-gradient-to-b from-brand-navy to-slate-900 border border-slate-700/40 rounded px-2 py-2 flex flex-col items-center justify-center text-center">
-                  <div className="text-sm text-slate-400 font-medium mb-1">Price</div>
-                  <div className={`font-semibold text-sm ${
-                    pair.dexId.toLowerCase() !== 'pulsex' ? 'text-red-400' : 'text-white'
+              <div className="grid grid-cols-3 gap-1.5 p-2">
+                <div className="bg-white/[0.03] border border-white/10 rounded-lg px-2 py-2 flex flex-col items-center justify-center text-center">
+                  <div className="text-[11px] text-white/50 font-medium uppercase tracking-wider mb-1">Price</div>
+                  <div className={`font-semibold text-sm tabular-nums ${
+                    pair.dexId.toLowerCase() !== 'pulsex' ? 'text-rose-300' : 'text-white'
                   }`}>
                     {pair.priceUsd && Number(pair.priceUsd) > 0 ? `$${Number(pair.priceUsd).toFixed(6)}` : 'N/A'}
                   </div>
                 </div>
-                <div className="bg-gradient-to-b from-brand-navy to-slate-900 border border-slate-700/40 rounded px-2 py-2 flex flex-col items-center justify-center text-center">
-                  <div className="text-sm text-slate-400 font-medium mb-1">Liquidity</div>
-                  <div className="font-semibold text-white text-sm">
+                <div className="bg-white/[0.03] border border-white/10 rounded-lg px-2 py-2 flex flex-col items-center justify-center text-center">
+                  <div className="text-[11px] text-white/50 font-medium uppercase tracking-wider mb-1">Liquidity</div>
+                  <div className="font-semibold text-white text-sm tabular-nums">
                     {formatNumber(pair.liquidity?.usd || 0)}
                   </div>
                 </div>
-                <div className="bg-gradient-to-b from-brand-navy to-slate-900 border border-slate-700/40 rounded px-2 py-2 flex flex-col items-center justify-center text-center">
-                  <div className="text-sm text-slate-400 font-medium mb-1">24h Vol</div>
-                  <div className="font-semibold text-white text-sm">
+                <div className="bg-white/[0.03] border border-white/10 rounded-lg px-2 py-2 flex flex-col items-center justify-center text-center">
+                  <div className="text-[11px] text-white/50 font-medium uppercase tracking-wider mb-1">24h Vol</div>
+                  <div className="font-semibold text-white text-sm tabular-nums">
                     {formatNumber(pair.volume?.h24 || 0)}
                   </div>
                 </div>
@@ -488,17 +487,17 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
             {/* Expanded View */}
             {expandedPairs.has(pair.pairAddress) && (
-              <div className="border-t border-slate-700/50 p-2.5 space-y-2 bg-slate-900/20">
+              <div className="border-t border-white/[0.06] p-2.5 space-y-2 bg-white/[0.015]">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
-                  <div className="bg-slate-900/40 border border-slate-700/40 rounded p-2">
-                    <div className="text-sm text-slate-400 font-medium mb-0.5">Price USD</div>
-                    <div className="text-sm font-bold text-white">
+                  <div className="bg-white/[0.03] border border-white/10 rounded-lg p-2">
+                    <div className="text-[11px] text-white/50 font-medium uppercase tracking-wider mb-1">Price USD</div>
+                    <div className="text-sm font-bold text-white tabular-nums">
                       ${parseFloat(pair.priceUsd || '0').toFixed(6)}
                     </div>
                   </div>
-                  <div className="bg-slate-900/40 border border-slate-700/40 rounded p-2">
-                    <div className="text-sm text-slate-400 font-medium mb-0.5">Price WPLS</div>
-                    <div className="text-sm font-bold text-white">
+                  <div className="bg-white/[0.03] border border-white/10 rounded-lg p-2">
+                    <div className="text-[11px] text-white/50 font-medium uppercase tracking-wider mb-1">Price WPLS</div>
+                    <div className="text-sm font-bold text-white tabular-nums">
                       {parseFloat(pair.priceNative || '0').toLocaleString('en-US', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
@@ -510,13 +509,13 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     if (priceDiff === null) {
                       return (
                         <>
-                          <div className="bg-slate-900/40 border border-slate-700/40 rounded p-2">
-                            <div className="text-sm text-slate-400 font-medium mb-0.5">FDV</div>
-                            <div className="text-sm font-bold text-white">{formatNumber((pair as any).fdv || 0)}</div>
+                          <div className="bg-white/[0.03] border border-white/10 rounded-lg p-2">
+                            <div className="text-[11px] text-white/50 font-medium uppercase tracking-wider mb-1">FDV</div>
+                            <div className="text-sm font-bold text-white tabular-nums">{formatNumber((pair as any).fdv || 0)}</div>
                           </div>
-                          <div className="bg-slate-900/40 border border-slate-700/40 rounded p-2">
-                            <div className="text-sm text-slate-400 font-medium mb-0.5">Market Cap</div>
-                            <div className="text-sm font-bold text-white">{formatNumber((pair as any).marketCap || 0)}</div>
+                          <div className="bg-white/[0.03] border border-white/10 rounded-lg p-2">
+                            <div className="text-[11px] text-white/50 font-medium uppercase tracking-wider mb-1">Market Cap</div>
+                            <div className="text-sm font-bold text-white tabular-nums">{formatNumber((pair as any).marketCap || 0)}</div>
                           </div>
                         </>
                       );
@@ -524,22 +523,22 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     const isPositive = priceDiff >= 0;
                     return (
                       <>
-                        <div className={`border rounded p-2 ${
+                        <div className={`border rounded-lg p-2 ${
                           isPositive
-                            ? 'bg-emerald-500/10 border-emerald-500/25'
-                            : 'bg-rose-500/10 border-rose-500/25'
+                            ? 'bg-emerald-500/[0.06] border-emerald-500/20'
+                            : 'bg-rose-500/[0.06] border-rose-500/20'
                         }`}>
-                          <div className="text-sm font-medium mb-0.5 text-slate-400">vs WPLS</div>
-                          <div className={`text-sm font-bold flex items-center gap-0.5 ${
+                          <div className="text-[11px] font-medium uppercase tracking-wider mb-1 text-white/50">vs WPLS</div>
+                          <div className={`text-sm font-bold flex items-center gap-0.5 tabular-nums ${
                             isPositive ? 'text-emerald-300' : 'text-rose-300'
                           }`}>
                             {isPositive ? '↑' : '↓'}
                             {Math.abs(priceDiff).toFixed(2)}%
                           </div>
                         </div>
-                        <div className="bg-slate-900/40 border border-slate-700/40 rounded p-2">
-                          <div className="text-sm text-slate-400 font-medium mb-0.5">Market Cap</div>
-                          <div className="text-sm font-bold text-white">{formatNumber((pair as any).marketCap || 0)}</div>
+                        <div className="bg-white/[0.03] border border-white/10 rounded-lg p-2">
+                          <div className="text-[11px] text-white/50 font-medium uppercase tracking-wider mb-1">Market Cap</div>
+                          <div className="text-sm font-bold text-white tabular-nums">{formatNumber((pair as any).marketCap || 0)}</div>
                         </div>
                       </>
                     );
@@ -547,15 +546,15 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                 </div>
 
                 <div className="grid grid-cols-2 gap-1.5">
-                  <div className="bg-blue-500/5 border border-blue-500/20 rounded p-2">
-                    <div className="text-sm text-blue-300/70 font-medium mb-0.5">{pair.baseToken.symbol} in Pool</div>
-                    <div className="text-sm font-bold text-white">
+                  <div className="bg-white/[0.03] border border-white/10 rounded-lg p-2">
+                    <div className="text-[11px] text-white/50 font-medium uppercase tracking-wider mb-1">{pair.baseToken.symbol} in Pool</div>
+                    <div className="text-sm font-bold text-white tabular-nums">
                       {formatTokenAmount(parseFloat(String(pair.liquidity?.base || '0')))}
                     </div>
                   </div>
-                  <div className="bg-purple-500/5 border border-purple-500/20 rounded p-2">
-                    <div className="text-sm text-purple-300/70 font-medium mb-0.5">{pair.quoteToken.symbol} in Pool</div>
-                    <div className="text-sm font-bold text-white">
+                  <div className="bg-white/[0.03] border border-white/10 rounded-lg p-2">
+                    <div className="text-[11px] text-white/50 font-medium uppercase tracking-wider mb-1">{pair.quoteToken.symbol} in Pool</div>
+                    <div className="text-sm font-bold text-white tabular-nums">
                       {formatTokenAmount(parseFloat(String(pair.liquidity?.quote || '0')))}
                     </div>
                   </div>
@@ -563,37 +562,37 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
                 {/* Liquidity Holders Section */}
                 <div className="space-y-1.5">
-                  <h5 className="text-sm font-semibold text-white uppercase tracking-wide">LP Holders</h5>
+                  <h5 className="text-[11px] font-semibold text-white/70 uppercase tracking-wider">LP Holders</h5>
 
                   {pairHoldersData[pair.pairAddress]?.isLoading && (
-                    <div className="flex items-center justify-center py-3 bg-slate-900/40 rounded border border-slate-700/40">
-                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-400 border-t-transparent"></div>
-                      <span className="ml-2 text-slate-400 text-sm">Loading holders...</span>
+                    <div className="flex items-center justify-center py-3 bg-white/[0.03] rounded-lg border border-white/10">
+                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-white/40 border-t-transparent"></div>
+                      <span className="ml-2 text-white/50 text-sm">Loading holders...</span>
                     </div>
                   )}
 
                   {pairHoldersData[pair.pairAddress]?.error && (
-                    <div className="bg-rose-500/10 border border-rose-500/25 text-rose-300 rounded px-2 py-1.5 text-sm">
+                    <div className="bg-rose-500/10 border border-rose-500/25 text-rose-300 rounded-lg px-2 py-1.5 text-sm">
                       Failed to load holders: {pairHoldersData[pair.pairAddress].error}
                     </div>
                   )}
 
                   {pairHoldersData[pair.pairAddress]?.holders && pairHoldersData[pair.pairAddress].holders.length > 0 && (
-                    <div className="bg-slate-900/40 border border-slate-700/40 rounded overflow-hidden">
-                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 px-2 py-1.5 bg-slate-800/50 border-b border-slate-700/40 text-sm font-semibold text-slate-400 uppercase tracking-wide">
+                    <div className="bg-white/[0.03] border border-white/10 rounded-lg overflow-hidden">
+                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 px-2 py-1.5 bg-white/[0.04] border-b border-white/10 text-[11px] font-semibold text-white/50 uppercase tracking-wider">
                         <div>Rank</div>
                         <div>Address</div>
                         <div>LP Tokens</div>
                         <div>% Pool</div>
                       </div>
 
-                      <div className="max-h-48 overflow-y-auto divide-y divide-slate-700/30">
+                      <div className="max-h-48 overflow-y-auto divide-y divide-white/[0.06]">
                         {pairHoldersData[pair.pairAddress].holders.map((holder, holderIndex) => (
                           <div
                             key={holder.address}
-                            className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 px-2 py-1.5 hover:bg-slate-800/50 transition-colors"
+                            className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 px-2 py-1.5 hover:bg-white/[0.04] transition-colors"
                           >
-                            <div className="text-slate-300 font-semibold text-sm flex items-center gap-1">
+                            <div className="text-white/80 font-semibold text-sm flex items-center gap-1">
                               #{holderIndex + 1}
                               {isBurnAddress(holder.address) && (
                                 <span className="text-sm" title="Burn address" aria-label="Burn address">🔥</span>
@@ -604,21 +603,21 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                                 e.stopPropagation();
                                 handleHolderClick(holder.address, pair);
                               }}
-                              className="font-mono text-blue-300 hover:text-blue-200 underline cursor-pointer text-left transition-colors text-sm font-medium"
+                              className="font-mono text-white/80 hover:text-white underline underline-offset-2 decoration-white/30 hover:decoration-white/60 cursor-pointer text-left transition-colors text-sm font-medium"
                             >
                               {formatLpAddress(holder.address)}
                             </button>
-                            <div className="text-white font-semibold text-sm">
+                            <div className="text-white font-semibold text-sm tabular-nums">
                               {formatHolderBalance(holder.value)}
                             </div>
                             <div className="text-right">
                               <div className="flex items-center gap-1 justify-end">
-                                <span className="font-semibold text-sm text-white">
+                                <span className="font-semibold text-sm text-white tabular-nums">
                                   {formatHolderPercentage(holder.percentage)}
                                 </span>
-                                <div className="w-12 h-1 bg-slate-700/50 rounded-full overflow-hidden">
+                                <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
                                   <div
-                                    className="h-full bg-gradient-to-r from-blue-400 to-purple-400"
+                                    className="h-full bg-brand-orange/70"
                                     style={{ width: `${Math.min(100, holder.percentage * 2)}%` }}
                                   />
                                 </div>
@@ -633,7 +632,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   {pairHoldersData[pair.pairAddress]?.holders &&
                     pairHoldersData[pair.pairAddress].holders.length === 0 &&
                     !pairHoldersData[pair.pairAddress].isLoading && (
-                      <div className="text-center text-slate-400 py-2 text-sm bg-slate-900/40 rounded border border-slate-700/40">
+                      <div className="text-center text-white/50 py-2 text-sm bg-white/[0.03] rounded-lg border border-white/10">
                         No holders data available
                       </div>
                   )}
@@ -641,17 +640,17 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
                 {/* Recent Liquidity Activity Section */}
                 <div className="space-y-1.5">
-                  <h5 className="text-sm font-semibold text-white uppercase tracking-wide">Recent Activity</h5>
+                  <h5 className="text-[11px] font-semibold text-white/70 uppercase tracking-wider">Recent Activity</h5>
 
                   {pairLiquidityEvents[pair.pairAddress]?.isLoading && (
-                    <div className="flex items-center justify-center py-3 bg-slate-900/40 rounded border border-slate-700/40">
-                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-purple-400 border-t-transparent"></div>
-                      <span className="ml-2 text-slate-400 text-sm">Loading activity...</span>
+                    <div className="flex items-center justify-center py-3 bg-white/[0.03] rounded-lg border border-white/10">
+                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-white/40 border-t-transparent"></div>
+                      <span className="ml-2 text-white/50 text-sm">Loading activity...</span>
                     </div>
                   )}
 
                   {pairLiquidityEvents[pair.pairAddress]?.error && (
-                    <div className="bg-rose-500/10 border border-rose-500/25 text-rose-300 rounded px-2 py-1.5 text-sm">
+                    <div className="bg-rose-500/10 border border-rose-500/25 text-rose-300 rounded-lg px-2 py-1.5 text-sm">
                       Failed to load activity: {pairLiquidityEvents[pair.pairAddress].error}
                     </div>
                   )}
@@ -661,7 +660,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                       {pairLiquidityEvents[pair.pairAddress].events.map((event, eventIndex) => (
                         <div
                           key={`${event.txHash}-${eventIndex}`}
-                          className="flex items-center justify-between p-1.5 border border-slate-700/40 bg-slate-900/40 rounded hover:bg-slate-800/50 transition-colors"
+                          className="flex items-center justify-between p-1.5 border border-white/10 bg-white/[0.03] rounded-lg hover:bg-white/[0.05] transition-colors"
                         >
                           <div className="flex items-center gap-1.5 flex-1">
                             <div className={`text-sm font-bold ${event.type === 'add' ? 'text-emerald-300' : 'text-rose-300'}`}>
@@ -669,21 +668,21 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center gap-1.5 mb-0.5">
-                                <span className={`font-semibold text-sm ${event.type === 'add' ? 'text-white' : 'text-slate-300'}`}>
+                                <span className={`font-semibold text-sm ${event.type === 'add' ? 'text-white' : 'text-white/70'}`}>
                                   {event.type === 'add' ? 'Added' : 'Removed'}
                                 </span>
-                                <span className="text-sm text-slate-400">{formatTimeAgo(event.timestamp)}</span>
+                                <span className="text-xs text-white/50">{formatTimeAgo(event.timestamp)}</span>
                               </div>
-                              <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                              <div className="flex items-center gap-1.5 text-xs text-white/40">
                                 <span>By</span>
-                                <code className="font-mono text-slate-400">
+                                <code className="font-mono text-white/60">
                                   {event.from ? `${event.from.slice(0, 8)}...${event.from.slice(-6)}` : 'Unknown'}
                                 </code>
                                 <a
                                   href={`https://scan.pulsechain.com/tx/${event.txHash}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-blue-300 hover:text-blue-200"
+                                  className="text-orange-400/80 hover:text-orange-300"
                                   title="View transaction"
                                   onClick={(e) => e.stopPropagation()}
                                 >
@@ -700,7 +699,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                   {pairLiquidityEvents[pair.pairAddress]?.events &&
                     pairLiquidityEvents[pair.pairAddress].events.length === 0 &&
                     !pairLiquidityEvents[pair.pairAddress].isLoading && (
-                      <div className="text-center text-slate-400 py-2 text-sm bg-slate-900/40 rounded border border-slate-700/40">
+                      <div className="text-center text-white/50 py-2 text-sm bg-white/[0.03] rounded-lg border border-white/10">
                         No recent activity
                       </div>
                   )}
@@ -712,7 +711,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     href={pair.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 text-center bg-blue-500/10 border border-blue-500/25 text-blue-300 px-2 py-1 text-sm font-semibold rounded hover:bg-blue-500/20 transition-colors"
+                    className="flex-1 text-center bg-white/10 border border-white/15 text-white px-2 py-1.5 text-xs font-semibold rounded-md hover:bg-white/15 hover:border-white/25 transition-colors"
                   >
                     DexScreener
                   </a>
@@ -721,14 +720,14 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     href={`https://scan.pulsechain.com/address/${pair.pairAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 text-center bg-slate-700/30 border border-slate-700/50 text-slate-300 px-2 py-1 text-sm font-semibold rounded hover:bg-slate-700/50 transition-colors"
+                    className="flex-1 text-center bg-white/5 border border-white/10 text-white/80 px-2 py-1.5 text-xs font-semibold rounded-md hover:bg-white/10 hover:text-white transition-colors"
                   >
                     Contract
                   </a>
 
                   <button
                     onClick={() => navigator.clipboard.writeText(pair.pairAddress || '')}
-                    className="flex-1 text-center bg-slate-700/30 border border-slate-700/50 text-slate-300 px-2 py-1 text-sm font-semibold rounded hover:bg-slate-700/50 transition-colors"
+                    className="flex-1 text-center bg-white/5 border border-white/10 text-white/80 px-2 py-1.5 text-xs font-semibold rounded-md hover:bg-white/10 hover:text-white transition-colors"
                     title="Copy pair address"
                   >
                     Copy
@@ -741,15 +740,15 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
 
         {/* Zero Liquidity Pairs */}
         {zeroLiquidityPairs.length > 0 && (
-          <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-2">
+          <div className="bg-white/[0.03] border border-white/10 rounded-lg p-2.5">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-semibold text-white">Zero Liquidity ({zeroLiquidityPairs.length})</div>
-                <div className="text-sm text-slate-400">Pairs with $0 liquidity</div>
+                <div className="text-xs text-white/50">Pairs with $0 liquidity</div>
               </div>
               <div className="text-right">
-                <div className="text-sm font-bold text-white">$0</div>
-                <div className="text-sm text-slate-400">Liquidity</div>
+                <div className="text-sm font-bold text-white tabular-nums">$0</div>
+                <div className="text-xs text-white/50">Liquidity</div>
               </div>
             </div>
           </div>

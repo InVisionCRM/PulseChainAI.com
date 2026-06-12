@@ -2564,24 +2564,27 @@ export default function AdminStatsPanel({
     <div className={`${compact ? 'text-xs' : 'text-sm'} space-y-3`}>
       {/* Header with Title and Action Buttons */}
       <div className="flex items-center justify-between">
-        <h2 className="text-brand-orange text-lg font-poppins">Advanced Stats</h2>
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-orange-400/80 font-semibold">Advanced Stats</p>
+          <h2 className="text-base font-bold text-white mt-0.5">Stat Explorer</h2>
+        </div>
         <div className="flex items-center gap-2">
           <a
             href="/stat-docs"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-2.5 py-1 text-xs bg-brand-orange backdrop-blur hover:bg-blue-700/50 text-white rounded transition-colors"
+            className="px-2.5 py-1 text-xs bg-white/10 hover:bg-white/15 border border-white/15 text-white rounded-md transition-colors font-semibold"
           >
-            📖 API Docs
+            API Docs
           </a>
-        <a
-          href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-1 py-1 text-xs bg-black/20 border border-white/50 backdrop-blur hover:bg-purple-700/50 font-bold text-purple-700 rounded transition-colors"
-        >
-          Get Morbius
-        </a>
+          <a
+            href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2.5 py-1 text-xs bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white rounded-md transition-colors font-semibold"
+          >
+            Get Morbius
+          </a>
         </div>
       </div>
 
@@ -2594,13 +2597,13 @@ export default function AdminStatsPanel({
               id="token"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className={`w-full bg-brand-navy backdrop-blur border border-brand-orange rounded px-2 text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+              className={`w-full bg-white/[0.04] backdrop-blur border border-white/15 focus:border-white/30 focus:outline-none rounded-md px-2.5 text-white placeholder:text-white/40 ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
               placeholder="Search by address..."
             />
             <button
               type="button"
               onClick={() => handleLoadNewToken(searchInput)}
-              className={`shrink-0 px-5 rounded bg-brand-orange border border-whit/50e hover:bg-brand-orange text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+              className={`shrink-0 px-5 rounded-md bg-brand-orange hover:bg-brand-orange/90 text-white font-semibold transition-colors ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
             >
               Load
             </button>
@@ -2630,17 +2633,17 @@ export default function AdminStatsPanel({
           <div className="hidden md:flex flex-col gap-4" aria-label="Stat selector">
             <div className="w-full space-y-3 overflow-hidden">
               <div className="relative">
-                <div className="flex w-full items-center gap-2 rounded-lg border border-white/15 bg-slate-900/80 backdrop-blur p-1 text-white overflow-x-auto scrollbar-hide">
+                <div className="flex w-full items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-1 text-white overflow-x-auto scrollbar-hide">
                   {statCategories.map(category => (
                     <button
                       key={category.title}
                       onClick={() => handleCategorySelect(category.title)}
-                      className={`whitespace-nowrap rounded-full border font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 ${
-                        compact ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm'
+                      className={`whitespace-nowrap rounded-md border font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 ${
+                        compact ? 'px-3 py-1 text-xs' : 'px-3.5 py-1.5 text-sm'
                       } ${
                         resolvedCategoryTitle === category.title
-                          ? 'border-purple-700 bg-purple-700 text-white shadow-[0_10px_40px_rgba(126,34,206,0.3)]'
-                          : 'border-transparent text-white/70 hover:text-white hover:bg-white/10'
+                          ? 'border-brand-orange/40 bg-brand-orange/15 text-white'
+                          : 'border-transparent text-white/60 hover:text-white hover:bg-white/[0.06]'
                       }`}
                     >
                       {category.title}
@@ -2650,7 +2653,7 @@ export default function AdminStatsPanel({
               </div>
 
               <div className="focus-visible:outline-none focus-visible:ring-0">
-                <div className="rounded-lg border border-brand-orange bg-brand-navy backdrop-blur">
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl">
                   {statCategories
                     .find(category => category.title === resolvedCategoryTitle)
                     ?.stats.length ? (
@@ -2664,10 +2667,10 @@ export default function AdminStatsPanel({
                                 key={stat.id}
                                 type="button"
                                 onClick={() => setSelectedStat(stat.id)}
-                                className={`text-left rounded-xl border px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-700 focus-visible:ring-offset-2 focus-visible:ring-offset-black/50 ${
+                                className={`text-left rounded-lg border px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black/50 ${
                                   isActive
-                                    ? 'border-purple-700 bg-purple-700 text-white shadow-[0_0_25px_rgba(126,34,206,0.4)]'
-                                    : 'border-brand-orange bg-brand-navy backdrop-blur text-white hover:border-purple-700/40 hover:bg-gray-900/70'
+                                    ? 'border-brand-orange/40 bg-brand-orange/10 text-white shadow-[inset_0_0_0_1px_rgba(250,70,22,0.15)]'
+                                    : 'border-white/10 bg-white/[0.03] text-white/80 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
                                 }`}
                               >
                                 <p className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>
@@ -2700,9 +2703,9 @@ export default function AdminStatsPanel({
                   href={`/stat-docs/${selectedStat}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`inline-flex items-center gap-1 text-purple-400 hover:text-purple-300 transition-colors ${compact ? 'text-[10px]' : 'text-xs'}`}
+                  className={`inline-flex items-center gap-1 text-orange-400/80 hover:text-orange-300 transition-colors font-semibold ${compact ? 'text-[10px]' : 'text-xs'}`}
                 >
-                  📖 View Full Documentation →
+                  View Full Documentation →
                 </a>
               </div>
             )}
@@ -2714,23 +2717,23 @@ export default function AdminStatsPanel({
           <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} dismissible={false}>
             <DrawerTrigger asChild>
               <button
-                className={`w-full bg-brand-navy backdrop-blur border border-brand-orange rounded-full px-4 text-left text-white ${
+                className={`w-full bg-white/[0.04] backdrop-blur border border-white/15 hover:border-white/25 rounded-lg px-4 text-left text-white transition-colors ${
                   compact ? 'py-2 text-xs' : 'py-3 text-sm'
                 }`}
               >
                 {selectedStat ? selectedStatMeta?.label ?? statLabelText : statLabelText}
               </button>
             </DrawerTrigger>
-            <DrawerContent className="bg-brand-navy backdrop-blur-sm border-gray-700 z-50" onClick={(e) => e.stopPropagation()}>
+            <DrawerContent className="bg-[#0C2340] backdrop-blur-sm border-white/10 z-50" onClick={(e) => e.stopPropagation()}>
               <DrawerHeader className="flex flex-row items-center justify-between">
-                <DrawerTitle className="text-brand-orange">Select Stat</DrawerTitle>
+                <DrawerTitle className="text-orange-400/90 text-xs font-semibold uppercase tracking-wider">Select Stat</DrawerTitle>
                 <Button
                   onClick={() => {
                     handleTestStat();
                     setDrawerOpen(false);
                   }}
                   disabled={!selectedStat || busyStat === selectedStat}
-                  className={`px-4 bg-purple-700 hover:bg-purple-800 hover:ring-purple-700 disabled:opacity-50 disabled:cursor-not-allowed ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+                  className={`px-4 bg-brand-orange hover:bg-brand-orange/90 disabled:opacity-50 disabled:cursor-not-allowed font-semibold ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
                 >
                   {busyStat === selectedStat ? 'Testing...' : actionText}
                 </Button>
@@ -2739,10 +2742,10 @@ export default function AdminStatsPanel({
                 <div className="max-h-[60vh] overflow-y-auto px-4 pb-32">
                   {statCategories.map(category => (
                     <div key={category.title} className="mb-4">
-                      <div className="bg-brand-navy backdrop-blur text-white font-semibold px-3 py-2 rounded-t">
+                      <div className="bg-white/[0.04] border border-white/10 text-white font-semibold px-3 py-2 rounded-t-lg text-xs uppercase tracking-wider">
                         {category.title}
                       </div>
-                      <div className="bg-brand-navy backdrop-blur rounded-b">
+                      <div className="bg-white/[0.02] border-x border-b border-white/10 rounded-b-lg">
                         {category.stats.map(stat => (
                           <button
                             key={stat.id}
@@ -2750,8 +2753,8 @@ export default function AdminStatsPanel({
                               setSelectedStat(stat.id);
                               setDrawerOpen(false);
                             }}
-                            className={`w-full text-left px-3 py-2 border-b border-brand-orange last:border-b-0 hover:bg-gray-900 transition-colors ${
-                              selectedStat === stat.id ? 'bg-brand-navy text-white' : 'text-white'
+                            className={`w-full text-left px-3 py-2 border-b border-white/[0.06] last:border-b-0 hover:bg-white/[0.04] transition-colors ${
+                              selectedStat === stat.id ? 'bg-brand-orange/10 text-white' : 'text-white/85'
                             }`}
                           >
                             <div>{stat.label}</div>
@@ -2791,7 +2794,7 @@ export default function AdminStatsPanel({
                   type="text"
                   value={customInputs[input.key] || ''}
                   onChange={(e) => setCustomInputs(prev => ({ ...prev, [input.key]: e.target.value }))}
-                  className={`w-full bg-brand-navy backdrop-blur border border-brand-orange rounded px-2 text-white ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+                  className={`w-full bg-white/[0.04] backdrop-blur border border-white/15 focus:border-white/30 focus:outline-none rounded-md px-2.5 text-white placeholder:text-white/40 ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
                   placeholder={input.placeholder}
                 />
               </div>
@@ -2805,7 +2808,7 @@ export default function AdminStatsPanel({
         <Button
           onClick={handleTestStat}
           disabled={!selectedStat || busyStat === selectedStat}
-          className={`px-4 bg-brand-orange hover:ring-purple-700 disabled:opacity-50 disabled:cursor-not-allowed ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+          className={`px-4 bg-brand-orange hover:bg-brand-orange/90 text-white font-semibold rounded-md disabled:opacity-50 disabled:cursor-not-allowed ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
         >
           {busyStat === selectedStat ? 'Testing...' : actionText}
         </Button>
@@ -2813,12 +2816,12 @@ export default function AdminStatsPanel({
 
       {/* Current Request Details */}
       {currentRequest && (
-        <div className="pt-3 border-t border-brand-orange space-y-3">
+        <div className="pt-3 border-t border-white/10 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Results</h3>
             <button
               onClick={clearCurrentRequest}
-              className="text-xs px-2 py-1 bg-red-800 hover:bg-red-700 rounded text-white"
+              className="text-xs px-2 py-1 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 rounded-md text-rose-200 font-semibold transition-colors"
             >
               Clear
             </button>
@@ -2831,7 +2834,7 @@ export default function AdminStatsPanel({
                   <div className="text-white">Network Activity</div>
                   <div className="text-[10px] text-white/70 italic">Click 📋 to copy</div>
                 </div>
-                <div className="relative rounded-2xl border border-brand-orange/20 bg-brand-navy backdrop-blur w-full overflow-hidden">
+                <div className="relative rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl w-full overflow-hidden">
                   <div
                     ref={networkListRef}
                     className="space-y-2 max-h-36 overflow-y-auto p-3 pr-4 text-[11px] w-full"
