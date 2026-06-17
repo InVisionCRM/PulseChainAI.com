@@ -8,7 +8,9 @@ import {
   IconRefresh,
 } from '@tabler/icons-react';
 import { useWatchlistStore } from '@/lib/stores/watchlistStore';
-import type { ChainId } from '@/services';
+import type { WatchedToken, WatchPriceEntry } from '@/lib/stores/watchlistStore';
+import { useInsightsStore } from '@/lib/stores/insightsStore';
+import type { ChainId, PortfolioToken } from '@/services';
 
 const ADDRESS_RX = /^0x[a-fA-F0-9]{40}$/;
 
@@ -127,6 +129,28 @@ const fmtChange = (n: number | null | undefined) => {
   return `${sign}${n.toFixed(2)}%`;
 };
 
+// The insights modal takes a PortfolioToken, but a watched token has no
+// balance — it's price-only. Synthesize a zero-balance token so a watchlist
+// row can open the same modal a portfolio holding does; the modal only reads
+// address/chain (for its fetch) plus symbol/name/logo/price for the header.
+function toInsightsToken(t: WatchedToken, p?: WatchPriceEntry): PortfolioToken {
+  return {
+    address: t.address,
+    chain: t.chain,
+    name: p?.name || t.name,
+    symbol: p?.symbol || t.symbol,
+    decimals: 18,
+    balance: '0',
+    balanceFormatted: 0,
+    logoURI: p?.logoURI || t.logoURI,
+    priceUsd: p?.priceUsd ?? undefined,
+    priceChange24h: p?.priceChange24h ?? undefined,
+    valueUsd: 0,
+    isNative: false,
+    isLp: false,
+  };
+}
+
 export function WatchlistPanel() {
   const tokens = useWatchlistStore((s) => s.tokens);
   const prices = useWatchlistStore((s) => s.prices);
@@ -134,6 +158,7 @@ export function WatchlistPanel() {
   const remove = useWatchlistStore((s) => s.remove);
   const refresh = useWatchlistStore((s) => s.refresh);
   const isLoading = useWatchlistStore((s) => s.isLoading);
+  const openInsights = useInsightsStore((s) => s.openInsights);
 
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -262,35 +287,42 @@ export function WatchlistPanel() {
                 key={`${t.chain}:${t.address}`}
                 className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5"
               >
-                <Icon32 logoURI={logo} symbol={sym} chain={t.chain} />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-white truncate">
-                    {sym}
+                <button
+                  type="button"
+                  onClick={() => openInsights(toInsightsToken(t, p))}
+                  className="flex items-center gap-2 min-w-0 flex-1 text-left"
+                  title={`Open insights — ${sym}`}
+                >
+                  <Icon32 logoURI={logo} symbol={sym} chain={t.chain} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-white truncate">
+                      {sym}
+                    </div>
+                    <div className="text-[10px] text-white/40 truncate">{name}</div>
                   </div>
-                  <div className="text-[10px] text-white/40 truncate">{name}</div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-sm text-white tabular-nums">
-                    {priceUsd != null ? fmtUsd(priceUsd) : <span className="text-white/30">—</span>}
+                  <div className="text-right shrink-0">
+                    <div className="text-sm text-white tabular-nums">
+                      {priceUsd != null ? fmtUsd(priceUsd) : <span className="text-white/30">—</span>}
+                    </div>
+                    <div
+                      className="text-[10px] tabular-nums"
+                      style={{
+                        color:
+                          change == null
+                            ? 'rgba(255,255,255,0.3)'
+                            : change >= 0
+                            ? '#4ade80'
+                            : '#f87171',
+                      }}
+                    >
+                      {changeTxt ?? '—'}
+                    </div>
                   </div>
-                  <div
-                    className="text-[10px] tabular-nums"
-                    style={{
-                      color:
-                        change == null
-                          ? 'rgba(255,255,255,0.3)'
-                          : change >= 0
-                          ? '#4ade80'
-                          : '#f87171',
-                    }}
-                  >
-                    {changeTxt ?? '—'}
-                  </div>
-                </div>
+                </button>
                 <button
                   type="button"
                   onClick={() => remove(t.address, t.chain)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-white/40 hover:text-red-400"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-white/40 hover:text-red-400 shrink-0"
                   title="Remove from watchlist"
                 >
                   <IconX className="h-4 w-4" />
