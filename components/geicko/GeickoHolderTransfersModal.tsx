@@ -61,7 +61,7 @@ export default function GeickoHolderTransfersModal({
                 {truncateAddress(holderAddress)}
               </span>
               <a
-                href={`https://scan.pulsechain.com/address/${holderAddress}`}
+                href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${holderAddress}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-400 text-xs hover:underline"
@@ -124,7 +124,7 @@ export default function GeickoHolderTransfersModal({
                       <div className="flex items-center gap-2 text-xs text-gray-400">
                         <span>{tx.timestamp ? formatDateUTC(tx.timestamp) : '—'}</span>
                         <a
-                          href={`https://scan.pulsechain.com/tx/${tx.txHash}`}
+                          href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${tx.txHash}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-400 hover:underline"
@@ -148,7 +148,7 @@ export default function GeickoHolderTransfersModal({
                         <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
                           <p className="text-gray-400">From</p>
                           <a
-                            href={`https://scan.pulsechain.com/address/${tx.from}`}
+                            href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${tx.from}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-300 hover:underline break-all"
@@ -161,7 +161,7 @@ export default function GeickoHolderTransfersModal({
                         <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
                           <p className="text-gray-400">To</p>
                           <a
-                            href={`https://scan.pulsechain.com/address/${tx.to}`}
+                            href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${tx.to}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-300 hover:underline break-all"
@@ -174,7 +174,7 @@ export default function GeickoHolderTransfersModal({
                         <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2 md:col-span-2">
                           <p className="text-gray-400">Transaction</p>
                           <a
-                            href={`https://scan.pulsechain.com/tx/${tx.txHash}`}
+                            href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${tx.txHash}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-300 hover:underline break-all"

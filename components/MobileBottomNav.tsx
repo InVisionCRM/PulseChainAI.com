@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { IconHome, IconSearch, IconWallet, IconDots } from "@tabler/icons-react";
 import { NavigationDrawer } from "./NavigationDrawer";
-import { MobileSearchModal } from "./MobileSearchModal";
+import SearchModal from "./Screener/SearchModal";
+import { useScreenerWatchlist } from "./Screener/watchlist";
 
 type NavItem = {
   label: string;
@@ -17,6 +18,7 @@ type NavItem = {
 
 export const MobileBottomNav = () => {
   const pathname = usePathname();
+  const watchlist = useScreenerWatchlist();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
@@ -41,7 +43,7 @@ export const MobileBottomNav = () => {
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-[#2C3E50] via-[#34495E] to-[#3B6978] border-t border-orange-500/40 backdrop-blur-xl">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0C2340]/90 border-t border-white/10 backdrop-blur-xl">
         <div className="flex items-center justify-around h-16 px-2">
           {navItems.map((item) => {
             const isActive = item.href ? pathname === item.href : false;
@@ -108,10 +110,11 @@ export const MobileBottomNav = () => {
         onClose={() => setIsDrawerOpen(false)}
       />
 
-      {/* Search Modal */}
-      <MobileSearchModal
-        isOpen={isSearchOpen}
+      {/* Search Modal — same component used by the Screener "Search pairs" bar */}
+      <SearchModal
+        open={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
+        watchlist={watchlist}
       />
     </>
   );

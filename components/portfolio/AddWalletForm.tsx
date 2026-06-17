@@ -10,6 +10,10 @@ const ALL_CHAINS: { id: ChainId; label: string }[] = [
   { id: 'ethereum', label: 'Ethereum' },
   { id: 'pulsechain', label: 'PulseChain' },
 ];
+const CHAIN_LOGO: Record<ChainId, string> = {
+  ethereum: '/ethlogo.svg',
+  pulsechain: '/LogoVector.svg',
+};
 
 export function AddWalletForm() {
   const addWallet = usePortfolioStore((s) => s.addWallet);
@@ -100,22 +104,18 @@ export function AddWalletForm() {
               type="button"
               onClick={() => toggleChain(c.id)}
               aria-pressed={active}
-              className="px-3 py-1 rounded-full text-xs font-semibold border transition-colors"
-              style={
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-all ${
                 active
-                  ? {
-                      backgroundColor: 'rgba(249, 115, 22, 0.35)',
-                      borderColor: 'rgba(249, 115, 22, 0.9)',
-                      color: '#fff',
-                    }
-                  : {
-                      backgroundColor: 'transparent',
-                      borderColor: 'rgba(255, 255, 255, 0.2)',
-                      color: 'rgba(255, 255, 255, 0.4)',
-                    }
-              }
+                  ? 'border-white/15 bg-white/[0.08] text-white'
+                  : 'border-white/10 text-white/40 hover:text-white/70'
+              }`}
             >
-              {active ? '✓ ' : ''}{c.label}
+              <img
+                src={CHAIN_LOGO[c.id]}
+                alt=""
+                className={`h-4 w-4 object-contain ${active ? '' : 'grayscale opacity-60'}`}
+              />
+              {c.label}
             </button>
           );
         })}

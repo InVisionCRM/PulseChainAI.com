@@ -54,7 +54,7 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
 
   return (
     <Drawer open={isOpen} onOpenChange={handleOpenChange}>
-      <DrawerContent className="bg-gradient-to-br from-[#2C3E50] via-[#34495E] to-[#3B6978] border-orange-500/40">
+      <DrawerContent className="bg-gradient-to-b from-[#0C2340] to-[#0d2a4d] border-white/10">
         <DrawerHeader className="border-b border-white/10">
           <DrawerTitle className="text-white text-xl font-semibold">
             More Options

@@ -323,7 +323,7 @@ export class HexTransactionService {
     if (network === 'ethereum') {
       return `https://etherscan.io/tx/${hash}`;
     } else {
-      return `https://scan.pulsechain.com/tx/${hash}`;
+      return `https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${hash}`;
     }
   }
 }

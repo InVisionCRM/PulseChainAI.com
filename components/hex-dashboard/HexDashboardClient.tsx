@@ -2532,7 +2532,7 @@ const HEXDataDashboard = () => {
                                 </td>
                                 <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-300 font-mono">
                                   <a
-                                    href={`https://scan.pulsechain.com/address/${stake.stakerAddr}`}
+                                    href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${stake.stakerAddr}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="hover:text-blue-400 transition-colors"
@@ -2564,7 +2564,7 @@ const HEXDataDashboard = () => {
                                 </td>
                                 <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
                                   <a
-                                    href={`https://scan.pulsechain.com/tx/${stake.transactionHash}`}
+                                    href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${stake.transactionHash}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="hover:text-blue-400 transition-colors"
@@ -2763,7 +2763,7 @@ const HEXDataDashboard = () => {
                                   </td>
                                   <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
                                     <a
-                                      href={`https://scan.pulsechain.com/tx/${stake.transactionHash}`}
+                                      href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${stake.transactionHash}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="hover:text-blue-400 transition-colors"

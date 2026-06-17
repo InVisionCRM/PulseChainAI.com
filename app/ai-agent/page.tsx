@@ -1202,7 +1202,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                     return rows.map((h, idx) => (
                       <div key={`${h.address}-${idx}`} className="grid grid-cols-2 text-sm py-2 hover:bg-slate-950/50 rounded">
                         <a
-                          href={`https://scan.pulsechain.com/address/${h.address}`}
+                          href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${h.address}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="font-mono text-slate-300 hover:text-slate-200 underline truncate pr-1 flex items-center gap-1"
@@ -1575,7 +1575,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                           <div className="text-center space-y-2 px-4">
                             <p className="text-white text-sm md:text-base font-medium">dexscreener Information is unavailable for this token.</p>
                             <a
-                              href={`https://scan.pulsechain.com/token/${contractAddress}`}
+                              href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${contractAddress}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-slate-300 hover:text-slate-200 underline"
@@ -1933,7 +1933,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                       <div className="text-md font-bold text-green-400">Renounced</div>
                                       {ownerRenounce?.txHash && (
                                         <a
-                                          href={`https://scan.pulsechain.com/tx/${ownerRenounce.txHash}`}
+                                          href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${ownerRenounce.txHash}`}
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           className="text-xs text-slate-300 hover:text-slate-200 underline mt-1 inline-block"
@@ -1946,7 +1946,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                   ) : (
                                     <>
                                       <a
-                                        href={`https://scan.pulsechain.com/address/${ownerAddress}`}
+                                        href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${ownerAddress}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="text-md font-bold text-slate-300 hover:text-slate-200 font-mono"
@@ -2592,7 +2592,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                     <span className="text-slate-300">Pair</span>
                                    <div className="flex items-center gap-2">
                                      <a
-                                       href={`https://scan.pulsechain.com/token/${dexScreenerData.pairs[0].pairAddress}`}
+                                       href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${dexScreenerData.pairs[0].pairAddress}`}
                                        target="_blank"
                                        rel="noopener noreferrer"
                                       className="text-slate-400 hover:text-slate-300 font-mono text-sm transition-colors"
@@ -2613,7 +2613,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                     <span className="text-slate-300">{dexScreenerData.pairs[0].baseToken?.symbol}</span>
                                    <div className="flex items-center gap-2">
                                      <a
-                                       href={`https://scan.pulsechain.com/token/${dexScreenerData.pairs[0].baseToken?.address}`}
+                                       href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${dexScreenerData.pairs[0].baseToken?.address}`}
                                        target="_blank"
                                        rel="noopener noreferrer"
                                       className="text-slate-400 hover:text-slate-300 font-mono text-sm transition-colors"
@@ -2634,7 +2634,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                     <span className="text-slate-300">{dexScreenerData.pairs[0].quoteToken?.symbol}</span>
                                    <div className="flex items-center gap-2">
                                      <a
-                                       href={`https://scan.pulsechain.com/token/${dexScreenerData.pairs[0].quoteToken?.address}`}
+                                       href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${dexScreenerData.pairs[0].quoteToken?.address}`}
                                        target="_blank"
                                        rel="noopener noreferrer"
                                       className="text-slate-400 hover:text-slate-300 font-mono text-sm transition-colors"
