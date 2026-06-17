@@ -40,7 +40,7 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
       icon: <IconBook className="h-8 w-8" />,
     },
     {
-      label: "PLINKO",
+      label: "Casino",
       href: "https://win.morbius.io",
       icon: <IconCurrencyDollar className="h-8 w-8" />,
       external: true,

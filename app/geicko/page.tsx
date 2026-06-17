@@ -1702,19 +1702,19 @@ function GeickoPageContent() {
                 </div>
 
                 {/* Ownership Status */}
-                <div className="relative h-16 bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                  <div className="absolute left-1/2 -translate-x-1/2 top-2 text-xs text-gray-400 font-medium uppercase tracking-wider">Ownership</div>
+                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
+                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Ownership</div>
                   {ownershipData.isLoading ? (
                     <div className="text-center text-gray-500 text-sm">Loading...</div>
                   ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
-                    <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-center">
+                    <div className="text-center">
                       <div className="text-xs text-green-400 font-semibold">Renounced</div>
                       <div className="text-xs text-gray-400 mt-0.5">
                         {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
                       </div>
                     </div>
                   ) : (
-                    <div className="absolute top-6 right-1/2 translate-x-1/2 text-center">
+                    <div className="text-center">
                       <div className="text-xs text-yellow-400 font-semibold">Owner</div>
                       {(() => {
                         const addr = ownershipData.ownerAddress || ownershipData.creatorAddress;
@@ -1925,9 +1925,9 @@ function GeickoPageContent() {
               {/* Right Column */}
               <div className="space-y-0.5">
                 {/* Liquidity */}
-                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
-                  <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
-                  <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
+                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Liquidity</div>
+                  <div className="text-center text-base text-white font-semibold">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span>
@@ -1951,10 +1951,37 @@ function GeickoPageContent() {
                   </div>
                 </div>
 
+                {/* Market Cap */}
+                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
+                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Market Cap</div>
+                  <div className="text-center text-base text-white font-semibold">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          {(() => {
+                            const p = displayPair ?? effectivePair;
+                            const mcap = p?.fdv ? Number(p.fdv) : Number(p?.marketCap || 0);
+                            return mcap > 0 ? `$${formatAbbrev(mcap)}` : '—';
+                          })()}
+                        </span>
+                      </TooltipTrigger>
+                      {(() => {
+                        const p = displayPair ?? effectivePair;
+                        const mcap = p?.fdv ? Number(p.fdv) : Number(p?.marketCap || 0);
+                        return mcap > 0 ? (
+                          <TooltipContent>
+                            <p>${mcap.toLocaleString()}</p>
+                          </TooltipContent>
+                        ) : null;
+                      })()}
+                    </Tooltip>
+                  </div>
+                </div>
+
                 {/* Liq/MCAP Ratio */}
-                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
-                  <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liq/MCAP</div>
-                  <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
+                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Liq/MCAP</div>
+                  <div className="text-center text-base text-white font-semibold">
                     {(() => {
                       const p = displayPair ?? effectivePair;
                       const liquidity = Number(p?.liquidity?.usd || 0);
@@ -1966,16 +1993,16 @@ function GeickoPageContent() {
                 </div>
 
                 {/* Total Liquidity */}
-                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[80px] flex items-center justify-center">
-                  <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-gray-400 font-medium uppercase tracking-wider">Total Liquidity</div>
+                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
+                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Total Liquidity</div>
                   {totalLiquidity.isLoading ? (
                     <div className="text-center text-gray-500 text-sm">Loading...</div>
-                  ) : totalLiquidity.usd > 0 ? (
-                    <div className="absolute bottom-6 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                  ) : (
+                    <div className="text-center text-base text-white font-semibold">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span>
-                            ${formatAbbrev(totalLiquidity.usd)}
+                            {totalLiquidity.usd > 0 ? `$${formatAbbrev(totalLiquidity.usd)}` : '—'}
                           </span>
                         </TooltipTrigger>
                         {totalLiquidity.usd > 0 && (
@@ -1985,23 +2012,21 @@ function GeickoPageContent() {
                         )}
                       </Tooltip>
                     </div>
-                  ) : (
-                    <div className="text-center text-base text-white font-semibold">—</div>
                   )}
                   {totalLiquidity.pairCount > 0 && (
-                    <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-xs text-green-400 font-medium">
+                    <div className="text-center text-xs text-green-400 font-medium mt-0.5">
                       {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
                     </div>
                   )}
                 </div>
 
                 {/* Burned Tokens */}
-                <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
-                  <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
+                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
+                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Burned</div>
                   {isLoadingMetrics ? (
-                    <Skeleton className="h-6 w-16" />
+                    <div className="flex justify-center"><Skeleton className="h-6 w-16" /></div>
                   ) : burnedTokens ? (
-                    <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                    <div className="text-center">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
@@ -2010,14 +2035,10 @@ function GeickoPageContent() {
                           <p>{burnedTokens.amount.toLocaleString()}</p>
                         </TooltipContent>
                       </Tooltip>
+                      <div className="text-xs text-green-400 font-medium mt-0.5">{burnedTokens.percent.toFixed(1)}% of supply</div>
                     </div>
                   ) : (
                     <div className="text-center text-base text-white font-semibold">—</div>
-                  )}
-                  {burnedTokens && !isLoadingMetrics && (
-                    <div className="absolute top-4 right-2 flex items-center justify-center w-8 h-8 rounded-full border-2 border-green-400">
-                      <span className="text-[8px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
-                    </div>
                   )}
                 </div>
 
