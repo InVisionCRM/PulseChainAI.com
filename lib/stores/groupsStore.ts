@@ -8,6 +8,8 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import type { ChainId } from '@/services';
+import type { AddressSource } from '@/lib/portfolio/addressLabels';
 
 export type GroupColorKey =
   | 'blue'
@@ -62,6 +64,21 @@ export interface AddressGroup {
   createdAt: number;
 }
 
+// A saved-but-not-tracked address inside a group (the "Track now" toggle was
+// off when it was added). It carries its own label + provenance and renders as
+// a compact row under its group; "Track" promotes it to a real portfolio
+// wallet. Tracked addresses live in portfolioStore instead, keyed to a group
+// via `assignments`, so an address is either a member here or a wallet there —
+// never both.
+export interface GroupMember {
+  address: string; // lowercased
+  chain?: ChainId;
+  groupId: string;
+  label: string;
+  source: AddressSource;
+  addedAt: number;
+}
+
 export const DEFAULT_GROUP_ID = 'my-wallets';
 
 const DEFAULT_GROUP: AddressGroup = {
@@ -95,6 +112,8 @@ interface GroupsStore {
   groups: AddressGroup[];
   /** lowercased address -> groupId. Absent = default group. */
   assignments: Record<string, string>;
+  /** Saved-but-not-tracked addresses (bookmarks). */
+  members: GroupMember[];
 
   createGroup: (name?: string, color?: GroupColorKey) => string;
   renameGroup: (id: string, name: string) => void;
@@ -103,6 +122,10 @@ interface GroupsStore {
   assignAddress: (address: string, groupId: string) => void;
   /** Imperative read (non-reactive) — for stores/handlers, not render. */
   groupIdForAddress: (address: string) => string;
+
+  /** Add (or move/relabel) a non-tracked bookmark. Deduped by address. */
+  addMember: (member: Omit<GroupMember, 'addedAt'>) => void;
+  removeMember: (address: string) => void;
 }
 
 export const useGroupsStore = create<GroupsStore>()(
@@ -110,6 +133,7 @@ export const useGroupsStore = create<GroupsStore>()(
     (set, get) => ({
       groups: [DEFAULT_GROUP],
       assignments: {},
+      members: [],
 
       createGroup: (name, color) => {
         const id = newId();
@@ -144,16 +168,35 @@ export const useGroupsStore = create<GroupsStore>()(
         if (id === DEFAULT_GROUP_ID) return; // default is permanent
         set((s) => {
           // Strip assignments to the deleted group so those addresses resolve
-          // back to the default group.
+          // back to the default group; reparent bookmark members the same way.
           const assignments: Record<string, string> = {};
           for (const [addr, gid] of Object.entries(s.assignments)) {
             if (gid !== id) assignments[addr] = gid;
           }
+          const members = s.members.map((m) =>
+            m.groupId === id ? { ...m, groupId: DEFAULT_GROUP_ID } : m,
+          );
           return {
             groups: s.groups.filter((g) => g.id !== id),
             assignments,
+            members,
           };
         });
+      },
+
+      addMember: (member) => {
+        const address = norm(member.address);
+        set((s) => ({
+          members: [
+            ...s.members.filter((m) => m.address !== address),
+            { ...member, address, addedAt: Date.now() },
+          ],
+        }));
+      },
+
+      removeMember: (address) => {
+        const a = norm(address);
+        set((s) => ({ members: s.members.filter((m) => m.address !== a) }));
       },
 
       assignAddress: (address, groupId) => {
@@ -175,7 +218,11 @@ export const useGroupsStore = create<GroupsStore>()(
     {
       name: 'morbius-groups-v1',
       storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ groups: s.groups, assignments: s.assignments }),
+      partialize: (s) => ({
+        groups: s.groups,
+        assignments: s.assignments,
+        members: s.members,
+      }),
       // Guarantee the default group survives rehydration even if a persisted
       // payload somehow lacks it (older/corrupt state).
       merge: (persisted, current) => {
