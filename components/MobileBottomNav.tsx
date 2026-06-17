@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { IconHome, IconCoin, IconArrowsRightLeft, IconDots } from "@tabler/icons-react";
+import { usePathname } from "next/navigation";
+import { IconHome, IconSearch, IconWallet, IconDots } from "@tabler/icons-react";
 import { NavigationDrawer } from "./NavigationDrawer";
+import { MobileSearchModal } from "./MobileSearchModal";
 
 type NavItem = {
   label: string;
@@ -16,20 +17,8 @@ type NavItem = {
 
 export const MobileBottomNav = () => {
   const pathname = usePathname();
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
-  // Get current token address from URL params if on geicko page
-  const currentTokenAddress = pathname === '/geicko' ? searchParams.get('address') : null;
-
-  // WPLS address as fallback
-  const WPLS_ADDRESS = '0xA1077a294dDE1B09bB078844df40758a5D0f9a27';
-
-  const handleSwapClick = () => {
-    const tokenAddress = currentTokenAddress || WPLS_ADDRESS;
-    router.push(`/geicko?address=${tokenAddress}&tab=switch`);
-  };
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const navItems: NavItem[] = [
     {
@@ -38,15 +27,15 @@ export const MobileBottomNav = () => {
       icon: <IconHome className="h-5 w-5" />,
     },
     {
-      label: "Tokens",
-      href: "/#tokentable",
-      icon: <IconCoin className="h-5 w-5" />,
+      label: "Search",
+      onClick: () => setIsSearchOpen(true),
+      icon: <IconSearch className="h-5 w-5" />,
+      isAction: true,
     },
     {
-      label: "Swap",
-      onClick: handleSwapClick,
-      icon: <IconArrowsRightLeft className="h-5 w-5" />,
-      isAction: true,
+      label: "Portfolio",
+      href: "/portfolio",
+      icon: <IconWallet className="h-5 w-5" />,
     },
   ];
 
@@ -117,6 +106,12 @@ export const MobileBottomNav = () => {
       <NavigationDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
+      />
+
+      {/* Search Modal */}
+      <MobileSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
       />
     </>
   );
