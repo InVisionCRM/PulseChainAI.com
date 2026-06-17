@@ -3,6 +3,7 @@
   "configurations": [
     {
       "name": "pulse-dev",
+      "autoPort": true,
       "runtimeExecutable": "/Users/kyle/.nvm/versions/node/v22.14.0/bin/npm",
       "runtimeArgs": ["run", "dev"],
       "env": {
