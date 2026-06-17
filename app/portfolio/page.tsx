@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { IconWallet, IconRefresh } from '@tabler/icons-react';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { AddWalletForm } from '@/components/portfolio/AddWalletForm';
-import { WalletCard } from '@/components/portfolio/WalletCard';
+import { PortfolioGroups } from '@/components/portfolio/PortfolioGroups';
 import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
 import { WatchlistPanel } from '@/components/portfolio/WatchlistPanel';
 import { TokenInsightsCard } from '@/components/portfolio/TokenInsightsCard';
@@ -79,15 +79,7 @@ export default function PortfolioPage() {
           <div className="space-y-6 min-w-0">
             <AddWalletForm />
             {wallets.length > 0 && <PortfolioChart />}
-            {wallets.length === 0 ? (
-              <EmptyState />
-            ) : (
-              <div className="space-y-4">
-                {wallets.map((w) => (
-                  <WalletCard key={w.address} wallet={w} />
-                ))}
-              </div>
-            )}
+            {wallets.length === 0 ? <EmptyState /> : <PortfolioGroups />}
           </div>
           <WatchlistPanel />
         </div>
