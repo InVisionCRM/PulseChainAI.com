@@ -48,6 +48,7 @@ import {
 } from '@/components/geicko';
 import { MobileSearchBar } from '@/components/MobileSearchBar';
 import { DesktopSearchBar } from '@/components/DesktopSearchBar';
+import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 
 function ContractHolderTooltipRow({
   holder,
@@ -1884,6 +1885,13 @@ function GeickoPageContent() {
                           >
                             <Copy className="w-3 h-3 text-blue-400" />
                           </button>
+                          <AddToGroupButton
+                            address={ownershipData.creatorAddress}
+                            source="creator"
+                            chain="pulsechain"
+                            context={{ tokenName: tokenInfo?.name, tokenSymbol: tokenInfo?.symbol }}
+                            size={13}
+                          />
                         </>
                       ) : (
                         <span className="text-xs text-white font-semibold">—</span>
@@ -1910,15 +1918,24 @@ function GeickoPageContent() {
                       {(() => {
                         const addr = ownershipData.ownerAddress || ownershipData.creatorAddress;
                         return addr ? (
-                          <a
-                            href={`https://scan.pulsechain.com/address/${addr}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
-                            title={addr}
-                          >
-                            0x...{addr.slice(-6)}
-                          </a>
+                          <span className="inline-flex items-center gap-1 mt-0.5">
+                            <a
+                              href={`https://scan.pulsechain.com/address/${addr}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-400 hover:text-blue-300 font-mono inline-block"
+                              title={addr}
+                            >
+                              0x...{addr.slice(-6)}
+                            </a>
+                            <AddToGroupButton
+                              address={addr}
+                              source="owner"
+                              chain="pulsechain"
+                              context={{ tokenName: tokenInfo?.name, tokenSymbol: tokenInfo?.symbol }}
+                              size={12}
+                            />
+                          </span>
                         ) : null;
                       })()}
                     </div>
@@ -2844,6 +2861,13 @@ function GeickoPageContent() {
                                 >
                                   <Copy className="w-3 h-3 text-blue-400" />
                                 </button>
+                                <AddToGroupButton
+                                  address={ownershipData.creatorAddress}
+                                  source="creator"
+                                  chain="pulsechain"
+                                  context={{ tokenName: tokenInfo?.name, tokenSymbol: tokenInfo?.symbol }}
+                                  size={13}
+                                />
                               </>
                             ) : (
                               <span className="text-xs text-white font-semibold">—</span>
@@ -2870,15 +2894,24 @@ function GeickoPageContent() {
                             {(() => {
                               const addr = ownershipData.ownerAddress || ownershipData.creatorAddress;
                               return addr ? (
-                                <a
-                                  href={`https://scan.pulsechain.com/address/${addr}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-blue-400 hover:text-blue-300 font-mono mt-0.5 inline-block"
-                                  title={addr}
-                                >
-                                  0x...{addr.slice(-6)}
-                                </a>
+                                <span className="inline-flex items-center gap-1 mt-0.5">
+                                  <a
+                                    href={`https://scan.pulsechain.com/address/${addr}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-400 hover:text-blue-300 font-mono inline-block"
+                                    title={addr}
+                                  >
+                                    0x...{addr.slice(-6)}
+                                  </a>
+                                  <AddToGroupButton
+                                    address={addr}
+                                    source="owner"
+                                    chain="pulsechain"
+                                    context={{ tokenName: tokenInfo?.name, tokenSymbol: tokenInfo?.symbol }}
+                                    size={12}
+                                  />
+                                </span>
                               ) : null;
                             })()}
                           </div>

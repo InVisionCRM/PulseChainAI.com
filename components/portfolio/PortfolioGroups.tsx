@@ -6,6 +6,8 @@ import {
   IconPlus,
   IconTrash,
   IconCheck,
+  IconExternalLink,
+  IconEye,
 } from '@tabler/icons-react';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import {
@@ -17,9 +19,17 @@ import {
   GROUP_COLOR_KEYS,
   DEFAULT_GROUP_ID,
   type AddressGroup,
+  type GroupMember,
 } from '@/lib/stores/groupsStore';
+import { promoteMemberToWallet } from '@/lib/portfolio/groupActions';
+import { SOURCE_LABEL, shortAddr } from '@/lib/portfolio/addressLabels';
 import { WalletCard } from '@/components/portfolio/WalletCard';
-import type { PortfolioWallet } from '@/services';
+import type { ChainId, PortfolioWallet } from '@/services';
+
+const EXPLORER_ADDRESS: Record<ChainId, string> = {
+  ethereum: 'https://etherscan.io/address/',
+  pulsechain: 'https://scan.pulsechain.com/address/',
+};
 
 const fmtUsd = (n: number) => {
   if (!Number.isFinite(n) || n === 0) return '$0.00';
@@ -44,6 +54,7 @@ export function PortfolioGroups() {
   const snapshotsByAddress = usePortfolioStore((s) => s.snapshotsByAddress);
   const groups = useGroupsStore((s) => s.groups);
   const assignments = useGroupsStore((s) => s.assignments);
+  const members = useGroupsStore((s) => s.members);
 
   const walletsByGroup = useMemo(() => {
     const map = new Map<string, PortfolioWallet[]>();
@@ -55,6 +66,19 @@ export function PortfolioGroups() {
     }
     return map;
   }, [wallets, groups, assignments]);
+
+  const membersByGroup = useMemo(() => {
+    const map = new Map<string, GroupMember[]>();
+    const validIds = new Set(groups.map((g) => g.id));
+    for (const m of members) {
+      // A member whose group was deleted falls back to the default group.
+      const gid = validIds.has(m.groupId) ? m.groupId : DEFAULT_GROUP_ID;
+      const arr = map.get(gid) ?? [];
+      arr.push(m);
+      map.set(gid, arr);
+    }
+    return map;
+  }, [members, groups]);
 
   // Default group always first; the rest keep creation order.
   const orderedGroups = useMemo(() => {
@@ -75,14 +99,16 @@ export function PortfolioGroups() {
 
       {orderedGroups.map((g) => {
         const ws = walletsByGroup.get(g.id) ?? [];
+        const ms = membersByGroup.get(g.id) ?? [];
         // Empty groups exist only in the manager bar — no section until a
-        // wallet is moved in, to avoid a wall of empty headers.
-        if (ws.length === 0) return null;
+        // wallet or saved address lands in them, to avoid empty headers.
+        if (ws.length === 0 && ms.length === 0) return null;
         return (
           <GroupSection
             key={g.id}
             group={g}
             wallets={ws}
+            members={ms}
             total={totalForGroup(g.id)}
           />
         );
@@ -281,13 +307,20 @@ function GroupEditor({
 function GroupSection({
   group,
   wallets,
+  members,
   total,
 }: {
   group: AddressGroup;
   wallets: PortfolioWallet[];
+  members: GroupMember[];
   total: number;
 }) {
   const base = groupBase(group.color);
+  const counts: string[] = [];
+  if (wallets.length)
+    counts.push(`${wallets.length} ${wallets.length === 1 ? 'wallet' : 'wallets'}`);
+  if (members.length) counts.push(`${members.length} saved`);
+
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-2 px-1">
@@ -301,21 +334,81 @@ function GroupSection({
         >
           {group.name}
         </h3>
-        <span className="text-xs text-white/40">
-          · {wallets.length} {wallets.length === 1 ? 'wallet' : 'wallets'}
-        </span>
+        <span className="text-xs text-white/40">· {counts.join(' · ')}</span>
         <span className="ml-auto text-sm font-semibold text-white tabular-nums">
           {fmtUsd(total)}
         </span>
       </div>
       <div
-        className="space-y-4 pl-3"
+        className="space-y-3 pl-3"
         style={{ borderLeft: `2px solid ${groupRgba(group.color, 0.5)}` }}
       >
         {wallets.map((w) => (
           <WalletCard key={w.address} wallet={w} />
         ))}
+
+        {members.length > 0 && (
+          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl divide-y divide-white/5">
+            <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-white/40">
+              Saved addresses
+            </div>
+            {members.map((m) => (
+              <MemberRow key={m.address} member={m} color={base} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
+  );
+}
+
+function MemberRow({ member, color }: { member: GroupMember; color: string }) {
+  const removeMember = useGroupsStore((s) => s.removeMember);
+  const explorer = member.chain
+    ? `${EXPLORER_ADDRESS[member.chain]}${member.address}`
+    : `${EXPLORER_ADDRESS.pulsechain}${member.address}`;
+
+  return (
+    <div className="group flex items-center gap-2 px-3 py-2">
+      <span
+        className="h-2 w-2 rounded-full shrink-0"
+        style={{ backgroundColor: color }}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="text-sm text-white truncate">{member.label}</div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wide text-white/30">
+            {SOURCE_LABEL[member.source]}
+          </span>
+          <a
+            href={explorer}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="text-[10px] font-mono text-white/40 hover:text-white/70 inline-flex items-center gap-0.5"
+          >
+            {shortAddr(member.address)}
+            <IconExternalLink className="h-2.5 w-2.5" />
+          </a>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => promoteMemberToWallet(member)}
+        title="Track as wallet (scan balances)"
+        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-white/60 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+      >
+        <IconEye className="h-3.5 w-3.5" />
+        Track
+      </button>
+      <button
+        type="button"
+        onClick={() => removeMember(member.address)}
+        title="Remove from group"
+        className="text-white/30 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+      >
+        <IconTrash className="h-4 w-4" />
+      </button>
+    </div>
   );
 }

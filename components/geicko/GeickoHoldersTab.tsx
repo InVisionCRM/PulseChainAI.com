@@ -3,6 +3,7 @@ import { LoaderThree } from '@/components/ui/loader';
 import { Holder, HolderStats, TokenInfo } from './types';
 import { isBurnAddress } from './utils';
 import GeickoPortfolioModal from './GeickoPortfolioModal';
+import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 
 export interface GeickoHoldersTabProps {
   /** Array of holder data */
@@ -128,7 +129,7 @@ export default function GeickoHoldersTab({
           <div className="flex-[1.5] min-w-[90px]">Address & Tags</div>
           <div className="flex-[2] min-w-[70px]">Balance</div>
           <div className="flex-[1.5] min-w-[60px]">% Total</div>
-          <div className="flex-[0.8] min-w-[45px]">View</div>
+          <div className="flex-[0.8] min-w-[64px]">View</div>
         </div>
 
         {/* Table Rows */}
@@ -189,18 +190,31 @@ export default function GeickoHoldersTab({
                   {percentage.toFixed(1)}%
                 </div>
 
-                {/* View Button */}
-                <div className="flex-[0.8] min-w-[45px]">
+                {/* View / Save Buttons */}
+                <div className="flex-[0.8] min-w-[64px] flex items-center gap-1.5">
                   {holder.address && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenPortfolio(holder.address);
-                      }}
-                      className="inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-semibold bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded border border-blue-500/30 transition-colors"
-                    >
-                      View O
-                    </button>
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenPortfolio(holder.address);
+                        }}
+                        className="inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-semibold bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded border border-blue-500/30 transition-colors"
+                      >
+                        View O
+                      </button>
+                      <AddToGroupButton
+                        address={holder.address}
+                        source="holder"
+                        chain="pulsechain"
+                        context={{
+                          tokenSymbol: tokenInfo?.symbol,
+                          tokenName: tokenInfo?.name,
+                          rank: globalIndex,
+                        }}
+                        size={15}
+                      />
+                    </>
                   )}
                 </div>
               </div>

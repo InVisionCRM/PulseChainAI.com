@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { IconWallet, IconRefresh } from '@tabler/icons-react';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
+import { useGroupsStore } from '@/lib/stores/groupsStore';
 import { AddWalletForm } from '@/components/portfolio/AddWalletForm';
 import { PortfolioGroups } from '@/components/portfolio/PortfolioGroups';
 import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
@@ -22,6 +23,7 @@ export default function PortfolioPage() {
   const wallets = usePortfolioStore((s) => s.wallets);
   const snapshotsByAddress = usePortfolioStore((s) => s.snapshotsByAddress);
   const refreshAll = usePortfolioStore((s) => s.refreshAll);
+  const hasSavedMembers = useGroupsStore((s) => s.members.length > 0);
 
   const aggregateUsd = useMemo(
     () =>
@@ -79,7 +81,11 @@ export default function PortfolioPage() {
           <div className="space-y-6 min-w-0">
             <AddWalletForm />
             {wallets.length > 0 && <PortfolioChart />}
-            {wallets.length === 0 ? <EmptyState /> : <PortfolioGroups />}
+            {wallets.length === 0 && !hasSavedMembers ? (
+              <EmptyState />
+            ) : (
+              <PortfolioGroups />
+            )}
           </div>
           <WatchlistPanel />
         </div>
