@@ -27,6 +27,7 @@ import type {
   WalletHistoryResponse,
 } from '@/services';
 import { pulsechainTxUrl, PULSECHAIN_EXPLORER_NAME } from '@/lib/pulsechainExplorer';
+import { ChainLogo } from '@/components/ui/ChainLogo';
 
 interface Props {
   walletAddress: string;
@@ -44,10 +45,6 @@ const CHAIN_LOGO: Record<ChainId, string> = {
 const CHAIN_NAME: Record<ChainId, string> = {
   ethereum: 'Ethereum',
   pulsechain: 'PulseChain',
-};
-const CHAIN_LABEL: Record<ChainId, string> = {
-  ethereum: 'ETH',
-  pulsechain: 'PLS',
 };
 const NATIVE_SYMBOL: Record<ChainId, string> = {
   ethereum: 'ETH',
@@ -321,8 +318,7 @@ export function ActivityFeed({ walletAddress, chains }: Props) {
                   : { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.4)' }
               }
             >
-              <img src={CHAIN_LOGO[c]} alt="" className="h-3 w-3 object-contain" />
-              {CHAIN_LABEL[c]}
+              <ChainLogo chain={c} size={16} />
             </button>
           ))}
 

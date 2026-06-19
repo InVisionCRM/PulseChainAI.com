@@ -7,6 +7,7 @@ import type { ScreenerRow, ScreenerWindow } from '@/lib/screener/types';
 import type { SortKey } from '@/lib/screener/db';
 import { dexLogo, fmtAge, fmtNum, fmtPct, fmtPrice, fmtUsd, pctClass } from './format';
 import type { ScreenerWatchlist } from './watchlist';
+import { ChainLogo } from '@/components/ui/ChainLogo';
 
 interface Props {
   rows: ScreenerRow[];
@@ -124,7 +125,7 @@ export default function PairsTable({ rows, window, loading, sort, dir, onSort, w
                     <span className="font-semibold text-white">{row.baseSymbol ?? '?'}</span>
                     <span className="text-white/40">/{row.quoteSymbol ?? '?'}</span>
                     {row.chainId === 'ethereum' ? (
-                      <span className="rounded border border-white/20 px-1 py-px text-[9px] uppercase text-white/60">ETH</span>
+                      <ChainLogo chain="ethereum" size={14} />
                     ) : null}
                     {row.gold ? (
                       <span className="rounded-sm bg-yellow-500 px-1 py-px text-[9px] font-bold text-black">GOLD</span>

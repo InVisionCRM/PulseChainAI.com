@@ -9,6 +9,7 @@ import {
 } from '@tabler/icons-react';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import type { ChainId } from '@/services';
+import { ChainLogo } from '@/components/ui/ChainLogo';
 
 const CHAIN_ID_NUM: Record<ChainId, number> = {
   ethereum: 1,
@@ -183,7 +184,7 @@ export function ApprovalsPanel({ walletAddress, chains }: Props) {
                         }
                   }
                 >
-                  {CHAIN_LABEL[c]}
+                  <ChainLogo chain={c} size={16} />
                 </button>
               ))}
             </div>

@@ -6,6 +6,8 @@ import { IconSearch, IconStar, IconStarFilled, IconX } from '@tabler/icons-react
 import type { SearchPair } from '@/lib/screener/types';
 import { dexLogo, dexName, fmtAge, fmtPct, fmtPrice, fmtUsd, pctClass, shortAddr } from './format';
 import type { ScreenerWatchlist } from './watchlist';
+import { ChainLogo } from '@/components/ui/ChainLogo';
+import { useWatchlistStore } from '@/lib/stores/watchlistStore';
 
 const RECENT_KEY = 'screener.recent';
 const MAX_RECENT = 8;
@@ -27,6 +29,7 @@ interface Props {
 
 export default function SearchModal({ open, onClose, watchlist }: Props) {
   const router = useRouter();
+  const prices = useWatchlistStore((s) => s.prices);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [query, setQuery] = useState('');
@@ -38,6 +41,7 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
   useEffect(() => {
     if (open) {
       setRecent(readRecent());
+      void useWatchlistStore.getState().refresh();
       setTimeout(() => inputRef.current?.focus(), 0);
     } else {
       setQuery('');
@@ -157,10 +161,13 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
                         }}
                         className="flex cursor-pointer items-center gap-2 rounded border border-white/10 px-3 py-2 transition-colors hover:bg-white/5"
                       >
-                        <IconStarFilled className="h-3.5 w-3.5 shrink-0 text-orange-400" />
+                        <WatchAvatar
+                          logo={prices[t.address]?.logoURI || t.logoURI}
+                          symbol={t.symbol}
+                        />
                         <span className="text-sm font-medium text-white">{t.symbol}</span>
                         {t.chain === 'ethereum' ? (
-                          <span className="rounded-sm border border-white/25 px-1 py-px tabular-nums text-[9px] uppercase text-white/70">ETH</span>
+                          <ChainLogo chain="ethereum" size={14} />
                         ) : null}
                         <span className="truncate text-xs text-white/50">{t.name}</span>
                         <span className="ml-auto tabular-nums text-[11px] text-white/50">{shortAddr(t.address)}</span>
@@ -216,6 +223,23 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function WatchAvatar({ logo, symbol }: { logo?: string | null; symbol: string }) {
+  const [failed, setFailed] = useState(false);
+  return !failed && logo ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={logo}
+      alt=""
+      className="h-7 w-7 shrink-0 rounded-full"
+      onError={() => setFailed(true)}
+    />
+  ) : (
+    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 tabular-nums text-[11px] text-white/70">
+      {symbol.charAt(0)}
     </div>
   );
 }
