@@ -1,14 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   IconSearch,
   IconStar,
   IconX,
   IconRefresh,
+  IconFolder,
+  IconFolderPlus,
+  IconPlus,
+  IconTrash,
+  IconCheck,
 } from '@tabler/icons-react';
 import { useWatchlistStore } from '@/lib/stores/watchlistStore';
 import type { WatchedToken, WatchPriceEntry } from '@/lib/stores/watchlistStore';
+import {
+  useWatchlistGroupsStore,
+  resolveWlGroupId,
+  DEFAULT_WL_GROUP_ID,
+  type WatchlistGroup,
+} from '@/lib/stores/watchlistGroupsStore';
+import {
+  groupBase,
+  groupRgba,
+  GROUP_COLORS,
+  GROUP_COLOR_KEYS,
+} from '@/lib/stores/groupsStore';
 import { useInsightsStore } from '@/lib/stores/insightsStore';
 import type { ChainId, PortfolioToken } from '@/services';
 
@@ -160,6 +177,31 @@ export function WatchlistPanel() {
   const isLoading = useWatchlistStore((s) => s.isLoading);
   const openInsights = useInsightsStore((s) => s.openInsights);
 
+  const groups = useWatchlistGroupsStore((s) => s.groups);
+  const assignments = useWatchlistGroupsStore((s) => s.assignments);
+
+  // Default group always first; the rest keep creation order.
+  const orderedGroups = useMemo(() => {
+    const def = groups.find((g) => g.id === DEFAULT_WL_GROUP_ID);
+    const rest = groups.filter((g) => g.id !== DEFAULT_WL_GROUP_ID);
+    return def ? [def, ...rest] : rest;
+  }, [groups]);
+
+  const tokensByGroup = useMemo(() => {
+    const map = new Map<string, WatchedToken[]>();
+    for (const t of tokens) {
+      const gid = resolveWlGroupId(groups, assignments, t.chain, t.address);
+      const arr = map.get(gid) ?? [];
+      arr.push(t);
+      map.set(gid, arr);
+    }
+    return map;
+  }, [tokens, groups, assignments]);
+
+  // Only switch to sectioned rendering once the user has created a custom
+  // group; with just the default group the flat list reads cleaner.
+  const hasCustomGroups = groups.length > 1;
+
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [searching, setSearching] = useState(false);
@@ -198,8 +240,11 @@ export function WatchlistPanel() {
   };
 
   return (
-    <aside className="rounded-2xl border border-white/15 bg-white/5 backdrop-blur-xl p-4 lg:sticky lg:top-4">
-      <div className="flex items-center justify-between mb-3">
+    <aside
+      id="watchlist"
+      className="scroll-mt-20 rounded-2xl border border-white/15 bg-white/5 backdrop-blur-xl p-4 lg:sticky lg:top-4 lg:flex lg:flex-col lg:max-h-[calc(100vh-2rem)]"
+    >
+      <div className="flex items-center justify-between mb-3 lg:shrink-0">
         <div className="flex items-center gap-2 text-orange-400/80 text-xs font-semibold uppercase tracking-wider">
           <IconStar className="h-4 w-4" />
           Watchlist
@@ -220,7 +265,7 @@ export function WatchlistPanel() {
         </button>
       </div>
 
-      <div className="relative mb-3">
+      <div className="relative mb-3 lg:shrink-0">
         <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 pointer-events-none" />
         <input
           type="text"
@@ -268,72 +313,426 @@ export function WatchlistPanel() {
         )}
       </div>
 
+      <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:-mr-2 lg:pr-2">
       {tokens.length === 0 ? (
         <div className="text-sm text-white/40 py-6 text-center">
           Track tokens you don't hold yet. Paste an address or search above.
         </div>
       ) : (
-        <ul className="space-y-1">
-          {tokens.map((t) => {
-            const p = prices[t.address];
-            const priceUsd = p?.priceUsd;
-            const change = p?.priceChange24h;
-            const logo = p?.logoURI || t.logoURI;
-            const sym = p?.symbol || t.symbol;
-            const name = p?.name || t.name;
-            const changeTxt = fmtChange(change);
-            return (
-              <li
-                key={`${t.chain}:${t.address}`}
-                className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5"
-              >
-                <button
-                  type="button"
-                  onClick={() => openInsights(toInsightsToken(t, p))}
-                  className="flex items-center gap-2 min-w-0 flex-1 text-left"
-                  title={`Open insights — ${sym}`}
-                >
-                  <Icon32 logoURI={logo} symbol={sym} chain={t.chain} />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-white truncate">
-                      {sym}
-                    </div>
-                    <div className="text-[10px] text-white/40 truncate">{name}</div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-sm text-white tabular-nums">
-                      {priceUsd != null ? fmtUsd(priceUsd) : <span className="text-white/30">—</span>}
-                    </div>
-                    <div
-                      className="text-[10px] tabular-nums"
-                      style={{
-                        color:
-                          change == null
-                            ? 'rgba(255,255,255,0.3)'
-                            : change >= 0
-                            ? '#4ade80'
-                            : '#f87171',
-                      }}
-                    >
-                      {changeTxt ?? '—'}
-                    </div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => remove(t.address, t.chain)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-white/40 hover:text-red-400 shrink-0"
-                  title="Remove from watchlist"
-                >
-                  <IconX className="h-4 w-4" />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          <WlGroupManager groups={orderedGroups} tokensByGroup={tokensByGroup} />
+
+          {!hasCustomGroups ? (
+            <ul className="space-y-1">
+              {tokens.map((t) => (
+                <TokenRow
+                  key={`${t.chain}:${t.address}`}
+                  token={t}
+                  price={prices[t.address]}
+                  groups={orderedGroups}
+                  currentGroupId={resolveWlGroupId(
+                    groups,
+                    assignments,
+                    t.chain,
+                    t.address,
+                  )}
+                  showGroupPicker={false}
+                  onOpenInsights={openInsights}
+                  onRemove={remove}
+                />
+              ))}
+            </ul>
+          ) : (
+            <div className="space-y-4">
+              {orderedGroups.map((g) => {
+                const ts = tokensByGroup.get(g.id) ?? [];
+                // Empty groups live only in the manager bar — no section until a
+                // token lands in them, to avoid empty headers.
+                if (ts.length === 0) return null;
+                return (
+                  <WlGroupSection key={g.id} group={g} count={ts.length}>
+                    {ts.map((t) => (
+                      <TokenRow
+                        key={`${t.chain}:${t.address}`}
+                        token={t}
+                        price={prices[t.address]}
+                        groups={orderedGroups}
+                        currentGroupId={g.id}
+                        showGroupPicker
+                        onOpenInsights={openInsights}
+                        onRemove={remove}
+                      />
+                    ))}
+                  </WlGroupSection>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
+      </div>
     </aside>
   );
+}
+
+// Manager bar — create / rename / recolour / delete groups. Mirrors the
+// portfolio PortfolioGroups manager so the two grouping features feel identical.
+function WlGroupManager({
+  groups,
+  tokensByGroup,
+}: {
+  groups: WatchlistGroup[];
+  tokensByGroup: Map<string, WatchedToken[]>;
+}) {
+  const createGroup = useWatchlistGroupsStore((s) => s.createGroup);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = editingId
+    ? groups.find((g) => g.id === editingId) ?? null
+    : null;
+
+  return (
+    <div className="mb-3 rounded-xl border border-white/10 bg-black/20 p-3">
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center gap-1.5 text-white/50 text-[10px] font-semibold uppercase tracking-wider">
+          <IconFolder className="h-3.5 w-3.5" />
+          Groups
+          <span className="text-white/30 normal-case font-normal">
+            · {groups.length}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setEditingId(createGroup())}
+          className="inline-flex items-center gap-1 rounded-lg bg-white/10 hover:bg-white/15 text-white text-[11px] font-semibold px-2 py-1 transition-colors"
+        >
+          <IconPlus className="h-3 w-3" />
+          New group
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {groups.map((g) => (
+          <WlGroupChip
+            key={g.id}
+            group={g}
+            count={(tokensByGroup.get(g.id) ?? []).length}
+            active={editingId === g.id}
+            onClick={() => setEditingId((cur) => (cur === g.id ? null : g.id))}
+          />
+        ))}
+      </div>
+
+      {editing && (
+        <WlGroupEditor
+          key={editing.id}
+          group={editing}
+          onClose={() => setEditingId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function WlGroupChip({
+  group,
+  count,
+  active,
+  onClick,
+}: {
+  group: WatchlistGroup;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors"
+      style={{
+        backgroundColor: groupRgba(group.color, active ? 0.28 : 0.14),
+        borderColor: groupRgba(group.color, active ? 0.9 : 0.4),
+        color: '#fff',
+      }}
+    >
+      <span
+        className="h-2 w-2 rounded-full"
+        style={{ backgroundColor: groupBase(group.color) }}
+      />
+      {group.name}
+      <span className="text-white/50 font-normal">· {count}</span>
+    </button>
+  );
+}
+
+function WlGroupEditor({
+  group,
+  onClose,
+}: {
+  group: WatchlistGroup;
+  onClose: () => void;
+}) {
+  const renameGroup = useWatchlistGroupsStore((s) => s.renameGroup);
+  const setGroupColor = useWatchlistGroupsStore((s) => s.setGroupColor);
+  const removeGroup = useWatchlistGroupsStore((s) => s.removeGroup);
+
+  const [name, setName] = useState(group.name);
+  const isDefault = group.id === DEFAULT_WL_GROUP_ID;
+
+  const commitName = () => {
+    const n = name.trim();
+    if (n && n !== group.name) renameGroup(group.id, n);
+  };
+
+  return (
+    <div className="mt-2.5 rounded-lg border border-white/10 bg-black/30 p-2.5 space-y-2.5">
+      <div className="flex items-center gap-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={commitName}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              commitName();
+              onClose();
+            }
+          }}
+          autoFocus
+          placeholder="Group name"
+          className="flex-1 rounded-lg bg-black/40 border border-white/15 px-2.5 py-1.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/40"
+        />
+        {!isDefault && (
+          <button
+            type="button"
+            onClick={() => {
+              removeGroup(group.id);
+              onClose();
+            }}
+            title="Delete group"
+            className="text-white/40 hover:text-red-400 shrink-0"
+          >
+            <IconTrash className="h-4 w-4" />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            commitName();
+            onClose();
+          }}
+          title="Done"
+          className="text-white/60 hover:text-white shrink-0"
+        >
+          <IconCheck className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {GROUP_COLOR_KEYS.map((k) => {
+          const selected = group.color === k;
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setGroupColor(group.id, k)}
+              title={GROUP_COLORS[k].label}
+              aria-pressed={selected}
+              className="h-5 w-5 rounded-full transition-transform hover:scale-110"
+              style={{
+                backgroundColor: groupBase(k),
+                boxShadow: selected ? '0 0 0 2px #0F1A2E, 0 0 0 4px #fff' : 'none',
+              }}
+            />
+          );
+        })}
+      </div>
+
+      {isDefault && (
+        <p className="text-[11px] text-white/40 leading-snug">
+          Default group — new and ungrouped tokens land here. Rename and recolour
+          it freely; it can't be deleted.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function WlGroupSection({
+  group,
+  count,
+  children,
+}: {
+  group: WatchlistGroup;
+  count: number;
+  children: React.ReactNode;
+}) {
+  const base = groupBase(group.color);
+  return (
+    <section className="space-y-1.5">
+      <div className="flex items-center gap-1.5 px-1">
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: base }} />
+        <h3 className="text-xs font-bold tracking-wide" style={{ color: base }}>
+          {group.name}
+        </h3>
+        <span className="text-[11px] text-white/40">· {count}</span>
+      </div>
+      <ul
+        className="space-y-1 pl-2"
+        style={{ borderLeft: `2px solid ${groupRgba(group.color, 0.5)}` }}
+      >
+        {children}
+      </ul>
+    </section>
+  );
+}
+
+function TokenRow({
+  token: t,
+  price: p,
+  groups,
+  currentGroupId,
+  showGroupPicker,
+  onOpenInsights,
+  onRemove,
+}: {
+  token: WatchedToken;
+  price?: WatchPriceEntry;
+  groups: WatchlistGroup[];
+  currentGroupId: string;
+  showGroupPicker: boolean;
+  onOpenInsights: (token: PortfolioToken) => void;
+  onRemove: (address: string, chain: ChainId) => void;
+}) {
+  const priceUsd = p?.priceUsd;
+  const change = p?.priceChange24h;
+  const logo = p?.logoURI || t.logoURI;
+  const sym = p?.symbol || t.symbol;
+  const name = p?.name || t.name;
+  const changeTxt = fmtChange(change);
+
+  return (
+    <li className="group relative flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5">
+      <button
+        type="button"
+        onClick={() => onOpenInsights(toInsightsToken(t, p))}
+        className="flex items-center gap-2 min-w-0 flex-1 text-left"
+        title={`Open insights — ${sym}`}
+      >
+        <Icon32 logoURI={logo} symbol={sym} chain={t.chain} />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium text-white truncate">{sym}</div>
+          <div className="text-[10px] text-white/40 truncate">{name}</div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-sm text-white tabular-nums">
+            {priceUsd != null ? fmtUsd(priceUsd) : <span className="text-white/30">—</span>}
+          </div>
+          <div
+            className="text-[10px] tabular-nums"
+            style={{
+              color:
+                change == null
+                  ? 'rgba(255,255,255,0.3)'
+                  : change >= 0
+                  ? '#4ade80'
+                  : '#f87171',
+            }}
+          >
+            {changeTxt ?? '—'}
+          </div>
+        </div>
+      </button>
+
+      {showGroupPicker && (
+        <GroupPicker token={t} groups={groups} currentGroupId={currentGroupId} />
+      )}
+
+      <button
+        type="button"
+        onClick={() => onRemove(t.address, t.chain)}
+        className="opacity-0 group-hover:opacity-100 transition-opacity text-white/40 hover:text-red-400 shrink-0"
+        title="Remove from watchlist"
+      >
+        <IconX className="h-4 w-4" />
+      </button>
+    </li>
+  );
+}
+
+// Per-token folder button → popover listing every group. Picking one moves the
+// token; the current group is checked. Closes on outside click / Escape.
+function GroupPicker({
+  token,
+  groups,
+  currentGroupId,
+}: {
+  token: WatchedToken;
+  groups: WatchlistGroup[];
+  currentGroupId: string;
+}) {
+  const assignToken = useWatchlistGroupsStore((s) => s.assignToken);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const current = groups.find((g) => g.id === currentGroupId);
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title={`Group: ${current?.name ?? 'Watchlist'}`}
+        className={`${
+          open ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+        } transition-opacity text-white/40 hover:text-white`}
+      >
+        <IconFolderPlus className="h-4 w-4" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-30 mt-1 w-40 rounded-lg border border-white/15 bg-[#0d2a4d] shadow-2xl py-1">
+          {groups.map((g) => {
+            const selected = g.id === currentGroupId;
+            return (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => {
+                  assignToken(token.chain, token.address, g.id);
+                  setOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs text-white hover:bg-white/10"
+              >
+                <span
+                  className="h-2.5 w-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: groupBase(g.color) }}
+                />
+                <span className="flex-1 truncate">{g.name}</span>
+                {selected && <IconCheck className="h-3.5 w-3.5 text-white/70 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
 }
 
 function Icon32({
