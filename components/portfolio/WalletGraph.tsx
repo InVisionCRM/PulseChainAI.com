@@ -382,22 +382,33 @@ export function WalletGraph({ walletAddress, chains }: Props) {
       g.addColorStop(0, 'rgba(120,160,210,0.05)'); g.addColorStop(1, 'rgba(0,0,0,0.28)');
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
       ctx.setTransform(DPR * view.scale, 0, 0, DPR * view.scale, view.ox * DPR, view.oy * DPR);
+      // When a node is hovered (or clicked-to-select), spotlight it: its link
+      // brightens, everything else fades back so a single relationship reads.
+      const focus = hover && hover !== center ? hover : selectedRef.current;
       for (const n of nodes) {
-        const C = ctrl(n), hov = n === hover;
-        ctx.lineWidth = hov ? 1.6 : 0.85;
-        ctx.strokeStyle = hexA(n.color, hov ? 0.5 : 0.2);
+        const C = ctrl(n), isF = n === focus, ew = Math.min(n.edgeW, 3.2);
+        ctx.globalAlpha = focus && !isF ? 0.12 : 1;
+        ctx.lineWidth = ew * (isF ? 1.5 : 0.6);
+        ctx.strokeStyle = hexA(n.color, isF ? 0.7 : 0.24);
         ctx.beginPath(); ctx.moveTo(cx, cy); ctx.quadraticCurveTo(C.x, C.y, n.x, n.y); ctx.stroke();
       }
+      ctx.globalAlpha = 1;
       for (const n of nodes) {
+        const isF = n === focus;
+        if (focus && !isF) continue;
         const C = ctrl(n);
         for (const p of n.parts) {
           const pos = quad(center, C, n, p.t);
           ctx.fillStyle = hexA(n.color, 0.9);
-          ctx.beginPath(); ctx.arc(pos.x, pos.y, 1.4, 0, 6.2832); ctx.fill();
+          ctx.beginPath(); ctx.arc(pos.x, pos.y, isF ? 1.9 : 1.4, 0, 6.2832); ctx.fill();
         }
       }
       drawNode(center, time, true);
-      for (const n of nodes) drawNode(n, time, false);
+      for (const n of nodes) {
+        ctx.globalAlpha = focus && n !== focus ? 0.22 : 1;
+        drawNode(n, time, false);
+      }
+      ctx.globalAlpha = 1;
     }
     function frame(t: number) {
       step();
