@@ -301,69 +301,68 @@ export function WalletGraph({ walletAddress, chains }: Props) {
       return { x: a * P0.x + b * C.x + c * P1.x, y: a * P0.y + b * C.y + c * P1.y };
     }
     function drawNode(n: GNode, time: number, isC: boolean) {
-      const col = n.color, hov = n === hover, r = n.r;
-      let glow = r * 1.9;
-      if (isC) glow = r * 2.1 + Math.sin(time * 0.003) * 4;
-      if (n.type === 'ofac') glow += (Math.sin(time * 0.006) + 1) * 5;
-      const hg = ctx.createRadialGradient(n.x, n.y, r * 0.3, n.x, n.y, glow);
-      hg.addColorStop(0, hexA(col, 0.55)); hg.addColorStop(1, hexA(col, 0));
-      ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(n.x, n.y, glow, 0, 6.2832); ctx.fill();
-      ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = hov || n === selectedRef.current ? 24 : 12;
-      ctx.fillStyle = col; ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, 6.2832); ctx.fill(); ctx.restore();
+      const col = n.color, hov = n === hover, sel = n === selectedRef.current, r = n.r;
+      ctx.lineWidth = 1; ctx.strokeStyle = hexA(col, 0.22);
+      ctx.beginPath(); ctx.arc(n.x, n.y, r + 2.5, 0, 6.2832); ctx.stroke();
+      ctx.fillStyle = col; ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, 6.2832); ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(0,0,0,0.32)';
+      ctx.beginPath(); ctx.arc(n.x, n.y, r - 0.5, 0, 6.2832); ctx.stroke();
       if (n.type === 'pool') {
-        ctx.strokeStyle = 'rgba(6,18,34,0.85)'; ctx.lineWidth = 2.5;
+        ctx.lineWidth = 1.25; ctx.strokeStyle = 'rgba(255,255,255,0.45)';
         ctx.beginPath(); ctx.arc(n.x, n.y, r * 0.5, 0, 6.2832); ctx.stroke();
       }
-      ctx.fillStyle = 'rgba(255,255,255,0.28)';
-      ctx.beginPath(); ctx.arc(n.x - r * 0.32, n.y - r * 0.32, r * 0.42, 0, 6.2832); ctx.fill();
-      if (hov || n === selectedRef.current) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.92)'; ctx.lineWidth = 2;
+      if (isC) {
+        ctx.lineWidth = 1.25; ctx.strokeStyle = hexA(col, 0.7);
         ctx.beginPath(); ctx.arc(n.x, n.y, r + 4, 0, 6.2832); ctx.stroke();
       }
+      if (n.type === 'ofac') {
+        const pulse = Math.sin(time * 0.005) + 1;
+        ctx.lineWidth = 1.25; ctx.strokeStyle = hexA(col, 0.3 + pulse * 0.22);
+        ctx.beginPath(); ctx.arc(n.x, n.y, r + 4 + pulse * 1.5, 0, 6.2832); ctx.stroke();
+      }
+      if (hov || sel) {
+        ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.beginPath(); ctx.arc(n.x, n.y, r + 3, 0, 6.2832); ctx.stroke();
+      }
       if (n.pinned) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.5;
-        ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.arc(n.x, n.y, r + 3, 0, 6.2832);
+        ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+        ctx.setLineDash([2.5, 3]); ctx.beginPath(); ctx.arc(n.x, n.y, r + 5.5, 0, 6.2832);
         ctx.stroke(); ctx.setLineDash([]);
       }
       if (isC || n.label || hov) {
         const txt = isC ? 'This wallet' : (n.label || n.short);
         ctx.font = '500 11px ui-sans-serif,system-ui,sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-        const w = ctx.measureText(txt).width, ty = n.y + r + 5;
-        ctx.fillStyle = 'rgba(4,14,26,0.55)';
-        const rx = n.x - w / 2 - 5, ry = ty - 2, rw = w + 10, rh = 16;
+        const w = ctx.measureText(txt).width, ty = n.y + r + 6;
+        ctx.fillStyle = 'rgba(8,16,28,0.78)';
+        const rx = n.x - w / 2 - 5, ry = ty - 2, rw = w + 10, rh = 15;
         ctx.beginPath();
-        ctx.moveTo(rx + 4, ry); ctx.arcTo(rx + rw, ry, rx + rw, ry + rh, 4);
-        ctx.arcTo(rx + rw, ry + rh, rx, ry + rh, 4); ctx.arcTo(rx, ry + rh, rx, ry, 4);
-        ctx.arcTo(rx, ry, rx + rw, ry, 4); ctx.fill();
-        ctx.fillStyle = isC ? '#ffe1bf' : 'rgba(255,255,255,0.92)';
+        ctx.moveTo(rx + 3, ry); ctx.arcTo(rx + rw, ry, rx + rw, ry + rh, 3);
+        ctx.arcTo(rx + rw, ry + rh, rx, ry + rh, 3); ctx.arcTo(rx, ry + rh, rx, ry, 3);
+        ctx.arcTo(rx, ry, rx + rw, ry, 3); ctx.fill();
+        ctx.fillStyle = isC ? '#f0cfa0' : 'rgba(226,232,240,0.92)';
         ctx.fillText(txt, n.x, ty);
       }
     }
     function draw(time: number) {
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-      const g = ctx.createRadialGradient(W / 2, H / 2 - 20, 40, W / 2, H / 2, Math.max(W, H) * 0.75);
-      g.addColorStop(0, '#103056'); g.addColorStop(0.6, '#0b2240'); g.addColorStop(1, '#06121f');
+      ctx.fillStyle = '#0a1525'; ctx.fillRect(0, 0, W, H);
+      const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.15, W / 2, H / 2, Math.max(W, H) * 0.7);
+      g.addColorStop(0, 'rgba(120,160,210,0.05)'); g.addColorStop(1, 'rgba(0,0,0,0.28)');
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
       ctx.setTransform(DPR * view.scale, 0, 0, DPR * view.scale, view.ox * DPR, view.oy * DPR);
       for (const n of nodes) {
-        const C = ctrl(n), hov = n === hover, col = n.color;
-        ctx.lineWidth = n.edgeW * (hov ? 2 : 1);
-        const gr = ctx.createLinearGradient(cx, cy, n.x, n.y);
-        gr.addColorStop(0, hexA(TYPE_META.self.color, hov ? 0.5 : 0.16));
-        gr.addColorStop(1, hexA(col, hov ? 0.95 : 0.5));
-        ctx.strokeStyle = gr; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.quadraticCurveTo(C.x, C.y, n.x, n.y); ctx.stroke();
+        const C = ctrl(n), hov = n === hover;
+        ctx.lineWidth = hov ? 1.6 : 0.85;
+        ctx.strokeStyle = hexA(n.color, hov ? 0.5 : 0.2);
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.quadraticCurveTo(C.x, C.y, n.x, n.y); ctx.stroke();
       }
       for (const n of nodes) {
         const C = ctrl(n);
         for (const p of n.parts) {
           const pos = quad(center, C, n, p.t);
-          ctx.save(); ctx.shadowColor = n.color; ctx.shadowBlur = 9;
-          ctx.fillStyle = 'rgba(255,255,255,0.95)';
-          ctx.beginPath(); ctx.arc(pos.x, pos.y, p.r, 0, 6.2832); ctx.fill();
-          ctx.fillStyle = n.color; ctx.globalAlpha = 0.5;
-          ctx.beginPath(); ctx.arc(pos.x, pos.y, p.r * 1.7, 0, 6.2832); ctx.fill();
-          ctx.globalAlpha = 1; ctx.restore();
+          ctx.fillStyle = hexA(n.color, 0.9);
+          ctx.beginPath(); ctx.arc(pos.x, pos.y, 1.4, 0, 6.2832); ctx.fill();
         }
       }
       drawNode(center, time, true);
