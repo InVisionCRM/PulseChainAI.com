@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { IconWallet, IconRefresh } from '@tabler/icons-react';
+import { IconWallet, IconRefresh, IconStar } from '@tabler/icons-react';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { useGroupsStore } from '@/lib/stores/groupsStore';
 import { AddWalletForm } from '@/components/portfolio/AddWalletForm';
@@ -78,6 +78,21 @@ export default function PortfolioPage() {
               </>
             )}
             <ConnectWalletButton />
+            {/* Mobile-only shortcut: the watchlist sits in the sidebar on lg+
+                but stacks at the bottom of the page below lg, so jump to it. */}
+            <button
+              type="button"
+              onClick={() =>
+                document
+                  .getElementById('watchlist')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }
+              className="lg:hidden inline-flex items-center gap-1.5 rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-300 hover:bg-orange-500/15 text-sm font-semibold px-3 py-2 transition-colors"
+              title="Jump to your watchlist"
+            >
+              <IconStar className="h-4 w-4" />
+              Watchlist
+            </button>
           </div>
         </header>
 
