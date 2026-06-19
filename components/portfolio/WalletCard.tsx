@@ -20,6 +20,7 @@ import { MoveToGroupMenu } from '@/components/portfolio/MoveToGroupMenu';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
 import { WalletConnections } from '@/components/portfolio/WalletConnections';
 import { WalletRelated } from '@/components/portfolio/WalletRelated';
+import { WalletFunder } from '@/components/portfolio/WalletFunder';
 import {
   applyTokenVisibility,
   autoHiddenForReview,
@@ -353,6 +354,11 @@ export function WalletCard({ wallet }: Props) {
           </button>
         </div>
       </header>
+
+      <WalletFunder
+        address={wallet.address}
+        chain={wallet.chains.includes('pulsechain') ? 'pulsechain' : wallet.chains[0]}
+      />
 
       {expanded && (
         <div className="p-4 space-y-3">
