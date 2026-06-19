@@ -300,11 +300,42 @@ export function WalletGraph({ walletAddress, chains }: Props) {
       const u = 1 - t, a = u * u, b = 2 * u * t, c = t * t;
       return { x: a * P0.x + b * C.x + c * P1.x, y: a * P0.y + b * C.y + c * P1.y };
     }
+    // Geometric "medallion" texture inside a node: two nested hexagons + spokes
+    // + a small core, clipped to the disc and rotated per-address for variety.
+    function drawMedallion(n: GNode, r: number) {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, 6.2832); ctx.clip();
+      let h = 0;
+      for (let i = 0; i < n.address.length; i++) h = (h * 31 + n.address.charCodeAt(i)) | 0;
+      const rot = ((Math.abs(h) % 360) * Math.PI) / 180;
+      const hex = (rf: number, off: number, alpha: number) => {
+        ctx.lineWidth = 0.7; ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = rot + off + (k / 6) * 6.2832;
+          const x = n.x + Math.cos(a) * r * rf, y = n.y + Math.sin(a) * r * rf;
+          if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+        }
+        ctx.closePath(); ctx.stroke();
+      };
+      hex(0.92, 0, 0.14);
+      hex(0.56, Math.PI / 6, 0.1);
+      ctx.lineWidth = 0.6; ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+      for (let k = 0; k < 6; k++) {
+        const a = rot + (k / 6) * 6.2832;
+        ctx.beginPath(); ctx.moveTo(n.x, n.y);
+        ctx.lineTo(n.x + Math.cos(a) * r * 0.92, n.y + Math.sin(a) * r * 0.92); ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.16)';
+      ctx.beginPath(); ctx.arc(n.x, n.y, Math.max(1.1, r * 0.12), 0, 6.2832); ctx.fill();
+      ctx.restore();
+    }
     function drawNode(n: GNode, time: number, isC: boolean) {
       const col = n.color, hov = n === hover, sel = n === selectedRef.current, r = n.r;
       ctx.lineWidth = 1; ctx.strokeStyle = hexA(col, 0.22);
       ctx.beginPath(); ctx.arc(n.x, n.y, r + 2.5, 0, 6.2832); ctx.stroke();
       ctx.fillStyle = col; ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, 6.2832); ctx.fill();
+      drawMedallion(n, r);
       ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(0,0,0,0.32)';
       ctx.beginPath(); ctx.arc(n.x, n.y, r - 0.5, 0, 6.2832); ctx.stroke();
       if (n.type === 'pool') {
