@@ -19,6 +19,7 @@ import { ApprovalsPanel } from '@/components/portfolio/ApprovalsPanel';
 import { MoveToGroupMenu } from '@/components/portfolio/MoveToGroupMenu';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
 import { WalletConnections } from '@/components/portfolio/WalletConnections';
+import { WalletRelated } from '@/components/portfolio/WalletRelated';
 import {
   applyTokenVisibility,
   autoHiddenForReview,
@@ -390,7 +391,10 @@ export function WalletCard({ wallet }: Props) {
           {view === 'activity' ? (
             <ActivityFeed walletAddress={wallet.address} chains={wallet.chains} />
           ) : view === 'connections' ? (
-            <WalletConnections walletAddress={wallet.address} chains={wallet.chains} />
+            <div className="space-y-3">
+              <WalletConnections walletAddress={wallet.address} chains={wallet.chains} />
+              <WalletRelated walletAddress={wallet.address} chains={wallet.chains} />
+            </div>
           ) : (
             <>
               {/* First-load: tell the user we auto-hid some tokens, give them a
