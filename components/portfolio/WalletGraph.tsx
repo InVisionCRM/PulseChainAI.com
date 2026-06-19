@@ -8,14 +8,7 @@
 // on-chain classification from /api/portfolio/classify.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  IconRefresh,
-  IconExternalLink,
-  IconX,
-  IconPlus,
-  IconMinus,
-  IconFocusCentered,
-} from '@tabler/icons-react';
+import { IconRefresh, IconExternalLink, IconX } from '@tabler/icons-react';
 import type { ChainId, WalletHistoryResponse, WalletTransaction } from '@/services';
 import { aggregateCounterparties } from '@/lib/walletGraph/aggregate';
 import {
@@ -106,34 +99,15 @@ export function WalletGraph({ walletAddress, chains }: Props) {
   const tipRef = useRef<HTMLDivElement | null>(null);
   const dataRef = useRef<{ center: GNode; nodes: GNode[] } | null>(null);
   const selectedRef = useRef<GNode | null>(null);
-  // Viewport (zoom + pan), mutated in place so the render loop always reads the
-  // latest values without re-running the canvas effect.
-  const viewRef = useRef({ scale: 1, ox: 0, oy: 0 });
-  const dimRef = useRef({ W: 0, H: 0 });
-
-  const zoomBy = useCallback((factor: number) => {
-    const v = viewRef.current;
-    const { W, H } = dimRef.current;
-    const sx = (W || 0) / 2, sy = (H || 0) / 2;
-    const ns = Math.max(0.5, Math.min(3, v.scale * factor));
-    const wx = (sx - v.ox) / v.scale, wy = (sy - v.oy) / v.scale;
-    v.ox = sx - wx * ns; v.oy = sy - wy * ns; v.scale = ns;
-  }, []);
-
-  const resetView = useCallback(() => {
-    const v = viewRef.current;
-    v.scale = 1; v.ox = 0; v.oy = 0;
-    dataRef.current?.nodes.forEach((n) => { n.pinned = false; });
-  }, []);
+  // Static fit transform — the graph renders at 90% scale so there's padding at
+  // the canvas edges. Set in resize(); never user-zoomed.
+  const viewRef = useRef({ scale: 0.9, ox: 0, oy: 0 });
 
   const load = useCallback(async () => {
     setStatus('loading');
     setError(null);
     setSelected(null);
     selectedRef.current = null;
-    viewRef.current.scale = 1;
-    viewRef.current.ox = 0;
-    viewRef.current.oy = 0;
     try {
       const txs: WalletTransaction[] = [];
       for (const chain of chains) {
@@ -251,13 +225,14 @@ export function WalletGraph({ walletAddress, chains }: Props) {
     let hover: GNode | null = null;
     let drag: GNode | null = null;
     let ddx = 0, ddy = 0;
-    let panning = false, panx = 0, pany = 0;
 
     function resize() {
       const r = cvs.getBoundingClientRect();
       W = r.width; H = 420;
       cvs.width = W * DPR; cvs.height = H * DPR;
-      dimRef.current = { W, H };
+      viewRef.current.scale = 0.9;
+      viewRef.current.ox = W * 0.05;
+      viewRef.current.oy = H * 0.05;
       cx = W / 2; cy = H / 2; center.x = cx; center.y = cy;
     }
     resize();
@@ -452,10 +427,9 @@ export function WalletGraph({ walletAddress, chains }: Props) {
     const hideTip = () => { tip.style.opacity = '0'; };
     const onMove = (e: MouseEvent) => {
       const sp = mpos(e);
-      if (panning) { view.ox += sp.x - panx; view.oy += sp.y - pany; panx = sp.x; pany = sp.y; hideTip(); return; }
       const p = toWorld(sp.x, sp.y);
       if (drag) { drag.x = p.x - ddx; drag.y = p.y - ddy; drag.vx = 0; drag.vy = 0; showTip(drag); return; }
-      hover = pick(p); cvs.style.cursor = 'grab';
+      hover = pick(p); cvs.style.cursor = hover ? 'grab' : 'default';
       if (hover) showTip(hover); else hideTip();
     };
     const onDown = (e: MouseEvent) => {
@@ -465,31 +439,20 @@ export function WalletGraph({ walletAddress, chains }: Props) {
         drag = n; n.drag = true; ddx = p.x - n.x; ddy = p.y - n.y; cvs.style.cursor = 'grabbing';
       } else {
         selectedRef.current = null; setSelected(null);
-        panning = true; panx = sp.x; pany = sp.y; cvs.style.cursor = 'grabbing';
       }
     };
     const onUp = () => {
-      if (drag) { drag.pinned = true; drag.drag = false; drag = null; }
-      panning = false; cvs.style.cursor = 'grab';
+      if (drag) { drag.pinned = true; drag.drag = false; drag = null; cvs.style.cursor = 'grab'; }
     };
     const onDbl = (e: MouseEvent) => {
       const sp = mpos(e), n = pick(toWorld(sp.x, sp.y));
       if (n && n !== center) n.pinned = false;
     };
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const sp = mpos(e);
-      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-      const ns = Math.max(0.5, Math.min(3, view.scale * factor));
-      const wx = (sp.x - view.ox) / view.scale, wy = (sp.y - view.oy) / view.scale;
-      view.ox = sp.x - wx * ns; view.oy = sp.y - wy * ns; view.scale = ns;
-    };
-    const onLeave = () => { if (!drag && !panning) { hover = null; hideTip(); } };
+    const onLeave = () => { if (!drag) { hover = null; hideTip(); } };
     cvs.addEventListener('mousemove', onMove);
     cvs.addEventListener('mousedown', onDown);
     window.addEventListener('mouseup', onUp);
     cvs.addEventListener('dblclick', onDbl);
-    cvs.addEventListener('wheel', onWheel, { passive: false });
     cvs.addEventListener('mouseleave', onLeave);
     window.addEventListener('resize', resize);
     raf = requestAnimationFrame(frame);
@@ -500,7 +463,6 @@ export function WalletGraph({ walletAddress, chains }: Props) {
       cvs.removeEventListener('mousedown', onDown);
       window.removeEventListener('mouseup', onUp);
       cvs.removeEventListener('dblclick', onDbl);
-      cvs.removeEventListener('wheel', onWheel);
       cvs.removeEventListener('mouseleave', onLeave);
       window.removeEventListener('resize', resize);
     };
@@ -556,35 +518,6 @@ export function WalletGraph({ walletAddress, chains }: Props) {
               className="pointer-events-none absolute z-10 max-w-[200px] rounded-[10px] border border-white/15 px-2.5 py-2 text-xs leading-snug text-white opacity-0 transition-opacity"
               style={{ background: 'rgba(6,18,34,.94)' }}
             />
-            <div className="absolute right-2 top-2 z-10 flex flex-col gap-1">
-              <button
-                type="button"
-                onClick={() => zoomBy(1.25)}
-                title="Zoom in"
-                aria-label="Zoom in"
-                className="grid h-7 w-7 place-items-center rounded-md border border-white/15 bg-black/40 text-white/70 backdrop-blur hover:bg-black/60 hover:text-white"
-              >
-                <IconPlus className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => zoomBy(0.8)}
-                title="Zoom out"
-                aria-label="Zoom out"
-                className="grid h-7 w-7 place-items-center rounded-md border border-white/15 bg-black/40 text-white/70 backdrop-blur hover:bg-black/60 hover:text-white"
-              >
-                <IconMinus className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={resetView}
-                title="Reset view"
-                aria-label="Reset view"
-                className="grid h-7 w-7 place-items-center rounded-md border border-white/15 bg-black/40 text-white/70 backdrop-blur hover:bg-black/60 hover:text-white"
-              >
-                <IconFocusCentered className="h-4 w-4" />
-              </button>
-            </div>
           </div>
 
           {legend.length > 0 && (
@@ -609,8 +542,8 @@ export function WalletGraph({ walletAddress, chains }: Props) {
           )}
 
           <p className="mt-2 text-[11px] text-white/35">
-            Scroll to zoom · drag a node to pin it · drag the canvas to pan ·
-            double-click to unpin · click a node for actions.
+            Hover to focus · drag a node to pin it · double-click to unpin ·
+            click a node for actions.
           </p>
         </>
       )}
