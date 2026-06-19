@@ -18,6 +18,8 @@ import { useManageTokensStore } from '@/lib/stores/manageTokensStore';
 import { ApprovalsPanel } from '@/components/portfolio/ApprovalsPanel';
 import { MoveToGroupMenu } from '@/components/portfolio/MoveToGroupMenu';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
+import { WalletConnections } from '@/components/portfolio/WalletConnections';
+import { WalletRelated } from '@/components/portfolio/WalletRelated';
 import {
   applyTokenVisibility,
   autoHiddenForReview,
@@ -95,7 +97,7 @@ export function WalletCard({ wallet }: Props) {
   const removeWallet = usePortfolioStore((s) => s.removeWallet);
 
   const [expanded, setExpanded] = useState(true);
-  const [view, setView] = useState<'tokens' | 'activity'>('tokens');
+  const [view, setView] = useState<'tokens' | 'activity' | 'connections'>('tokens');
   const [sortKey, setSortKey] = useState<SortKey>('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [activeChains, setActiveChains] = useState<Set<ChainId>>(
@@ -375,10 +377,24 @@ export function WalletCard({ wallet }: Props) {
             >
               Activity
             </button>
+            <button
+              type="button"
+              onClick={() => setView('connections')}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                view === 'connections' ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white/80'
+              }`}
+            >
+              Connections
+            </button>
           </div>
 
           {view === 'activity' ? (
             <ActivityFeed walletAddress={wallet.address} chains={wallet.chains} />
+          ) : view === 'connections' ? (
+            <div className="space-y-3">
+              <WalletConnections walletAddress={wallet.address} chains={wallet.chains} />
+              <WalletRelated walletAddress={wallet.address} chains={wallet.chains} />
+            </div>
           ) : (
             <>
               {/* First-load: tell the user we auto-hid some tokens, give them a

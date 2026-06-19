@@ -27,6 +27,8 @@ import type {
   WalletHistoryResponse,
 } from '@/services';
 import { pulsechainTxUrl, PULSECHAIN_EXPLORER_NAME } from '@/lib/pulsechainExplorer';
+import { getKnownAddress, getKnownAddressLabel } from '@/lib/gumshoe/address-labels';
+import { CounterpartyBadge } from '@/components/portfolio/counterpartyBadge';
 
 interface Props {
   walletAddress: string;
@@ -114,7 +116,10 @@ const dateKey = (ts: number) =>
 
 function titleFor(t: WalletTransaction): string {
   const on = t.protocol?.name ? ` on ${t.protocol.name}` : '';
-  const cp = t.counterpartyLabel || 'unknown';
+  const cp =
+    t.counterpartyLabel ||
+    getKnownAddressLabel(t.counterparty) ||
+    (t.counterparty ? truncate(t.counterparty) : 'unknown');
   switch (t.action) {
     case 'swap':
       return `Swapped${on}`;
@@ -411,6 +416,7 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
   const meta = ACTION_META[tx.action];
   const failed = tx.status === 'failed';
   const native = NATIVE_SYMBOL[tx.chain];
+  const known = getKnownAddress(tx.counterparty);
 
   return (
     <div className={`relative pl-12 ${tx.isScam ? 'opacity-50' : ''}`}>
@@ -456,6 +462,7 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
               {meta.label}
             </span>
             <span className="truncate text-sm font-semibold text-white">{titleFor(tx)}</span>
+            <CounterpartyBadge category={known?.category} label={known?.label} />
             {tx.isScam && (
               <span className="rounded border border-red-400/40 bg-red-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-red-300">
                 Scam
