@@ -27,11 +27,8 @@ import type {
   WalletHistoryResponse,
 } from '@/services';
 import { pulsechainTxUrl, PULSECHAIN_EXPLORER_NAME } from '@/lib/pulsechainExplorer';
-import {
-  getKnownAddress,
-  getKnownAddressLabel,
-  type AddressCategory,
-} from '@/lib/gumshoe/address-labels';
+import { getKnownAddress, getKnownAddressLabel } from '@/lib/gumshoe/address-labels';
+import { CounterpartyBadge } from '@/components/portfolio/counterpartyBadge';
 
 interface Props {
   walletAddress: string;
@@ -116,34 +113,6 @@ const fmtClock = (ts: number) =>
 
 const dateKey = (ts: number) =>
   new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-
-// Counterparty categories worth flagging in the feed. Routers/factories/wrapped
-// are labelled (so the title reads "PulseX V2 Router") but not badged — they'd
-// be noise. CEX / locker / OFAC / burn get a coloured chip.
-const COUNTERPARTY_BADGE: Partial<
-  Record<AddressCategory, { text: string; cls: string; hint: string }>
-> = {
-  ofac: {
-    text: 'OFAC',
-    cls: 'border-red-400/50 bg-red-500/20 text-red-200',
-    hint: 'OFAC-sanctioned address',
-  },
-  exchange: {
-    text: 'CEX',
-    cls: 'border-sky-400/40 bg-sky-500/15 text-sky-200',
-    hint: 'Centralized exchange',
-  },
-  locker: {
-    text: 'Locker',
-    cls: 'border-amber-400/40 bg-amber-500/15 text-amber-200',
-    hint: 'Liquidity locker',
-  },
-  burn: {
-    text: 'Burn',
-    cls: 'border-white/20 bg-white/10 text-white/60',
-    hint: 'Burn address',
-  },
-};
 
 function titleFor(t: WalletTransaction): string {
   const on = t.protocol?.name ? ` on ${t.protocol.name}` : '';
@@ -448,7 +417,6 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
   const failed = tx.status === 'failed';
   const native = NATIVE_SYMBOL[tx.chain];
   const known = getKnownAddress(tx.counterparty);
-  const cpBadge = known ? COUNTERPARTY_BADGE[known.category] : undefined;
 
   return (
     <div className={`relative pl-12 ${tx.isScam ? 'opacity-50' : ''}`}>
@@ -494,14 +462,7 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
               {meta.label}
             </span>
             <span className="truncate text-sm font-semibold text-white">{titleFor(tx)}</span>
-            {cpBadge && (
-              <span
-                title={known ? `${known.label} — ${cpBadge.hint}` : cpBadge.hint}
-                className={`shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase ${cpBadge.cls}`}
-              >
-                {cpBadge.text}
-              </span>
-            )}
+            <CounterpartyBadge category={known?.category} label={known?.label} />
             {tx.isScam && (
               <span className="rounded border border-red-400/40 bg-red-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-red-300">
                 Scam
