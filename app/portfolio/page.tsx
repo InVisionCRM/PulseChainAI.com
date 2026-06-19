@@ -10,6 +10,7 @@ import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
 import { WatchlistPanel } from '@/components/portfolio/WatchlistPanel';
 import { TokenInsightsCard } from '@/components/portfolio/TokenInsightsCard';
 import { ManageTokensModal } from '@/components/portfolio/ManageTokensModal';
+import { ConnectWalletButton } from '@/components/portfolio/ConnectWalletButton';
 
 const fmtUsd = (n: number) => {
   if (!Number.isFinite(n)) return '$0.00';
@@ -52,29 +53,32 @@ export default function PortfolioPage() {
             </h1>
           </div>
 
-          {wallets.length > 0 && (
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <div className="text-xs text-white/50 uppercase tracking-wide">
-                  Total value
+          <div className="flex items-center gap-4">
+            {wallets.length > 0 && (
+              <>
+                <div className="text-right">
+                  <div className="text-xs text-white/50 uppercase tracking-wide">
+                    Total value
+                  </div>
+                  <div className="text-2xl font-bold text-white tabular-nums">
+                    {fmtUsd(aggregateUsd)}
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-white tabular-nums">
-                  {fmtUsd(aggregateUsd)}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={refreshAll}
-                disabled={anyLoading}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold px-3 py-2 transition-colors disabled:opacity-40"
-              >
-                <IconRefresh
-                  className={`h-4 w-4 ${anyLoading ? 'animate-spin' : ''}`}
-                />
-                Refresh all
-              </button>
-            </div>
-          )}
+                <button
+                  type="button"
+                  onClick={refreshAll}
+                  disabled={anyLoading}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold px-3 py-2 transition-colors disabled:opacity-40"
+                >
+                  <IconRefresh
+                    className={`h-4 w-4 ${anyLoading ? 'animate-spin' : ''}`}
+                  />
+                  Refresh all
+                </button>
+              </>
+            )}
+            <ConnectWalletButton />
+          </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">

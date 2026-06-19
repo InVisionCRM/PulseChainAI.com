@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/pulsechain-sync",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/screener-refresh",
+      "schedule": "* * * * *"
     }
   ]
 }

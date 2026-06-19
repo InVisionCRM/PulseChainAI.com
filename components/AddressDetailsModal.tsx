@@ -6,6 +6,7 @@ import { pulsechainApiService } from '@/services/pulsechainApiService';
 import type { AddressInfo, TokenTransfer, Transaction } from '@/services/pulsechainApiService';
 import { LoaderThree } from '@/components/ui/loader';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
+import { pulsechainExplorerUrl } from '@/lib/pulsechainExplorer';
 
 interface AddressDetailsModalProps {
   isOpen: boolean;
@@ -389,7 +390,7 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
   };
 
   const openInExplorer = (path: string) => {
-    window.open(`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/${path}`, '_blank');
+    window.open(pulsechainExplorerUrl(path), '_blank');
   };
 
   const handleShowMore = (transaction: any) => {
