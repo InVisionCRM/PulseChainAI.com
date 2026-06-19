@@ -14,14 +14,11 @@ import {
   applyTokenVisibility,
   tokenAutoState,
 } from '@/lib/portfolio/tokenVisibility';
-import type { ChainId, PortfolioToken } from '@/services';
+import type { PortfolioToken } from '@/services';
+import { ChainLogo } from '@/components/ui/ChainLogo';
 
 const truncate = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 
-const CHAIN_LABEL: Record<ChainId, string> = {
-  ethereum: 'ETH',
-  pulsechain: 'PLS',
-};
 
 const fmtUsd = (n: number | null | undefined) => {
   if (n == null || !Number.isFinite(n) || n === 0) return null;
@@ -328,9 +325,7 @@ export function ManageTokensModal() {
                         <span className="font-semibold text-white truncate">
                           {token.symbol}
                         </span>
-                        <span className="text-[9px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded border border-white/15 text-white/60">
-                          {CHAIN_LABEL[token.chain]}
-                        </span>
+                        <ChainLogo chain={token.chain} size={14} />
                         {auto.reason === 'spam' && (
                           <span
                             className="inline-flex items-center gap-0.5 text-[9px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded"
