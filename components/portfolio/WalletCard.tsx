@@ -16,6 +16,7 @@ import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { useInsightsStore } from '@/lib/stores/insightsStore';
 import { useManageTokensStore } from '@/lib/stores/manageTokensStore';
 import { ApprovalsPanel } from '@/components/portfolio/ApprovalsPanel';
+import { MoveToGroupMenu } from '@/components/portfolio/MoveToGroupMenu';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
 import {
   applyTokenVisibility,
@@ -339,6 +340,7 @@ export function WalletCard({ wallet }: Props) {
               className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`}
             />
           </button>
+          <MoveToGroupMenu address={wallet.address} />
           <button
             type="button"
             onClick={() => removeWallet(wallet.address)}

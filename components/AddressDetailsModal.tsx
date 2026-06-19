@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { pulsechainApiService } from '@/services/pulsechainApiService';
 import type { AddressInfo, TokenTransfer, Transaction } from '@/services/pulsechainApiService';
 import { LoaderThree } from '@/components/ui/loader';
+import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import { pulsechainExplorerUrl } from '@/lib/pulsechainExplorer';
 
 interface AddressDetailsModalProps {
@@ -150,6 +151,15 @@ const TransferItem: React.FC<TransferItemProps> = ({
               >
                 {formatAddress(fromAddress || 'Unknown')}
               </button>
+              {fromAddress && (
+                <AddToGroupButton
+                  address={fromAddress}
+                  source="tx"
+                  chain="pulsechain"
+                  context={{ tokenSymbol, direction: 'sender' }}
+                  size={13}
+                />
+              )}
               {isSent && (
                 <span className="text-blue-400 font-medium">(You)</span>
               )}
@@ -167,6 +177,15 @@ const TransferItem: React.FC<TransferItemProps> = ({
               >
                 {formatAddress(toAddress || 'Unknown')}
               </button>
+              {toAddress && (
+                <AddToGroupButton
+                  address={toAddress}
+                  source="tx"
+                  chain="pulsechain"
+                  context={{ tokenSymbol, direction: 'receiver' }}
+                  size={13}
+                />
+              )}
               {isReceived && (
                 <span className="text-blue-400 font-medium">(You)</span>
               )}

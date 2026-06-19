@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { DexScreenerData } from '@/types';
 import { pulsechainApiService } from '@/services/pulsechainApiService';
 import AddressDetailsModal from './AddressDetailsModal';
+import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 
 interface LiquidityTabProps {
   dexScreenerData: DexScreenerData | null;
@@ -598,15 +599,25 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                                 <span className="text-sm" title="Burn address" aria-label="Burn address">🔥</span>
                               )}
                             </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleHolderClick(holder.address, pair);
-                              }}
-                              className="font-mono text-white/80 hover:text-white underline underline-offset-2 decoration-white/30 hover:decoration-white/60 cursor-pointer text-left transition-colors text-sm font-medium"
-                            >
-                              {formatLpAddress(holder.address)}
-                            </button>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleHolderClick(holder.address, pair);
+                                }}
+                                className="font-mono text-white/80 hover:text-white underline underline-offset-2 decoration-white/30 hover:decoration-white/60 cursor-pointer text-left transition-colors text-sm font-medium truncate"
+                              >
+                                {formatLpAddress(holder.address)}
+                              </button>
+                              <AddToGroupButton
+                                address={holder.address}
+                                source="lp"
+                                chain="pulsechain"
+                                context={{ tokenSymbol: pair.baseToken?.symbol, rank: holderIndex + 1 }}
+                                size={13}
+                                className="shrink-0 text-slate-500 hover:text-orange-300 transition-colors"
+                              />
+                            </div>
                             <div className="text-white font-semibold text-sm tabular-nums">
                               {formatHolderBalance(holder.value)}
                             </div>

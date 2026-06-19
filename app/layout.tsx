@@ -26,6 +26,7 @@ import { usePathname } from "next/navigation";
 import { useState, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { ToastProvider } from "@/components/ui/toast-provider";
+import { AddToGroupModal } from "@/components/portfolio/AddToGroupModal";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -225,6 +226,7 @@ export default function RootLayout({
             <MobileBottomNav />
           </Suspense>
         </div>
+        <AddToGroupModal />
         <Analytics />
       </body>
     </html>
