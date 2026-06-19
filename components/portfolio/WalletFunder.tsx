@@ -6,11 +6,12 @@
 // leaves an empty row.
 
 import { useEffect, useState } from 'react';
-import { IconArrowDownLeft, IconExternalLink } from '@tabler/icons-react';
+import { IconArrowDownLeft, IconExternalLink, IconChevronDown } from '@tabler/icons-react';
 import type { ChainId } from '@/services';
 import type { AddressCategory } from '@/lib/gumshoe/address-labels';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import { CounterpartyBadge } from '@/components/portfolio/counterpartyBadge';
+import { WalletFundingTrace } from '@/components/portfolio/WalletFundingTrace';
 
 interface FirstFunder {
   supported: boolean;
@@ -45,6 +46,7 @@ const fmtAmt = (n: number) =>
 
 export function WalletFunder({ address, chain }: { address: string; chain: ChainId }) {
   const [data, setData] = useState<FirstFunder | null>(null);
+  const [traceOpen, setTraceOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -70,6 +72,7 @@ export function WalletFunder({ address, chain }: { address: string; chain: Chain
 
   const name = data.label ?? truncate(data.funder);
   return (
+    <>
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-white/10 bg-white/[0.02] px-4 py-1.5 text-[11px] text-white/45">
       <span className="inline-flex items-center gap-1 uppercase tracking-wide text-white/35">
         <IconArrowDownLeft className="h-3.5 w-3.5 text-emerald-300/70" />
@@ -110,6 +113,18 @@ export function WalletFunder({ address, chain }: { address: string; chain: Chain
         className="text-white/30 hover:text-orange-300 transition-colors"
         title="Save funder to a group"
       />
+      <button
+        type="button"
+        onClick={() => setTraceOpen((v) => !v)}
+        className="ml-1 inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300/80 hover:bg-white/5 hover:text-emerald-200 transition-colors"
+      >
+        {traceOpen ? 'Hide trace' : 'Trace source'}
+        <IconChevronDown
+          className={`h-3 w-3 transition-transform ${traceOpen ? '' : '-rotate-90'}`}
+        />
+      </button>
     </div>
+    {traceOpen && <WalletFundingTrace address={address} chain={chain} />}
+    </>
   );
 }
