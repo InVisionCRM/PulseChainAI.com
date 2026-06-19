@@ -20,7 +20,7 @@ import { MoveToGroupMenu } from '@/components/portfolio/MoveToGroupMenu';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
 import { WalletConnections } from '@/components/portfolio/WalletConnections';
 import { WalletRelated } from '@/components/portfolio/WalletRelated';
-import { WalletFunder } from '@/components/portfolio/WalletFunder';
+import { WalletFundingTrace } from '@/components/portfolio/WalletFundingTrace';
 import {
   applyTokenVisibility,
   autoHiddenForReview,
@@ -98,7 +98,7 @@ export function WalletCard({ wallet }: Props) {
   const removeWallet = usePortfolioStore((s) => s.removeWallet);
 
   const [expanded, setExpanded] = useState(true);
-  const [view, setView] = useState<'tokens' | 'activity' | 'connections'>('tokens');
+  const [view, setView] = useState<'tokens' | 'activity' | 'connections' | 'funding'>('tokens');
   const [sortKey, setSortKey] = useState<SortKey>('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [activeChains, setActiveChains] = useState<Set<ChainId>>(
@@ -355,11 +355,6 @@ export function WalletCard({ wallet }: Props) {
         </div>
       </header>
 
-      <WalletFunder
-        address={wallet.address}
-        chain={wallet.chains.includes('pulsechain') ? 'pulsechain' : wallet.chains[0]}
-      />
-
       {expanded && (
         <div className="p-4 space-y-3">
           {/* Tokens | Activity switch — Activity is the DeBank-style decoded
@@ -392,6 +387,15 @@ export function WalletCard({ wallet }: Props) {
             >
               Connections
             </button>
+            <button
+              type="button"
+              onClick={() => setView('funding')}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                view === 'funding' ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white/80'
+              }`}
+            >
+              Funding
+            </button>
           </div>
 
           {view === 'activity' ? (
@@ -401,6 +405,11 @@ export function WalletCard({ wallet }: Props) {
               <WalletConnections walletAddress={wallet.address} chains={wallet.chains} />
               <WalletRelated walletAddress={wallet.address} chains={wallet.chains} />
             </div>
+          ) : view === 'funding' ? (
+            <WalletFundingTrace
+              address={wallet.address}
+              chain={wallet.chains.includes('pulsechain') ? 'pulsechain' : wallet.chains[0]}
+            />
           ) : (
             <>
               {/* First-load: tell the user we auto-hid some tokens, give them a

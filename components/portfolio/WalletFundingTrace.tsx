@@ -85,7 +85,7 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
 
   if (loading) {
     return (
-      <div className="border-b border-white/10 bg-black/10 px-4 py-3 text-[11px] text-white/40">
+      <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-[11px] text-white/40">
         <IconRefresh className="mr-1 inline h-3.5 w-3.5 animate-spin" />
         Tracing source of funds…
       </div>
@@ -93,7 +93,7 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
   }
   if (!trace || !trace.supported || trace.steps.length < 2) {
     return (
-      <div className="border-b border-white/10 bg-black/10 px-4 py-3 text-[11px] text-white/40">
+      <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-[11px] text-white/40">
         No funding ancestry found.
       </div>
     );
@@ -104,7 +104,7 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
   const origin = steps[steps.length - 1];
 
   return (
-    <div className="border-b border-white/10 bg-black/10 px-4 py-3">
+    <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
       <div className="mb-2 text-[11px] uppercase tracking-wide text-white/45">
         Source of funds
         <span className="ml-1 normal-case text-white/30">
