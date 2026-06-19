@@ -20,6 +20,7 @@ import { MoveToGroupMenu } from '@/components/portfolio/MoveToGroupMenu';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
 import { WalletConnections } from '@/components/portfolio/WalletConnections';
 import { WalletRelated } from '@/components/portfolio/WalletRelated';
+import { WalletGraph } from '@/components/portfolio/WalletGraph';
 import {
   applyTokenVisibility,
   autoHiddenForReview,
@@ -98,6 +99,7 @@ export function WalletCard({ wallet }: Props) {
 
   const [expanded, setExpanded] = useState(true);
   const [view, setView] = useState<'tokens' | 'activity' | 'connections'>('tokens');
+  const [connView, setConnView] = useState<'list' | 'graph'>('list');
   const [sortKey, setSortKey] = useState<SortKey>('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [activeChains, setActiveChains] = useState<Set<ChainId>>(
@@ -392,8 +394,34 @@ export function WalletCard({ wallet }: Props) {
             <ActivityFeed walletAddress={wallet.address} chains={wallet.chains} />
           ) : view === 'connections' ? (
             <div className="space-y-3">
-              <WalletConnections walletAddress={wallet.address} chains={wallet.chains} />
-              <WalletRelated walletAddress={wallet.address} chains={wallet.chains} />
+              <div className="inline-flex rounded-lg border border-white/12 bg-white/5 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setConnView('list')}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                    connView === 'list' ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white/80'
+                  }`}
+                >
+                  List
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConnView('graph')}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                    connView === 'graph' ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white/80'
+                  }`}
+                >
+                  Graph
+                </button>
+              </div>
+              {connView === 'graph' ? (
+                <WalletGraph walletAddress={wallet.address} chains={wallet.chains} />
+              ) : (
+                <>
+                  <WalletConnections walletAddress={wallet.address} chains={wallet.chains} />
+                  <WalletRelated walletAddress={wallet.address} chains={wallet.chains} />
+                </>
+              )}
             </div>
           ) : (
             <>
