@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { fmtUsd } from '@/lib/format';
 
 // Types for transaction data
 interface Transaction {
@@ -907,7 +908,7 @@ const LookIntoRHClone = () => {
 
             {/* Portfolio Value */}
             <div className="text-right">
-              <div className="text-4xl font-bold text-gray-900">${portfolioValue.toLocaleString()}</div>
+              <div className="text-4xl font-bold text-gray-900">{fmtUsd(portfolioValue)}</div>
               <div className="text-green-600 text-sm font-medium">+0.27% ↗</div>
           </div>
         </div>
@@ -928,7 +929,7 @@ const LookIntoRHClone = () => {
           </div>
             <div className="text-center">
               <div className="text-gray-500 text-sm">Earnings</div>
-              <div className="text-lg font-bold text-gray-900">${(portfolioValue * 0.1).toLocaleString()}</div>
+              <div className="text-lg font-bold text-gray-900">{fmtUsd(portfolioValue * 0.1)}</div>
             </div>
             <div className="text-center">
               <div className="text-gray-500 text-sm">Days Active</div>
@@ -1013,7 +1014,7 @@ const LookIntoRHClone = () => {
             </div>
             <div>
                       <div className="font-semibold text-gray-900">Ethereum</div>
-                      <div className="text-2xl font-bold text-gray-900">${ethereumTotalValue.toLocaleString()}</div>
+                      <div className="text-2xl font-bold text-gray-900">{fmtUsd(ethereumTotalValue)}</div>
                       <div className="text-sm text-gray-500">{ethereumTokens.length} tokens</div>
             </div>
           </div>
@@ -1032,7 +1033,7 @@ const LookIntoRHClone = () => {
                     />
               <div>
                       <div className="font-semibold text-gray-900">PulseChain</div>
-                      <div className="text-2xl font-bold text-gray-900">${pulsechainTotalValue.toLocaleString()}</div>
+                      <div className="text-2xl font-bold text-gray-900">{fmtUsd(pulsechainTotalValue)}</div>
                       <div className="text-sm text-gray-500">{pulsechainTokens.length} tokens</div>
               </div>
           </div>
@@ -1089,9 +1090,9 @@ const LookIntoRHClone = () => {
                        expandedChain === 'pulsechain' ? 'PulseChain Wallet' : 'Wallet'}
                     </h3>
                     <div className="text-lg font-bold text-gray-900">
-                      {expandedChain === 'ethereum' ? `$${ethereumTotalValue.toLocaleString()}` :
-                       expandedChain === 'pulsechain' ? `$${pulsechainTotalValue.toLocaleString()}` :
-                       `$${(ethereumTotalValue + pulsechainTotalValue).toLocaleString()}`}
+                      {expandedChain === 'ethereum' ? fmtUsd(ethereumTotalValue) :
+                       expandedChain === 'pulsechain' ? fmtUsd(pulsechainTotalValue) :
+                       fmtUsd(ethereumTotalValue + pulsechainTotalValue)}
               </div>
             </div>
           </div>
@@ -1586,7 +1587,7 @@ const LookIntoRHClone = () => {
                             <div className="text-right">
                               <div className="text-xs text-gray-500">Balance</div>
                               <div className="text-sm font-semibold text-gray-900">{balanceEth.toFixed(4)} ETH</div>
-                              <div className="text-xs text-gray-500">${balanceUsd.toLocaleString()}</div>
+                              <div className="text-xs text-gray-500">{fmtUsd(balanceUsd)}</div>
                             </div>
                           </div>
                         </div>

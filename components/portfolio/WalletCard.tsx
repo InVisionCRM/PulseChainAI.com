@@ -27,6 +27,7 @@ import {
   autoHiddenForReview,
 } from '@/lib/portfolio/tokenVisibility';
 import type { ChainId, LpUnderlying, PortfolioToken, PortfolioWallet } from '@/services';
+import { fmtUsd, fmtAmount, fmtPrice, fmtPct, pctClass } from '@/lib/format';
 
 // Real chain marks. Used as the small badge on token icons (DeBank / Zapper /
 // Zerion convention) and as the wallet-header chain-filter toggles — full
@@ -42,28 +43,6 @@ const CHAIN_NAME: Record<ChainId, string> = {
 };
 
 const truncate = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
-
-const fmtUsd = (n: number, opts?: { compact?: boolean }) => {
-  if (!Number.isFinite(n) || n === 0) return '$0.00';
-  if (opts?.compact && Math.abs(n) >= 1000) {
-    return `$${n.toLocaleString(undefined, { notation: 'compact', maximumFractionDigits: 2 })}`;
-  }
-  return `$${n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: n < 0.01 ? 6 : 2,
-  })}`;
-};
-
-const fmtBalance = (n: number) =>
-  n.toLocaleString(undefined, {
-    maximumFractionDigits: n < 1 ? 6 : 4,
-  });
-
-const fmtChange = (n: number | undefined) => {
-  if (n == null || !Number.isFinite(n)) return null;
-  const sign = n >= 0 ? '+' : '';
-  return `${sign}${n.toFixed(2)}%`;
-};
 
 type SortKey = 'symbol' | 'balance' | 'change' | 'price' | 'value';
 type SortDir = 'asc' | 'desc';
@@ -289,14 +268,14 @@ export function WalletCard({ wallet }: Props) {
           <div className="text-right">
             <div className="text-xs text-white/50 uppercase tracking-wide">Total</div>
             <div className="text-lg font-semibold text-white tabular-nums">
-              {fmtUsd(filteredTotalUsd, { compact: true })}
+              {fmtUsd(filteredTotalUsd)}
             </div>
             {totalsDiffer && (
               <div
                 className="text-[10px] uppercase tracking-wide tabular-nums"
                 style={{ color: 'rgba(255, 255, 255, 0.4)' }}
               >
-                of {fmtUsd(totalUsd, { compact: true })}
+                of {fmtUsd(totalUsd)}
               </div>
             )}
           </div>
@@ -645,20 +624,17 @@ function renderTokenRows(
           </div>
         </td>
         <td className="px-2 py-2 text-right text-white tabular-nums">
-          {fmtBalance(t.balanceFormatted)}
+          {fmtAmount(t.balanceFormatted)}
         </td>
         <td className="px-2 py-2 text-right tabular-nums">
           {(() => {
-            const txt = fmtChange(t.priceChange24h);
-            if (!txt) return <span className="text-white/30">—</span>;
-            const positive = (t.priceChange24h ?? 0) >= 0;
-            return (
-              <span className={positive ? 'text-green-400' : 'text-red-400'}>{txt}</span>
-            );
+            const v = t.priceChange24h;
+            if (v == null || !Number.isFinite(v)) return <span className="text-white/30">—</span>;
+            return <span className={pctClass(v)}>{fmtPct(v)}</span>;
           })()}
         </td>
         <td className="px-2 py-2 text-right text-white/80 tabular-nums">
-          {t.priceUsd != null ? fmtUsd(t.priceUsd) : <span className="text-white/30">—</span>}
+          {t.priceUsd != null ? fmtPrice(t.priceUsd) : <span className="text-white/30">—</span>}
         </td>
         <td className="px-2 py-2 text-right text-white font-semibold tabular-nums">
           {t.valueUsd != null ? fmtUsd(t.valueUsd) : <span className="text-white/30">—</span>}
@@ -683,7 +659,7 @@ function renderTokenRows(
             <td colSpan={5} className="px-2 py-1.5 text-[11px] text-cyan-200/80">
               Pool TVL{' '}
               <span className="font-semibold">
-                {fmtUsd(t.lp.totalLiquidityUsd, { compact: true })}
+                {fmtUsd(t.lp.totalLiquidityUsd)}
               </span>
               {' · '}Your share{' '}
               <span className="font-semibold">
@@ -733,7 +709,7 @@ function SectionHeaderRow({
           </span>
           <div className="flex-1 h-px bg-white/10" />
           <span className="text-[11px] tabular-nums text-white/45">
-            {fmtUsd(total, { compact: true })}
+            {fmtUsd(total)}
           </span>
         </div>
       </td>
@@ -764,13 +740,11 @@ function LpSideRow({ side, chain }: { side: LpUnderlying; chain: ChainId }) {
         </div>
       </td>
       <td className="px-2 py-2 text-right text-white/85 tabular-nums">
-        {side.amountFormatted.toLocaleString(undefined, {
-          maximumFractionDigits: side.amountFormatted < 1 ? 6 : 4,
-        })}
+        {fmtAmount(side.amountFormatted)}
       </td>
       <td className="px-2 py-2 text-right text-white/30">—</td>
       <td className="px-2 py-2 text-right text-white/75 tabular-nums">
-        {side.priceUsd != null ? fmtUsd(side.priceUsd) : <span className="text-white/30">—</span>}
+        {side.priceUsd != null ? fmtPrice(side.priceUsd) : <span className="text-white/30">—</span>}
       </td>
       <td className="px-2 py-2 text-right text-white tabular-nums">
         {side.valueUsd != null ? fmtUsd(side.valueUsd) : <span className="text-white/30">—</span>}

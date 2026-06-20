@@ -4,6 +4,7 @@ import { Holder, HolderStats, TokenInfo } from './types';
 import { isBurnAddress } from './utils';
 import GeickoPortfolioModal from './GeickoPortfolioModal';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
+import { fmtAmount, fmtNum } from '@/lib/format';
 
 export interface GeickoHoldersTabProps {
   /** Array of holder data */
@@ -93,7 +94,7 @@ export default function GeickoHoldersTab({
             Total Holders
           </div>
           <div className="text-sm font-medium text-center justify-center text-white">
-            {holderStats.totalHolders ? holderStats.totalHolders.toLocaleString() : '—'}
+            {holderStats.totalHolders ? fmtNum(holderStats.totalHolders) : '—'}
           </div>
         </div>
 
@@ -182,7 +183,7 @@ export default function GeickoHoldersTab({
 
                 {/* Balance */}
                 <div className="flex-[2] min-w-[70px] text-white truncate font-semibold">
-                  {Math.floor(balance).toLocaleString()}
+                  {fmtAmount(Math.floor(balance))}
                 </div>
 
                 {/* Percentage */}

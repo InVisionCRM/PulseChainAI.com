@@ -12,6 +12,7 @@ import {
 import { IconChartLine, IconTrash } from '@tabler/icons-react';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import type { PortfolioHistoryPoint } from '@/lib/stores/portfolioStore';
+import { fmtUsd } from '@/lib/format';
 
 type Range = '24h' | '7d' | '30d' | 'all';
 
@@ -27,20 +28,6 @@ const RANGE_LABEL: Record<Range, string> = {
   '7d': '7D',
   '30d': '30D',
   all: 'ALL',
-};
-
-const fmtUsd = (n: number, opts?: { compact?: boolean }) => {
-  if (!Number.isFinite(n)) return '$0.00';
-  if (opts?.compact && Math.abs(n) >= 1000) {
-    return `$${n.toLocaleString(undefined, {
-      notation: 'compact',
-      maximumFractionDigits: 2,
-    })}`;
-  }
-  return `$${n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
 };
 
 const fmtRangeTick = (ts: number, range: Range) => {
@@ -173,7 +160,7 @@ export function PortfolioChart() {
           />
           <YAxis
             domain={['auto', 'auto']}
-            tickFormatter={(v: number) => fmtUsd(v, { compact: true })}
+            tickFormatter={(v: number) => fmtUsd(v)}
             stroke="rgba(255,255,255,0.3)"
             fontSize={10}
             tickLine={false}

@@ -16,28 +16,9 @@ import {
 } from '@/lib/portfolio/tokenVisibility';
 import type { PortfolioToken } from '@/services';
 import { ChainLogo } from '@/components/ui/ChainLogo';
+import { fmtUsd, fmtAmount } from '@/lib/format';
 
 const truncate = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
-
-
-const fmtUsd = (n: number | null | undefined) => {
-  if (n == null || !Number.isFinite(n) || n === 0) return null;
-  if (Math.abs(n) >= 1000) {
-    return `$${n.toLocaleString(undefined, {
-      notation: 'compact',
-      maximumFractionDigits: 2,
-    })}`;
-  }
-  return `$${n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: n < 0.01 ? 6 : 2,
-  })}`;
-};
-
-const fmtBalance = (n: number) =>
-  n.toLocaleString(undefined, {
-    maximumFractionDigits: n < 1 ? 6 : 4,
-  });
 
 // Rendered once at the portfolio page level. Reads its open/active-wallet
 // state from manageTokensStore so any WalletCard can trigger it without
@@ -371,7 +352,7 @@ export function ManageTokensModal() {
 
                     <div className="text-right shrink-0 tabular-nums">
                       <div className="text-sm text-white">
-                        {fmtBalance(token.balanceFormatted)}
+                        {fmtAmount(token.balanceFormatted)}
                       </div>
                       <div className="text-[11px] text-white/50">
                         {fmtUsd(token.valueUsd ?? null) ?? '—'}

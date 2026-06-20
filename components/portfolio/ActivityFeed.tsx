@@ -30,6 +30,7 @@ import { pulsechainTxUrl, PULSECHAIN_EXPLORER_NAME } from '@/lib/pulsechainExplo
 import { ChainLogo } from '@/components/ui/ChainLogo';
 import { getKnownAddress, getKnownAddressLabel } from '@/lib/gumshoe/address-labels';
 import { CounterpartyBadge } from '@/components/portfolio/counterpartyBadge';
+import { fmtUsd, fmtAmount } from '@/lib/format';
 
 interface Props {
   walletAddress: string;
@@ -89,21 +90,6 @@ const FILTER_SETS: Record<string, Set<TxActionType> | null> = Object.fromEntries
 );
 
 const truncate = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
-
-const fmtAmount = (n: number) => {
-  if (!Number.isFinite(n)) return '0';
-  const abs = Math.abs(n);
-  if (abs === 0) return '0';
-  if (abs >= 1000) {
-    return n.toLocaleString(undefined, { notation: 'compact', maximumFractionDigits: 2 });
-  }
-  return n.toLocaleString(undefined, { maximumFractionDigits: abs < 1 ? 6 : 4 });
-};
-
-const fmtUsd = (n?: number) =>
-  n == null || !Number.isFinite(n)
-    ? null
-    : `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const fmtClock = (ts: number) =>
   new Date(ts).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -499,7 +485,7 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
 }
 
 function FlowChip({ flow }: { flow: TokenFlow }) {
-  const usd = fmtUsd(flow.valueUsd);
+  const usd = flow.valueUsd != null ? fmtUsd(flow.valueUsd) : null;
   const color = flow.isLp
     ? '#7dd3fc'
     : flow.direction === 'in'
