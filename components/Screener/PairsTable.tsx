@@ -9,6 +9,11 @@ import { dexLogo, fmtAge, fmtNum, fmtPct, fmtPrice, fmtUsd, pctClass } from './f
 import type { ScreenerWatchlist } from './watchlist';
 import { ChainLogo } from '@/components/ui/ChainLogo';
 
+// Token names are clamped to 15 characters (then ellipsised) so a long name
+// can't push the metric columns around.
+const clampName = (n: string | null | undefined) =>
+  n && n.length > 15 ? `${n.slice(0, 15)}…` : n;
+
 interface Props {
   rows: ScreenerRow[];
   window: ScreenerWindow;
@@ -140,7 +145,7 @@ export default function PairsTable({ rows, window, loading, sort, dir, onSort, w
                     {row.gold ? (
                       <span className="rounded-sm bg-yellow-500 px-1 py-px text-[9px] font-bold text-black">GOLD</span>
                     ) : null}
-                    <span className="hidden max-w-[180px] truncate text-white/40 lg:inline">{row.baseName}</span>
+                    <span className="hidden max-w-[180px] truncate text-white/40 lg:inline">{clampName(row.baseName)}</span>
                   </div>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-right text-orange-300 tabular-nums">{fmtUsd(row.marketCap)}</td>
