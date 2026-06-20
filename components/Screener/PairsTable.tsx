@@ -72,16 +72,26 @@ export default function PairsTable({ rows, window, loading, sort, dir, onSort, w
   return (
     <div className="max-h-[calc(100vh-150px)] overflow-auto rounded-2xl border border-white/15 bg-white/5 backdrop-blur-xl">
       <table className="w-full min-w-[1120px] border-collapse text-[13px]">
-        <thead className="sticky top-0 z-10 bg-[#0d2a4d]/95 backdrop-blur-xl">
+        <thead className="sticky top-0 z-30 bg-[#0d2a4d]/95 backdrop-blur-xl">
           <tr className="text-[11px] uppercase tracking-wider text-white/50">
             {HEADERS.map((h) => {
               const active = h.sort !== null && sort === h.sort;
               const windowCol = ['m5', 'h1', 'h6', 'h24'].includes(h.key) && h.key === window;
+              // The identity block (star · rank · token) is frozen to the left so
+              // it stays visible while the metric columns scroll horizontally.
+              const frozen =
+                h.key === 'star'
+                  ? 'sticky left-0 z-30 w-9 bg-[#0d2a4d]'
+                  : h.key === 'rank'
+                    ? 'sticky left-9 z-30 w-12 bg-[#0d2a4d]'
+                    : h.key === 'token'
+                      ? 'sticky left-[84px] z-30 bg-[#0d2a4d] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.55)]'
+                      : '';
               return (
                 <th
                   key={h.key}
                   onClick={h.sort ? () => onSort(h.sort!) : undefined}
-                  className={`whitespace-nowrap px-3 py-2.5 font-semibold ${h.align === 'right' ? 'text-right' : 'text-left'} ${
+                  className={`whitespace-nowrap px-3 py-2.5 font-semibold ${frozen} ${h.align === 'right' ? 'text-right' : 'text-left'} ${
                     h.sort ? 'cursor-pointer select-none hover:text-white' : ''
                   } ${active || (windowCol && !sort) ? 'text-orange-300' : ''}`}
                 >
@@ -103,9 +113,9 @@ export default function PairsTable({ rows, window, loading, sort, dir, onSort, w
               <tr
                 key={`${row.chainId ?? 'pulsechain'}:${row.pairAddress}`}
                 onClick={() => row.baseAddress && router.push(`/geicko?address=${row.baseAddress}`)}
-                className="cursor-pointer border-t border-white/10 transition-colors hover:bg-white/5"
+                className="group cursor-pointer border-t border-white/10 transition-colors hover:bg-white/5"
               >
-                <td className="w-8 px-2 py-2">
+                <td className="sticky left-0 z-20 w-9 bg-[#0e2748] px-2 py-2 group-hover:bg-[#17314f]">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -117,8 +127,8 @@ export default function PairsTable({ rows, window, loading, sort, dir, onSort, w
                     {starred ? <IconStarFilled className="h-3.5 w-3.5" /> : <IconStar className="h-3.5 w-3.5" />}
                   </button>
                 </td>
-                <td className="px-3 py-2 text-[11px] text-white/40 tabular-nums">#{i + 1}</td>
-                <td className="px-3 py-2">
+                <td className="sticky left-9 z-20 w-12 bg-[#0e2748] px-2 py-2 text-[11px] text-white/40 tabular-nums group-hover:bg-[#17314f]">#{i + 1}</td>
+                <td className="sticky left-[84px] z-20 bg-[#0e2748] px-3 py-2 shadow-[6px_0_8px_-6px_rgba(0,0,0,0.55)] group-hover:bg-[#17314f]">
                   <div className="flex items-center gap-2">
                     <DexBadge row={row} />
                     <TokenLogo row={row} />
