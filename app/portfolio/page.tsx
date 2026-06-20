@@ -11,14 +11,7 @@ import { WatchlistPanel } from '@/components/portfolio/WatchlistPanel';
 import { TokenInsightsCard } from '@/components/portfolio/TokenInsightsCard';
 import { ManageTokensModal } from '@/components/portfolio/ManageTokensModal';
 import { ConnectWalletButton } from '@/components/portfolio/ConnectWalletButton';
-
-const fmtUsd = (n: number) => {
-  if (!Number.isFinite(n)) return '$0.00';
-  return `$${n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-};
+import { fmtUsd } from '@/lib/format';
 
 export default function PortfolioPage() {
   const wallets = usePortfolioStore((s) => s.wallets);

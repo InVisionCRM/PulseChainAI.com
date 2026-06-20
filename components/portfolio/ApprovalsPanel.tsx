@@ -10,6 +10,7 @@ import {
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import type { ChainId } from '@/services';
 import { ChainLogo } from '@/components/ui/ChainLogo';
+import { fmtNum } from '@/lib/format';
 
 const CHAIN_ID_NUM: Record<ChainId, number> = {
   ethereum: 1,
@@ -70,7 +71,7 @@ const fmtAmount = (raw: string, decimals: number) => {
       return `~${(Number(big) / Number(divisor)).toPrecision(2)}`;
     }
     const whole = big / divisor;
-    return whole.toLocaleString();
+    return fmtNum(Number(whole));
   } catch {
     return raw;
   }

@@ -20,6 +20,7 @@ import {
   aggregateCounterparties,
   type CounterpartySummary,
 } from '@/lib/walletGraph/aggregate';
+import { fmtUsd } from '@/lib/format';
 
 // Bounded sample: a handful of pages per chain is enough to surface the most
 // frequent counterparties without scanning a wallet's entire lifetime.
@@ -40,17 +41,6 @@ const CHAIN_NAME: Record<ChainId, string> = {
 };
 
 const truncate = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
-
-const fmtUsd = (n: number) => {
-  if (!Number.isFinite(n) || n === 0) return '$0';
-  if (Math.abs(n) >= 1000) {
-    return `$${n.toLocaleString(undefined, {
-      notation: 'compact',
-      maximumFractionDigits: 1,
-    })}`;
-  }
-  return `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-};
 
 interface Props {
   walletAddress: string;

@@ -25,25 +25,13 @@ import { promoteMemberToWallet } from '@/lib/portfolio/groupActions';
 import { SOURCE_LABEL, shortAddr } from '@/lib/portfolio/addressLabels';
 import { WalletCard } from '@/components/portfolio/WalletCard';
 import type { ChainId, PortfolioWallet } from '@/services';
+import { fmtUsd } from '@/lib/format';
 
 const EXPLORER_ADDRESS: Record<ChainId, string> = {
   ethereum: 'https://etherscan.io/address/',
   pulsechain: 'https://scan.pulsechain.com/address/',
 };
 
-const fmtUsd = (n: number) => {
-  if (!Number.isFinite(n) || n === 0) return '$0.00';
-  if (Math.abs(n) >= 1000) {
-    return `$${n.toLocaleString(undefined, {
-      notation: 'compact',
-      maximumFractionDigits: 2,
-    })}`;
-  }
-  return `$${n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-};
 
 // Renders the portfolio's wallets organised into colour-themed group sections,
 // plus a manager bar for creating / renaming / recolouring / deleting groups.

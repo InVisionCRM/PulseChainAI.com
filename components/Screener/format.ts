@@ -1,56 +1,9 @@
 /** Display formatters for screener values. */
 
-const SUBSCRIPTS = '₀₁₂₃₄₅₆₇₈₉';
-
-function subscript(n: number): string {
-  return String(n)
-    .split('')
-    .map((d) => SUBSCRIPTS[parseInt(d, 10)])
-    .join('');
-}
-
-/** $0.0₅4134-style price formatting (DexScreener convention). */
-export function fmtPrice(p: number | null): string {
-  if (p === null || !Number.isFinite(p)) return '—';
-  if (p === 0) return '$0';
-  if (p >= 100) return `$${p.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
-  if (p >= 0.001) {
-    return `$${parseFloat(p.toPrecision(4))}`;
-  }
-  const zeros = Math.floor(-Math.log10(p));
-  if (zeros < 4) return `$${parseFloat(p.toPrecision(4))}`;
-  const digits = Math.round(p * 10 ** (zeros + 4)).toString();
-  return `$0.0${subscript(zeros)}${digits}`;
-}
-
-/** Compact USD: $4.9M, $124K, $957. */
-export function fmtUsd(n: number | null): string {
-  if (n === null || !Number.isFinite(n)) return '—';
-  const abs = Math.abs(n);
-  if (abs >= 1e9) return `$${trim((n / 1e9).toFixed(1))}B`;
-  if (abs >= 1e6) return `$${trim((n / 1e6).toFixed(1))}M`;
-  if (abs >= 1e3) return `$${trim((n / 1e3).toFixed(1))}K`;
-  return `$${n.toFixed(0)}`;
-}
-
-function trim(s: string): string {
-  return s.endsWith('.0') ? s.slice(0, -2) : s;
-}
-
-export function fmtNum(n: number | null): string {
-  if (n === null || !Number.isFinite(n)) return '—';
-  return n.toLocaleString('en-US');
-}
-
-export function fmtPct(n: number | null): string {
-  if (n === null || !Number.isFinite(n)) return '—';
-  return `${n > 0 ? '+' : ''}${n.toFixed(2)}%`;
-}
-
-export function pctClass(n: number | null): string {
-  if (n === null || !Number.isFinite(n) || n === 0) return 'text-white/40';
-  return n > 0 ? 'text-green-400' : 'text-red-400';
-}
+// Number formatting now lives in the app-wide canonical module so prices,
+// values and amounts read identically across the screener, portfolio and
+// watchlist. The screener-specific helpers (age, address, dex) stay here.
+export { fmtPrice, fmtUsd, fmtNum, fmtPct, pctClass } from '@/lib/format';
 
 /** 17s / 4m / 7h / 14d / 2mo / 3y */
 export function fmtAge(iso: string | null): string {

@@ -26,6 +26,7 @@ import { useInsightsStore } from '@/lib/stores/insightsStore';
 import type { ChainId, PortfolioToken } from '@/services';
 import { WRAPPED_NATIVE } from '@/services';
 import { pulsechainTokenUrl } from '@/lib/pulsechainExplorer';
+import { fmtUsd, fmtPrice, fmtAmount, fmtNum } from '@/lib/format';
 
 // TokenAIChat is heavy (pulls the whole geicko chat stack). Lazy-load
 // only when the user opens the AI tab.
@@ -55,28 +56,6 @@ const CHAIN_LOGO: Record<ChainId, string> = {
 const CHAIN_NAME: Record<ChainId, string> = {
   ethereum: 'Ethereum',
   pulsechain: 'PulseChain',
-};
-
-const fmtUsd = (n: number | null | undefined) => {
-  if (n == null || !Number.isFinite(n) || n === 0) return null;
-  if (Math.abs(n) >= 1000) {
-    return `$${n.toLocaleString(undefined, {
-      notation: 'compact',
-      maximumFractionDigits: 2,
-    })}`;
-  }
-  return `$${n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: n < 0.01 ? 6 : 2,
-  })}`;
-};
-
-const fmtCompact = (n: number | null | undefined) => {
-  if (n == null || !Number.isFinite(n) || n === 0) return null;
-  return n.toLocaleString(undefined, {
-    notation: 'compact',
-    maximumFractionDigits: 2,
-  });
 };
 
 interface Social {
@@ -356,7 +335,7 @@ function CardHeader({
             <div className="mt-3 flex items-baseline gap-3">
               <span className="text-xl font-semibold text-white tabular-nums">
                 {token.priceUsd != null
-                  ? fmtUsd(token.priceUsd) ?? '—'
+                  ? fmtPrice(token.priceUsd)
                   : <span className="text-white/30">—</span>}
               </span>
               {token.priceChange24h != null && (
@@ -540,7 +519,7 @@ function LiquidityTab({
                 </span>
                 {' · '}Txns{' '}
                 <span className="text-white/70 font-semibold">
-                  {p.txns24h != null ? p.txns24h.toLocaleString() : '—'}
+                  {fmtNum(p.txns24h)}
                 </span>
               </div>
             </div>
@@ -608,10 +587,7 @@ function StatsGrid({
   const cells: Array<{ label: string; value: string | null }> = [
     {
       label: 'Your balance',
-      value:
-        token.balanceFormatted.toLocaleString(undefined, {
-          maximumFractionDigits: token.balanceFormatted < 1 ? 6 : 4,
-        }) + ' ' + token.symbol,
+      value: fmtAmount(token.balanceFormatted) + ' ' + token.symbol,
     },
     {
       label: 'Your value',
@@ -631,7 +607,7 @@ function StatsGrid({
     },
     {
       label: 'Total supply',
-      value: fmtCompact(insights?.totalSupply ?? null),
+      value: fmtAmount(insights?.totalSupply ?? null),
     },
   ];
 

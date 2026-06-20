@@ -28,6 +28,7 @@ import {
 } from '@/lib/stores/groupsStore';
 import { useInsightsStore } from '@/lib/stores/insightsStore';
 import type { ChainId, PortfolioToken } from '@/services';
+import { fmtPrice, fmtPct } from '@/lib/format';
 
 const ADDRESS_RX = /^0x[a-fA-F0-9]{40}$/;
 
@@ -131,20 +132,6 @@ async function searchCrossChain(query: string): Promise<SearchHit[]> {
   }
   return out;
 }
-
-const fmtUsd = (n: number) => {
-  if (!Number.isFinite(n) || n === 0) return '$0.00';
-  return `$${n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: n < 0.01 ? 6 : 2,
-  })}`;
-};
-
-const fmtChange = (n: number | null | undefined) => {
-  if (n == null || !Number.isFinite(n)) return null;
-  const sign = n >= 0 ? '+' : '';
-  return `${sign}${n.toFixed(2)}%`;
-};
 
 // The insights modal takes a PortfolioToken, but a watched token has no
 // balance — it's price-only. Synthesize a zero-balance token so a watchlist
@@ -608,7 +595,7 @@ function TokenRow({
   const logo = p?.logoURI || t.logoURI;
   const sym = p?.symbol || t.symbol;
   const name = p?.name || t.name;
-  const changeTxt = fmtChange(change);
+  const changeTxt = fmtPct(change);
 
   return (
     <li className="group relative flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5">
@@ -625,7 +612,7 @@ function TokenRow({
         </div>
         <div className="text-right shrink-0">
           <div className="text-sm text-white tabular-nums">
-            {priceUsd != null ? fmtUsd(priceUsd) : <span className="text-white/30">—</span>}
+            {priceUsd != null ? fmtPrice(priceUsd) : <span className="text-white/30">—</span>}
           </div>
           <div
             className="text-[10px] tabular-nums"
