@@ -14,6 +14,7 @@ import { NextResponse } from 'next/server';
 import type { ChainId } from '@/services';
 import { firstFunder } from '@/lib/walletGraph/funding';
 import { getKnownAddress, type AddressCategory } from '@/lib/gumshoe/address-labels';
+import { attributePulsechainBlock } from '@/lib/pulsechainFork';
 
 const ADDRESS_RX = /^0x[a-fA-F0-9]{40}$/;
 const MAX_HOPS = 5;
@@ -23,7 +24,18 @@ interface Step {
   address: string;
   label: string | null;
   category: AddressCategory | null;
-  fundedBy: { amount: number | null; timestamp: number | null; txHash: string | null } | null;
+  // `fundedBy` describes the transfer that funded this step. Because PulseChain
+  // inherits Ethereum's pre-fork history, a transfer's real chain/asset depends
+  // on its block height — carried here so the UI can label ETH vs PLS correctly.
+  fundedBy: {
+    amount: number | null;
+    timestamp: number | null;
+    txHash: string | null;
+    block: number | null;
+    chain: ChainId;
+    asset: 'ETH' | 'PLS';
+    preFork: boolean;
+  } | null;
 }
 
 export async function POST(req: Request) {
@@ -55,10 +67,15 @@ export async function POST(req: Request) {
     const info = await firstFunder(current);
     if (!info.funder) break;
 
+    const att = attributePulsechainBlock(info.block);
     steps[steps.length - 1].fundedBy = {
       amount: info.amount,
       timestamp: info.timestamp,
       txHash: info.txHash,
+      block: info.block,
+      chain: att.chain,
+      asset: att.asset,
+      preFork: att.preFork,
     };
     steps.push({ address: info.funder, label: info.label, category: info.category, fundedBy: null });
 

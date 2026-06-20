@@ -10,12 +10,23 @@ import type { ChainId } from '@/services';
 import type { AddressCategory } from '@/lib/gumshoe/address-labels';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import { CounterpartyBadge } from '@/components/portfolio/counterpartyBadge';
+import { ChainLogo } from '@/components/ui/ChainLogo';
 
+interface FundingEdge {
+  amount: number | null;
+  timestamp: number | null;
+  txHash: string | null;
+  block: number | null;
+  // The transfer's real chain/asset (pre-fork PulseChain history is Ethereum).
+  chain: ChainId;
+  asset: 'ETH' | 'PLS';
+  preFork: boolean;
+}
 interface Step {
   address: string;
   label: string | null;
   category: AddressCategory | null;
-  fundedBy: { amount: number | null; timestamp: number | null; txHash: string | null } | null;
+  fundedBy: FundingEdge | null;
 }
 interface Trace {
   supported: boolean;
@@ -43,7 +54,6 @@ const EXPLORER_TX: Record<ChainId, string> = {
   ethereum: 'https://etherscan.io/tx/',
   pulsechain: 'https://scan.pulsechain.com/tx/',
 };
-const NATIVE: Record<ChainId, string> = { ethereum: 'ETH', pulsechain: 'PLS' };
 
 const truncate = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const fmtDate = (ms: number) =>
@@ -102,6 +112,8 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
   const steps = trace.steps;
   const reversed = [...steps].reverse(); // origin … wallet
   const origin = steps[steps.length - 1];
+  // The trail crosses the PulseChain → Ethereum fork when any hop pre-dates it.
+  const crossesEth = steps.some((s) => s.fundedBy?.preFork);
 
   return (
     <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
@@ -114,13 +126,20 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
             : ' · trail ends'}
         </span>
       </div>
+      {crossesEth && (
+        <div className="mb-2 flex items-center gap-1.5 rounded-md border border-indigo-400/25 bg-indigo-500/10 px-2 py-1 text-[10px] text-indigo-200/80">
+          <ChainLogo chain="ethereum" size={12} />
+          Trail reaches pre-fork history — those hops happened on Ethereum (ETH),
+          which PulseChain inherited at the 2023 fork.
+        </div>
+      )}
 
       <div className="flex items-start gap-1 overflow-x-auto pb-1">
         {reversed.map((s, r) => {
           const isSelf = r === reversed.length - 1;
           const color = nodeColor(s, isSelf);
           const next = reversed[r + 1];
-          const amt = next?.fundedBy?.amount ?? null;
+          const edge = next?.fundedBy ?? null;
           return (
             <Fragment key={`${s.address}-${r}`}>
               <div className="flex w-[90px] shrink-0 flex-col items-center text-center">
@@ -136,8 +155,11 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
               {next && (
                 <div className="flex shrink-0 flex-col items-center pt-1.5 text-white/30">
                   <IconArrowRight className="h-3.5 w-3.5" />
-                  {amt != null && (
-                    <span className="text-[9px] tabular-nums text-white/35">{fmtAmt(amt)}</span>
+                  {edge?.amount != null && (
+                    <span className="mt-0.5 flex items-center gap-0.5 text-[9px] tabular-nums text-white/40">
+                      {fmtAmt(edge.amount)}
+                      <ChainLogo chain={edge.chain} size={9} />
+                    </span>
                   )}
                 </div>
               )}
@@ -150,11 +172,13 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
         {steps.map((s, i) => {
           if (!s.fundedBy) return null;
           const funder = steps[i + 1];
+          const fb = s.fundedBy;
+          const ec = fb.chain; // chain the funding transfer really happened on
           return (
             <div key={`hop-${i}`} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-white/50">
               <span className="text-white/30">{i === 0 ? 'Funded by' : '↳ then'}</span>
               <a
-                href={`${EXPLORER_ADDRESS[chain]}${funder.address}`}
+                href={`${EXPLORER_ADDRESS[ec]}${funder.address}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-medium text-white/80 hover:text-white"
@@ -162,26 +186,30 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
                 {funder.label ?? truncate(funder.address)}
               </a>
               <CounterpartyBadge category={funder.category} label={funder.label} />
-              {s.fundedBy.amount != null && (
-                <span className="tabular-nums text-white/35">
-                  · {fmtAmt(s.fundedBy.amount)} {NATIVE[chain]}
+              {fb.amount != null && (
+                <span className="inline-flex items-center gap-1 tabular-nums text-white/35">
+                  · {fmtAmt(fb.amount)}
+                  <ChainLogo chain={ec} size={12} />
+                  <span className={fb.preFork ? 'text-indigo-300/70' : 'text-white/35'}>
+                    {fb.asset}
+                  </span>
                 </span>
               )}
-              {s.fundedBy.timestamp && (
+              {fb.timestamp && (
                 <a
-                  href={s.fundedBy.txHash ? `${EXPLORER_TX[chain]}${s.fundedBy.txHash}` : '#'}
+                  href={fb.txHash ? `${EXPLORER_TX[ec]}${fb.txHash}` : '#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-0.5 text-white/30 hover:text-white/70"
                 >
-                  · {fmtDate(s.fundedBy.timestamp)}
+                  · {fmtDate(fb.timestamp)}
                   <IconExternalLink className="h-2.5 w-2.5" />
                 </a>
               )}
               <AddToGroupButton
                 address={funder.address}
                 source="tx"
-                chain={chain}
+                chain={ec}
                 context={{ direction: 'sender' }}
                 size={12}
                 className="text-white/25 hover:text-orange-300 transition-colors"
