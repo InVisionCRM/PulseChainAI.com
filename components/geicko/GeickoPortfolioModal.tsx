@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { pulsechainApi } from '@/services/blockchain/pulsechainApi';
 import { dexscreenerApi } from '@/services/blockchain/dexscreenerApi';
 import { moralisApi } from '@/services/blockchain/moralisApi';
+import { fmtUsd, fmtAmount, fmtPrice } from '@/lib/format';
 
 interface PortfolioToken {
   address: string;
@@ -69,7 +70,7 @@ export default function GeickoPortfolioModal({
             name: balance.token?.name || balance.name || 'Unknown Token',
             symbol: balance.token?.symbol || balance.symbol || 'UNKNOWN',
             balance: rawBalance,
-            balanceFormatted: Math.floor(parseFloat(rawBalance) / Math.pow(10, decimals)).toLocaleString(),
+            balanceFormatted: fmtAmount(Math.floor(parseFloat(rawBalance) / Math.pow(10, decimals))),
             decimals,
             logoURI: balance.token?.logoURI || balance.logoURI,
           };
@@ -115,7 +116,7 @@ export default function GeickoPortfolioModal({
               name: balance.token?.name || balance.name || 'Unknown Token',
               symbol: balance.token?.symbol || balance.symbol || 'UNKNOWN',
               balance: rawBalance,
-              balanceFormatted: Math.floor(parseFloat(rawBalance) / Math.pow(10, decimals)).toLocaleString(),
+              balanceFormatted: fmtAmount(Math.floor(parseFloat(rawBalance) / Math.pow(10, decimals))),
               decimals,
               logoURI: balance.token?.logoURI || balance.logoURI,
             });
@@ -152,7 +153,7 @@ export default function GeickoPortfolioModal({
               name: balance.token.name || 'Unknown Token',
               symbol: balance.token.symbol || 'UNKNOWN',
               balance: balance.value,
-              balanceFormatted: Math.floor(parseFloat(balance.value) / Math.pow(10, balance.token.decimals)).toLocaleString(),
+              balanceFormatted: fmtAmount(Math.floor(parseFloat(balance.value) / Math.pow(10, balance.token.decimals))),
               decimals: balance.token.decimals,
               logoURI: balance.token.icon_url,
             }));
@@ -182,14 +183,7 @@ export default function GeickoPortfolioModal({
 
   const formatPrice = (price: string | undefined) => {
     if (!price) return 'N/A';
-    const numPrice = parseFloat(price);
-    if (numPrice < 0.000001) {
-      return `$${numPrice.toExponential(2)}`;
-    }
-    return `$${numPrice.toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 6
-    })}`;
+    return fmtPrice(parseFloat(price));
   };
 
 
@@ -283,7 +277,7 @@ export default function GeickoPortfolioModal({
 
                     {/* Value */}
                     <div className="col-span-2 text-left text-white font-semibold font-mono">
-                      {token.valueUsd ? `$${token.valueUsd}` : 'N/A'}
+                      {token.valueUsd ? fmtUsd(parseFloat(token.valueUsd.replace(/,/g, ''))) : 'N/A'}
                     </div>
                   </div>
                 ))}
