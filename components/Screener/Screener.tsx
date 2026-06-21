@@ -15,6 +15,7 @@ import type { SortKey } from '@/lib/screener/db';
 import StatsBar from './StatsBar';
 import FilterBar from './FilterBar';
 import PairsTable from './PairsTable';
+import MarketBubbles from './MarketBubbles';
 import SearchModal from './SearchModal';
 import { useScreenerWatchlist } from './watchlist';
 
@@ -50,6 +51,7 @@ export default function Screener() {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [view, setView] = useState<'table' | 'bubbles'>('table');
   const abortRef = useRef<AbortController | null>(null);
   const watchlist = useScreenerWatchlist();
 
@@ -171,35 +173,62 @@ export default function Screener() {
         onFilters={(f) => setFilters(f)}
         onOpenSearch={() => setSearchOpen(true)}
       />
-      <PairsTable
-        rows={displayRows}
-        window={window_}
-        loading={loading}
-        sort={sort}
-        dir={dir}
-        onSort={onSort}
-        watchlist={watchlist}
-        emptyHint={
-          tab === 'watchlist'
-            ? 'Your watchlist is empty — star any pair to add it.'
-            : 'No pairs found. Run the backfill (npm run screener:backfill) to populate the universe, or relax the filters.'
-        }
-      />
-      {hasMore && tab !== 'watchlist' ? (
-        <div className="flex justify-center pb-6">
-          <button
-            onClick={() => {
-              const next = page + 1;
-              setPage(next);
-              load(next, true);
-            }}
-            disabled={loading}
-            className="rounded-xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl px-6 py-2 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)] disabled:opacity-50"
-          >
-            {loading ? 'Loading…' : 'Show more'}
-          </button>
+
+      {/* Table ⇄ bubbles view toggle. */}
+      <div className="flex justify-end">
+        <div className="flex items-center rounded-md border border-[var(--line)] overflow-hidden text-[11px] font-semibold">
+          {(['table', 'bubbles'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              className={`px-3 py-1 capitalize transition-colors ${
+                view === v
+                  ? 'bg-[var(--surface-2)] text-[var(--text)]'
+                  : 'text-[var(--text-faint)] hover:text-[var(--text)]'
+              }`}
+            >
+              {v}
+            </button>
+          ))}
         </div>
-      ) : null}
+      </div>
+
+      {view === 'bubbles' ? (
+        <MarketBubbles tab={tab} dexId={dexId} filters={filters} watchlistParam={watchlistParam} />
+      ) : (
+        <>
+          <PairsTable
+            rows={displayRows}
+            window={window_}
+            loading={loading}
+            sort={sort}
+            dir={dir}
+            onSort={onSort}
+            watchlist={watchlist}
+            emptyHint={
+              tab === 'watchlist'
+                ? 'Your watchlist is empty — star any pair to add it.'
+                : 'No pairs found. Run the backfill (npm run screener:backfill) to populate the universe, or relax the filters.'
+            }
+          />
+          {hasMore && tab !== 'watchlist' ? (
+            <div className="flex justify-center pb-6">
+              <button
+                onClick={() => {
+                  const next = page + 1;
+                  setPage(next);
+                  load(next, true);
+                }}
+                disabled={loading}
+                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl px-6 py-2 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)] disabled:opacity-50"
+              >
+                {loading ? 'Loading…' : 'Show more'}
+              </button>
+            </div>
+          ) : null}
+        </>
+      )}
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} watchlist={watchlist} />
     </div>
   );
