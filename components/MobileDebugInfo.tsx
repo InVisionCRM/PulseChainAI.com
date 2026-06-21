@@ -10,7 +10,7 @@ export default function MobileDebugInfo() {
   }
   
   return (
-    <div className="fixed top-4 right-4 bg-slate-950/80 text-white p-4 rounded-lg text-xs z-50 max-w-xs">
+    <div className="fixed top-4 right-4 bg-[var(--app-bg)] text-[var(--text)] p-4 rounded-lg text-xs z-50 max-w-xs">
       <h3 className="font-bold mb-2">Mobile Debug Info</h3>
       <div className="space-y-1">
         <div>Screen: {config.screenWidth} × {config.screenHeight}</div>
@@ -18,14 +18,14 @@ export default function MobileDebugInfo() {
         <div>Pixel Ratio: {config.devicePixelRatio}</div>
         <div>CPU Cores: {navigator.hardwareConcurrency || 'Unknown'}</div>
         <div>Memory: {(navigator as any).deviceMemory || 'Unknown'} GB</div>
-        <div className="border-t border-gray-600 pt-1 mt-2">
-          <div className={config.shouldDisableHeavyAnimations ? 'text-red-400' : 'text-green-400'}>
+        <div className="border-t border-[var(--line)] pt-1 mt-2">
+          <div className={config.shouldDisableHeavyAnimations ? 'text-red-400' : 'text-[var(--up)]'}>
             Heavy Animations: {config.shouldDisableHeavyAnimations ? 'Disabled' : 'Enabled'}
           </div>
-          <div className={config.shouldDisableBackgroundEffects ? 'text-red-400' : 'text-green-400'}>
+          <div className={config.shouldDisableBackgroundEffects ? 'text-red-400' : 'text-[var(--up)]'}>
             Background Effects: {config.shouldDisableBackgroundEffects ? 'Disabled' : 'Enabled'}
           </div>
-          <div className={config.shouldReduceMotion ? 'text-red-400' : 'text-green-400'}>
+          <div className={config.shouldReduceMotion ? 'text-red-400' : 'text-[var(--up)]'}>
             Reduced Motion: {config.shouldReduceMotion ? 'Yes' : 'No'}
           </div>
         </div>

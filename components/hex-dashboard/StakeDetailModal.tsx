@@ -38,25 +38,25 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
     : 'N/A';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-2xl bg-slate-800 border border-slate-600 rounded-xl shadow-xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--app-bg)] backdrop-blur-sm">
+      <div className="relative w-full max-w-2xl bg-[var(--panel)] border border-[var(--line)] rounded-xl shadow-xl overflow-hidden">
         
         {/* Header */}
-        <div className="px-6 py-4 bg-slate-900 border-b border-slate-600">
+        <div className="px-6 py-4 bg-[var(--panel)] border-b border-[var(--line)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {rank && (
-                <div className="px-3 py-1 bg-slate-950/20 text-green-500 text-lg font-bold rounded">
+                <div className="px-3 py-1 bg-[var(--app-bg)] text-[var(--up)] text-lg font-bold rounded">
                   #{rank}
                 </div>
               )}
-              <h2 className="text-xl font-bold text-white">
+              <h2 className="text-xl font-bold text-[var(--text)]">
                 HEX Stake #{stake.stakeId}
               </h2>
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg hover:bg-slate-600 text-white transition-colors"
+              className="p-2 rounded-lg hover:bg-[var(--surface-2)] text-[var(--text)] transition-colors"
               title="Close modal"
             >
               <X className="w-5 h-5" />
@@ -70,10 +70,10 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
           {/* Progress */}
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-white/80">Progress</span>
-              <span className="text-white font-semibold">{progress.toFixed(1)}%</span>
+              <span className="text-[var(--text)]">Progress</span>
+              <span className="text-[var(--text)] font-semibold">{progress.toFixed(1)}%</span>
             </div>
-            <div className="w-full bg-slate-600 rounded-full h-2">
+            <div className="w-full bg-[var(--surface-2)] rounded-full h-2">
               <div 
                 className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
@@ -84,82 +84,82 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
           {/* Basic Info */}
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-white/80">Stake ID:</span>
-              <span className="text-white font-mono">{stake.stakeId}</span>
+              <span className="text-[var(--text)]">Stake ID:</span>
+              <span className="text-[var(--text)] font-mono">{stake.stakeId}</span>
             </div>
             <div className="flex justify-left items-center gap-1">
-              <span className="text-white/80">Staker Address:</span>
-              <span className="text-white font-mono text-sm">{stake.stakerAddr}</span>
+              <span className="text-[var(--text)]">Staker Address:</span>
+              <span className="text-[var(--text)] font-mono text-sm">{stake.stakerAddr}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-white/80">Network:</span>
-              <span className="text-white">{stake.network === 'ethereum' ? 'Ethereum' : 'PulseChain'}</span>
+              <span className="text-[var(--text)]">Network:</span>
+              <span className="text-[var(--text)]">{stake.network === 'ethereum' ? 'Ethereum' : 'PulseChain'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-white/80">Status:</span>
-              <span className="text-green-400 font-semibold">Active</span>
+              <span className="text-[var(--text)]">Status:</span>
+              <span className="text-[var(--up)] font-semibold">Active</span>
             </div>
           </div>
 
           {/* Staking Details */}
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-white/80">Staked HEX:</span>
-              <span className="text-white font-semibold">
+              <span className="text-[var(--text)]">Staked HEX:</span>
+              <span className="text-[var(--text)] font-semibold">
                 {multiNetworkHexStakingService.formatHexAmount(stake.stakedHearts)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-white/80">T-Shares:</span>
-              <span className="text-white">
+              <span className="text-[var(--text)]">T-Shares:</span>
+              <span className="text-[var(--text)]">
                 {multiNetworkHexStakingService.formatTShareAmount(stake.stakeTShares || stake.stakeShares)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-white/80">Stake Length:</span>
-              <span className="text-white">
+              <span className="text-[var(--text)]">Stake Length:</span>
+              <span className="text-[var(--text)]">
                 {multiNetworkHexStakingService.formatStakeLength(parseInt(stake.stakedDays))}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-white/80">Auto Stake:</span>
-              <span className="text-white">{stake.isAutoStake ? 'Yes' : 'No'}</span>
+              <span className="text-[var(--text)]">Auto Stake:</span>
+              <span className="text-[var(--text)]">{stake.isAutoStake ? 'Yes' : 'No'}</span>
             </div>
           </div>
 
           {/* Timeline */}
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-white/80">Start Day:</span>
-              <span className="text-white">{stake.startDay}</span>
+              <span className="text-[var(--text)]">Start Day:</span>
+              <span className="text-[var(--text)]">{stake.startDay}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-white/80">End Day:</span>
-              <span className="text-white">{stake.endDay}</span>
+              <span className="text-[var(--text)]">End Day:</span>
+              <span className="text-[var(--text)]">{stake.endDay}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-white/80">Started:</span>
-              <span className="text-white text-sm">{startDate}</span>
+              <span className="text-[var(--text)]">Started:</span>
+              <span className="text-[var(--text)] text-sm">{startDate}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-white/80">Est. End:</span>
-              <span className="text-white text-sm">{estimatedEndDate}</span>
+              <span className="text-[var(--text)]">Est. End:</span>
+              <span className="text-[var(--text)] text-sm">{estimatedEndDate}</span>
             </div>
           </div>
 
           {/* Progress Details */}
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-white/80">Days Served:</span>
-              <span className="text-white">{stake.daysServed?.toLocaleString() || 'N/A'}</span>
+              <span className="text-[var(--text)]">Days Served:</span>
+              <span className="text-[var(--text)]">{stake.daysServed?.toLocaleString() || 'N/A'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-white/80">Days Remaining:</span>
-              <span className="text-white">{stake.daysLeft?.toLocaleString() || 'N/A'}</span>
+              <span className="text-[var(--text)]">Days Remaining:</span>
+              <span className="text-[var(--text)]">{stake.daysLeft?.toLocaleString() || 'N/A'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-white/80">Total Days:</span>
-              <span className="text-white">{stake.stakedDays}</span>
+              <span className="text-[var(--text)]">Total Days:</span>
+              <span className="text-[var(--text)]">{stake.stakedDays}</span>
             </div>
           </div>
 

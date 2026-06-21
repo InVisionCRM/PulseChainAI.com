@@ -52,7 +52,7 @@ export function AddToGroupButton({
       aria-label={title}
       className={
         className ??
-        'inline-flex items-center justify-center text-white/40 hover:text-orange-300 transition-colors'
+        'inline-flex items-center justify-center text-[var(--text-faint)] hover:text-orange-300 transition-colors'
       }
     >
       <IconFolderPlus style={{ width: size, height: size }} />

@@ -30,9 +30,9 @@ export default function SellPressureAnalysisTab({
   const [activeNetwork, setActiveNetwork] = useState<'ethereum' | 'pulsechain'>('ethereum');
 
   return (
-    <div className="w-full bg-white/5 backdrop-blur-xl border border-white/10 sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
+    <div className="w-full bg-[var(--surface)] backdrop-blur-xl border border-[var(--line)] sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
       {/* Header with Network Tabs */}
-      <div className="bg-gradient-to-r from-blue-500/10 to-blue-500/10 border-b border-white/10">
+      <div className="bg-gradient-to-r from-blue-500/10 to-blue-500/10 border-b border-[var(--line)]">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-500/20 flex items-center justify-center">
@@ -47,13 +47,13 @@ export default function SellPressureAnalysisTab({
 
         {/* Network Selection Tabs */}
         <div className="flex px-6 pb-4">
-          <div className="flex bg-white/10 rounded-lg p-1 border border-white/20">
+          <div className="flex bg-[var(--surface-2)] rounded-lg p-1 border border-[var(--line-strong)]">
             <button
               onClick={() => setActiveNetwork('ethereum')}
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                 activeNetwork === 'ethereum'
-                  ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25'
-                  : 'text-slate-800 hover:text-slate-600 hover:bg-white/20'
+                  ? 'bg-blue-500 text-[var(--text)] shadow-lg shadow-blue-500/25'
+                  : 'text-slate-800 hover:text-slate-600 hover:bg-[var(--surface-3)]'
               }`}
             >
               <Coins className="w-4 h-4" />
@@ -63,8 +63,8 @@ export default function SellPressureAnalysisTab({
               onClick={() => setActiveNetwork('pulsechain')}
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                 activeNetwork === 'pulsechain'
-                  ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25'
-                  : 'text-slate-800 hover:text-slate-600 hover:bg-white/20'
+                  ? 'bg-blue-500 text-[var(--text)] shadow-lg shadow-blue-500/25'
+                  : 'text-slate-800 hover:text-slate-600 hover:bg-[var(--surface-3)]'
               }`}
             >
               <Zap className="w-4 h-4" />

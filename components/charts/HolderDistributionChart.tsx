@@ -22,8 +22,8 @@ const HolderDistributionChart: React.FC<HolderDistributionChartProps> = ({
 }) => {
   if (!holders || holders.length === 0) {
     return (
-      <div className={`bg-slate-800/30 rounded-lg p-4 border border-slate-700/50 ${className}`}>
-        <p className="text-slate-400 text-center">No holder data available</p>
+      <div className={`bg-[var(--panel)] rounded-lg p-4 border border-[var(--line)] ${className}`}>
+        <p className="text-[var(--text-muted)] text-center">No holder data available</p>
       </div>
     );
   }
@@ -53,14 +53,14 @@ const HolderDistributionChart: React.FC<HolderDistributionChartProps> = ({
     .slice(0, 20);
 
   return (
-    <div className={`bg-slate-800/30 rounded-lg p-4 border border-slate-700/50 ${className}`}>
-      <h3 className="text-lg font-semibold text-white mb-4">Holder Distribution - {tokenSymbol}</h3>
+    <div className={`bg-[var(--panel)] rounded-lg p-4 border border-[var(--line)] ${className}`}>
+      <h3 className="text-lg font-semibold text-[var(--text)] mb-4">Holder Distribution - {tokenSymbol}</h3>
       
       {/* Distribution Chart */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-slate-400">Distribution by Size</span>
-          <span className="text-sm text-slate-400">{holders.length} total holders</span>
+          <span className="text-sm text-[var(--text-muted)]">Distribution by Size</span>
+          <span className="text-sm text-[var(--text-muted)]">{holders.length} total holders</span>
         </div>
         
         <div className="space-y-3">
@@ -74,10 +74,10 @@ const HolderDistributionChart: React.FC<HolderDistributionChartProps> = ({
             >
               <div className="flex items-center gap-2 min-w-16">
                 <div className={`w-3 h-3 rounded-full ${bucket.color}`}></div>
-                <span className="text-sm text-slate-300">{bucket.name}</span>
+                <span className="text-sm text-[var(--text-muted)]">{bucket.name}</span>
               </div>
               
-              <div className="flex-1 bg-slate-700 rounded-full h-3 overflow-hidden">
+              <div className="flex-1 bg-[var(--surface-2)] rounded-full h-3 overflow-hidden">
                 <motion.div
                   className={`h-full ${bucket.color}`}
                   initial={{ width: 0 }}
@@ -87,8 +87,8 @@ const HolderDistributionChart: React.FC<HolderDistributionChartProps> = ({
               </div>
               
               <div className="text-right min-w-20">
-                <div className="text-sm font-semibold text-white">{bucket.count}</div>
-                <div className="text-xs text-slate-400">{bucket.percentage.toFixed(1)}%</div>
+                <div className="text-sm font-semibold text-[var(--text)]">{bucket.count}</div>
+                <div className="text-xs text-[var(--text-muted)]">{bucket.percentage.toFixed(1)}%</div>
               </div>
             </motion.div>
           ))}
@@ -97,7 +97,7 @@ const HolderDistributionChart: React.FC<HolderDistributionChartProps> = ({
 
       {/* Top Holders Table */}
       <div>
-        <h4 className="text-sm font-semibold text-white mb-3">Top 10 Holders</h4>
+        <h4 className="text-sm font-semibold text-[var(--text)] mb-3">Top 10 Holders</h4>
         <div className="space-y-2 max-h-48 overflow-y-auto">
           {topHolders.map((holder, index) => (
             <motion.div
@@ -105,24 +105,24 @@ const HolderDistributionChart: React.FC<HolderDistributionChartProps> = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="flex items-center justify-between p-2 bg-slate-700/30 rounded-lg"
+              className="flex items-center justify-between p-2 bg-[var(--surface-2)] rounded-lg"
             >
               <div className="flex items-center gap-3">
-                <div className="w-6 h-6 bg-slate-600 rounded-full flex items-center justify-center">
-                  <span className="text-xs font-bold text-white">{index + 1}</span>
+                <div className="w-6 h-6 bg-[var(--surface-2)] rounded-full flex items-center justify-center">
+                  <span className="text-xs font-bold text-[var(--text)]">{index + 1}</span>
                 </div>
                 <div>
-                  <div className="text-sm text-slate-300 font-mono">
+                  <div className="text-sm text-[var(--text-muted)] font-mono">
                     {holder.address.substring(0, 6)}...{holder.address.substring(holder.address.length - 4)}
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-[var(--text-muted)]">
                     {parseFloat(holder.value).toLocaleString()} {tokenSymbol}
                   </div>
                 </div>
               </div>
               
               <div className="text-right">
-                <div className="text-sm font-semibold text-white">
+                <div className="text-sm font-semibold text-[var(--text)]">
                   {((parseFloat(holder.value) / maxValue) * 100).toFixed(2)}%
                 </div>
               </div>

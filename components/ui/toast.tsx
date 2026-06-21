@@ -79,7 +79,7 @@ export function Toast({
       case 'success':
         return {
           icon: '✓',
-          iconColor: 'text-green-500',
+          iconColor: 'text-[var(--up)]',
           progressColor: 'bg-green-500'
         };
       case 'error':
@@ -110,7 +110,7 @@ export function Toast({
       onClick={handleClick}
       className={cn(
         // Base styles - Apple-inspired design
-        "relative bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl shadow-black/10 transition-all duration-300 ease-out cursor-pointer",
+        "relative bg-[var(--surface)] backdrop-blur-xl border border-[var(--line-strong)] rounded-2xl shadow-2xl shadow-black/10 transition-all duration-300 ease-out cursor-pointer",
         // Positioning and animation
         "transform translate-x-full opacity-0",
         isVisible && !isExiting && "translate-x-0 opacity-100",
@@ -118,7 +118,7 @@ export function Toast({
         // Size based on expansion
         isExpanded ? "w-96 max-h-96" : "w-80",
         // Hover effects
-        "hover:shadow-2xl hover:shadow-black/15 hover:scale-[1.02] hover:bg-white/98",
+        "hover:shadow-2xl hover:shadow-black/15 hover:scale-[1.02] hover:bg-[var(--surface)]",
         className
       )}
     >

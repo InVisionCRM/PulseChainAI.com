@@ -13,9 +13,9 @@ export interface GeickoTabNavigationProps {
 // Unified brand-pure palette: every tab uses the same neutral surface +
 // brand-orange active state, matching the Portfolio page.
 const TAB_ACTIVE =
-  'text-brand-orange bg-white/[0.07] border-brand-orange/40 shadow-[inset_0_0_0_1px_rgba(250,70,22,0.18)]';
+  'text-brand-orange bg-[var(--surface)] border-brand-orange/40 shadow-[inset_0_0_0_1px_rgba(250,70,22,0.18)]';
 const TAB_INACTIVE =
-  'text-white/55 bg-white/[0.02] border-white/10 hover:text-white hover:bg-white/[0.06] hover:border-white/15';
+  'text-[var(--text-muted)] bg-[var(--surface)] border-[var(--line)] hover:text-[var(--text)] hover:bg-[var(--surface)] hover:border-[var(--line)]';
 
 /**
  * Tab navigation component for Geicko token analyzer

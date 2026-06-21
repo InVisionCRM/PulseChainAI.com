@@ -376,7 +376,7 @@ ${jsCode}
   return (
     <div className="space-y-4">
       {/* Code Type Tabs */}
-      <div className="flex space-x-1 bg-white/5 rounded-lg p-1">
+      <div className="flex space-x-1 bg-[var(--surface)] rounded-lg p-1">
         {([
           { id: 'html' as const, label: 'HTML', icon: '🌐' },
           { id: 'iframe' as const, label: 'iFrame', icon: '📦' },
@@ -388,8 +388,8 @@ ${jsCode}
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === tab.id
-                ? 'bg-blue-500 text-white'
-                : 'text-gray-300 hover:text-white hover:bg-white/10'
+                ? 'bg-blue-500 text-[var(--text)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
             }`}
           >
             <span>{tab.icon}</span>
@@ -400,9 +400,9 @@ ${jsCode}
 
       {/* Code Display */}
       <div className="relative">
-        <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+        <div className="bg-[var(--panel)] rounded-lg p-4 border border-[var(--line)]">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm text-gray-400">
+            <span className="text-sm text-[var(--text-muted)]">
               {activeTab === 'html' && 'Complete HTML page with embedded widget'}
               {activeTab === 'iframe' && 'Embed as iframe on any website'}
               {activeTab === 'widget' && 'JavaScript widget for dynamic loading'}
@@ -412,8 +412,8 @@ ${jsCode}
               onClick={() => copyToClipboard(generatedCode, activeTab)}
               className={`flex items-center space-x-2 px-3 py-1 rounded text-xs font-medium transition-colors ${
                 copied === activeTab
-                  ? 'bg-green-500 text-white'
-                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                  ? 'bg-green-500 text-[var(--text)]'
+                  : 'bg-[var(--surface-2)] text-[var(--text-muted)] hover:bg-[var(--surface-3)]'
               }`}
             >
               {copied === activeTab ? (
@@ -430,7 +430,7 @@ ${jsCode}
             </button>
           </div>
           
-          <pre className="text-xs text-gray-300 overflow-x-auto whitespace-pre-wrap">
+          <pre className="text-xs text-[var(--text-muted)] overflow-x-auto whitespace-pre-wrap">
             <code>{generatedCode}</code>
           </pre>
         </div>
@@ -445,7 +445,7 @@ ${jsCode}
               <p>• Save as .html file and open in browser</p>
               <p>• Upload to your web server</p>
               <p>• Embed in existing HTML page</p>
-              <p className="text-green-300 mt-2">✅ Note: Works completely standalone - no server required!</p>
+              <p className="text-[var(--up)] mt-2">✅ Note: Works completely standalone - no server required!</p>
             </>
           )}
           {activeTab === 'iframe' && (
@@ -467,19 +467,19 @@ ${jsCode}
 
       {/* Features */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-        <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-          <h5 className="font-medium text-white mb-2">✅ Features</h5>
-          <ul className="text-gray-300 space-y-1">
+        <div className="bg-[var(--surface)] rounded-lg p-3 border border-[var(--line)]">
+          <h5 className="font-medium text-[var(--text)] mb-2">✅ Features</h5>
+          <ul className="text-[var(--text-muted)] space-y-1">
             <li>• Real-time data updates</li>
             <li>• Responsive design</li>
             <li>• Customizable styling</li>
             <li>• Mobile-friendly</li>
-            <li className="text-green-300">• Direct API calls to PulseChain - no server required</li>
+            <li className="text-[var(--up)]">• Direct API calls to PulseChain - no server required</li>
           </ul>
         </div>
-        <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-          <h5 className="font-medium text-white mb-2">📊 Stats Included</h5>
-          <ul className="text-gray-300 space-y-1">
+        <div className="bg-[var(--surface)] rounded-lg p-3 border border-[var(--line)]">
+          <h5 className="font-medium text-[var(--text)] mb-2">📊 Stats Included</h5>
+          <ul className="text-[var(--text-muted)] space-y-1">
             {config.stats.filter(s => s.enabled).map(stat => (
               <li key={stat.id}>• {stat.label}</li>
             ))}

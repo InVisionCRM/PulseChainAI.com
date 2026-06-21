@@ -22,20 +22,20 @@ const DexPairsModal: React.FC<DexPairsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-950/60" onClick={onClose} />
-      <div className="relative w-full max-w-3xl bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_8px_40px_-12px_rgba(0,0,0,0.7)] overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/5">
-          <h3 className="text-white font-semibold">PulseChain HEX Liquidity Pairs (DexScreener)</h3>
+      <div className="absolute inset-0 bg-[var(--app-bg)]" onClick={onClose} />
+      <div className="relative w-full max-w-3xl bg-[var(--surface-2)] backdrop-blur-xl border border-[var(--line-strong)] rounded-2xl shadow-[0_8px_40px_-12px_rgba(0,0,0,0.7)] overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--line)] bg-[var(--surface)]">
+          <h3 className="text-[var(--text)] font-semibold">PulseChain HEX Liquidity Pairs (DexScreener)</h3>
           <button
             onClick={onClose}
-            className="text-slate-300 hover:text-white text-sm"
+            className="text-[var(--text-muted)] hover:text-[var(--text)] text-sm"
           >
             Close
           </button>
         </div>
         <div className="max-h-[70vh] overflow-y-auto p-4">
           {isLoading && (
-            <div className="text-center text-slate-300 py-6">Loading pairs…</div>
+            <div className="text-center text-[var(--text-muted)] py-6">Loading pairs…</div>
           )}
           {error && (
             <div className="text-center text-red-300 py-6">{error}</div>
@@ -48,19 +48,19 @@ const DexPairsModal: React.FC<DexPairsModalProps> = ({
                   href={(p && (p as { url?: string }).url) || `https://dexscreener.com/pulsechain/${(p as { pairAddress?: string } | undefined)?.pairAddress ?? ''}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block rounded-lg border border-white/10 bg-white/5 p-3 hover:bg-white/10 transition"
+                  className="block rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3 hover:bg-[var(--surface-2)] transition"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="text-white font-medium truncate">
+                    <div className="text-[var(--text)] font-medium truncate">
                       {p?.baseToken?.symbol}/{p?.quoteToken?.symbol}
                     </div>
-                    <div className="text-xs text-slate-400">FDV: ${p?.fdv?.toLocaleString?.() ?? '—'}</div>
+                    <div className="text-xs text-[var(--text-muted)]">FDV: ${p?.fdv?.toLocaleString?.() ?? '—'}</div>
                   </div>
-                  <div className="mt-1 text-sm text-slate-300">
+                  <div className="mt-1 text-sm text-[var(--text-muted)]">
                     <span className="mr-3">Price: ${Number(p?.priceUsd || 0).toFixed(6)}</span>
                     <span>Liquidity: ${p?.liquidity?.usd?.toLocaleString?.() ?? '—'}</span>
                   </div>
-                  <div className="mt-1 text-xs text-slate-400">
+                  <div className="mt-1 text-xs text-[var(--text-muted)]">
                     24h Vol: ${(p?.volume?.h24 ?? 0).toLocaleString?.()} • 24h Δ: {(p?.priceChange?.h24 ?? 0).toFixed?.(2)}%
                   </div>
                 </a>

@@ -20,15 +20,15 @@ import ResourcesTab from './tabs/ResourcesTab';
 
 export default function LearnAIPage() {
   return (
-    <div className="min-h-screen bg-[#0C2340] text-white">
+    <div className="min-h-screen bg-[var(--panel)] text-[var(--text)]">
       {/* Header Section */}
-      <div className="border-b border-white/10 bg-gradient-to-r from-[#0C2340] to-[#1a365d] px-4 py-8 md:px-6 md:py-12">
+      <div className="border-b border-[var(--line)] bg-gradient-to-r from-[var(--panel)] to-[#1a365d] px-4 py-8 md:px-6 md:py-12">
         <div className="mx-auto max-w-7xl">
           <div className="text-center">
             <h1 className="mb-3 text-3xl font-bold tracking-tight md:mb-4 md:text-5xl lg:text-6xl">
               Learn AI Development
             </h1>
-            <p className="mx-auto max-w-2xl text-base leading-relaxed text-white/80 md:text-lg lg:max-w-3xl lg:text-xl">
+            <p className="mx-auto max-w-2xl text-base leading-relaxed text-[var(--text)] md:text-lg lg:max-w-3xl lg:text-xl">
               A comprehensive course for AI-powered development on PulseChain. Master DApp creation from start to deployment.
             </p>
             <div className="mt-4 flex justify-center md:mt-6">
@@ -46,7 +46,7 @@ export default function LearnAIPage() {
         <Tabs defaultValue="introduction" className="w-full">
           {/* Course Progress Indicator */}
           <div className="mb-6 md:mb-8">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white/60">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
               Course Curriculum
             </h2>
 
@@ -55,86 +55,86 @@ export default function LearnAIPage() {
               <TabsList className="flex h-auto w-full flex-wrap gap-2 bg-transparent p-0 md:gap-3">
                 <TabsTrigger
                   value="introduction"
-                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-white/5 px-3 py-3 text-sm transition-all hover:bg-white/10 data-[state=active]:bg-[#FA4616] data-[state=active]:text-white md:min-w-0 md:flex-initial md:px-4"
+                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-[var(--surface)] px-3 py-3 text-sm transition-all hover:bg-[var(--surface-2)] data-[state=active]:bg-[#FA4616] data-[state=active]:text-[var(--text)] md:min-w-0 md:flex-initial md:px-4"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">1</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-bold">1</span>
                   <span>Introduction</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="basics"
-                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-white/5 px-3 py-3 text-sm transition-all hover:bg-white/10 data-[state=active]:bg-[#FA4616] data-[state=active]:text-white md:min-w-0 md:flex-initial md:px-4"
+                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-[var(--surface)] px-3 py-3 text-sm transition-all hover:bg-[var(--surface-2)] data-[state=active]:bg-[#FA4616] data-[state=active]:text-[var(--text)] md:min-w-0 md:flex-initial md:px-4"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">2</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-bold">2</span>
                   <span>Basics</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="addresses"
-                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-white/5 px-3 py-3 text-sm transition-all hover:bg-white/10 data-[state=active]:bg-[#FA4616] data-[state=active]:text-white md:min-w-0 md:flex-initial md:px-4"
+                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-[var(--surface)] px-3 py-3 text-sm transition-all hover:bg-[var(--surface-2)] data-[state=active]:bg-[#FA4616] data-[state=active]:text-[var(--text)] md:min-w-0 md:flex-initial md:px-4"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">3</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-bold">3</span>
                   <span>Addresses</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="ides"
-                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-white/5 px-3 py-3 text-sm transition-all hover:bg-white/10 data-[state=active]:bg-[#FA4616] data-[state=active]:text-white md:min-w-0 md:flex-initial md:px-4"
+                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-[var(--surface)] px-3 py-3 text-sm transition-all hover:bg-[var(--surface-2)] data-[state=active]:bg-[#FA4616] data-[state=active]:text-[var(--text)] md:min-w-0 md:flex-initial md:px-4"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">4</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-bold">4</span>
                   <span>IDEs</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="system-instructions"
-                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-white/5 px-3 py-3 text-sm transition-all hover:bg-white/10 data-[state=active]:bg-[#FA4616] data-[state=active]:text-white md:min-w-0 md:flex-initial md:px-4"
+                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-[var(--surface)] px-3 py-3 text-sm transition-all hover:bg-[var(--surface-2)] data-[state=active]:bg-[#FA4616] data-[state=active]:text-[var(--text)] md:min-w-0 md:flex-initial md:px-4"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">5</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-bold">5</span>
                   <span>AI Setup</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="backends"
-                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-white/5 px-3 py-3 text-sm transition-all hover:bg-white/10 data-[state=active]:bg-[#FA4616] data-[state=active]:text-white md:min-w-0 md:flex-initial md:px-4"
+                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-[var(--surface)] px-3 py-3 text-sm transition-all hover:bg-[var(--surface-2)] data-[state=active]:bg-[#FA4616] data-[state=active]:text-[var(--text)] md:min-w-0 md:flex-initial md:px-4"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">6</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-bold">6</span>
                   <span>Backends</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="apis"
-                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-white/5 px-3 py-3 text-sm transition-all hover:bg-white/10 data-[state=active]:bg-[#FA4616] data-[state=active]:text-white md:min-w-0 md:flex-initial md:px-4"
+                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-[var(--surface)] px-3 py-3 text-sm transition-all hover:bg-[var(--surface-2)] data-[state=active]:bg-[#FA4616] data-[state=active]:text-[var(--text)] md:min-w-0 md:flex-initial md:px-4"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">7</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-bold">7</span>
                   <span>APIs</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="glossary"
-                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-white/5 px-3 py-3 text-sm transition-all hover:bg-white/10 data-[state=active]:bg-[#FA4616] data-[state=active]:text-white md:min-w-0 md:flex-initial md:px-4"
+                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-[var(--surface)] px-3 py-3 text-sm transition-all hover:bg-[var(--surface-2)] data-[state=active]:bg-[#FA4616] data-[state=active]:text-[var(--text)] md:min-w-0 md:flex-initial md:px-4"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">8</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-bold">8</span>
                   <span>Glossary</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="ai-websites"
-                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-white/5 px-3 py-3 text-sm transition-all hover:bg-white/10 data-[state=active]:bg-[#FA4616] data-[state=active]:text-white md:min-w-0 md:flex-initial md:px-4"
+                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-[var(--surface)] px-3 py-3 text-sm transition-all hover:bg-[var(--surface-2)] data-[state=active]:bg-[#FA4616] data-[state=active]:text-[var(--text)] md:min-w-0 md:flex-initial md:px-4"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">9</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-bold">9</span>
                   <span>AI Sites</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="hosting"
-                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-white/5 px-3 py-3 text-sm transition-all hover:bg-white/10 data-[state=active]:bg-[#FA4616] data-[state=active]:text-white md:min-w-0 md:flex-initial md:px-4"
+                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-[var(--surface)] px-3 py-3 text-sm transition-all hover:bg-[var(--surface-2)] data-[state=active]:bg-[#FA4616] data-[state=active]:text-[var(--text)] md:min-w-0 md:flex-initial md:px-4"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">10</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-bold">10</span>
                   <span>Hosting</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="deployment"
-                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-white/5 px-3 py-3 text-sm transition-all hover:bg-white/10 data-[state=active]:bg-[#FA4616] data-[state=active]:text-white md:min-w-0 md:flex-initial md:px-4"
+                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-[var(--surface)] px-3 py-3 text-sm transition-all hover:bg-[var(--surface-2)] data-[state=active]:bg-[#FA4616] data-[state=active]:text-[var(--text)] md:min-w-0 md:flex-initial md:px-4"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">11</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-bold">11</span>
                   <span>Deploy</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="resources"
-                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-white/5 px-3 py-3 text-sm transition-all hover:bg-white/10 data-[state=active]:bg-[#FA4616] data-[state=active]:text-white md:min-w-0 md:flex-initial md:px-4"
+                  className="flex min-w-[140px] flex-1 items-center gap-2 rounded-lg bg-[var(--surface)] px-3 py-3 text-sm transition-all hover:bg-[var(--surface-2)] data-[state=active]:bg-[#FA4616] data-[state=active]:text-[var(--text)] md:min-w-0 md:flex-initial md:px-4"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold">12</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-bold">12</span>
                   <span>Resources</span>
                 </TabsTrigger>
               </TabsList>

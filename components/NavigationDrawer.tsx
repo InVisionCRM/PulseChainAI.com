@@ -54,13 +54,13 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
 
   return (
     <Drawer open={isOpen} onOpenChange={handleOpenChange}>
-      <DrawerContent className="bg-gradient-to-b from-[#0C2340] to-[#0d2a4d] border-white/10">
-        <DrawerHeader className="border-b border-white/10">
-          <DrawerTitle className="text-white text-xl font-semibold">
+      <DrawerContent className="bg-gradient-to-b from-[var(--panel)] to-[var(--surface-2)] border-[var(--line)]">
+        <DrawerHeader className="border-b border-[var(--line)]">
+          <DrawerTitle className="text-[var(--text)] text-xl font-semibold">
             More Options
           </DrawerTitle>
           <DrawerClose className="absolute right-4 top-4">
-            <IconX className="h-5 w-5 text-white/70" />
+            <IconX className="h-5 w-5 text-[var(--text-muted)]" />
           </DrawerClose>
         </DrawerHeader>
 
@@ -68,9 +68,9 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
           <div className="grid grid-cols-3 gap-4">
             {moreNavItems.map((item) => {
               const content = (
-                <div className="flex flex-col items-center justify-center gap-3 p-4 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors">
+                <div className="flex flex-col items-center justify-center gap-3 p-4 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-2)] border border-[var(--line)] transition-colors">
                   <div className="text-orange-500">{item.icon}</div>
-                  <span className="text-xs text-white text-center font-medium">
+                  <span className="text-xs text-[var(--text)] text-center font-medium">
                     {item.label}
                   </span>
                 </div>
@@ -99,15 +99,15 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
           </div>
 
           {/* Sponsored by Section */}
-          <div className="mt-8 pt-6 border-t border-white/10">
-            <p className="text-white/60 text-xs font-semibold uppercase tracking-wider mb-3 text-center">
+          <div className="mt-8 pt-6 border-t border-[var(--line)]">
+            <p className="text-[var(--text-muted)] text-xs font-semibold uppercase tracking-wider mb-3 text-center">
               Sponsored by
             </p>
             <a
               href="https://superstake.win"
               target="_blank"
               rel="noopener noreferrer"
-              className="block text-center text-white hover:text-orange-500 transition-colors"
+              className="block text-center text-[var(--text)] hover:text-orange-500 transition-colors"
               onClick={onClose}
             >
               SuperStake.Win

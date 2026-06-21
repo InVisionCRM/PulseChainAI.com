@@ -67,7 +67,7 @@ export default function GeickoMetricCard({
   const baseClasses = `
     relative bg-gradient-to-br ${variantClasses[variant]}
     rounded-lg ${sizeClasses[size]}
-    ${onClick ? 'cursor-pointer hover:bg-white/10 transition-colors' : ''}
+    ${onClick ? 'cursor-pointer hover:bg-[var(--surface-2)] transition-colors' : ''}
     ${className}
   `;
 
@@ -85,7 +85,7 @@ export default function GeickoMetricCard({
     }
 
     const valueContent = (
-      <div className={`${valueSizeClasses[size]} text-white font-semibold`}>
+      <div className={`${valueSizeClasses[size]} text-[var(--text)] font-semibold`}>
         {value}
       </div>
     );
@@ -110,7 +110,7 @@ export default function GeickoMetricCard({
   return (
     <div className={baseClasses} onClick={onClick}>
       {/* Label */}
-      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider flex items-center gap-1.5">
+      <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider flex items-center gap-1.5">
         {icon && <span className="text-sm">{icon}</span>}
         {label}
       </div>
@@ -121,7 +121,7 @@ export default function GeickoMetricCard({
 
         {/* Optional subtext */}
         {subtext && !isLoading && (
-          <div className="text-xs text-gray-500 mt-1">{subtext}</div>
+          <div className="text-xs text-[var(--text-muted)] mt-1">{subtext}</div>
         )}
       </div>
     </div>

@@ -23,9 +23,9 @@ function ContractHolderRow({ holder }: { holder: ContractHolderItem }) {
     }
   }, [holder.address]);
   return (
-    <li className="text-xs font-mono text-gray-400 space-y-0.5 border-b border-white/10 pb-1.5 last:border-0">
+    <li className="text-xs font-mono text-[var(--text-muted)] space-y-0.5 border-b border-[var(--line)] pb-1.5 last:border-0">
       <div className="flex items-center gap-1.5">
-        <span className="text-gray-300">{truncateAddress(holder.address)}</span>
+        <span className="text-[var(--text-muted)]">{truncateAddress(holder.address)}</span>
         <button
           type="button"
           onClick={(e) => {
@@ -43,7 +43,7 @@ function ContractHolderRow({ holder }: { holder: ContractHolderItem }) {
           )}
         </button>
       </div>
-      <div className="text-[10px] text-gray-500 mt-0.5">
+      <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
         {holder.type} · {holder.percent.toFixed(2)}% of supply
       </div>
     </li>
@@ -81,14 +81,14 @@ export default function GeickoMetricsGrid({
     <div className="space-y-3">
       {/* Supply & Token Info */}
       <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">
+        <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider">
           Supply Info
         </div>
         <div className="space-y-2">
           {/* Total Supply */}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium">Total Supply</span>
-            <span className="text-sm text-white font-semibold">
+            <span className="text-xs text-[var(--text-muted)] font-medium">Total Supply</span>
+            <span className="text-sm text-[var(--text)] font-semibold">
               {totalSupply
                 ? (() => {
                     const supply =
@@ -101,10 +101,10 @@ export default function GeickoMetricsGrid({
 
           {/* Circulating Supply */}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium">Circulating</span>
+            <span className="text-xs text-[var(--text-muted)] font-medium">Circulating</span>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="text-sm text-white font-semibold">
+                <span className="text-sm text-[var(--text)] font-semibold">
                   {totalSupply
                     ? (() => {
                         const supply =
@@ -133,10 +133,10 @@ export default function GeickoMetricsGrid({
 
           {/* Holders */}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium">Holders</span>
+            <span className="text-xs text-[var(--text-muted)] font-medium">Holders</span>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="text-sm text-white font-semibold">
+                <span className="text-sm text-[var(--text)] font-semibold">
                   {holdersCount !== null
                     ? holdersCount >= 1000
                       ? `${(holdersCount / 1000).toFixed(1)}k`
@@ -154,8 +154,8 @@ export default function GeickoMetricsGrid({
 
           {/* Creation Date */}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium">Creation Date</span>
-            <span className="text-sm text-white font-semibold">{creationDate || '—'}</span>
+            <span className="text-xs text-[var(--text-muted)] font-medium">Creation Date</span>
+            <span className="text-sm text-[var(--text)] font-semibold">{creationDate || '—'}</span>
           </div>
         </div>
       </div>
@@ -163,7 +163,7 @@ export default function GeickoMetricsGrid({
       {/* Supply Held */}
       <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3 relative">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">
+          <span className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">
             Supply Held
           </span>
           <Tooltip>
@@ -186,35 +186,35 @@ export default function GeickoMetricsGrid({
         {supplyHeld.isLoading ? (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400 font-medium">Top 10</span>
+              <span className="text-xs text-[var(--text-muted)] font-medium">Top 10</span>
               <Skeleton className="h-5 w-12" />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400 font-medium">Top 20</span>
+              <span className="text-xs text-[var(--text-muted)] font-medium">Top 20</span>
               <Skeleton className="h-5 w-12" />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400 font-medium">Top 50</span>
+              <span className="text-xs text-[var(--text-muted)] font-medium">Top 50</span>
               <Skeleton className="h-5 w-12" />
             </div>
           </div>
         ) : (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400 font-medium">Top 10</span>
-              <span className="text-sm text-white font-semibold">
+              <span className="text-xs text-[var(--text-muted)] font-medium">Top 10</span>
+              <span className="text-sm text-[var(--text)] font-semibold">
                 {supplyHeld.top10 > 0 ? `${Math.round(supplyHeld.top10)}%` : '—'}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400 font-medium">Top 20</span>
-              <span className="text-sm text-white font-semibold">
+              <span className="text-xs text-[var(--text-muted)] font-medium">Top 20</span>
+              <span className="text-sm text-[var(--text)] font-semibold">
                 {supplyHeld.top20 > 0 ? `${Math.round(supplyHeld.top20)}%` : '—'}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400 font-medium">Top 50</span>
-              <span className="text-sm text-white font-semibold">
+              <span className="text-xs text-[var(--text-muted)] font-medium">Top 50</span>
+              <span className="text-sm text-[var(--text)] font-semibold">
                 {supplyHeld.top50 > 0 ? `${Math.round(supplyHeld.top50)}%` : '—'}
               </span>
             </div>
@@ -225,7 +225,7 @@ export default function GeickoMetricsGrid({
       {/* Supply In Contracts */}
       <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3 relative">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">
+          <span className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">
             Supply In Contracts
           </span>
           <Tooltip>
@@ -240,7 +240,7 @@ export default function GeickoMetricsGrid({
             </TooltipTrigger>
             <TooltipContent side="left" className="max-w-[340px] p-2">
               <div className="space-y-1.5">
-                <p className="text-xs text-gray-300 font-medium">Addresses counted (top 50):</p>
+                <p className="text-xs text-[var(--text-muted)] font-medium">Addresses counted (top 50):</p>
                 {(() => {
                   const holders = smartContractHolderShare.contractHolders;
                   const fallbackAddrs = smartContractHolderShare.contractAddresses;
@@ -257,9 +257,9 @@ export default function GeickoMetricsGrid({
                   }
                   if (hasFallback) {
                     return (
-                      <ul className="text-xs font-mono text-gray-400 space-y-0.5 max-h-40 overflow-y-auto">
+                      <ul className="text-xs font-mono text-[var(--text-muted)] space-y-0.5 max-h-40 overflow-y-auto">
                         {fallbackAddrs!.map((addr) => (
-                          <li key={addr} className="text-gray-300">
+                          <li key={addr} className="text-[var(--text-muted)]">
                             {truncateAddress(addr)}
                           </li>
                         ))}
@@ -267,7 +267,7 @@ export default function GeickoMetricsGrid({
                     );
                   }
                   return (
-                    <p className="text-[10px] text-gray-500">No contract holders in top 50.</p>
+                    <p className="text-[10px] text-[var(--text-muted)]">No contract holders in top 50.</p>
                   );
                 })()}
               </div>
@@ -277,27 +277,27 @@ export default function GeickoMetricsGrid({
         {smartContractHolderShare.isLoading ? (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400 font-medium">Share</span>
+              <span className="text-xs text-[var(--text-muted)] font-medium">Share</span>
               <Skeleton className="h-5 w-16" />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400 font-medium">Contracts</span>
+              <span className="text-xs text-[var(--text-muted)] font-medium">Contracts</span>
               <Skeleton className="h-5 w-8" />
             </div>
           </div>
         ) : (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400 font-medium">Share</span>
-              <span className="text-sm text-white font-semibold">
+              <span className="text-xs text-[var(--text-muted)] font-medium">Share</span>
+              <span className="text-sm text-[var(--text)] font-semibold">
                 {smartContractHolderShare.percent > 0
                   ? `${smartContractHolderShare.percent.toFixed(2)}%`
                   : '—'}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400 font-medium">Contracts</span>
-              <span className="text-sm text-white font-semibold">
+              <span className="text-xs text-[var(--text-muted)] font-medium">Contracts</span>
+              <span className="text-sm text-[var(--text)] font-semibold">
                 {smartContractHolderShare.contractCount > 0
                   ? smartContractHolderShare.contractCount
                   : '—'}
@@ -309,14 +309,14 @@ export default function GeickoMetricsGrid({
 
       {/* Burned Tokens */}
       <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
-        <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">
+        <div className="absolute top-2 left-3 text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">
           Burned
         </div>
         {burnedTokens ? (
           <div className="text-center">
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="text-base text-white font-semibold">
+                <div className="text-base text-[var(--text)] font-semibold">
                   {formatAbbrev(burnedTokens.amount)}
                 </div>
               </TooltipTrigger>
@@ -326,11 +326,11 @@ export default function GeickoMetricsGrid({
             </Tooltip>
           </div>
         ) : (
-          <div className="text-center text-base text-white font-semibold">—</div>
+          <div className="text-center text-base text-[var(--text)] font-semibold">—</div>
         )}
         {burnedTokens && (
           <div className="absolute top-4 right-2 flex items-center justify-center w-9 h-9 rounded-full border-2 border-green-400">
-            <span className="text-[10px] text-green-400 font-semibold">
+            <span className="text-[10px] text-[var(--up)] font-semibold">
               {burnedTokens.percent.toFixed(1)}%
             </span>
           </div>

@@ -33,7 +33,7 @@ import { fmtUsd, fmtPrice, fmtAmount, fmtNum } from '@/lib/format';
 const TokenAIChat = dynamic(() => import('@/components/TokenAIChat'), {
   ssr: false,
   loading: () => (
-    <div className="text-center py-8 text-sm text-white/60">
+    <div className="text-center py-8 text-sm text-[var(--text-muted)]">
       Loading AI assistant…
     </div>
   ),
@@ -43,7 +43,7 @@ const TokenAIChat = dynamic(() => import('@/components/TokenAIChat'), {
 // when the Chart tab is opened.
 const CandleChart = dynamic(() => import('@/components/portfolio/CandleChart'), {
   ssr: false,
-  loading: () => <div className="h-[460px] rounded-lg bg-white/5 animate-pulse" />,
+  loading: () => <div className="h-[460px] rounded-lg bg-[var(--surface)] animate-pulse" />,
 });
 
 // Chain marks overlaid as a small logo badge on the token icon (matches
@@ -184,7 +184,7 @@ export function TokenInsightsCard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[90]"
+            className="fixed inset-0 bg-[var(--app-bg)] backdrop-blur-sm z-[90]"
           />
           <div className="fixed inset-0 z-[100] grid place-items-center p-4 pointer-events-none">
             <motion.div
@@ -193,7 +193,7 @@ export function TokenInsightsCard() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-              className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-white/15 bg-[#0F1A2E] shadow-2xl pointer-events-auto"
+              className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[var(--line)] bg-[var(--app-bg)] shadow-2xl pointer-events-auto"
               style={{
                 boxShadow:
                   '0 24px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(168, 85, 247, 0.12) inset',
@@ -249,7 +249,7 @@ function CardHeader({
       <button
         type="button"
         onClick={onClose}
-        className="absolute top-3 right-3 z-10 h-8 w-8 grid place-items-center rounded-full bg-white/10 hover:bg-white/20 text-white"
+        className="absolute top-3 right-3 z-10 h-8 w-8 grid place-items-center rounded-full bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)]"
         aria-label="Close insights"
         title="Close (Esc)"
       >
@@ -259,7 +259,7 @@ function CardHeader({
       <div className={`px-6 ${headerImg ? '-mt-12 relative' : 'pt-6'}`}>
         <div className="flex items-start gap-4">
           <div className="relative shrink-0">
-            <div className="h-16 w-16 rounded-2xl bg-white/10 border border-white/20 overflow-hidden grid place-items-center">
+            <div className="h-16 w-16 rounded-2xl bg-[var(--surface-2)] border border-[var(--line-strong)] overflow-hidden grid place-items-center">
               {iconImg ? (
                 <img
                   src={iconImg}
@@ -267,7 +267,7 @@ function CardHeader({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <span className="text-white/70 font-semibold text-sm">
+                <span className="text-[var(--text-muted)] font-semibold text-sm">
                   {token.symbol.slice(0, 3).toUpperCase()}
                 </span>
               )}
@@ -275,7 +275,7 @@ function CardHeader({
             <span
               title={CHAIN_NAME[token.chain]}
               className={`absolute -bottom-1.5 -right-1.5 h-6 w-6 rounded-full overflow-hidden flex items-center justify-center ring-2 ring-[#0F1A2E] ${
-                token.chain === 'ethereum' ? 'bg-white' : 'bg-[#0b1f3a]'
+                token.chain === 'ethereum' ? 'bg-white' : 'bg-[var(--surface-2)]'
               }`}
             >
               <img
@@ -288,7 +288,7 @@ function CardHeader({
 
           <div className="min-w-0 flex-1 pt-1">
             <div className="flex items-center flex-wrap gap-2">
-              <h2 className="text-2xl font-bold text-white truncate">
+              <h2 className="text-2xl font-bold text-[var(--text)] truncate">
                 {token.symbol}
               </h2>
               {token.isNative && (
@@ -330,20 +330,20 @@ function CardHeader({
                 </span>
               )}
             </div>
-            <div className="text-white/60 text-sm truncate">{token.name}</div>
+            <div className="text-[var(--text-muted)] text-sm truncate">{token.name}</div>
 
             <div className="mt-3 flex items-baseline gap-3">
-              <span className="text-xl font-semibold text-white tabular-nums">
+              <span className="text-xl font-semibold text-[var(--text)] tabular-nums">
                 {token.priceUsd != null
                   ? fmtPrice(token.priceUsd)
-                  : <span className="text-white/30">—</span>}
+                  : <span className="text-[var(--text-faint)]">—</span>}
               </span>
               {token.priceChange24h != null && (
                 <span
                   className={
                     'text-sm font-semibold tabular-nums ' +
                     ((token.priceChange24h ?? 0) >= 0
-                      ? 'text-green-400'
+                      ? 'text-[var(--up)]'
                       : 'text-red-400')
                   }
                 >
@@ -375,7 +375,7 @@ function TabBar({
     { id: 'chat', label: 'AI Chat', Icon: IconRobot },
   ];
   return (
-    <div className="flex items-center gap-1 px-4 pt-3 border-b border-white/10">
+    <div className="flex items-center gap-1 px-4 pt-3 border-b border-[var(--line)]">
       {tabs.map(({ id, label, Icon }) => {
         const isActive = active === id;
         return (
@@ -444,7 +444,7 @@ function OverviewTab({
   return (
     <div className="space-y-5">
       {insights?.description && (
-        <p className="text-sm leading-relaxed text-white/75 line-clamp-5">
+        <p className="text-sm leading-relaxed text-[var(--text-muted)] line-clamp-5">
           {insights.description}
         </p>
       )}
@@ -468,7 +468,7 @@ function LiquidityTab({
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className="h-14 rounded-lg bg-white/5 animate-pulse"
+            className="h-14 rounded-lg bg-[var(--surface)] animate-pulse"
           />
         ))}
       </div>
@@ -477,14 +477,14 @@ function LiquidityTab({
   const pairs = insights?.topPairs ?? [];
   if (pairs.length === 0) {
     return (
-      <div className="text-sm text-white/50 text-center py-8">
+      <div className="text-sm text-[var(--text-faint)] text-center py-8">
         No DEX pools indexed for this token on DexScreener.
       </div>
     );
   }
   return (
     <div className="space-y-2">
-      <div className="text-[10px] uppercase tracking-wide font-semibold text-white/40 mb-1">
+      <div className="text-[10px] uppercase tracking-wide font-semibold text-[var(--text-faint)] mb-1">
         Top pools by liquidity
       </div>
       {pairs.map((p, i) => (
@@ -493,46 +493,46 @@ function LiquidityTab({
           href={p.url || '#'}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.07] px-3 py-2.5 transition-colors"
+          className="flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] hover:bg-[var(--surface)] px-3 py-2.5 transition-colors"
         >
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-white/40 text-xs tabular-nums w-4 text-right">
+            <span className="text-[var(--text-faint)] text-xs tabular-nums w-4 text-right">
               {i + 1}
             </span>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-semibold text-white">
+                <span className="text-sm font-semibold text-[var(--text)]">
                   {p.baseSymbol}
                 </span>
-                <span className="text-white/40 text-xs">/</span>
-                <span className="text-sm font-semibold text-white/80">
+                <span className="text-[var(--text-faint)] text-xs">/</span>
+                <span className="text-sm font-semibold text-[var(--text)]">
                   {p.quoteSymbol}
                 </span>
-                <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/60 capitalize">
+                <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-[var(--surface)] border border-[var(--line)] text-[var(--text-muted)] capitalize">
                   {p.dexId}
                 </span>
               </div>
-              <div className="text-[11px] text-white/50 mt-0.5 tabular-nums">
+              <div className="text-[11px] text-[var(--text-faint)] mt-0.5 tabular-nums">
                 Vol 24h{' '}
-                <span className="text-white/70 font-semibold">
+                <span className="text-[var(--text-muted)] font-semibold">
                   {fmtUsd(p.volume24h) ?? '—'}
                 </span>
                 {' · '}Txns{' '}
-                <span className="text-white/70 font-semibold">
+                <span className="text-[var(--text-muted)] font-semibold">
                   {fmtNum(p.txns24h)}
                 </span>
               </div>
             </div>
           </div>
           <div className="text-right shrink-0">
-            <div className="text-sm font-semibold text-white tabular-nums">
+            <div className="text-sm font-semibold text-[var(--text)] tabular-nums">
               {fmtUsd(p.liquidityUsd) ?? '—'}
             </div>
             {p.priceChange24h != null && (
               <div
                 className={
                   'text-[11px] font-semibold tabular-nums ' +
-                  (p.priceChange24h >= 0 ? 'text-green-400' : 'text-red-400')
+                  (p.priceChange24h >= 0 ? 'text-[var(--up)]' : 'text-red-400')
                 }
               >
                 {p.priceChange24h >= 0 ? '+' : ''}
@@ -564,7 +564,7 @@ function ChatTab({ token }: { token: PortfolioToken }) {
   // dex data given a contractAddress. The PulseChain version is what we
   // mostly have data for; on Ethereum it'll degrade to general questions.
   return (
-    <div className="h-[420px] -mx-2 rounded-lg overflow-hidden border border-white/10 bg-black/30">
+    <div className="h-[420px] -mx-2 rounded-lg overflow-hidden border border-[var(--line)] bg-[var(--surface-2)]">
       <TokenAIChat
         key={`${token.chain}:${token.address}`}
         contractAddress={token.address}
@@ -616,16 +616,16 @@ function StatsGrid({
       {cells.map((cell) => (
         <div
           key={cell.label}
-          className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2"
+          className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
         >
-          <div className="text-[10px] uppercase tracking-wide font-semibold text-white/40">
+          <div className="text-[10px] uppercase tracking-wide font-semibold text-[var(--text-faint)]">
             {cell.label}
           </div>
-          <div className="text-sm font-semibold text-white tabular-nums mt-0.5">
+          <div className="text-sm font-semibold text-[var(--text)] tabular-nums mt-0.5">
             {loading && cell.value == null ? (
-              <span className="inline-block h-3 w-16 rounded bg-white/10 animate-pulse" />
+              <span className="inline-block h-3 w-16 rounded bg-[var(--surface-2)] animate-pulse" />
             ) : (
-              cell.value ?? <span className="text-white/30">—</span>
+              cell.value ?? <span className="text-[var(--text-faint)]">—</span>
             )}
           </div>
         </div>
@@ -680,7 +680,7 @@ function ActionsRow({
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-white/80 hover:text-white transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface)] hover:bg-[var(--surface-2)] border border-[var(--line)] text-xs text-[var(--text)] hover:text-[var(--text)] transition-colors"
         >
           <Icon className="h-3.5 w-3.5" />
           {label}
@@ -703,7 +703,7 @@ function LinksRow({
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className="h-8 w-20 rounded-full bg-white/5 animate-pulse"
+            className="h-8 w-20 rounded-full bg-[var(--surface)] animate-pulse"
           />
         ))}
       </div>
@@ -722,7 +722,7 @@ function LinksRow({
           href={w.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-white/80 hover:text-white transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface)] hover:bg-[var(--surface-2)] border border-[var(--line)] text-xs text-[var(--text)] hover:text-[var(--text)] transition-colors"
         >
           <IconWorld className="h-3.5 w-3.5" />
           {w.label}
@@ -736,7 +736,7 @@ function LinksRow({
             href={s.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-white/80 hover:text-white transition-colors capitalize"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface)] hover:bg-[var(--surface-2)] border border-[var(--line)] text-xs text-[var(--text)] hover:text-[var(--text)] transition-colors capitalize"
           >
             <Icon className="h-3.5 w-3.5" />
             {s.type === 'x' ? 'twitter' : s.type}
@@ -752,7 +752,7 @@ function CardFooter({ token }: { token: PortfolioToken }) {
     <div className="px-6 pb-6 pt-1">
       <Link
         href={`/geicko?address=${token.address}`}
-        className="block w-full text-center px-4 py-3 rounded-xl text-sm font-semibold text-white transition-colors"
+        className="block w-full text-center px-4 py-3 rounded-xl text-sm font-semibold text-[var(--text)] transition-colors"
         style={{
           background:
             'linear-gradient(135deg, rgba(168, 85, 247, 0.85) 0%, rgba(126, 34, 206, 0.85) 100%)',

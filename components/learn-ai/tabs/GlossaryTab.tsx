@@ -161,7 +161,7 @@ export default function GlossaryTab() {
     { id: 'web', name: 'Web Development', color: 'text-cyan-400' },
     { id: 'blockchain', name: 'Blockchain & Cryptocurrency', color: 'text-orange-400' },
     { id: 'advanced', name: 'Advanced Concepts', color: 'text-purple-400' },
-    { id: 'database', name: 'Database & Storage', color: 'text-green-400' }
+    { id: 'database', name: 'Database & Storage', color: 'text-[var(--up)]' }
   ];
 
   return (
@@ -169,28 +169,28 @@ export default function GlossaryTab() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.3 }}
-      className="rounded-lg border border-white/10 bg-white/5 p-6"
+      className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6"
     >
       <h2 className="mb-6 text-2xl font-bold text-[#FA4616]">Comprehensive Coding Glossary</h2>
-      <p className="mb-6 text-white/70">
+      <p className="mb-6 text-[var(--text-muted)]">
         Essential terminology for modern software development, blockchain technology, and DApp creation.
         Each term includes academic-level definitions with practical examples.
       </p>
 
       {categories.map(category => (
         <div key={category.id} className="mb-8">
-          <h3 className={`text-xl font-semibold mb-4 border-b border-white/20 pb-2 ${category.color}`}>
+          <h3 className={`text-xl font-semibold mb-4 border-b border-[var(--line-strong)] pb-2 ${category.color}`}>
             {category.name}
           </h3>
 
           <div className="grid gap-6 md:grid-cols-2">
             {terms.filter(term => term.category === category.id).map((term, index) => (
-              <div key={index} className="bg-white/5 p-4 rounded-lg">
+              <div key={index} className="bg-[var(--surface)] p-4 rounded-lg">
                 <h4 className="font-semibold text-[#FA4616] mb-2">{term.term}</h4>
-                <p className="text-sm text-white/80 mb-2">
+                <p className="text-sm text-[var(--text)] mb-2">
                   {term.definition}
                 </p>
-                <p className="text-xs text-white/60 italic">
+                <p className="text-xs text-[var(--text-muted)] italic">
                   {term.example}
                 </p>
               </div>

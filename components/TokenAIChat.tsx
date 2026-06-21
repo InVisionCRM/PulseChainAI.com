@@ -252,22 +252,22 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
 
         return (
           <div key="tabbed-content" className="my-2">
-            <div className="flex border-b border-gray-700 mb-2">
+            <div className="flex border-b border-[var(--line)] mb-2">
               {tabs.map((tab, index) => (
                 <button
                   key={index}
                   onClick={() => setActiveTabbedContent(index)}
                   className={`px-2 py-1 text-xs font-medium transition-colors ${
                     activeTabbedContent === index
-                      ? 'text-white border-b-2 border-purple-500'
-                      : 'text-gray-400 hover:text-white'
+                      ? 'text-[var(--text)] border-b-2 border-purple-500'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                   }`}
                 >
                   {tab.title}
                 </button>
               ))}
             </div>
-            <div className="p-2 bg-gray-950 rounded border border-gray-800">
+            <div className="p-2 bg-[var(--app-bg)] rounded border border-[var(--line)]">
               {renderMarkdown(tabs[activeTabbedContent].content)}
             </div>
           </div>
@@ -286,8 +286,8 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
           const codeContent = languageMatch ? code.substring(language.length + 1) : code;
 
           return (
-            <pre key={blockIndex} className="bg-gray-950 rounded p-2 my-2 overflow-x-auto border border-gray-800 text-xs">
-              <code className="text-white font-mono">{codeContent}</code>
+            <pre key={blockIndex} className="bg-[var(--app-bg)] rounded p-2 my-2 overflow-x-auto border border-[var(--line)] text-xs">
+              <code className="text-[var(--text)] font-mono">{codeContent}</code>
             </pre>
           );
         }
@@ -299,19 +299,19 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
             {lines.map((line, lineIndex) => {
               // Headers
               if (line.startsWith('### ')) {
-                return <h3 key={lineIndex} className="text-sm font-bold text-white mt-2 mb-1">{line.substring(4)}</h3>;
+                return <h3 key={lineIndex} className="text-sm font-bold text-[var(--text)] mt-2 mb-1">{line.substring(4)}</h3>;
               }
               if (line.startsWith('## ')) {
-                return <h2 key={lineIndex} className="text-base font-bold text-white mt-2 mb-1">{line.substring(3)}</h2>;
+                return <h2 key={lineIndex} className="text-base font-bold text-[var(--text)] mt-2 mb-1">{line.substring(3)}</h2>;
               }
               if (line.startsWith('# ')) {
-                return <h1 key={lineIndex} className="text-lg font-bold text-white mt-2 mb-1">{line.substring(2)}</h1>;
+                return <h1 key={lineIndex} className="text-lg font-bold text-[var(--text)] mt-2 mb-1">{line.substring(2)}</h1>;
               }
 
               // Lists
               if (line.match(/^[\-\*]\s/)) {
                 return (
-                  <p key={lineIndex} className="ml-4 text-md font-bold text-white">
+                  <p key={lineIndex} className="ml-4 text-md font-bold text-[var(--text)]">
                     • {line.substring(2)}
                   </p>
                 );
@@ -330,7 +330,7 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
                   .join('');
               }
 
-              return <p key={lineIndex} className="text-xs text-white mb-1">{processedLine}</p>;
+              return <p key={lineIndex} className="text-xs text-[var(--text)] mb-1">{processedLine}</p>;
             })}
           </div>
         );
@@ -346,20 +346,20 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
     <div
       className={`relative flex flex-col h-full min-h-full w-full flex-1 overflow-hidden rounded-lg border border-purple-300/40 bg-[url('/Mirage.jpg')] bg-cover bg-center bg-no-repeat bg-purple-900/10 backdrop-blur-2xl shadow-[0_0_25px_rgba(0,0,0,0.35)] ${compact ? 'text-[11px]' : 'text-sm'} ${className ?? ''}`}
     >
-      <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+      <div className="absolute inset-0 bg-[var(--surface)] pointer-events-none" />
       <div className="relative px-3 pt-1 text-center space-y-1">
         <div className="w-full rounded-md px-4 py-2 text-center">
-          <h2 className="text-lg sm:text-xl font-bold text-slate-500">
+          <h2 className="text-lg sm:text-xl font-bold text-[var(--text-muted)]">
             <span className="text-purple-500">MORBIUS</span> Contract Reader
           </h2>
           {/* Mode toggle */}
           <div className="flex items-center justify-center gap-3 mt-1.5">
-            <span className={`text-xs font-semibold transition-colors duration-200 ${mode === 'pro' ? 'text-purple-400' : 'text-gray-500'}`}>
+            <span className={`text-xs font-semibold transition-colors duration-200 ${mode === 'pro' ? 'text-purple-400' : 'text-[var(--text-muted)]'}`}>
               Pro
             </span>
             <button
               onClick={() => setMode(m => m === 'pro' ? 'simple' : 'pro')}
-              className="relative inline-flex h-6 w-11 items-center rounded-full border border-white/20 transition-colors duration-300 focus:outline-none"
+              className="relative inline-flex h-6 w-11 items-center rounded-full border border-[var(--line-strong)] transition-colors duration-300 focus:outline-none"
               style={{
                 background: mode === 'simple'
                   ? 'linear-gradient(135deg, #22c55e, #16a34a)'
@@ -373,12 +373,12 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
                 }`}
               />
             </button>
-            <span className={`text-xs font-semibold transition-colors duration-200 ${mode === 'simple' ? 'text-green-400' : 'text-gray-500'}`}>
+            <span className={`text-xs font-semibold transition-colors duration-200 ${mode === 'simple' ? 'text-[var(--up)]' : 'text-[var(--text-muted)]'}`}>
               Simple
             </span>
           </div>
           {mode === 'simple' && (
-            <p className="text-[10px] text-green-400/70 mt-1">Plain english — no code knowledge needed</p>
+            <p className="text-[10px] text-[var(--up)] mt-1">Plain english — no code knowledge needed</p>
           )}
         </div>
       </div>
@@ -395,7 +395,7 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
       )}
       <div ref={chatContainerRef} className="flex-grow min-h-0 overflow-y-auto space-y-2 p-3 bg-transparent">
         {messages.length === 0 && (
-          <div className="text-center text-gray-400 h-full flex flex-col items-center justify-center gap-2">
+          <div className="text-center text-[var(--text-muted)] h-full flex flex-col items-center justify-center gap-2">
             {isLoadingChat ? (
               <>
                 <LoaderThree />
@@ -406,16 +406,16 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
                 <div className="flex flex-col items-center gap-2">
                   {quickQuestions.map((question, index) => {
                     const colorClasses = [
-                      "bg-purple-900/30 hover:bg-purple-800/40 border-white/20",
-                      "bg-purple-900/30 hover:bg-purple-800/40 border-white/20",
-                      "bg-purple-900/30 hover:bg-purple-800/40 border-white/20"
+                      "bg-purple-900/30 hover:bg-purple-800/40 border-[var(--line-strong)]",
+                      "bg-purple-900/30 hover:bg-purple-800/40 border-[var(--line-strong)]",
+                      "bg-purple-900/30 hover:bg-purple-800/40 border-[var(--line-strong)]"
                     ];
 
                     return (
                       <button
                         key={index}
                         onClick={() => sendMessage(question)}
-                        className={`inline-flex px-2 py-1.5 rounded-full border ${colorClasses[index]} transition-all duration-200 text-sm text-white backdrop-blur-xl shadow-[0_10px_25px_rgba(0,0,0,0.25)]`}
+                        className={`inline-flex px-2 py-1.5 rounded-full border ${colorClasses[index]} transition-all duration-200 text-sm text-[var(--text)] backdrop-blur-xl shadow-[0_10px_25px_rgba(0,0,0,0.25)]`}
                       >
                         {question}
                       </button>
@@ -429,17 +429,17 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
         {messages.map((msg) => (
           <div key={msg.id} className="space-y-2">
             <div className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className="max-w-[95%] rounded-lg px-3 py-2 bg-slate-500/50 border border-white/20 backdrop-blur-xl shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+              <div className="max-w-[95%] rounded-lg px-3 py-2 bg-[var(--surface-2)] border border-[var(--line-strong)] backdrop-blur-xl shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                 {msg.sender === 'user' ? (
-                  <div className="text-white text-sm font-bold">
+                  <div className="text-[var(--text)] text-sm font-bold">
                     {msg.text}
                   </div>
                 ) : (
-                  <div className="space-y-1 text-white">
+                  <div className="space-y-1 text-[var(--text)]">
                     {msg.text === '...' ? (
                       <LoaderThree />
                     ) : (
-                      <div className="text-white text-sm font-bold">{renderMessageText(msg.text)}</div>
+                      <div className="text-[var(--text)] text-sm font-bold">{renderMessageText(msg.text)}</div>
                     )}
                   </div>
                 )}
@@ -457,7 +457,7 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
                         key={idx}
                         onClick={() => sendMessage(question)}
                         disabled={isLoadingChat}
-                        className="inline-flex px-3 py-1.5 rounded-full border border-purple-300/40 bg-purple-900/30 hover:bg-purple-800/40 transition-all duration-200 text-xs text-white backdrop-blur-xl shadow-[0_5px_15px_rgba(0,0,0,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex px-3 py-1.5 rounded-full border border-purple-300/40 bg-purple-900/30 hover:bg-purple-800/40 transition-all duration-200 text-xs text-[var(--text)] backdrop-blur-xl shadow-[0_5px_15px_rgba(0,0,0,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {question}
                       </button>
@@ -476,22 +476,22 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
           </div>
         )}
       </div>
-      <form onSubmit={handleSendMessage} className="border-t border-white/15 flex items-center gap-2 bg-white/5 backdrop-blur-xl flex-shrink-0 p-2 rounded-b-lg">
+      <form onSubmit={handleSendMessage} className="border-t border-[var(--line)] flex items-center gap-2 bg-[var(--surface)] backdrop-blur-xl flex-shrink-0 p-2 rounded-b-lg">
         <textarea
           rows={1}
           value={chatInput}
           onChange={(e) => setChatInput(e.target.value)}
           placeholder="Ask about the contract..."
-          className="flex-grow bg-white/10 backdrop-blur-xl border-[2px] border-white/30 rounded px-3 py-2 text-base text-white placeholder:text-base placeholder:font-semibold placeholder:text-white font-bold focus:ring-2 focus:ring-purple-300 focus:outline-none transition resize-none shadow-[0_10px_25px_rgba(0,0,0,0.2)]"
+          className="flex-grow bg-[var(--surface-2)] backdrop-blur-xl border-[2px] border-[var(--line-strong)] rounded px-3 py-2 text-base text-[var(--text)] placeholder:text-base placeholder:font-semibold placeholder:text-[var(--text)] font-bold focus:ring-2 focus:ring-purple-300 focus:outline-none transition resize-none shadow-[0_10px_25px_rgba(0,0,0,0.2)]"
           disabled={isLoadingChat}
         />
         <button
           type="submit"
           disabled={isLoadingChat || !chatInput.trim()}
-          className="bg-white/20 text-white p-2 rounded-full border border-white/30 hover:bg-white/30 disabled:bg-white/10 disabled:cursor-not-allowed transition-colors shadow-[0_10px_25px_rgba(0,0,0,0.25)] backdrop-blur-xl"
+          className="bg-[var(--surface-3)] text-[var(--text)] p-2 rounded-full border border-[var(--line-strong)] hover:bg-[var(--surface)] disabled:bg-[var(--surface-2)] disabled:cursor-not-allowed transition-colors shadow-[0_10px_25px_rgba(0,0,0,0.25)] backdrop-blur-xl"
           title="Send message"
         >
-          <SendIcon className="w-4 h-4 text-white"/>
+          <SendIcon className="w-4 h-4 text-[var(--text)]"/>
         </button>
       </form>
       </div>

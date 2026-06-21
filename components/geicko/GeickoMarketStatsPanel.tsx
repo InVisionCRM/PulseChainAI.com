@@ -29,10 +29,10 @@ export default function GeickoMarketStatsPanel({
     <div className="space-y-3">
       {/* Market Cap */}
       <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">
+        <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider">
           Market Cap
         </div>
-        <div className="text-center text-base text-white font-semibold">
+        <div className="text-center text-base text-[var(--text)] font-semibold">
           {(() => {
             const marketCap = Number(primaryPair.marketCap || 0);
             return marketCap > 0 ? formatAbbrev(marketCap) : '—';
@@ -42,10 +42,10 @@ export default function GeickoMarketStatsPanel({
 
       {/* Liquidity */}
       <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
-        <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">
+        <div className="absolute top-2 left-3 text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">
           Liquidity
         </div>
-        <div className="text-center text-base text-white font-semibold">
+        <div className="text-center text-base text-[var(--text)] font-semibold">
           <Tooltip>
             <TooltipTrigger asChild>
               <span>
@@ -71,10 +71,10 @@ export default function GeickoMarketStatsPanel({
 
       {/* Liq/MCAP Ratio */}
       <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[60px] flex items-center justify-center">
-        <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">
+        <div className="absolute top-2 left-3 text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">
           Liq/MCAP
         </div>
-        <div className="text-center text-base text-white font-semibold">
+        <div className="text-center text-base text-[var(--text)] font-semibold">
           {(() => {
             const liquidity = Number(primaryPair.liquidity?.usd || 0);
             const marketCap = Number(primaryPair.marketCap || 0);
@@ -89,13 +89,13 @@ export default function GeickoMarketStatsPanel({
 
       {/* Total Liquidity */}
       <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg py-0 px-3 min-h-[80px] flex items-center justify-center">
-        <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium uppercase tracking-wider">
+        <div className="absolute top-2 left-3 text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">
           Total Liquidity
         </div>
         {totalLiquidity.isLoading ? (
           <Skeleton className="h-6 w-24" />
         ) : (
-          <div className="text-center text-base text-white font-semibold">
+          <div className="text-center text-base text-[var(--text)] font-semibold">
             <Tooltip>
               <TooltipTrigger asChild>
                 <span>
@@ -111,7 +111,7 @@ export default function GeickoMarketStatsPanel({
           </div>
         )}
         {totalLiquidity.pairCount > 0 && (
-          <div className="absolute bottom-2 right-3 text-xs text-gray-400 font-medium">
+          <div className="absolute bottom-2 right-3 text-xs text-[var(--text-muted)] font-medium">
             {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
           </div>
         )}

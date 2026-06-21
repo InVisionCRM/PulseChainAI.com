@@ -34,7 +34,7 @@ export function LoaderWithPercent({ label = "Loading", progress, small = false, 
     <div className={`relative inline-flex items-center justify-center ${className || ""}`}>
       {/* Numbers only, positioned top-center 5px above loader */}
       <span className="absolute left-1/2 -translate-x-1/2 pointer-events-none" style={{ top: "-5px" }}>
-        <NumberTicker value={value} startValue={0} decimalPlaces={0} className="text-xs md:text-sm font-semibold text-white" />
+        <NumberTicker value={value} startValue={0} decimalPlaces={0} className="text-xs md:text-sm font-semibold text-[var(--text)]" />
       </span>
       <div className={small ? "scale-75" : undefined}><LoaderThree /></div>
     </div>

@@ -306,33 +306,33 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-slate-850 rounded-xl overflow-hidden z-50 flex flex-col max-w-7xl w-full max-h-[95vh] mx-4 my-6 border border-gray-700">
+    <div className="fixed inset-0 bg-[var(--app-bg)] backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="bg-slate-850 rounded-xl overflow-hidden z-50 flex flex-col max-w-7xl w-full max-h-[95vh] mx-4 my-6 border border-[var(--line)]">
         {/* Top Navigation Tabs */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-0 border-b border-gray-700">
+        <div className="flex items-center justify-between px-4 pt-4 pb-0 border-b border-[var(--line)]">
           <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value)} className="w-full">
             <TabsList className="grid w-full grid-cols-4 bg-transparent border-b-0 h-auto p-0">
               <TabsTrigger 
                 value="portfolio" 
-                className="text-sm data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-white data-[state=active]:text-white text-gray-400 rounded-none pb-3"
+                className="text-sm data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-white data-[state=active]:text-[var(--text)] text-[var(--text-muted)] rounded-none pb-3"
               >
                 Portfolio
               </TabsTrigger>
               <TabsTrigger 
                 value="transactions" 
-                className="text-sm data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-white data-[state=active]:text-white text-gray-400 rounded-none pb-3"
+                className="text-sm data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-white data-[state=active]:text-[var(--text)] text-[var(--text-muted)] rounded-none pb-3"
               >
                 Transactions
               </TabsTrigger>
               <TabsTrigger 
                 value="multichain" 
-                className="text-sm data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-white data-[state=active]:text-white text-gray-400 rounded-none pb-3"
+                className="text-sm data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-white data-[state=active]:text-[var(--text)] text-[var(--text-muted)] rounded-none pb-3"
               >
                 MultiChain Transactions
               </TabsTrigger>
               <TabsTrigger 
                 value="spending" 
-                className="text-sm data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-white data-[state=active]:text-white text-gray-400 rounded-none pb-3"
+                className="text-sm data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-white data-[state=active]:text-[var(--text)] text-[var(--text-muted)] rounded-none pb-3"
               >
                 Spending Caps
               </TabsTrigger>
@@ -340,7 +340,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
           </Tabs>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors ml-4 mb-3"
+            className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors ml-4 mb-3"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -349,22 +349,22 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
         </div>
 
         {/* Transactions Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--line)]">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-bold text-white">Transactions</h2>
+            <h2 className="text-xl font-bold text-[var(--text)]">Transactions</h2>
             <button 
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="p-1 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+              className="p-1 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">View as You</span>
+              <span className="text-sm text-[var(--text-muted)]">View as You</span>
               <button
                 onClick={() => setViewAsYou(!viewAsYou)}
                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                  viewAsYou ? 'bg-blue-600' : 'bg-gray-600'
+                  viewAsYou ? 'bg-blue-600' : 'bg-[var(--surface-2)]'
                 }`}
               >
                 <span
@@ -381,13 +381,13 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
               placeholder="Paste token address to filter..."
               value={tokenFilter}
               onChange={(e) => setTokenFilter(e.target.value)}
-              className="w-64 bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-gray-500"
+              className="w-64 bg-[var(--panel)] border-[var(--line)] text-[var(--text)] placeholder-gray-400 focus:border-[var(--line)]"
             />
           </div>
         </div>
 
         {/* Transaction Filters */}
-        <div className="flex items-center gap-2 p-4 border-b border-gray-700">
+        <div className="flex items-center gap-2 p-4 border-b border-[var(--line)]">
           {['All', 'Contract Interaction', 'Receive', 'Send', 'Swap', 'Token Approval'].map((filter, index) => {
             const filterKey = ['all', 'contract', 'receive', 'send', 'swap', 'approval'][index] as any;
             const isActive = transactionFilter === filterKey;
@@ -398,7 +398,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                 className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
                   isActive 
                     ? 'bg-white text-gray-900 font-medium' 
-                    : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
+                    : 'bg-[var(--panel)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
                 }`}
               >
                 {filter}
@@ -420,36 +420,36 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
               <p className="text-red-400 mb-4">{error}</p>
               <button
                 onClick={() => fetchTransactions(1, true)}
-                className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors"
+                className="px-4 py-2 bg-orange-500 text-[var(--text)] rounded-md hover:bg-orange-600 transition-colors"
               >
                 Retry
               </button>
             </div>
           ) : filteredTransactions.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-gray-400 p-8">
+            <div className="flex items-center justify-center h-full text-[var(--text-muted)] p-8">
               No transactions found
             </div>
           ) : (
             <div className="p-4 space-y-3">
               {/* Display swap transactions */}
               {paginatedTransactions.map((tx) => (
-                <div key={tx.id} className="bg-slate-950 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors">
+                <div key={tx.id} className="bg-[var(--app-bg)] rounded-lg p-4 border border-[var(--line)] hover:border-[var(--line)] transition-colors">
                   {/* Transaction Header */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-white font-bold">Swap</span>
-                      <span className="text-white">
+                      <span className="text-[var(--text)] font-bold">Swap</span>
+                      <span className="text-[var(--text)]">
                         From: {getDisplayAddress(tx.from, tx.from === 'You')}
                       </span>
-                      <span className="text-white">
+                      <span className="text-[var(--text)]">
                         To: {tx.to}
                       </span>
                         </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-400 text-sm">{formatDetailedTimeAgo(tx.timestamp)}</span>
+                      <span className="text-[var(--text-muted)] text-sm">{formatDetailedTimeAgo(tx.timestamp)}</span>
                       <button 
                         onClick={() => handleExternalLinkClick(`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${tx.txHash}`)}
-                        className="p-1 text-gray-400 hover:text-white transition-colors"
+                        className="p-1 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
                       >
                         <ExternalLink className="w-3 h-3" />
                       </button>
@@ -473,23 +473,23 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                                 }}
                               />
                             ) : (
-                              <div className="w-5 h-5 rounded-full bg-gray-700 flex-shrink-0" />
+                              <div className="w-5 h-5 rounded-full bg-[var(--surface-2)] flex-shrink-0" />
                             )}
-                            <span className="text-white font-medium">{asset.amount} {asset.symbol}</span>
+                            <span className="text-[var(--text)] font-medium">{asset.amount} {asset.symbol}</span>
                             {asset.value > 0 && (
-                              <span className="text-gray-400">(${asset.value.toFixed(2)})</span>
+                              <span className="text-[var(--text-muted)]">(${asset.value.toFixed(2)})</span>
                             )}
                           </div>
                           <div className="flex items-center gap-1">
                             <button 
                               onClick={() => handleExternalLinkClick(`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${asset.tokenAddress}`)}
-                              className="p-1 text-gray-400 hover:text-white transition-colors"
+                              className="p-1 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
                             >
                               <ExternalLink className="w-3 h-3" />
                             </button>
                             <button 
                               onClick={() => handleFilterByToken(asset.tokenAddress)}
-                              className="p-1 text-gray-400 hover:text-white transition-colors"
+                              className="p-1 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
                             >
                               <Filter className="w-3 h-3" />
                             </button>
@@ -505,7 +505,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                       {tx.receivedAssets.map((asset, index) => (
                         <div key={index} className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <ArrowDown className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <ArrowDown className="w-4 h-4 text-[var(--up)] flex-shrink-0" />
                             {tokenLogos[asset.tokenAddress.toLowerCase()] ? (
                               <img 
                                 src={tokenLogos[asset.tokenAddress.toLowerCase()]} 
@@ -516,21 +516,21 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                                 }}
                               />
                             ) : (
-                              <div className="w-5 h-5 rounded-full bg-gray-700 flex-shrink-0" />
+                              <div className="w-5 h-5 rounded-full bg-[var(--surface-2)] flex-shrink-0" />
                             )}
-                            <span className="text-white font-medium">{asset.amount} {asset.symbol}</span>
-                            <span className="text-gray-400">(${asset.value.toFixed(2)})</span>
+                            <span className="text-[var(--text)] font-medium">{asset.amount} {asset.symbol}</span>
+                            <span className="text-[var(--text-muted)]">(${asset.value.toFixed(2)})</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <button 
                               onClick={() => handleExternalLinkClick(`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${asset.tokenAddress}`)}
-                              className="p-1 text-gray-400 hover:text-white transition-colors"
+                              className="p-1 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
                             >
                               <ExternalLink className="w-3 h-3" />
                             </button>
                             <button 
                               onClick={() => handleFilterByToken(asset.tokenAddress)}
-                              className="p-1 text-gray-400 hover:text-white transition-colors"
+                              className="p-1 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
                             >
                               <Filter className="w-3 h-3" />
                             </button>
@@ -541,12 +541,12 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                   )}
 
                   {/* Transaction Footer */}
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-700">
+                  <div className="flex items-center justify-between pt-3 border-t border-[var(--line)]">
                     <div className="flex items-center gap-2">
                       {tx.status === 'success' ? (
                         <>
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                          <span className="text-green-500 text-sm font-medium">Success</span>
+                          <CheckCircle className="w-4 h-4 text-[var(--up)]" />
+                          <span className="text-[var(--up)] text-sm font-medium">Success</span>
                         </>
                       ) : (
                         <>
@@ -556,7 +556,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                       )}
             </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-400 text-sm">
+                      <span className="text-[var(--text-muted)] text-sm">
                         Gas: {tx.gasUsed} {tx.gasSymbol} (${tx.gasValue.toFixed(2)})
                       </span>
                       </div>
@@ -570,19 +570,19 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                   <button
                     onClick={() => setFilteredCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={filteredCurrentPage === 1}
-                    className="px-3 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-2 bg-[var(--surface-2)] text-[var(--text)] rounded-md hover:bg-[var(--surface-2)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Previous
                   </button>
                   
-                  <span className="text-white px-4">
+                  <span className="text-[var(--text)] px-4">
                     Page {filteredCurrentPage} of {totalFilteredPages}
                   </span>
                   
                   <button
                     onClick={() => setFilteredCurrentPage(prev => Math.min(totalFilteredPages, prev + 1))}
                     disabled={filteredCurrentPage === totalFilteredPages}
-                    className="px-3 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-2 bg-[var(--surface-2)] text-[var(--text)] rounded-md hover:bg-[var(--surface-2)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next
                   </button>

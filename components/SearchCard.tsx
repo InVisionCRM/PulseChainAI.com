@@ -41,7 +41,7 @@ const SearchCard: React.FC<SearchCardProps> = ({
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--app-bg)] backdrop-blur-sm p-4"
           onClick={onClose}
         >
           <motion.div
@@ -49,7 +49,7 @@ const SearchCard: React.FC<SearchCardProps> = ({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 20, opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="bg-gradient-to-br from-gray-950/95 to-gray-900/90 backdrop-blur-[2px] border border-gray-700/40 rounded-xl shadow-2xl w-full max-w-2xl p-6 relative overflow-hidden"
+            className="bg-gradient-to-br from-[var(--app-bg)] to-[var(--panel)] backdrop-blur-[2px] border border-[var(--line)] rounded-xl shadow-2xl w-full max-w-2xl p-6 relative overflow-hidden"
             style={{
               boxShadow: "0 0 8px rgba(255,255,255,0.08), 0 0 2px rgba(255,255,255,0.12), inset 0 1px 0 rgba(255,255,255,0.05)"
             }}
@@ -59,10 +59,10 @@ const SearchCard: React.FC<SearchCardProps> = ({
             <div className="absolute inset-0 bg-gradient-to-br from-white/3 via-transparent to-white/3 rounded-xl pointer-events-none"></div>
             {/* Header */}
             <div className="flex items-center justify-between mb-6 relative z-10">
-              <h2 className="text-xl font-semibold text-gray-100">Search Contract</h2>
+              <h2 className="text-xl font-semibold text-[var(--text)]">Search Contract</h2>
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-gray-200 transition-colors"
+                className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
                 title="Close search"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,7 +74,7 @@ const SearchCard: React.FC<SearchCardProps> = ({
             {/* Search Content */}
             <div className="space-y-4 relative z-10">
               <div className="w-full relative" ref={searchContainerRef}>
-                <label htmlFor="contractAddress" className="block text-sm font-medium text-gray-400 mb-2">
+                <label htmlFor="contractAddress" className="block text-sm font-medium text-[var(--text-muted)] mb-2">
                   Contract Address or Name/Ticker
                 </label>
                 <input
@@ -84,14 +84,14 @@ const SearchCard: React.FC<SearchCardProps> = ({
                   onChange={(e) => onContractAddressChange(e.target.value)}
                   onFocus={() => onSearchDropdownVisibilityChange(true)}
                   placeholder="0x... or search for 'Pulse'"
-                  className="w-full bg-gray-900/60 border border-gray-700/50 rounded-lg px-4 py-3 text-gray-200 placeholder-gray-500 focus:ring-1 focus:ring-gray-500/60 focus:outline-none transition text-base backdrop-blur-[1px]"
+                  className="w-full bg-[var(--panel)] border border-[var(--line)] rounded-lg px-4 py-3 text-[var(--text)] placeholder-gray-500 focus:ring-1 focus:ring-gray-500/60 focus:outline-none transition text-base backdrop-blur-[1px]"
                   disabled={isLoadingContract}
                   autoComplete="off"
                 />
                 {isSearchDropdownVisible && (isSearching || searchResults.length > 0) && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-gray-950/95 backdrop-blur-[1px] border border-gray-700/50 rounded-lg shadow-xl z-10 max-h-80 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--app-bg)] backdrop-blur-[1px] border border-[var(--line)] rounded-lg shadow-xl z-10 max-h-80 overflow-y-auto">
                     {isSearching && (
-                      <div className="p-3 text-gray-500 flex items-center gap-2">
+                      <div className="p-3 text-[var(--text-muted)] flex items-center gap-2">
                         <LoadingSpinner className="w-4 h-4" />
                         <span>Searching...</span>
                       </div>
@@ -100,20 +100,20 @@ const SearchCard: React.FC<SearchCardProps> = ({
                       <div
                         key={item.address}
                         onClick={() => onSelectSearchResult(item)}
-                        className="flex items-center gap-3 p-3 hover:bg-gray-900/60 cursor-pointer transition-colors"
+                        className="flex items-center gap-3 p-3 hover:bg-[var(--panel)] cursor-pointer transition-colors"
                       >
                         {item.icon_url ? (
-                          <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-gray-900" />
+                          <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-[var(--panel)]" />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center text-gray-400 font-bold text-sm flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-[var(--panel)] flex items-center justify-center text-[var(--text-muted)] font-bold text-sm flex-shrink-0">
                             {item.name?.[0] || '?'}
                           </div>
                         )}
                         <div className="overflow-hidden flex-1">
-                          <div className="font-semibold text-gray-200 truncate">
+                          <div className="font-semibold text-[var(--text)] truncate">
                             {item.name} {item.symbol && `(${item.symbol})`}
                           </div>
-                          <div className="text-xs text-gray-500 capitalize">{item.type}</div>
+                          <div className="text-xs text-[var(--text-muted)] capitalize">{item.type}</div>
                           <div className="text-xs text-gray-600 font-mono truncate">{item.address}</div>
                         </div>
                       </div>
@@ -125,7 +125,7 @@ const SearchCard: React.FC<SearchCardProps> = ({
               <button
                 onClick={onLoadContract}
                 disabled={isLoadingContract || !contractAddress}
-                className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r from-gray-900/60 to-gray-800/60 border border-gray-600/40 text-gray-200 font-semibold px-6 py-3 rounded-lg disabled:bg-gray-900 disabled:cursor-not-allowed transition-all duration-200 disabled:opacity-50 text-base hover:border-gray-500/60 hover:shadow-[0_0_4px_rgba(255,255,255,0.08)] ${
+                className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[var(--panel)] to-[var(--panel)] border border-[var(--line)] text-[var(--text)] font-semibold px-6 py-3 rounded-lg disabled:bg-[var(--panel)] disabled:cursor-not-allowed transition-all duration-200 disabled:opacity-50 text-base hover:border-[var(--line)] hover:shadow-[0_0_4px_rgba(255,255,255,0.08)] ${
                   contractAddress ? 'shadow-[0_0_4px_rgba(255,255,255,0.06)] ring-1 ring-gray-500/30' : ''
                 }`}
                 style={{

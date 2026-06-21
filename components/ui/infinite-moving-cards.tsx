@@ -121,7 +121,7 @@ export const InfiniteMovingCards = ({
                     }}
                   />
                 )}
-                <span className="relative z-20 text-sm leading-[1.6] font-normal whitespace-nowrap text-white/90">
+                <span className="relative z-20 text-sm leading-[1.6] font-normal whitespace-nowrap text-[var(--text)]">
                   {item.quote}
                 </span>
                 {item.changeText && (
@@ -132,7 +132,7 @@ export const InfiniteMovingCards = ({
                     {item.changeText}
                   </span>
                 )}
-                <span className="text-white/30 mx-1">•</span>
+                <span className="text-[var(--text-faint)] mx-1">•</span>
               </div>
             </blockquote>
           </li>

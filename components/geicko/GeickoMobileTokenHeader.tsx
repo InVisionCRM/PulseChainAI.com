@@ -42,12 +42,12 @@ export default function GeickoMobileTokenHeader({
           <div className="flex-1 min-w-0">
             {/* Ticker and Name */}
             <div className="absolute z-10 left-0 top-0 text-left mb-0">
-              <div className="bg-slate-900/90 backdrop-blur-lg rounded-xs p-2">
-                <div className="text-md font-bold text-white">
+              <div className="bg-[var(--panel)] backdrop-blur-lg rounded-xs p-2">
+                <div className="text-md font-bold text-[var(--text)]">
                   {dexScreenerData?.tokenInfo?.symbol || primaryPair.baseToken?.symbol} /{' '}
                   {primaryPair.quoteToken?.symbol}
                 </div>
-                <div className="text-xs text-gray-400">
+                <div className="text-xs text-[var(--text-muted)]">
                   {dexScreenerData?.tokenInfo?.name ||
                     tokenInfo?.name ||
                     primaryPair.baseToken?.name ||
@@ -57,7 +57,7 @@ export default function GeickoMobileTokenHeader({
             </div>
 
             {/* Token Logo - Centered below ticker/name */}
-            <div className="absolute z-20 left-6 bottom-0 bg-slate-900/90/30 backdrop-blur-xs rounded-full p-2 mb-1">
+            <div className="absolute z-20 left-6 bottom-0 bg-[var(--panel)] backdrop-blur-xs rounded-full p-2 mb-1">
               {(dexScreenerData?.tokenInfo?.logoURI ||
                 primaryPair?.baseToken?.logoURI ||
                 primaryPair?.info?.imageUrl) ? (
@@ -68,7 +68,7 @@ export default function GeickoMobileTokenHeader({
                     primaryPair?.info?.imageUrl
                   }
                   alt={`${dexScreenerData?.tokenInfo?.symbol || primaryPair.baseToken?.symbol} logo`}
-                  className="w-16 h-16 rounded-full bg-gray-950"
+                  className="w-16 h-16 rounded-full bg-[var(--app-bg)]"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                     e.currentTarget.nextElementSibling?.classList.remove('hidden');
@@ -84,7 +84,7 @@ export default function GeickoMobileTokenHeader({
                     : ''
                 }`}
               >
-                <span className="text-white font-bold text-xl">
+                <span className="text-[var(--text)] font-bold text-xl">
                   {dexScreenerData?.tokenInfo?.symbol?.charAt(0) ||
                     primaryPair.baseToken?.symbol?.charAt(0) ||
                     'T'}
@@ -94,18 +94,18 @@ export default function GeickoMobileTokenHeader({
 
             {/* Current Price */}
             <div className="absolute right-4 top-2">
-              <div className="text-xl font-bold text-white">
+              <div className="text-xl font-bold text-[var(--text)]">
                 ${Number(primaryPair.priceUsd || 0).toFixed(6)}
               </div>
               <div
                 className={`text-md ${
-                  (primaryPair.priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                  (primaryPair.priceChange?.h24 || 0) >= 0 ? 'text-[var(--up)]' : 'text-red-400'
                 }`}
               >
                 {(primaryPair.priceChange?.h24 || 0) >= 0 ? '↑' : '↓'}
                 {Math.abs(primaryPair.priceChange?.h24 || 0).toFixed(2)}%
               </div>
-              <div className="text-lg font-bold text-gray-300">
+              <div className="text-lg font-bold text-[var(--text-muted)]">
                 {formatMarketCapLabel(primaryPair.marketCap)}
               </div>
             </div>
@@ -129,10 +129,10 @@ export default function GeickoMobileTokenHeader({
                     e.currentTarget.style.display = 'none';
                   }}
                 />
-                <div className="absolute inset-0 bg-slate-900/90/70" />
+                <div className="absolute inset-0 bg-[var(--panel)]" />
               </>
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" />
+              <div className="absolute inset-0 bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)]" />
             )}
           </div>
 
@@ -140,7 +140,7 @@ export default function GeickoMobileTokenHeader({
           {apiTokenAddress && (
             <button
               onClick={() => onCopyAddress(apiTokenAddress)}
-              className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 text-xs text-white/80 hover:text-white transition-colors bg-slate-900/90/30 backdrop-blur-sm px-2 py-1 rounded-lg"
+              className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 text-xs text-[var(--text)] hover:text-[var(--text)] transition-colors bg-[var(--panel)] backdrop-blur-sm px-2 py-1 rounded-lg"
               title="Copy contract address"
             >
               <span className="font-mono">
@@ -151,7 +151,7 @@ export default function GeickoMobileTokenHeader({
           )}
         </div>
       ) : (
-        <div className="text-xs text-gray-400 py-4">No token data available</div>
+        <div className="text-xs text-[var(--text-muted)] py-4">No token data available</div>
       )}
     </div>
   );

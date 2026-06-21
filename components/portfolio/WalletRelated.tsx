@@ -107,13 +107,13 @@ export function WalletRelated({ walletAddress, chains }: Props) {
   }, [walletAddress, chains]);
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
       <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/70">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
           <IconAffiliate className="h-4 w-4 text-violet-300/80" />
           Related wallets
           {rows && rows.length > 0 && (
-            <span className="font-normal text-white/30">· {rows.length}</span>
+            <span className="font-normal text-[var(--text-faint)]">· {rows.length}</span>
           )}
         </div>
         {rows !== null && (
@@ -121,7 +121,7 @@ export function WalletRelated({ walletAddress, chains }: Props) {
             type="button"
             onClick={() => void run()}
             disabled={loading}
-            className="text-white/50 hover:text-white disabled:opacity-40"
+            className="text-[var(--text-faint)] hover:text-[var(--text)] disabled:opacity-40"
             title="Re-run clustering"
           >
             <IconRefresh className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -129,7 +129,7 @@ export function WalletRelated({ walletAddress, chains }: Props) {
         )}
       </div>
 
-      <p className="mb-3 text-[11px] leading-snug text-white/40">
+      <p className="mb-3 text-[11px] leading-snug text-[var(--text-faint)]">
         Wallets this one is connected to — who it transfers with, two-way
         relationships, and shared funding sources. A heuristic — verify before
         acting on it.
@@ -163,11 +163,11 @@ export function WalletRelated({ walletAddress, chains }: Props) {
       ) : loading ? (
         <div className="space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-12 animate-pulse rounded-lg bg-white/5" />
+            <div key={i} className="h-12 animate-pulse rounded-lg bg-[var(--surface)]" />
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <div className="py-4 text-center text-sm text-white/40">
+        <div className="py-4 text-center text-sm text-[var(--text-faint)]">
           No connected wallets found in recent history. This wallet may only
           interact with contracts (swaps, approvals) rather than other wallets.
         </div>
@@ -191,7 +191,7 @@ function confidenceColor(c: number): string {
 function RelatedRow({ row: r }: { row: Row }) {
   const explorer = `${EXPLORER_ADDRESS[r.chain]}${r.address}`;
   return (
-    <li className="group flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-white/5">
+    <li className="group flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--surface)]">
       <span
         title={CHAIN_NAME[r.chain]}
         className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center overflow-hidden rounded-full"
@@ -206,7 +206,7 @@ function RelatedRow({ row: r }: { row: Row }) {
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="truncate text-sm font-medium text-white">
+          <span className="truncate text-sm font-medium text-[var(--text)]">
             {r.label ?? truncate(r.address)}
           </span>
           <CounterpartyBadge category={r.category} label={r.label} />
@@ -225,7 +225,7 @@ function RelatedRow({ row: r }: { row: Row }) {
           {r.signals.map((s) => (
             <span
               key={s}
-              className="rounded bg-white/5 px-1.5 py-px text-[9px] text-white/45"
+              className="rounded bg-[var(--surface)] px-1.5 py-px text-[9px] text-[var(--text-faint)]"
             >
               {s}
             </span>
@@ -235,7 +235,7 @@ function RelatedRow({ row: r }: { row: Row }) {
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-0.5 font-mono text-[9px] text-white/35 hover:text-white/70"
+            className="inline-flex items-center gap-0.5 font-mono text-[9px] text-[var(--text-muted)] hover:text-[var(--text-muted)]"
           >
             {truncate(r.address)}
             <IconExternalLink className="h-2.5 w-2.5" />
@@ -249,7 +249,7 @@ function RelatedRow({ row: r }: { row: Row }) {
         chain={r.chain}
         context={{ direction: 'counterparty' }}
         title="Save related wallet to a group"
-        className="mt-0.5 shrink-0 text-white/30 opacity-0 transition-opacity hover:text-orange-300 group-hover:opacity-100"
+        className="mt-0.5 shrink-0 text-[var(--text-faint)] opacity-0 transition-opacity hover:text-orange-300 group-hover:opacity-100"
       />
     </li>
   );

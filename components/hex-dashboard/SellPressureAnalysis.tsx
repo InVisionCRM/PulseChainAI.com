@@ -136,14 +136,14 @@ export default function SellPressureAnalysis({
     const isActive = sortConfig.key === sortKey;
     return (
       <th 
-        className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-700/50 transition-colors select-none"
+        className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-[var(--surface-2)] transition-colors select-none"
         onClick={() => handleSort(sortKey)}
       >
         <div className="flex items-center gap-1">
           {children}
           <div className="flex flex-col">
-            <ChevronUp className={`w-3 h-3 ${isActive && sortConfig.direction === 'asc' ? 'text-blue-400' : 'text-gray-400'}`} />
-            <ChevronDown className={`w-3 h-3 -mt-1 ${isActive && sortConfig.direction === 'desc' ? 'text-blue-400' : 'text-gray-400'}`} />
+            <ChevronUp className={`w-3 h-3 ${isActive && sortConfig.direction === 'asc' ? 'text-blue-400' : 'text-[var(--text-muted)]'}`} />
+            <ChevronDown className={`w-3 h-3 -mt-1 ${isActive && sortConfig.direction === 'desc' ? 'text-blue-400' : 'text-[var(--text-muted)]'}`} />
           </div>
         </div>
       </th>
@@ -151,7 +151,7 @@ export default function SellPressureAnalysis({
   };
 
   return (
-    <div className="w-full bg-white/5 backdrop-blur-xl border border-white/10 sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] p-3 sm:p-6 relative overflow-hidden">
+    <div className="w-full bg-[var(--surface)] backdrop-blur-xl border border-[var(--line)] sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] p-3 sm:p-6 relative overflow-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
         <div className="flex items-center gap-3 mb-4 sm:mb-0">
@@ -176,7 +176,7 @@ export default function SellPressureAnalysis({
               onClick={() => setTimeWindow(days as 7 | 30 | 90)}
               className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                 timeWindow === days
-                  ? `bg-${networkColor}-600 text-white`
+                  ? `bg-${networkColor}-600 text-[var(--text)]`
                   : 'text-slate-800 hover:text-slate-600'
               }`}
             >
@@ -188,7 +188,7 @@ export default function SellPressureAnalysis({
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-gray-300/30 rounded-xl p-4 border border-gray-700/50">
+        <div className="bg-gray-300/30 rounded-xl p-4 border border-[var(--line)]">
           <div className="flex items-center gap-2 mb-2">
             <Users className={`w-4 h-4 text-${networkColor}-700`} />
             <span className="text-slate-800 text-sm font-medium">Stakes Ending</span>
@@ -202,7 +202,7 @@ export default function SellPressureAnalysis({
           <p className="text-xs text-slate-800 mt-1">Click to view details</p>
         </div>
 
-        <div className="bg-gray-300/30 rounded-xl p-4 border border-gray-700/50">
+        <div className="bg-gray-300/30 rounded-xl p-4 border border-[var(--line)]">
           <div className="flex items-center gap-2 mb-2">
             <Calendar className={`w-4 h-4 text-${networkColor}-700`} />
             <span className="text-slate-800 text-sm font-medium">Total HEX</span>
@@ -219,7 +219,7 @@ export default function SellPressureAnalysis({
           </div>
         </div>
 
-        <div className="bg-gray-300/30 rounded-xl p-4 border border-gray-700/50">
+        <div className="bg-gray-300/30 rounded-xl p-4 border border-[var(--line)]">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className={`w-4 h-4 text-${networkColor}-700`} />
             <span className="text-slate-800 text-sm font-medium">Value (USD)</span>
@@ -239,15 +239,15 @@ export default function SellPressureAnalysis({
 
       {/* Stakes List - Only show when clicked */}
       {showStakesList && (
-        <div className="mt-6 bg-gray-300/30 rounded-xl border border-gray-700/50 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-700/50">
+        <div className="mt-6 bg-gray-300/30 rounded-xl border border-[var(--line)] overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--line)]">
             <h4 className="text-slate-800 font-medium">Stakes Ending in Next {timeWindow} Days</h4>
           </div>
           
           {stakesEnding.length > 0 ? (
             <div className="overflow-auto max-h-[70vh]">
               <table className="min-w-full divide-y divide-gray-700/50">
-                <thead className="bg-slate-900 text-white sticky top-0">
+                <thead className="bg-[var(--panel)] text-[var(--text)] sticky top-0">
                   <tr>
                     <SortableHeader sortKey="stakeId">Stake ID</SortableHeader>
                     <SortableHeader sortKey="stakerAddr">Staker Address</SortableHeader>
@@ -274,7 +274,7 @@ export default function SellPressureAnalysis({
                       : 0;
                     
                     return (
-                      <tr key={stake.stakeId} className="hover:bg-gray-500/5">
+                      <tr key={stake.stakeId} className="hover:bg-[var(--surface-2)]">
                         <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-slate-800">
                           {stake.stakeId}
                         </td>
@@ -289,7 +289,7 @@ export default function SellPressureAnalysis({
                             </button>
                             <button
                               onClick={() => navigator.clipboard.writeText(stake.stakerAddr)}
-                              className="text-slate-600 hover:text-slate-400 transition-colors"
+                              className="text-slate-600 hover:text-[var(--text-muted)] transition-colors"
                               title="Copy address"
                             >
                               📋
@@ -316,7 +316,7 @@ export default function SellPressureAnalysis({
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm">
                           <div className="flex items-center gap-2">
-                            <div className="w-16 bg-slate-700 rounded-full h-2">
+                            <div className="w-16 bg-[var(--surface-2)] rounded-full h-2">
                               <div 
                                 className={`h-2 rounded-full transition-all ${
                                   progress >= 100 ? 'bg-green-500' : 'bg-gradient-to-r from-blue-500 to-blue-500'
@@ -358,7 +358,7 @@ export default function SellPressureAnalysis({
                           <span className={`text-xs px-2 py-1 rounded ${
                             stake.isAutoStake 
                               ? 'bg-green-500/20 text-green-700' 
-                              : 'bg-slate-500/20 text-slate-700'
+                              : 'bg-[var(--surface-2)] text-slate-700'
                           }`}>
                             {stake.isAutoStake ? 'Yes' : 'No'}
                           </span>
@@ -368,7 +368,7 @@ export default function SellPressureAnalysis({
                   })}
                   
                   {/* Summary Row */}
-                  <tr className="bg-slate-800/20 border-t-2 border-slate-600">
+                  <tr className="bg-[var(--panel)] border-t-2 border-[var(--line)]">
                     <td className="px-3 py-4 whitespace-nowrap text-sm font-bold text-slate-800">
                       TOTAL ({stakesEnding.length})
                     </td>

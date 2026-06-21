@@ -277,27 +277,27 @@ export default function CandleChart({
       {/* Toolbar — only for the native chart; the embed has its own. */}
       {showNativeChrome && (
         <div className="flex items-center gap-2 px-1 pb-2">
-          <div className="inline-flex rounded-lg bg-white/5 border border-white/10 p-0.5">
+          <div className="inline-flex rounded-lg bg-[var(--surface)] border border-[var(--line)] p-0.5">
             {TIMEFRAMES.map((tf) => (
               <button
                 key={tf}
                 type="button"
                 onClick={() => setTimeframe(tf)}
-                className="text-xs font-semibold px-2.5 py-1 rounded-md transition-colors hover:text-white"
+                className="text-xs font-semibold px-2.5 py-1 rounded-md transition-colors hover:text-[var(--text)]"
                 style={timeframe === tf ? ACTIVE_PILL : { color: 'rgba(255,255,255,0.55)' }}
               >
                 {TF_LABEL[tf]}
               </button>
             ))}
           </div>
-          <div className="inline-flex rounded-lg bg-white/5 border border-white/10 p-0.5">
+          <div className="inline-flex rounded-lg bg-[var(--surface)] border border-[var(--line)] p-0.5">
             {(['candle', 'line'] as const).map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setChartType(t)}
                 title={t === 'candle' ? 'Candlestick' : 'Line'}
-                className="inline-grid place-items-center h-7 w-8 rounded-md transition-colors hover:text-white"
+                className="inline-grid place-items-center h-7 w-8 rounded-md transition-colors hover:text-[var(--text)]"
                 style={chartType === t ? ACTIVE_PILL : { color: 'rgba(255,255,255,0.55)' }}
               >
                 {t === 'candle' ? <IconChartCandle className="h-4 w-4" /> : <IconChartLine className="h-4 w-4" />}
@@ -327,7 +327,7 @@ export default function CandleChart({
             className="absolute top-3 left-3 z-[4] pointer-events-none inline-flex items-center gap-2 flex-wrap rounded-[11px] px-2.5 py-1.5 text-[11.5px] tabular-nums"
             style={{ background: 'rgba(15,24,46,0.55)', border: '1px solid rgba(255,255,255,0.09)', backdropFilter: 'blur(10px)' }}
           >
-            <span className="font-extrabold text-white">{token.symbol}</span>
+            <span className="font-extrabold text-[var(--text)]">{token.symbol}</span>
             <OHLC label="O" v={legend.open} />
             <OHLC label="H" v={legend.high} />
             <OHLC label="L" v={legend.low} />
@@ -338,7 +338,7 @@ export default function CandleChart({
               return (
                 <>
                   <span style={{ color: col }}>
-                    <span className="text-white/40 mr-0.5 text-[10px]">C</span>
+                    <span className="text-[var(--text-faint)] mr-0.5 text-[10px]">C</span>
                     {fmtPrice(legend.close)}
                   </span>
                   <span
@@ -365,7 +365,7 @@ export default function CandleChart({
 
         {showLoading && (
           <div className="absolute inset-0 z-[5] grid place-items-center" style={{ background: 'rgba(11,19,34,0.55)' }}>
-            <div className="text-xs text-white/50">Loading candles…</div>
+            <div className="text-xs text-[var(--text-faint)]">Loading candles…</div>
           </div>
         )}
 
@@ -373,7 +373,7 @@ export default function CandleChart({
             native frame and say so, rather than swapping to the embed. */}
         {source === 'native' && tfStatus === 'empty' && (
           <div className="absolute inset-0 z-[5] grid place-items-center px-6 text-center" style={{ background: 'rgba(11,19,34,0.7)' }}>
-            <div className="text-sm text-white/55">
+            <div className="text-sm text-[var(--text-muted)]">
               No {TF_LABEL[timeframe]} candles for this pool — try another interval.
             </div>
           </div>
@@ -392,7 +392,7 @@ export default function CandleChart({
         {/* No native pool AND no DexScreener pair to embed. */}
         {(source === 'none' || (source === 'dex' && !dsSrc)) && (
           <div className="absolute inset-0 z-[5] grid place-items-center px-6 text-center" style={{ background: '#0b1322' }}>
-            <div className="text-sm text-white/50">No chart data available for this token yet.</div>
+            <div className="text-sm text-[var(--text-faint)]">No chart data available for this token yet.</div>
           </div>
         )}
       </div>
@@ -402,8 +402,8 @@ export default function CandleChart({
 
 function OHLC({ label, v }: { label: string; v: number }) {
   return (
-    <span className="text-white/80">
-      <span className="text-white/40 mr-0.5 text-[10px]">{label}</span>
+    <span className="text-[var(--text)]">
+      <span className="text-[var(--text-faint)] mr-0.5 text-[10px]">{label}</span>
       {fmtPrice(v)}
     </span>
   );

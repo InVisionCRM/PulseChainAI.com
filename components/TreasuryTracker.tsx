@@ -509,9 +509,9 @@ const TreasuryTracker: React.FC = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--line)] mx-auto mb-4"></div>
           <div className="text-gray-700 text-lg font-medium">Loading Treasury…</div>
-          <div className="text-gray-500 text-sm mt-1">Fetching balances</div>
+          <div className="text-[var(--text-muted)] text-sm mt-1">Fetching balances</div>
         </div>
       </div>
     );
@@ -547,7 +547,7 @@ const TreasuryTracker: React.FC = () => {
             {/* Profile Info */}
             <div className="flex items-center space-x-4">
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-slate-950 to-pink-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                <div className="w-16 h-16 bg-gradient-to-br from-[var(--app-bg)] to-pink-600 rounded-full flex items-center justify-center text-[var(--text)] text-2xl font-bold">
                   TT
                 </div>
                 <div className="absolute -bottom-1 -right-1 bg-yellow-400 text-yellow-900 text-xs px-2 py-0.5 rounded-full font-bold">
@@ -572,16 +572,16 @@ const TreasuryTracker: React.FC = () => {
           {/* Stats Row */}
           <div className="grid grid-cols-2 gap-6 mt-8 pt-6 border-t border-blue-200">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-slate-950 rounded-full flex items-center justify-center text-white font-bold">Ξ</div>
+              <div className="w-10 h-10 bg-[var(--app-bg)] rounded-full flex items-center justify-center text-[var(--text)] font-bold">Ξ</div>
               <div>
-                <div className="text-gray-500 text-sm">ETH Price</div>
+                <div className="text-[var(--text-muted)] text-sm">ETH Price</div>
                 <div className="text-lg font-bold text-gray-900">${ethPrice.toLocaleString()}</div>
               </div>
             </div>
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-700 font-bold">$</div>
               <div>
-                <div className="text-gray-500 text-sm">Total USD</div>
+                <div className="text-[var(--text-muted)] text-sm">Total USD</div>
                 <div className="text-lg font-bold text-gray-900">${totalUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
             </div>
@@ -642,7 +642,7 @@ const TreasuryTracker: React.FC = () => {
                         >
                           <div className="flex items-center justify-between w-full pr-4">
                             <div className="flex items-center space-x-4">
-                              <div className="w-10 h-10 bg-slate-950 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                              <div className="w-10 h-10 bg-[var(--app-bg)] rounded-full flex items-center justify-center text-[var(--text)] font-bold text-sm">
                                 {index + 1}
                               </div>
                               <div className="font-mono text-sm text-gray-700">{entry.address}</div>
@@ -682,11 +682,11 @@ const TreasuryTracker: React.FC = () => {
                               <TabsContent value="overview" className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                    <div className="text-gray-500 text-sm">ETH Balance</div>
+                                    <div className="text-[var(--text-muted)] text-sm">ETH Balance</div>
                                     <div className="text-2xl font-bold text-gray-900">{ethAmount.toLocaleString()} ETH</div>
                                   </div>
                                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                    <div className="text-gray-500 text-sm">USD Value</div>
+                                    <div className="text-[var(--text-muted)] text-sm">USD Value</div>
                                     <div className="text-2xl font-bold text-gray-900">${usdValue.toLocaleString()}</div>
                                   </div>
                                 </div>
@@ -695,7 +695,7 @@ const TreasuryTracker: React.FC = () => {
                               <TabsContent value="transactions" className="space-y-4">
                                 {loadingAddressData[entry.address] ? (
                                   <div className="flex items-center justify-center py-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-800"></div>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--line)]"></div>
                                     <span className="ml-3 text-gray-600">Loading transactions...</span>
                                   </div>
                                 ) : entry.transactions && entry.transactions.length > 0 ? (
@@ -706,7 +706,7 @@ const TreasuryTracker: React.FC = () => {
                                       </div>
                                       <div className="flex items-center gap-3">
                                         {entry.transactionUpdatedAt && (
-                                          <span className="text-xs text-gray-500">Last updated {new Date(entry.transactionUpdatedAt).toLocaleTimeString()}</span>
+                                          <span className="text-xs text-[var(--text-muted)]">Last updated {new Date(entry.transactionUpdatedAt).toLocaleTimeString()}</span>
                                         )}
                                         <Button 
                                           size="sm"
@@ -723,13 +723,13 @@ const TreasuryTracker: React.FC = () => {
                                         <table className="w-full">
                                           <thead className="bg-gray-50 border-b border-gray-200">
                                             <tr>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Block</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction Hash</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Block</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Age</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Transaction Hash</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Type</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">From</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">To</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Amount</th>
                                             </tr>
                                           </thead>
                                           <tbody className="bg-white divide-y divide-gray-200">
@@ -748,13 +748,13 @@ const TreasuryTracker: React.FC = () => {
                                                   <td className="px-4 py-3 text-sm text-gray-600">{formatTimestamp(tx.timeStamp)}</td>
                                                   <td className="px-4 py-3 text-sm">
                                                     <div className="flex items-center space-x-2">
-                                                      <span className="text-green-500">✓</span>
+                                                      <span className="text-[var(--up)]">✓</span>
                                                       <span className="font-mono text-gray-900">{truncateAddress(tx.hash)}</span>
                                                       <Button
                                                         size="sm"
                                                         variant="ghost"
                                                         onClick={() => navigator.clipboard.writeText(tx.hash)}
-                                                        className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
+                                                        className="h-6 w-6 p-0 text-[var(--text-muted)] hover:text-gray-600"
                                                       >
                                                         📋
                                                       </Button>
@@ -769,7 +769,7 @@ const TreasuryTracker: React.FC = () => {
                                                           size="sm"
                                                           variant="ghost"
                                                           onClick={() => navigator.clipboard.writeText(tx.from)}
-                                                          className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
+                                                          className="h-6 w-6 p-0 text-[var(--text-muted)] hover:text-gray-600"
                                                         >
                                                           📋
                                                         </Button>
@@ -784,13 +784,13 @@ const TreasuryTracker: React.FC = () => {
                                                   <td className="px-4 py-3 text-sm">
                                                     <div className="flex flex-col">
                                                       <div className="flex items-center space-x-2">
-                                                        <span className="text-gray-400 mr-1">→</span>
+                                                        <span className="text-[var(--text-muted)] mr-1">→</span>
                                                         <span className="font-mono text-gray-900">{truncateAddress(tx.to)}</span>
                                                         <Button
                                                           size="sm"
                                                           variant="ghost"
                                                           onClick={() => navigator.clipboard.writeText(tx.to)}
-                                                          className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
+                                                          className="h-6 w-6 p-0 text-[var(--text-muted)] hover:text-gray-600"
                                                         >
                                                           📋
                                                         </Button>
@@ -822,7 +822,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => loadAddressData(entry.address, 1, 'transactions')}
                                           disabled={currentPages[entry.address]?.transactions === 1}
-                                          className={`text-xs px-3 py-1 ${currentPages[entry.address]?.transactions === 1 ? 'text-gray-400' : 'text-gray-600 hover:text-gray-900'}`}
+                                          className={`text-xs px-3 py-1 ${currentPages[entry.address]?.transactions === 1 ? 'text-[var(--text-muted)]' : 'text-gray-600 hover:text-gray-900'}`}
                                         >
                                           First
                                         </Button>
@@ -831,7 +831,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => loadAddressData(entry.address, Math.max(1, (currentPages[entry.address]?.transactions || 1) - 1), 'transactions')}
                                           disabled={currentPages[entry.address]?.transactions === 1}
-                                          className={`text-xs px-3 py-1 ${currentPages[entry.address]?.transactions === 1 ? 'text-gray-400' : 'text-gray-600 hover:text-gray-900'}`}
+                                          className={`text-xs px-3 py-1 ${currentPages[entry.address]?.transactions === 1 ? 'text-[var(--text-muted)]' : 'text-gray-600 hover:text-gray-900'}`}
                                         >
                                           &lt;
                                         </Button>
@@ -843,7 +843,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => loadAddressData(entry.address, (currentPages[entry.address]?.transactions || 1) + 1, 'transactions')}
                                           disabled={!entry.transactionHasMore}
-                                          className={`text-xs px-3 py-1 ${!entry.transactionHasMore ? 'text-gray-400' : 'text-slate-950 hover:text-slate-950'}`}
+                                          className={`text-xs px-3 py-1 ${!entry.transactionHasMore ? 'text-[var(--text-muted)]' : 'text-slate-950 hover:text-slate-950'}`}
                                         >
                                           &gt;
                                         </Button>
@@ -852,7 +852,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => entry.transactionTotalPages ? loadAddressData(entry.address, entry.transactionTotalPages, 'transactions') : undefined}
                                           disabled={!entry.transactionTotalPages || (currentPages[entry.address]?.transactions || 1) >= (entry.transactionTotalPages || 1)}
-                                          className={`text-xs px-3 py-1 ${!entry.transactionTotalPages || (currentPages[entry.address]?.transactions || 1) >= (entry.transactionTotalPages || 1) ? 'text-gray-400' : 'text-slate-950 hover:text-slate-950'}`}
+                                          className={`text-xs px-3 py-1 ${!entry.transactionTotalPages || (currentPages[entry.address]?.transactions || 1) >= (entry.transactionTotalPages || 1) ? 'text-[var(--text-muted)]' : 'text-slate-950 hover:text-slate-950'}`}
                                         >
                                           Last
                                         </Button>
@@ -860,7 +860,7 @@ const TreasuryTracker: React.FC = () => {
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="text-center py-8 text-gray-500">
+                                  <div className="text-center py-8 text-[var(--text-muted)]">
                                     <div className="text-4xl mb-2">📝</div>
                                     <div className="text-sm">No transactions found</div>
                                   </div>
@@ -885,7 +885,7 @@ const TreasuryTracker: React.FC = () => {
                                 
                                 {loadingAddressData[entry.address] ? (
                                   <div className="flex items-center justify-center py-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-800"></div>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--line)]"></div>
                                     <span className="ml-3 text-gray-600">Loading internal transactions...</span>
                                   </div>
                                 ) : entry.internalTransactions && entry.internalTransactions.length > 0 ? (
@@ -896,7 +896,7 @@ const TreasuryTracker: React.FC = () => {
                                       </div>
                                       <div className="flex items-center gap-3">
                                         {entry.internalUpdatedAt && (
-                                          <span className="text-xs text-gray-500">Last updated {new Date(entry.internalUpdatedAt).toLocaleTimeString()}</span>
+                                          <span className="text-xs text-[var(--text-muted)]">Last updated {new Date(entry.internalUpdatedAt).toLocaleTimeString()}</span>
                                         )}
                                         <Button 
                                           size="sm"
@@ -913,14 +913,14 @@ const TreasuryTracker: React.FC = () => {
                                         <table className="w-full">
                                           <thead className="bg-gray-50 border-b border-gray-200">
                                             <tr>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Block</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent Transaction Hash</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Block</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Age</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Parent Transaction Hash</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Type</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Method</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">From</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">To</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Amount</th>
                                             </tr>
                                           </thead>
                                           <tbody className="bg-white divide-y divide-gray-200">
@@ -939,13 +939,13 @@ const TreasuryTracker: React.FC = () => {
                                                   <td className="px-4 py-3 text-sm text-gray-600">{formatTimestamp(tx.timeStamp)}</td>
                                                   <td className="px-4 py-3 text-sm">
                                                     <div className="flex items-center space-x-2">
-                                                      <span className="text-green-500">✓</span>
+                                                      <span className="text-[var(--up)]">✓</span>
                                                       <span className="font-mono text-gray-900">{truncateAddress(tx.hash)}</span>
                                                       <Button
                                                         size="sm"
                                                         variant="ghost"
                                                         onClick={() => navigator.clipboard.writeText(tx.hash)}
-                                                        className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
+                                                        className="h-6 w-6 p-0 text-[var(--text-muted)] hover:text-gray-600"
                                                       >
                                                         📋
                                                       </Button>
@@ -965,7 +965,7 @@ const TreasuryTracker: React.FC = () => {
                                                           size="sm"
                                                           variant="ghost"
                                                           onClick={() => navigator.clipboard.writeText(tx.from)}
-                                                          className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
+                                                          className="h-6 w-6 p-0 text-[var(--text-muted)] hover:text-gray-600"
                                                         >
                                                           📋
                                                         </Button>
@@ -980,13 +980,13 @@ const TreasuryTracker: React.FC = () => {
                                                   <td className="px-4 py-3 text-sm">
                                                     <div className="flex flex-col">
                                                       <div className="flex items-center space-x-2">
-                                                        <span className="text-gray-400 mr-1">→</span>
+                                                        <span className="text-[var(--text-muted)] mr-1">→</span>
                                                         <span className="font-mono text-gray-900">{truncateAddress(tx.to)}</span>
                                                         <Button
                                                           size="sm"
                                                           variant="ghost"
                                                           onClick={() => navigator.clipboard.writeText(tx.to)}
-                                                          className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
+                                                          className="h-6 w-6 p-0 text-[var(--text-muted)] hover:text-gray-600"
                                                         >
                                                           📋
                                                         </Button>
@@ -1018,7 +1018,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => loadAddressData(entry.address, 1, 'internal')}
                                           disabled={currentPages[entry.address]?.internal === 1}
-                                          className={`text-xs px-3 py-1 ${currentPages[entry.address]?.internal === 1 ? 'text-gray-400' : 'text-gray-600 hover:text-gray-900'}`}
+                                          className={`text-xs px-3 py-1 ${currentPages[entry.address]?.internal === 1 ? 'text-[var(--text-muted)]' : 'text-gray-600 hover:text-gray-900'}`}
                                         >
                                           First
                                         </Button>
@@ -1027,7 +1027,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => loadAddressData(entry.address, Math.max(1, (currentPages[entry.address]?.internal || 1) - 1), 'internal')}
                                           disabled={currentPages[entry.address]?.internal === 1}
-                                          className={`text-xs px-3 py-1 ${currentPages[entry.address]?.internal === 1 ? 'text-gray-400' : 'text-gray-600 hover:text-gray-900'}`}
+                                          className={`text-xs px-3 py-1 ${currentPages[entry.address]?.internal === 1 ? 'text-[var(--text-muted)]' : 'text-gray-600 hover:text-gray-900'}`}
                                         >
                                           &lt;
                                         </Button>
@@ -1039,7 +1039,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => loadAddressData(entry.address, (currentPages[entry.address]?.internal || 1) + 1, 'internal')}
                                           disabled={!entry.internalHasMore}
-                                          className={`text-xs px-3 py-1 ${!entry.internalHasMore ? 'text-gray-400' : 'text-slate-950 hover:text-slate-950'}`}
+                                          className={`text-xs px-3 py-1 ${!entry.internalHasMore ? 'text-[var(--text-muted)]' : 'text-slate-950 hover:text-slate-950'}`}
                                         >
                                           &gt;
                                         </Button>
@@ -1048,7 +1048,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => entry.internalTotalPages ? loadAddressData(entry.address, entry.internalTotalPages, 'internal') : undefined}
                                           disabled={!entry.internalTotalPages || (currentPages[entry.address]?.internal || 1) >= (entry.internalTotalPages || 1)}
-                                          className={`text-xs px-3 py-1 ${!entry.internalTotalPages || (currentPages[entry.address]?.internal || 1) >= (entry.internalTotalPages || 1) ? 'text-gray-400' : 'text-slate-950'}`}
+                                          className={`text-xs px-3 py-1 ${!entry.internalTotalPages || (currentPages[entry.address]?.internal || 1) >= (entry.internalTotalPages || 1) ? 'text-[var(--text-muted)]' : 'text-slate-950'}`}
                                         >
                                           Last
                                         </Button>
@@ -1056,7 +1056,7 @@ const TreasuryTracker: React.FC = () => {
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="text-center py-8 text-gray-500">
+                                  <div className="text-center py-8 text-[var(--text-muted)]">
                                     <div className="text-4xl mb-2">🔄</div>
                                     <div className="text-sm">No internal transactions found</div>
                                   </div>
@@ -1066,7 +1066,7 @@ const TreasuryTracker: React.FC = () => {
                               <TabsContent value="transfers" className="space-y-4">
                                 {loadingAddressData[entry.address] ? (
                                   <div className="flex items-center justify-center py-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-800"></div>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--line)]"></div>
                                     <span className="ml-3 text-gray-600">Loading transfers...</span>
                                   </div>
                                 ) : entry.transfers && entry.transfers.length > 0 ? (
@@ -1077,7 +1077,7 @@ const TreasuryTracker: React.FC = () => {
                                       </div>
                                       <div className="flex items-center gap-3">
                                         {entry.transferUpdatedAt && (
-                                          <span className="text-xs text-gray-500">Last updated {new Date(entry.transferUpdatedAt).toLocaleTimeString()}</span>
+                                          <span className="text-xs text-[var(--text-muted)]">Last updated {new Date(entry.transferUpdatedAt).toLocaleTimeString()}</span>
                                         )}
                                         <Button 
                                           size="sm"
@@ -1094,13 +1094,13 @@ const TreasuryTracker: React.FC = () => {
                                         <table className="w-full">
                                           <thead className="bg-gray-50 border-b border-gray-200">
                                             <tr>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Block</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction Hash</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Token</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To</th>
-                                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Block</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Age</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Transaction Hash</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Token</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">From</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">To</th>
+                                              <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Amount</th>
                                             </tr>
                                           </thead>
                                           <tbody className="bg-white divide-y divide-gray-200">
@@ -1119,13 +1119,13 @@ const TreasuryTracker: React.FC = () => {
                                                   <td className="px-4 py-3 text-sm text-gray-600">{formatTimestamp(transfer.timeStamp)}</td>
                                                   <td className="px-4 py-3 text-sm">
                                                     <div className="flex items-center space-x-2">
-                                                      <span className="text-green-500">✓</span>
+                                                      <span className="text-[var(--up)]">✓</span>
                                                       <span className="font-mono text-gray-900">{truncateAddress(transfer.hash)}</span>
                                                       <Button
                                                         size="sm"
                                                         variant="ghost"
                                                         onClick={() => navigator.clipboard.writeText(transfer.hash)}
-                                                        className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
+                                                        className="h-6 w-6 p-0 text-[var(--text-muted)] hover:text-gray-600"
                                                       >
                                                         📋
                                                       </Button>
@@ -1134,7 +1134,7 @@ const TreasuryTracker: React.FC = () => {
                                                   <td className="px-4 py-3 text-sm">
                                                     <div>
                                                       <div className="font-medium text-gray-900">{transfer.tokenName || 'Unknown Token'}</div>
-                                                      <div className="text-xs text-gray-500">{transfer.tokenSymbol}</div>
+                                                      <div className="text-xs text-[var(--text-muted)]">{transfer.tokenSymbol}</div>
                                                     </div>
                                                   </td>
                                                   <td className="px-4 py-3 text-sm">
@@ -1145,7 +1145,7 @@ const TreasuryTracker: React.FC = () => {
                                                           size="sm"
                                                           variant="ghost"
                                                           onClick={() => navigator.clipboard.writeText(transfer.from)}
-                                                          className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
+                                                          className="h-6 w-6 p-0 text-[var(--text-muted)] hover:text-gray-600"
                                                         >
                                                           📋
                                                         </Button>
@@ -1160,13 +1160,13 @@ const TreasuryTracker: React.FC = () => {
                                                   <td className="px-4 py-3 text-sm">
                                                     <div className="flex flex-col">
                                                       <div className="flex items-center space-x-2">
-                                                        <span className="text-gray-400 mr-1">→</span>
+                                                        <span className="text-[var(--text-muted)] mr-1">→</span>
                                                         <span className="font-mono text-gray-900">{truncateAddress(transfer.to)}</span>
                                                         <Button
                                                           size="sm"
                                                           variant="ghost"
                                                           onClick={() => navigator.clipboard.writeText(transfer.to)}
-                                                          className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
+                                                          className="h-6 w-6 p-0 text-[var(--text-muted)] hover:text-gray-600"
                                                         >
                                                           📋
                                                         </Button>
@@ -1198,7 +1198,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => loadAddressData(entry.address, 1, 'transfers')}
                                           disabled={currentPages[entry.address]?.transfers === 1}
-                                          className={`text-xs px-3 py-1 ${currentPages[entry.address]?.transfers === 1 ? 'text-gray-400' : 'text-gray-600 hover:text-gray-900'}`}
+                                          className={`text-xs px-3 py-1 ${currentPages[entry.address]?.transfers === 1 ? 'text-[var(--text-muted)]' : 'text-gray-600 hover:text-gray-900'}`}
                                         >
                                           First
                                         </Button>
@@ -1207,7 +1207,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => loadAddressData(entry.address, Math.max(1, (currentPages[entry.address]?.transfers || 1) - 1), 'transfers')}
                                           disabled={currentPages[entry.address]?.transfers === 1}
-                                          className={`text-xs px-3 py-1 ${currentPages[entry.address]?.transfers === 1 ? 'text-gray-400' : 'text-gray-600 hover:text-gray-900'}`}
+                                          className={`text-xs px-3 py-1 ${currentPages[entry.address]?.transfers === 1 ? 'text-[var(--text-muted)]' : 'text-gray-600 hover:text-gray-900'}`}
                                         >
                                           &lt;
                                         </Button>
@@ -1219,7 +1219,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => loadAddressData(entry.address, (currentPages[entry.address]?.transfers || 1) + 1, 'transfers')}
                                           disabled={!entry.transferHasMore}
-                                          className={`text-xs px-3 py-1 ${!entry.transferHasMore ? 'text-gray-400' : 'text-slate-950 hover:text-slate-950'}`}
+                                          className={`text-xs px-3 py-1 ${!entry.transferHasMore ? 'text-[var(--text-muted)]' : 'text-slate-950 hover:text-slate-950'}`}
                                         >
                                           &gt;
                                         </Button>
@@ -1228,7 +1228,7 @@ const TreasuryTracker: React.FC = () => {
                                           variant="ghost"
                                           onClick={() => entry.transferTotalPages ? loadAddressData(entry.address, entry.transferTotalPages, 'transfers') : undefined}
                                           disabled={!entry.transferTotalPages || (currentPages[entry.address]?.transfers || 1) >= (entry.transferTotalPages || 1)}
-                                          className={`text-xs px-3 py-1 ${!entry.transferTotalPages || (currentPages[entry.address]?.transfers || 1) >= (entry.transferTotalPages || 1) ? 'text-gray-400' : 'text-slate-950 hover:text-slate-950'}`}
+                                          className={`text-xs px-3 py-1 ${!entry.transferTotalPages || (currentPages[entry.address]?.transfers || 1) >= (entry.transferTotalPages || 1) ? 'text-[var(--text-muted)]' : 'text-slate-950 hover:text-slate-950'}`}
                                         >
                                           Last
                                         </Button>
@@ -1236,7 +1236,7 @@ const TreasuryTracker: React.FC = () => {
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="text-center py-8 text-gray-500">
+                                  <div className="text-center py-8 text-[var(--text-muted)]">
                                     <div className="text-4xl mb-2">🔄</div>
                                     <div className="text-sm">No token transfers found</div>
                                   </div>
@@ -1245,7 +1245,7 @@ const TreasuryTracker: React.FC = () => {
                               
                               <TabsContent value="actions" className="space-y-4">
                                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                  <div className="text-gray-500 text-sm mb-2">Debug Actions</div>
+                                  <div className="text-[var(--text-muted)] text-sm mb-2">Debug Actions</div>
                                   <div className="space-y-2">
                                     <Button 
                                       onClick={() => {
@@ -1305,19 +1305,19 @@ const TreasuryTracker: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {detailData.blockNumber && (
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="text-xs text-gray-500">Block</div>
+                      <div className="text-xs text-[var(--text-muted)]">Block</div>
                       <div className="text-sm font-mono text-gray-900">{detailData.blockNumber}</div>
                     </div>
                   )}
                   {detailData.timeStamp && (
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="text-xs text-gray-500">Age</div>
+                      <div className="text-xs text-[var(--text-muted)]">Age</div>
                       <div className="text-sm text-gray-900">{formatTimestamp(detailData.timeStamp)}</div>
                     </div>
                   )}
                   {detailData.hash && (
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 md:col-span-2">
-                      <div className="text-xs text-gray-500">Hash</div>
+                      <div className="text-xs text-[var(--text-muted)]">Hash</div>
                       <div className="flex items-center justify-between">
                         <a href={`https://etherscan.io/tx/${detailData.hash}`} target="_blank" rel="noreferrer" className="text-sm font-mono text-slate-950 hover:underline break-all">
                           {detailData.hash}
@@ -1328,7 +1328,7 @@ const TreasuryTracker: React.FC = () => {
                   )}
                   {detailData.from && (
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="text-xs text-gray-500">From</div>
+                      <div className="text-xs text-[var(--text-muted)]">From</div>
                       <div className="flex items-center justify-between">
                         <a href={`https://etherscan.io/address/${detailData.from}`} target="_blank" rel="noreferrer" className="text-sm font-mono text-slate-950 hover:underline break-all">
                           {detailData.from}
@@ -1339,7 +1339,7 @@ const TreasuryTracker: React.FC = () => {
                   )}
                   {detailData.to && (
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="text-xs text-gray-500">To</div>
+                      <div className="text-xs text-[var(--text-muted)]">To</div>
                       <div className="flex items-center justify-between">
                         <a href={`https://etherscan.io/address/${detailData.to}`} target="_blank" rel="noreferrer" className="text-sm font-mono text-slate-950 hover:underline break-all">
                           {detailData.to}
@@ -1350,7 +1350,7 @@ const TreasuryTracker: React.FC = () => {
                   )}
                   {detailType !== 'transfers' && detailData.value && (
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="text-xs text-gray-500">Value</div>
+                      <div className="text-xs text-[var(--text-muted)]">Value</div>
                       <div className="text-sm text-gray-900">{formatETHValue(detailData.value)} ETH</div>
                     </div>
                   )}
@@ -1358,12 +1358,12 @@ const TreasuryTracker: React.FC = () => {
                     <>
                       {detailData.tokenName && (
                         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                          <div className="text-xs text-gray-500">Token</div>
+                          <div className="text-xs text-[var(--text-muted)]">Token</div>
                           <div className="text-sm text-gray-900">{detailData.tokenName} ({detailData.tokenSymbol})</div>
                         </div>
                       )}
                       <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div className="text-xs text-gray-500">Amount</div>
+                        <div className="text-xs text-[var(--text-muted)]">Amount</div>
                         <div className="text-sm text-gray-900">
                           {(parseFloat(detailData.value) / Math.pow(10, parseInt(detailData.tokenDecimal))).toLocaleString(undefined, { maximumFractionDigits: 6 })}
                         </div>
@@ -1372,31 +1372,31 @@ const TreasuryTracker: React.FC = () => {
                   )}
                   {detailData.gas && (
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="text-xs text-gray-500">Gas</div>
+                      <div className="text-xs text-[var(--text-muted)]">Gas</div>
                       <div className="text-sm text-gray-900">{detailData.gas}</div>
                     </div>
                   )}
                   {detailData.gasPrice && (
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="text-xs text-gray-500">Gas Price (wei)</div>
+                      <div className="text-xs text-[var(--text-muted)]">Gas Price (wei)</div>
                       <div className="text-sm text-gray-900">{detailData.gasPrice}</div>
                     </div>
                   )}
                   {detailData.gasUsed && (
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="text-xs text-gray-500">Gas Used</div>
+                      <div className="text-xs text-[var(--text-muted)]">Gas Used</div>
                       <div className="text-sm text-gray-900">{detailData.gasUsed}</div>
                     </div>
                   )}
                   {detailData.functionName && (
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 md:col-span-2">
-                      <div className="text-xs text-gray-500">Function</div>
+                      <div className="text-xs text-[var(--text-muted)]">Function</div>
                       <div className="text-sm text-gray-900 break-all">{detailData.functionName}</div>
                     </div>
                   )}
                   {detailData.input && (
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 md:col-span-2">
-                      <div className="text-xs text-gray-500">Input</div>
+                      <div className="text-xs text-[var(--text-muted)]">Input</div>
                       <div className="text-xs font-mono text-gray-800 break-all max-h-60 overflow-auto">
                         {detailData.input}
                       </div>
@@ -1404,7 +1404,7 @@ const TreasuryTracker: React.FC = () => {
                   )}
                   {detailType === 'internal' && detailData.type && (
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="text-xs text-gray-500">Type</div>
+                      <div className="text-xs text-[var(--text-muted)]">Type</div>
                       <div className="text-sm text-gray-900">{detailData.type}</div>
                     </div>
                   )}

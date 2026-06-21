@@ -59,8 +59,8 @@ export default function GeickoCopyAddressButton({
         onClick={handleClick}
         className={`
           flex items-center justify-center w-6 h-6 rounded
-          bg-white/5 border border-white/10
-          hover:bg-white/10 transition-colors
+          bg-[var(--surface)] border border-[var(--line)]
+          hover:bg-[var(--surface-2)] transition-colors
           ${className}
         `}
         aria-label="Copy address"
@@ -77,7 +77,7 @@ export default function GeickoCopyAddressButton({
         onClick={handleClick}
         className={`
           inline-flex items-center gap-1.5
-          text-xs text-white/80 hover:text-white
+          text-xs text-[var(--text)] hover:text-[var(--text)]
           transition-colors
           ${className}
         `}
@@ -95,11 +95,11 @@ export default function GeickoCopyAddressButton({
       onClick={handleClick}
       className={`
         flex items-center gap-1.5
-        text-xs text-white/80 hover:text-white
+        text-xs text-[var(--text)] hover:text-[var(--text)]
         transition-colors
-        bg-slate-900/30 backdrop-blur-sm
+        bg-[var(--panel)] backdrop-blur-sm
         px-2 py-1 rounded-lg
-        border border-white/5 hover:border-white/10
+        border border-[var(--line-soft)] hover:border-[var(--line)]
         ${className}
       `}
       title={`Copy ${address}`}

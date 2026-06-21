@@ -33,7 +33,7 @@ export function ChainLogo({
       role="img"
       style={{ width: size, height: size }}
       className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full ${
-        isEth ? 'bg-white' : 'bg-[#0b1f3a]'
+        isEth ? 'bg-white' : 'bg-[var(--surface-2)]'
       } ${className}`}
     >
       <img

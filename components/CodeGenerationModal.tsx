@@ -150,21 +150,21 @@ export default function CodeGenerationModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--app-bg)] backdrop-blur-sm"
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ type: "spring", damping: 20, stiffness: 300 }}
-            className="bg-gray-900 rounded-2xl p-8 max-w-4xl w-full max-h-[90vh] shadow-2xl border border-white/20 relative overflow-hidden flex flex-col"
+            className="bg-[var(--panel)] rounded-2xl p-8 max-w-4xl w-full max-h-[90vh] shadow-2xl border border-[var(--line-strong)] relative overflow-hidden flex flex-col"
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white">Generate Code</h2>
+              <h2 className="text-2xl font-bold text-[var(--text)]">Generate Code</h2>
               <button
                 onClick={onClose}
-                className="text-white/60 hover:text-white text-2xl"
+                className="text-[var(--text-muted)] hover:text-[var(--text)] text-2xl"
               >
                 ×
               </button>
@@ -176,8 +176,8 @@ export default function CodeGenerationModal({
                 onClick={() => setActiveTab('html')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === 'html' 
-                    ? 'bg-slate-950 text-white' 
-                    : 'bg-gray-800 text-gray-300 hover:text-white'
+                    ? 'bg-[var(--app-bg)] text-[var(--text)]' 
+                    : 'bg-[var(--panel)] text-[var(--text-muted)] hover:text-[var(--text)]'
                 }`}
               >
                 HTML Code
@@ -186,8 +186,8 @@ export default function CodeGenerationModal({
                 onClick={() => setActiveTab('embed')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === 'embed' 
-                    ? 'bg-slate-950 text-white' 
-                    : 'bg-gray-800 text-gray-300 hover:text-white'
+                    ? 'bg-[var(--app-bg)] text-[var(--text)]' 
+                    : 'bg-[var(--panel)] text-[var(--text-muted)] hover:text-[var(--text)]'
                 }`}
               >
                 Embed Code
@@ -196,28 +196,28 @@ export default function CodeGenerationModal({
 
             {/* Content */}
             <div className="flex-1 overflow-hidden">
-              <div className="bg-gray-800 rounded-lg p-4 h-full overflow-y-auto">
+              <div className="bg-[var(--panel)] rounded-lg p-4 h-full overflow-y-auto">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-white">
+                  <h3 className="text-lg font-semibold text-[var(--text)]">
                     {activeTab === 'html' ? 'HTML Code' : 'Embed Code'}
                   </h3>
                   <button
                     onClick={() => copyToClipboard(activeTab === 'html' ? generateHTML() : generateEmbedCode())}
-                    className="bg-slate-950 hover:bg-slate-950 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                    className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)] text-[var(--text)] px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                   >
                     Copy Code
                   </button>
                 </div>
                 
-                <pre className="bg-gray-900 rounded-lg p-4 overflow-x-auto text-sm text-green-400 font-mono">
+                <pre className="bg-[var(--panel)] rounded-lg p-4 overflow-x-auto text-sm text-[var(--up)] font-mono">
                   <code>{activeTab === 'html' ? generateHTML() : generateEmbedCode()}</code>
                 </pre>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="mt-6 pt-4 border-t border-white/20">
-              <div className="text-sm text-gray-400">
+            <div className="mt-6 pt-4 border-t border-[var(--line-strong)]">
+              <div className="text-sm text-[var(--text-muted)]">
                 <p className="mb-2">
                   <strong>Instructions:</strong>
                 </p>

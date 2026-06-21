@@ -24,7 +24,7 @@ export const COUNTERPARTY_BADGE: Partial<
   },
   burn: {
     text: 'Burn',
-    cls: 'border-white/20 bg-white/10 text-white/60',
+    cls: 'border-[var(--line-strong)] bg-[var(--surface-2)] text-[var(--text-muted)]',
     hint: 'Burn address',
   },
 };

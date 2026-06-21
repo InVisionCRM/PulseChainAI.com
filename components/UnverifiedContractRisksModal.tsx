@@ -10,29 +10,29 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-[var(--app-bg)] backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="bg-slate-800/95 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+        className="bg-[var(--panel)] backdrop-blur-sm border border-[var(--line)] rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
+        <div className="flex items-center justify-between p-6 border-b border-[var(--line)]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-6 h-6 text-[var(--text)]" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">⚠️ Unverified Contract Detected</h2>
-              <p className="text-slate-400 text-sm">This contract could not be loaded - potential security risks</p>
+              <h2 className="text-2xl font-bold text-[var(--text)]">⚠️ Unverified Contract Detected</h2>
+              <p className="text-[var(--text-muted)] text-sm">This contract could not be loaded - potential security risks</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-slate-700/50"
+            className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors p-2 rounded-lg hover:bg-[var(--surface-2)]"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -51,16 +51,16 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
             </div>
 
             {/* Main Content */}
-            <div className="space-y-6 text-slate-300">
+            <div className="space-y-6 text-[var(--text-muted)]">
               <section>
-                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <h3 className="text-xl font-bold text-[var(--text)] mb-4 flex items-center gap-2">
                   <span className="text-red-400">🚫</span>
                   Core Problems with Unverified Contracts
                 </h3>
                 
                 <div className="space-y-4">
-                  <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
-                    <h4 className="text-lg font-semibold text-white mb-2">1. Lack of Source Code Transparency</h4>
+                  <div className="bg-[var(--surface-2)] rounded-lg p-4 border border-[var(--line)]">
+                    <h4 className="text-lg font-semibold text-[var(--text)] mb-2">1. Lack of Source Code Transparency</h4>
                     <ul className="space-y-2 text-sm">
                       <li className="flex items-start gap-2">
                         <span className="text-red-400 mt-1">•</span>
@@ -77,8 +77,8 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
                     </ul>
                   </div>
 
-                  <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
-                    <h4 className="text-lg font-semibold text-white mb-2">2. Obscured Logic and Hidden Behavior</h4>
+                  <div className="bg-[var(--surface-2)] rounded-lg p-4 border border-[var(--line)]">
+                    <h4 className="text-lg font-semibold text-[var(--text)] mb-2">2. Obscured Logic and Hidden Behavior</h4>
                     <ul className="space-y-2 text-sm">
                       <li className="flex items-start gap-2">
                         <span className="text-red-400 mt-1">•</span>
@@ -99,8 +99,8 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
                     </ul>
                   </div>
 
-                  <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
-                    <h4 className="text-lg font-semibold text-white mb-2">3. Potential for Rug Pulls and Theft</h4>
+                  <div className="bg-[var(--surface-2)] rounded-lg p-4 border border-[var(--line)]">
+                    <h4 className="text-lg font-semibold text-[var(--text)] mb-2">3. Potential for Rug Pulls and Theft</h4>
                     <ul className="space-y-2 text-sm">
                       <li className="flex items-start gap-2">
                         <span className="text-red-400 mt-1">•</span>
@@ -117,8 +117,8 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
                     </ul>
                   </div>
 
-                  <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
-                    <h4 className="text-lg font-semibold text-white mb-2">4. Deceptive ABI and UI Integration</h4>
+                  <div className="bg-[var(--surface-2)] rounded-lg p-4 border border-[var(--line)]">
+                    <h4 className="text-lg font-semibold text-[var(--text)] mb-2">4. Deceptive ABI and UI Integration</h4>
                     <ul className="space-y-2 text-sm">
                       <li className="flex items-start gap-2">
                         <span className="text-red-400 mt-1">•</span>
@@ -138,14 +138,14 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
               </section>
 
               <section>
-                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <h3 className="text-xl font-bold text-[var(--text)] mb-4 flex items-center gap-2">
                   <span className="text-orange-400">🧨</span>
                   Why Decompiling Bytecode is Not Reliable
                 </h3>
                 
                 <div className="space-y-4">
-                  <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
-                    <h4 className="text-lg font-semibold text-white mb-2">1. Loss of Semantics in Compilation</h4>
+                  <div className="bg-[var(--surface-2)] rounded-lg p-4 border border-[var(--line)]">
+                    <h4 className="text-lg font-semibold text-[var(--text)] mb-2">1. Loss of Semantics in Compilation</h4>
                     <ul className="space-y-2 text-sm">
                       <li className="flex items-start gap-2">
                         <span className="text-orange-400 mt-1">•</span>
@@ -153,13 +153,13 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-orange-400 mt-1">•</span>
-                        <span>Reconstructed code becomes unreadable and generic, often filled with <code className="bg-slate-600 px-1 rounded">func_xxxxxx()</code> or meaningless labels.</span>
+                        <span>Reconstructed code becomes unreadable and generic, often filled with <code className="bg-[var(--surface-2)] px-1 rounded">func_xxxxxx()</code> or meaningless labels.</span>
                       </li>
                     </ul>
                   </div>
 
-                  <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
-                    <h4 className="text-lg font-semibold text-white mb-2">2. Control Flow Obfuscation</h4>
+                  <div className="bg-[var(--surface-2)] rounded-lg p-4 border border-[var(--line)]">
+                    <h4 className="text-lg font-semibold text-[var(--text)] mb-2">2. Control Flow Obfuscation</h4>
                     <ul className="space-y-2 text-sm">
                       <li className="flex items-start gap-2">
                         <span className="text-orange-400 mt-1">•</span>
@@ -172,8 +172,8 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
                     </ul>
                   </div>
 
-                  <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
-                    <h4 className="text-lg font-semibold text-white mb-2">3. No Guarantee of Accuracy</h4>
+                  <div className="bg-[var(--surface-2)] rounded-lg p-4 border border-[var(--line)]">
+                    <h4 className="text-lg font-semibold text-[var(--text)] mb-2">3. No Guarantee of Accuracy</h4>
                     <ul className="space-y-2 text-sm">
                       <li className="flex items-start gap-2">
                         <span className="text-orange-400 mt-1">•</span>
@@ -185,7 +185,7 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-orange-400 mt-1">•</span>
-                        <span>Edge-case instructions (e.g., <code className="bg-slate-600 px-1 rounded">create2</code>, <code className="bg-slate-600 px-1 rounded">delegatecall</code>) often cannot be interpreted without real runtime analysis.</span>
+                        <span>Edge-case instructions (e.g., <code className="bg-[var(--surface-2)] px-1 rounded">create2</code>, <code className="bg-[var(--surface-2)] px-1 rounded">delegatecall</code>) often cannot be interpreted without real runtime analysis.</span>
                       </li>
                     </ul>
                   </div>
@@ -193,18 +193,18 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
               </section>
 
               <section>
-                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <h3 className="text-xl font-bold text-[var(--text)] mb-4 flex items-center gap-2">
                   <span className="text-blue-400">🧪</span>
                   Malicious Example: Decompiler Exploitation
                 </h3>
                 
-                <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
-                  <h4 className="text-lg font-semibold text-white mb-3">Scenario: Backdoor in an Unverified Contract</h4>
+                <div className="bg-[var(--surface-2)] rounded-lg p-4 border border-[var(--line)]">
+                  <h4 className="text-lg font-semibold text-[var(--text)] mb-3">Scenario: Backdoor in an Unverified Contract</h4>
                   
                   <div className="space-y-3 text-sm">
                     <div className="flex items-start gap-2">
                       <span className="text-blue-400 mt-1 font-bold">1.</span>
-                      <span>A malicious developer writes a Solidity contract with hidden logic: standard <code className="bg-slate-600 px-1 rounded">transfer()</code> function appears to send tokens, but an inline assembly block checks <code className="bg-slate-600 px-1 rounded">msg.sender == 0xDeployerAddress</code> and transfers all funds if true.</span>
+                      <span>A malicious developer writes a Solidity contract with hidden logic: standard <code className="bg-[var(--surface-2)] px-1 rounded">transfer()</code> function appears to send tokens, but an inline assembly block checks <code className="bg-[var(--surface-2)] px-1 rounded">msg.sender == 0xDeployerAddress</code> and transfers all funds if true.</span>
                     </div>
                     
                     <div className="flex items-start gap-2">
@@ -219,7 +219,7 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
                     
                     <div className="flex items-start gap-2">
                       <span className="text-blue-400 mt-1 font-bold">4.</span>
-                      <span>User approves contract to move tokens. Malicious <code className="bg-slate-600 px-1 rounded">withdraw()</code> drains all assets when triggered by the attacker, with no warning visible in the ABI or frontend.</span>
+                      <span>User approves contract to move tokens. Malicious <code className="bg-[var(--surface-2)] px-1 rounded">withdraw()</code> drains all assets when triggered by the attacker, with no warning visible in the ABI or frontend.</span>
                     </div>
                   </div>
                 </div>
@@ -257,14 +257,14 @@ const UnverifiedContractRisksModal: React.FC<UnverifiedContractRisksModalProps> 
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-slate-700/50 bg-slate-800/50">
+        <div className="p-6 border-t border-[var(--line)] bg-[var(--panel)]">
           <div className="flex justify-between items-center">
-            <p className="text-slate-400 text-sm">
+            <p className="text-[var(--text-muted)] text-sm">
               This information is provided for educational purposes only.
             </p>
             <button
               onClick={onClose}
-              className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200"
+              className="bg-red-600 hover:bg-red-700 text-[var(--text)] font-semibold py-2 px-6 rounded-lg transition-colors duration-200"
             >
               I Understand the Risks
             </button>

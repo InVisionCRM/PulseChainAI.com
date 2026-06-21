@@ -474,16 +474,16 @@ export function WalletGraph({ walletAddress, chains }: Props) {
   );
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
       <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/70">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
           Connections graph
         </div>
         <button
           type="button"
           onClick={() => void load()}
           disabled={status === 'loading'}
-          className="text-white/50 hover:text-white disabled:opacity-40"
+          className="text-[var(--text-faint)] hover:text-[var(--text)] disabled:opacity-40"
           title="Re-scan"
         >
           <IconRefresh className={`h-4 w-4 ${status === 'loading' ? 'animate-spin' : ''}`} />
@@ -495,12 +495,12 @@ export function WalletGraph({ walletAddress, chains }: Props) {
           {error}
         </div>
       ) : status === 'empty' ? (
-        <div className="py-10 text-center text-sm text-white/40">
+        <div className="py-10 text-center text-sm text-[var(--text-faint)]">
           No counterparties found in recent history.
         </div>
       ) : status === 'loading' ? (
-        <div className="grid h-[420px] place-items-center rounded-lg bg-white/5">
-          <span className="inline-flex items-center gap-2 text-sm text-white/50">
+        <div className="grid h-[420px] place-items-center rounded-lg bg-[var(--surface)]">
+          <span className="inline-flex items-center gap-2 text-sm text-[var(--text-faint)]">
             <IconRefresh className="h-4 w-4 animate-spin" /> Mapping connections…
           </span>
         </div>
@@ -511,17 +511,17 @@ export function WalletGraph({ walletAddress, chains }: Props) {
               ref={canvasRef}
               role="img"
               aria-label="Force-directed graph of this wallet's on-chain connections"
-              className="block h-[420px] w-full rounded-lg border border-white/10"
+              className="block h-[420px] w-full rounded-lg border border-[var(--line)]"
             />
             <div
               ref={tipRef}
-              className="pointer-events-none absolute z-10 max-w-[200px] rounded-[10px] border border-white/15 px-2.5 py-2 text-xs leading-snug text-white opacity-0 transition-opacity"
+              className="pointer-events-none absolute z-10 max-w-[200px] rounded-[10px] border border-[var(--line)] px-2.5 py-2 text-xs leading-snug text-[var(--text)] opacity-0 transition-opacity"
               style={{ background: 'rgba(6,18,34,.94)' }}
             />
           </div>
 
           {legend.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/50">
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--text-faint)]">
               {legend.map((l) => (
                 <span key={l.t} className="inline-flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full" style={{ background: l.color }} />
@@ -541,7 +541,7 @@ export function WalletGraph({ walletAddress, chains }: Props) {
             />
           )}
 
-          <p className="mt-2 text-[11px] text-white/35">
+          <p className="mt-2 text-[11px] text-[var(--text-muted)]">
             Hover to focus · drag a node to pin it · double-click to unpin ·
             click a node for actions.
           </p>
@@ -554,11 +554,11 @@ export function WalletGraph({ walletAddress, chains }: Props) {
 function SelectedBar({ node: n, onClose }: { node: GNode; onClose: () => void }) {
   const explorer = `${EXPLORER_ADDRESS[n.chain]}${n.address}`;
   return (
-    <div className="mt-2 flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+    <div className="mt-2 flex items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2">
       <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: n.color }} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="truncate text-sm font-medium text-white">{n.label ?? n.short}</span>
+          <span className="truncate text-sm font-medium text-[var(--text)]">{n.label ?? n.short}</span>
           <span
             className="shrink-0 rounded px-1.5 py-px text-[9px] font-bold uppercase"
             style={{ color: n.color, background: hexA(n.color, 0.18) }}
@@ -566,12 +566,12 @@ function SelectedBar({ node: n, onClose }: { node: GNode; onClose: () => void })
             {TYPE_META[n.type].label}
           </span>
         </div>
-        <div className="flex items-center gap-2 text-[11px] text-white/45">
+        <div className="flex items-center gap-2 text-[11px] text-[var(--text-faint)]">
           <a
             href={explorer}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-0.5 font-mono hover:text-white/70"
+            className="inline-flex items-center gap-0.5 font-mono hover:text-[var(--text-muted)]"
           >
             {n.short}
             <IconExternalLink className="h-2.5 w-2.5" />
@@ -586,12 +586,12 @@ function SelectedBar({ node: n, onClose }: { node: GNode; onClose: () => void })
         source="tx"
         chain={n.chain}
         context={{ direction: 'counterparty' }}
-        className="shrink-0 text-white/40 hover:text-orange-300"
+        className="shrink-0 text-[var(--text-faint)] hover:text-orange-300"
       />
       <button
         type="button"
         onClick={onClose}
-        className="shrink-0 text-white/40 hover:text-white"
+        className="shrink-0 text-[var(--text-faint)] hover:text-[var(--text)]"
         aria-label="Deselect"
       >
         <IconX className="h-4 w-4" />

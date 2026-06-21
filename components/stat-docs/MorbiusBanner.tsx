@@ -10,7 +10,7 @@ export default function MorbiusBanner() {
       {/* Banner */}
       <div className="sticky top-0 z-40 bg-gradient-to-r from-purple-900/95 via-blue-900/95 to-purple-900/95 backdrop-blur-sm border-b border-purple-500/30 shadow-lg">
         <div className="max-w-7xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-center gap-2 text-sm text-white">
+          <div className="flex items-center justify-center gap-2 text-sm text-[var(--text)]">
             <span className="text-yellow-300">⚠️</span>
             <span>
               <button
@@ -32,15 +32,15 @@ export default function MorbiusBanner() {
           onClick={() => setShowModal(false)}
         >
           <div 
-            className="relative w-full max-w-2xl bg-slate-950 rounded-xl border border-purple-500/30 shadow-2xl overflow-hidden"
+            className="relative w-full max-w-2xl bg-[var(--app-bg)] rounded-xl border border-purple-500/30 shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-purple-900/50 to-blue-900/50 border-b border-purple-500/30">
-              <h3 className="text-lg font-semibold text-white">Get Morbius Token</h3>
+              <h3 className="text-lg font-semibold text-[var(--text)]">Get Morbius Token</h3>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] rounded-lg transition-all"
                 title="Close"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

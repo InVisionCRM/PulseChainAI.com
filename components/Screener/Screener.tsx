@@ -194,7 +194,7 @@ export default function Screener() {
               load(next, true);
             }}
             disabled={loading}
-            className="rounded-xl border border-white/15 bg-white/5 backdrop-blur-xl px-6 py-2 text-xs font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+            className="rounded-xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl px-6 py-2 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)] disabled:opacity-50"
           >
             {loading ? 'Loading…' : 'Show more'}
           </button>

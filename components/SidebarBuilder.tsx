@@ -65,8 +65,8 @@ export default function SidebarBuilder({ onConfigChange, onStatResultsChange }: 
   return (
     <div className="space-y-6">
       {/* Token Selection */}
-      <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-        <h3 className="text-lg font-semibold text-white mb-4">Token Selection</h3>
+      <div className="bg-[var(--surface)] rounded-lg p-4 border border-[var(--line)]">
+        <h3 className="text-lg font-semibold text-[var(--text)] mb-4">Token Selection</h3>
         <TokenSelector
           selectedToken={config.token}
           onTokenSelect={updateToken}
@@ -77,8 +77,8 @@ export default function SidebarBuilder({ onConfigChange, onStatResultsChange }: 
 
       {/* Statistics Selection */}
       {config.token && (
-        <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-          <h3 className="text-lg font-semibold text-white mb-4">Statistics</h3>
+        <div className="bg-[var(--surface)] rounded-lg p-4 border border-[var(--line)]">
+          <h3 className="text-lg font-semibold text-[var(--text)] mb-4">Statistics</h3>
           <StatSelector
             token={config.token}
             onStatsChange={updateStats}
@@ -90,8 +90,8 @@ export default function SidebarBuilder({ onConfigChange, onStatResultsChange }: 
 
       {/* Code Generator */}
       {config.token && config.stats.some(stat => stat.enabled) && (
-        <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-          <h3 className="text-lg font-semibold text-white mb-4">Code Generator</h3>
+        <div className="bg-[var(--surface)] rounded-lg p-4 border border-[var(--line)]">
+          <h3 className="text-lg font-semibold text-[var(--text)] mb-4">Code Generator</h3>
           <CodeGenerator
             config={config}
             onError={setError}

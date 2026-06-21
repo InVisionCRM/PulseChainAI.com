@@ -135,17 +135,17 @@ export default function LiveStatTester({ statId, statName, parameters }: LiveSta
   };
   
   return (
-    <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-6 space-y-6">
+    <div className="bg-[var(--panel)] border border-[var(--line)] rounded-xl p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-white mb-1">🧪 Try It Live</h2>
-          <p className="text-sm text-gray-400">
+          <h2 className="text-xl font-semibold text-[var(--text)] mb-1">🧪 Try It Live</h2>
+          <p className="text-sm text-[var(--text-muted)]">
             Test {statName} with real PulseChain data
           </p>
         </div>
         <button
           onClick={copyLink}
-          className="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 rounded transition-colors flex items-center gap-1"
+          className="text-xs px-3 py-1.5 bg-[var(--panel)] hover:bg-[var(--surface-2)] text-[var(--text)] border border-[var(--line)] rounded transition-colors flex items-center gap-1"
         >
           🔗 Share
         </button>
@@ -160,7 +160,7 @@ export default function LiveStatTester({ statId, statName, parameters }: LiveSta
             
             return (
               <div key={param.key}>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
                   {param.label}
                   {param.required && (
                     <span className="ml-2 text-xs px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 rounded">
@@ -168,7 +168,7 @@ export default function LiveStatTester({ statId, statName, parameters }: LiveSta
                     </span>
                   )}
                   {!param.required && (
-                    <span className="ml-2 text-xs text-gray-500">
+                    <span className="ml-2 text-xs text-[var(--text-muted)]">
                       (optional)
                     </span>
                   )}
@@ -178,10 +178,10 @@ export default function LiveStatTester({ statId, statName, parameters }: LiveSta
                   value={inputs[param.key] || ''}
                   onChange={(e) => setInputs({ ...inputs, [param.key]: e.target.value })}
                   placeholder={param.placeholder}
-                  className={`w-full px-4 py-3 bg-slate-950 border rounded-lg text-white placeholder-gray-500 focus:outline-none transition-colors ${
+                  className={`w-full px-4 py-3 bg-[var(--app-bg)] border rounded-lg text-[var(--text)] placeholder-gray-500 focus:outline-none transition-colors ${
                     isInvalid
                       ? 'border-red-500 focus:border-red-400'
-                      : 'border-slate-700 focus:border-purple-500'
+                      : 'border-[var(--line)] focus:border-purple-500'
                   }`}
                 />
                 {isInvalid && (
@@ -189,7 +189,7 @@ export default function LiveStatTester({ statId, statName, parameters }: LiveSta
                     Invalid address format
                   </p>
                 )}
-                <p className="mt-1 text-xs text-gray-500">{param.description}</p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">{param.description}</p>
               </div>
             );
           })}
@@ -202,8 +202,8 @@ export default function LiveStatTester({ statId, statName, parameters }: LiveSta
         disabled={loading || !canTest()}
         className={`w-full px-6 py-3 font-semibold rounded-lg transition-all ${
           loading || !canTest()
-            ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-            : 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/20'
+            ? 'bg-[var(--surface-2)] text-[var(--text-muted)] cursor-not-allowed'
+            : 'bg-purple-600 hover:bg-purple-700 text-[var(--text)] shadow-lg shadow-purple-500/20'
         }`}
       >
         {loading ? (
@@ -223,35 +223,35 @@ export default function LiveStatTester({ statId, statName, parameters }: LiveSta
       {result && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-white">Result</h3>
+            <h3 className="text-sm font-semibold text-[var(--text)]">Result</h3>
             <button
               onClick={copyResult}
-              className="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 rounded transition-colors"
+              className="text-xs px-3 py-1.5 bg-[var(--panel)] hover:bg-[var(--surface-2)] text-[var(--text)] border border-[var(--line)] rounded transition-colors"
             >
               📋 Copy JSON
             </button>
           </div>
           
           {/* Formatted Value Display */}
-          <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur px-6 py-8 rounded-xl border border-purple-500/20 shadow-lg">
+          <div className="bg-gradient-to-br from-[var(--panel)] to-[var(--panel)] backdrop-blur px-6 py-8 rounded-xl border border-purple-500/20 shadow-lg">
             <div className="text-center space-y-2">
-              <div className="text-xs text-gray-400 uppercase tracking-wider">
+              <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider">
                 {statName}
               </div>
               <div className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
                 {result.formattedValue}
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-[var(--text-muted)]">
                 Last updated: {new Date(result.lastUpdated).toLocaleString()}
               </div>
             </div>
           </div>
           
           {/* Full JSON Response (Expandable) */}
-          <div className="bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
+          <div className="bg-[var(--app-bg)] border border-[var(--line)] rounded-lg overflow-hidden">
             <button
               onClick={() => setShowFullResponse(!showFullResponse)}
-              className="w-full px-4 py-3 flex items-center justify-between text-sm text-gray-400 hover:text-white transition-colors"
+              className="w-full px-4 py-3 flex items-center justify-between text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
             >
               <span>Full JSON Response</span>
               <span className={`transition-transform ${showFullResponse ? 'rotate-180' : ''}`}>
@@ -259,7 +259,7 @@ export default function LiveStatTester({ statId, statName, parameters }: LiveSta
               </span>
             </button>
             {showFullResponse && (
-              <pre className="px-4 pb-4 overflow-x-auto text-xs text-gray-300 font-mono">
+              <pre className="px-4 pb-4 overflow-x-auto text-xs text-[var(--text-muted)] font-mono">
                 {JSON.stringify(result, null, 2)}
               </pre>
             )}
@@ -286,7 +286,7 @@ export default function LiveStatTester({ statId, statName, parameters }: LiveSta
           <span className="text-blue-400 text-xl">💡</span>
           <div className="flex-1">
             <h4 className="text-sm font-semibold text-blue-300 mb-1">Testing Tips</h4>
-            <ul className="text-xs text-gray-300 space-y-1">
+            <ul className="text-xs text-[var(--text-muted)] space-y-1">
               <li>• Use a valid PulseChain token contract address</li>
               <li>• Results are fetched in real-time from the blockchain</li>
               <li>• Your last used token address is saved for convenience</li>

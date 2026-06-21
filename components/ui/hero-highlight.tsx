@@ -81,7 +81,7 @@ export const HeroHighlight = ({
   return (
     <div
       className={cn(
-        "group relative flex w-full items-center justify-center bg-white dark:bg-slate-950",
+        "group relative flex w-full items-center justify-center bg-white dark:bg-[var(--app-bg)]",
         containerClassName,
       )}
       style={{
@@ -114,7 +114,7 @@ export const HeroHighlight = ({
             }}
           />
           {showSearchResults && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-700/50 rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--panel)] backdrop-blur-sm border border-[var(--line)] rounded-lg shadow-xl z-[9999] max-h-80 overflow-y-auto">
               <div
                 className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-lg opacity-20"
                 style={{ backgroundImage: 'url(/Mirage.jpg)' }}
@@ -122,36 +122,36 @@ export const HeroHighlight = ({
               <div className="relative z-10">
                 {isSearching && (
                   <div className="flex items-center justify-center p-4">
-                    <div className="text-slate-400 text-sm">Searching...</div>
+                    <div className="text-[var(--text-muted)] text-sm">Searching...</div>
                   </div>
                 )}
                 {!isSearching && searchError && (
                   <div className="p-4 text-red-400 text-sm">{searchError}</div>
                 )}
                 {!isSearching && searchQuery.length >= 2 && searchResults?.length === 0 && !searchError && (
-                  <div className="p-4 text-slate-400 text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
+                  <div className="p-4 text-[var(--text-muted)] text-sm">No tokens found for &quot;{searchQuery}&quot;</div>
                 )}
                 {!isSearching && searchResults?.map(item => (
                   <div
                     key={item.address}
                     onClick={() => handleSelectSearchResult(item)}
-                    className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer transition-colors"
+                    className="flex items-center gap-3 p-3 hover:bg-[var(--surface-2)] cursor-pointer transition-colors"
                   >
                     <div className="relative">
                       {item.icon_url ?
-                        <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-slate-700" /> :
-                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-blue-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
+                        <img src={item.icon_url} alt={`${item.name} logo`} className="w-8 h-8 rounded-full bg-[var(--surface-2)]" /> :
+                        <div className="w-8 h-8 rounded-full bg-[var(--surface-2)] flex items-center justify-center text-blue-400 font-bold text-sm flex-shrink-0">{item.name?.[0] || '?'}</div>
                       }
                       {item.is_smart_contract_verified && (
-                        <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white text-[10px]">
+                        <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-[var(--text)] text-[10px]">
                           ✓
                         </span>
                       )}
                     </div>
                     <div className="overflow-hidden flex-1">
-                      <div className="font-semibold text-white truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
-                      <div className="text-xs text-slate-400 capitalize">{item.type}</div>
-                      <div className="text-xs text-slate-500 font-mono truncate">{item.address}</div>
+                      <div className="font-semibold text-[var(--text)] truncate">{item.name} {item.symbol && `(${item.symbol})`}</div>
+                      <div className="text-xs text-[var(--text-muted)] capitalize">{item.type}</div>
+                      <div className="text-xs text-[var(--text-muted)] font-mono truncate">{item.address}</div>
                     </div>
                   </div>
                 ))}

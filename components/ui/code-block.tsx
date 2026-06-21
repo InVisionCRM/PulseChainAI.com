@@ -89,7 +89,7 @@ export const CodeBlock = ({
   const allHighlightLines = [...activeHighlightLines, ...searchHighlightLines];
 
   return (
-    <div className="relative w-full rounded-lg bg-slate-900 p-4 font-mono text-sm">
+    <div className="relative w-full rounded-lg bg-[var(--panel)] p-4 font-mono text-sm">
       <div className="flex flex-col gap-2">
         {tabsExist && (
           <div className="flex  overflow-x-auto">
@@ -99,8 +99,8 @@ export const CodeBlock = ({
                 onClick={() => setActiveTab(index)}
                 className={`px-3 !py-2 text-xs transition-colors font-sans ${
                   activeTab === index
-                    ? "text-white"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    ? "text-[var(--text)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text)]"
                 }`}
               >
                 {tab.name}
@@ -110,7 +110,7 @@ export const CodeBlock = ({
         )}
         {!tabsExist && filename && (
           <div className="flex justify-between items-center py-2">
-            <div className="text-xs text-zinc-400">{filename}</div>
+            <div className="text-xs text-[var(--text-muted)]">{filename}</div>
             <div className="flex items-center gap-2">
               {isSearchOpen && (
                 <div className="relative">
@@ -119,13 +119,13 @@ export const CodeBlock = ({
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search code..."
-                    className="w-32 px-2 py-1 text-xs bg-slate-800 border border-slate-600 rounded text-white placeholder-zinc-400 focus:outline-none focus:border-blue-500"
+                    className="w-32 px-2 py-1 text-xs bg-[var(--panel)] border border-[var(--line)] rounded text-[var(--text)] placeholder-zinc-400 focus:outline-none focus:border-blue-500"
                     autoFocus
                   />
                   {searchQuery && (
                     <button
                       onClick={clearSearch}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text)]"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -135,7 +135,7 @@ export const CodeBlock = ({
               <button
                 onClick={toggleSearch}
                 className={`flex items-center gap-1 text-xs transition-colors font-sans ${
-                  isSearchOpen ? 'text-blue-400' : 'text-zinc-400 hover:text-zinc-200'
+                  isSearchOpen ? 'text-blue-400' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                 }`}
                 title={isSearchOpen ? "Close search" : "Search code"}
               >
@@ -143,7 +143,7 @@ export const CodeBlock = ({
               </button>
               <button
                 onClick={copyToClipboard}
-                className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 transition-colors font-sans"
+                className="flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors font-sans"
                 title="Copy code"
               >
                 <Copy className="w-3.5 h-3.5" />

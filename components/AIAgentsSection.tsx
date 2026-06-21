@@ -190,10 +190,10 @@ export default function AIAgentsSection() {
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-12 md:mb-16 px-4">
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 md:mb-6">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--text)] mb-4 md:mb-6">
             AI Agents
           </h2>
-          <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-[var(--text-muted)] max-w-2xl mx-auto">
             Powerful AI tools designed to analyze and interact with the PulseChain ecosystem
           </p>
         </div>
@@ -223,7 +223,7 @@ export default function AIAgentsSection() {
                   className="relative w-full aspect-[4/5] rounded-2xl p-2 overflow-hidden"
                   style={{ borderWidth: '2px', borderColor: '#FA4616' }}
                 >
-                  <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
+                  <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-[var(--panel)] backdrop-blur-sm">
                     
                     {/* Video Background */}
                     {agent.videoUrl && (
@@ -262,7 +262,7 @@ export default function AIAgentsSection() {
                     )}
                     
                     {/* Subtle overlay for better text readability */}
-                    <div className="absolute inset-0 z-15 bg-slate-950/20" />
+                    <div className="absolute inset-0 z-15 bg-[var(--app-bg)]" />
                     
                     {/* Card Content - Simplified */}
                     <div className="relative z-40 flex flex-col h-full justify-between">
@@ -286,10 +286,10 @@ export default function AIAgentsSection() {
       <div className="mt-20 md:mt-32">
         {/* Section Header */}
         <div className="text-center mb-12 md:mb-16 px-4">
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 md:mb-6">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--text)] mb-4 md:mb-6">
             Games
           </h2>
-          <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-[var(--text-muted)] max-w-2xl mx-auto">
             Interactive gaming experiences built on the PulseChain ecosystem
           </p>
         </div>
@@ -307,7 +307,7 @@ export default function AIAgentsSection() {
               className="relative w-full aspect-[4/5] rounded-2xl p-2 overflow-hidden"
               style={{ borderWidth: '2px', borderColor: '#FA4616' }}
             >
-              <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
+              <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-[var(--panel)] backdrop-blur-sm">
                 {/* HEXtroids Image Background */}
                 <div className="absolute inset-0 z-10 flex items-center justify-center">
                   <img
@@ -319,7 +319,7 @@ export default function AIAgentsSection() {
                 </div>
                 
                 {/* Subtle overlay for better text readability */}
-                <div className="absolute inset-0 z-15 bg-slate-950/20" />
+                <div className="absolute inset-0 z-15 bg-[var(--app-bg)]" />
                 
                 {/* Content */}
                 <div className="relative z-40 flex flex-1 flex-col justify-between gap-3">
@@ -340,22 +340,22 @@ export default function AIAgentsSection() {
           <div
             className="relative group col-span-1 row-span-1"
           >
-            <div className="relative h-full rounded-2xl border border-gray-800 p-2">
-              <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
+            <div className="relative h-full rounded-2xl border border-[var(--line)] p-2">
+              <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-[var(--panel)] backdrop-blur-sm">
                 <div className="relative flex flex-1 flex-col justify-between gap-3">
                   <div className="flex-grow" />
                   
                   <div className="text-center">
-                    <h3 className="text-xl md:text-2xl font-semibold text-white mb-2">
+                    <h3 className="text-xl md:text-2xl font-semibold text-[var(--text)] mb-2">
                       HEX Runner
                     </h3>
                   </div>
                 </div>
                 
-                <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <div className="absolute inset-0 bg-[var(--app-bg)] backdrop-blur-sm rounded-xl flex items-center justify-center">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
-                    <div className="text-sm text-gray-300">This game is under development</div>
+                    <div className="text-2xl font-bold text-[var(--text)] mb-2">Coming Soon</div>
+                    <div className="text-sm text-[var(--text-muted)]">This game is under development</div>
                   </div>
                 </div>
               </div>
@@ -368,22 +368,22 @@ export default function AIAgentsSection() {
           <div
             className="relative group col-span-1 row-span-1"
           >
-            <div className="relative h-full rounded-2xl border border-gray-800 p-2">
-              <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-gray-900/50 backdrop-blur-sm">
+            <div className="relative h-full rounded-2xl border border-[var(--line)] p-2">
+              <div className="relative flex h-full flex-col justify-between gap-4 md:gap-6 overflow-hidden rounded-xl p-4 md:p-6 bg-[var(--panel)] backdrop-blur-sm">
                 <div className="relative flex flex-1 flex-col justify-between gap-3">
                   <div className="flex-grow" />
                   
                   <div className="text-center">
-                    <h3 className="text-xl md:text-2xl font-semibold text-white mb-2">
+                    <h3 className="text-xl md:text-2xl font-semibold text-[var(--text)] mb-2">
                       Pulse Defender
                     </h3>
                   </div>
                 </div>
                 
-                <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <div className="absolute inset-0 bg-[var(--app-bg)] backdrop-blur-sm rounded-xl flex items-center justify-center">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
-                    <div className="text-sm text-gray-300">This game is under development</div>
+                    <div className="text-2xl font-bold text-[var(--text)] mb-2">Coming Soon</div>
+                    <div className="text-sm text-[var(--text-muted)]">This game is under development</div>
                   </div>
                 </div>
               </div>

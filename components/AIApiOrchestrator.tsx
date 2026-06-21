@@ -288,7 +288,7 @@ Please provide a clear, human-readable answer that directly addresses the user's
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
-      <div className="bg-gradient-to-r from-slate-950 to-slate-950 rounded-lg p-6 text-white">
+      <div className="bg-gradient-to-r from-[var(--app-bg)] to-[var(--app-bg)] rounded-lg p-6 text-[var(--text)]">
         <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
           <IconBrain className="h-6 w-6" />
           AI-Powered Blockchain Analysis
@@ -301,7 +301,7 @@ Please provide a clear, human-readable answer that directly addresses the user's
       {step === "input" && (
         <div className="space-y-6">
           {/* Address/Token Selection */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+          <div className="bg-white dark:bg-[var(--panel)] rounded-lg p-6 shadow-lg">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <IconSearch className="h-5 w-5" />
               Select Addresses/Tokens (1-5)
@@ -316,30 +316,30 @@ Please provide a clear, human-readable answer that directly addresses the user's
                     value={currentSearch}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     placeholder="Search for tokens, addresses, or names..."
-                    className="w-full px-4 py-3 pl-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 pl-10 border border-gray-300 dark:border-[var(--line)] rounded-lg bg-white dark:bg-[var(--surface-2)] text-gray-900 dark:text-[var(--text)] focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <IconSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <IconSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[var(--text-muted)]" />
                 </div>
 
                 {/* Search Results */}
                 {searchResults.length > 0 && (
-                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg max-h-60 overflow-y-auto">
+                  <div className="bg-gray-50 dark:bg-[var(--surface-2)] rounded-lg max-h-60 overflow-y-auto">
                     {searchResults.map((result, index) => (
                       <div
                         key={index}
                         onClick={() => handleSelectSearchResult(result)}
-                        className="p-3 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0"
+                        className="p-3 hover:bg-gray-100 dark:hover:bg-[var(--surface-2)] cursor-pointer border-b border-gray-200 dark:border-[var(--line)] last:border-b-0"
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="font-medium text-gray-900 dark:text-white">
+                            <div className="font-medium text-gray-900 dark:text-[var(--text)]">
                               {result.name || result.symbol || "Unknown"}
                             </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                            <div className="text-sm text-[var(--text-muted)] dark:text-[var(--text-muted)]">
                               {result.address}
                             </div>
                           </div>
-                          <div className="text-xs bg-blue-100 dark:bg-slate-950 text-slate-950 dark:text-blue-200 px-2 py-1 rounded">
+                          <div className="text-xs bg-blue-100 dark:bg-[var(--app-bg)] text-slate-950 dark:text-blue-200 px-2 py-1 rounded">
                             {result.token_type || "Address"}
                           </div>
                         </div>
@@ -352,7 +352,7 @@ Please provide a clear, human-readable answer that directly addresses the user's
                 <button
                   onClick={handleAddAddress}
                   disabled={!currentSearch.trim() || selectedAddresses.length >= 5 || isSearching}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-950 text-white rounded-lg hover:bg-slate-950 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-[var(--app-bg)] text-[var(--text)] rounded-lg hover:bg-[var(--app-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <IconPlus className="h-4 w-4" />
                   Add Address ({selectedAddresses.length}/5)
@@ -360,19 +360,19 @@ Please provide a clear, human-readable answer that directly addresses the user's
               </div>
 
               {/* Selected Addresses Side Menu */}
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                <h4 className="font-medium mb-3 text-gray-900 dark:text-white">Selected Addresses</h4>
+              <div className="bg-gray-50 dark:bg-[var(--surface-2)] rounded-lg p-4">
+                <h4 className="font-medium mb-3 text-gray-900 dark:text-[var(--text)]">Selected Addresses</h4>
                 {selectedAddresses.length === 0 ? (
-                  <p className="text-gray-500 dark:text-gray-400 text-sm">No addresses selected yet.</p>
+                  <p className="text-[var(--text-muted)] dark:text-[var(--text-muted)] text-sm">No addresses selected yet.</p>
                 ) : (
                   <div className="space-y-2">
                     {selectedAddresses.map((address, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-white dark:bg-gray-600 rounded border">
+                      <div key={index} className="flex items-center justify-between p-2 bg-white dark:bg-[var(--surface-2)] rounded border">
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm text-gray-900 dark:text-white truncate">
+                          <div className="font-medium text-sm text-gray-900 dark:text-[var(--text)] truncate">
                             {address.name || address.symbol || "Unknown"}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          <div className="text-xs text-[var(--text-muted)] dark:text-[var(--text-muted)] truncate">
                             {address.address}
                           </div>
                         </div>
@@ -392,19 +392,19 @@ Please provide a clear, human-readable answer that directly addresses the user's
           </div>
 
           {/* Question Input */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+          <div className="bg-white dark:bg-[var(--panel)] rounded-lg p-6 shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Ask Your Question</h3>
             <textarea
               value={userQuestion}
               onChange={(e) => setUserQuestion(e.target.value)}
               placeholder="e.g., How many holders does HEX have? What tokens do these addresses hold in common?"
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-[var(--line)] rounded-lg bg-white dark:bg-[var(--surface-2)] text-gray-900 dark:text-[var(--text)] focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               rows={4}
             />
             <button
               onClick={handleSubmitQuestion}
               disabled={!userQuestion.trim() || selectedAddresses.length === 0 || loading}
-              className="mt-4 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-slate-950 to-slate-950 text-white rounded-lg hover:from-slate-950 hover:to-slate-950 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mt-4 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[var(--app-bg)] to-[var(--app-bg)] text-[var(--text)] rounded-lg hover:from-[var(--app-bg)] hover:to-[var(--app-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <IconBrain className="h-5 w-5" />
               {loading ? "Analyzing..." : "Analyze with AI"}
@@ -415,7 +415,7 @@ Please provide a clear, human-readable answer that directly addresses the user's
 
       {step === "plan" && (
         <div className="space-y-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+          <div className="bg-white dark:bg-[var(--panel)] rounded-lg p-6 shadow-lg">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <IconApi className="h-5 w-5" />
               AI-Generated API Plan
@@ -423,7 +423,7 @@ Please provide a clear, human-readable answer that directly addresses the user's
             
             <div className="space-y-3">
               {apiPlan.map((api, index) => (
-                <div key={index} className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg">
+                <div key={index} className="flex items-center gap-3 p-3 border border-gray-200 dark:border-[var(--line)] rounded-lg">
                   <input
                     type="checkbox"
                     checked={selectedApis.has(api.endpoint)}
@@ -432,8 +432,8 @@ Please provide a clear, human-readable answer that directly addresses the user's
                     title={`Select ${api.endpoint}`}
                   />
                   <div className="flex-1">
-                    <div className="font-medium text-gray-900 dark:text-white">{api.endpoint}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">{api.description}</div>
+                    <div className="font-medium text-gray-900 dark:text-[var(--text)]">{api.endpoint}</div>
+                    <div className="text-sm text-[var(--text-muted)] dark:text-[var(--text-muted)]">{api.description}</div>
                   </div>
                   {api.required && (
                     <span className="text-xs bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-2 py-1 rounded">
@@ -448,14 +448,14 @@ Please provide a clear, human-readable answer that directly addresses the user's
               <button
                 onClick={handleConfirmPlan}
                 disabled={selectedApis.size === 0 || loading}
-                className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-6 py-3 bg-green-600 text-[var(--text)] rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <IconCheck className="h-5 w-5" />
                 {loading ? "Executing..." : "Execute Selected APIs"}
               </button>
               <button
                 onClick={() => setStep("input")}
-                className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="px-6 py-3 border border-gray-300 dark:border-[var(--line)] text-gray-700 dark:text-[var(--text-muted)] rounded-lg hover:bg-gray-50 dark:hover:bg-[var(--surface-2)]"
               >
                 Back
               </button>
@@ -466,25 +466,25 @@ Please provide a clear, human-readable answer that directly addresses the user's
 
       {step === "results" && (
         <div className="space-y-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+          <div className="bg-white dark:bg-[var(--panel)] rounded-lg p-6 shadow-lg">
             <h3 className="text-lg font-semibold mb-4">AI Analysis Results</h3>
             
             {loading ? (
               <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-800 mx-auto"></div>
-                <p className="mt-2 text-gray-600 dark:text-gray-400">Generating analysis...</p>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--line)] mx-auto"></div>
+                <p className="mt-2 text-gray-600 dark:text-[var(--text-muted)]">Generating analysis...</p>
               </div>
             ) : (
               <div className="prose dark:prose-invert max-w-none">
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                <div className="bg-gray-50 dark:bg-[var(--surface-2)] rounded-lg p-4 mb-4">
                   <h4 className="font-medium mb-2">Question:</h4>
-                  <p className="text-gray-700 dark:text-gray-300">{userQuestion}</p>
+                  <p className="text-gray-700 dark:text-[var(--text-muted)]">{userQuestion}</p>
                 </div>
                 
                 {aiAnswer && (
                   <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                     <h4 className="font-medium mb-2 text-green-800 dark:text-green-200">AI Answer:</h4>
-                    <div className="text-green-700 dark:text-green-300 whitespace-pre-wrap">{aiAnswer}</div>
+                    <div className="text-green-700 dark:text-[var(--up)] whitespace-pre-wrap">{aiAnswer}</div>
                   </div>
                 )}
               </div>
@@ -493,13 +493,13 @@ Please provide a clear, human-readable answer that directly addresses the user's
             <div className="mt-6 flex gap-3">
               <button
                 onClick={resetOrchestrator}
-                className="px-6 py-3 bg-slate-950 text-white rounded-lg hover:bg-slate-950"
+                className="px-6 py-3 bg-[var(--app-bg)] text-[var(--text)] rounded-lg hover:bg-[var(--app-bg)]"
               >
                 Start New Analysis
               </button>
               <button
                 onClick={() => setStep("plan")}
-                className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="px-6 py-3 border border-gray-300 dark:border-[var(--line)] text-gray-700 dark:text-[var(--text-muted)] rounded-lg hover:bg-gray-50 dark:hover:bg-[var(--surface-2)]"
               >
                 Back to Plan
               </button>

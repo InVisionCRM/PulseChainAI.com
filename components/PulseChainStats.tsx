@@ -666,12 +666,12 @@ export default function PulseChainStats({ compact = false }: PulseChainStatsProp
       <div className="space-y-2">
         {fields.map(({ key, label, placeholder }) => (
           <div key={key}>
-            <label className="text-white/80 block text-xs mb-1">{label}</label>
+            <label className="text-[var(--text)] block text-xs mb-1">{label}</label>
             <input
               type="text"
               value={customInputs[key] || ''}
               onChange={(e) => setCustomInputs({ ...customInputs, [key]: e.target.value })}
-              className={`w-full bg-black/60 backdrop-blur border border-gray-700 rounded px-2 text-white ${
+              className={`w-full bg-black/60 backdrop-blur border border-[var(--line)] rounded px-2 text-[var(--text)] ${
                 compact ? 'py-1 text-xs' : 'py-2 text-sm'
               }`}
               placeholder={placeholder}
@@ -683,14 +683,14 @@ export default function PulseChainStats({ compact = false }: PulseChainStatsProp
   };
 
   return (
-    <div className="w-full space-y-3 text-white">
+    <div className="w-full space-y-3 text-[var(--text)]">
       {/* PulseChain Stats Dropdown */}
       <div className="space-y-2">
-        <label className="text-white block text-sm">PulseChain API Endpoints</label>
+        <label className="text-[var(--text)] block text-sm">PulseChain API Endpoints</label>
         <div className="relative" ref={pulsechainDropdownRef}>
           <button
             onClick={() => setPulsechainDropdownOpen(!pulsechainDropdownOpen)}
-            className={`w-full bg-black/60 backdrop-blur border border-gray-700 rounded px-4 text-left text-white flex items-center justify-between ${
+            className={`w-full bg-black/60 backdrop-blur border border-[var(--line)] rounded px-4 text-left text-[var(--text)] flex items-center justify-between ${
               compact ? 'py-2 text-xs' : 'py-3 text-sm'
             }`}
           >
@@ -698,7 +698,7 @@ export default function PulseChainStats({ compact = false }: PulseChainStatsProp
             <span className={`transition-transform ${pulsechainDropdownOpen ? 'rotate-180' : ''}`}>▼</span>
           </button>
           {pulsechainDropdownOpen && (
-            <div className="absolute z-[9999] w-full mt-1 bg-black/90 backdrop-blur border border-gray-700 rounded max-h-60 overflow-y-auto">
+            <div className="absolute z-[9999] w-full mt-1 bg-black/90 backdrop-blur border border-[var(--line)] rounded max-h-60 overflow-y-auto">
               {pulsechainStats.map(stat => (
                 <button
                   key={stat.id}
@@ -706,13 +706,13 @@ export default function PulseChainStats({ compact = false }: PulseChainStatsProp
                     setSelectedStat(stat.id);
                     setPulsechainDropdownOpen(false);
                   }}
-                  className={`w-full text-left px-4 py-2 border-b border-gray-700 last:border-b-0 hover:bg-gray-900 transition-colors ${
-                    selectedStat === stat.id ? 'bg-gray-900 text-white' : 'text-white'
+                  className={`w-full text-left px-4 py-2 border-b border-[var(--line)] last:border-b-0 hover:bg-[var(--panel)] transition-colors ${
+                    selectedStat === stat.id ? 'bg-[var(--panel)] text-[var(--text)]' : 'text-[var(--text)]'
                   }`}
                 >
                   <div className={`${compact ? 'text-xs' : 'text-sm'} font-semibold`}>{stat.label}</div>
                   {stat.description && (
-                    <div className={`${compact ? 'text-[10px]' : 'text-xs'} text-white/70 mt-0.5`}>{stat.description}</div>
+                    <div className={`${compact ? 'text-[10px]' : 'text-xs'} text-[var(--text-muted)] mt-0.5`}>{stat.description}</div>
                   )}
                 </button>
               ))}
@@ -729,7 +729,7 @@ export default function PulseChainStats({ compact = false }: PulseChainStatsProp
         <Button
           type="button"
           onClick={() => handleRunStat(selectedStat)}
-          className={`w-full bg-purple-700 hover:bg-purple-800 text-white ${
+          className={`w-full bg-purple-700 hover:bg-purple-800 text-[var(--text)] ${
             compact ? 'py-2 text-xs' : 'py-2 text-sm'
           }`}
         >
@@ -740,17 +740,17 @@ export default function PulseChainStats({ compact = false }: PulseChainStatsProp
       {/* Response Display */}
       {currentRequest && (
         <div className="space-y-2">
-          <div className="rounded-lg border border-white/10 bg-black/50 backdrop-blur p-3">
+          <div className="rounded-lg border border-[var(--line)] bg-black/50 backdrop-blur p-3">
             <div className="flex items-center justify-between mb-2">
               <span className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>
                 {currentRequest.endpoint}
               </span>
-              <span className={`text-white/60 ${compact ? 'text-[10px]' : 'text-xs'}`}>
+              <span className={`text-[var(--text-muted)] ${compact ? 'text-[10px]' : 'text-xs'}`}>
                 {currentRequest.duration}ms
               </span>
             </div>
-            <div className="rounded bg-black/60 border border-gray-700 p-2 max-h-96 overflow-auto">
-              <pre className={`text-white/90 ${compact ? 'text-[10px]' : 'text-xs'} whitespace-pre-wrap break-words`}>
+            <div className="rounded bg-black/60 border border-[var(--line)] p-2 max-h-96 overflow-auto">
+              <pre className={`text-[var(--text)] ${compact ? 'text-[10px]' : 'text-xs'} whitespace-pre-wrap break-words`}>
                 {JSON.stringify(currentRequest.response, null, 2)}
               </pre>
             </div>
@@ -762,32 +762,32 @@ export default function PulseChainStats({ compact = false }: PulseChainStatsProp
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
         <DrawerTrigger asChild>
           <button
-            className={`w-full bg-black/60 backdrop-blur border border-gray-700 rounded px-3 text-white ${
+            className={`w-full bg-black/60 backdrop-blur border border-[var(--line)] rounded px-3 text-[var(--text)] ${
               compact ? 'py-1.5 text-xs' : 'py-2 text-sm'
             }`}
           >
             View Network Logs ({logs.length})
           </button>
         </DrawerTrigger>
-        <DrawerContent className="bg-black/50 backdrop-blur border-gray-700">
+        <DrawerContent className="bg-black/50 backdrop-blur border-[var(--line)]">
           <DrawerHeader>
-            <DrawerTitle className="text-white">Network Activity</DrawerTitle>
+            <DrawerTitle className="text-[var(--text)]">Network Activity</DrawerTitle>
           </DrawerHeader>
           <div className="p-4 max-h-[60vh] overflow-y-auto">
             {logs.length === 0 ? (
-              <p className="text-white/60 text-sm">No network activity yet</p>
+              <p className="text-[var(--text-muted)] text-sm">No network activity yet</p>
             ) : (
               <div className="space-y-2">
                 {logs.map((log) => (
                   <div
                     key={log.id}
-                    className="rounded-lg border border-white/10 bg-black/50 backdrop-blur p-2 text-white/80 space-y-1 break-words max-w-full"
+                    className="rounded-lg border border-[var(--line)] bg-black/50 backdrop-blur p-2 text-[var(--text)] space-y-1 break-words max-w-full"
                   >
                     <div className="flex items-center gap-2 flex-wrap">
                       <span
                         className={`px-2 py-0.5 rounded text-xs font-mono ${
                           log.status === 'success'
-                            ? 'bg-green-500/20 text-green-300'
+                            ? 'bg-green-500/20 text-[var(--up)]'
                             : log.status === 'error'
                             ? 'bg-red-500/20 text-red-300'
                             : 'bg-yellow-500/20 text-yellow-300'
@@ -796,10 +796,10 @@ export default function PulseChainStats({ compact = false }: PulseChainStatsProp
                         {log.method}
                       </span>
                       {log.statusCode && (
-                        <span className="text-xs text-white/60">{log.statusCode}</span>
+                        <span className="text-xs text-[var(--text-muted)]">{log.statusCode}</span>
                       )}
                       {log.durationMs !== undefined && (
-                        <span className="text-xs text-white/60">{log.durationMs.toFixed(0)}ms</span>
+                        <span className="text-xs text-[var(--text-muted)]">{log.durationMs.toFixed(0)}ms</span>
                       )}
                     </div>
                     <div className="text-xs font-mono break-all">{log.url}</div>

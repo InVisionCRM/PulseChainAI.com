@@ -213,16 +213,16 @@ export function WalletCard({ wallet }: Props) {
   };
 
   return (
-    <section className="rounded-2xl border border-white/15 bg-white/5 backdrop-blur-xl overflow-hidden">
-      <header className="flex flex-wrap items-center gap-3 p-4 border-b border-white/10">
+    <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl overflow-hidden">
+      <header className="flex flex-wrap items-center gap-3 p-4 border-b border-[var(--line)]">
         <button
           type="button"
           onClick={() => setExpanded((p) => !p)}
-          className="flex items-center gap-2 text-white"
+          className="flex items-center gap-2 text-[var(--text)]"
           aria-expanded={expanded}
         >
           <IconChevronDown
-            className={`h-4 w-4 text-white/60 transition-transform ${expanded ? '' : '-rotate-90'}`}
+            className={`h-4 w-4 text-[var(--text-muted)] transition-transform ${expanded ? '' : '-rotate-90'}`}
           />
           <span className="font-semibold">
             {wallet.label || truncate(wallet.address)}
@@ -230,18 +230,18 @@ export function WalletCard({ wallet }: Props) {
         </button>
 
         {wallet.label && (
-          <span className="text-xs text-white/50 font-mono">{truncate(wallet.address)}</span>
+          <span className="text-xs text-[var(--text-faint)] font-mono">{truncate(wallet.address)}</span>
         )}
 
         <button
           type="button"
           onClick={copyAddress}
-          className="text-white/50 hover:text-white"
+          className="text-[var(--text-faint)] hover:text-[var(--text)]"
           title="Copy address"
         >
           <IconCopy className="h-4 w-4" />
         </button>
-        {copied && <span className="text-xs text-green-300">Copied</span>}
+        {copied && <span className="text-xs text-[var(--up)]">Copied</span>}
 
         <div className="flex items-center gap-1">
           {wallet.chains.map((c) => {
@@ -255,7 +255,7 @@ export function WalletCard({ wallet }: Props) {
                 title={active ? `Hide ${CHAIN_NAME[c]} tokens` : `Show ${CHAIN_NAME[c]} tokens`}
                 className={`flex items-center justify-center h-7 w-7 rounded-md border transition-all ${
                   active
-                    ? 'border-white/10 bg-white/[0.08]'
+                    ? 'border-[var(--line)] bg-[var(--surface)]'
                     : 'border-transparent opacity-60 grayscale hover:opacity-90'
                 }`}
               >
@@ -271,8 +271,8 @@ export function WalletCard({ wallet }: Props) {
 
         <div className="ml-auto flex items-center gap-3">
           <div className="text-right">
-            <div className="text-xs text-white/50 uppercase tracking-wide">Total</div>
-            <div className="text-lg font-semibold text-white tabular-nums">
+            <div className="text-xs text-[var(--text-faint)] uppercase tracking-wide">Total</div>
+            <div className="text-lg font-semibold text-[var(--text)] tabular-nums">
               {fmtUsd(filteredTotalUsd)}
             </div>
             {totalsDiffer && (
@@ -288,7 +288,7 @@ export function WalletCard({ wallet }: Props) {
             href={`https://revoke.cash/address/${wallet.address}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-white/70 hover:text-amber-300"
+            className="text-[var(--text-muted)] hover:text-amber-300"
             title="Check & revoke token approvals on revoke.cash"
             aria-label="Revoke approvals on revoke.cash"
           >
@@ -297,7 +297,7 @@ export function WalletCard({ wallet }: Props) {
           <button
             type="button"
             onClick={() => openManageTokens(wallet.address)}
-            className="text-white/70 hover:text-white relative"
+            className="text-[var(--text-muted)] hover:text-[var(--text)] relative"
             title={
               hiddenForChain.length > 0
                 ? `Manage tokens (${hiddenForChain.length} hidden)`
@@ -322,7 +322,7 @@ export function WalletCard({ wallet }: Props) {
             type="button"
             onClick={refresh}
             disabled={isLoading}
-            className="text-white/70 hover:text-white disabled:opacity-40"
+            className="text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40"
             title="Refresh"
           >
             <IconRefresh
@@ -333,7 +333,7 @@ export function WalletCard({ wallet }: Props) {
           <button
             type="button"
             onClick={() => removeWallet(wallet.address)}
-            className="text-white/40 hover:text-red-400"
+            className="text-[var(--text-faint)] hover:text-red-400"
             title="Remove wallet"
           >
             <IconTrash className="h-5 w-5" />
@@ -345,12 +345,12 @@ export function WalletCard({ wallet }: Props) {
         <div className="p-4 space-y-3">
           {/* Tokens | Activity switch — Activity is the DeBank-style decoded
               transaction history; Tokens is the holdings table + approvals. */}
-          <div className="inline-flex rounded-lg border border-white/12 bg-white/5 p-0.5">
+          <div className="inline-flex rounded-lg border border-[var(--line)] bg-[var(--surface)] p-0.5">
             <button
               type="button"
               onClick={() => setView('tokens')}
               className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                view === 'tokens' ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white/80'
+                view === 'tokens' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
               }`}
             >
               Tokens
@@ -359,7 +359,7 @@ export function WalletCard({ wallet }: Props) {
               type="button"
               onClick={() => setView('activity')}
               className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                view === 'activity' ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white/80'
+                view === 'activity' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
               }`}
             >
               Activity
@@ -368,7 +368,7 @@ export function WalletCard({ wallet }: Props) {
               type="button"
               onClick={() => setView('connections')}
               className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                view === 'connections' ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white/80'
+                view === 'connections' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
               }`}
             >
               Connections
@@ -377,7 +377,7 @@ export function WalletCard({ wallet }: Props) {
               type="button"
               onClick={() => setView('funding')}
               className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                view === 'funding' ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white/80'
+                view === 'funding' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
               }`}
             >
               Funding
@@ -388,12 +388,12 @@ export function WalletCard({ wallet }: Props) {
             <ActivityFeed walletAddress={wallet.address} chains={wallet.chains} />
           ) : view === 'connections' ? (
             <div className="space-y-3">
-              <div className="inline-flex rounded-lg border border-white/12 bg-white/5 p-0.5">
+              <div className="inline-flex rounded-lg border border-[var(--line)] bg-[var(--surface)] p-0.5">
                 <button
                   type="button"
                   onClick={() => setConnView('list')}
                   className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                    connView === 'list' ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white/80'
+                    connView === 'list' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                   }`}
                 >
                   List
@@ -402,7 +402,7 @@ export function WalletCard({ wallet }: Props) {
                   type="button"
                   onClick={() => setConnView('graph')}
                   className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                    connView === 'graph' ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white/80'
+                    connView === 'graph' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                   }`}
                 >
                   Graph
@@ -468,13 +468,13 @@ export function WalletCard({ wallet }: Props) {
               {isLoading && tokens.length === 0 ? (
                 <SkeletonRows />
               ) : tokens.length === 0 ? (
-                <div className="text-sm text-white/50 text-center py-8">
+                <div className="text-sm text-[var(--text-faint)] text-center py-8">
                   {snapshot
                     ? 'No tokens found at this address.'
                     : 'Tap refresh to load this wallet.'}
                 </div>
               ) : filteredTokens.length === 0 ? (
-                <div className="text-sm text-white/50 text-center py-8">
+                <div className="text-sm text-[var(--text-faint)] text-center py-8">
                   No tokens visible — toggle a chain badge above to show them.
                 </div>
               ) : (
@@ -504,7 +504,7 @@ function SkeletonRows() {
       {Array.from({ length: 5 }).map((_, i) => (
         <div
           key={i}
-          className="h-10 rounded bg-white/5 animate-pulse"
+          className="h-10 rounded bg-[var(--surface)] animate-pulse"
         />
       ))}
     </div>
@@ -555,7 +555,7 @@ function TokenTable({
     <div className="overflow-x-auto -mx-1">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wide text-white/50 border-b border-white/10">
+          <tr className="text-left text-[11px] uppercase tracking-wide text-[var(--text-faint)] border-b border-[var(--line)]">
             <th className="font-semibold px-2 py-2 w-8 text-right">#</th>
             <th className="font-semibold px-2 py-2">{header('symbol', 'Token', 'left')}</th>
             <th className="font-semibold px-2 py-2 text-right">{header('balance', 'Balance', 'right')}</th>
@@ -600,15 +600,15 @@ function renderTokenRows(
     const rows: React.ReactNode[] = [
       <tr
         key={key}
-        className="border-b border-white/5 hover:bg-white/5 transition-colors"
+        className="border-b border-[var(--line-soft)] hover:bg-[var(--surface)] transition-colors"
       >
-        <td className="px-2 py-2 text-white/40 tabular-nums text-right">{i + 1}</td>
+        <td className="px-2 py-2 text-[var(--text-faint)] tabular-nums text-right">{i + 1}</td>
         <td className="px-2 py-2">
           <div className="flex items-center gap-2 min-w-0">
             <TokenIcon token={t} />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-white truncate">{t.symbol}</span>
+                <span className="font-semibold text-[var(--text)] truncate">{t.symbol}</span>
                 {t.isLp && (
                   <span className="text-[9px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-200 border border-cyan-500/40">
                     LP
@@ -619,30 +619,30 @@ function renderTokenRows(
                   onClick={() => onOpenInsights(t)}
                   aria-label={`Open insights for ${t.symbol}`}
                   title={`Insights — ${t.symbol}`}
-                  className="ml-auto inline-flex items-center justify-center h-6 w-6 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                  className="ml-auto inline-flex items-center justify-center h-6 w-6 rounded-md text-[var(--text-faint)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] transition-colors"
                 >
                   <IconChartHistogram className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <div className="text-xs text-white/50 truncate">{clampName(t.name)}</div>
+              <div className="text-xs text-[var(--text-faint)] truncate">{clampName(t.name)}</div>
             </div>
           </div>
         </td>
-        <td className="px-2 py-2 text-right text-white tabular-nums">
+        <td className="px-2 py-2 text-right text-[var(--text)] tabular-nums">
           {fmtAmount(t.balanceFormatted)}
         </td>
         <td className="px-2 py-2 text-right tabular-nums">
           {(() => {
             const v = t.priceChange24h;
-            if (v == null || !Number.isFinite(v)) return <span className="text-white/30">—</span>;
+            if (v == null || !Number.isFinite(v)) return <span className="text-[var(--text-faint)]">—</span>;
             return <span className={pctClass(v)}>{fmtPct(v)}</span>;
           })()}
         </td>
-        <td className="px-2 py-2 text-right text-white/80 tabular-nums">
-          {t.priceUsd != null ? fmtPrice(t.priceUsd) : <span className="text-white/30">—</span>}
+        <td className="px-2 py-2 text-right text-[var(--text)] tabular-nums">
+          {t.priceUsd != null ? fmtPrice(t.priceUsd) : <span className="text-[var(--text-faint)]">—</span>}
         </td>
-        <td className="px-2 py-2 text-right text-white font-semibold tabular-nums">
-          {t.valueUsd != null ? fmtUsd(t.valueUsd) : <span className="text-white/30">—</span>}
+        <td className="px-2 py-2 text-right text-[var(--text)] font-semibold tabular-nums">
+          {t.valueUsd != null ? fmtUsd(t.valueUsd) : <span className="text-[var(--text-faint)]">—</span>}
         </td>
       </tr>,
     ];
@@ -659,7 +659,7 @@ function renderTokenRows(
       }
       if (t.lp.totalLiquidityUsd != null) {
         rows.push(
-          <tr key={`${key}:meta`} className="border-b border-white/5 bg-cyan-500/5">
+          <tr key={`${key}:meta`} className="border-b border-[var(--line-soft)] bg-cyan-500/5">
             <td />
             <td colSpan={5} className="px-2 py-1.5 text-[11px] text-cyan-200/80">
               Pool TVL{' '}
@@ -709,11 +709,11 @@ function SectionHeaderRow({
           >
             {label}
           </span>
-          <span className="text-[10px] font-semibold text-white/30 tabular-nums">
+          <span className="text-[10px] font-semibold text-[var(--text-faint)] tabular-nums">
             {count}
           </span>
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-[11px] tabular-nums text-white/45">
+          <div className="flex-1 h-px bg-[var(--surface-2)]" />
+          <span className="text-[11px] tabular-nums text-[var(--text-faint)]">
             {fmtUsd(total)}
           </span>
         </div>
@@ -724,7 +724,7 @@ function SectionHeaderRow({
 
 function LpSideRow({ side, chain }: { side: LpUnderlying; chain: ChainId }) {
   return (
-    <tr className="border-b border-white/5 bg-cyan-500/5 hover:bg-cyan-500/10 transition-colors">
+    <tr className="border-b border-[var(--line-soft)] bg-cyan-500/5 hover:bg-cyan-500/10 transition-colors">
       <td />
       <td className="px-2 py-2 pl-6">
         <div className="flex items-center gap-2 min-w-0">
@@ -732,7 +732,7 @@ function LpSideRow({ side, chain }: { side: LpUnderlying; chain: ChainId }) {
           <SideIcon side={side} />
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="font-medium text-white truncate">{side.symbol}</span>
+              <span className="font-medium text-[var(--text)] truncate">{side.symbol}</span>
               <span
                 className="text-[10px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 border border-cyan-400/50"
                 style={{ color: '#cffafe' }}
@@ -740,19 +740,19 @@ function LpSideRow({ side, chain }: { side: LpUnderlying; chain: ChainId }) {
                 {side.weightPct.toFixed(1)}%
               </span>
             </div>
-            <div className="text-[11px] text-white/50 truncate">{clampName(side.name)}</div>
+            <div className="text-[11px] text-[var(--text-faint)] truncate">{clampName(side.name)}</div>
           </div>
         </div>
       </td>
-      <td className="px-2 py-2 text-right text-white/85 tabular-nums">
+      <td className="px-2 py-2 text-right text-[var(--text-muted)] tabular-nums">
         {fmtAmount(side.amountFormatted)}
       </td>
-      <td className="px-2 py-2 text-right text-white/30">—</td>
-      <td className="px-2 py-2 text-right text-white/75 tabular-nums">
-        {side.priceUsd != null ? fmtPrice(side.priceUsd) : <span className="text-white/30">—</span>}
+      <td className="px-2 py-2 text-right text-[var(--text-faint)]">—</td>
+      <td className="px-2 py-2 text-right text-[var(--text-muted)] tabular-nums">
+        {side.priceUsd != null ? fmtPrice(side.priceUsd) : <span className="text-[var(--text-faint)]">—</span>}
       </td>
-      <td className="px-2 py-2 text-right text-white tabular-nums">
-        {side.valueUsd != null ? fmtUsd(side.valueUsd) : <span className="text-white/30">—</span>}
+      <td className="px-2 py-2 text-right text-[var(--text)] tabular-nums">
+        {side.valueUsd != null ? fmtUsd(side.valueUsd) : <span className="text-[var(--text-faint)]">—</span>}
       </td>
     </tr>
   );
@@ -760,7 +760,7 @@ function LpSideRow({ side, chain }: { side: LpUnderlying; chain: ChainId }) {
 
 function SideIcon({ side }: { side: LpUnderlying }) {
   return (
-    <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center overflow-hidden shrink-0">
+    <div className="w-6 h-6 rounded-full bg-[var(--surface-2)] flex items-center justify-center overflow-hidden shrink-0">
       {side.logoURI ? (
         <img
           src={side.logoURI}
@@ -771,7 +771,7 @@ function SideIcon({ side }: { side: LpUnderlying }) {
           }}
         />
       ) : (
-        <span className="text-[9px] text-white font-semibold">
+        <span className="text-[9px] text-[var(--text)] font-semibold">
           {side.symbol.slice(0, 3).toUpperCase()}
         </span>
       )}
@@ -797,8 +797,8 @@ function SortButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-0.5 hover:text-white transition-colors ${
-        active ? 'text-white' : 'text-white/50'
+      className={`inline-flex items-center gap-0.5 hover:text-[var(--text)] transition-colors ${
+        active ? 'text-[var(--text)]' : 'text-[var(--text-faint)]'
       }`}
       style={{ width: align === 'right' ? 'auto' : undefined }}
     >
@@ -820,7 +820,7 @@ function SortButton({
 function TokenIcon({ token }: { token: PortfolioToken }) {
   return (
     <div className="relative w-8 h-8 shrink-0">
-      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+      <div className="w-8 h-8 rounded-full bg-[var(--surface-2)] flex items-center justify-center overflow-hidden">
         {token.logoURI ? (
           <img
             src={token.logoURI}
@@ -831,7 +831,7 @@ function TokenIcon({ token }: { token: PortfolioToken }) {
             }}
           />
         ) : (
-          <span className="text-[10px] text-white/60 font-semibold">
+          <span className="text-[10px] text-[var(--text-muted)] font-semibold">
             {token.symbol.slice(0, 3).toUpperCase()}
           </span>
         )}
@@ -850,7 +850,7 @@ function ChainBadge({ chain }: { chain: ChainId }) {
     <span
       title={CHAIN_NAME[chain]}
       className={`absolute -bottom-[3px] -right-[3px] h-3.5 w-3.5 rounded-full overflow-hidden flex items-center justify-center ring-2 ring-[#0e2747] ${
-        isEth ? 'bg-white' : 'bg-[#0b1f3a]'
+        isEth ? 'bg-white' : 'bg-[var(--surface-2)]'
       }`}
     >
       <img

@@ -1,5 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  // Theme is driven by the `.dark` class on <html> (toggled by ThemeToggle),
+  // not the OS preference — so `dark:` variants follow our toggle.
+  darkMode: 'class',
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',

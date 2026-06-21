@@ -20,7 +20,7 @@ export default function ResourcesTab() {
     },
     {
       title: 'UI Component Libraries',
-      icon: <IconBrandNextjs className="h-6 w-6 text-white" />,
+      icon: <IconBrandNextjs className="h-6 w-6 text-[var(--text)]" />,
       resources: [
         { name: 'shadcn/ui', url: 'https://ui.shadcn.com/', desc: 'Beautiful components built with Radix UI and Tailwind' },
         { name: 'Radix UI', url: 'https://www.radix-ui.com/', desc: 'Unstyled, accessible UI primitives' },
@@ -48,7 +48,7 @@ export default function ResourcesTab() {
     },
     {
       title: 'Development Tools & Utilities',
-      icon: <IconTerminal className="h-6 w-6 text-green-500" />,
+      icon: <IconTerminal className="h-6 w-6 text-[var(--up)]" />,
       resources: [
         { name: 'ESLint', url: 'https://eslint.org/', desc: 'JavaScript and TypeScript linting tool' },
         { name: 'Prettier', url: 'https://prettier.io/', desc: 'Opinionated code formatter' },
@@ -179,25 +179,25 @@ export default function ResourcesTab() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.3 }}
-      className="rounded-lg border border-white/10 bg-white/5 p-6"
+      className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6"
     >
       <h2 className="mb-6 text-2xl font-bold text-[#FA4616]">Comprehensive Resources</h2>
-      <p className="mb-6 text-white/70">
+      <p className="mb-6 text-[var(--text-muted)]">
         Curated collection of essential libraries, tools, documentation, and learning resources
         for modern web development and PulseChain DApp creation.
       </p>
 
       <div className="space-y-8">
         {resourceCategories.map((category, categoryIndex) => (
-          <div key={categoryIndex} className="rounded-lg border border-white/20 bg-white/5 p-6">
+          <div key={categoryIndex} className="rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] p-6">
             <div className="flex items-center gap-3 mb-4">
               {category.icon}
-              <h3 className="text-xl font-semibold text-white">{category.title}</h3>
+              <h3 className="text-xl font-semibold text-[var(--text)]">{category.title}</h3>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               {category.resources.map((resource, resourceIndex) => (
-                <div key={resourceIndex} className="bg-black/20 p-3 rounded-lg hover:bg-black/30 transition-colors">
+                <div key={resourceIndex} className="bg-[var(--surface)] p-3 rounded-lg hover:bg-[var(--surface-2)] transition-colors">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
                       <a
@@ -209,7 +209,7 @@ export default function ResourcesTab() {
                         {resource.name}
                         <IconExternalLink className="h-3 w-3" />
                       </a>
-                      <p className="text-xs text-white/70">{resource.desc}</p>
+                      <p className="text-xs text-[var(--text-muted)]">{resource.desc}</p>
                     </div>
                   </div>
                 </div>
@@ -220,12 +220,12 @@ export default function ResourcesTab() {
       </div>
 
       {/* Quick Start Templates */}
-      <div className="mt-8 rounded-lg border border-white/20 bg-white/5 p-6">
-        <h3 className="text-xl font-semibold text-white mb-4">Quick Start Templates</h3>
+      <div className="mt-8 rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] p-6">
+        <h3 className="text-xl font-semibold text-[var(--text)] mb-4">Quick Start Templates</h3>
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <h4 className="font-semibold text-[#FA4616] mb-3">Next.js Templates</h4>
-            <ul className="text-sm text-white/80 space-y-2">
+            <ul className="text-sm text-[var(--text)] space-y-2">
               <li>• <a href="https://github.com/vercel/next.js/tree/canary/examples" target="_blank" rel="noopener noreferrer" className="text-[#FA4616] hover:text-[#FA4616]/80">Official Next.js Examples</a></li>
               <li>• <a href="https://create.t3.gg/" target="_blank" rel="noopener noreferrer" className="text-[#FA4616] hover:text-[#FA4616]/80">T3 Stack (Next.js + TypeScript + tRPC)</a></li>
               <li>• <a href="https://nextjs.org/docs/api-reference/create-next-app" target="_blank" rel="noopener noreferrer" className="text-[#FA4616] hover:text-[#FA4616]/80">Create Next App</a></li>
@@ -234,7 +234,7 @@ export default function ResourcesTab() {
           </div>
           <div>
             <h4 className="font-semibold text-[#FA4616] mb-3">PulseChain DApp Templates</h4>
-            <ul className="text-sm text-white/80 space-y-2">
+            <ul className="text-sm text-[var(--text)] space-y-2">
               <li>• <a href="https://github.com/wagmi-dev/wagmi/tree/main/examples" target="_blank" rel="noopener noreferrer" className="text-[#FA4616] hover:text-[#FA4616]/80">wagmi Examples</a></li>
               <li>• <a href="https://github.com/solidity-templates" target="_blank" rel="noopener noreferrer" className="text-[#FA4616] hover:text-[#FA4616]/80">Solidity Templates</a></li>
               <li>• <a href="https://hardhat.org/guides/create-task.html" target="_blank" rel="noopener noreferrer" className="text-[#FA4616] hover:text-[#FA4616]/80">Hardhat Project Setup</a></li>

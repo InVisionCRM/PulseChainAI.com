@@ -30,6 +30,23 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
+
+    /* ===== App theme tokens — LIGHT (default when .dark is absent) =====
+       The whole app is painted through these so it flips with the .dark class.
+       Brand orange (#FA4616) is intentionally constant across themes. */
+    --app-bg: #e6eaf2;            /* light-gray page, so white cards pop */
+    --app-bg-2: #d8dfea;          /* secondary page background / gradients */
+    --panel: #ffffff;             /* solid cards / panels */
+    --surface: rgba(255, 255, 255, 0.62);  /* translucent WHITE card — lighter than the page (was white/5 on dark) */
+    --surface-2: rgba(255, 255, 255, 0.90); /* (was white/10) */
+    --surface-3: rgba(15, 23, 42, 0.07);   /* light-gray fill for strong/active states (was white/15–20) */
+    --line: rgba(15, 23, 42, 0.12);       /* borders (was white/10) */
+    --line-soft: rgba(15, 23, 42, 0.07);  /* (was white/5) */
+    --line-strong: rgba(15, 23, 42, 0.20);/* (was white/20) */
+    --text: #14233b;              /* primary text (was white) */
+    --text-muted: rgba(20, 35, 59, 0.66); /* secondary text (was white/60–70) */
+    --text-faint: rgba(20, 35, 59, 0.45); /* tertiary text (was white/40–50) */
+    --up: #15803d;                /* positive / "up" green — dark for light bg */
   }
 
   .dark {
@@ -52,6 +69,21 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+
+    /* ===== App theme tokens — DARK (= the app's existing colors, unchanged) ===== */
+    --app-bg: #06182e;
+    --app-bg-2: #0a2440;
+    --panel: #0C2340;
+    --surface: rgba(255, 255, 255, 0.05);
+    --surface-2: rgba(255, 255, 255, 0.10);
+    --surface-3: rgba(255, 255, 255, 0.16);
+    --line: rgba(255, 255, 255, 0.10);
+    --line-soft: rgba(255, 255, 255, 0.06);
+    --line-strong: rgba(255, 255, 255, 0.20);
+    --text: #ffffff;
+    --text-muted: rgba(255, 255, 255, 0.70);
+    --text-faint: rgba(255, 255, 255, 0.45);
+    --up: #4ade80;                /* positive / "up" green — bright for dark bg */
   }
 }
 
@@ -85,7 +117,18 @@ body {
   will-change: scroll-position;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #06182e;
+  background-color: var(--app-bg);
+  color: var(--text);
+}
+
+/* The theme flip is applied in a single repaint (the pull-chain animation is the
+   visible transition). While the `.dark` class is toggled we suppress every
+   transition so the swap lands instantly instead of a janky, uneven fade. */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
 }
 
 /* Brand color utilities */

@@ -16,7 +16,7 @@ const COLORS = ['#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'
 export function StatChart({ type, data, dataKey = 'value', xAxisKey = 'name', color = '#3b82f6', title }: StatChartProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="h-48 flex items-center justify-center text-slate-500">
+      <div className="h-48 flex items-center justify-center text-[var(--text-muted)]">
         No data available
       </div>
     );
@@ -31,7 +31,7 @@ export function StatChart({ type, data, dataKey = 'value', xAxisKey = 'name', co
     case 'line':
       return (
         <div className="w-full">
-          {title && <h4 className="text-sm font-medium text-white mb-2">{title}</h4>}
+          {title && <h4 className="text-sm font-medium text-[var(--text)] mb-2">{title}</h4>}
           <ResponsiveContainer {...containerProps}>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -67,7 +67,7 @@ export function StatChart({ type, data, dataKey = 'value', xAxisKey = 'name', co
     case 'bar':
       return (
         <div className="w-full">
-          {title && <h4 className="text-sm font-medium text-white mb-2">{title}</h4>}
+          {title && <h4 className="text-sm font-medium text-[var(--text)] mb-2">{title}</h4>}
           <ResponsiveContainer {...containerProps}>
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -101,7 +101,7 @@ export function StatChart({ type, data, dataKey = 'value', xAxisKey = 'name', co
     case 'pie':
       return (
         <div className="w-full">
-          {title && <h4 className="text-sm font-medium text-white mb-2">{title}</h4>}
+          {title && <h4 className="text-sm font-medium text-[var(--text)] mb-2">{title}</h4>}
           <ResponsiveContainer {...containerProps}>
             <PieChart>
               <Pie

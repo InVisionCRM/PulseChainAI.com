@@ -15,7 +15,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
   const combinedActiveStakes = stakingData?.combined?.totalActiveStakes || 0;
   
   return (
-    <div className="border-b border-white/10 mb-2 sm:mb-4">
+    <div className="border-b border-[var(--line)] mb-2 sm:mb-4">
       <nav className="-mb-px flex flex-wrap gap-2 sm:gap-4 md:gap-8">
         <button
           onClick={() => {
@@ -25,7 +25,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
           className={`py-1.5 sm:py-2 px-2 sm:px-3 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
             activeTab === 'pulsechain'
               ? 'border-blue-500 text-blue-400'
-              : 'border-transparent text-slate-400 hover:text-slate-300'
+              : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-muted)]'
           }`}
         >
           <span className="hidden sm:inline">Overview</span>
@@ -39,7 +39,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
           className={`py-1.5 sm:py-2 px-2 sm:px-3 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
             activeTab === 'ethereum'
               ? 'border-blue-500 text-blue-400'
-              : 'border-transparent text-slate-400 hover:text-slate-300'
+              : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-muted)]'
           }`}
         >
           <span className="hidden sm:inline">New</span>
@@ -55,8 +55,8 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
           }}
           className={`py-1.5 sm:py-2 px-2 sm:px-3 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 whitespace-nowrap ${
             activeTab === 'staking'
-              ? 'border-green-500 text-green-400'
-              : 'border-transparent text-slate-400 hover:text-slate-300'
+              ? 'border-green-500 text-[var(--up)]'
+              : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-muted)]'
           }`}
         >
           <Lock className="w-3 h-3 sm:w-4 sm:h-4" />

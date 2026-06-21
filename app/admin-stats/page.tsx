@@ -1446,42 +1446,42 @@ export default function AdminStatsPage(): JSX.Element {
   }, [selectedStat, runOneStat]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
+    <div className="min-h-screen bg-[var(--app-bg)] text-[var(--text)] p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
           <h1 className="text-3xl font-bold">API Endpoints</h1>
-          <p className="text-slate-400 mt-1">PulseChain API Endpoint Library</p>
+          <p className="text-[var(--text-muted)] mt-1">PulseChain API Endpoint Library</p>
         </div>
         <div className="flex justify-center">
           <RichardHeartChatCard variant="compact" className="w-full max-w-xs" />
         </div>
         
         {/* Token Address Search */}
-        <div className="bg-slate-900/70 border border-slate-800/30 rounded-xl p-4 space-y-3 bg-cover bg-center relative" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
-          <label htmlFor="token" className="text-sm text-slate-300">Token Address or Ticker</label>
+        <div className="bg-[var(--panel)] border border-[var(--line)] rounded-xl p-4 space-y-3 bg-cover bg-center relative" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+          <label htmlFor="token" className="text-sm text-[var(--text-muted)]">Token Address or Ticker</label>
           <div className="relative flex items-center gap-2">
             <input
               id="token"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700/30 rounded-lg px-3 py-2 text-sm"
+              className="w-full bg-[var(--panel)] border border-[var(--line)] rounded-lg px-3 py-2 text-sm"
               placeholder="Search by address, ticker, or name..."
             />
             <button
               type="button"
               title="Load token"
               onClick={() => handleLoadNewToken(searchInput)}
-              className="shrink-0 px-3 py-2 rounded-md bg-orange-600 hover:bg-orange-700 text-white text-sm"
+              className="shrink-0 px-3 py-2 rounded-md bg-orange-600 hover:bg-orange-700 text-[var(--text)] text-sm"
             >
               Load
             </button>
-            {isSearching && <div className="absolute top-full mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-400">Searching...</div>}
+            {isSearching && <div className="absolute top-full mt-1 w-full bg-[var(--panel)] border border-[var(--line)] rounded-lg p-2 text-sm text-[var(--text-muted)]">Searching...</div>}
             {searchResults.length > 0 && (
-              <div className="absolute top-full mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg z-10">
+              <div className="absolute top-full mt-1 w-full bg-[var(--panel)] border border-[var(--line)] rounded-lg z-10">
                 {searchResults.map(item => (
                   <div 
                     key={item.address}
-                    className="p-2 hover:bg-slate-700 cursor-pointer text-sm"
+                    className="p-2 hover:bg-[var(--surface-2)] cursor-pointer text-sm"
                     onClick={() => handleLoadNewToken(item.address)}
                   >
                     {item.name} ({item.symbol})
@@ -1493,23 +1493,23 @@ export default function AdminStatsPage(): JSX.Element {
         </div>
 
         {/* Stat Selector and Test Section */}
-        <div className="bg-slate-900/70 border border-orange-500/30 rounded-xl p-4 bg-cover bg-center relative" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
-          <h2 className="font-semibold text-lg text-white mb-4">Test API Endpoint</h2>
+        <div className="bg-[var(--panel)] border border-orange-500/30 rounded-xl p-4 bg-cover bg-center relative" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
+          <h2 className="font-semibold text-lg text-[var(--text)] mb-4">Test API Endpoint</h2>
           
           {/* Desktop Selector */}
           <div className="mb-6 hidden md:flex flex-col gap-4" aria-label="Stat selector">
             <div>
-              <span className="mb-2 block text-sm text-slate-300">Stat Category</span>
+              <span className="mb-2 block text-sm text-[var(--text-muted)]">Stat Category</span>
               <Tabs value={activeCategory} onValueChange={handleCategorySelect} className="w-full">
                 <TabsList
                   aria-label="Stat categories"
-                  className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-slate-800/60 bg-slate-900/70 p-1 text-slate-300"
+                  className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-1 text-[var(--text-muted)]"
                 >
                   {statCategories.map(category => (
                     <TabsTrigger
                       key={category.title}
                       value={category.title}
-                      className="rounded-md border border-transparent px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 data-[state=active]:border-orange-500 data-[state=active]:bg-orange-600 data-[state=active]:text-white"
+                      className="rounded-md border border-transparent px-3 py-1.5 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[var(--panel)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 data-[state=active]:border-orange-500 data-[state=active]:bg-orange-600 data-[state=active]:text-[var(--text)]"
                     >
                       {category.title}
                     </TabsTrigger>
@@ -1519,8 +1519,8 @@ export default function AdminStatsPage(): JSX.Element {
             </div>
 
             <div>
-              <span className="mb-2 block text-sm text-slate-300">Available Stats</span>
-              <div className="relative overflow-hidden rounded-lg border border-slate-800/60 bg-slate-900/60">
+              <span className="mb-2 block text-sm text-[var(--text-muted)]">Available Stats</span>
+              <div className="relative overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--panel)]">
                 <div className="flex w-full overflow-x-auto">
                   <div className="flex w-max items-center gap-2 p-3">
                     {activeStats.map(stat => {
@@ -1532,8 +1532,8 @@ export default function AdminStatsPage(): JSX.Element {
                           onClick={() => setSelectedStat(stat.id)}
                           className={`flex-shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                             isActive
-                              ? 'border-orange-500 bg-orange-600 text-white'
-                              : 'border-slate-700/50 bg-slate-800 text-slate-200 hover:bg-slate-700/80'
+                              ? 'border-orange-500 bg-orange-600 text-[var(--text)]'
+                              : 'border-[var(--line)] bg-[var(--panel)] text-[var(--text)] hover:bg-[var(--surface-2)]'
                           }`}
                           aria-pressed={isActive}
                         >
@@ -1542,16 +1542,16 @@ export default function AdminStatsPage(): JSX.Element {
                       );
                     })}
                     {activeStats.length === 0 && (
-                      <span className="text-sm text-slate-400">No stats available in this category.</span>
+                      <span className="text-sm text-[var(--text-muted)]">No stats available in this category.</span>
                     )}
                   </div>
                 </div>
-                <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-16 bg-gradient-to-l from-slate-900/90 to-transparent md:block" aria-hidden="true" />
+                <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-16 bg-gradient-to-l from-[var(--panel)] to-transparent md:block" aria-hidden="true" />
               </div>
             </div>
 
             {selectedStatMeta?.description && (
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[var(--text-muted)]">
                 {selectedStatMeta.description}
               </p>
             )}
@@ -1559,27 +1559,27 @@ export default function AdminStatsPage(): JSX.Element {
 
           {/* Mobile Drawer */}
           <div className="mb-4 md:hidden">
-            <label className="text-sm text-slate-300 mb-2 block">Select Stat</label>
+            <label className="text-sm text-[var(--text-muted)] mb-2 block">Select Stat</label>
             <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
               <DrawerTrigger asChild>
-                <button className="w-full bg-slate-800 border border-slate-700/30 rounded-lg px-3 py-2 text-sm text-left">
+                <button className="w-full bg-[var(--panel)] border border-[var(--line)] rounded-lg px-3 py-2 text-sm text-left">
                   {selectedStat 
                     ? selectedStatMeta?.label 
                     : 'Select a stat...'}
                 </button>
               </DrawerTrigger>
-              <DrawerContent className="bg-slate-900 border-slate-700">
+              <DrawerContent className="bg-[var(--panel)] border-[var(--line)]">
                 <DrawerHeader>
-                  <DrawerTitle className="text-white">Select Stat</DrawerTitle>
+                  <DrawerTitle className="text-[var(--text)]">Select Stat</DrawerTitle>
                 </DrawerHeader>
                 <div className="relative">
                   <div className="max-h-[60vh] overflow-y-auto px-4 pb-32">
                     {statCategories.map(category => (
                       <div key={category.title} className="mb-4">
-                        <div className="bg-slate-800/60 text-white text-lg font-semibold px-3 py-2 rounded-t-lg">
+                        <div className="bg-[var(--panel)] text-[var(--text)] text-lg font-semibold px-3 py-2 rounded-t-lg">
                           {category.title}
                         </div>
-                        <div className="bg-slate-800 rounded-b-lg">
+                        <div className="bg-[var(--panel)] rounded-b-lg">
                           {category.stats.map(stat => (
                             <button
                               key={stat.id}
@@ -1587,13 +1587,13 @@ export default function AdminStatsPage(): JSX.Element {
                                 setSelectedStat(stat.id);
                                 setDrawerOpen(false);
                               }}
-                              className={`w-full text-left px-3 py-2 text-md border-b border-slate-700 last:border-b-0 hover:bg-slate-700 transition-colors ${
-                                selectedStat === stat.id ? 'bg-slate-700 text-white' : 'text-slate-400'
+                              className={`w-full text-left px-3 py-2 text-md border-b border-[var(--line)] last:border-b-0 hover:bg-[var(--surface-2)] transition-colors ${
+                                selectedStat === stat.id ? 'bg-[var(--surface-2)] text-[var(--text)]' : 'text-[var(--text-muted)]'
                               }`}
                             >
                               <div>{stat.label}</div>
                               {stat.description && (
-                                <div className="text-sm text-slate-500 mt-0.5">{stat.description}</div>
+                                <div className="text-sm text-[var(--text-muted)] mt-0.5">{stat.description}</div>
                               )}
                             </button>
                           ))}
@@ -1608,7 +1608,7 @@ export default function AdminStatsPage(): JSX.Element {
           </div>
 
           {selectedStatMeta?.description && (
-            <p className="text-xs text-slate-400 md:hidden">
+            <p className="text-xs text-[var(--text-muted)] md:hidden">
               {selectedStatMeta.description}
             </p>
           )}
@@ -1624,13 +1624,13 @@ export default function AdminStatsPage(): JSX.Element {
 
           {/* Current Request Details */}
           {currentRequest && (
-            <div className="mt-6 pt-6 border-t border-slate-700">
+            <div className="mt-6 pt-6 border-t border-[var(--line)]">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-white">Request Details</h3>
+                <h3 className="font-semibold text-[var(--text)]">Request Details</h3>
                 <button
                   onClick={clearCurrentRequest}
                   title="Clear request display"
-                  className="text-xs px-3 py-1 bg-red-800 hover:bg-red-700 rounded text-white"
+                  className="text-xs px-3 py-1 bg-red-800 hover:bg-red-700 rounded text-[var(--text)]"
                 >
                   Clear
                 </button>
@@ -1640,22 +1640,22 @@ export default function AdminStatsPage(): JSX.Element {
                 {/* Request Info */}
                 <div className="space-y-3">
                   <div>
-                    <div className="text-sm text-slate-400 mb-1">Stat ID</div>
-                    <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded">
+                    <div className="text-sm text-[var(--text-muted)] mb-1">Stat ID</div>
+                    <div className="text-[var(--text)] font-mono text-sm bg-[var(--panel)] px-2 py-1 rounded">
                       {currentRequest.statId}
                     </div>
                   </div>
                   
                   <div>
-                    <div className="text-sm text-slate-400 mb-1">Endpoint</div>
+                    <div className="text-sm text-[var(--text-muted)] mb-1">Endpoint</div>
                     <div className="flex items-start gap-2">
-                      <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded flex-1 break-all">
+                      <div className="text-[var(--text)] font-mono text-sm bg-[var(--panel)] px-2 py-1 rounded flex-1 break-all">
                         {currentRequest.endpoint}
                       </div>
                       {currentRequest.apiCalls && currentRequest.apiCalls.length > 0 && (
                         <button
                           onClick={() => setShowAllEndpoints(!showAllEndpoints)}
-                          className="text-xs px-2 py-1 bg-slate-950 hover:bg-slate-950 rounded whitespace-nowrap"
+                          className="text-xs px-2 py-1 bg-[var(--app-bg)] hover:bg-[var(--app-bg)] rounded whitespace-nowrap"
                         >
                           {showAllEndpoints ? 'Hide All' : 'Show All'}
                         </button>
@@ -1673,17 +1673,17 @@ export default function AdminStatsPage(): JSX.Element {
                   {/* API Calls List */}
                   {showAllEndpoints && currentRequest.apiCalls && currentRequest.apiCalls.length > 0 && (
                     <div>
-                      <div className="text-sm text-slate-400 mb-2">API Calls ({currentRequest.apiCalls.length})</div>
+                      <div className="text-sm text-[var(--text-muted)] mb-2">API Calls ({currentRequest.apiCalls.length})</div>
                       <div className="space-y-2">
                         {currentRequest.apiCalls.map((call, index) => (
-                          <div key={index} className="bg-slate-800 p-3 rounded border border-slate-700">
+                          <div key={index} className="bg-[var(--panel)] p-3 rounded border border-[var(--line)]">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-xs font-semibold text-orange-400">{call.method}</span>
-                              <span className="text-xs text-slate-500">Call {index + 1}</span>
+                              <span className="text-xs text-[var(--text-muted)]">Call {index + 1}</span>
                             </div>
-                            <div className="text-xs text-slate-300 mb-1">{call.description}</div>
+                            <div className="text-xs text-[var(--text-muted)] mb-1">{call.description}</div>
                             <div className="flex items-start gap-2">
-                              <div className="text-xs font-mono text-slate-400 bg-slate-900 px-2 py-1 rounded flex-1 break-all">
+                              <div className="text-xs font-mono text-[var(--text-muted)] bg-[var(--panel)] px-2 py-1 rounded flex-1 break-all">
                                 {call.endpoint}
                               </div>
                               <button
@@ -1702,33 +1702,33 @@ export default function AdminStatsPage(): JSX.Element {
                   
                   {/* Response */}
                   <div>
-                    <div className="text-sm text-slate-400 mb-1">Response</div>
+                    <div className="text-sm text-[var(--text-muted)] mb-1">Response</div>
                     <BackgroundGradient
                       containerClassName="rounded-lg"
                       className="rounded-lg"
                       gradientClassName="bg-[radial-gradient(circle_farthest-side_at_0_100%,#1d4ed8,transparent),radial-gradient(circle_farthest-side_at_100%_0,#FA4616,transparent),radial-gradient(circle_farthest-side_at_100%_100%,#ffffff33,transparent),radial-gradient(circle_farthest-side_at_0_0,#ffffff22,#0C2340)]"
                     >
-                      <div className="text-white font-mono text-sm bg-slate-800 px-2 py-3 rounded-lg max-h-96 overflow-y-auto">
+                      <div className="text-[var(--text)] font-mono text-sm bg-[var(--panel)] px-2 py-3 rounded-lg max-h-96 overflow-y-auto">
                         {busyStat ? (
-                          <div className="space-y-2 text-xs text-slate-200 py-2">
-                            <p className="font-semibold text-white">Network activity</p>
+                          <div className="space-y-2 text-xs text-[var(--text)] py-2">
+                            <p className="font-semibold text-[var(--text)]">Network activity</p>
                             {currentRequest?.apiCalls && currentRequest.apiCalls.length > 0 ? (
                               <div className="space-y-2">
                                 {currentRequest.apiCalls.map((call, index) => (
-                                  <div key={`${call.endpoint}-${index}`} className="border border-slate-700 rounded-lg p-2 bg-slate-900/60">
+                                  <div key={`${call.endpoint}-${index}`} className="border border-[var(--line)] rounded-lg p-2 bg-[var(--panel)]">
                                     <div className="flex items-center gap-2 mb-1">
                                       <span className="text-orange-400 font-semibold">{call.method}</span>
-                                      <span className="text-slate-500 text-[11px]">Call {index + 1}</span>
+                                      <span className="text-[var(--text-muted)] text-[11px]">Call {index + 1}</span>
                                     </div>
-                                    <div className="text-slate-300 text-[11px] mb-1 truncate">{call.endpoint}</div>
+                                    <div className="text-[var(--text-muted)] text-[11px] mb-1 truncate">{call.endpoint}</div>
                                     {call.description && (
-                                      <div className="text-slate-400 text-[11px]">{call.description}</div>
+                                      <div className="text-[var(--text-muted)] text-[11px]">{call.description}</div>
                                     )}
                                   </div>
                                 ))}
                               </div>
                             ) : (
-                              <p className="text-slate-400">Waiting for network response…</p>
+                              <p className="text-[var(--text-muted)]">Waiting for network response…</p>
                             )}
                           </div>
                         ) : (
@@ -1744,8 +1744,8 @@ export default function AdminStatsPage(): JSX.Element {
                 {/* Parameters */}
                 <div className="space-y-3">
                   <div>
-                    <div className="text-sm text-slate-400 mb-1">Parameters</div>
-                    <div className="text-white font-mono text-sm bg-slate-800 px-2 py-1 rounded">
+                    <div className="text-sm text-[var(--text-muted)] mb-1">Parameters</div>
+                    <div className="text-[var(--text)] font-mono text-sm bg-[var(--panel)] px-2 py-1 rounded">
                       <pre className="whitespace-pre-wrap text-xs">
                         {JSON.stringify(currentRequest.params, null, 2)}
                       </pre>

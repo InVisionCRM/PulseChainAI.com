@@ -299,7 +299,7 @@ const HexDashboardAIAgent: React.FC<HexDashboardAIAgentProps> = React.memo(({
                   onClick={() => setNetwork(net)}
                   className={`px-2 py-1 text-xs rounded border transition-colors ${
                     network === net
-                      ? 'bg-black text-white border-black'
+                      ? 'bg-black text-[var(--text)] border-black'
                       : 'bg-white text-black border-gray-300 hover:border-gray-400'
                   }`}
                   disabled={isLoadingChat}
@@ -317,7 +317,7 @@ const HexDashboardAIAgent: React.FC<HexDashboardAIAgentProps> = React.memo(({
             className="flex-1 border border-gray-200 rounded p-2 mb-3 overflow-y-auto bg-gray-50 min-h-[300px] max-h-[400px]"
           >
         {messages.length === 0 && !isStreaming && (
-          <div className="text-center text-gray-500 mt-8">
+          <div className="text-center text-[var(--text-muted)] mt-8">
             <p className="text-sm">Ask me anything about HEX!</p>
           </div>
         )}
@@ -330,7 +330,7 @@ const HexDashboardAIAgent: React.FC<HexDashboardAIAgentProps> = React.memo(({
             <div
               className={`max-w-[90%] px-2 py-1 rounded text-xs ${
                 message.sender === 'user'
-                  ? 'bg-black text-white'
+                  ? 'bg-black text-[var(--text)]'
                   : 'bg-white text-black border border-gray-300'
               }`}
             >
@@ -379,7 +379,7 @@ const HexDashboardAIAgent: React.FC<HexDashboardAIAgentProps> = React.memo(({
                       sendMessage(lastUserMessage.text);
                     }
                   }}
-                  className="px-2 py-0.5 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                  className="px-2 py-0.5 bg-red-600 text-[var(--text)] text-xs rounded hover:bg-red-700 transition-colors"
                 >
                   Retry
                 </button>
@@ -403,13 +403,13 @@ const HexDashboardAIAgent: React.FC<HexDashboardAIAgentProps> = React.memo(({
                 }}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask about HEX staking, market analysis..."
-                className="w-full px-2 py-1 text-xs bg-white border border-gray-300 rounded resize-none focus:outline-none focus:ring-1 focus:ring-gray-400 text-black placeholder-gray-500 disabled:bg-gray-100 disabled:text-gray-500"
+                className="w-full px-2 py-1 text-xs bg-white border border-gray-300 rounded resize-none focus:outline-none focus:ring-1 focus:ring-gray-400 text-black placeholder-gray-500 disabled:bg-gray-100 disabled:text-[var(--text-muted)]"
                 rows={2}
                 disabled={isLoadingChat}
                 maxLength={2000}
               />
               {chatInput.length > 1800 && (
-                <div className="absolute bottom-1 right-2 text-xs text-gray-400">
+                <div className="absolute bottom-1 right-2 text-xs text-[var(--text-muted)]">
                   {chatInput.length}/2000
                 </div>
               )}
@@ -417,7 +417,7 @@ const HexDashboardAIAgent: React.FC<HexDashboardAIAgentProps> = React.memo(({
             <button
               onClick={handleSendMessage}
               disabled={!chatInput.trim() || isLoadingChat || chatInput.length > 2000}
-              className="px-3 py-1 bg-black text-white text-xs rounded border border-black hover:bg-gray-800 disabled:bg-gray-300 disabled:text-gray-500 disabled:border-gray-300 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+              className="px-3 py-1 bg-black text-[var(--text)] text-xs rounded border border-black hover:bg-[var(--panel)] disabled:bg-gray-300 disabled:text-[var(--text-muted)] disabled:border-gray-300 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
               title={chatInput.length > 2000 ? 'Message too long' : 'Send message'}
             >
               Send
@@ -425,7 +425,7 @@ const HexDashboardAIAgent: React.FC<HexDashboardAIAgentProps> = React.memo(({
           </div>
 
           {/* Data status indicator */}
-          <div className="mt-2 text-xs text-gray-500">
+          <div className="mt-2 text-xs text-[var(--text-muted)]">
             {ethereumStakingMetrics && pulsechainStakingMetrics ? (
               <span>✓ Connected to Ethereum & PulseChain data</span>
             ) : ethereumStakingMetrics ? (

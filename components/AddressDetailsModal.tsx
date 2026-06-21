@@ -69,15 +69,15 @@ const TransferItem: React.FC<TransferItemProps> = ({
     // User received tokens
     if (fromIsContract) {
       actionType = '📈 BUY';
-      actionColor = 'bg-green-600/20 border-green-500/30 text-green-300';
+      actionColor = 'bg-green-600/20 border-green-500/30 text-[var(--up)]';
     } else {
       actionType = '📥 RECEIVED';
-      actionColor = 'bg-slate-950/20 border-blue-500/30 text-blue-300';
+      actionColor = 'bg-[var(--app-bg)] border-blue-500/30 text-blue-300';
     }
   } else {
     // Neither sent nor received (shouldn't happen, but fallback)
     actionType = '🔄 TRANSFER';
-    actionColor = 'bg-gray-600/20 border-gray-500/30 text-gray-300';
+    actionColor = 'bg-[var(--surface-2)] border-[var(--line)] text-[var(--text-muted)]';
   }
 
   // Determine the counterparty and token used
@@ -86,18 +86,18 @@ const TransferItem: React.FC<TransferItemProps> = ({
   const actionVerb = isSent ? (toIsContract ? 'sold' : 'sent') : (fromIsContract ? 'bought' : 'received');
 
   return (
-    <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg overflow-hidden hover:bg-slate-800/50 transition-colors">
+    <div className="bg-[var(--panel)] border border-[var(--line)] rounded-lg overflow-hidden hover:bg-[var(--panel)] transition-colors">
       {/* Collapsed View */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-4 text-left hover:bg-slate-700/30 transition-colors cursor-pointer"
+        className="w-full p-4 text-left hover:bg-[var(--surface-2)] transition-colors cursor-pointer"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-1">
             <span className={`px-2 py-1 border rounded text-xs font-medium ${actionColor}`}>
               {actionType}
             </span>
-            <span className="text-sm text-white">
+            <span className="text-sm text-[var(--text)]">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -114,11 +114,11 @@ const TransferItem: React.FC<TransferItemProps> = ({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 whitespace-nowrap">
+            <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">
               {formatTime(transfer.timestamp)}
             </span>
             <svg
-              className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+              className={`w-4 h-4 text-[var(--text-muted)] transition-transform ${isExpanded ? 'rotate-180' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -131,20 +131,20 @@ const TransferItem: React.FC<TransferItemProps> = ({
 
       {/* Expanded View */}
       {isExpanded && (
-        <div className="px-4 pb-4 space-y-3 border-t border-slate-700/50">
+        <div className="px-4 pb-4 space-y-3 border-t border-[var(--line)]">
           <div className="flex items-center gap-2 flex-wrap pt-3">
-            <span className="text-lg font-bold text-white">
+            <span className="text-lg font-bold text-[var(--text)]">
               {formatAmount(transfer.total?.value || transfer.value || '0')} {tokenSymbol}
             </span>
             {transfer.method && (
-              <span className="px-2 py-1 bg-slate-950/20 border border-blue-500/30 rounded text-xs text-blue-300 font-medium">
+              <span className="px-2 py-1 bg-[var(--app-bg)] border border-blue-500/30 rounded text-xs text-blue-300 font-medium">
                 {transfer.method}
               </span>
             )}
           </div>
           <div className="space-y-1 text-sm">
-            <div className="flex items-center gap-2 text-slate-400">
-              <span className="text-slate-500 w-12">From:</span>
+            <div className="flex items-center gap-2 text-[var(--text-muted)]">
+              <span className="text-[var(--text-muted)] w-12">From:</span>
               <button
                 onClick={() => openInExplorer(`address/${fromAddress}`)}
                 className="font-mono text-blue-400 hover:text-blue-300 transition-colors underline"
@@ -164,13 +164,13 @@ const TransferItem: React.FC<TransferItemProps> = ({
                 <span className="text-blue-400 font-medium">(You)</span>
               )}
               {fromIsContract && !isSent && (
-                <span className="px-1.5 py-0.5 bg-slate-950/20 border border-blue-500/30 rounded text-xs text-blue-300">
+                <span className="px-1.5 py-0.5 bg-[var(--app-bg)] border border-blue-500/30 rounded text-xs text-blue-300">
                   Contract
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 text-slate-400">
-              <span className="text-slate-500 w-12">To:</span>
+            <div className="flex items-center gap-2 text-[var(--text-muted)]">
+              <span className="text-[var(--text-muted)] w-12">To:</span>
               <button
                 onClick={() => openInExplorer(`address/${toAddress}`)}
                 className="font-mono text-blue-400 hover:text-blue-300 transition-colors underline"
@@ -190,14 +190,14 @@ const TransferItem: React.FC<TransferItemProps> = ({
                 <span className="text-blue-400 font-medium">(You)</span>
               )}
               {toIsContract && !isReceived && (
-                <span className="px-1.5 py-0.5 bg-slate-950/20 border border-blue-500/30 rounded text-xs text-blue-300">
+                <span className="px-1.5 py-0.5 bg-[var(--app-bg)] border border-blue-500/30 rounded text-xs text-blue-300">
                   Contract
                 </span>
               )}
             </div>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-slate-400">
-                <span className="text-slate-500 w-12">Tx:</span>
+              <div className="flex items-center gap-2 text-[var(--text-muted)]">
+                <span className="text-[var(--text-muted)] w-12">Tx:</span>
                 <button
                   onClick={() => openInExplorer(`tx/${transfer.tx_hash || transfer.transaction_hash}`)}
                   className="font-mono text-blue-400 hover:text-blue-300 transition-colors"
@@ -209,7 +209,7 @@ const TransferItem: React.FC<TransferItemProps> = ({
                     e.stopPropagation();
                     copyToClipboard(transfer.tx_hash || transfer.transaction_hash);
                   }}
-                  className="p-1 hover:bg-slate-700/50 rounded transition-colors"
+                  className="p-1 hover:bg-[var(--surface-2)] rounded transition-colors"
                   title="Copy transaction hash"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -406,7 +406,7 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-[var(--app-bg)] backdrop-blur-sm z-50 flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -414,33 +414,33 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
           animate={{ scale: 1, y: 0 }}
           exit={{ scale: 0.9, y: 20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden"
+          className="bg-[var(--panel)] border border-[var(--line)] rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-slate-950/20 to-pink-600/20 border-b border-slate-700/50 p-6">
+          <div className="bg-gradient-to-r from-[var(--app-bg)] to-pink-600/20 border-b border-[var(--line)] p-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <h2 className="text-2xl font-bold text-white">Address Details</h2>
+                  <h2 className="text-2xl font-bold text-[var(--text)]">Address Details</h2>
                   {addressInfo?.is_contract && (
-                    <span className="px-3 py-1 bg-slate-950/20 border border-blue-500/30 rounded-full text-xs text-blue-300 font-medium">
+                    <span className="px-3 py-1 bg-[var(--app-bg)] border border-blue-500/30 rounded-full text-xs text-blue-300 font-medium">
                       📄 Contract
                     </span>
                   )}
                   {addressInfo?.is_verified && (
-                    <span className="px-3 py-1 bg-green-600/20 border border-green-500/30 rounded-full text-xs text-green-300 font-medium">
+                    <span className="px-3 py-1 bg-green-600/20 border border-green-500/30 rounded-full text-xs text-[var(--up)] font-medium">
                       ✓ Verified
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2 text-slate-400">
-                  <code className="text-sm font-mono bg-slate-800/50 px-3 py-1 rounded border border-slate-700/50">
+                <div className="flex items-center gap-2 text-[var(--text-muted)]">
+                  <code className="text-sm font-mono bg-[var(--panel)] px-3 py-1 rounded border border-[var(--line)]">
                     {formatAddress(address)}
                   </code>
                   <button
                     onClick={() => copyToClipboard(address)}
-                    className="p-2 hover:bg-slate-700/50 rounded transition-colors"
+                    className="p-2 hover:bg-[var(--surface-2)] rounded transition-colors"
                     title="Copy full address"
                     aria-label="Copy full address"
                   >
@@ -450,7 +450,7 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
                   </button>
                   <button
                     onClick={() => openInExplorer(`address/${address}`)}
-                    className="p-2 hover:bg-slate-700/50 rounded transition-colors"
+                    className="p-2 hover:bg-[var(--surface-2)] rounded transition-colors"
                     title="View in explorer"
                     aria-label="View in explorer"
                   >
@@ -462,7 +462,7 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
               </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400 hover:text-white"
+                className="p-2 hover:bg-[var(--surface-2)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-[var(--text)]"
                 aria-label="Close modal"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -473,7 +473,7 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
           </div>
 
           {/* Tabs */}
-          <div className="border-b border-slate-700/50">
+          <div className="border-b border-[var(--line)]">
             <div className="flex gap-1 p-2">
               {[
                 { id: 'transfers', label: `${tokenSymbol} Transfers`, icon: '🔄' },
@@ -484,8 +484,8 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
                     activeTab === tab.id
-                      ? 'bg-slate-950 text-white'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                      ? 'bg-[var(--app-bg)] text-[var(--text)]'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--panel)]'
                   }`}
                 >
                   <span>{tab.icon}</span>
@@ -512,16 +512,16 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
                 {activeTab === 'transfers' && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-white">
+                      <h3 className="text-lg font-semibold text-[var(--text)]">
                         {tokenSymbol} Transfers ({tokenTransfers.length})
                       </h3>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-[var(--text-muted)]">
                         Token transfers to/from this address
                       </span>
                     </div>
 
                     {tokenTransfers.length === 0 ? (
-                      <div className="text-center py-12 text-slate-400">
+                      <div className="text-center py-12 text-[var(--text-muted)]">
                         No {tokenSymbol} transfers found for this address
                       </div>
                     ) : (
@@ -547,7 +547,7 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
                           <button
                             onClick={loadMoreTransfers}
                             disabled={isLoading}
-                            className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full py-3 bg-[var(--panel)] hover:bg-[var(--surface-2)] border border-[var(--line)] rounded-lg text-[var(--text)] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {isLoading ? 'Loading...' : 'Load More'}
                           </button>
@@ -561,13 +561,13 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
                 {activeTab === 'transactions' && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-white">
+                      <h3 className="text-lg font-semibold text-[var(--text)]">
                         Recent Transactions ({transactions.length})
                       </h3>
                     </div>
 
                     {transactions.length === 0 ? (
-                      <div className="text-center py-12 text-slate-400">
+                      <div className="text-center py-12 text-[var(--text-muted)]">
                         No transactions found for this address
                       </div>
                     ) : (
@@ -575,43 +575,43 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
                         {transactions.map((tx) => (
                           <div
                             key={tx.hash}
-                            className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-4 hover:bg-slate-800/50 transition-colors"
+                            className="bg-[var(--panel)] border border-[var(--line)] rounded-lg p-4 hover:bg-[var(--panel)] transition-colors"
                           >
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
                                 <span className={`px-2 py-1 rounded text-xs font-medium ${
                                   tx.status === 'success' || tx.status === 'ok'
-                                    ? 'bg-green-600/20 border border-green-500/30 text-green-300'
+                                    ? 'bg-green-600/20 border border-green-500/30 text-[var(--up)]'
                                     : 'bg-red-600/20 border border-red-500/30 text-red-300'
                                 }`}>
                                   {tx.status === 'success' || tx.status === 'ok' ? 'Success' : 'Failed'}
                                 </span>
                                 {tx.method && (
-                                  <span className="px-2 py-1 bg-slate-950/20 border border-blue-500/30 rounded text-xs text-blue-300 font-medium">
+                                  <span className="px-2 py-1 bg-[var(--app-bg)] border border-blue-500/30 rounded text-xs text-blue-300 font-medium">
                                     {tx.method}
                                   </span>
                                 )}
                               </div>
-                              <span className="text-xs text-slate-400">
+                              <span className="text-xs text-[var(--text-muted)]">
                                 {formatTime(tx.timestamp)}
                               </span>
                             </div>
                             <div className="space-y-1 text-sm">
-                              <div className="flex items-center gap-2 text-slate-400">
-                                <span className="text-slate-500">Value:</span>
-                                <span className="text-white font-medium">
+                              <div className="flex items-center gap-2 text-[var(--text-muted)]">
+                                <span className="text-[var(--text-muted)]">Value:</span>
+                                <span className="text-[var(--text)] font-medium">
                                   {(parseFloat(tx.value) / 1e18).toFixed(6)} PLS
                                 </span>
                               </div>
-                              <div className="flex items-center gap-2 text-slate-400">
-                                <span className="text-slate-500">Fee:</span>
-                                <span className="text-white">
+                              <div className="flex items-center gap-2 text-[var(--text-muted)]">
+                                <span className="text-[var(--text-muted)]">Fee:</span>
+                                <span className="text-[var(--text)]">
                                   {(parseFloat(tx.fee) / 1e18).toFixed(8)} PLS
                                 </span>
                               </div>
                               <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 text-slate-400">
-                                  <span className="text-slate-500">Tx Hash:</span>
+                                <div className="flex items-center gap-2 text-[var(--text-muted)]">
+                                  <span className="text-[var(--text-muted)]">Tx Hash:</span>
                                   <button
                                     onClick={() => openInExplorer(`tx/${tx.hash}`)}
                                     className="font-mono text-blue-400 hover:text-blue-300 transition-colors"
@@ -623,7 +623,7 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
                                       e.stopPropagation();
                                       copyToClipboard(tx.hash);
                                     }}
-                                    className="p-1 hover:bg-slate-700/50 rounded transition-colors"
+                                    className="p-1 hover:bg-[var(--surface-2)] rounded transition-colors"
                                     title="Copy transaction hash"
                                   >
                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -780,7 +780,7 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-[var(--app-bg)] backdrop-blur-sm z-[60] flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -788,16 +788,16 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
           animate={{ scale: 1, y: 0 }}
           exit={{ scale: 0.9, y: 20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden"
+          className="bg-[var(--panel)] border border-[var(--line)] rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header with large TX hash */}
-          <div className="border-b border-slate-700/50 p-6">
+          <div className="border-b border-[var(--line)] p-6">
             <div className="flex items-start justify-between mb-4">
-              <h2 className="text-2xl font-bold text-white">Transaction details</h2>
+              <h2 className="text-2xl font-bold text-[var(--text)]">Transaction details</h2>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400 hover:text-white"
+                className="p-2 hover:bg-[var(--surface-2)] rounded-lg transition-colors text-[var(--text-muted)] hover:text-[var(--text)]"
                 aria-label="Close transaction details"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -810,13 +810,13 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
             <div className="flex items-center gap-3">
               <button
                 onClick={() => openInExplorer(`tx/${txHash}`)}
-                className="text-lg font-mono font-bold text-slate-300 hover:text-white transition-colors break-all text-left"
+                className="text-lg font-mono font-bold text-[var(--text-muted)] hover:text-[var(--text)] transition-colors break-all text-left"
               >
                 {txHash}
               </button>
               <button
                 onClick={() => copyToClipboard(txHash)}
-                className="p-2 hover:bg-slate-700/50 rounded transition-colors text-slate-400 hover:text-white flex-shrink-0"
+                className="p-2 hover:bg-[var(--surface-2)] rounded transition-colors text-[var(--text-muted)] hover:text-[var(--text)] flex-shrink-0"
                 title="Copy transaction hash"
                 aria-label="Copy transaction hash"
               >
@@ -828,7 +828,7 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
           </div>
 
           {/* Tabs */}
-          <div className="border-b border-slate-700/50 px-6">
+          <div className="border-b border-[var(--line)] px-6">
             <div className="flex gap-6">
               {[
                 { id: 'details', label: 'Details' },
@@ -840,8 +840,8 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`py-3 px-1 font-medium text-sm border-b-2 transition-colors ${
                     activeTab === tab.id
-                      ? 'border-blue-500 text-white'
-                      : 'border-transparent text-slate-400 hover:text-white'
+                      ? 'border-blue-500 text-[var(--text)]'
+                      : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
                   }`}
                 >
                   {tab.label}
@@ -903,7 +903,7 @@ const DetailsTab: React.FC<{
   }
 
   if (!txDetails) {
-    return <div className="text-slate-400 text-center py-12">No transaction details available</div>;
+    return <div className="text-[var(--text-muted)] text-center py-12">No transaction details available</div>;
   }
 
   const gasUsagePercentage = txDetails.gas_used && txDetails.gas_limit
@@ -914,12 +914,12 @@ const DetailsTab: React.FC<{
     <div className="space-y-6">
       {/* Transaction hash */}
       <div className="flex items-start gap-4">
-        <div className="text-slate-400 text-sm w-48 flex-shrink-0 pt-1">Transaction hash</div>
+        <div className="text-[var(--text-muted)] text-sm w-48 flex-shrink-0 pt-1">Transaction hash</div>
         <div className="flex items-center gap-2 flex-1">
-          <code className="text-white text-sm font-mono break-all">{txDetails.hash}</code>
+          <code className="text-[var(--text)] text-sm font-mono break-all">{txDetails.hash}</code>
           <button
             onClick={() => copyToClipboard(txDetails.hash)}
-            className="p-1 hover:bg-slate-700/50 rounded transition-colors text-slate-400"
+            className="p-1 hover:bg-[var(--surface-2)] rounded transition-colors text-[var(--text-muted)]"
             aria-label="Copy transaction hash"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -931,13 +931,13 @@ const DetailsTab: React.FC<{
 
       {/* Status and method */}
       <div className="flex items-start gap-4">
-        <div className="text-slate-400 text-sm w-48 flex-shrink-0 pt-1">Status and method</div>
+        <div className="text-[var(--text-muted)] text-sm w-48 flex-shrink-0 pt-1">Status and method</div>
         <div className="flex items-center gap-2">
-          <span className="px-2 py-1 bg-green-600/20 border border-green-500/30 rounded text-xs text-green-300 font-medium">
+          <span className="px-2 py-1 bg-green-600/20 border border-green-500/30 rounded text-xs text-[var(--up)] font-medium">
             {txDetails.status === 'ok' ? 'Success' : txDetails.status}
           </span>
           {txDetails.method && (
-            <span className="text-white text-sm">{txDetails.method}</span>
+            <span className="text-[var(--text)] text-sm">{txDetails.method}</span>
           )}
         </div>
       </div>
@@ -945,7 +945,7 @@ const DetailsTab: React.FC<{
       {/* Block */}
       {txDetails.block && (
         <div className="flex items-start gap-4">
-          <div className="text-slate-400 text-sm w-48 flex-shrink-0 pt-1">Block</div>
+          <div className="text-[var(--text-muted)] text-sm w-48 flex-shrink-0 pt-1">Block</div>
           <div>
             <button
               onClick={() => openInExplorer(`block/${txDetails.block}`)}
@@ -954,7 +954,7 @@ const DetailsTab: React.FC<{
               {txDetails.block}
             </button>
             {txDetails.confirmations && (
-              <span className="text-slate-400 text-sm ml-2">
+              <span className="text-[var(--text-muted)] text-sm ml-2">
                 | {txDetails.confirmations.toLocaleString()} Block confirmations
               </span>
             )}
@@ -965,8 +965,8 @@ const DetailsTab: React.FC<{
       {/* Timestamp */}
       {txDetails.timestamp && (
         <div className="flex items-start gap-4">
-          <div className="text-slate-400 text-sm w-48 flex-shrink-0 pt-1">Timestamp</div>
-          <div className="text-white text-sm">
+          <div className="text-[var(--text-muted)] text-sm w-48 flex-shrink-0 pt-1">Timestamp</div>
+          <div className="text-[var(--text)] text-sm">
             {formatTime(txDetails.timestamp)} | {new Date(txDetails.timestamp).toLocaleString()}
           </div>
         </div>
@@ -975,7 +975,7 @@ const DetailsTab: React.FC<{
       {/* From */}
       {txDetails.from && (
         <div className="flex items-start gap-4">
-          <div className="text-slate-400 text-sm w-48 flex-shrink-0 pt-1">From</div>
+          <div className="text-[var(--text-muted)] text-sm w-48 flex-shrink-0 pt-1">From</div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => openInExplorer(`address/${txDetails.from.hash}`)}
@@ -985,7 +985,7 @@ const DetailsTab: React.FC<{
             </button>
             <button
               onClick={() => copyToClipboard(txDetails.from.hash)}
-              className="p-1 hover:bg-slate-700/50 rounded transition-colors text-slate-400"
+              className="p-1 hover:bg-[var(--surface-2)] rounded transition-colors text-[var(--text-muted)]"
               aria-label="Copy from address"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -999,7 +999,7 @@ const DetailsTab: React.FC<{
       {/* Interacted with contract */}
       {txDetails.to && txDetails.to.is_contract && (
         <div className="flex items-start gap-4">
-          <div className="text-slate-400 text-sm w-48 flex-shrink-0 pt-1">Interacted with contract</div>
+          <div className="text-[var(--text-muted)] text-sm w-48 flex-shrink-0 pt-1">Interacted with contract</div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => openInExplorer(`address/${txDetails.to.hash}`)}
@@ -1008,7 +1008,7 @@ const DetailsTab: React.FC<{
               {txDetails.to.name || formatAddress(txDetails.to.hash)}
             </button>
             {txDetails.to.is_verified && (
-              <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-4 h-4 text-[var(--up)]" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
             )}
@@ -1019,7 +1019,7 @@ const DetailsTab: React.FC<{
       {/* Token transfers */}
       {txDetails.token_transfers && txDetails.token_transfers.length > 0 && (
         <div className="flex items-start gap-4">
-          <div className="text-slate-400 text-sm w-48 flex-shrink-0 pt-1">Tokens transferred</div>
+          <div className="text-[var(--text-muted)] text-sm w-48 flex-shrink-0 pt-1">Tokens transferred</div>
           <div className="flex-1 space-y-2">
             {txDetails.token_transfers.slice(0, 10).map((transfer: any, idx: number) => (
               <div key={idx} className="flex items-center gap-2 text-sm">
@@ -1029,18 +1029,18 @@ const DetailsTab: React.FC<{
                 >
                   {formatAddress(transfer.from.hash)}
                 </button>
-                <span className="text-slate-400">→</span>
+                <span className="text-[var(--text-muted)]">→</span>
                 <button
                   onClick={() => openInExplorer(`address/${transfer.to.hash}`)}
                   className="text-blue-400 hover:text-blue-300 transition-colors font-mono"
                 >
                   {formatAddress(transfer.to.hash)}
                 </button>
-                <span className="text-slate-400">for</span>
-                <span className="text-white">
+                <span className="text-[var(--text-muted)]">for</span>
+                <span className="text-[var(--text)]">
                   {parseFloat(transfer.total?.value || transfer.value || '0') / Math.pow(10, transfer.total?.decimals || transfer.token?.decimals || 18)}
                 </span>
-                <span className="text-slate-400">{transfer.token?.symbol}</span>
+                <span className="text-[var(--text-muted)]">{transfer.token?.symbol}</span>
               </div>
             ))}
             {txDetails.token_transfers.length > 10 && (
@@ -1054,8 +1054,8 @@ const DetailsTab: React.FC<{
 
       {/* Value */}
       <div className="flex items-start gap-4">
-        <div className="text-slate-400 text-sm w-48 flex-shrink-0 pt-1">Value</div>
-        <div className="text-white text-sm">
+        <div className="text-[var(--text-muted)] text-sm w-48 flex-shrink-0 pt-1">Value</div>
+        <div className="text-[var(--text)] text-sm">
           {txDetails.value ? `${(parseFloat(txDetails.value) / 1e18).toFixed(6)} PLS` : '0 PLS'}
         </div>
       </div>
@@ -1063,8 +1063,8 @@ const DetailsTab: React.FC<{
       {/* Transaction fee */}
       {txDetails.fee && (
         <div className="flex items-start gap-4">
-          <div className="text-slate-400 text-sm w-48 flex-shrink-0 pt-1">Transaction fee</div>
-          <div className="text-white text-sm">
+          <div className="text-[var(--text-muted)] text-sm w-48 flex-shrink-0 pt-1">Transaction fee</div>
+          <div className="text-[var(--text)] text-sm">
             {(parseFloat(txDetails.fee.value) / 1e18).toFixed(8)} PLS
           </div>
         </div>
@@ -1073,8 +1073,8 @@ const DetailsTab: React.FC<{
       {/* Gas price */}
       {txDetails.gas_price && (
         <div className="flex items-start gap-4">
-          <div className="text-slate-400 text-sm w-48 flex-shrink-0 pt-1">Gas price</div>
-          <div className="text-white text-sm">
+          <div className="text-[var(--text-muted)] text-sm w-48 flex-shrink-0 pt-1">Gas price</div>
+          <div className="text-[var(--text)] text-sm">
             {(parseFloat(txDetails.gas_price) / 1e18).toFixed(10)} PLS
           </div>
         </div>
@@ -1083,23 +1083,23 @@ const DetailsTab: React.FC<{
       {/* Gas usage & limit */}
       {txDetails.gas_used && txDetails.gas_limit && (
         <div className="flex items-start gap-4">
-          <div className="text-slate-400 text-sm w-48 flex-shrink-0 pt-1">Gas usage & limit by txn</div>
+          <div className="text-[var(--text-muted)] text-sm w-48 flex-shrink-0 pt-1">Gas usage & limit by txn</div>
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <span className="text-white text-sm">
+              <span className="text-[var(--text)] text-sm">
                 {parseInt(txDetails.gas_used).toLocaleString()}
               </span>
-              <span className="text-slate-400 text-sm">|</span>
-              <span className="text-white text-sm">
+              <span className="text-[var(--text-muted)] text-sm">|</span>
+              <span className="text-[var(--text)] text-sm">
                 {parseInt(txDetails.gas_limit).toLocaleString()}
               </span>
-              <div className="flex-1 bg-slate-700 rounded-full h-2 max-w-xs">
+              <div className="flex-1 bg-[var(--surface-2)] rounded-full h-2 max-w-xs">
                 <div
                   className="bg-green-500 h-2 rounded-full transition-all"
                   style={{ width: `${gasUsagePercentage}%` }}
                 />
               </div>
-              <span className="text-green-400 text-sm font-medium">
+              <span className="text-[var(--up)] text-sm font-medium">
                 {gasUsagePercentage.toFixed(1)}%
               </span>
             </div>
@@ -1126,32 +1126,32 @@ const TransfersTab: React.FC<{
   }
 
   if (!tokenTransfers || !tokenTransfers.items || tokenTransfers.items.length === 0) {
-    return <div className="text-slate-400 text-center py-12">No token transfers found</div>;
+    return <div className="text-[var(--text-muted)] text-center py-12">No token transfers found</div>;
   }
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-slate-700">
-            <th className="text-left py-3 px-4 text-slate-400 text-xs font-medium uppercase">Token</th>
-            <th className="text-left py-3 px-4 text-slate-400 text-xs font-medium uppercase">Token ID</th>
-            <th className="text-left py-3 px-4 text-slate-400 text-xs font-medium uppercase">From/To</th>
-            <th className="text-right py-3 px-4 text-slate-400 text-xs font-medium uppercase">Value</th>
+          <tr className="border-b border-[var(--line)]">
+            <th className="text-left py-3 px-4 text-[var(--text-muted)] text-xs font-medium uppercase">Token</th>
+            <th className="text-left py-3 px-4 text-[var(--text-muted)] text-xs font-medium uppercase">Token ID</th>
+            <th className="text-left py-3 px-4 text-[var(--text-muted)] text-xs font-medium uppercase">From/To</th>
+            <th className="text-right py-3 px-4 text-[var(--text-muted)] text-xs font-medium uppercase">Value</th>
           </tr>
         </thead>
         <tbody>
           {tokenTransfers.items.map((transfer: any, idx: number) => (
-            <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-800/30">
+            <tr key={idx} className="border-b border-[var(--line)] hover:bg-[var(--panel)]">
               <td className="py-4 px-4">
                 <div className="flex items-center gap-2">
                   {transfer.token?.icon_url && (
                     <img src={transfer.token.icon_url} alt="" className="w-6 h-6 rounded-full" />
                   )}
                   <div>
-                    <div className="text-white text-sm">{transfer.token?.name || 'Unknown'}</div>
+                    <div className="text-[var(--text)] text-sm">{transfer.token?.name || 'Unknown'}</div>
                     <div className="flex items-center gap-1">
-                      <span className="text-xs text-slate-400">{transfer.token?.type}</span>
+                      <span className="text-xs text-[var(--text-muted)]">{transfer.token?.type}</span>
                       <span className="px-1.5 py-0.5 bg-orange-600/20 border border-orange-500/30 rounded text-xs text-orange-300">
                         Token transfer
                       </span>
@@ -1159,7 +1159,7 @@ const TransfersTab: React.FC<{
                   </div>
                 </div>
               </td>
-              <td className="py-4 px-4 text-slate-400 text-sm">
+              <td className="py-4 px-4 text-[var(--text-muted)] text-sm">
                 {transfer.token_id || '-'}
               </td>
               <td className="py-4 px-4">
@@ -1170,7 +1170,7 @@ const TransfersTab: React.FC<{
                   >
                     {formatAddress(transfer.from.hash)}
                   </button>
-                  <span className="text-slate-400">→</span>
+                  <span className="text-[var(--text-muted)]">→</span>
                   <button
                     onClick={() => openInExplorer(`address/${transfer.to.hash}`)}
                     className="text-blue-400 hover:text-blue-300 transition-colors font-mono text-sm"
@@ -1179,7 +1179,7 @@ const TransfersTab: React.FC<{
                   </button>
                 </div>
               </td>
-              <td className="py-4 px-4 text-right text-white text-sm">
+              <td className="py-4 px-4 text-right text-[var(--text)] text-sm">
                 {transfer.total?.value
                   ? (parseFloat(transfer.total.value) / Math.pow(10, transfer.total.decimals || 18)).toFixed(6)
                   : '-'}
@@ -1208,34 +1208,34 @@ const InternalTab: React.FC<{
   }
 
   if (!internalTxns || !internalTxns.items || internalTxns.items.length === 0) {
-    return <div className="text-slate-400 text-center py-12">No internal transactions found</div>;
+    return <div className="text-[var(--text-muted)] text-center py-12">No internal transactions found</div>;
   }
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-slate-700">
-            <th className="text-left py-3 px-4 text-slate-400 text-xs font-medium uppercase">Type</th>
-            <th className="text-left py-3 px-4 text-slate-400 text-xs font-medium uppercase">From/To</th>
-            <th className="text-right py-3 px-4 text-slate-400 text-xs font-medium uppercase">Value PLS</th>
-            <th className="text-right py-3 px-4 text-slate-400 text-xs font-medium uppercase">Gas limit PLS</th>
+          <tr className="border-b border-[var(--line)]">
+            <th className="text-left py-3 px-4 text-[var(--text-muted)] text-xs font-medium uppercase">Type</th>
+            <th className="text-left py-3 px-4 text-[var(--text-muted)] text-xs font-medium uppercase">From/To</th>
+            <th className="text-right py-3 px-4 text-[var(--text-muted)] text-xs font-medium uppercase">Value PLS</th>
+            <th className="text-right py-3 px-4 text-[var(--text-muted)] text-xs font-medium uppercase">Gas limit PLS</th>
           </tr>
         </thead>
         <tbody>
           {internalTxns.items.map((txn: any, idx: number) => (
-            <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-800/30">
+            <tr key={idx} className="border-b border-[var(--line)] hover:bg-[var(--panel)]">
               <td className="py-4 px-4">
                 <div className="flex items-center gap-2">
                   <span className={`px-2 py-1 rounded text-xs font-medium ${
                     txn.type === 'delegatecall' ? 'bg-cyan-600/20 text-cyan-300' :
-                    txn.type === 'staticcall' ? 'bg-slate-950/20 text-blue-300' :
+                    txn.type === 'staticcall' ? 'bg-[var(--app-bg)] text-blue-300' :
                     'bg-teal-600/20 text-teal-300'
                   }`}>
                     {txn.type === 'delegatecall' ? 'Delegate call' :
                      txn.type === 'staticcall' ? 'Static call' : 'Call'}
                   </span>
-                  <span className="px-2 py-1 bg-green-600/20 border border-green-500/30 rounded text-xs text-green-300 font-medium">
+                  <span className="px-2 py-1 bg-green-600/20 border border-green-500/30 rounded text-xs text-[var(--up)] font-medium">
                     Success
                   </span>
                 </div>
@@ -1248,7 +1248,7 @@ const InternalTab: React.FC<{
                   >
                     {formatAddress(txn.from.hash)}
                   </button>
-                  <span className="text-slate-400">→</span>
+                  <span className="text-[var(--text-muted)]">→</span>
                   <button
                     onClick={() => openInExplorer(`address/${txn.to?.hash}`)}
                     className="text-blue-400 hover:text-blue-300 transition-colors font-mono text-sm"
@@ -1257,10 +1257,10 @@ const InternalTab: React.FC<{
                   </button>
                 </div>
               </td>
-              <td className="py-4 px-4 text-right text-white text-sm">
+              <td className="py-4 px-4 text-right text-[var(--text)] text-sm">
                 {txn.value ? (parseFloat(txn.value) / 1e18).toFixed(6) : '0'}
               </td>
-              <td className="py-4 px-4 text-right text-white text-sm">
+              <td className="py-4 px-4 text-right text-[var(--text)] text-sm">
                 {txn.gas_limit ? parseInt(txn.gas_limit).toLocaleString() : '-'}
               </td>
             </tr>

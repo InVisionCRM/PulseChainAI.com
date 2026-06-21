@@ -93,27 +93,27 @@ export function WalletConnections({ walletAddress, chains }: Props) {
   );
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
       <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/70">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
           <IconUsers className="h-4 w-4 text-sky-300/80" />
           Connections
           {loaded && rows.length > 0 && (
-            <span className="font-normal text-white/30">· {rows.length}</span>
+            <span className="font-normal text-[var(--text-faint)]">· {rows.length}</span>
           )}
         </div>
         <button
           type="button"
           onClick={() => void load()}
           disabled={loading}
-          className="text-white/50 hover:text-white disabled:opacity-40"
+          className="text-[var(--text-faint)] hover:text-[var(--text)] disabled:opacity-40"
           title="Re-scan recent activity"
         >
           <IconRefresh className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
-      <p className="mb-3 text-[11px] leading-snug text-white/40">
+      <p className="mb-3 text-[11px] leading-snug text-[var(--text-faint)]">
         Top addresses this wallet has transacted with, from its recent history.
         Save any of them to a group.
       </p>
@@ -125,11 +125,11 @@ export function WalletConnections({ walletAddress, chains }: Props) {
       ) : loading && rows.length === 0 ? (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-12 animate-pulse rounded-lg bg-white/5" />
+            <div key={i} className="h-12 animate-pulse rounded-lg bg-[var(--surface)]" />
           ))}
         </div>
       ) : loaded && rows.length === 0 ? (
-        <div className="py-6 text-center text-sm text-white/40">
+        <div className="py-6 text-center text-sm text-[var(--text-faint)]">
           No counterparties found in recent history.
         </div>
       ) : (
@@ -143,7 +143,7 @@ export function WalletConnections({ walletAddress, chains }: Props) {
             <button
               type="button"
               onClick={() => setShowAll((v) => !v)}
-              className="mt-2 w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/60 hover:bg-white/5 hover:text-white"
+              className="mt-2 w-full rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs font-semibold text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
             >
               {showAll ? 'Show less' : `Show all ${rows.length}`}
             </button>
@@ -157,7 +157,7 @@ export function WalletConnections({ walletAddress, chains }: Props) {
 function ConnectionRow({ row: r }: { row: CounterpartySummary }) {
   const explorer = `${EXPLORER_ADDRESS[r.chain]}${r.address}`;
   return (
-    <li className="group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/5">
+    <li className="group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--surface)]">
       <span
         title={CHAIN_NAME[r.chain]}
         className="grid h-5 w-5 shrink-0 place-items-center overflow-hidden rounded-full"
@@ -172,18 +172,18 @@ function ConnectionRow({ row: r }: { row: CounterpartySummary }) {
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="truncate text-sm font-medium text-white">
+          <span className="truncate text-sm font-medium text-[var(--text)]">
             {r.label ?? truncate(r.address)}
           </span>
           <CounterpartyBadge category={r.category} label={r.label} />
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-white/40">
+        <div className="flex items-center gap-2 text-[10px] text-[var(--text-faint)]">
           <a
             href={explorer}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-0.5 font-mono hover:text-white/70"
+            className="inline-flex items-center gap-0.5 font-mono hover:text-[var(--text-muted)]"
           >
             {truncate(r.address)}
             <IconExternalLink className="h-2.5 w-2.5" />
@@ -194,7 +194,7 @@ function ConnectionRow({ row: r }: { row: CounterpartySummary }) {
 
       <div className="shrink-0 text-right text-[11px] tabular-nums">
         {r.inUsd > 0 && (
-          <div className="flex items-center justify-end gap-0.5 text-emerald-300/90">
+          <div className="flex items-center justify-end gap-0.5 text-[var(--up)]">
             <IconArrowDownLeft className="h-3 w-3" />
             {fmtUsd(r.inUsd)}
           </div>
@@ -206,7 +206,7 @@ function ConnectionRow({ row: r }: { row: CounterpartySummary }) {
           </div>
         )}
         {r.inUsd === 0 && r.outUsd === 0 && (
-          <span className="text-white/25">—</span>
+          <span className="text-[var(--text-muted)]">—</span>
         )}
       </div>
 
@@ -215,7 +215,7 @@ function ConnectionRow({ row: r }: { row: CounterpartySummary }) {
         source="tx"
         chain={r.chain}
         context={{ direction: 'counterparty' }}
-        className="shrink-0 text-white/30 opacity-0 transition-opacity hover:text-orange-300 group-hover:opacity-100"
+        className="shrink-0 text-[var(--text-faint)] opacity-0 transition-opacity hover:text-orange-300 group-hover:opacity-100"
       />
     </li>
   );

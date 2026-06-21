@@ -224,7 +224,7 @@ export default function TokenSelector({
         {selectedToken && (
           <button
             onClick={clearSelection}
-            className="absolute right-6 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors duration-200 p-2 rounded-full hover:bg-white/10"
+            className="absolute right-6 top-1/2 transform -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors duration-200 p-2 rounded-full hover:bg-[var(--surface-2)]"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -235,8 +235,8 @@ export default function TokenSelector({
 
       {/* Search Tips */}
       {!selectedToken && (
-        <div className="mt-4 p-4 bg-transparent border border-white/20 rounded-xl">
-          <p className="text-sm text-gray-300 font-medium">💡 Try searching for: "PSSH" or "Superstake" or the contract address</p>
+        <div className="mt-4 p-4 bg-transparent border border-[var(--line-strong)] rounded-xl">
+          <p className="text-sm text-[var(--text-muted)] font-medium">💡 Try searching for: "PSSH" or "Superstake" or the contract address</p>
         </div>
       )}
 
@@ -247,7 +247,7 @@ export default function TokenSelector({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute z-50 w-full mt-4 bg-transparent border border-white/20 rounded-2xl shadow-2xl max-h-96 overflow-y-auto"
+            className="absolute z-50 w-full mt-4 bg-transparent border border-[var(--line-strong)] rounded-2xl shadow-2xl max-h-96 overflow-y-auto"
           >
             {searchResults.map((token, index) => (
               <motion.div
@@ -255,14 +255,14 @@ export default function TokenSelector({
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="p-6 hover:bg-white/5 cursor-pointer border-b border-white/10 last:border-b-0 transition-all duration-200"
+                className="p-6 hover:bg-[var(--surface)] cursor-pointer border-b border-[var(--line)] last:border-b-0 transition-all duration-200"
                 onClick={() => handleTokenSelect(token)}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <span className="font-bold text-white text-xl">{token.name}</span>
-                      <span className="text-base text-gray-300 font-medium">({token.symbol})</span>
+                      <span className="font-bold text-[var(--text)] text-xl">{token.name}</span>
+                      <span className="text-base text-[var(--text-muted)] font-medium">({token.symbol})</span>
                     </div>
                     <div className="text-lg text-blue-400 font-mono font-semibold">
                       {token.address.length > 20 
@@ -273,9 +273,9 @@ export default function TokenSelector({
                   </div>
                   {token.price && (
                     <div className="text-right">
-                      <div className="text-lg font-semibold text-white">${token.price.toFixed(6)}</div>
+                      <div className="text-lg font-semibold text-[var(--text)]">${token.price.toFixed(6)}</div>
                       {token.marketCap && (
-                        <div className="text-sm text-gray-300">
+                        <div className="text-sm text-[var(--text-muted)]">
                           ${(token.marketCap / 1000000).toFixed(2)}M
                         </div>
                       )}
@@ -298,8 +298,8 @@ export default function TokenSelector({
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="mb-3">
-                <h4 className="font-bold text-white text-2xl">{selectedToken.name}</h4>
-                <p className="text-xl text-gray-300 font-medium">{selectedToken.symbol}</p>
+                <h4 className="font-bold text-[var(--text)] text-2xl">{selectedToken.name}</h4>
+                <p className="text-xl text-[var(--text-muted)] font-medium">{selectedToken.symbol}</p>
               </div>
               <p className="text-xl text-blue-400 font-mono font-semibold">
                 {selectedToken.address.length > 20 
@@ -310,17 +310,17 @@ export default function TokenSelector({
             </div>
             <div className="text-right">
               {selectedToken.price && (
-                <div className="text-2xl font-bold text-white">
+                <div className="text-2xl font-bold text-[var(--text)]">
                   ${selectedToken.price.toFixed(6)}
                 </div>
               )}
               {selectedToken.holders && (
-                <div className="text-lg text-gray-300 font-medium">
+                <div className="text-lg text-[var(--text-muted)] font-medium">
                   {selectedToken.holders.toLocaleString()} holders
                 </div>
               )}
               {selectedToken.marketCap && (
-                <div className="text-sm text-gray-400 mt-1">
+                <div className="text-sm text-[var(--text-muted)] mt-1">
                   ${(selectedToken.marketCap / 1000000).toFixed(2)}M market cap
                 </div>
               )}

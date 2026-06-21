@@ -17,7 +17,7 @@ export default function BasicsTab() {
     },
     {
       title: "Web Technologies",
-      icon: <IconWorld className="h-6 w-6 text-green-500" />,
+      icon: <IconWorld className="h-6 w-6 text-[var(--up)]" />,
       concepts: [
         "HTML - structure and content of web pages",
         "CSS - styling and layout of web elements",
@@ -95,10 +95,10 @@ export default function BasicsTab() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.3 }}
-      className="rounded-lg border border-white/10 bg-white/5 p-6"
+      className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6"
     >
       <h2 className="mb-6 text-2xl font-bold text-[#FA4616]">The Basics</h2>
-      <p className="mb-8 text-white/70 text-lg">
+      <p className="mb-8 text-[var(--text-muted)] text-lg">
         Fundamental concepts and terminology that form the foundation of modern web development.
         Understanding these basics will help you communicate effectively and learn new technologies faster.
       </p>
@@ -111,15 +111,15 @@ export default function BasicsTab() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: index * 0.1 }}
-            className="bg-white/5 p-6 rounded-lg border border-white/20"
+            className="bg-[var(--surface)] p-6 rounded-lg border border-[var(--line-strong)]"
           >
             <div className="flex items-center gap-3 mb-4">
               {category.icon}
-              <h3 className="text-lg font-semibold text-white">{category.title}</h3>
+              <h3 className="text-lg font-semibold text-[var(--text)]">{category.title}</h3>
             </div>
             <ul className="space-y-2">
               {category.concepts.map((concept, idx) => (
-                <li key={idx} className="text-sm text-white/80 flex items-start gap-2">
+                <li key={idx} className="text-sm text-[var(--text)] flex items-start gap-2">
                   <span className="text-[#FA4616] mt-1">•</span>
                   <span>{concept}</span>
                 </li>
@@ -130,8 +130,8 @@ export default function BasicsTab() {
       </div>
 
       {/* Key Terms */}
-      <div className="bg-white/5 p-6 rounded-lg border border-white/20 mb-8">
-        <h3 className="text-xl font-semibold text-white mb-6">Essential Terminology</h3>
+      <div className="bg-[var(--surface)] p-6 rounded-lg border border-[var(--line-strong)] mb-8">
+        <h3 className="text-xl font-semibold text-[var(--text)] mb-6">Essential Terminology</h3>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {keyTerms.map((item, index) => (
             <motion.div
@@ -139,62 +139,62 @@ export default function BasicsTab() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
-              className="bg-black/20 p-4 rounded-lg"
+              className="bg-[var(--surface)] p-4 rounded-lg"
             >
               <h4 className="font-semibold text-[#FA4616] mb-2">{item.term}</h4>
-              <p className="text-sm text-white/80">{item.definition}</p>
+              <p className="text-sm text-[var(--text)]">{item.definition}</p>
             </motion.div>
           ))}
         </div>
       </div>
 
       {/* Learning Path */}
-      <div className="bg-white/5 p-6 rounded-lg border border-white/20 mb-8">
-        <h3 className="text-xl font-semibold text-white mb-6">Suggested Learning Order</h3>
+      <div className="bg-[var(--surface)] p-6 rounded-lg border border-[var(--line-strong)] mb-8">
+        <h3 className="text-xl font-semibold text-[var(--text)] mb-6">Suggested Learning Order</h3>
         <div className="space-y-4">
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-[#FA4616] rounded-full flex items-center justify-center text-white font-bold">
+            <div className="w-8 h-8 bg-[#FA4616] rounded-full flex items-center justify-center text-[var(--text)] font-bold">
               1
             </div>
             <div>
-              <h4 className="font-semibold text-white">Start with HTML & CSS</h4>
-              <p className="text-sm text-white/70">Learn the building blocks of web pages</p>
+              <h4 className="font-semibold text-[var(--text)]">Start with HTML & CSS</h4>
+              <p className="text-sm text-[var(--text-muted)]">Learn the building blocks of web pages</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-[#FA4616] rounded-full flex items-center justify-center text-white font-bold">
+            <div className="w-8 h-8 bg-[#FA4616] rounded-full flex items-center justify-center text-[var(--text)] font-bold">
               2
             </div>
             <div>
-              <h4 className="font-semibold text-white">Add JavaScript</h4>
-              <p className="text-sm text-white/70">Make your pages interactive</p>
+              <h4 className="font-semibold text-[var(--text)]">Add JavaScript</h4>
+              <p className="text-sm text-[var(--text-muted)]">Make your pages interactive</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-[#FA4616] rounded-full flex items-center justify-center text-white font-bold">
+            <div className="w-8 h-8 bg-[#FA4616] rounded-full flex items-center justify-center text-[var(--text)] font-bold">
               3
             </div>
             <div>
-              <h4 className="font-semibold text-white">Learn a Framework</h4>
-              <p className="text-sm text-white/70">React, Vue, or Angular for structured development</p>
+              <h4 className="font-semibold text-[var(--text)]">Learn a Framework</h4>
+              <p className="text-sm text-[var(--text-muted)]">React, Vue, or Angular for structured development</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-[#FA4616] rounded-full flex items-center justify-center text-white font-bold">
+            <div className="w-8 h-8 bg-[#FA4616] rounded-full flex items-center justify-center text-[var(--text)] font-bold">
               4
             </div>
             <div>
-              <h4 className="font-semibold text-white">Explore Advanced Topics</h4>
-              <p className="text-sm text-white/70">APIs, databases, deployment, and best practices</p>
+              <h4 className="font-semibold text-[var(--text)]">Explore Advanced Topics</h4>
+              <p className="text-sm text-[var(--text-muted)]">APIs, databases, deployment, and best practices</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Resources */}
-      <div className="text-center py-8 border-t border-white/20">
-        <h3 className="text-xl font-semibold text-white mb-4">Where to Learn More</h3>
-        <p className="text-white/70 mb-6">
+      <div className="text-center py-8 border-t border-[var(--line-strong)]">
+        <h3 className="text-xl font-semibold text-[var(--text)] mb-4">Where to Learn More</h3>
+        <p className="text-[var(--text-muted)] mb-6">
           These fundamentals will serve you well regardless of which technologies or frameworks you choose to specialize in.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
@@ -202,7 +202,7 @@ export default function BasicsTab() {
             href="https://developer.mozilla.org/"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-[#FA4616] text-white px-6 py-3 rounded-lg hover:bg-[#FA4616]/80 transition-colors"
+            className="flex items-center gap-2 bg-[#FA4616] text-[var(--text)] px-6 py-3 rounded-lg hover:bg-[#FA4616]/80 transition-colors"
           >
             MDN Web Docs <IconExternalLink className="h-4 w-4" />
           </a>

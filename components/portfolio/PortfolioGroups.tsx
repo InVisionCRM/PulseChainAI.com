@@ -119,12 +119,12 @@ function GroupManager({
     : null;
 
   return (
-    <div className="rounded-2xl border border-white/15 bg-white/5 backdrop-blur-xl p-4">
+    <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2 text-white/60 text-xs font-semibold uppercase tracking-wider">
+        <div className="flex items-center gap-2 text-[var(--text-muted)] text-xs font-semibold uppercase tracking-wider">
           <IconFolder className="h-4 w-4" />
           Groups
-          <span className="text-white/30 normal-case font-normal">
+          <span className="text-[var(--text-faint)] normal-case font-normal">
             · {groups.length}
           </span>
         </div>
@@ -134,7 +134,7 @@ function GroupManager({
             const id = createGroup();
             setEditingId(id);
           }}
-          className="inline-flex items-center gap-1 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-2.5 py-1.5 transition-colors"
+          className="inline-flex items-center gap-1 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] text-xs font-semibold px-2.5 py-1.5 transition-colors"
         >
           <IconPlus className="h-3.5 w-3.5" />
           New group
@@ -193,7 +193,7 @@ function GroupChip({
         style={{ backgroundColor: groupBase(group.color) }}
       />
       {group.name}
-      <span className="text-white/50 font-normal">· {count}</span>
+      <span className="text-[var(--text-faint)] font-normal">· {count}</span>
     </button>
   );
 }
@@ -218,7 +218,7 @@ function GroupEditor({
   };
 
   return (
-    <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3 space-y-3">
+    <div className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 space-y-3">
       <div className="flex items-center gap-2">
         <input
           value={name}
@@ -232,7 +232,7 @@ function GroupEditor({
           }}
           autoFocus
           placeholder="Group name"
-          className="flex-1 rounded-lg bg-black/40 border border-white/15 px-3 py-1.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/40"
+          className="flex-1 rounded-lg bg-[var(--surface-2)] border border-[var(--line)] px-3 py-1.5 text-sm text-[var(--text)] placeholder-[var(--text-faint)] focus:outline-none focus:border-[var(--line)]"
         />
         {!isDefault && (
           <button
@@ -242,7 +242,7 @@ function GroupEditor({
               onClose();
             }}
             title="Delete group"
-            className="text-white/40 hover:text-red-400 shrink-0"
+            className="text-[var(--text-faint)] hover:text-red-400 shrink-0"
           >
             <IconTrash className="h-4 w-4" />
           </button>
@@ -254,7 +254,7 @@ function GroupEditor({
             onClose();
           }}
           title="Done"
-          className="text-white/60 hover:text-white shrink-0"
+          className="text-[var(--text-muted)] hover:text-[var(--text)] shrink-0"
         >
           <IconCheck className="h-4 w-4" />
         </button>
@@ -283,7 +283,7 @@ function GroupEditor({
       </div>
 
       {isDefault && (
-        <p className="text-[11px] text-white/40 leading-snug">
+        <p className="text-[11px] text-[var(--text-faint)] leading-snug">
           Default group — new and ungrouped wallets land here. Rename and
           recolour it freely; it can't be deleted.
         </p>
@@ -322,8 +322,8 @@ function GroupSection({
         >
           {group.name}
         </h3>
-        <span className="text-xs text-white/40">· {counts.join(' · ')}</span>
-        <span className="ml-auto text-sm font-semibold text-white tabular-nums">
+        <span className="text-xs text-[var(--text-faint)]">· {counts.join(' · ')}</span>
+        <span className="ml-auto text-sm font-semibold text-[var(--text)] tabular-nums">
           {fmtUsd(total)}
         </span>
       </div>
@@ -336,8 +336,8 @@ function GroupSection({
         ))}
 
         {members.length > 0 && (
-          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl divide-y divide-white/5">
-            <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-white/40">
+          <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl divide-y divide-[var(--line)]">
+            <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-[var(--text-faint)]">
               Saved addresses
             </div>
             {members.map((m) => (
@@ -363,9 +363,9 @@ function MemberRow({ member, color }: { member: GroupMember; color: string }) {
         style={{ backgroundColor: color }}
       />
       <div className="min-w-0 flex-1">
-        <div className="text-sm text-white truncate">{member.label}</div>
+        <div className="text-sm text-[var(--text)] truncate">{member.label}</div>
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-wide text-white/30">
+          <span className="text-[10px] uppercase tracking-wide text-[var(--text-faint)]">
             {SOURCE_LABEL[member.source]}
           </span>
           <a
@@ -373,7 +373,7 @@ function MemberRow({ member, color }: { member: GroupMember; color: string }) {
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="text-[10px] font-mono text-white/40 hover:text-white/70 inline-flex items-center gap-0.5"
+            className="text-[10px] font-mono text-[var(--text-faint)] hover:text-[var(--text-muted)] inline-flex items-center gap-0.5"
           >
             {shortAddr(member.address)}
             <IconExternalLink className="h-2.5 w-2.5" />
@@ -384,7 +384,7 @@ function MemberRow({ member, color }: { member: GroupMember; color: string }) {
         type="button"
         onClick={() => promoteMemberToWallet(member)}
         title="Track as wallet (scan balances)"
-        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-white/60 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] transition-colors shrink-0"
       >
         <IconEye className="h-3.5 w-3.5" />
         Track
@@ -393,7 +393,7 @@ function MemberRow({ member, color }: { member: GroupMember; color: string }) {
         type="button"
         onClick={() => removeMember(member.address)}
         title="Remove from group"
-        className="text-white/30 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+        className="text-[var(--text-faint)] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
       >
         <IconTrash className="h-4 w-4" />
       </button>

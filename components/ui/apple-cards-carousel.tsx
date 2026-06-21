@@ -102,14 +102,14 @@ export const Carousel = ({ items, initialScroll = 0 }: CarouselProps) => {
           {/* Fade in effect at start */}
           <div
             className={cn(
-              "absolute left-0 z-[1000] h-auto w-[5%] overflow-hidden bg-gradient-to-r from-slate-950 to-transparent",
+              "absolute left-0 z-[1000] h-auto w-[5%] overflow-hidden bg-gradient-to-r from-[var(--app-bg)] to-transparent",
             )}
           ></div>
 
           {/* Fade out effect at end */}
           <div
             className={cn(
-              "absolute right-0 z-[1000] h-auto w-[5%] overflow-hidden bg-gradient-to-l from-slate-950 to-transparent",
+              "absolute right-0 z-[1000] h-auto w-[5%] overflow-hidden bg-gradient-to-l from-[var(--app-bg)] to-transparent",
             )}
           ></div>
 
@@ -152,7 +152,7 @@ export const Carousel = ({ items, initialScroll = 0 }: CarouselProps) => {
             title="Scroll left"
             aria-label="Scroll left"
           >
-            <IconArrowNarrowLeft className="h-6 w-6 text-gray-500" />
+            <IconArrowNarrowLeft className="h-6 w-6 text-[var(--text-muted)]" />
           </button>
           <button
             className="relative z-40 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 disabled:opacity-50"
@@ -161,7 +161,7 @@ export const Carousel = ({ items, initialScroll = 0 }: CarouselProps) => {
             title="Scroll right"
             aria-label="Scroll right"
           >
-            <IconArrowNarrowRight className="h-6 w-6 text-gray-500" />
+            <IconArrowNarrowRight className="h-6 w-6 text-[var(--text-muted)]" />
           </button>
         </div>
       </div>
@@ -252,7 +252,7 @@ export const Card = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 h-full w-full bg-slate-950/80 backdrop-blur-lg"
+              className="fixed inset-0 h-full w-full bg-[var(--app-bg)] backdrop-blur-lg"
             />
             <motion.div
               initial={{ opacity: 0 }}
@@ -260,25 +260,25 @@ export const Card = ({
               exit={{ opacity: 0 }}
               ref={containerRef}
               layoutId={layout ? `card-${card.title}` : undefined}
-              className="relative z-[60] mx-auto my-10 h-fit max-w-5xl rounded-3xl bg-white p-4 font-sans md:p-10 dark:bg-neutral-900"
+              className="relative z-[60] mx-auto my-10 h-fit max-w-5xl rounded-3xl bg-white p-4 font-sans md:p-10 dark:bg-[var(--panel)]"
             >
               <button
-                className="sticky top-4 right-0 ml-auto flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 dark:bg-white"
+                className="sticky top-4 right-0 ml-auto flex h-8 w-8 items-center justify-center rounded-full bg-[var(--app-bg)] dark:bg-white"
                 onClick={handleClose}
                 title="Close"
                 aria-label="Close"
               >
-                <IconX className="h-6 w-6 text-neutral-100 dark:text-neutral-900" />
+                <IconX className="h-6 w-6 text-[var(--text)] dark:text-neutral-900" />
               </button>
               <motion.p
                 layoutId={layout ? `category-${card.title}` : undefined}
-                className="text-base font-medium text-slate-950 dark:text-white"
+                className="text-base font-medium text-slate-950 dark:text-[var(--text)]"
               >
                 {card.category}
               </motion.p>
               <motion.p
                 layoutId={layout ? `title-${card.title}` : undefined}
-                className="mt-4 text-2xl font-semibold text-neutral-700 md:text-5xl dark:text-white"
+                className="mt-4 text-2xl font-semibold text-neutral-700 md:text-5xl dark:text-[var(--text)]"
               >
                 {card.title}
               </motion.p>
@@ -292,7 +292,7 @@ export const Card = ({
         onClick={handleOpen}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
-        className="relative z-10 flex h-60 w-42 flex-col items-start justify-start overflow-hidden rounded-3xl bg-gray-100 md:h-[30rem] md:w-72 dark:bg-neutral-900 cursor-pointer hover:scale-105 transition-transform duration-200"
+        className="relative z-10 flex h-60 w-42 flex-col items-start justify-start overflow-hidden rounded-3xl bg-gray-100 md:h-[30rem] md:w-72 dark:bg-[var(--panel)] cursor-pointer hover:scale-105 transition-transform duration-200"
       >
         {/* Video Background */}
         {card.videoUrl && (
@@ -311,8 +311,8 @@ export const Card = ({
         
         {/* Moving Gradient Background for cards without videos */}
         {!card.videoUrl && card.hasMovingGradient && (
-          <div className="absolute inset-0 z-10 bg-gradient-to-br from-slate-950 via-pink-600 to-slate-950 animate-pulse">
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-pink-600 to-slate-950 animate-pulse" 
+          <div className="absolute inset-0 z-10 bg-gradient-to-br from-[var(--app-bg)] via-pink-600 to-[var(--app-bg)] animate-pulse">
+            <div className="absolute inset-0 bg-gradient-to-br from-[var(--app-bg)] via-pink-600 to-[var(--app-bg)] animate-pulse" 
                  style={{
                    background: 'linear-gradient(-45deg, #9333ea, #ec4899, #3b82f6, #8b5cf6)',
                    backgroundSize: '400% 400%',
@@ -334,23 +334,23 @@ export const Card = ({
         )}
         
         {/* Subtle overlay for better text readability */}
-        <div className="absolute inset-0 z-15 bg-slate-950/20" />
+        <div className="absolute inset-0 z-15 bg-[var(--app-bg)]" />
         
         {/* Coming Soon Overlay */}
         {card.isComingSoon && (
-          <div className="absolute inset-0 z-20 bg-slate-950/60 backdrop-blur-sm rounded-3xl flex items-center justify-center">
+          <div className="absolute inset-0 z-20 bg-[var(--app-bg)] backdrop-blur-sm rounded-3xl flex items-center justify-center">
             <div className="text-center">
-              <div className="text-2xl font-bold text-white mb-2">Coming Soon</div>
-              <div className="text-sm text-gray-300">This feature is under development</div>
+              <div className="text-2xl font-bold text-[var(--text)] mb-2">Coming Soon</div>
+              <div className="text-sm text-[var(--text-muted)]">This feature is under development</div>
             </div>
           </div>
         )}
         
         {/* Card Content - Simplified */}
-        <div className="absolute inset-x-0 bottom-0 z-40 p-6 bg-gradient-to-t from-slate-950/80 via-slate-950/40 to-transparent">
+        <div className="absolute inset-x-0 bottom-0 z-40 p-6 bg-gradient-to-t from-[var(--app-bg)] via-[var(--app-bg)] to-transparent">
           <motion.p
             layoutId={layout ? `title-${card.title}` : undefined}
-            className="text-left font-sans text-lg font-semibold [text-wrap:balance] text-white md:text-2xl leading-tight"
+            className="text-left font-sans text-lg font-semibold [text-wrap:balance] text-[var(--text)] md:text-2xl leading-tight"
           >
             {card.title}
           </motion.p>

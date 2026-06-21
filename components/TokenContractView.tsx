@@ -115,7 +115,7 @@ export default function TokenContractView({ contractAddress, compact = false }: 
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <LoaderThree />
-          <p className="text-gray-400 text-xs mt-2">Loading contract...</p>
+          <p className="text-[var(--text-muted)] text-xs mt-2">Loading contract...</p>
         </div>
       </div>
     );
@@ -128,7 +128,7 @@ export default function TokenContractView({ contractAddress, compact = false }: 
           <p className="text-red-400 text-xs">{error}</p>
           <button
             onClick={loadContract}
-            className="mt-2 px-3 py-1 bg-orange-600 hover:bg-orange-700 rounded text-xs text-white"
+            className="mt-2 px-3 py-1 bg-orange-600 hover:bg-orange-700 rounded text-xs text-[var(--text)]"
           >
             Retry
           </button>
@@ -140,7 +140,7 @@ export default function TokenContractView({ contractAddress, compact = false }: 
   if (!contractData) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-gray-400 text-xs">No contract data available</p>
+        <p className="text-[var(--text-muted)] text-xs">No contract data available</p>
       </div>
     );
   }

@@ -38,7 +38,7 @@ export function StickyBanner({
         <button
           type="button"
           onClick={() => setDismissed(true)}
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md hover:bg-white/10 transition-colors"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md hover:bg-[var(--surface-2)] transition-colors"
           aria-label="Close banner"
           title="Close banner"
         >

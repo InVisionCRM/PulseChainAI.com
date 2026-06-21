@@ -92,15 +92,15 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
   const getProgressColor = (progress: number) => {
     if (progress < 25) return 'from-red-500 to-orange-700';
     if (progress < 50) return 'from-orange-500 to-yellow-700';
-    if (progress < 75) return 'from-yellow-500 to-slate-950';
-    return 'from-slate-950 to-green-700';
+    if (progress < 75) return 'from-yellow-500 to-[var(--app-bg)]';
+    return 'from-[var(--app-bg)] to-green-700';
   };
 
   const getRankIcon = (index: number) => {
     if (index === 0) return <Crown className="w-5 h-5 text-yellow-400" />;
-    if (index === 1) return <Crown className="w-5 h-5 text-gray-400" />;
+    if (index === 1) return <Crown className="w-5 h-5 text-[var(--text-muted)]" />;
     if (index === 2) return <Crown className="w-5 h-5 text-amber-600" />;
-    return <span className="text-sm font-bold text-white">#{index + 1}</span>;
+    return <span className="text-sm font-bold text-[var(--text)]">#{index + 1}</span>;
   };
 
   const getStakeStatusColor = (daysLeft: number) => {
@@ -110,15 +110,15 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
   };
 
   return (
-    <div className="bg-gradient-to-b from-slate-900 to-slate-900/90 via-slate-900/90 to-blue-500/30  bg-opacity-50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg overflow-hidden">
-      <div className="px-6 py-4 border-b border-white/10 relative overflow-hidden bg-gradient-to-r from-orange-500 via-red-500 to-slate-950 via-pink-500 to-blue-500">
+    <div className="bg-gradient-to-b from-[var(--panel)] to-[var(--panel)] via-[var(--panel)] to-blue-500/30  bg-opacity-50 backdrop-blur-lg border border-[var(--line)] rounded-2xl shadow-lg overflow-hidden">
+      <div className="px-6 py-4 border-b border-[var(--line)] relative overflow-hidden bg-gradient-to-r from-orange-500 via-red-500 to-[var(--app-bg)] via-pink-500 to-blue-500">
         {/* Simplified background with CSS gradient instead of heavy image */}
-        <div className="absolute inset-0 -z-10 bg-slate-950/10"></div>
+        <div className="absolute inset-0 -z-10 bg-[var(--app-bg)]"></div>
         
         <div className="relative z-10">
           <div className="text-left">
-            <h4 className="text-xl font-bold text-white">Top 50 Active HEX Stakes</h4>
-            <p className="text-sm text-white">Largest current active stakes</p>
+            <h4 className="text-xl font-bold text-[var(--text)]">Top 50 Active HEX Stakes</h4>
+            <p className="text-sm text-[var(--text)]">Largest current active stakes</p>
           </div>
         </div>
       </div>
@@ -136,10 +136,10 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                 onClick={() => handleStakeClick(stake)}
                 className="cursor-pointer group"
               >
-                <div className="relative bg-gradient-to-b from-slate-900/60 to-blue-500/10 via-slate-900/50 to-slate-950/25 bg-opacity-50 backdrop-blur border border-slate-800 rounded-xl transition-all duration-300 hover:bg-slate-950/80 hover:border-lime-400/80 hover:scale-105">
+                <div className="relative bg-gradient-to-b from-[var(--panel)] to-blue-500/10 via-[var(--panel)] to-[var(--app-bg)] bg-opacity-50 backdrop-blur border border-[var(--line)] rounded-xl transition-all duration-300 hover:bg-[var(--app-bg)] hover:border-lime-400/80 hover:scale-105">
                   <div className="p-4">
                     {/* Rank Badge */}
-                    <div className="absolute -top-2 -left-2 flex items-center justify-center w-8 h-8 bg-slate-800/10 bg-opacity-50 bg-transparent border border-lime-400 rounded-full">
+                    <div className="absolute -top-2 -left-2 flex items-center justify-center w-8 h-8 bg-[var(--panel)] bg-opacity-50 bg-transparent border border-lime-400 rounded-full">
                       {getRankIcon(index)}
                     </div>
 
@@ -156,7 +156,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                             e.stopPropagation(); // Prevent triggering the stake detail modal
                             handleStakerClick(stake.stakerAddr, stake.network || 'ethereum');
                           }}
-                          className="text-sm text-white font-mono hover:text-blue-400 transition-colors cursor-pointed"
+                          className="text-sm text-[var(--text)] font-mono hover:text-blue-400 transition-colors cursor-pointed"
                           title={`${stake.stakerAddr} - Click to view staking history`}
                         >
                           {stake.stakerAddr.slice(0, 4)}...{stake.stakerAddr.slice(-4)}
@@ -166,7 +166,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                             e.stopPropagation();
                             copyToClipboard(stake.stakerAddr);
                           }}
-                          className="text-white/60 hover:text-blue-400 transition-colors cursor-pointer"
+                          className="text-[var(--text-muted)] hover:text-blue-400 transition-colors cursor-pointer"
                           title="Copy address to clipboard"
                         >
                           <Copy className="w-3 h-3" />
@@ -190,11 +190,11 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                     <div className="space-y-3">
                       {/* Progress Bar */}
                       <div>
-                        <div className="flex justify-between text-sm text-white mb-1">
+                        <div className="flex justify-between text-sm text-[var(--text)] mb-1">
                           <span>Progress</span>
                           <span>{progress.toFixed(1)}%</span>
                         </div>
-                        <div className="relative w-full bg-white/50 border border-slate-700 border-1 rounded-full h-4 overflow-hidden">
+                        <div className="relative w-full bg-[var(--surface)]0 border border-[var(--line)] border-1 rounded-full h-4 overflow-hidden">
                           <div 
                             className={`h-full bg-gradient-to-r ${getProgressColor(progress)} transition-all duration-1000 ease-out rounded-full relative`}
                             style={{ 
@@ -208,19 +208,19 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
 
                       {/* HEX Amount */}
                       <div className="text-center">
-                        <div className="text-lg font-bold text-white">
+                        <div className="text-lg font-bold text-[var(--text)]">
                           {multiNetworkHexStakingService.formatHexAmount(stake.stakedHearts)}
                         </div>
-                        <div className="text-sm text-white font-bold">HEX</div>
+                        <div className="text-sm text-[var(--text)] font-bold">HEX</div>
                         {hexPrice > 0 && (
-                          <div className="text-xs font-semibold text-white">
+                          <div className="text-xs font-semibold text-[var(--text)]">
                             {formatUSD(calculateStakeUSD(stake.stakedHearts))}
                           </div>
                         )}
                       </div>
 
                       {/* Stake Info */}
-                      <div className="text-center text-xs text-white/70">
+                      <div className="text-center text-xs text-[var(--text-muted)]">
                         <div>Stake #{stake.stakeId}</div>
                         <div>{hexStakingService.formatStakeLength(parseInt(stake.stakedDays))}</div>
                       </div>
@@ -236,7 +236,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
         {displayStakes.length > 8 && (
           <div className="mt-6">
             <div className="text-center mb-4">
-              <p className="text-white text-sm">Showing top 8 stakes • Click any stake for full details</p>
+              <p className="text-[var(--text)] text-sm">Showing top 8 stakes • Click any stake for full details</p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
               {displayStakes.slice(8).map((stake, index) => {
@@ -250,11 +250,11 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                     onClick={() => handleStakeClick(stake)}
                     className="cursor-pointer group"
                   >
-                    <div className="bg-gradient-to-b from-slate-900/60 via-slate-900/10 to-slate-950/10 bg-opacity-50 backdrop-blur border border-blue-500/30 border-1 rounded-lg p-3 transition-all duration-300 hover:bg-slate-700/50 hover:border-white/20">
+                    <div className="bg-gradient-to-b from-[var(--panel)] via-[var(--panel)] to-[var(--app-bg)] bg-opacity-50 backdrop-blur border border-blue-500/30 border-1 rounded-lg p-3 transition-all duration-300 hover:bg-[var(--surface-2)] hover:border-[var(--line-strong)]">
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center font-bold gap-5">
-                          <div className="text-lg font-bold text-white">#{index + 9}</div>
-                          <div className="text-sm text-white font-mono">
+                          <div className="text-lg font-bold text-[var(--text)]">#{index + 9}</div>
+                          <div className="text-sm text-[var(--text)] font-mono">
                             {stake.stakerAddr.slice(0, 4)}...{stake.stakerAddr.slice(-4)}
                           </div>
                           {stake.network && (
@@ -268,16 +268,16 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                           )}
                         </div>
                         <div className="text-right">
-                          <div className="text-sm font-bold text-white">
+                          <div className="text-sm font-bold text-[var(--text)]">
                             {multiNetworkHexStakingService.formatHexAmount(stake.stakedHearts)}
                           </div>
-                          <div className="text-xs text-white">{progress.toFixed(1)}%</div>
+                          <div className="text-xs text-[var(--text)]">{progress.toFixed(1)}%</div>
                         </div>
                       </div>
                       
                       {/* Progress Bar for Compact Stakes */}
                       <div className="w-full">
-                        <div className="relative w-full bg-white/20 border border-slate-600 rounded-full h-2 overflow-hidden">
+                        <div className="relative w-full bg-[var(--surface-3)] border border-[var(--line)] rounded-full h-2 overflow-hidden">
                           <div 
                             className={`h-full bg-gradient-to-r ${getProgressColor(progress)} transition-all duration-1000 ease-out rounded-full relative`}
                             style={{ 
@@ -298,21 +298,21 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
       </div>
       
       {/* Bottom Stats Summary */}
-      <div className="px-6 py-4 border-t border-white bg-slate-800">
+      <div className="px-6 py-4 border-t border-white bg-[var(--panel)]">
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <div className="text-lg font-bold text-green-500">
+            <div className="text-lg font-bold text-[var(--up)]">
               {hexStakingService.formatHexAmount(
                 stakes.reduce((sum, stake) => sum + parseFloat(stake.stakedHearts), 0).toString()
               )}
             </div>
-            <div className="text-xs text-white">Total in Top 50</div>
+            <div className="text-xs text-[var(--text)]">Total in Top 50</div>
           </div>
           <div>
             <div className="text-lg font-bold text-blue-500">
               {(stakes.reduce((sum, stake) => sum + (stake.daysServed || 0), 0) / stakes.length).toFixed(0)}
             </div>
-            <div className="text-xs text-white">Avg Days Served</div>
+            <div className="text-xs text-[var(--text)]">Avg Days Served</div>
           </div>
           <div>
             <div className="text-lg font-bold text-orange-400">
@@ -320,7 +320,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                 Math.round(stakes.reduce((sum, stake) => sum + parseInt(stake.stakedDays), 0) / stakes.length)
               )}
             </div>
-            <div className="text-xs text-white">Avg Length</div>
+            <div className="text-xs text-[var(--text)]">Avg Length</div>
           </div>
         </div>
       </div>

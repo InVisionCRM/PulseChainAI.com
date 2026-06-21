@@ -77,7 +77,7 @@ export function PerformanceOptimizedTable<T extends Record<string, any>>({
     return (
       <div 
         style={style} 
-        className="flex items-center border-b border-white/10 hover:bg-white/5 transition-colors duration-150"
+        className="flex items-center border-b border-[var(--line)] hover:bg-[var(--surface)] transition-colors duration-150"
       >
         {columns.map((column, colIndex) => (
           <div
@@ -97,10 +97,10 @@ export function PerformanceOptimizedTable<T extends Record<string, any>>({
 
   if (loading) {
     return (
-      <div className={`bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden ${className}`}>
+      <div className={`bg-[var(--surface)] backdrop-blur-sm border border-[var(--line)] rounded-xl overflow-hidden ${className}`}>
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          <span className="ml-3 text-white">Loading...</span>
+          <span className="ml-3 text-[var(--text)]">Loading...</span>
         </div>
       </div>
     );
@@ -108,8 +108,8 @@ export function PerformanceOptimizedTable<T extends Record<string, any>>({
 
   if (!data.length) {
     return (
-      <div className={`bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden ${className}`}>
-        <div className="flex items-center justify-center py-12 text-white">
+      <div className={`bg-[var(--surface)] backdrop-blur-sm border border-[var(--line)] rounded-xl overflow-hidden ${className}`}>
+        <div className="flex items-center justify-center py-12 text-[var(--text)]">
           {emptyMessage}
         </div>
       </div>
@@ -117,14 +117,14 @@ export function PerformanceOptimizedTable<T extends Record<string, any>>({
   }
 
   return (
-    <div className={`bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden ${className}`}>
+    <div className={`bg-[var(--surface)] backdrop-blur-sm border border-[var(--line)] rounded-xl overflow-hidden ${className}`}>
       {/* Header */}
-      <div className="bg-slate-900 sticky top-0 z-10 flex">
+      <div className="bg-[var(--panel)] sticky top-0 z-10 flex">
         {columns.map((column) => (
           <div
             key={String(column.key)}
-            className={`px-3 py-3 text-xs font-medium uppercase tracking-wider text-white border-r border-white/10 last:border-r-0 ${
-              column.sortable !== false ? 'cursor-pointer hover:bg-slate-800 transition-colors' : ''
+            className={`px-3 py-3 text-xs font-medium uppercase tracking-wider text-[var(--text)] border-r border-[var(--line)] last:border-r-0 ${
+              column.sortable !== false ? 'cursor-pointer hover:bg-[var(--panel)] transition-colors' : ''
             }`}
             style={{ width: column.width, minWidth: column.width }}
             onClick={column.sortable !== false ? () => handleSort(column.key) : undefined}
@@ -150,7 +150,7 @@ export function PerformanceOptimizedTable<T extends Record<string, any>>({
 
       {/* Footer with count */}
       {sortedData.length > 100 && (
-        <div className="px-3 py-2 text-xs text-center text-slate-400 border-t border-white/10 bg-white/5">
+        <div className="px-3 py-2 text-xs text-center text-[var(--text-muted)] border-t border-[var(--line)] bg-[var(--surface)]">
           Showing {sortedData.length.toLocaleString()} items (virtualized for performance)
         </div>
       )}

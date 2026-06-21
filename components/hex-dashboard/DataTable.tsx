@@ -82,8 +82,8 @@ const formatDate = (dateString: string) => {
 
 const getChangeColor = (value: unknown) => {
   const num = Number(value);
-  if (isNaN(num) || num === 0) return 'text-white';
-  return num > 0 ? 'text-green-500' : 'text-red-500';
+  if (isNaN(num) || num === 0) return 'text-[var(--text)]';
+  return num > 0 ? 'text-[var(--up)]' : 'text-red-500';
 };
 
 const getChangeIcon = (value: unknown) => {
@@ -164,10 +164,10 @@ const DataTable: React.FC<DataTableProps> = ({
   }
 
   return (
-    <div className="bg-slate-950/70 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
+    <div className="bg-[var(--app-bg)] backdrop-blur-xl border border-[var(--line)] rounded-xl sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
       <div className="overflow-auto max-h-[50vh] sm:max-h-[70vh]">
-        <table className="min-w-full divide-y divide-white/10">
-          <thead className="bg-slate-900 text-white">
+        <table className="min-w-full divide-y divide-[var(--line)]">
+          <thead className="bg-[var(--panel)] text-[var(--text)]">
             <tr>
               {columns.map((column) => {
                 const isMobileVisible = column.mobile;
@@ -175,34 +175,34 @@ const DataTable: React.FC<DataTableProps> = ({
                   <th
                     key={column.key}
                     onClick={() => handleSort(column.key as keyof HexRow)}
-                    className={`sticky top-0 z-10 bg-slate-950/80 backdrop-blur px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-white/20 select-none ${!isMobileVisible ? 'hidden sm:table-cell' : ''}`}
+                    className={`sticky top-0 z-10 bg-[var(--app-bg)] backdrop-blur px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-[var(--surface-3)] select-none ${!isMobileVisible ? 'hidden sm:table-cell' : ''}`}
                   >
                     <div className="flex items-center gap-1">
                       <span className="hidden sm:inline">{column.label}</span>
                       <span className="sm:hidden">{column.shortLabel || column.label}</span>
-                      <span className="text-white text-xs">{getSortIcon(column.key as keyof HexRow)}</span>
+                      <span className="text-[var(--text)] text-xs">{getSortIcon(column.key as keyof HexRow)}</span>
                     </div>
                   </th>
                 );
               })}
             </tr>
           </thead>
-          <tbody className="bg-slate-950/70 divide-y divide-white/10">
+          <tbody className="bg-[var(--app-bg)] divide-y divide-[var(--line)]">
             {paginatedData.map((row, index) => (
-              <tr key={row._id || index} className="hover:bg-white/5">
+              <tr key={row._id || index} className="hover:bg-[var(--surface)]">
                 {columns.map((column) => {
                   const isMobileVisible = column.mobile;
-                  const cellClass = `px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-white ${!isMobileVisible ? 'hidden sm:table-cell' : ''}`;
+                  const cellClass = `px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-[var(--text)] ${!isMobileVisible ? 'hidden sm:table-cell' : ''}`;
                   
                   // Get cell content based on column key
                   const getCellContent = () => {
                     switch (column.key) {
                       case 'date':
-                        return <span className="font-medium text-white">{formatDate(row.date)}</span>;
+                        return <span className="font-medium text-[var(--text)]">{formatDate(row.date)}</span>;
                       case 'currentDay':
-                        return <span className="text-white">{formatNumber(row.currentDay, 0, true)}</span>;
+                        return <span className="text-[var(--text)]">{formatNumber(row.currentDay, 0, true)}</span>;
                       case 'priceUV2UV3':
-                        return <span className="text-green-500 font-semibold">{formatPrice(row.priceUV2UV3, 8)}</span>;
+                        return <span className="text-[var(--up)] font-semibold">{formatPrice(row.priceUV2UV3, 8)}</span>;
                       case 'priceChangeUV2UV3':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.priceChangeUV2UV3)}`}>
@@ -211,13 +211,13 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'marketCap':
-                        return <span className="text-white">{formatCurrency(row.marketCap, 0)}</span>;
+                        return <span className="text-[var(--text)]">{formatCurrency(row.marketCap, 0)}</span>;
                       case 'totalValueLocked':
-                        return <span className="text-white font-semibold">{formatCurrency(row.totalValueLocked, 0)}</span>;
+                        return <span className="text-[var(--text)] font-semibold">{formatCurrency(row.totalValueLocked, 0)}</span>;
                       case 'totalHEX':
-                        return <span className="text-white">{formatHEX(row.totalHEX)}</span>;
+                        return <span className="text-[var(--text)]">{formatHEX(row.totalHEX)}</span>;
                       case 'circulatingHEX':
-                        return <span className="text-white">{formatHEX(row.circulatingHEX)}</span>;
+                        return <span className="text-[var(--text)]">{formatHEX(row.circulatingHEX)}</span>;
                       case 'circulatingSupplyChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.circulatingSupplyChange)}`}>
@@ -226,7 +226,7 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'stakedHEX':
-                        return <span className="text-white">{formatHEX(row.stakedHEX)}</span>;
+                        return <span className="text-[var(--text)]">{formatHEX(row.stakedHEX)}</span>;
                       case 'stakedSupplyChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.stakedSupplyChange)}`}>
@@ -235,9 +235,9 @@ const DataTable: React.FC<DataTableProps> = ({
                           </div>
                         );
                       case 'stakedHEXPercent':
-                        return <span className="text-white">{formatPercent(row.stakedHEXPercent)}</span>;
+                        return <span className="text-[var(--text)]">{formatPercent(row.stakedHEXPercent)}</span>;
                       case 'totalTshares':
-                        return <span className="text-white">{formatTShares(row.totalTshares)}</span>;
+                        return <span className="text-[var(--text)]">{formatTShares(row.totalTshares)}</span>;
                       case 'totalTsharesChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.totalTsharesChange)}`}>
@@ -248,17 +248,17 @@ const DataTable: React.FC<DataTableProps> = ({
                       case 'tshareRateHEX':
                         return <span className="text-orange-500">{formatNumber(row.tshareRateHEX, 1)} HEX</span>;
                       case 'tshareMarketCap':
-                        return <span className="text-white">{formatCurrency(row.tshareMarketCap, 0)}</span>;
+                        return <span className="text-[var(--text)]">{formatCurrency(row.tshareMarketCap, 0)}</span>;
                       case 'payoutPerTshareHEX':
                         return <span className="text-yellow-500">{formatNumber(row.payoutPerTshareHEX, 6)} HEX</span>;
                       case 'dailyPayoutHEX':
-                        return <span className="text-green-500">{formatHEX(row.dailyPayoutHEX)}</span>;
+                        return <span className="text-[var(--up)]">{formatHEX(row.dailyPayoutHEX)}</span>;
                       case 'dailyMintedInflationTotal':
-                        return <span className="text-green-500">{formatHEX(row.dailyMintedInflationTotal)}</span>;
+                        return <span className="text-[var(--up)]">{formatHEX(row.dailyMintedInflationTotal)}</span>;
                       case 'actualAPYRate':
                         return <span className="text-yellow-500 font-semibold">{formatPercent(row.actualAPYRate)}</span>;
                       case 'currentStakerCount':
-                        return <span className="text-white">{formatNumber(row.currentStakerCount, 0, true)}</span>;
+                        return <span className="text-[var(--text)]">{formatNumber(row.currentStakerCount, 0, true)}</span>;
                       case 'currentStakerCountChange':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.currentStakerCountChange)}`}>
@@ -282,17 +282,17 @@ const DataTable: React.FC<DataTableProps> = ({
                       case 'penaltiesHEX':
                         return <span className="text-red-500">{formatHEX(row.penaltiesHEX)}</span>;
                       case 'roiMultiplierFromATL':
-                        return <span className="text-green-500 font-semibold">{formatNumber(row.roiMultiplierFromATL, 0)}x</span>;
+                        return <span className="text-[var(--up)] font-semibold">{formatNumber(row.roiMultiplierFromATL, 0)}x</span>;
                       case 'priceBTC':
                         return <span className="text-orange-500">{formatCurrency(row.priceBTC, 2)}</span>;
                       case 'priceETH':
-                        return <span className="text-white">{formatCurrency(row.priceETH, 2)}</span>;
+                        return <span className="text-[var(--text)]">{formatCurrency(row.priceETH, 2)}</span>;
                       case 'pricePulseX':
                         return <span className="text-cyan-500">{formatPrice(row.pricePulseX, 8)}</span>;
                       case 'pricePulseX_PLS':
                         return <span className="text-cyan-500">{formatPrice(row.pricePulseX_PLS, 8)}</span>;
                       default:
-                        return <span className="text-white">{formatNumber(row[column.key as keyof HexRow])}</span>;
+                        return <span className="text-[var(--text)]">{formatNumber(row[column.key as keyof HexRow])}</span>;
                     }
                   };
 
@@ -310,31 +310,31 @@ const DataTable: React.FC<DataTableProps> = ({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="bg-slate-800/30 px-2 sm:px-4 py-2 sm:py-3 flex flex-col sm:flex-row items-center justify-between border-t border-slate-700 gap-2 sm:gap-0">
+        <div className="bg-[var(--panel)] px-2 sm:px-4 py-2 sm:py-3 flex flex-col sm:flex-row items-center justify-between border-t border-[var(--line)] gap-2 sm:gap-0">
           <div className="flex-1 flex justify-between sm:hidden w-full">
             <button
               type="button"
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="relative inline-flex items-center px-3 py-1.5 border border-slate-600 text-xs font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="relative inline-flex items-center px-3 py-1.5 border border-[var(--line)] text-xs font-medium rounded-md text-[var(--text)] bg-[var(--panel)] hover:bg-[var(--surface-2)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Prev
             </button>
-            <span className="text-xs text-white self-center">
+            <span className="text-xs text-[var(--text)] self-center">
               {currentPage} / {totalPages}
             </span>
             <button
               type="button"
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="relative inline-flex items-center px-3 py-1.5 border border-slate-600 text-xs font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="relative inline-flex items-center px-3 py-1.5 border border-[var(--line)] text-xs font-medium rounded-md text-[var(--text)] bg-[var(--panel)] hover:bg-[var(--surface-2)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>
           </div>
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm text-white">
+              <p className="text-sm text-[var(--text)]">
                 Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
                 <span className="font-medium">{Math.min(startIndex + itemsPerPage, data.length)}</span> of{' '}
                 <span className="font-medium">{data.length}</span> results
@@ -347,7 +347,7 @@ const DataTable: React.FC<DataTableProps> = ({
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
                   title="Previous page"
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-slate-600 bg-slate-800 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-[var(--line)] bg-[var(--panel)] text-sm font-medium text-[var(--text)] hover:bg-[var(--surface-2)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
@@ -360,8 +360,8 @@ const DataTable: React.FC<DataTableProps> = ({
                       onClick={() => setCurrentPage(pageNum)}
                       className={`relative inline-flex items-center px-3 sm:px-4 py-2 border text-sm font-medium ${
                         currentPage === pageNum
-                          ? 'z-10 bg-slate-950 border-slate-800 text-white'
-                          : 'bg-slate-800 border-slate-600 text-white hover:bg-slate-700'
+                          ? 'z-10 bg-[var(--app-bg)] border-[var(--line)] text-[var(--text)]'
+                          : 'bg-[var(--panel)] border-[var(--line)] text-[var(--text)] hover:bg-[var(--surface-2)]'
                       }`}
                     >
                       {pageNum}
@@ -373,7 +373,7 @@ const DataTable: React.FC<DataTableProps> = ({
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
                   title="Next page"
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-slate-600 bg-slate-800 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-[var(--line)] bg-[var(--panel)] text-sm font-medium text-[var(--text)] hover:bg-[var(--surface-2)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>

@@ -277,10 +277,10 @@ const EndstakeTimingAI: React.FC = () => {
 
   const getRiskColor = (riskLevel: string): string => {
     switch (riskLevel) {
-      case 'low': return 'text-green-400';
+      case 'low': return 'text-[var(--up)]';
       case 'medium': return 'text-yellow-400';
       case 'high': return 'text-red-400';
-      default: return 'text-slate-400';
+      default: return 'text-[var(--text-muted)]';
     }
   };
 
@@ -300,12 +300,12 @@ const EndstakeTimingAI: React.FC = () => {
       case 'low': return 'bg-green-500/20 border-green-500/30';
       case 'medium': return 'bg-yellow-500/20 border-yellow-500/30';
       case 'high': return 'bg-red-500/20 border-red-500/30';
-      default: return 'bg-slate-500/20 border-slate-500/30';
+      default: return 'bg-[var(--surface-2)] border-[var(--line)]';
     }
   };
 
   return (
-    <div className="bg-gradient-to-br from-slate-900/95 to-slate-950/95 backdrop-blur-xl border border-white/20 rounded-3xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.8)] p-8">
+    <div className="bg-gradient-to-br from-[var(--panel)] to-[var(--app-bg)] backdrop-blur-xl border border-[var(--line-strong)] rounded-3xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.8)] p-8">
       {/* Header */}
       <div className="text-center mb-8">
         <div className="flex items-center justify-center gap-3 mb-4">
@@ -313,21 +313,21 @@ const EndstakeTimingAI: React.FC = () => {
             <Brain className="w-8 h-8 text-blue-400" />
           </div>
           <div>
-            <h2 className="text-3xl font-bold text-white">Endstake Timing AI</h2>
-            <p className="text-slate-400 text-lg">AI-powered analysis for optimal endstake timing</p>
+            <h2 className="text-3xl font-bold text-[var(--text)]">Endstake Timing AI</h2>
+            <p className="text-[var(--text-muted)] text-lg">AI-powered analysis for optimal endstake timing</p>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-white/10 mb-6">
+      <div className="border-b border-[var(--line)] mb-6">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('input')}
             className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
               activeTab === 'input'
                 ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-slate-400 hover:text-slate-300'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-muted)]'
             }`}
           >
             <Calculator className="w-4 h-4" />
@@ -338,7 +338,7 @@ const EndstakeTimingAI: React.FC = () => {
             className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
               activeTab === 'analysis'
                 ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-slate-400 hover:text-slate-300'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-muted)]'
             }`}
           >
             <BarChart3 className="w-4 h-4" />
@@ -349,7 +349,7 @@ const EndstakeTimingAI: React.FC = () => {
             className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
               activeTab === 'recommendation'
                 ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-slate-400 hover:text-slate-300'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-muted)]'
             }`}
           >
             <Target className="w-4 h-4" />
@@ -364,7 +364,7 @@ const EndstakeTimingAI: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* HEX Amount */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              <label className="text-sm font-medium text-[var(--text-muted)] flex items-center gap-2">
               <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
               HEX Amount to Stake
             </label>
@@ -373,10 +373,10 @@ const EndstakeTimingAI: React.FC = () => {
                   type="number"
                   value={inputs.hexAmount}
                   onChange={(e) => setInputs(prev => ({ ...prev, hexAmount: parseFloat(e.target.value) || 0 }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-[var(--surface)] border border-[var(--line)] rounded-lg px-4 py-3 text-[var(--text)] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="1000000"
                 />
-                <div className="absolute right-3 top-3 text-slate-400 text-sm flex items-center gap-1">
+                <div className="absolute right-3 top-3 text-[var(--text-muted)] text-sm flex items-center gap-1">
                   <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                   HEX
                 </div>
@@ -385,23 +385,23 @@ const EndstakeTimingAI: React.FC = () => {
 
             {/* Target Days */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Target Stake Length (Days)</label>
+              <label className="text-sm font-medium text-[var(--text-muted)]">Target Stake Length (Days)</label>
               <input
                 type="number"
                 value={inputs.targetDays}
                 onChange={(e) => setInputs(prev => ({ ...prev, targetDays: parseInt(e.target.value) || 0 }))}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-[var(--surface)] border border-[var(--line)] rounded-lg px-4 py-3 text-[var(--text)] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="365"
               />
             </div>
 
             {/* Strategy */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Staking Strategy</label>
+              <label className="text-sm font-medium text-[var(--text-muted)]">Staking Strategy</label>
               <select
                 value={inputs.strategy}
                 onChange={(e) => setInputs(prev => ({ ...prev, strategy: e.target.value as 'lump-sum' | 'ladder' }))}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-[var(--surface)] border border-[var(--line)] rounded-lg px-4 py-3 text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="lump-sum">Lump Sum Stake</option>
                 <option value="ladder">Ladder Staking</option>
@@ -410,23 +410,23 @@ const EndstakeTimingAI: React.FC = () => {
 
             {/* Variance Days */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Variance Days (±)</label>
+              <label className="text-sm font-medium text-[var(--text-muted)]">Variance Days (±)</label>
               <input
                 type="number"
                 value={inputs.varianceDays}
                 onChange={(e) => setInputs(prev => ({ ...prev, varianceDays: parseInt(e.target.value) || 0 }))}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-[var(--surface)] border border-[var(--line)] rounded-lg px-4 py-3 text-[var(--text)] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="10"
               />
             </div>
 
             {/* Network */}
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium text-slate-300">Network Analysis</label>
+              <label className="text-sm font-medium text-[var(--text-muted)]">Network Analysis</label>
               <select
                 value={inputs.network}
                 onChange={(e) => setInputs(prev => ({ ...prev, network: e.target.value as 'ethereum' | 'pulsechain' | 'both' }))}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-[var(--surface)] border border-[var(--line)] rounded-lg px-4 py-3 text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="both">Both Ethereum & PulseChain</option>
                 <option value="ethereum">
@@ -446,7 +446,7 @@ const EndstakeTimingAI: React.FC = () => {
             <button
               onClick={analyzeEndstakeTiming}
               disabled={isAnalyzing || inputs.hexAmount <= 0 || inputs.targetDays <= 0 || inputs.varianceDays <= 0}
-              className="bg-slate-950 hover:bg-slate-950 disabled:bg-blue-400 text-white font-bold py-4 px-8 rounded-xl flex items-center gap-3 mx-auto transition-colors"
+              className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)] disabled:bg-blue-400 text-[var(--text)] font-bold py-4 px-8 rounded-xl flex items-center gap-3 mx-auto transition-colors"
             >
               {isAnalyzing ? (
                 <>
@@ -468,7 +468,7 @@ const EndstakeTimingAI: React.FC = () => {
           <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
             <div className="flex items-start gap-3">
               <Info className="w-5 h-5 text-blue-400 mt-0.5" />
-              <div className="text-sm text-slate-300">
+              <div className="text-sm text-[var(--text-muted)]">
                 <p className="font-medium text-blue-400 mb-2">How it works:</p>
                 <ul className="space-y-1">
                   <li>• AI scans all stakes ending within your variance window</li>
@@ -486,17 +486,17 @@ const EndstakeTimingAI: React.FC = () => {
       {activeTab === 'analysis' && analysis.length > 0 && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold text-white">Market Analysis Results</h3>
-            <div className="text-sm text-slate-400">
+            <h3 className="text-xl font-semibold text-[var(--text)]">Market Analysis Results</h3>
+            <div className="text-sm text-[var(--text-muted)]">
               Analyzing {inputs.varianceDays * 2 + 1} days around day {inputs.targetDays}
             </div>
           </div>
 
           {/* Analysis Table */}
-          <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl overflow-hidden">
+          <div className="bg-[var(--surface)] backdrop-blur border border-[var(--line)] rounded-xl overflow-hidden">
             <div className="overflow-auto">
-              <table className="min-w-full divide-y divide-white/10">
-                <thead className="bg-slate-900 text-white">
+              <table className="min-w-full divide-y divide-[var(--line)]">
+                <thead className="bg-[var(--panel)] text-[var(--text)]">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">End Day</th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">End Date</th>
@@ -518,23 +518,23 @@ const EndstakeTimingAI: React.FC = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Risk Factors</th>
                   </tr>
                 </thead>
-                <tbody className="bg-transparent divide-y divide-white/10">
+                <tbody className="bg-transparent divide-y divide-[var(--line)]">
                   {analysis.map((day, index) => (
-                    <tr key={index} className="hover:bg-white/5">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-white">
+                    <tr key={index} className="hover:bg-[var(--surface)]">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-[var(--text)]">
                         Day {day.endDay}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-blue-400">
                         {getEndDate(day.endDay)}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-green-400 flex items-center gap-1">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-[var(--up)] flex items-center gap-1">
                         <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                         {formatHexAmount(day.totalHexEnding)} HEX
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-300">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-[var(--text-muted)]">
                         {day.stakeCount}
                       </td>
-                      <td className="px-4 py-4 text-sm text-slate-300">
+                      <td className="px-4 py-4 text-sm text-[var(--text-muted)]">
                         <div className="space-y-1 max-w-xs">
                           {day.stakes?.slice(0, 3).map((stake, idx) => (
                             <div key={idx} className="flex items-center gap-2">
@@ -543,14 +543,14 @@ const EndstakeTimingAI: React.FC = () => {
                                     onClick={() => handleStakerClick(stake.stakerAddr, inputs.network)}>
                                 {stake.stakerAddr.slice(0, 8)}...{stake.stakerAddr.slice(-6)}
                               </span>
-                              <span className="text-xs text-slate-500 flex items-center gap-1">
+                              <span className="text-xs text-[var(--text-muted)] flex items-center gap-1">
                                 <img src="/HEXagon (1).svg" alt="HEX" className="w-3 h-3" />
                                 ({formatHexAmount(parseFloat(stake.stakedHearts))} HEX)
                               </span>
                             </div>
                           ))}
                           {day.stakes && day.stakes.length > 3 && (
-                            <div className="text-xs text-slate-500 italic">
+                            <div className="text-xs text-[var(--text-muted)] italic">
                               +{day.stakes.length - 3} more stakes
                             </div>
                           )}
@@ -569,7 +569,7 @@ const EndstakeTimingAI: React.FC = () => {
                           {day.riskLevel.charAt(0).toUpperCase() + day.riskLevel.slice(1)}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-sm text-slate-300">
+                      <td className="px-4 py-4 text-sm text-[var(--text-muted)]">
                         <div className="space-y-1">
                           {day.riskFactors.map((factor, idx) => (
                             <div key={idx} className="text-xs">• {factor}</div>
@@ -587,7 +587,7 @@ const EndstakeTimingAI: React.FC = () => {
           <div className="flex justify-between">
             <button
               onClick={() => setActiveTab('input')}
-              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+              className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Input
@@ -607,8 +607,8 @@ const EndstakeTimingAI: React.FC = () => {
       {activeTab === 'recommendation' && recommendation && (
         <div className="space-y-6">
           <div className="text-center">
-            <h3 className="text-2xl font-bold text-white mb-2">AI Recommendation</h3>
-            <p className="text-slate-400">Based on market analysis, here's your optimal endstake timing</p>
+            <h3 className="text-2xl font-bold text-[var(--text)] mb-2">AI Recommendation</h3>
+            <p className="text-[var(--text-muted)]">Based on market analysis, here's your optimal endstake timing</p>
           </div>
 
           {/* Main Recommendation */}
@@ -617,8 +617,8 @@ const EndstakeTimingAI: React.FC = () => {
               <div className="flex items-center justify-center gap-3 mb-4">
                 <Target className="w-8 h-8 text-blue-400" />
                 <div className="text-center">
-                  <span className="text-3xl font-bold text-white">Day {recommendation.recommendedDay}</span>
-                  <div className="text-lg text-slate-300 mt-1">
+                  <span className="text-3xl font-bold text-[var(--text)]">Day {recommendation.recommendedDay}</span>
+                  <div className="text-lg text-[var(--text-muted)] mt-1">
                     {getEndDate(recommendation.recommendedDay)}
                   </div>
                 </div>
@@ -626,7 +626,7 @@ const EndstakeTimingAI: React.FC = () => {
               
               <div className="flex items-center justify-center gap-2 mb-4">
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  recommendation.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
+                  recommendation.confidence === 'high' ? 'bg-green-500/20 text-[var(--up)]' :
                   recommendation.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
                   'bg-red-500/20 text-red-400'
                 }`}>
@@ -634,19 +634,19 @@ const EndstakeTimingAI: React.FC = () => {
                 </span>
               </div>
 
-              <div className="text-lg text-slate-300 mb-6">
+              <div className="text-lg text-[var(--text-muted)] mb-6">
                 {recommendation.marketImpact}
               </div>
             </div>
 
             {/* Reasoning */}
             <div className="space-y-3">
-              <h4 className="text-lg font-semibold text-white text-center">Why This Day?</h4>
+              <h4 className="text-lg font-semibold text-[var(--text)] text-center">Why This Day?</h4>
               <div className="space-y-2">
                 {recommendation.reasoning.map((reason, index) => (
-                  <div key={index} className="flex items-start gap-3 bg-white/5 rounded-lg p-3">
-                    <CheckCircle className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
-                    <span className="text-slate-300">{reason}</span>
+                  <div key={index} className="flex items-start gap-3 bg-[var(--surface)] rounded-lg p-3">
+                    <CheckCircle className="w-5 h-5 text-[var(--up)] mt-0.5 flex-shrink-0" />
+                    <span className="text-[var(--text-muted)]">{reason}</span>
                   </div>
                 ))}
               </div>
@@ -654,27 +654,27 @@ const EndstakeTimingAI: React.FC = () => {
           </div>
 
           {/* Risk Assessment */}
-          <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-xl p-6">
-            <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+          <div className="bg-gradient-to-br from-[var(--panel)] to-[var(--panel)] border border-[var(--line)] rounded-xl p-6">
+            <h4 className="text-lg font-semibold text-[var(--text)] mb-3 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-yellow-400" />
               Risk Assessment
             </h4>
-            <p className="text-slate-300 leading-relaxed">{recommendation.riskAssessment}</p>
+            <p className="text-[var(--text-muted)] leading-relaxed">{recommendation.riskAssessment}</p>
           </div>
 
           {/* Alternative Options */}
           {recommendation.alternativeDays.length > 0 && (
             <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-6">
-              <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+              <h4 className="text-lg font-semibold text-[var(--text)] mb-3 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-blue-400" />
                 Alternative Options
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {recommendation.alternativeDays.map((day, index) => (
-                  <div key={index} className="bg-white/5 rounded-lg p-4 text-center">
+                  <div key={index} className="bg-[var(--surface)] rounded-lg p-4 text-center">
                     <div className="text-2xl font-bold text-blue-400">Day {day}</div>
-                    <div className="text-sm text-slate-300">{getEndDate(day)}</div>
-                    <div className="text-xs text-slate-400">Low Risk Alternative</div>
+                    <div className="text-sm text-[var(--text-muted)]">{getEndDate(day)}</div>
+                    <div className="text-xs text-[var(--text-muted)]">Low Risk Alternative</div>
                   </div>
                 ))}
               </div>
@@ -685,7 +685,7 @@ const EndstakeTimingAI: React.FC = () => {
           <div className="flex justify-between">
             <button
               onClick={() => setActiveTab('analysis')}
-              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+              className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               View Analysis
