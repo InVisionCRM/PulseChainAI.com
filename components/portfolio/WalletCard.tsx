@@ -44,6 +44,11 @@ const CHAIN_NAME: Record<ChainId, string> = {
 
 const truncate = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 
+// Token names are clamped to 15 characters (then ellipsised) so a long name
+// can't blow out the row layout.
+const clampName = (n: string | null | undefined) =>
+  n && n.length > 15 ? `${n.slice(0, 15)}…` : n;
+
 type SortKey = 'symbol' | 'balance' | 'change' | 'price' | 'value';
 type SortDir = 'asc' | 'desc';
 
@@ -619,7 +624,7 @@ function renderTokenRows(
                   <IconChartHistogram className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <div className="text-xs text-[var(--text-faint)] truncate">{t.name}</div>
+              <div className="text-xs text-[var(--text-faint)] truncate">{clampName(t.name)}</div>
             </div>
           </div>
         </td>
@@ -735,7 +740,7 @@ function LpSideRow({ side, chain }: { side: LpUnderlying; chain: ChainId }) {
                 {side.weightPct.toFixed(1)}%
               </span>
             </div>
-            <div className="text-[11px] text-[var(--text-faint)] truncate">{side.name}</div>
+            <div className="text-[11px] text-[var(--text-faint)] truncate">{clampName(side.name)}</div>
           </div>
         </div>
       </td>
