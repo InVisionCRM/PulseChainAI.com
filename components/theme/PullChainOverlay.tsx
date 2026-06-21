@@ -24,12 +24,19 @@ function currentTheme(): "light" | "dark" {
 }
 
 function setTheme(theme: "light" | "dark") {
-  document.documentElement.classList.toggle("dark", theme === "dark");
+  const root = document.documentElement;
+  // Suppress all transitions so the flip lands in one repaint (no uneven fade).
+  root.classList.add("theme-switching");
+  root.classList.toggle("dark", theme === "dark");
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
     /* storage may be unavailable (private mode) — still flips for this session */
   }
+  // Re-enable transitions once the swap has been painted.
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => root.classList.remove("theme-switching"));
+  });
   window.dispatchEvent(new CustomEvent("pc-theme-changed", { detail: { theme } }));
 }
 

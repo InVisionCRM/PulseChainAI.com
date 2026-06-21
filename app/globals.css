@@ -34,12 +34,12 @@
     /* ===== App theme tokens — LIGHT (default when .dark is absent) =====
        The whole app is painted through these so it flips with the .dark class.
        Brand orange (#FA4616) is intentionally constant across themes. */
-    --app-bg: #eef1f7;            /* page background */
-    --app-bg-2: #e3e8f1;          /* secondary page background / gradients */
+    --app-bg: #e6eaf2;            /* light-gray page, so white cards pop */
+    --app-bg-2: #d8dfea;          /* secondary page background / gradients */
     --panel: #ffffff;             /* solid cards / panels */
-    --surface: rgba(15, 23, 42, 0.045);   /* translucent panel (was white/5) */
-    --surface-2: rgba(15, 23, 42, 0.08);  /* (was white/10) */
-    --surface-3: rgba(15, 23, 42, 0.12);  /* (was white/15–20) */
+    --surface: rgba(255, 255, 255, 0.62);  /* translucent WHITE card — lighter than the page (was white/5 on dark) */
+    --surface-2: rgba(255, 255, 255, 0.90); /* (was white/10) */
+    --surface-3: rgba(15, 23, 42, 0.07);   /* light-gray fill for strong/active states (was white/15–20) */
     --line: rgba(15, 23, 42, 0.12);       /* borders (was white/10) */
     --line-soft: rgba(15, 23, 42, 0.07);  /* (was white/5) */
     --line-strong: rgba(15, 23, 42, 0.20);/* (was white/20) */
@@ -121,14 +121,14 @@ body {
   color: var(--text);
 }
 
-/* Smooth the dark <-> light flip for color-bearing surfaces */
-body * {
-  transition-property: background-color, border-color, color, fill;
-  transition-duration: 0.2s;
-  transition-timing-function: ease;
-}
-@media (prefers-reduced-motion: reduce) {
-  body * { transition: none; }
+/* The theme flip is applied in a single repaint (the pull-chain animation is the
+   visible transition). While the `.dark` class is toggled we suppress every
+   transition so the swap lands instantly instead of a janky, uneven fade. */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
 }
 
 /* Brand color utilities */

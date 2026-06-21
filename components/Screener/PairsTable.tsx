@@ -84,7 +84,7 @@ export default function PairsTable({ rows, window, loading, sort, dir, onSort, w
                   onClick={h.sort ? () => onSort(h.sort!) : undefined}
                   className={`whitespace-nowrap px-3 py-2.5 font-semibold ${colw} ${h.align === 'right' ? 'text-right' : 'text-left'} ${
                     h.sort ? 'cursor-pointer select-none hover:text-[var(--text)]' : ''
-                  } ${active || (windowCol && !sort) ? 'text-orange-300' : ''}`}
+                  } ${active || (windowCol && !sort) ? 'text-orange-600 dark:text-orange-300' : ''}`}
                 >
                   <span className="inline-flex items-center gap-0.5">
                     {h.label}
@@ -134,7 +134,7 @@ export default function PairsTable({ rows, window, loading, sort, dir, onSort, w
                     <span className="hidden max-w-[180px] truncate text-[var(--text-faint)] lg:inline">{row.baseName}</span>
                   </div>
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right text-orange-300 tabular-nums">{fmtUsd(row.marketCap)}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-right text-orange-600 dark:text-orange-300 tabular-nums">{fmtUsd(row.marketCap)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right text-[var(--text)] tabular-nums">{fmtPrice(row.priceUsd)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right text-[var(--text-muted)] tabular-nums">{fmtAge(row.pairCreatedAt)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right text-[var(--text)] tabular-nums">{fmtNum(row.txns[window])}</td>
