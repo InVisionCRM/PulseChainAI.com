@@ -48,7 +48,7 @@ export default function ResourcesTab() {
     },
     {
       title: 'Development Tools & Utilities',
-      icon: <IconTerminal className="h-6 w-6 text-green-500" />,
+      icon: <IconTerminal className="h-6 w-6 text-[var(--up)]" />,
       resources: [
         { name: 'ESLint', url: 'https://eslint.org/', desc: 'JavaScript and TypeScript linting tool' },
         { name: 'Prettier', url: 'https://prettier.io/', desc: 'Opinionated code formatter' },

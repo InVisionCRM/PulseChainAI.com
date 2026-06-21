@@ -1568,7 +1568,7 @@ function GeickoPageContent() {
                           return p >= 1 ? p.toFixed(4) : p.toFixed(6);
                         })()}
                       </div>
-                      <div className={`text-xs text-center pb-1 justify-center font-semibold p-1 bg-transparent backdrop-blur-md ${Number(effectivePair?.priceChange?.h24 ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      <div className={`text-xs text-center pb-1 justify-center font-semibold p-1 bg-transparent backdrop-blur-md ${Number(effectivePair?.priceChange?.h24 ?? 0) >= 0 ? 'text-[var(--up)]' : 'text-red-400'}`}>
                         {Number(effectivePair?.priceChange?.h24 ?? 0) >= 0 ? '↑' : '↓'}
                         {Math.abs(Number(effectivePair?.priceChange?.h24 ?? 0)).toFixed(2)}%
                       </div>
@@ -1716,7 +1716,7 @@ function GeickoPageContent() {
                     <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
                   ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
                     <div className="text-center">
-                      <div className="text-xs text-green-400 font-semibold">Renounced</div>
+                      <div className="text-xs text-[var(--up)] font-semibold">Renounced</div>
                       <div className="text-xs text-[var(--text-muted)] mt-0.5">
                         {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
                       </div>
@@ -2031,7 +2031,7 @@ function GeickoPageContent() {
                     </div>
                   )}
                   {totalLiquidity.pairCount > 0 && (
-                    <div className="text-center text-xs text-green-400 font-medium mt-0.5">
+                    <div className="text-center text-xs text-[var(--up)] font-medium mt-0.5">
                       {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
                     </div>
                   )}
@@ -2052,7 +2052,7 @@ function GeickoPageContent() {
                           <p>{burnedTokens.amount.toLocaleString()}</p>
                         </TooltipContent>
                       </Tooltip>
-                      <div className="text-xs text-green-400 font-medium mt-0.5">{burnedTokens.percent.toFixed(1)}% of supply</div>
+                      <div className="text-xs text-[var(--up)] font-medium mt-0.5">{burnedTokens.percent.toFixed(1)}% of supply</div>
                     </div>
                   ) : (
                     <div className="text-center text-base text-[var(--text)] font-semibold">—</div>
@@ -2363,7 +2363,7 @@ function GeickoPageContent() {
                             </div>
                             <div className="flex justify-between">
                               <span className="text-[var(--text-muted)]">Owner:</span>
-                              <span className={`font-mono text-xs ${quickAudit.contractRenounced ? 'text-green-400' : 'text-red-400'}`}>
+                              <span className={`font-mono text-xs ${quickAudit.contractRenounced ? 'text-[var(--up)]' : 'text-red-400'}`}>
                                 {quickAudit.contractRenounced ? 'Renounced' : (quickAudit.contractOwner ? `${quickAudit.contractOwner.slice(0, 6)}...${quickAudit.contractOwner.slice(-4)}` : 'Unknown')}
                               </span>
                             </div>
@@ -2375,19 +2375,19 @@ function GeickoPageContent() {
                           <div className="space-y-1 text-xs">
                             <div className="flex justify-between">
                               <span className="text-[var(--text-muted)]">Proxy:</span>
-                              <span className={quickAudit.isProxy ? 'text-red-400' : 'text-green-400'}>
+                              <span className={quickAudit.isProxy ? 'text-red-400' : 'text-[var(--up)]'}>
                                 {quickAudit.isProxy ? 'Yes' : 'No'}
                               </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-[var(--text-muted)]">External Risk:</span>
-                              <span className={quickAudit.hasExternalContractRisk ? 'text-red-400' : 'text-green-400'}>
+                              <span className={quickAudit.hasExternalContractRisk ? 'text-red-400' : 'text-[var(--up)]'}>
                                 {quickAudit.hasExternalContractRisk ? 'Yes' : 'No'}
                               </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-[var(--text-muted)]">Suspicious:</span>
-                              <span className={quickAudit.hasSuspiciousFunctions ? 'text-red-400' : 'text-green-400'}>
+                              <span className={quickAudit.hasSuspiciousFunctions ? 'text-red-400' : 'text-[var(--up)]'}>
                                 {quickAudit.hasSuspiciousFunctions ? 'Yes' : 'No'}
                               </span>
                             </div>
@@ -2401,49 +2401,49 @@ function GeickoPageContent() {
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="flex items-center justify-between">
                             <span className="text-[var(--text-muted)]">Mint:</span>
-                            <span className={quickAudit.canMint ? 'text-red-400' : 'text-green-400'}>
+                            <span className={quickAudit.canMint ? 'text-red-400' : 'text-[var(--up)]'}>
                               {quickAudit.canMint ? 'Yes' : 'No'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-[var(--text-muted)]">Burn:</span>
-                            <span className={quickAudit.canBurn ? 'text-yellow-400' : 'text-green-400'}>
+                            <span className={quickAudit.canBurn ? 'text-yellow-400' : 'text-[var(--up)]'}>
                               {quickAudit.canBurn ? 'Yes' : 'No'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-[var(--text-muted)]">Blacklist:</span>
-                            <span className={quickAudit.canBlacklist ? 'text-red-400' : 'text-green-400'}>
+                            <span className={quickAudit.canBlacklist ? 'text-red-400' : 'text-[var(--up)]'}>
                               {quickAudit.canBlacklist ? 'Yes' : 'No'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-[var(--text-muted)]">Pause:</span>
-                            <span className={quickAudit.canPauseTrading ? 'text-red-400' : 'text-green-400'}>
+                            <span className={quickAudit.canPauseTrading ? 'text-red-400' : 'text-[var(--up)]'}>
                               {quickAudit.canPauseTrading ? 'Yes' : 'No'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-[var(--text-muted)]">Fees:</span>
-                            <span className={quickAudit.canUpdateFees ? 'text-red-400' : 'text-green-400'}>
+                            <span className={quickAudit.canUpdateFees ? 'text-red-400' : 'text-[var(--up)]'}>
                               {quickAudit.canUpdateFees ? 'Yes' : 'No'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-[var(--text-muted)]">Max Wallet:</span>
-                            <span className={quickAudit.canUpdateMaxWallet ? 'text-red-400' : 'text-green-400'}>
+                            <span className={quickAudit.canUpdateMaxWallet ? 'text-red-400' : 'text-[var(--up)]'}>
                               {quickAudit.canUpdateMaxWallet ? 'Yes' : 'No'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-[var(--text-muted)]">Max TX:</span>
-                            <span className={quickAudit.canUpdateMaxTx ? 'text-red-400' : 'text-green-400'}>
+                            <span className={quickAudit.canUpdateMaxTx ? 'text-red-400' : 'text-[var(--up)]'}>
                               {quickAudit.canUpdateMaxTx ? 'Yes' : 'No'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-[var(--text-muted)]">Cooldown:</span>
-                            <span className={quickAudit.hasCooldown ? 'text-yellow-400' : 'text-green-400'}>
+                            <span className={quickAudit.hasCooldown ? 'text-yellow-400' : 'text-[var(--up)]'}>
                               {quickAudit.hasCooldown ? 'Yes' : 'No'}
                             </span>
                           </div>
@@ -2503,7 +2503,7 @@ function GeickoPageContent() {
                             return p >= 1 ? p.toFixed(4) : p.toFixed(6);
                           })()}
                         </div>
-                        <div className={`text-xs font-semibold ${Number(effectivePair?.priceChange?.h24 ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        <div className={`text-xs font-semibold ${Number(effectivePair?.priceChange?.h24 ?? 0) >= 0 ? 'text-[var(--up)]' : 'text-red-400'}`}>
                           {Number(effectivePair?.priceChange?.h24 ?? 0) >= 0 ? '↑' : '↓'}
                           {Math.abs(Number(effectivePair?.priceChange?.h24 ?? 0)).toFixed(2)}%
                         </div>
@@ -2687,7 +2687,7 @@ function GeickoPageContent() {
                           <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
                         ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
                           <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-center">
-                            <div className="text-xs text-green-400 font-semibold">Renounced</div>
+                            <div className="text-xs text-[var(--up)] font-semibold">Renounced</div>
                             <div className="text-xs text-[var(--text-muted)] mt-0.5">
                               {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
                             </div>
@@ -3051,7 +3051,7 @@ function GeickoPageContent() {
                           <div className="text-center text-base text-[var(--text)] font-semibold">—</div>
                         )}
                         {totalLiquidity.pairCount > 0 && (
-                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-xs text-green-400 font-medium">
+                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-xs text-[var(--up)] font-medium">
                             {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
                           </div>
                         )}
@@ -3078,7 +3078,7 @@ function GeickoPageContent() {
                         )}
                         {burnedTokens && !isLoadingMetrics && (
                           <div className="absolute top-4 right-2 flex items-center justify-center w-8 h-8 rounded-full border-2 border-green-400">
-                            <span className="text-[8px] text-green-400 font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
+                            <span className="text-[8px] text-[var(--up)] font-semibold">{burnedTokens.percent.toFixed(1)}%</span>
                           </div>
                         )}
                       </div>
@@ -3148,7 +3148,7 @@ function GeickoPageContent() {
                       onClick={() => setCalculatorCurrency('usd')}
                       className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
                         calculatorCurrency === 'usd'
-                          ? 'text-green-400'
+                          ? 'text-[var(--up)]'
                           : 'text-[var(--text-muted)]'
                       }`}
                     >
@@ -3163,7 +3163,7 @@ function GeickoPageContent() {
                       onClick={() => setCalculatorCurrency('wpls')}
                       className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
                         calculatorCurrency === 'wpls'
-                          ? 'text-green-400'
+                          ? 'text-[var(--up)]'
                           : 'text-[var(--text-muted)]'
                       }`}
                     >

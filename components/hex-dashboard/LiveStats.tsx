@@ -117,7 +117,7 @@ const LiveStats: React.FC<LiveStatsProps> = ({
       {/* Key Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 mb-4 sm:mb-6">
         <div className="text-center bg-[var(--surface)] backdrop-blur rounded-lg p-2 sm:p-3 border border-[var(--line)]">
-          <div className="text-lg sm:text-2xl font-bold text-green-400">
+          <div className="text-lg sm:text-2xl font-bold text-[var(--up)]">
             {activeTab === 'ethereum' 
               ? formatPrice(liveData.price, 8)
               : formatPrice(liveData.price_Pulsechain || liveData.pricePulseX, 8)
@@ -198,7 +198,7 @@ const LiveStats: React.FC<LiveStatsProps> = ({
         </h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
           <div className="text-center bg-[var(--surface)] backdrop-blur rounded-lg p-2 border border-[var(--line)]">
-            <div className="text-sm sm:text-lg font-bold text-green-300">
+            <div className="text-sm sm:text-lg font-bold text-[var(--up)]">
               {activeTab === 'ethereum' 
                 ? formatHEX(liveData.liquidityHEX)
                 : formatHEX(liveData.liquidityHEX_Pulsechain)

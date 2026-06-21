@@ -69,7 +69,7 @@ const LoaderCore = ({
                   className={cn(
                     "text-slate-950 dark:text-[var(--text)]",
                     value === index &&
-                      "text-slate-950 dark:text-lime-500 opacity-100"
+                      "text-slate-950 dark:text-[var(--up)] opacity-100"
                   )}
                 />
               )}
@@ -77,7 +77,7 @@ const LoaderCore = ({
             <span
               className={cn(
                 "text-slate-950 dark:text-[var(--text)]",
-                value === index && "text-slate-950 dark:text-lime-500 opacity-100"
+                value === index && "text-slate-950 dark:text-[var(--up)] opacity-100"
               )}
             >
               {loadingState.text}

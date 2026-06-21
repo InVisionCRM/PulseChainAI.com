@@ -92,6 +92,6 @@ export function fmtPct(n: number | null | undefined): string {
 
 /** Tailwind colour class for a percentage change. */
 export function pctClass(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(n) || n === 0) return 'text-white/40';
-  return n > 0 ? 'text-green-400' : 'text-red-400';
+  if (n == null || !Number.isFinite(n) || n === 0) return 'text-[var(--text-faint)]';
+  return n > 0 ? 'text-[var(--up)]' : 'text-red-400';
 }

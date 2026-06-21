@@ -343,7 +343,7 @@ function CardHeader({
                   className={
                     'text-sm font-semibold tabular-nums ' +
                     ((token.priceChange24h ?? 0) >= 0
-                      ? 'text-green-400'
+                      ? 'text-[var(--up)]'
                       : 'text-red-400')
                   }
                 >
@@ -532,7 +532,7 @@ function LiquidityTab({
               <div
                 className={
                   'text-[11px] font-semibold tabular-nums ' +
-                  (p.priceChange24h >= 0 ? 'text-green-400' : 'text-red-400')
+                  (p.priceChange24h >= 0 ? 'text-[var(--up)]' : 'text-red-400')
                 }
               >
                 {p.priceChange24h >= 0 ? '+' : ''}

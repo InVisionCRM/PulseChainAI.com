@@ -170,7 +170,7 @@ export function TickerCardWithPopover({ token, onPause, onResume }: TickerCardPr
                 </div>
                 {token.buys24h !== undefined && token.sells24h !== undefined && (
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-green-400">Buys: {token.buys24h}</span>
+                    <span className="text-[var(--up)]">Buys: {token.buys24h}</span>
                     <span className="text-red-400">Sells: {token.sells24h}</span>
                   </div>
                 )}

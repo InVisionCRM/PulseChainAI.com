@@ -445,7 +445,7 @@ ${jsCode}
               <p>• Save as .html file and open in browser</p>
               <p>• Upload to your web server</p>
               <p>• Embed in existing HTML page</p>
-              <p className="text-green-300 mt-2">✅ Note: Works completely standalone - no server required!</p>
+              <p className="text-[var(--up)] mt-2">✅ Note: Works completely standalone - no server required!</p>
             </>
           )}
           {activeTab === 'iframe' && (
@@ -474,7 +474,7 @@ ${jsCode}
             <li>• Responsive design</li>
             <li>• Customizable styling</li>
             <li>• Mobile-friendly</li>
-            <li className="text-green-300">• Direct API calls to PulseChain - no server required</li>
+            <li className="text-[var(--up)]">• Direct API calls to PulseChain - no server required</li>
           </ul>
         </div>
         <div className="bg-[var(--surface)] rounded-lg p-3 border border-[var(--line)]">

@@ -34,7 +34,7 @@ export default function GeickoOwnershipPanel({
         <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
       ) : isRenounced ? (
         <div className="text-center">
-          <div className="text-base text-green-400 font-semibold">Renounced ✓</div>
+          <div className="text-base text-[var(--up)] font-semibold">Renounced ✓</div>
           <div className="text-xs text-[var(--text-muted)] mt-0.5">
             {isPumpTires ? 'Pump.Tires' : 'No Owner'}
           </div>

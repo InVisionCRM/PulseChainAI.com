@@ -16,7 +16,7 @@ export default function BackendsTab() {
         {/* Node.js/Express */}
         <div className="rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] p-6">
           <div className="flex items-center gap-4 mb-4">
-            <IconBrandNodejs className="h-10 w-10 text-green-500" />
+            <IconBrandNodejs className="h-10 w-10 text-[var(--up)]" />
             <div>
               <h3 className="text-xl font-semibold text-[var(--text)]">Node.js + Express</h3>
               <a

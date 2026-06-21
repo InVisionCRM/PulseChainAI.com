@@ -536,7 +536,7 @@ export default function StatCounterBuilderPage() {
                             }`}
                           >
                             {stat.label}
-                            {hasThisStat && <span className="ml-2 text-green-400">✓</span>}
+                            {hasThisStat && <span className="ml-2 text-[var(--up)]">✓</span>}
                           </button>
                         );
                       })}

@@ -277,7 +277,7 @@ const EndstakeTimingAI: React.FC = () => {
 
   const getRiskColor = (riskLevel: string): string => {
     switch (riskLevel) {
-      case 'low': return 'text-green-400';
+      case 'low': return 'text-[var(--up)]';
       case 'medium': return 'text-yellow-400';
       case 'high': return 'text-red-400';
       default: return 'text-[var(--text-muted)]';
@@ -527,7 +527,7 @@ const EndstakeTimingAI: React.FC = () => {
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-blue-400">
                         {getEndDate(day.endDay)}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-green-400 flex items-center gap-1">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-[var(--up)] flex items-center gap-1">
                         <img src="/HEXagon (1).svg" alt="HEX" className="w-4 h-4" />
                         {formatHexAmount(day.totalHexEnding)} HEX
                       </td>
@@ -626,7 +626,7 @@ const EndstakeTimingAI: React.FC = () => {
               
               <div className="flex items-center justify-center gap-2 mb-4">
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  recommendation.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
+                  recommendation.confidence === 'high' ? 'bg-green-500/20 text-[var(--up)]' :
                   recommendation.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
                   'bg-red-500/20 text-red-400'
                 }`}>
@@ -645,7 +645,7 @@ const EndstakeTimingAI: React.FC = () => {
               <div className="space-y-2">
                 {recommendation.reasoning.map((reason, index) => (
                   <div key={index} className="flex items-start gap-3 bg-[var(--surface)] rounded-lg p-3">
-                    <CheckCircle className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="w-5 h-5 text-[var(--up)] mt-0.5 flex-shrink-0" />
                     <span className="text-[var(--text-muted)]">{reason}</span>
                   </div>
                 ))}

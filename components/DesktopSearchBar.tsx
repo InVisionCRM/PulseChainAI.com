@@ -246,7 +246,7 @@ export const DesktopSearchBar = () => {
                       <div className="font-semibold text-[var(--text)] truncate flex items-center gap-2">
                         {item.name} {item.symbol && `(${item.symbol})`}
                         {(item.is_smart_contract_verified || VERIFIED_CONTRACT_ADDRESSES.has(item.address.toLowerCase())) && (
-                          <span className="text-green-400 text-xs font-bold flex items-center gap-1">
+                          <span className="text-[var(--up)] text-xs font-bold flex items-center gap-1">
                             <Check className="w-3 h-3" />
                             VERIFIED
                           </span>

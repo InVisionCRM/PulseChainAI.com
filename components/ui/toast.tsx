@@ -79,7 +79,7 @@ export function Toast({
       case 'success':
         return {
           icon: '✓',
-          iconColor: 'text-green-500',
+          iconColor: 'text-[var(--up)]',
           progressColor: 'bg-green-500'
         };
       case 'error':

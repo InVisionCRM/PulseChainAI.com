@@ -46,7 +46,7 @@ export default function IDEsTab() {
     },
     {
       name: 'Atom',
-      icon: <IconCode className="h-8 w-8 text-green-500" />,
+      icon: <IconCode className="h-8 w-8 text-[var(--up)]" />,
       url: 'https://atom.io/',
       description: 'Hackable text editor built by GitHub with a rich ecosystem of packages and themes, ideal for customization and extensibility.',
       extensions: ['Teletype for collaboration', 'Git integration', 'Package ecosystem', 'Theme gallery'],

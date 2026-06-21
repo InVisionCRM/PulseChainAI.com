@@ -69,7 +69,7 @@ const TransferItem: React.FC<TransferItemProps> = ({
     // User received tokens
     if (fromIsContract) {
       actionType = '📈 BUY';
-      actionColor = 'bg-green-600/20 border-green-500/30 text-green-300';
+      actionColor = 'bg-green-600/20 border-green-500/30 text-[var(--up)]';
     } else {
       actionType = '📥 RECEIVED';
       actionColor = 'bg-[var(--app-bg)] border-blue-500/30 text-blue-300';
@@ -429,7 +429,7 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
                     </span>
                   )}
                   {addressInfo?.is_verified && (
-                    <span className="px-3 py-1 bg-green-600/20 border border-green-500/30 rounded-full text-xs text-green-300 font-medium">
+                    <span className="px-3 py-1 bg-green-600/20 border border-green-500/30 rounded-full text-xs text-[var(--up)] font-medium">
                       ✓ Verified
                     </span>
                   )}
@@ -581,7 +581,7 @@ const AddressDetailsModal: React.FC<AddressDetailsModalProps> = ({
                               <div className="flex items-center gap-2">
                                 <span className={`px-2 py-1 rounded text-xs font-medium ${
                                   tx.status === 'success' || tx.status === 'ok'
-                                    ? 'bg-green-600/20 border border-green-500/30 text-green-300'
+                                    ? 'bg-green-600/20 border border-green-500/30 text-[var(--up)]'
                                     : 'bg-red-600/20 border border-red-500/30 text-red-300'
                                 }`}>
                                   {tx.status === 'success' || tx.status === 'ok' ? 'Success' : 'Failed'}
@@ -933,7 +933,7 @@ const DetailsTab: React.FC<{
       <div className="flex items-start gap-4">
         <div className="text-[var(--text-muted)] text-sm w-48 flex-shrink-0 pt-1">Status and method</div>
         <div className="flex items-center gap-2">
-          <span className="px-2 py-1 bg-green-600/20 border border-green-500/30 rounded text-xs text-green-300 font-medium">
+          <span className="px-2 py-1 bg-green-600/20 border border-green-500/30 rounded text-xs text-[var(--up)] font-medium">
             {txDetails.status === 'ok' ? 'Success' : txDetails.status}
           </span>
           {txDetails.method && (
@@ -1008,7 +1008,7 @@ const DetailsTab: React.FC<{
               {txDetails.to.name || formatAddress(txDetails.to.hash)}
             </button>
             {txDetails.to.is_verified && (
-              <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-4 h-4 text-[var(--up)]" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
             )}
@@ -1099,7 +1099,7 @@ const DetailsTab: React.FC<{
                   style={{ width: `${gasUsagePercentage}%` }}
                 />
               </div>
-              <span className="text-green-400 text-sm font-medium">
+              <span className="text-[var(--up)] text-sm font-medium">
                 {gasUsagePercentage.toFixed(1)}%
               </span>
             </div>
@@ -1235,7 +1235,7 @@ const InternalTab: React.FC<{
                     {txn.type === 'delegatecall' ? 'Delegate call' :
                      txn.type === 'staticcall' ? 'Static call' : 'Call'}
                   </span>
-                  <span className="px-2 py-1 bg-green-600/20 border border-green-500/30 rounded text-xs text-green-300 font-medium">
+                  <span className="px-2 py-1 bg-green-600/20 border border-green-500/30 rounded text-xs text-[var(--up)] font-medium">
                     Success
                   </span>
                 </div>

@@ -372,7 +372,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
             <p className="text-xs uppercase tracking-wider text-orange-400/80 font-semibold">Liquidity Intelligence</p>
           </div>
           <div className="flex flex-wrap gap-1.5 text-sm">
-            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-semibold">
+            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-[var(--up)] text-xs font-semibold">
               {activePairs.length} Live
             </span>
             {zeroLiquidityPairs.length > 0 && (
@@ -442,7 +442,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                       return (
                         <div className={`flex items-center gap-1 rounded px-1.5 py-1 text-xs font-semibold tabular-nums ${
                           isPositive
-                            ? 'text-emerald-300'
+                            ? 'text-[var(--up)]'
                             : 'text-rose-300'
                         }`}>
                           {isPositive ? '↑' : '↓'}
@@ -531,7 +531,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                         }`}>
                           <div className="text-[11px] font-medium uppercase tracking-wider mb-1 text-[var(--text-faint)]">vs WPLS</div>
                           <div className={`text-sm font-bold flex items-center gap-0.5 tabular-nums ${
-                            isPositive ? 'text-emerald-300' : 'text-rose-300'
+                            isPositive ? 'text-[var(--up)]' : 'text-rose-300'
                           }`}>
                             {isPositive ? '↑' : '↓'}
                             {Math.abs(priceDiff).toFixed(2)}%
@@ -674,7 +674,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                           className="flex items-center justify-between p-1.5 border border-[var(--line)] bg-[var(--surface)] rounded-lg hover:bg-[var(--surface)] transition-colors"
                         >
                           <div className="flex items-center gap-1.5 flex-1">
-                            <div className={`text-sm font-bold ${event.type === 'add' ? 'text-emerald-300' : 'text-rose-300'}`}>
+                            <div className={`text-sm font-bold ${event.type === 'add' ? 'text-[var(--up)]' : 'text-rose-300'}`}>
                               {event.type === 'add' ? '+' : '−'}
                             </div>
                             <div className="flex-1">

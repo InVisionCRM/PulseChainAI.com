@@ -373,12 +373,12 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
                 }`}
               />
             </button>
-            <span className={`text-xs font-semibold transition-colors duration-200 ${mode === 'simple' ? 'text-green-400' : 'text-[var(--text-muted)]'}`}>
+            <span className={`text-xs font-semibold transition-colors duration-200 ${mode === 'simple' ? 'text-[var(--up)]' : 'text-[var(--text-muted)]'}`}>
               Simple
             </span>
           </div>
           {mode === 'simple' && (
-            <p className="text-[10px] text-green-400/70 mt-1">Plain english — no code knowledge needed</p>
+            <p className="text-[10px] text-[var(--up)] mt-1">Plain english — no code knowledge needed</p>
           )}
         </div>
       </div>

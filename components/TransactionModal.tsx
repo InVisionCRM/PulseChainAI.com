@@ -505,7 +505,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                       {tx.receivedAssets.map((asset, index) => (
                         <div key={index} className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <ArrowDown className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <ArrowDown className="w-4 h-4 text-[var(--up)] flex-shrink-0" />
                             {tokenLogos[asset.tokenAddress.toLowerCase()] ? (
                               <img 
                                 src={tokenLogos[asset.tokenAddress.toLowerCase()]} 
@@ -545,8 +545,8 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                     <div className="flex items-center gap-2">
                       {tx.status === 'success' ? (
                         <>
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                          <span className="text-green-500 text-sm font-medium">Success</span>
+                          <CheckCircle className="w-4 h-4 text-[var(--up)]" />
+                          <span className="text-[var(--up)] text-sm font-medium">Success</span>
                         </>
                       ) : (
                         <>

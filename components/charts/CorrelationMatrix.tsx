@@ -61,7 +61,7 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
 
   // Get correlation strength label and color
   const getCorrelationInfo = (correlation: number) => {
-    if (correlation >= 0.7) return { label: 'Strong', color: 'text-green-400', bgColor: 'bg-green-500' };
+    if (correlation >= 0.7) return { label: 'Strong', color: 'text-[var(--up)]', bgColor: 'bg-green-500' };
     if (correlation >= 0.4) return { label: 'Moderate', color: 'text-yellow-400', bgColor: 'bg-yellow-500' };
     if (correlation >= 0.2) return { label: 'Weak', color: 'text-orange-400', bgColor: 'bg-orange-500' };
     return { label: 'None', color: 'text-red-400', bgColor: 'bg-red-500' };
@@ -99,7 +99,7 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
           transition={{ delay: 0.3 }}
           className="bg-[var(--surface-2)] rounded-lg p-3 text-center"
         >
-          <div className="text-2xl font-bold text-green-400">{(avgCorrelation * 100).toFixed(1)}%</div>
+          <div className="text-2xl font-bold text-[var(--up)]">{(avgCorrelation * 100).toFixed(1)}%</div>
           <div className="text-xs text-[var(--text-muted)]">Avg Correlation</div>
         </motion.div>
       </div>
@@ -149,7 +149,7 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
         <h4 className="text-sm font-semibold text-[var(--text)] mb-3">Correlation Strength</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'Strong', min: 0.7, color: 'text-green-400', bgColor: 'bg-green-500' },
+            { label: 'Strong', min: 0.7, color: 'text-[var(--up)]', bgColor: 'bg-green-500' },
             { label: 'Moderate', min: 0.4, color: 'text-yellow-400', bgColor: 'bg-yellow-500' },
             { label: 'Weak', min: 0.2, color: 'text-orange-400', bgColor: 'bg-orange-500' },
             { label: 'None', min: 0, color: 'text-red-400', bgColor: 'bg-red-500' }

@@ -46,7 +46,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {rank && (
-                <div className="px-3 py-1 bg-[var(--app-bg)] text-green-500 text-lg font-bold rounded">
+                <div className="px-3 py-1 bg-[var(--app-bg)] text-[var(--up)] text-lg font-bold rounded">
                   #{rank}
                 </div>
               )}
@@ -97,7 +97,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
             </div>
             <div className="flex justify-between">
               <span className="text-[var(--text)]">Status:</span>
-              <span className="text-green-400 font-semibold">Active</span>
+              <span className="text-[var(--up)] font-semibold">Active</span>
             </div>
           </div>
 

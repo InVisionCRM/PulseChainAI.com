@@ -345,7 +345,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
               <span className="hidden sm:inline">📊 Database Integration</span>
               <span className="sm:hidden">📊 DB</span>
             </span>
-            <span className={`text-xs px-2 py-1 rounded ${cacheStatus.databaseAvailable ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+            <span className={`text-xs px-2 py-1 rounded ${cacheStatus.databaseAvailable ? 'bg-green-500/20 text-[var(--up)]' : 'bg-red-500/20 text-red-400'}`}>
               {cacheStatus.databaseAvailable ? '🟢' : '🔴'}
               <span className="hidden sm:inline ml-1">{cacheStatus.databaseAvailable ? 'Connected' : 'Offline'}</span>
             </span>
@@ -381,7 +381,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
           <div className="truncate">
             <span className="text-[var(--text-muted)] hidden sm:inline">Memory Cache:</span>
             <span className="text-[var(--text-muted)] sm:hidden">Cache:</span>
-            <span className={`ml-1 sm:ml-2 ${cacheStatus.hasStakeStarts ? 'text-green-400' : 'text-red-400'}`}>
+            <span className={`ml-1 sm:ml-2 ${cacheStatus.hasStakeStarts ? 'text-[var(--up)]' : 'text-red-400'}`}>
               {cacheStatus.hasStakeStarts ? '✅' : '❌'}
               <span className="hidden sm:inline ml-1">{cacheStatus.hasStakeStarts ? 'Active' : 'Empty'}</span>
             </span>
@@ -389,7 +389,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
           <div className="truncate">
             <span className="text-[var(--text-muted)] hidden sm:inline">Stake Ends:</span>
             <span className="text-[var(--text-muted)] sm:hidden">Ends:</span>
-            <span className={`ml-1 sm:ml-2 ${cacheStatus.hasStakeEnds ? 'text-green-400' : 'text-red-400'}`}>
+            <span className={`ml-1 sm:ml-2 ${cacheStatus.hasStakeEnds ? 'text-[var(--up)]' : 'text-red-400'}`}>
               {cacheStatus.hasStakeEnds ? '✅' : '❌'}
               <span className="hidden sm:inline ml-1">{cacheStatus.hasStakeEnds ? 'Cached' : 'Not Cached'}</span>
             </span>
@@ -397,7 +397,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
           <div className="truncate">
             <span className="text-[var(--text-muted)] hidden sm:inline">Active Stakes:</span>
             <span className="text-[var(--text-muted)] sm:hidden">Active:</span>
-            <span className={`ml-1 sm:ml-2 ${cacheStatus.hasActiveStakes ? 'text-green-400' : 'text-red-400'}`}>
+            <span className={`ml-1 sm:ml-2 ${cacheStatus.hasActiveStakes ? 'text-[var(--up)]' : 'text-red-400'}`}>
               {cacheStatus.hasActiveStakes ? '✅' : '❌'}
               <span className="hidden sm:inline ml-1">{cacheStatus.hasActiveStakes ? 'Cached' : 'Not Cached'}</span>
             </span>
@@ -405,7 +405,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
           <div className="truncate">
             <span className="text-[var(--text-muted)] hidden sm:inline">Cache Age:</span>
             <span className="text-[var(--text-muted)] sm:hidden">Age:</span>
-            <span className={`ml-1 sm:ml-2 ${cacheStatus.isExpired ? 'text-yellow-400' : 'text-green-400'}`}>
+            <span className={`ml-1 sm:ml-2 ${cacheStatus.isExpired ? 'text-yellow-400' : 'text-[var(--up)]'}`}>
               {cacheStatus.cacheAge ? `${cacheStatus.cacheAge}s` : 'N/A'}
             </span>
           </div>
@@ -444,7 +444,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
             <div className="mt-1 grid grid-cols-2 gap-2">
               <div>
                 <span className="text-[var(--text-muted)]">Ethereum:</span>
-                <span className="ml-2 text-green-400">
+                <span className="ml-2 text-[var(--up)]">
                   {allStakeStarts.length > 0 ? `${allStakeStarts.length} total stakes` : 'Not loaded'}
                 </span>
               </div>
@@ -551,7 +551,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                 </div>
               </div>
               <div className="text-center bg-[var(--surface)] backdrop-blur rounded-lg p-3 sm:p-4 border border-[var(--line)]">
-                <div className="text-lg sm:text-2xl font-bold text-green-400">
+                <div className="text-lg sm:text-2xl font-bold text-[var(--up)]">
                   <span className="hidden sm:inline">{hexStakingService.formatHexAmount(combinedData.totalStakedHearts)} HEX</span>
                   <span className="sm:hidden">{hexStakingService.formatHexAmount(combinedData.totalStakedHearts, true)}</span>
                 </div>
@@ -633,7 +633,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                   <div className="text-xs text-[var(--text-muted)]">Current HEX Day</div>
                 </div>
                 <div className="text-center bg-[var(--surface)] backdrop-blur rounded-lg p-3 border border-[var(--line)]">
-                  <div className="text-lg font-bold text-emerald-400">
+                  <div className="text-lg font-bold text-[var(--up)]">
                     {ethereumData?.globalInfo ? hexStakingService.formatHexAmount(ethereumData.globalInfo.lockedHeartsTotal) : 'N/A'} HEX
                   </div>
                   <div className="text-xs text-[var(--text-muted)]">Locked Hearts Total</div>
@@ -724,13 +724,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-[var(--text-muted)] font-mono">
                         <button
                           onClick={() => handleStakerClick(stake.stakerAddr)}
-                          className="hover:text-green-400 transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
+                          className="hover:text-[var(--up)] transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
                           title={`${stake.stakerAddr} - Click to view staking history`}
                         >
                           {stake.stakerAddr.slice(0, 10)}...{stake.stakerAddr.slice(-8)}
                         </button>
                       </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-green-400 font-semibold">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-[var(--up)] font-semibold">
                         {hexStakingService.formatHexAmount(stake.stakedHearts)}
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
@@ -818,13 +818,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-[var(--text-muted)] font-mono">
                         <button
                           onClick={() => handleStakerClick(stake.stakerAddr)}
-                          className="hover:text-green-400 transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
+                          className="hover:text-[var(--up)] transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
                           title={`${stake.stakerAddr} - Click to view staking history`}
                         >
                           {stake.stakerAddr.slice(0, 10)}...{stake.stakerAddr.slice(-8)}
                         </button>
                       </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-green-400 font-semibold">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-[var(--up)] font-semibold">
                         {hexStakingService.formatHexAmount(stake.stakedHearts)}
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
@@ -960,13 +960,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-[var(--text-muted)]">
                           <button
                             onClick={() => handleStakerClick(stake.stakerAddr)}
-                            className="hover:text-green-400 transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
+                            className="hover:text-[var(--up)] transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
                             title={`${stake.stakerAddr} - Click to view staking history`}
                           >
                             {stake.stakerAddr.slice(0, 8)}...
                           </button>
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-green-400 font-semibold">
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-[var(--up)] font-semibold">
                           {hexStakingService.formatHexAmount(stake.stakedHearts)}
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-400">
@@ -1085,14 +1085,14 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                         <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-[var(--text-muted)]">
                           <button
                             onClick={() => handleStakerClick(stake.stakerAddr)}
-                            className="hover:text-green-400 transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
+                            className="hover:text-[var(--up)] transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
                             title={`${stake.stakerAddr} - Click to view staking history`}
                           >
                             <span className="hidden sm:inline">{stake.stakerAddr.slice(0, 8)}...</span>
                             <span className="sm:hidden">{stake.stakerAddr.slice(0, 4)}...</span>
                           </button>
                         </td>
-                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-green-400 font-semibold">
+                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-[var(--up)] font-semibold">
                           <span className="hidden sm:inline">{hexStakingService.formatHexAmount(stake.stakedHearts)}</span>
                           <span className="sm:hidden">{hexStakingService.formatHexAmount(stake.stakedHearts, true)}</span>
                         </td>

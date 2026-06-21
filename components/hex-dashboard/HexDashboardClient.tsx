@@ -1662,7 +1662,7 @@ const HEXDataDashboard = () => {
                       <div className="text-sm text-[var(--text)]">Active Stakes</div>
                     </div>
                     <div className="text-center p-4">
-                      <div className="text-2xl font-bold text-green-300">
+                      <div className="text-2xl font-bold text-[var(--up)]">
                         {hexStakingService.formatHexAmount(ethereumStakingData.totalStakedHearts)} HEX
                       </div>
                       <div className="text-sm text-[var(--text)]">Total Staked</div>
@@ -1693,7 +1693,7 @@ const HEXDataDashboard = () => {
                         <div className="text-xs text-[var(--text)]">Current HEX Day</div>
                       </div>
                       <div className="text-center p-3">
-                        <div className="text-lg font-bold text-emerald-300">
+                        <div className="text-lg font-bold text-[var(--up)]">
                           {ethereumStakingData.globalInfo ? hexStakingService.formatHexAmount(ethereumStakingData.globalInfo.lockedHeartsTotal) : 'N/A'} HEX
                         </div>
                         <div className="text-xs text-[var(--text)]">Locked Hearts Total</div>
@@ -2344,7 +2344,7 @@ const HEXDataDashboard = () => {
                       <div className="text-md text-[var(--text)]">Active Stakes</div>
                     </div>
                     <div className="text-center p-4">
-                      <div className="text-2xl font-bold text-green-300">
+                      <div className="text-2xl font-bold text-[var(--up)]">
                         {pulsechainHexStakingService.formatHexAmount(pulsechainStakingData.totalStakedHearts)} HEX
                       </div>
                       <div className="text-md text-[var(--text)]">Total Staked</div>
@@ -2375,7 +2375,7 @@ const HEXDataDashboard = () => {
                         <div className="text-md text-[var(--text)]">Current HEX Day</div>
                       </div>
                       <div className="text-center p-3">
-                        <div className="text-lg font-bold text-emerald-300">
+                        <div className="text-lg font-bold text-[var(--up)]">
                           {pulsechainStakingData.globalInfo ? pulsechainHexStakingService.formatHexAmount(pulsechainStakingData.globalInfo.lockedHeartsTotal) : 'N/A'} HEX
                         </div>
                         <div className="text-md text-[var(--text)]">Locked HEX Total</div>
@@ -2541,7 +2541,7 @@ const HEXDataDashboard = () => {
                                     {stake.stakerAddr.slice(0, 10)}...{stake.stakerAddr.slice(-8)}
                                   </a>
                                 </td>
-                                <td className="px-3 py-4 whitespace-nowrap text-sm text-emerald-400 font-semibold">
+                                <td className="px-3 py-4 whitespace-nowrap text-sm text-[var(--up)] font-semibold">
                                   {pulsechainHexStakingService.formatHexAmount(stake.stakedHearts)} HEX
                                 </td>
                                 <td className="px-3 py-4 whitespace-nowrap text-sm text-pink-400">

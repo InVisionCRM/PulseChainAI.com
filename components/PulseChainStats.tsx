@@ -787,7 +787,7 @@ export default function PulseChainStats({ compact = false }: PulseChainStatsProp
                       <span
                         className={`px-2 py-0.5 rounded text-xs font-mono ${
                           log.status === 'success'
-                            ? 'bg-green-500/20 text-green-300'
+                            ? 'bg-green-500/20 text-[var(--up)]'
                             : log.status === 'error'
                             ? 'bg-red-500/20 text-red-300'
                             : 'bg-yellow-500/20 text-yellow-300'

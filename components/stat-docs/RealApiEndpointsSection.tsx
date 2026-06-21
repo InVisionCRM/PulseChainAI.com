@@ -74,7 +74,7 @@ export default function RealApiEndpointsSection({ statId, tokenAddress }: RealAp
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-lg font-bold text-[var(--text)]">#{index + 1}</span>
-                      <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded">
+                      <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-600/20 text-[var(--up)] border border-emerald-500/30 rounded">
                         {endpoint.method}
                       </span>
                     </div>

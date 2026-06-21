@@ -128,7 +128,7 @@ export default function StatDocsIndexPage() {
                         {stat.name}
                       </h3>
                       <span className={`px-2 py-1 text-xs rounded font-mono ${
-                        stat.format === 'currency' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                        stat.format === 'currency' ? 'bg-green-500/20 text-[var(--up)] border border-green-500/30' :
                         stat.format === 'percentage' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
                         stat.format === 'address' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
                         'bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--line)]'

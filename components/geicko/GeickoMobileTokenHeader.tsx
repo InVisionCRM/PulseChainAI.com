@@ -99,7 +99,7 @@ export default function GeickoMobileTokenHeader({
               </div>
               <div
                 className={`text-md ${
-                  (primaryPair.priceChange?.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                  (primaryPair.priceChange?.h24 || 0) >= 0 ? 'text-[var(--up)]' : 'text-red-400'
                 }`}
               >
                 {(primaryPair.priceChange?.h24 || 0) >= 0 ? '↑' : '↓'}

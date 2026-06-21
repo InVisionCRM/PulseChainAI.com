@@ -209,7 +209,7 @@ export default function CodeGenerationModal({
                   </button>
                 </div>
                 
-                <pre className="bg-[var(--panel)] rounded-lg p-4 overflow-x-auto text-sm text-green-400 font-mono">
+                <pre className="bg-[var(--panel)] rounded-lg p-4 overflow-x-auto text-sm text-[var(--up)] font-mono">
                   <code>{activeTab === 'html' ? generateHTML() : generateEmbedCode()}</code>
                 </pre>
               </div>

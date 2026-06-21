@@ -150,8 +150,8 @@ export default function ContractAuditPanel({
           // Ownership renounced is reversed: green for Yes, red for No
           const isOwnershipRenounced = check.key === 'ownershipRenounced';
           const colorClass = isOwnershipRenounced
-            ? (value ? 'text-green-400' : 'text-red-400')
-            : (value ? 'text-red-400' : 'text-green-400');
+            ? (value ? 'text-[var(--up)]' : 'text-red-400')
+            : (value ? 'text-red-400' : 'text-[var(--up)]');
           
           return (
             <div

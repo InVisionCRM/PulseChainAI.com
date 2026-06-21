@@ -208,7 +208,7 @@ PERFORMANCE:
     {
       id: 'nodejs',
       title: 'Node.js Backend Development',
-      icon: <IconBrandNodejs className="h-6 w-6 text-green-500" />,
+      icon: <IconBrandNodejs className="h-6 w-6 text-[var(--up)]" />,
       preview: 'NestJS framework, Prisma ORM, Passport authentication, ethers.js integration, Redis caching.',
       fullContent: `You are an expert Node.js developer building scalable backends for PulseChain DApps.
 

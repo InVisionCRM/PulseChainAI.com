@@ -546,7 +546,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                   
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="flex items-center justify-between py-3 px-4 bg-green-500/10 rounded-lg">
-                      <span className="text-green-300 text-sm font-medium">Earned So Far</span>
+                      <span className="text-[var(--up)] text-sm font-medium">Earned So Far</span>
                       <span className="text-[var(--text)] font-bold">
                       {(() => {
                         if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
@@ -791,7 +791,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                                 <tr key={swap.transaction_hash} className="hover:bg-[var(--surface-2)]">
                                   <td className="px-4 py-4 whitespace-nowrap text-sm">
                                     <div className={`${
-                                      swap.swap_type === 'HEX_IN' ? 'text-green-400' : 
+                                      swap.swap_type === 'HEX_IN' ? 'text-[var(--up)]' : 
                                       swap.swap_type === 'HEX_OUT' ? 'text-red-400' : 'text-blue-400'
                                     }`}>
                                       <span className="font-medium capitalize">
@@ -819,7 +819,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                                   <td className="px-4 py-4 whitespace-nowrap text-sm">
                                     <div className={`px-2 py-1 rounded-full text-xs font-medium ${
                                       swap.direction === 'IN' 
-                                        ? 'bg-green-500/20 text-green-400' 
+                                        ? 'bg-green-500/20 text-[var(--up)]' 
                                         : 'bg-red-500/20 text-red-400'
                                     }`}>
                                       {swap.direction === 'IN' ? 'Received' : 'Sent'}
@@ -1033,7 +1033,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                                     href={(activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService).getTransactionUrl(stake.transactionHash)}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-xs text-green-700 hover:text-green-500 flex items-center gap-1 underline"
+                                    className="text-xs text-green-700 hover:text-[var(--up)] flex items-center gap-1 underline"
                                     title={`View start transaction: ${stake.transactionHash}`}
                                   >
                                     <span>{stake.transactionHash.slice(0, 8)}...</span>

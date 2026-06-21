@@ -2276,7 +2276,7 @@ const HEXDataDashboard = () => {
                         }`}></div>
                         <span className={`text-xs font-medium ${
                           dataFlowStatus.ethereum === 'transitioning' ? 'text-[var(--text)] font-semibold  -400' :
-                          dataFlowStatus.ethereum === 'database' ? 'text-green-400' :
+                          dataFlowStatus.ethereum === 'database' ? 'text-[var(--up)]' :
                           dataFlowStatus.ethereum === 'graphql' ? 'text-[var(--text)] font-semibold  ' :
                           'text-red-400'
                         }`}>
@@ -2993,7 +2993,7 @@ const HEXDataDashboard = () => {
                           <span className={`text-xs font-medium ${
                             dataFlowStatus.pulsechain === 'transitioning' ? 'text-[var(--text)] font-semibold  -400' :
                             dataFlowStatus.pulsechain === 'graphql' ? 'text-[var(--text)] font-semibold  ' :
-                            dataFlowStatus.pulsechain === 'database' ? 'text-green-400' :
+                            dataFlowStatus.pulsechain === 'database' ? 'text-[var(--up)]' :
                             'text-red-400'
                           }`}>
                             {dataFlowStatus.pulsechain === 'transitioning' ? '🔄 Transitioning...' :
@@ -3042,7 +3042,7 @@ const HEXDataDashboard = () => {
                       <div className="text-md text-[var(--text)]">Active Stakes</div>
                     </div>
                     <div className="text-center p-4">
-                      <div className="text-2xl font-bold text-green-300">
+                      <div className="text-2xl font-bold text-[var(--up)]">
                         {pulsechainHexStakingService.formatHexAmount(pulsechainStakingData.totalStakedHearts)} HEX
                       </div>
                       <div className="text-md text-[var(--text)]">Total Staked</div>
@@ -3073,7 +3073,7 @@ const HEXDataDashboard = () => {
                         <div className="text-md text-[var(--text)]">Current HEX Day</div>
                       </div>
                       <div className="text-center p-3">
-                        <div className="text-lg font-bold text-emerald-300">
+                        <div className="text-lg font-bold text-[var(--up)]">
                           {pulsechainStakingData.globalInfo ? pulsechainHexStakingService.formatHexAmount(pulsechainStakingData.globalInfo.lockedHeartsTotal) : 'N/A'} HEX
                         </div>
                         <div className="text-md text-[var(--text)]">Locked HEX Total</div>

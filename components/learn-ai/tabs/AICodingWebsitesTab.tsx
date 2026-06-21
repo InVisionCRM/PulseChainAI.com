@@ -6,7 +6,7 @@ export default function AICodingWebsitesTab() {
   const aiWebsites = [
     {
       name: 'ChatGPT',
-      icon: <IconRobot className="h-8 w-8 text-green-500" />,
+      icon: <IconRobot className="h-8 w-8 text-[var(--up)]" />,
       url: 'https://chat.openai.com/',
       description: 'Most popular AI assistant for coding. Excellent for explanations, debugging, and generating code from natural language descriptions.',
       strengths: ['Natural conversation', 'Code explanation', 'Debugging assistance', 'Multiple programming languages'],

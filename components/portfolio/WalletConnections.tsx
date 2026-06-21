@@ -194,7 +194,7 @@ function ConnectionRow({ row: r }: { row: CounterpartySummary }) {
 
       <div className="shrink-0 text-right text-[11px] tabular-nums">
         {r.inUsd > 0 && (
-          <div className="flex items-center justify-end gap-0.5 text-emerald-300/90">
+          <div className="flex items-center justify-end gap-0.5 text-[var(--up)]">
             <IconArrowDownLeft className="h-3 w-3" />
             {fmtUsd(r.inUsd)}
           </div>

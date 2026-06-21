@@ -1868,7 +1868,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                  </div>
                               {typeof burnedLiquidityPct === 'number' && burnedLiquidityPct > 0 && (
                                 <span
-                                  className="absolute left-0 bottom-0 pointer-events-none flex flex-col items-center gap-0 text-green-400 font-bold"
+                                  className="absolute left-0 bottom-0 pointer-events-none flex flex-col items-center gap-0 text-[var(--up)] font-bold"
                                   title="Burned LP"
                                 >
                                   <span className="text-md" style={{ marginBottom: '1px' }}>🔥</span>
@@ -1930,7 +1930,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                   <div className="text-sm text-[var(--text)] uppercase mb-0.5">Owner</div>
                                   {ownerRenounce?.renounced ? (
                                     <>
-                                      <div className="text-md font-bold text-green-400">Renounced</div>
+                                      <div className="text-md font-bold text-[var(--up)]">Renounced</div>
                                       {ownerRenounce?.txHash && (
                                         <a
                                           href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${ownerRenounce.txHash}`}
@@ -1991,7 +1991,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                    <div className="grid grid-cols-3 text-center gap-2">
                                      <div>
                                        <div className="text-xs text-[var(--text-muted)]">New</div>
-                                       <div className="text-md font-bold text-green-400">{holdersStats.newHolders.toLocaleString()}</div>
+                                       <div className="text-md font-bold text-[var(--up)]">{holdersStats.newHolders.toLocaleString()}</div>
                                      </div>
                                      <div>
                                        <div className="text-xs text-[var(--text-muted)]">Lost</div>
@@ -2189,7 +2189,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                            </div>
                                            <div className="flex justify-between">
                                              <span className="text-[var(--text-muted)]">Owner:</span>
-                                             <span className={`font-mono ${quickAudit.contractRenounced ? 'text-green-400' : 'text-red-400'}`}>
+                                             <span className={`font-mono ${quickAudit.contractRenounced ? 'text-[var(--up)]' : 'text-red-400'}`}>
                                                {quickAudit.contractRenounced ? 'Renounced' : (quickAudit.contractOwner ? `${quickAudit.contractOwner.slice(0, 6)}...${quickAudit.contractOwner.slice(-4)}` : 'Unknown')}
                                              </span>
                                            </div>
@@ -2201,19 +2201,19 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                          <div className="space-y-1 text-xs">
                                            <div className="flex justify-between">
                                              <span className="text-[var(--text-muted)]">Proxy:</span>
-                                             <span className={quickAudit.isProxy ? 'text-red-400' : 'text-green-400'}>
+                                             <span className={quickAudit.isProxy ? 'text-red-400' : 'text-[var(--up)]'}>
                                                {quickAudit.isProxy ? 'Yes' : 'No'}
                                              </span>
                                            </div>
                                            <div className="flex justify-between">
                                              <span className="text-[var(--text-muted)]">External Risk:</span>
-                                             <span className={quickAudit.hasExternalContractRisk ? 'text-red-400' : 'text-green-400'}>
+                                             <span className={quickAudit.hasExternalContractRisk ? 'text-red-400' : 'text-[var(--up)]'}>
                                                {quickAudit.hasExternalContractRisk ? 'Yes' : 'No'}
                                              </span>
                                            </div>
                                            <div className="flex justify-between">
                                              <span className="text-[var(--text-muted)]">Suspicious:</span>
-                                             <span className={quickAudit.hasSuspiciousFunctions ? 'text-red-400' : 'text-green-400'}>
+                                             <span className={quickAudit.hasSuspiciousFunctions ? 'text-red-400' : 'text-[var(--up)]'}>
                                                {quickAudit.hasSuspiciousFunctions ? 'Yes' : 'No'}
                                              </span>
                                            </div>
@@ -2227,49 +2227,49 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                                          <div className="flex items-center justify-between">
                                            <span className="text-[var(--text-muted)]">Mint:</span>
-                                           <span className={quickAudit.canMint ? 'text-red-400' : 'text-green-400'}>
+                                           <span className={quickAudit.canMint ? 'text-red-400' : 'text-[var(--up)]'}>
                                              {quickAudit.canMint ? 'Yes' : 'No'}
                                            </span>
                                          </div>
                                          <div className="flex items-center justify-between">
                                            <span className="text-[var(--text-muted)]">Burn:</span>
-                                           <span className={quickAudit.canBurn ? 'text-yellow-400' : 'text-green-400'}>
+                                           <span className={quickAudit.canBurn ? 'text-yellow-400' : 'text-[var(--up)]'}>
                                              {quickAudit.canBurn ? 'Yes' : 'No'}
                                            </span>
                                          </div>
                                          <div className="flex items-center justify-between">
                                            <span className="text-[var(--text-muted)]">Blacklist:</span>
-                                           <span className={quickAudit.canBlacklist ? 'text-red-400' : 'text-green-400'}>
+                                           <span className={quickAudit.canBlacklist ? 'text-red-400' : 'text-[var(--up)]'}>
                                              {quickAudit.canBlacklist ? 'Yes' : 'No'}
                                            </span>
                                          </div>
                                          <div className="flex items-center justify-between">
                                            <span className="text-[var(--text-muted)]">Pause:</span>
-                                           <span className={quickAudit.canPauseTrading ? 'text-red-400' : 'text-green-400'}>
+                                           <span className={quickAudit.canPauseTrading ? 'text-red-400' : 'text-[var(--up)]'}>
                                              {quickAudit.canPauseTrading ? 'Yes' : 'No'}
                                            </span>
                                          </div>
                                          <div className="flex items-center justify-between">
                                            <span className="text-[var(--text-muted)]">Update Fees:</span>
-                                           <span className={quickAudit.canUpdateFees ? 'text-red-400' : 'text-green-400'}>
+                                           <span className={quickAudit.canUpdateFees ? 'text-red-400' : 'text-[var(--up)]'}>
                                              {quickAudit.canUpdateFees ? 'Yes' : 'No'}
                                            </span>
                                          </div>
                                          <div className="flex items-center justify-between">
                                            <span className="text-[var(--text-muted)]">Max Wallet:</span>
-                                           <span className={quickAudit.canUpdateMaxWallet ? 'text-red-400' : 'text-green-400'}>
+                                           <span className={quickAudit.canUpdateMaxWallet ? 'text-red-400' : 'text-[var(--up)]'}>
                                              {quickAudit.canUpdateMaxWallet ? 'Yes' : 'No'}
                                            </span>
                                          </div>
                                          <div className="flex items-center justify-between">
                                            <span className="text-[var(--text-muted)]">Max TX:</span>
-                                           <span className={quickAudit.canUpdateMaxTx ? 'text-red-400' : 'text-green-400'}>
+                                           <span className={quickAudit.canUpdateMaxTx ? 'text-red-400' : 'text-[var(--up)]'}>
                                              {quickAudit.canUpdateMaxTx ? 'Yes' : 'No'}
                                            </span>
                                          </div>
                                          <div className="flex items-center justify-between">
                                            <span className="text-[var(--text-muted)]">Cooldown:</span>
-                                           <span className={quickAudit.hasTradingCooldown ? 'text-yellow-400' : 'text-green-400'}>
+                                           <span className={quickAudit.hasTradingCooldown ? 'text-yellow-400' : 'text-[var(--up)]'}>
                                              {quickAudit.hasTradingCooldown ? 'Yes' : 'No'}
                                            </span>
                                          </div>
@@ -2313,25 +2313,25 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                              <div className="grid grid-cols-4 bg-[var(--app-bg)] border border-[var(--line)] rounded overflow-hidden mb-0 bg-cover bg-center" style={{ backgroundImage: 'url(/Mirage.jpg)' }}>
                                <div className="p-3 text-center border-r border-[var(--line)]">
                                  <div className="text-xs text-[var(--text-muted)] uppercase mb-1">5M</div>
-                                 <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.m5 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                 <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.m5 || 0) >= 0 ? 'text-[var(--up)]' : 'text-red-400'}`}>
                                    {(dexScreenerData.pairs[0].priceChange.m5 || 0).toFixed(2)}%
                                  </div>
                                </div>
                                <div className="p-3 text-center border-r border-[var(--line)]">
                                  <div className="text-xs text-[var(--text-muted)] uppercase mb-1">1H</div>
-                                 <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.h1 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                 <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.h1 || 0) >= 0 ? 'text-[var(--up)]' : 'text-red-400'}`}>
                                    {(dexScreenerData.pairs[0].priceChange.h1 || 0).toFixed(2)}%
                                  </div>
                                </div>
                                <div className="p-3 text-center border-r border-[var(--line)]">
                                  <div className="text-xs text-[var(--text-muted)] uppercase mb-1">6H</div>
-                                 <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.h6 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                 <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.h6 || 0) >= 0 ? 'text-[var(--up)]' : 'text-red-400'}`}>
                                    {(dexScreenerData.pairs[0].priceChange.h6 || 0).toFixed(2)}%
                                  </div>
                                </div>
                                <div className="p-3 text-center">
                                  <div className="text-xs text-[var(--text-muted)] uppercase mb-1">24H</div>
-                                 <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.h24 || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                 <div className={`text-sm font-bold ${(dexScreenerData.pairs[0].priceChange.h24 || 0) >= 0 ? 'text-[var(--up)]' : 'text-red-400'}`}>
                                    {(dexScreenerData.pairs[0].priceChange.h24 || 0).toFixed(2)}%
                                  </div>
                                </div>
@@ -2717,7 +2717,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                     onClick={() => setCalculatorCurrency('usd')}
                                     className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                                       calculatorCurrency === 'usd' 
-                                        ? 'text-green-400' 
+                                        ? 'text-[var(--up)]' 
                                         : 'text-[var(--text-muted)]'
                                     }`}
                                   >
@@ -2732,7 +2732,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                     onClick={() => setCalculatorCurrency('wpls')}
                                     className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                                       calculatorCurrency === 'wpls' 
-                                        ? 'text-green-400' 
+                                        ? 'text-[var(--up)]' 
                                         : 'text-[var(--text-muted)]'
                                     }`}
                                   >
@@ -2994,7 +2994,7 @@ const HoldersTabContent: React.FC<{ contractAddress: string; tokenInfo: TokenInf
                             📄 Contract
                           </span>
                           {holder.isVerified && (
-                            <span className="px-2 py-0.5 bg-green-600/20 border border-green-500/30 rounded text-xs text-green-300 font-medium" title="Verified contract">
+                            <span className="px-2 py-0.5 bg-green-600/20 border border-green-500/30 rounded text-xs text-[var(--up)] font-medium" title="Verified contract">
                               ✓
                             </span>
                           )}

@@ -65,7 +65,7 @@ export default function FullApiResponsesSection({ statId }: FullApiResponsesSect
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-xs px-2 py-0.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded font-semibold">
+                  <span className="text-xs px-2 py-0.5 bg-emerald-600/20 text-[var(--up)] border border-emerald-500/30 rounded font-semibold">
                     {endpoint.method}
                   </span>
                   <span>Endpoint #{index + 1}</span>
@@ -84,7 +84,7 @@ export default function FullApiResponsesSection({ statId }: FullApiResponsesSect
             <div className="flex items-start justify-between gap-4 mb-3">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs px-2 py-0.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded font-semibold">
+                  <span className="text-xs px-2 py-0.5 bg-emerald-600/20 text-[var(--up)] border border-emerald-500/30 rounded font-semibold">
                     {activeEndpoint.method}
                   </span>
                   <span className="text-sm font-semibold text-[var(--text)]">
@@ -103,7 +103,7 @@ export default function FullApiResponsesSection({ statId }: FullApiResponsesSect
             <div className="flex items-center justify-between px-4 py-3 bg-[var(--panel)] border-b border-[var(--line)]">
               <div className="flex items-center gap-3">
                 <span className="text-sm font-semibold text-[var(--text)]">Complete Response</span>
-                <span className="text-xs px-2 py-1 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded">
+                <span className="text-xs px-2 py-1 bg-emerald-600/20 text-[var(--up)] border border-emerald-500/30 rounded">
                   200 OK
                 </span>
               </div>

@@ -83,7 +83,7 @@ const formatDate = (dateString: string) => {
 const getChangeColor = (value: unknown) => {
   const num = Number(value);
   if (isNaN(num) || num === 0) return 'text-[var(--text)]';
-  return num > 0 ? 'text-green-500' : 'text-red-500';
+  return num > 0 ? 'text-[var(--up)]' : 'text-red-500';
 };
 
 const getChangeIcon = (value: unknown) => {
@@ -202,7 +202,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       case 'currentDay':
                         return <span className="text-[var(--text)]">{formatNumber(row.currentDay, 0, true)}</span>;
                       case 'priceUV2UV3':
-                        return <span className="text-green-500 font-semibold">{formatPrice(row.priceUV2UV3, 8)}</span>;
+                        return <span className="text-[var(--up)] font-semibold">{formatPrice(row.priceUV2UV3, 8)}</span>;
                       case 'priceChangeUV2UV3':
                         return (
                           <div className={`flex items-center gap-1 ${getChangeColor(row.priceChangeUV2UV3)}`}>
@@ -252,9 +252,9 @@ const DataTable: React.FC<DataTableProps> = ({
                       case 'payoutPerTshareHEX':
                         return <span className="text-yellow-500">{formatNumber(row.payoutPerTshareHEX, 6)} HEX</span>;
                       case 'dailyPayoutHEX':
-                        return <span className="text-green-500">{formatHEX(row.dailyPayoutHEX)}</span>;
+                        return <span className="text-[var(--up)]">{formatHEX(row.dailyPayoutHEX)}</span>;
                       case 'dailyMintedInflationTotal':
-                        return <span className="text-green-500">{formatHEX(row.dailyMintedInflationTotal)}</span>;
+                        return <span className="text-[var(--up)]">{formatHEX(row.dailyMintedInflationTotal)}</span>;
                       case 'actualAPYRate':
                         return <span className="text-yellow-500 font-semibold">{formatPercent(row.actualAPYRate)}</span>;
                       case 'currentStakerCount':
@@ -282,7 +282,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       case 'penaltiesHEX':
                         return <span className="text-red-500">{formatHEX(row.penaltiesHEX)}</span>;
                       case 'roiMultiplierFromATL':
-                        return <span className="text-green-500 font-semibold">{formatNumber(row.roiMultiplierFromATL, 0)}x</span>;
+                        return <span className="text-[var(--up)] font-semibold">{formatNumber(row.roiMultiplierFromATL, 0)}x</span>;
                       case 'priceBTC':
                         return <span className="text-orange-500">{formatCurrency(row.priceBTC, 2)}</span>;
                       case 'priceETH':

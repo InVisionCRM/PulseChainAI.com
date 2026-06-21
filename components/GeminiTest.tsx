@@ -98,7 +98,7 @@ export default function GeminiTest() {
               animate={{ opacity: 1, y: 0 }}
             >
               <div className="flex items-center gap-2 mb-3">
-                <IconCheck className="w-5 h-5 text-green-400" />
+                <IconCheck className="w-5 h-5 text-[var(--up)]" />
                 <span className="text-green-200 font-semibold">Test Result</span>
               </div>
               <p className="text-[var(--text)] text-sm leading-relaxed">{testResult}</p>

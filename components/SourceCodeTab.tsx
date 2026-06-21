@@ -366,7 +366,7 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode, readFunctions
                           {formattedValue && (
                             <div className="mt-3 p-3 bg-[var(--panel)] rounded border border-[var(--line)]">
                               <div className="text-xs text-[var(--text-muted)] mb-1">Current Value:</div>
-                              <div className="text-green-400 text-sm font-mono break-all">
+                              <div className="text-[var(--up)] text-sm font-mono break-all">
                                 {formattedValue}
                               </div>
                             </div>

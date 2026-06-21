@@ -78,7 +78,7 @@ const TransactionFlowDiagram: React.FC<TransactionFlowDiagramProps> = ({
           transition={{ delay: 0.2 }}
           className="bg-[var(--surface-2)] rounded-lg p-3 text-center"
         >
-          <div className="text-2xl font-bold text-green-400">
+          <div className="text-2xl font-bold text-[var(--up)]">
             {totalVolume.toLocaleString()}
           </div>
           <div className="text-xs text-[var(--text-muted)]">Total Volume</div>
@@ -112,7 +112,7 @@ const TransactionFlowDiagram: React.FC<TransactionFlowDiagramProps> = ({
           <div className="flex-1">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-[var(--text-muted)]">Inflows</span>
-              <span className="text-xs text-green-400">{inflows.length}</span>
+              <span className="text-xs text-[var(--up)]">{inflows.length}</span>
             </div>
             <div className="bg-[var(--surface-2)] rounded-full h-2">
               <motion.div

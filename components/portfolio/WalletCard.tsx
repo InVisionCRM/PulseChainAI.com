@@ -236,7 +236,7 @@ export function WalletCard({ wallet }: Props) {
         >
           <IconCopy className="h-4 w-4" />
         </button>
-        {copied && <span className="text-xs text-green-300">Copied</span>}
+        {copied && <span className="text-xs text-[var(--up)]">Copied</span>}
 
         <div className="flex items-center gap-1">
           {wallet.chains.map((c) => {

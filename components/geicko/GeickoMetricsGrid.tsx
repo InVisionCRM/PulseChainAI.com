@@ -330,7 +330,7 @@ export default function GeickoMetricsGrid({
         )}
         {burnedTokens && (
           <div className="absolute top-4 right-2 flex items-center justify-center w-9 h-9 rounded-full border-2 border-green-400">
-            <span className="text-[10px] text-green-400 font-semibold">
+            <span className="text-[10px] text-[var(--up)] font-semibold">
               {burnedTokens.percent.toFixed(1)}%
             </span>
           </div>

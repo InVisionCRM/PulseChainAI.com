@@ -100,7 +100,7 @@ export default function GeickoHolderTransfersModal({
                 const isExpanded = expandedTxs.has(tx.txHash);
                 const badgeClasses =
                   tx.direction === 'Buy'
-                    ? 'bg-green-900/40 text-green-300 border-green-700/50'
+                    ? 'bg-green-900/40 text-[var(--up)] border-green-700/50'
                     : tx.direction === 'Sell'
                     ? 'bg-red-900/40 text-red-300 border-red-700/50'
                     : 'bg-blue-900/30 text-blue-200 border-blue-700/40';

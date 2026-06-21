@@ -484,7 +484,7 @@ Please provide a clear, human-readable answer that directly addresses the user's
                 {aiAnswer && (
                   <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                     <h4 className="font-medium mb-2 text-green-800 dark:text-green-200">AI Answer:</h4>
-                    <div className="text-green-700 dark:text-green-300 whitespace-pre-wrap">{aiAnswer}</div>
+                    <div className="text-green-700 dark:text-[var(--up)] whitespace-pre-wrap">{aiAnswer}</div>
                   </div>
                 )}
               </div>

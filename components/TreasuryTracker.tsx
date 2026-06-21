@@ -748,7 +748,7 @@ const TreasuryTracker: React.FC = () => {
                                                   <td className="px-4 py-3 text-sm text-gray-600">{formatTimestamp(tx.timeStamp)}</td>
                                                   <td className="px-4 py-3 text-sm">
                                                     <div className="flex items-center space-x-2">
-                                                      <span className="text-green-500">✓</span>
+                                                      <span className="text-[var(--up)]">✓</span>
                                                       <span className="font-mono text-gray-900">{truncateAddress(tx.hash)}</span>
                                                       <Button
                                                         size="sm"
@@ -939,7 +939,7 @@ const TreasuryTracker: React.FC = () => {
                                                   <td className="px-4 py-3 text-sm text-gray-600">{formatTimestamp(tx.timeStamp)}</td>
                                                   <td className="px-4 py-3 text-sm">
                                                     <div className="flex items-center space-x-2">
-                                                      <span className="text-green-500">✓</span>
+                                                      <span className="text-[var(--up)]">✓</span>
                                                       <span className="font-mono text-gray-900">{truncateAddress(tx.hash)}</span>
                                                       <Button
                                                         size="sm"
@@ -1119,7 +1119,7 @@ const TreasuryTracker: React.FC = () => {
                                                   <td className="px-4 py-3 text-sm text-gray-600">{formatTimestamp(transfer.timeStamp)}</td>
                                                   <td className="px-4 py-3 text-sm">
                                                     <div className="flex items-center space-x-2">
-                                                      <span className="text-green-500">✓</span>
+                                                      <span className="text-[var(--up)]">✓</span>
                                                       <span className="font-mono text-gray-900">{truncateAddress(transfer.hash)}</span>
                                                       <Button
                                                         size="sm"

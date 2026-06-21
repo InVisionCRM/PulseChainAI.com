@@ -2842,7 +2842,7 @@ export default function AdminStatsPanel({
                     {networkEvents.map((event) => {
                       const statusColor =
                         event.status === 'success'
-                          ? 'text-emerald-300'
+                          ? 'text-[var(--up)]'
                           : event.status === 'error'
                           ? 'text-red-300'
                           : 'text-amber-200';
@@ -2880,10 +2880,10 @@ export default function AdminStatsPanel({
                                 const btn = e.currentTarget;
                                 const originalText = btn.textContent;
                                 btn.textContent = '✓';
-                                btn.classList.add('text-green-400');
+                                btn.classList.add('text-[var(--up)]');
                                 setTimeout(() => {
                                   btn.textContent = originalText;
-                                  btn.classList.remove('text-green-400');
+                                  btn.classList.remove('text-[var(--up)]');
                                 }, 1000);
                               }}
                               className="md:opacity-0 md:group-hover:opacity-100 transition-opacity text-[10px] px-1.5 py-0.5 bg-[var(--surface-2)] hover:bg-[var(--surface-2)] rounded text-[var(--text-muted)] hover:text-[var(--text)] flex-shrink-0"

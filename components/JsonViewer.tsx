@@ -22,7 +22,7 @@ const JsonValue: React.FC<{ value: JsonValue }> = ({ value }) => {
 
     switch (type) {
         case 'string':
-            return <span className="text-green-400">&quot;{String(value)}&quot;</span>;
+            return <span className="text-[var(--up)]">&quot;{String(value)}&quot;</span>;
         case 'number':
             return <span className="text-sky-400">{String(value)}</span>;
         case 'boolean':

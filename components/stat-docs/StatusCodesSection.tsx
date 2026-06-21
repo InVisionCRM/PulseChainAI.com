@@ -6,7 +6,7 @@ export default function StatusCodesSection() {
   const statusCodes = generateStatusCodes();
   
   const getStatusColor = (code: number) => {
-    if (code >= 200 && code < 300) return 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30';
+    if (code >= 200 && code < 300) return 'text-[var(--up)] bg-emerald-500/20 border-emerald-500/30';
     if (code >= 400 && code < 500) return 'text-amber-400 bg-amber-500/20 border-amber-500/30';
     return 'text-red-400 bg-red-500/20 border-red-500/30';
   };

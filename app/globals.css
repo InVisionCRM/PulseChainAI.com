@@ -46,6 +46,7 @@
     --text: #14233b;              /* primary text (was white) */
     --text-muted: rgba(20, 35, 59, 0.66); /* secondary text (was white/60–70) */
     --text-faint: rgba(20, 35, 59, 0.45); /* tertiary text (was white/40–50) */
+    --up: #15803d;                /* positive / "up" green — dark for light bg */
   }
 
   .dark {
@@ -82,6 +83,7 @@
     --text: #ffffff;
     --text-muted: rgba(255, 255, 255, 0.70);
     --text-faint: rgba(255, 255, 255, 0.45);
+    --up: #4ade80;                /* positive / "up" green — bright for dark bg */
   }
 }
 

@@ -453,7 +453,7 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--text-faint)]">
             {tx.method && <span className="font-mono">{tx.method.replace(/\(.*$/, '')}</span>}
-            <span className={failed ? 'font-semibold text-red-300' : 'text-emerald-300/80'}>
+            <span className={failed ? 'font-semibold text-red-300' : 'text-[var(--up)]'}>
               {failed ? '✗ Failed' : '✓ Success'}
             </span>
             {tx.gasFeeNative != null && tx.gasFeeNative > 0 && (

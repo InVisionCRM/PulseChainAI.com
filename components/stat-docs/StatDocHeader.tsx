@@ -12,7 +12,7 @@ export default function StatDocHeader({ statName, statId, description, category 
     <div className="mb-8">
       <div className="flex items-center gap-3 mb-4">
         <h1 className="text-3xl md:text-4xl font-bold text-[var(--text)]">{statName}</h1>
-        <span className="px-3 py-1 text-xs font-semibold bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-full uppercase tracking-wider">
+        <span className="px-3 py-1 text-xs font-semibold bg-emerald-600/20 text-[var(--up)] border border-emerald-500/30 rounded-full uppercase tracking-wider">
           GET STAT
         </span>
       </div>

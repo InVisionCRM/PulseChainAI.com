@@ -55,7 +55,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
           }}
           className={`py-1.5 sm:py-2 px-2 sm:px-3 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 whitespace-nowrap ${
             activeTab === 'staking'
-              ? 'border-green-500 text-green-400'
+              ? 'border-green-500 text-[var(--up)]'
               : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-muted)]'
           }`}
         >

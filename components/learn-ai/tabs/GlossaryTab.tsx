@@ -161,7 +161,7 @@ export default function GlossaryTab() {
     { id: 'web', name: 'Web Development', color: 'text-cyan-400' },
     { id: 'blockchain', name: 'Blockchain & Cryptocurrency', color: 'text-orange-400' },
     { id: 'advanced', name: 'Advanced Concepts', color: 'text-purple-400' },
-    { id: 'database', name: 'Database & Storage', color: 'text-green-400' }
+    { id: 'database', name: 'Database & Storage', color: 'text-[var(--up)]' }
   ];
 
   return (

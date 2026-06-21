@@ -201,23 +201,23 @@ export default function DeploymentTab() {
               <h4 className="font-semibold text-[#FA4616] mb-3">Code Quality</h4>
               <ul className="space-y-2 text-[var(--text)]">
                 <li className="flex items-center gap-2">
-                  <span className="text-green-400">✓</span>
+                  <span className="text-[var(--up)]">✓</span>
                   <span>All tests passing</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-green-400">✓</span>
+                  <span className="text-[var(--up)]">✓</span>
                   <span>Code linting clean</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-green-400">✓</span>
+                  <span className="text-[var(--up)]">✓</span>
                   <span>TypeScript errors resolved</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-green-400">✓</span>
+                  <span className="text-[var(--up)]">✓</span>
                   <span>Security audit passed</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-green-400">✓</span>
+                  <span className="text-[var(--up)]">✓</span>
                   <span>Performance optimized</span>
                 </li>
               </ul>
@@ -226,23 +226,23 @@ export default function DeploymentTab() {
               <h4 className="font-semibold text-[#FA4616] mb-3">Deployment Ready</h4>
               <ul className="space-y-2 text-[var(--text)]">
                 <li className="flex items-center gap-2">
-                  <span className="text-green-400">✓</span>
+                  <span className="text-[var(--up)]">✓</span>
                   <span>Environment variables configured</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-green-400">✓</span>
+                  <span className="text-[var(--up)]">✓</span>
                   <span>Build process tested</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-green-400">✓</span>
+                  <span className="text-[var(--up)]">✓</span>
                   <span>Domain configured</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-green-400">✓</span>
+                  <span className="text-[var(--up)]">✓</span>
                   <span>SSL certificate ready</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-green-400">✓</span>
+                  <span className="text-[var(--up)]">✓</span>
                   <span>Monitoring setup</span>
                 </li>
               </ul>

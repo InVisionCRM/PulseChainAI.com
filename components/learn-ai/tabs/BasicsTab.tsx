@@ -17,7 +17,7 @@ export default function BasicsTab() {
     },
     {
       title: "Web Technologies",
-      icon: <IconWorld className="h-6 w-6 text-green-500" />,
+      icon: <IconWorld className="h-6 w-6 text-[var(--up)]" />,
       concepts: [
         "HTML - structure and content of web pages",
         "CSS - styling and layout of web elements",

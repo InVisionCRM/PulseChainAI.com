@@ -19,13 +19,13 @@ export default function MobileDebugInfo() {
         <div>CPU Cores: {navigator.hardwareConcurrency || 'Unknown'}</div>
         <div>Memory: {(navigator as any).deviceMemory || 'Unknown'} GB</div>
         <div className="border-t border-[var(--line)] pt-1 mt-2">
-          <div className={config.shouldDisableHeavyAnimations ? 'text-red-400' : 'text-green-400'}>
+          <div className={config.shouldDisableHeavyAnimations ? 'text-red-400' : 'text-[var(--up)]'}>
             Heavy Animations: {config.shouldDisableHeavyAnimations ? 'Disabled' : 'Enabled'}
           </div>
-          <div className={config.shouldDisableBackgroundEffects ? 'text-red-400' : 'text-green-400'}>
+          <div className={config.shouldDisableBackgroundEffects ? 'text-red-400' : 'text-[var(--up)]'}>
             Background Effects: {config.shouldDisableBackgroundEffects ? 'Disabled' : 'Enabled'}
           </div>
-          <div className={config.shouldReduceMotion ? 'text-red-400' : 'text-green-400'}>
+          <div className={config.shouldReduceMotion ? 'text-red-400' : 'text-[var(--up)]'}>
             Reduced Motion: {config.shouldReduceMotion ? 'Yes' : 'No'}
           </div>
         </div>
