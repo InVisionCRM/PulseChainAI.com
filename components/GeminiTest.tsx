@@ -31,29 +31,29 @@ export default function GeminiTest() {
   return (
     <div className="max-w-2xl mx-auto p-6">
       <motion.div 
-        className="bg-gray-900/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-800"
+        className="bg-[var(--panel)] backdrop-blur-sm rounded-2xl p-6 border border-[var(--line)]"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-500">
-            <IconBrain className="w-6 h-6 text-white" />
+            <IconBrain className="w-6 h-6 text-[var(--text)]" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-white">Gemini 2.5 Flash API Test</h2>
-            <p className="text-gray-400">Test the API integration with thinking budget and grounding</p>
+            <h2 className="text-2xl font-bold text-[var(--text)]">Gemini 2.5 Flash API Test</h2>
+            <p className="text-[var(--text-muted)]">Test the API integration with thinking budget and grounding</p>
           </div>
         </div>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="bg-gray-800/50 rounded-lg p-3">
-              <span className="text-gray-400">Thinking Budget:</span>
-              <div className="text-white font-semibold">1000 steps</div>
+            <div className="bg-[var(--panel)] rounded-lg p-3">
+              <span className="text-[var(--text-muted)]">Thinking Budget:</span>
+              <div className="text-[var(--text)] font-semibold">1000 steps</div>
             </div>
-            <div className="bg-gray-800/50 rounded-lg p-3">
-              <span className="text-gray-400">Grounding:</span>
-              <div className="text-white font-semibold">Google Search</div>
+            <div className="bg-[var(--panel)] rounded-lg p-3">
+              <span className="text-[var(--text-muted)]">Grounding:</span>
+              <div className="text-[var(--text)] font-semibold">Google Search</div>
             </div>
           </div>
 
@@ -74,7 +74,7 @@ export default function GeminiTest() {
           <motion.button
             onClick={runTest}
             disabled={isLoading || isTesting}
-            className="w-full bg-gradient-to-br from-blue-500 to-blue-500 text-white py-3 rounded-lg font-semibold hover:from-slate-950 hover:to-slate-950 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-br from-blue-500 to-blue-500 text-[var(--text)] py-3 rounded-lg font-semibold hover:from-[var(--app-bg)] hover:to-[var(--app-bg)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -93,7 +93,7 @@ export default function GeminiTest() {
 
           {testResult && (
             <motion.div 
-              className="bg-gray-800/50 border border-gray-700 rounded-lg p-4"
+              className="bg-[var(--panel)] border border-[var(--line)] rounded-lg p-4"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
             >
@@ -101,7 +101,7 @@ export default function GeminiTest() {
                 <IconCheck className="w-5 h-5 text-green-400" />
                 <span className="text-green-200 font-semibold">Test Result</span>
               </div>
-              <p className="text-gray-100 text-sm leading-relaxed">{testResult}</p>
+              <p className="text-[var(--text)] text-sm leading-relaxed">{testResult}</p>
             </motion.div>
           )}
         </div>

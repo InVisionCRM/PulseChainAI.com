@@ -27,6 +27,8 @@ import { useState, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { AddToGroupModal } from "@/components/portfolio/AddToGroupModal";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { PullChainOverlay } from "@/components/theme/PullChainOverlay";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -64,17 +66,17 @@ const SidebarGroup = ({
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 transition duration-200 hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50"
+        className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 transition duration-200 hover:bg-[var(--surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50"
       >
         <span className="flex items-center gap-2">
           {icon}
-          <span className="text-white/50 text-xs font-semibold uppercase tracking-wider whitespace-pre inline-block">
+          <span className="text-[var(--text-faint)] text-xs font-semibold uppercase tracking-wider whitespace-pre inline-block">
             {label}
           </span>
         </span>
         <IconChevronDown
           className={cn(
-            "h-4 w-4 shrink-0 text-white/50 transition-transform duration-200",
+            "h-4 w-4 shrink-0 text-[var(--text-faint)] transition-transform duration-200",
             expanded ? "rotate-180" : "rotate-0"
           )}
         />
@@ -109,42 +111,42 @@ export default function RootLayout({
       label: "Home",
       href: "/",
       icon: (
-        <IconHome className="h-5 w-5 shrink-0 text-white" />
+        <IconHome className="h-5 w-5 shrink-0 text-[var(--text)]" />
       ),
     },
     {
       label: "Tokens",
       href: "/geicko",
       icon: (
-        <IconCode className="h-5 w-5 shrink-0 text-white" />
+        <IconCode className="h-5 w-5 shrink-0 text-[var(--text)]" />
       ),
     },
     {
       label: "Portfolio",
       href: "/portfolio",
       icon: (
-        <IconWallet className="h-5 w-5 shrink-0 text-white" />
+        <IconWallet className="h-5 w-5 shrink-0 text-[var(--text)]" />
       ),
     },
     {
       label: "Learn AI",
       href: "/learn-ai",
       icon: (
-        <IconBook className="h-5 w-5 shrink-0 text-white" />
+        <IconBook className="h-5 w-5 shrink-0 text-[var(--text)]" />
       ),
     },
     {
       label: "Gaming",
       href: "https://win.morbius.io",
       icon: (
-        <IconCurrencyDollar className="h-5 w-5 shrink-0 text-white" />
+        <IconCurrencyDollar className="h-5 w-5 shrink-0 text-[var(--text)]" />
       ),
     },
     {
       label: "GOLD Badges Admin",
       href: "/admin/gold-badges",
       icon: (
-        <IconPhoneOutgoing className="h-5 w-5 shrink-0 text-white" />
+        <IconPhoneOutgoing className="h-5 w-5 shrink-0 text-[var(--text)]" />
       ),
     },
   ];
@@ -156,9 +158,18 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Set the theme class before first paint so there's no flash.
+            Defaults to dark (the app's native look) until the user toggles. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('pc-theme');if(t!=='light'&&t!=='dark'){t='dark';}document.documentElement.classList.toggle('dark',t==='dark');}catch(e){document.documentElement.classList.add('dark');}})();`,
+          }}
+        />
+      </head>
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} text-md md:text-base antialiased min-h-screen bg-[#0C2340]`}
+        className={`${inter.variable} ${jetbrainsMono.variable} text-md md:text-base antialiased min-h-screen bg-[var(--app-bg)]`}
       >
         <div className="flex flex-col min-h-screen md:h-screen w-full md:overflow-hidden">
           {!isStackerGamePage && <TopTickerBar />}
@@ -176,7 +187,7 @@ export default function RootLayout({
                       title="Get Morbius"
                     >
                       <IconRocket className="h-5 w-5 shrink-0 text-orange-400" />
-                      <span className="text-white text-sm whitespace-pre inline-block">
+                      <span className="text-[var(--text)] text-sm whitespace-pre inline-block">
                         Get Morbius
                       </span>
                     </a>
@@ -193,14 +204,14 @@ export default function RootLayout({
                         {
                           label: "PLStart.me",
                           href: "https://plstart.me",
-                          icon: <IconRocket className="h-5 w-5 shrink-0 text-white" />,
+                          icon: <IconRocket className="h-5 w-5 shrink-0 text-[var(--text)]" />,
                         },
                       ]}
                     />
 
                     {/* Sponsored by Section */}
                     <div className="mt-6">
-                      <div className="text-white/40 text-xs font-semibold uppercase tracking-wider px-2 mb-2 text-center">
+                      <div className="text-[var(--text-faint)] text-xs font-semibold uppercase tracking-wider px-2 mb-2 text-center">
                         Sponsored by
                       </div>
                       <div className="flex justify-center">
@@ -212,6 +223,11 @@ export default function RootLayout({
                           }}
                         />
                       </div>
+                    </div>
+
+                    {/* Theme toggle — pull-chain dark/light switch */}
+                    <div className="mt-6 pt-3 border-t border-[var(--line)]">
+                      <ThemeToggle variant="rail" />
                     </div>
                   </div>
                 </div>
@@ -227,6 +243,7 @@ export default function RootLayout({
           </Suspense>
         </div>
         <AddToGroupModal />
+        <PullChainOverlay />
         <Analytics />
       </body>
     </html>
@@ -243,7 +260,7 @@ const Logo = () => {
       <motion.span
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="font-medium whitespace-pre text-slate-950 dark:text-white"
+        className="font-medium whitespace-pre text-slate-950 dark:text-[var(--text)]"
       >
         Morbius.io
       </motion.span>

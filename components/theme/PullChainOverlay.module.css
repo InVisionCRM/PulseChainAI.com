@@ -1,0 +1,95 @@
+/* =====================================================================
+   Pull-chain theme transition — small, top-right
+   A short beaded chain drops in the top-right; the real arm
+   (public/pull-arm.png) reaches in from the right, grabs it, gives a quick
+   yank, then retracts. Everything is parked off-screen at rest, so the
+   overlay shows nothing until `.running` is added (theme flip is mid-pull).
+   ===================================================================== */
+
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* small beaded chain anchored top-right; extends above the top edge so the
+   downward yank never opens a gap. parked above at rest. */
+.chainRig {
+  position: absolute;
+  top: -44px;
+  right: 172px;
+  transform: translateY(-160px);
+}
+.chainCol {
+  width: 7px;
+  height: 124px;
+  margin: 0 auto;
+  background-image: radial-gradient(circle at 50% 42%, #e6ebf1 0 2.6px, #aab2bd 2.9px 3.6px, transparent 3.9px);
+  background-size: 7px 9px;
+  background-repeat: repeat-y;
+  background-position: center top;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
+}
+.chainBall {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  margin: -3px auto 0;
+  background: radial-gradient(circle at 37% 30%, #f4f8fc, #c2cbd5 52%, #7e8a97);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
+/* small photo arm: fist sits at ~24% across / ~50% down the square image, so
+   this translate pins the fist onto the chain ball (top-right). */
+.armAnim {
+  position: absolute;
+  inset: 0;
+  transform: translateX(60vw);   /* parked off the right at rest */
+}
+.armImg {
+  position: absolute;
+  top: 80px;
+  left: calc(100% - 176px);
+  width: 300px;
+  height: auto;
+  transform: translate(-24%, -50%);
+  will-change: transform;
+  filter: drop-shadow(-8px 10px 10px rgba(0, 0, 0, 0.32));
+  user-select: none;
+}
+
+.stage.running .chainRig {
+  animation: chainMove 1.15s cubic-bezier(0.4, 0.1, 0.2, 1) both;
+}
+.stage.running .armAnim {
+  animation: armMove 1.15s cubic-bezier(0.36, 0.12, 0.2, 1) both;
+}
+
+@keyframes chainMove {
+  0%   { transform: translateY(-160px); }  /* hidden above */
+  15%  { transform: translateY(3px); }     /* drop in, slight overshoot */
+  22%  { transform: translateY(0); }       /* hangs */
+  42%  { transform: translateY(0); }       /* wait for the grab */
+  58%  { transform: translateY(36px); }    /* yanked down */
+  66%  { transform: translateY(36px); }    /* hold */
+  76%  { transform: translateY(-2px); }    /* spring back */
+  82%  { transform: translateY(0); }
+  90%  { transform: translateY(0); }
+  100% { transform: translateY(-160px); }  /* retract up */
+}
+@keyframes armMove {
+  0%, 18% { transform: translate(60vw, 0); }  /* off-screen right, waits for the drop */
+  38%     { transform: translate(0, 0); }     /* reaches in, fist on the ball */
+  46%     { transform: translate(0, 0); }     /* grip */
+  58%     { transform: translate(0, 36px); }  /* quick pull down with the chain */
+  66%     { transform: translate(0, 36px); }  /* hold */
+  76%     { transform: translate(8vw, 8px); } /* release, ease back */
+  100%    { transform: translate(60vw, 0); }  /* retract off right */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage.running .chainRig,
+  .stage.running .armAnim { animation: none; }
+}

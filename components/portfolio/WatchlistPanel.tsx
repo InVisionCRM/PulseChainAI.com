@@ -229,14 +229,14 @@ export function WatchlistPanel() {
   return (
     <aside
       id="watchlist"
-      className="scroll-mt-20 rounded-2xl border border-white/15 bg-white/5 backdrop-blur-xl p-4 lg:sticky lg:top-4 lg:flex lg:flex-col lg:max-h-[calc(100vh-2rem)]"
+      className="scroll-mt-20 rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl p-4 lg:sticky lg:top-4 lg:flex lg:flex-col lg:max-h-[calc(100vh-2rem)]"
     >
       <div className="flex items-center justify-between mb-3 lg:shrink-0">
         <div className="flex items-center gap-2 text-orange-400/80 text-xs font-semibold uppercase tracking-wider">
           <IconStar className="h-4 w-4" />
           Watchlist
           {tokens.length > 0 && (
-            <span className="text-white/40 normal-case font-normal">
+            <span className="text-[var(--text-faint)] normal-case font-normal">
               · {tokens.length}
             </span>
           )}
@@ -245,7 +245,7 @@ export function WatchlistPanel() {
           type="button"
           onClick={() => void refresh()}
           disabled={isLoading || tokens.length === 0}
-          className="text-white/50 hover:text-white disabled:opacity-30"
+          className="text-[var(--text-faint)] hover:text-[var(--text)] disabled:opacity-30"
           title="Refresh prices"
         >
           <IconRefresh className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -253,7 +253,7 @@ export function WatchlistPanel() {
       </div>
 
       <div className="relative mb-3 lg:shrink-0">
-        <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 pointer-events-none" />
+        <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-faint)] pointer-events-none" />
         <input
           type="text"
           value={query}
@@ -266,15 +266,15 @@ export function WatchlistPanel() {
           placeholder="Paste 0x… or search by name"
           spellCheck={false}
           autoComplete="off"
-          className="w-full rounded-lg bg-black/40 border border-white/15 pl-8 pr-2 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-orange-500/60"
+          className="w-full rounded-lg bg-[var(--surface-2)] border border-[var(--line)] pl-8 pr-2 py-2 text-sm text-[var(--text)] placeholder-[var(--text-faint)] focus:outline-none focus:border-orange-500/60"
         />
         {open && query.trim().length >= 2 && (
-          <div className="absolute z-20 left-0 right-0 mt-1 rounded-lg border border-white/15 bg-[#0d2a4d] shadow-2xl max-h-72 overflow-y-auto">
+          <div className="absolute z-20 left-0 right-0 mt-1 rounded-lg border border-[var(--line)] bg-[var(--surface-2)] shadow-2xl max-h-72 overflow-y-auto">
             {searching && hits.length === 0 && (
-              <div className="px-3 py-2 text-xs text-white/40">Searching…</div>
+              <div className="px-3 py-2 text-xs text-[var(--text-faint)]">Searching…</div>
             )}
             {!searching && hits.length === 0 && (
-              <div className="px-3 py-2 text-xs text-white/40">No tokens found.</div>
+              <div className="px-3 py-2 text-xs text-[var(--text-faint)]">No tokens found.</div>
             )}
             {hits.map((h) => (
               <button
@@ -285,14 +285,14 @@ export function WatchlistPanel() {
                   e.preventDefault();
                   handleAdd(h);
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/10 text-left"
+                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--surface-2)] text-left"
               >
                 <Icon32 logoURI={h.logoURI} symbol={h.symbol} chain={h.chain} />
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-white truncate">
+                  <div className="text-sm font-medium text-[var(--text)] truncate">
                     {h.symbol}
                   </div>
-                  <div className="text-xs text-white/50 truncate">{h.name}</div>
+                  <div className="text-xs text-[var(--text-faint)] truncate">{h.name}</div>
                 </div>
               </button>
             ))}
@@ -302,7 +302,7 @@ export function WatchlistPanel() {
 
       <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:-mr-2 lg:pr-2">
       {tokens.length === 0 ? (
-        <div className="text-sm text-white/40 py-6 text-center">
+        <div className="text-sm text-[var(--text-faint)] py-6 text-center">
           Track tokens you don't hold yet. Paste an address or search above.
         </div>
       ) : (
@@ -378,19 +378,19 @@ function WlGroupManager({
     : null;
 
   return (
-    <div className="mb-3 rounded-xl border border-white/10 bg-black/20 p-3">
+    <div className="mb-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
       <div className="flex items-center justify-between mb-2.5">
-        <div className="flex items-center gap-1.5 text-white/50 text-[10px] font-semibold uppercase tracking-wider">
+        <div className="flex items-center gap-1.5 text-[var(--text-faint)] text-[10px] font-semibold uppercase tracking-wider">
           <IconFolder className="h-3.5 w-3.5" />
           Groups
-          <span className="text-white/30 normal-case font-normal">
+          <span className="text-[var(--text-faint)] normal-case font-normal">
             · {groups.length}
           </span>
         </div>
         <button
           type="button"
           onClick={() => setEditingId(createGroup())}
-          className="inline-flex items-center gap-1 rounded-lg bg-white/10 hover:bg-white/15 text-white text-[11px] font-semibold px-2 py-1 transition-colors"
+          className="inline-flex items-center gap-1 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] text-[11px] font-semibold px-2 py-1 transition-colors"
         >
           <IconPlus className="h-3 w-3" />
           New group
@@ -447,7 +447,7 @@ function WlGroupChip({
         style={{ backgroundColor: groupBase(group.color) }}
       />
       {group.name}
-      <span className="text-white/50 font-normal">· {count}</span>
+      <span className="text-[var(--text-faint)] font-normal">· {count}</span>
     </button>
   );
 }
@@ -472,7 +472,7 @@ function WlGroupEditor({
   };
 
   return (
-    <div className="mt-2.5 rounded-lg border border-white/10 bg-black/30 p-2.5 space-y-2.5">
+    <div className="mt-2.5 rounded-lg border border-[var(--line)] bg-[var(--surface-2)] p-2.5 space-y-2.5">
       <div className="flex items-center gap-2">
         <input
           value={name}
@@ -486,7 +486,7 @@ function WlGroupEditor({
           }}
           autoFocus
           placeholder="Group name"
-          className="flex-1 rounded-lg bg-black/40 border border-white/15 px-2.5 py-1.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/40"
+          className="flex-1 rounded-lg bg-[var(--surface-2)] border border-[var(--line)] px-2.5 py-1.5 text-sm text-[var(--text)] placeholder-[var(--text-faint)] focus:outline-none focus:border-[var(--line)]"
         />
         {!isDefault && (
           <button
@@ -496,7 +496,7 @@ function WlGroupEditor({
               onClose();
             }}
             title="Delete group"
-            className="text-white/40 hover:text-red-400 shrink-0"
+            className="text-[var(--text-faint)] hover:text-red-400 shrink-0"
           >
             <IconTrash className="h-4 w-4" />
           </button>
@@ -508,7 +508,7 @@ function WlGroupEditor({
             onClose();
           }}
           title="Done"
-          className="text-white/60 hover:text-white shrink-0"
+          className="text-[var(--text-muted)] hover:text-[var(--text)] shrink-0"
         >
           <IconCheck className="h-4 w-4" />
         </button>
@@ -535,7 +535,7 @@ function WlGroupEditor({
       </div>
 
       {isDefault && (
-        <p className="text-[11px] text-white/40 leading-snug">
+        <p className="text-[11px] text-[var(--text-faint)] leading-snug">
           Default group — new and ungrouped tokens land here. Rename and recolour
           it freely; it can't be deleted.
         </p>
@@ -561,7 +561,7 @@ function WlGroupSection({
         <h3 className="text-xs font-bold tracking-wide" style={{ color: base }}>
           {group.name}
         </h3>
-        <span className="text-[11px] text-white/40">· {count}</span>
+        <span className="text-[11px] text-[var(--text-faint)]">· {count}</span>
       </div>
       <ul
         className="space-y-1 pl-2"
@@ -598,7 +598,7 @@ function TokenRow({
   const changeTxt = fmtPct(change);
 
   return (
-    <li className="group relative flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5">
+    <li className="group relative flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--surface)]">
       <button
         type="button"
         onClick={() => onOpenInsights(toInsightsToken(t, p))}
@@ -607,12 +607,12 @@ function TokenRow({
       >
         <Icon32 logoURI={logo} symbol={sym} chain={t.chain} />
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium text-white truncate">{sym}</div>
-          <div className="text-[10px] text-white/40 truncate">{name}</div>
+          <div className="text-sm font-medium text-[var(--text)] truncate">{sym}</div>
+          <div className="text-[10px] text-[var(--text-faint)] truncate">{name}</div>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-sm text-white tabular-nums">
-            {priceUsd != null ? fmtPrice(priceUsd) : <span className="text-white/30">—</span>}
+          <div className="text-sm text-[var(--text)] tabular-nums">
+            {priceUsd != null ? fmtPrice(priceUsd) : <span className="text-[var(--text-faint)]">—</span>}
           </div>
           <div
             className="text-[10px] tabular-nums"
@@ -637,7 +637,7 @@ function TokenRow({
       <button
         type="button"
         onClick={() => onRemove(t.address, t.chain)}
-        className="opacity-0 group-hover:opacity-100 transition-opacity text-white/40 hover:text-red-400 shrink-0"
+        className="opacity-0 group-hover:opacity-100 transition-opacity text-[var(--text-faint)] hover:text-red-400 shrink-0"
         title="Remove from watchlist"
       >
         <IconX className="h-4 w-4" />
@@ -687,13 +687,13 @@ function GroupPicker({
         title={`Group: ${current?.name ?? 'Watchlist'}`}
         className={`${
           open ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-        } transition-opacity text-white/40 hover:text-white`}
+        } transition-opacity text-[var(--text-faint)] hover:text-[var(--text)]`}
       >
         <IconFolderPlus className="h-4 w-4" />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-40 rounded-lg border border-white/15 bg-[#0d2a4d] shadow-2xl py-1">
+        <div className="absolute right-0 top-full z-30 mt-1 w-40 rounded-lg border border-[var(--line)] bg-[var(--surface-2)] shadow-2xl py-1">
           {groups.map((g) => {
             const selected = g.id === currentGroupId;
             return (
@@ -704,14 +704,14 @@ function GroupPicker({
                   assignToken(token.chain, token.address, g.id);
                   setOpen(false);
                 }}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs text-white hover:bg-white/10"
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs text-[var(--text)] hover:bg-[var(--surface-2)]"
               >
                 <span
                   className="h-2.5 w-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: groupBase(g.color) }}
                 />
                 <span className="flex-1 truncate">{g.name}</span>
-                {selected && <IconCheck className="h-3.5 w-3.5 text-white/70 shrink-0" />}
+                {selected && <IconCheck className="h-3.5 w-3.5 text-[var(--text-muted)] shrink-0" />}
               </button>
             );
           })}
@@ -734,7 +734,7 @@ function Icon32({
   const isEth = chain === 'ethereum';
   return (
     <div className="relative w-7 h-7 shrink-0">
-      <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+      <div className="w-7 h-7 rounded-full bg-[var(--surface-2)] flex items-center justify-center overflow-hidden">
         {logoURI ? (
           <img
             src={logoURI}
@@ -745,7 +745,7 @@ function Icon32({
             }}
           />
         ) : (
-          <span className="text-[9px] text-white font-semibold">
+          <span className="text-[9px] text-[var(--text)] font-semibold">
             {symbol.slice(0, 3).toUpperCase()}
           </span>
         )}
@@ -753,7 +753,7 @@ function Icon32({
       <span
         title={CHAIN_NAME[chain]}
         className={`absolute -bottom-[3px] -right-[3px] h-3 w-3 rounded-full overflow-hidden flex items-center justify-center ring-2 ring-[#0e2747] ${
-          isEth ? 'bg-white' : 'bg-[#0b1f3a]'
+          isEth ? 'bg-white' : 'bg-[var(--surface-2)]'
         }`}
       >
         <img

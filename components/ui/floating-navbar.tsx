@@ -47,7 +47,7 @@ export function FloatingNav({ navItems, className }: FloatingNavProps) {
           exit={{ y: -100, opacity: 0 }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
           className={cn(
-            "fixed top-4 left-4 right-4 z-50 bg-slate-950/80 backdrop-blur-md border border-gray-700 rounded-xl shadow-2xl",
+            "fixed top-4 left-4 right-4 z-50 bg-[var(--app-bg)] backdrop-blur-md border border-[var(--line)] rounded-xl shadow-2xl",
             className
           )}
         >
@@ -60,7 +60,7 @@ export function FloatingNav({ navItems, className }: FloatingNavProps) {
                   alt="Mobius Logo" 
                   className="w-8 h-8 object-contain"
                 />
-                <span className="text-white font-bold text-lg hidden sm:block">Morbius.io</span>
+                <span className="text-[var(--text)] font-bold text-lg hidden sm:block">Morbius.io</span>
               </a>
 
               {/* Navigation Items */}
@@ -77,7 +77,7 @@ export function FloatingNav({ navItems, className }: FloatingNavProps) {
                         href={item.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center space-x-2 px-4 py-2 text-gray-300 hover:text-white transition-colors rounded-lg hover:bg-gray-800/50"
+                        className="flex items-center space-x-2 px-4 py-2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors rounded-lg hover:bg-[var(--panel)]"
                       >
                         {item.icon}
                         <span className="hidden sm:block">{item.name}</span>
@@ -85,7 +85,7 @@ export function FloatingNav({ navItems, className }: FloatingNavProps) {
                     ) : (
                       <a
                         href={item.link}
-                        className="flex items-center space-x-2 px-4 py-2 text-gray-300 hover:text-white transition-colors rounded-lg hover:bg-gray-800/50"
+                        className="flex items-center space-x-2 px-4 py-2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors rounded-lg hover:bg-[var(--panel)]"
                       >
                         {item.icon}
                         <span className="hidden sm:block">{item.name}</span>

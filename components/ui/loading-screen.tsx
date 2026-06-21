@@ -12,7 +12,7 @@ export default function LoadingScreen({ isVisible, message = "Loading..." }: Loa
 
   return (
     <motion.div
-      className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center"
+      className="fixed inset-0 bg-[var(--app-bg)] backdrop-blur-sm z-50 flex flex-col items-center justify-center"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -29,7 +29,7 @@ export default function LoadingScreen({ isVisible, message = "Loading..." }: Loa
         </div>
         
         <motion.p
-          className="text-white text-lg md:text-xl font-medium text-center"
+          className="text-[var(--text)] text-lg md:text-xl font-medium text-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.3 }}

@@ -22,7 +22,7 @@ export default function GeickoClassicHeader({
   buttonText = 'Get Morbius',
 }: GeickoClassicHeaderProps) {
   return (
-    <header className="relative bg-slate-850 border-b-2 border-gray-800">
+    <header className="relative bg-slate-850 border-b-2 border-[var(--line)]">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 md:px-3 py-2 gap-2">
         {/* Title with Logo */}
         <div className="flex items-center gap-2">
@@ -31,7 +31,7 @@ export default function GeickoClassicHeader({
             alt="Morbius Logo"
             className="w-6 h-6"
           />
-          <h1 className="text-white text-lg font-semibold">
+          <h1 className="text-[var(--text)] text-lg font-semibold">
             <span className="text-xl sm:text-2xl font-bold text-purple-700">Morbius</span>{' '}
             {title}
           </h1>
@@ -42,7 +42,7 @@ export default function GeickoClassicHeader({
           href={brandingUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute top-1/2 -translate-y-1/2 right-2 px-2.5 py-1 bg-purple-700/40 backdrop-blur hover:bg-purple-700/50 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap z-10"
+          className="absolute top-1/2 -translate-y-1/2 right-2 px-2.5 py-1 bg-purple-700/40 backdrop-blur hover:bg-purple-700/50 text-[var(--text)] text-xs font-medium rounded-lg transition-colors whitespace-nowrap z-10"
         >
           {buttonText}
         </a>

@@ -46,7 +46,7 @@ class HexDashboardErrorBoundary extends React.Component<Props, State> {
           </div>
           <button
             onClick={this.resetError}
-            className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+            className="px-3 py-1 bg-red-600 text-[var(--text)] text-sm rounded hover:bg-red-700 transition-colors"
           >
             Try Again
           </button>

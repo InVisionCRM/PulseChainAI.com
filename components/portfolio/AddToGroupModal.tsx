@@ -93,7 +93,7 @@ export function AddToGroupModal() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[120]"
+            className="fixed inset-0 bg-[var(--app-bg)] backdrop-blur-sm z-[120]"
           />
           <div className="fixed inset-0 z-[130] grid place-items-center p-4 pointer-events-none">
             <motion.div
@@ -102,16 +102,16 @@ export function AddToGroupModal() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-              className="w-full max-w-md rounded-2xl border border-white/15 bg-[#0F1A2E] shadow-2xl pointer-events-auto overflow-hidden"
+              className="w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--app-bg)] shadow-2xl pointer-events-auto overflow-hidden"
             >
               {/* Header */}
-              <div className="flex items-center gap-2 px-5 pt-4 pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2 px-5 pt-4 pb-3 border-b border-[var(--line)]">
                 <IconFolderPlus className="h-5 w-5 text-orange-300" />
-                <h2 className="text-base font-bold text-white">Add to group</h2>
+                <h2 className="text-base font-bold text-[var(--text)]">Add to group</h2>
                 <button
                   type="button"
                   onClick={close}
-                  className="ml-auto h-7 w-7 grid place-items-center rounded-full bg-white/10 hover:bg-white/20 text-white"
+                  className="ml-auto h-7 w-7 grid place-items-center rounded-full bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)]"
                   aria-label="Close"
                 >
                   <IconX className="h-4 w-4" />
@@ -121,30 +121,30 @@ export function AddToGroupModal() {
               <div className="px-5 py-4 space-y-4">
                 {/* Address being added */}
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded bg-white/10 text-white/70">
+                  <span className="text-[10px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-muted)]">
                     {SOURCE_LABEL[request.source]}
                   </span>
-                  <span className="font-mono text-sm text-white/80">
+                  <span className="font-mono text-sm text-[var(--text)]">
                     {shortAddr(request.address)}
                   </span>
                 </div>
 
                 {/* Label */}
                 <label className="block space-y-1">
-                  <span className="text-xs uppercase tracking-wide text-white/60 font-semibold">
+                  <span className="text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
                     Name
                   </span>
                   <input
                     value={label}
                     onChange={(e) => setLabel(e.target.value)}
                     placeholder="Label for this address"
-                    className="w-full rounded-lg bg-black/40 border border-white/15 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-orange-500/60"
+                    className="w-full rounded-lg bg-[var(--surface-2)] border border-[var(--line)] px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-faint)] focus:outline-none focus:border-orange-500/60"
                   />
                 </label>
 
                 {/* Group picker */}
                 <div className="space-y-2">
-                  <span className="text-xs uppercase tracking-wide text-white/60 font-semibold">
+                  <span className="text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
                     Group
                   </span>
                   <div className="flex flex-wrap gap-2">
@@ -176,7 +176,7 @@ export function AddToGroupModal() {
                       <button
                         type="button"
                         onClick={() => setShowNewGroup(true)}
-                        className="inline-flex items-center gap-1 rounded-full border border-dashed border-white/25 px-3 py-1.5 text-xs font-semibold text-white/60 hover:text-white hover:border-white/40 transition-colors"
+                        className="inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--line-strong)] px-3 py-1.5 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--line)] transition-colors"
                       >
                         <IconPlus className="h-3.5 w-3.5" />
                         New group
@@ -194,12 +194,12 @@ export function AddToGroupModal() {
                         }}
                         autoFocus
                         placeholder="New group name"
-                        className="flex-1 rounded-lg bg-black/40 border border-white/15 px-3 py-1.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-orange-500/60"
+                        className="flex-1 rounded-lg bg-[var(--surface-2)] border border-[var(--line)] px-3 py-1.5 text-sm text-[var(--text)] placeholder-[var(--text-faint)] focus:outline-none focus:border-orange-500/60"
                       />
                       <button
                         type="button"
                         onClick={handleCreateGroup}
-                        className="rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-3 py-1.5"
+                        className="rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] text-xs font-semibold px-3 py-1.5"
                       >
                         Create
                       </button>
@@ -211,7 +211,7 @@ export function AddToGroupModal() {
                 <button
                   type="button"
                   onClick={() => setTrack((t) => !t)}
-                  className="w-full flex items-start gap-3 rounded-lg border border-white/10 bg-black/20 p-3 text-left hover:bg-black/30 transition-colors"
+                  className="w-full flex items-start gap-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3 text-left hover:bg-[var(--surface-2)] transition-colors"
                   aria-pressed={track}
                 >
                   <span
@@ -228,10 +228,10 @@ export function AddToGroupModal() {
                     />
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-white">
+                    <span className="block text-sm font-semibold text-[var(--text)]">
                       Track balances
                     </span>
-                    <span className="block text-xs text-white/50 leading-snug">
+                    <span className="block text-xs text-[var(--text-faint)] leading-snug">
                       {track
                         ? 'Scanned as a full portfolio wallet (balances & tokens).'
                         : 'Saved as a reference only — flip on to scan it like a wallet.'}
@@ -241,18 +241,18 @@ export function AddToGroupModal() {
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-white/10">
+              <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--line)]">
                 <button
                   type="button"
                   onClick={close}
-                  className="rounded-lg px-3 py-2 text-sm font-semibold text-white/70 hover:text-white"
+                  className="rounded-lg px-3 py-2 text-sm font-semibold text-[var(--text-muted)] hover:text-[var(--text)]"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleAdd}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500/90 hover:bg-orange-500 text-white text-sm font-semibold px-4 py-2 transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500/90 hover:bg-orange-500 text-[var(--text)] text-sm font-semibold px-4 py-2 transition-colors"
                 >
                   <IconPlus className="h-4 w-4" />
                   Add to group

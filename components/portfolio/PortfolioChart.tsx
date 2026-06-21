@@ -63,12 +63,12 @@ export function PortfolioChart() {
   // Need at least two points to draw a meaningful chart.
   if (history.length < 2 || filtered.length < 2) {
     return (
-      <section className="rounded-2xl border border-white/15 bg-white/5 backdrop-blur-xl p-5">
+      <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl p-5">
         <div className="flex items-center gap-2 text-orange-400/80 text-xs font-semibold uppercase tracking-wider mb-2">
           <IconChartLine className="h-4 w-4" />
           Portfolio value
         </div>
-        <div className="text-sm text-white/50 py-6 text-center">
+        <div className="text-sm text-[var(--text-faint)] py-6 text-center">
           {history.length === 0
             ? 'Refresh your wallets to start recording portfolio value over time.'
             : `Only ${history.length} snapshot${history.length === 1 ? '' : 's'} so far in this range — more appear as you check back over time (~1 per hour).`}
@@ -84,14 +84,14 @@ export function PortfolioChart() {
   const positive = delta >= 0;
 
   return (
-    <section className="rounded-2xl border border-white/15 bg-white/5 backdrop-blur-xl p-5">
+    <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl p-5">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
           <div className="flex items-center gap-2 text-orange-400/80 text-xs font-semibold uppercase tracking-wider">
             <IconChartLine className="h-4 w-4" />
             Portfolio value
           </div>
-          <div className="mt-1 text-2xl font-bold text-white tabular-nums">
+          <div className="mt-1 text-2xl font-bold text-[var(--text)] tabular-nums">
             {fmtUsd(last)}
           </div>
           <div
@@ -133,7 +133,7 @@ export function PortfolioChart() {
             onClick={() => {
               if (confirm('Clear portfolio value history?')) clearHistory();
             }}
-            className="ml-2 text-white/30 hover:text-red-400 transition-colors"
+            className="ml-2 text-[var(--text-faint)] hover:text-red-400 transition-colors"
             title="Clear history"
           >
             <IconTrash className="h-4 w-4" />

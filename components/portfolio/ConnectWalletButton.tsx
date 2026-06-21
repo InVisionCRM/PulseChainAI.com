@@ -85,7 +85,7 @@ export function ConnectWalletButton() {
         href="https://metamask.io/download/"
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 text-white/70 hover:text-white text-sm font-semibold px-3 py-2 transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--line)] text-[var(--text-muted)] hover:text-[var(--text)] text-sm font-semibold px-3 py-2 transition-colors"
         title="No browser wallet detected — get one to connect"
       >
         <IconWallet className="h-4 w-4" />
@@ -100,7 +100,7 @@ export function ConnectWalletButton() {
         type="button"
         onClick={connect}
         disabled={busy}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold px-3 py-2 transition-colors disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] text-sm font-semibold px-3 py-2 transition-colors disabled:opacity-50"
         title="Connect a browser wallet to add its address(es)"
       >
         <IconWallet className="h-4 w-4" />

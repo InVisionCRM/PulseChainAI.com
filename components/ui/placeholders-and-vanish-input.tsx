@@ -178,8 +178,8 @@ export function PlaceholdersAndVanishInput({
   return (
     <form
       className={cn(
-        "w-full relative max-w-lg mx-auto bg-slate-950/50 backdrop-blur-MD border border-slate-800 h-9 rounded-full overflow-hidden shadow-lg transition duration-200",
-        value && "bg-slate-950/30"
+        "w-full relative max-w-lg mx-auto bg-[var(--app-bg)] backdrop-blur-MD border border-[var(--line)] h-9 rounded-full overflow-hidden shadow-lg transition duration-200",
+        value && "bg-[var(--app-bg)]"
       )}
       onSubmit={handleSubmit}
     >
@@ -204,14 +204,14 @@ export function PlaceholdersAndVanishInput({
         placeholder=""
         aria-label="Search for contracts by address or name"
         className={cn(
-          "w-full relative text-base sm:text-lg z-50 border-none bg-transparent text-white h-full rounded-full focus:outline-none focus:ring-0 text-center",
+          "w-full relative text-base sm:text-lg z-50 border-none bg-transparent text-[var(--text)] h-full rounded-full focus:outline-none focus:ring-0 text-center",
           animating && "text-transparent"
         )}
       />
 
       {/* Magnifying glass icon on the right */}
       <div className="absolute right-3 top-1/2 transform -translate-y-1/2 z-50 pointer-events-none">
-        <Search className="h-4 w-4 text-white/60" />
+        <Search className="h-4 w-4 text-[var(--text-muted)]" />
       </div>
 
 
@@ -236,7 +236,7 @@ export function PlaceholdersAndVanishInput({
                 duration: 0.3,
                 ease: "linear",
               }}
-              className="text-white/80 text-base sm:text-lg font-normal text-center w-full truncate"
+              className="text-[var(--text)] text-base sm:text-lg font-normal text-center w-full truncate"
             >
               {placeholders[currentPlaceholder]}
             </motion.p>

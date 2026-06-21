@@ -323,7 +323,7 @@ export default function StatCounterBuilderPage() {
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: 'url(/Mirage.jpg)' }} /* eslint-disable-line react/forbid-dom-props */
         />
-        <div className="absolute inset-0 bg-slate-950/40" />
+        <div className="absolute inset-0 bg-[var(--app-bg)]" />
       </div>
       {/* Header removed per request */}
 
@@ -379,12 +379,12 @@ export default function StatCounterBuilderPage() {
         {/* Welcome message when no cards */}
         {cards.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center text-white/60 max-w-md">
+            <div className="text-center text-[var(--text-muted)] max-w-md">
               <div className="text-6xl mb-6">📊</div>
               <h2 className="text-2xl font-bold mb-4">Welcome to Token Analytics</h2>
               <p className="mb-6">Build your custom token dashboard by adding token cards and selecting the stats you want to track.</p>
               <div className="space-y-2 text-sm">
-                <p>• Press <kbd className="bg-white/10 px-2 py-1 rounded">Space</kbd> or click "Add Token" to start</p>
+                <p>• Press <kbd className="bg-[var(--surface-2)] px-2 py-1 rounded">Space</kbd> or click "Add Token" to start</p>
                 <p>• Scroll to zoom, drag to pan</p>
                 <p>• Drag cards to move them (they snap to grid)</p>
                 <p>• Click on cards to add/remove stats</p>
@@ -394,10 +394,10 @@ export default function StatCounterBuilderPage() {
         )}
 
         {/* Instructions */}
-        <div className="absolute bottom-4 left-4 text-slate-400 text-sm space-y-1 pointer-events-none">
-          <div>Press <kbd className="bg-white/10 px-1 py-0.5 rounded text-xs">Space</kbd> to add tokens</div>
+        <div className="absolute bottom-4 left-4 text-[var(--text-muted)] text-sm space-y-1 pointer-events-none">
+          <div>Press <kbd className="bg-[var(--surface-2)] px-1 py-0.5 rounded text-xs">Space</kbd> to add tokens</div>
           <div>Scroll to zoom • Drag to pan • Cards snap to grid</div>
-          <div><kbd className="bg-white/10 px-1 py-0.5 rounded text-xs">Del</kbd> to delete selected</div>
+          <div><kbd className="bg-[var(--surface-2)] px-1 py-0.5 rounded text-xs">Del</kbd> to delete selected</div>
         </div>
       </div>
 
@@ -408,19 +408,19 @@ export default function StatCounterBuilderPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-[var(--app-bg)] backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-slate-800 rounded-xl border border-slate-600 p-6 max-w-md w-full"
+              className="bg-[var(--panel)] rounded-xl border border-[var(--line)] p-6 max-w-md w-full"
             >
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-white text-lg font-bold">Add Token</h2>
+                <h2 className="text-[var(--text)] text-lg font-bold">Add Token</h2>
                 <button
                   onClick={() => setShowTokenSearch(false)}
-                  className="text-slate-400 hover:text-white"
+                  className="text-[var(--text-muted)] hover:text-[var(--text)]"
                   title="Close token search dialog"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -436,15 +436,15 @@ export default function StatCounterBuilderPage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search tokens by name or symbol..."
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:ring-2 focus:ring-green-500 focus:outline-none"
+                    className="w-full bg-[var(--surface-2)] border border-[var(--line)] rounded-lg px-3 py-2 text-[var(--text)] placeholder-slate-400 focus:ring-2 focus:ring-green-500 focus:outline-none"
                     autoFocus
                   />
                 </div>
 
                 {isSearching && (
                   <div className="flex items-center justify-center py-4">
-                    <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span className="ml-2 text-slate-400">Searching...</span>
+                    <div className="w-6 h-6 border-2 border-[var(--line-strong)] border-t-white rounded-full animate-spin"></div>
+                    <span className="ml-2 text-[var(--text-muted)]">Searching...</span>
                   </div>
                 )}
 
@@ -454,27 +454,27 @@ export default function StatCounterBuilderPage() {
                       <button
                         key={token.address}
                         onClick={() => addTokenCard(token)}
-                        className="w-full flex items-center gap-3 p-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-left transition-colors"
+                        className="w-full flex items-center gap-3 p-3 bg-[var(--surface-2)] hover:bg-[var(--surface-2)] rounded-lg text-left transition-colors"
                       >
                         {token.icon_url ? (
                           <img src={token.icon_url} alt={token.name} className="w-8 h-8 rounded-full" />
                         ) : (
-                          <div className="w-8 h-8 bg-slate-600 rounded-full flex items-center justify-center text-white text-sm">
+                          <div className="w-8 h-8 bg-[var(--surface-2)] rounded-full flex items-center justify-center text-[var(--text)] text-sm">
                             {token.symbol?.[0] || '?'}
                           </div>
                         )}
                         <div className="flex-1">
-                          <div className="text-white font-medium">{token.name}</div>
-                          <div className="text-slate-400 text-sm">{token.symbol}</div>
+                          <div className="text-[var(--text)] font-medium">{token.name}</div>
+                          <div className="text-[var(--text-muted)] text-sm">{token.symbol}</div>
                         </div>
-                        <div className="text-slate-500 text-xs capitalize">{token.type}</div>
+                        <div className="text-[var(--text-muted)] text-xs capitalize">{token.type}</div>
                       </button>
                     ))}
                   </div>
                 )}
 
                 {searchQuery.length >= 2 && !isSearching && searchResults.length === 0 && (
-                  <div className="text-center text-slate-400 py-4">
+                  <div className="text-center text-[var(--text-muted)] py-4">
                     No tokens found for "{searchQuery}"
                   </div>
                 )}
@@ -491,22 +491,22 @@ export default function StatCounterBuilderPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-[var(--app-bg)] backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-slate-800 rounded-xl border border-slate-600 p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto"
+              className="bg-[var(--panel)] rounded-xl border border-[var(--line)] p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-white text-xl font-bold">Add Stats</h2>
+                <h2 className="text-[var(--text)] text-xl font-bold">Add Stats</h2>
                 <button
                   onClick={() => {
                     setShowStatPalette(false);
                     setSelectedCardForStats(null);
                   }}
-                  className="text-slate-400 hover:text-white"
+                  className="text-[var(--text-muted)] hover:text-[var(--text)]"
                   title="Close stats palette"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -518,7 +518,7 @@ export default function StatCounterBuilderPage() {
               <div className="space-y-6">
                 {STAT_CATEGORIES.map((category) => (
                   <div key={category.title}>
-                    <h3 className="text-white font-semibold mb-3 text-lg">{category.title}</h3>
+                    <h3 className="text-[var(--text)] font-semibold mb-3 text-lg">{category.title}</h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {category.stats.map((stat) => {
                         const card = cards.find(c => c.id === selectedCardForStats);
@@ -529,10 +529,10 @@ export default function StatCounterBuilderPage() {
                             key={stat.id}
                             onClick={() => handleAddStatToCard(selectedCardForStats, stat.id, stat.label)}
                             disabled={hasThisStat}
-                            className={`p-3 rounded-lg text-left text-white text-sm transition-colors border ${
+                            className={`p-3 rounded-lg text-left text-[var(--text)] text-sm transition-colors border ${
                               hasThisStat
-                                ? 'bg-slate-600 border-slate-600 opacity-50 cursor-not-allowed'
-                                : 'bg-slate-700 hover:bg-slate-600 border-slate-600 hover:border-slate-500'
+                                ? 'bg-[var(--surface-2)] border-[var(--line)] opacity-50 cursor-not-allowed'
+                                : 'bg-[var(--surface-2)] hover:bg-[var(--surface-2)] border-[var(--line)] hover:border-[var(--line)]'
                             }`}
                           >
                             {stat.label}
@@ -576,8 +576,8 @@ export default function StatCounterBuilderPage() {
           items={[
             {
               title: 'Zoom Out',
-              icon: <IconZoomOut className="h-5 w-5 text-neutral-700 dark:text-white" />,
-              className: 'bg-gradient-to-br from-slate-700/60 to-slate-500/60 text-white border border-white/10',
+              icon: <IconZoomOut className="h-5 w-5 text-neutral-700 dark:text-[var(--text)]" />,
+              className: 'bg-gradient-to-br from-slate-700/60 to-slate-500/60 text-[var(--text)] border border-[var(--line)]',
               onClick: () => {
                 const rect = getContainerRect();
                 const cx = rect ? rect.width / 2 : 0;
@@ -587,8 +587,8 @@ export default function StatCounterBuilderPage() {
             },
             {
               title: 'Zoom In',
-              icon: <IconZoomIn className="h-5 w-5 text-neutral-700 dark:text-white" />,
-              className: 'bg-gradient-to-br from-slate-700/60 to-slate-500/60 text-white border border-white/10',
+              icon: <IconZoomIn className="h-5 w-5 text-neutral-700 dark:text-[var(--text)]" />,
+              className: 'bg-gradient-to-br from-slate-700/60 to-slate-500/60 text-[var(--text)] border border-[var(--line)]',
               onClick: () => {
                 const rect = getContainerRect();
                 const cx = rect ? rect.width / 2 : 0;
@@ -598,18 +598,18 @@ export default function StatCounterBuilderPage() {
             },
             {
               title: 'Add Token',
-              icon: <IconPlus className="h-5 w-5 text-white" />,
-              className: 'relative bg-gradient-to-br from-green-600/60 to-green-500/60 text-white border border-white/20 shadow-[0_0_12px_rgba(255,255,255,0.35)] animate-[pulse_2.5s_ease-in-out_infinite] before:absolute before:inset-0 before:rounded-full before:ring-1 before:ring-white/30',
+              icon: <IconPlus className="h-5 w-5 text-[var(--text)]" />,
+              className: 'relative bg-gradient-to-br from-green-600/60 to-green-500/60 text-[var(--text)] border border-[var(--line-strong)] shadow-[0_0_12px_rgba(255,255,255,0.35)] animate-[pulse_2.5s_ease-in-out_infinite] before:absolute before:inset-0 before:rounded-full before:ring-1 before:ring-white/30',
               onClick: () => setShowTokenSearch(true),
             },
             {
               title: 'Reset View',
-              icon: <IconRefresh className="h-5 w-5 text-white" />,
-              className: 'bg-gradient-to-br from-yellow-600/60 to-yellow-500/60 text-white border border-white/10',
+              icon: <IconRefresh className="h-5 w-5 text-[var(--text)]" />,
+              className: 'bg-gradient-to-br from-yellow-600/60 to-yellow-500/60 text-[var(--text)] border border-[var(--line)]',
               onClick: () => resetView(),
             },
           ]}
-          desktopClassName="bg-slate-950/70 border border-white/10"
+          desktopClassName="bg-[var(--app-bg)] border border-[var(--line)]"
           mobileClassName=""
         />
       </div>
@@ -686,8 +686,8 @@ function TokenCardComponent({
 
   return (
     <div
-      className={`relative cursor-move select-none transition-all duration-300 bg-slate-800/90 backdrop-blur-sm rounded-xl border-2 ${
-        isSelected ? 'border-blue-500 ring-2 ring-blue-500/30' : 'border-slate-600'
+      className={`relative cursor-move select-none transition-all duration-300 bg-[var(--panel)] backdrop-blur-sm rounded-xl border-2 ${
+        isSelected ? 'border-blue-500 ring-2 ring-blue-500/30' : 'border-[var(--line)]'
       } shadow-xl hover:shadow-2xl flex flex-col`}
       style={{
         width: CARD_WIDTH,
@@ -696,7 +696,7 @@ function TokenCardComponent({
             onClick={onSelect}
     >
       {/* Card Header */}
-      <div className="p-4 border-b border-slate-600 flex-shrink-0">
+      <div className="p-4 border-b border-[var(--line)] flex-shrink-0">
         <div className="flex items-center gap-3">
           {card.token.icon_url ? (
             <img 
@@ -705,15 +705,15 @@ function TokenCardComponent({
               className="w-10 h-10 rounded-full"
             />
           ) : (
-            <div className="w-10 h-10 bg-slate-950 rounded-full flex items-center justify-center text-white font-bold">
+            <div className="w-10 h-10 bg-[var(--app-bg)] rounded-full flex items-center justify-center text-[var(--text)] font-bold">
               {card.token.symbol?.[0] || '?'}
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <h3 className="text-white font-semibold truncate">{card.token.name}</h3>
-            <p className="text-slate-400 text-sm">{card.token.symbol}</p>
+            <h3 className="text-[var(--text)] font-semibold truncate">{card.token.name}</h3>
+            <p className="text-[var(--text-muted)] text-sm">{card.token.symbol}</p>
           </div>
-          <div className="text-slate-500 text-xs">
+          <div className="text-[var(--text-muted)] text-xs">
             {card.stats.length} stat{card.stats.length !== 1 ? 's' : ''}
           </div>
         </div>
@@ -724,18 +724,18 @@ function TokenCardComponent({
         {/* Stats List - Remove height restriction */}
         <div className="space-y-2 flex-1">
           {card.stats.map((stat) => (
-            <div key={stat.id} className="flex items-center justify-between bg-slate-700/50 rounded-lg p-2 min-h-[40px]">
+            <div key={stat.id} className="flex items-center justify-between bg-[var(--surface-2)] rounded-lg p-2 min-h-[40px]">
               <div className="flex-1 min-w-0">
-                <div className="text-white text-sm font-medium truncate">{stat.label}</div>
+                <div className="text-[var(--text)] text-sm font-medium truncate">{stat.label}</div>
                 {stat.loading ? (
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span className="text-slate-400 text-xs">Loading...</span>
+                    <span className="text-[var(--text-muted)] text-xs">Loading...</span>
                   </div>
                 ) : stat.error ? (
                   <div className="text-red-400 text-xs">Error loading</div>
                 ) : (
-                  <div className="text-slate-300 text-xs break-words">{stat.value}</div>
+                  <div className="text-[var(--text-muted)] text-xs break-words">{stat.value}</div>
                 )}
               </div>
               <button
@@ -743,7 +743,7 @@ function TokenCardComponent({
                   e.stopPropagation();
                   onRemoveStat(stat.id);
                 }}
-                className="text-slate-400 hover:text-red-400 p-1 ml-2 flex-shrink-0"
+                className="text-[var(--text-muted)] hover:text-red-400 p-1 ml-2 flex-shrink-0"
                 title="Remove stat"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -760,7 +760,7 @@ function TokenCardComponent({
             e.stopPropagation();
             onAddStat();
           }}
-          className="w-full py-3 border-2 border-dashed border-slate-600 hover:border-slate-500 rounded-lg text-slate-400 hover:text-white transition-colors flex items-center justify-center gap-2 mt-2"
+          className="w-full py-3 border-2 border-dashed border-[var(--line)] hover:border-[var(--line)] rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] transition-colors flex items-center justify-center gap-2 mt-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -770,8 +770,8 @@ function TokenCardComponent({
       </div>
 
       {/* Card Footer - Address */}
-      <div className="p-2 px-4 border-t border-slate-600/50 flex-shrink-0">
-        <div className="text-slate-500 text-xs font-mono truncate">
+      <div className="p-2 px-4 border-t border-[var(--line)] flex-shrink-0">
+        <div className="text-[var(--text-muted)] text-xs font-mono truncate">
           {card.token.address}
         </div>
       </div>

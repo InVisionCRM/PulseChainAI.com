@@ -47,7 +47,7 @@ const RichardHeartChatCard: React.FC<RichardHeartChatCardProps> = ({
 
   const containerStyles = useMemo(() => {
     const base =
-      'relative overflow-hidden rounded-[32px] border border-white/25 bg-gradient-to-br from-[#4c1d95]/70 via-[#7e22ce]/65 to-[#a855f7]/70 text-white shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-[5px] max-h-[80vh]';
+      'relative overflow-hidden rounded-[32px] border border-[var(--line-strong)] bg-gradient-to-br from-[#4c1d95]/70 via-[#7e22ce]/65 to-[#a855f7]/70 text-[var(--text)] shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-[5px] max-h-[80vh]';
     const sizing =
       variant === 'compact'
         ? 'w-[320px] h-[360px] sm:h-[400px] p-5'
@@ -141,9 +141,9 @@ const RichardHeartChatCard: React.FC<RichardHeartChatCardProps> = ({
           animate={{ x: 0 }}
           exit={{ x: 0 }}
           onClick={() => setIsExpanded(true)}
-          className="flex items-center justify-center h-14 w-14 rounded-l-lg bg-gradient-to-br from-[#4c1d95]/70 via-[#7e22ce]/65 to-[#a855f7]/70 border border-white/25 border-r-0 shadow-[0_10px_30px_rgba(0,0,0,0.3)] backdrop-blur-[5px] hover:from-[#5a2199]/80 hover:via-[#8e2dd8]/75 hover:to-[#b865ff]/80 transition-all"
+          className="flex items-center justify-center h-14 w-14 rounded-l-lg bg-gradient-to-br from-[#4c1d95]/70 via-[#7e22ce]/65 to-[#a855f7]/70 border border-[var(--line-strong)] border-r-0 shadow-[0_10px_30px_rgba(0,0,0,0.3)] backdrop-blur-[5px] hover:from-[#5a2199]/80 hover:via-[#8e2dd8]/75 hover:to-[#b865ff]/80 transition-all"
         >
-          <div className="h-10 w-10 rounded-full border border-white/40 shadow-[0_5px_15px_rgba(0,0,0,0.2)] overflow-hidden flex items-center justify-center bg-white/10">
+          <div className="h-10 w-10 rounded-full border border-[var(--line)] shadow-[0_5px_15px_rgba(0,0,0,0.2)] overflow-hidden flex items-center justify-center bg-[var(--surface-2)]">
             <Image
               src="/RH.png"
               alt="Richard Heart"
@@ -168,7 +168,7 @@ const RichardHeartChatCard: React.FC<RichardHeartChatCardProps> = ({
           >
             <button
               onClick={() => setIsExpanded(false)}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white/70 hover:text-white transition-colors"
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[var(--surface-2)] hover:bg-[var(--surface-3)] border border-[var(--line-strong)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
               aria-label="Close chat"
               title="Close chat"
             >
@@ -187,7 +187,7 @@ const RichardHeartChatCard: React.FC<RichardHeartChatCardProps> = ({
               </svg>
             </button>
 
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 h-14 w-14 rounded-full border border-white/40 shadow-[0_10px_30px_rgba(0,0,0,0.25)] overflow-hidden flex items-center justify-center bg-white/10">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 h-14 w-14 rounded-full border border-[var(--line)] shadow-[0_10px_30px_rgba(0,0,0,0.25)] overflow-hidden flex items-center justify-center bg-[var(--surface-2)]">
               <Image
                 src="/RH.png"
                 alt="Richard Heart"
@@ -205,31 +205,31 @@ const RichardHeartChatCard: React.FC<RichardHeartChatCardProps> = ({
                     msg.sender === 'user' ? (
                       <p
                         key={msg.id}
-                        className="text-base sm:text-lg leading-relaxed text-white/70 italic mb-2"
+                        className="text-base sm:text-lg leading-relaxed text-[var(--text-muted)] italic mb-2"
                       >
                         {msg.text}
                       </p>
                     ) : (
                       <div
                         key={msg.id}
-                        className="prose prose-invert prose-p:leading-relaxed prose-p:my-3 prose-strong:text-white prose-strong:font-semibold text-base sm:text-lg"
+                        className="prose prose-invert prose-p:leading-relaxed prose-p:my-3 prose-strong:text-[var(--text)] prose-strong:font-semibold text-base sm:text-lg"
                       >
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
                           components={{
                             p: ({ children }) => (
-                              <p className="text-white leading-relaxed">{children}</p>
+                              <p className="text-[var(--text)] leading-relaxed">{children}</p>
                             ),
                             strong: ({ children }) => (
-                              <strong className="font-semibold text-white">{children}</strong>
+                              <strong className="font-semibold text-[var(--text)]">{children}</strong>
                             ),
                             ul: ({ children }) => (
-                              <ul className="list-disc list-outside pl-5 space-y-1 text-white">
+                              <ul className="list-disc list-outside pl-5 space-y-1 text-[var(--text)]">
                                 {children}
                               </ul>
                             ),
                             ol: ({ children }) => (
-                              <ol className="list-decimal list-outside pl-5 space-y-1 text-white">
+                              <ol className="list-decimal list-outside pl-5 space-y-1 text-[var(--text)]">
                                 {children}
                               </ol>
                             ),
@@ -241,7 +241,7 @@ const RichardHeartChatCard: React.FC<RichardHeartChatCardProps> = ({
                     )
                   )}
                   {isSending && (
-                    <p className="text-white/60 text-sm mt-2">Let me think about that…</p>
+                    <p className="text-[var(--text-muted)] text-sm mt-2">Let me think about that…</p>
                   )}
                 </div>
               </div>
@@ -258,7 +258,7 @@ const RichardHeartChatCard: React.FC<RichardHeartChatCardProps> = ({
                     }
                   }}
                   placeholder="Start typing or speaking..."
-                  className="w-full h-12 rounded-full bg-white/5 border border-white/15 pl-5 pr-14 text-sm placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/40 transition-all"
+                  className="w-full h-12 rounded-full bg-[var(--surface)] border border-[var(--line)] pl-5 pr-14 text-sm placeholder-[var(--text-faint)] focus:outline-none focus:ring-2 focus:ring-white/40 transition-all"
                   disabled={isSending}
                 />
                 <button
@@ -268,7 +268,7 @@ const RichardHeartChatCard: React.FC<RichardHeartChatCardProps> = ({
                     setInput('');
                   }}
                   disabled={!input.trim() || isSending}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 text-purple-700 flex items-center justify-center shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[var(--surface)] text-purple-700 flex items-center justify-center shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition"
                   aria-label="Send message"
                   title="Send message"
                 >

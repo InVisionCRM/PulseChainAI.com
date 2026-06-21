@@ -10,10 +10,10 @@ import {
 
 export default function NavigationBar() {
   const navItems = [
-    { name: "Home", link: "/", icon: <IconHome className="h-4 w-4 text-neutral-500 dark:text-white" /> },
-    { name: "Ask AI", link: "/ai-agent", icon: <IconBrain className="h-4 w-4 text-neutral-500 dark:text-white" /> },
-    { name: "Blockchain Analyzer", link: "/blockchain-analyzer", icon: <IconCode className="h-4 w-4 text-neutral-500 dark:text-white" /> },
-    { name: "More", link: "/#more", icon: <IconDots className="h-4 w-4 text-neutral-500 dark:text-white" /> },
+    { name: "Home", link: "/", icon: <IconHome className="h-4 w-4 text-[var(--text-muted)] dark:text-[var(--text)]" /> },
+    { name: "Ask AI", link: "/ai-agent", icon: <IconBrain className="h-4 w-4 text-[var(--text-muted)] dark:text-[var(--text)]" /> },
+    { name: "Blockchain Analyzer", link: "/blockchain-analyzer", icon: <IconCode className="h-4 w-4 text-[var(--text-muted)] dark:text-[var(--text)]" /> },
+    { name: "More", link: "/#more", icon: <IconDots className="h-4 w-4 text-[var(--text-muted)] dark:text-[var(--text)]" /> },
   ];
 
   return (

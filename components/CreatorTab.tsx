@@ -23,10 +23,10 @@ const CopyButton: React.FC<{ text: string; className?: string }> = ({ text, clas
         <>
             <button
                 onClick={handleCopy}
-                className={`ml-2 p-1 rounded hover:bg-slate-600 transition-colors ${className}`}
+                className={`ml-2 p-1 rounded hover:bg-[var(--surface-2)] transition-colors ${className}`}
                 title="Copy to clipboard"
             >
-                <Copy className="w-4 h-4 text-slate-400 hover:text-white" />
+                <Copy className="w-4 h-4 text-[var(--text-muted)] hover:text-[var(--text)]" />
             </button>
 
             {showToast && (
@@ -41,8 +41,8 @@ const CopyButton: React.FC<{ text: string; className?: string }> = ({ text, clas
 };
 
 const InfoRow: React.FC<{ label: string; value: string; link: string; }> = ({ label, value, link }) => (
-    <div className="flex justify-between items-center text-sm py-2 border-b border-slate-700/50">
-        <span className="text-slate-400">{label}</span>
+    <div className="flex justify-between items-center text-sm py-2 border-b border-[var(--line)]">
+        <span className="text-[var(--text-muted)]">{label}</span>
         <div className="flex items-center">
         <a href={link} target="_blank" rel="noopener noreferrer" title={value} className="font-mono text-blue-400 hover:text-blue-300 transition-colors break-all text-right">
             {truncateHash(value)}
@@ -65,14 +65,14 @@ const CreatorTab: React.FC<{
         return (
             <div className="flex flex-col items-center justify-center text-center p-8 h-full">
                 <LoadingSpinner className="w-8 h-8 text-blue-400" />
-                <p className="mt-3 text-slate-300">Loading creator details...</p>
+                <p className="mt-3 text-[var(--text-muted)]">Loading creator details...</p>
             </div>
         );
     }
 
     if (!creatorAddress) {
         return (
-            <div className="flex items-center justify-center p-8 text-slate-400 h-full">
+            <div className="flex items-center justify-center p-8 text-[var(--text-muted)] h-full">
                 Creator information not available (contract may be created by another contract).
             </div>
         );
@@ -92,8 +92,8 @@ const CreatorTab: React.FC<{
     return (
         <div className="p-4 sm:p-6 space-y-6">
             <section>
-                <h3 className="text-lg font-bold text-white mb-2">Creator Details</h3>
-                <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
+                <h3 className="text-lg font-bold text-[var(--text)] mb-2">Creator Details</h3>
+                <div className="bg-[var(--panel)] rounded-lg p-4 border border-[var(--line)]">
                     {creatorAddress && (
                         <InfoRow label="Address" value={creatorAddress} link={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${creatorAddress}`} />
                     )}
@@ -105,36 +105,36 @@ const CreatorTab: React.FC<{
             
             {tokenInfo && (
                 <section>
-                    <h3 className="text-lg font-bold text-white mb-2">Token Holdings</h3>
-                     <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700 text-sm">
+                    <h3 className="text-lg font-bold text-[var(--text)] mb-2">Token Holdings</h3>
+                     <div className="bg-[var(--panel)] rounded-lg p-4 border border-[var(--line)] text-sm">
                         {formattedBalance ? (
                             <p>Creator holds <span className="font-bold text-blue-400">{formattedBalance}</span> {tokenInfo.symbol}.</p>
                         ) : (
-                            <p className="text-slate-400">Creator does not hold any {tokenInfo.symbol}.</p>
+                            <p className="text-[var(--text-muted)]">Creator does not hold any {tokenInfo.symbol}.</p>
                         )}
                     </div>
                 </section>
             )}
 
             <section>
-                <h3 className="text-lg font-bold text-white mb-2">Other Contracts Created by this Address</h3>
-                <div className="bg-slate-900/50 rounded-lg border border-slate-700 max-h-96 overflow-y-auto">
+                <h3 className="text-lg font-bold text-[var(--text)] mb-2">Other Contracts Created by this Address</h3>
+                <div className="bg-[var(--panel)] rounded-lg border border-[var(--line)] max-h-96 overflow-y-auto">
                     {transactions && transactions.length > 0 ? (
                         <ul className="divide-y divide-slate-700/50">
                            {transactions.map(tx => (
-                               <li key={tx.hash} className="p-3 hover:bg-slate-800/50 transition-colors">
+                               <li key={tx.hash} className="p-3 hover:bg-[var(--panel)] transition-colors">
                                    <div className="flex justify-between items-center text-sm">
                                        <div>
-                                           <span className="text-slate-400 mr-2">Tx:</span>
+                                           <span className="text-[var(--text-muted)] mr-2">Tx:</span>
                                            <a href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" className="font-mono text-blue-400 hover:underline">{truncateHash(tx.hash)}</a>
                                        </div>
-                                       <span className="text-slate-500 text-xs">
+                                       <span className="text-[var(--text-muted)] text-xs">
                                            {new Date(tx.timestamp).toLocaleString()}
                                        </span>
                                    </div>
                                    {tx.to && (
                                     <div className="text-xs mt-1">
-                                        <span className="text-slate-400 mr-2">Contract:</span>
+                                        <span className="text-[var(--text-muted)] mr-2">Contract:</span>
                                         <a href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${tx.to.hash}`} target="_blank" rel="noopener noreferrer" className="font-mono text-cyan-400 hover:underline">{tx.to.name || tx.to.hash}</a>
                                     </div>
                                    )}
@@ -142,7 +142,7 @@ const CreatorTab: React.FC<{
                            ))}
                         </ul>
                     ) : (
-                        <p className="p-8 text-center text-slate-400">No other contract creation transactions found for this address.</p>
+                        <p className="p-8 text-center text-[var(--text-muted)]">No other contract creation transactions found for this address.</p>
                     )}
                 </div>
             </section>

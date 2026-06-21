@@ -87,7 +87,7 @@ export function MultiStepLoaderDemo() {
 
       {loading && (
         <button
-          className="fixed top-4 right-4 text-slate-950 dark:text-white z-[120]"
+          className="fixed top-4 right-4 text-slate-950 dark:text-[var(--text)] z-[120]"
           onClick={() => setLoading(false)}
         >
           <IconSquareRoundedX className="h-10 w-10" />

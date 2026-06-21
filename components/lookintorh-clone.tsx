@@ -807,9 +807,9 @@ const LookIntoRHClone = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--line)] mx-auto mb-4"></div>
           <div className="text-gray-700 text-lg font-medium">Loading Portfolio...</div>
-          <div className="text-gray-500 text-sm mt-1">Fetching Richard Heart's treasury data</div>
+          <div className="text-[var(--text-muted)] text-sm mt-1">Fetching Richard Heart's treasury data</div>
         </div>
       </div>
     );
@@ -849,7 +849,7 @@ const LookIntoRHClone = () => {
                   <button
                   onClick={searchWallet}
                   disabled={isSearching}
-                  className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 hover:text-slate-950 disabled:opacity-50"
+                  className="absolute right-3 top-2.5 h-5 w-5 text-[var(--text-muted)] hover:text-slate-950 disabled:opacity-50"
                 >
                   {isSearching ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
@@ -866,7 +866,7 @@ const LookIntoRHClone = () => {
               </div>
               
             {/* Connect Wallet */}
-            <Button className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-medium">
+            <Button className="bg-orange-500 hover:bg-orange-600 text-[var(--text)] px-6 py-2 rounded-lg font-medium">
               Connect Wallet
             </Button>
                 </div>
@@ -880,7 +880,7 @@ const LookIntoRHClone = () => {
             {/* Profile Info */}
             <div className="flex items-center space-x-4">
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-slate-950 to-pink-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                <div className="w-16 h-16 bg-gradient-to-br from-[var(--app-bg)] to-pink-600 rounded-full flex items-center justify-center text-[var(--text)] text-2xl font-bold">
                   RH
               </div>
                 <div className="absolute -bottom-1 -right-1 bg-yellow-400 text-yellow-900 text-xs px-2 py-0.5 rounded-full font-bold">
@@ -897,7 +897,7 @@ const LookIntoRHClone = () => {
               )}
             </div>
                 <p className="text-gray-600 font-mono text-sm">{truncateAddress(currentAddress)}</p>
-                <p className="text-gray-500 text-sm mt-1">
+                <p className="text-[var(--text-muted)] text-sm mt-1">
                   {currentAddress === RICHARD_HEART_ADDRESS 
                     ? 'Treasury tracker for HEX, PulseChain & PulseX ecosystems'
                     : 'Ethereum wallet portfolio tracker'
@@ -916,23 +916,23 @@ const LookIntoRHClone = () => {
           {/* Stats Row */}
           <div className="grid grid-cols-5 gap-6 mt-8 pt-6 border-t border-blue-200">
             <div className="text-center">
-              <div className="text-gray-500 text-sm">TVF</div>
+              <div className="text-[var(--text-muted)] text-sm">TVF</div>
               <div className="text-lg font-bold text-gray-900">${(portfolioValue / 1000000).toFixed(1)}M</div>
               </div>
             <div className="text-center">
-              <div className="text-gray-500 text-sm">Followers</div>
+              <div className="text-[var(--text-muted)] text-sm">Followers</div>
               <div className="text-lg font-bold text-gray-900">247K</div>
             </div>
             <div className="text-center">
-              <div className="text-gray-500 text-sm">Following</div>
+              <div className="text-[var(--text-muted)] text-sm">Following</div>
               <div className="text-lg font-bold text-gray-900">12</div>
           </div>
             <div className="text-center">
-              <div className="text-gray-500 text-sm">Earnings</div>
+              <div className="text-[var(--text-muted)] text-sm">Earnings</div>
               <div className="text-lg font-bold text-gray-900">{fmtUsd(portfolioValue * 0.1)}</div>
             </div>
             <div className="text-center">
-              <div className="text-gray-500 text-sm">Days Active</div>
+              <div className="text-[var(--text-muted)] text-sm">Days Active</div>
               <div className="text-lg font-bold text-gray-900">{calculateDaysSinceStart()}</div>
             </div>
           </div>
@@ -941,13 +941,13 @@ const LookIntoRHClone = () => {
           <div className="flex items-center space-x-4 mt-6">
             {currentAddress === RICHARD_HEART_ADDRESS ? (
               <>
-                <Button className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg">
+                <Button className="bg-orange-500 hover:bg-orange-600 text-[var(--text)] px-6 py-2 rounded-lg">
                   Follow
                 </Button>
                 <Button variant="outline" className="border-blue-300 text-slate-950 hover:bg-blue-50 px-6 py-2 rounded-lg">
                   Say Hi
                 </Button>
-                <Button className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2 rounded-lg">
+                <Button className="bg-pink-500 hover:bg-pink-600 text-[var(--text)] px-6 py-2 rounded-lg">
                   AskPro
                 </Button>
               </>
@@ -959,7 +959,7 @@ const LookIntoRHClone = () => {
                     setCurrentAddress(RICHARD_HEART_ADDRESS);
                     initializeData();
                   }}
-                  className="bg-blue-500 hover:bg-slate-950 text-white px-6 py-2 rounded-lg"
+                  className="bg-blue-500 hover:bg-[var(--app-bg)] text-[var(--text)] px-6 py-2 rounded-lg"
                 >
                   Back to Richard Heart
                 </Button>
@@ -1009,13 +1009,13 @@ const LookIntoRHClone = () => {
                   onClick={() => setExpandedChain('ethereum')}
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-slate-950 rounded-full flex items-center justify-center text-white font-bold">
+                    <div className="w-10 h-10 bg-[var(--app-bg)] rounded-full flex items-center justify-center text-[var(--text)] font-bold">
                       Ξ
             </div>
             <div>
                       <div className="font-semibold text-gray-900">Ethereum</div>
                       <div className="text-2xl font-bold text-gray-900">{fmtUsd(ethereumTotalValue)}</div>
-                      <div className="text-sm text-gray-500">{ethereumTokens.length} tokens</div>
+                      <div className="text-sm text-[var(--text-muted)]">{ethereumTokens.length} tokens</div>
             </div>
           </div>
           </div>
@@ -1034,7 +1034,7 @@ const LookIntoRHClone = () => {
               <div>
                       <div className="font-semibold text-gray-900">PulseChain</div>
                       <div className="text-2xl font-bold text-gray-900">{fmtUsd(pulsechainTotalValue)}</div>
-                      <div className="text-sm text-gray-500">{pulsechainTokens.length} tokens</div>
+                      <div className="text-sm text-[var(--text-muted)]">{pulsechainTokens.length} tokens</div>
               </div>
           </div>
         </div>
@@ -1048,7 +1048,7 @@ const LookIntoRHClone = () => {
               <div>
                       <div className="font-semibold text-gray-900">Coming Soon</div>
                       <div className="text-2xl font-bold text-gray-900">$0</div>
-                      <div className="text-sm text-gray-500">0 tokens</div>
+                      <div className="text-sm text-[var(--text-muted)]">0 tokens</div>
               </div>
             </div>
           </div>
@@ -1061,7 +1061,7 @@ const LookIntoRHClone = () => {
               <div>
                       <div className="font-semibold text-gray-900">Coming Soon</div>
                       <div className="text-2xl font-bold text-gray-900">$0</div>
-                      <div className="text-sm text-gray-500">0 tokens</div>
+                      <div className="text-sm text-[var(--text-muted)]">0 tokens</div>
               </div>
             </div>
           </div>
@@ -1074,7 +1074,7 @@ const LookIntoRHClone = () => {
               <div>
                       <div className="font-semibold text-gray-900">Coming Soon</div>
                       <div className="text-2xl font-bold text-gray-900">$0</div>
-                      <div className="text-sm text-gray-500">0 tokens</div>
+                      <div className="text-sm text-[var(--text-muted)]">0 tokens</div>
               </div>
             </div>
             </div>
@@ -1101,10 +1101,10 @@ const LookIntoRHClone = () => {
                   <table className="w-full">
                     <thead className="bg-gray-50 sticky top-0 z-10">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Token</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">USD Value</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Token</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Price</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Amount</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">USD Value</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -1115,7 +1115,7 @@ const LookIntoRHClone = () => {
                           <tr className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
-                                <div className="w-6 h-6 bg-slate-950 rounded-full flex items-center justify-center text-white font-bold text-xs mr-3">
+                                <div className="w-6 h-6 bg-[var(--app-bg)] rounded-full flex items-center justify-center text-[var(--text)] font-bold text-xs mr-3">
                                   Ξ
         </div>
                                 <span className="text-sm font-medium text-gray-900">ETH</span>
@@ -1189,7 +1189,7 @@ const LookIntoRHClone = () => {
                                             Low Value Tokens ({lowValueTokens.length})
                                           </span>
             </div>
-                                        <div className="text-sm text-gray-500 group-open:rotate-180 transition-transform">
+                                        <div className="text-sm text-[var(--text-muted)] group-open:rotate-180 transition-transform">
                                           ▼
             </div>
                                       </summary>
@@ -1215,7 +1215,7 @@ const LookIntoRHClone = () => {
                                                 {(parseFloat(token.value) / Math.pow(10, parseInt(token.token?.decimals || '18'))).toLocaleString()}
             </div>
                                               {token.token?.exchange_rate && (
-                                                <div className="text-xs text-gray-500">
+                                                <div className="text-xs text-[var(--text-muted)]">
                                                   ${(parseFloat(token.value) / Math.pow(10, parseInt(token.token?.decimals || '18')) * parseFloat(token.token.exchange_rate)).toFixed(2)}
           </div>
                                               )}
@@ -1316,7 +1316,7 @@ const LookIntoRHClone = () => {
                                             Low Value Tokens ({lowValueTokens.length})
                                           </span>
                                         </div>
-                                        <div className="text-sm text-gray-500 group-open:rotate-180 transition-transform">
+                                        <div className="text-sm text-[var(--text-muted)] group-open:rotate-180 transition-transform">
                                           ▼
                                         </div>
                                       </summary>
@@ -1342,7 +1342,7 @@ const LookIntoRHClone = () => {
                                                 {(parseFloat(token.value) / Math.pow(10, parseInt(token.token?.decimals || '18'))).toLocaleString()}
                                               </div>
                                               {token.token?.exchange_rate && (
-                                                <div className="text-xs text-gray-500">
+                                                <div className="text-xs text-[var(--text-muted)]">
                                                   ${(parseFloat(token.value) / Math.pow(10, parseInt(token.token?.decimals || '18')) * parseFloat(token.token.exchange_rate)).toFixed(2)}
                                                 </div>
                                               )}
@@ -1365,7 +1365,7 @@ const LookIntoRHClone = () => {
                         <tr className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className="w-6 h-6 bg-slate-950 rounded-full flex items-center justify-center text-white font-bold text-xs mr-3">
+                              <div className="w-6 h-6 bg-[var(--app-bg)] rounded-full flex items-center justify-center text-[var(--text)] font-bold text-xs mr-3">
                                 Ξ
         </div>
                               <span className="text-sm font-medium text-gray-900">ETH</span>
@@ -1398,12 +1398,12 @@ const LookIntoRHClone = () => {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Direction</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hash</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From/To</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value (ETH)</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Direction</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Hash</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">From/To</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Value (ETH)</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Time</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -1423,7 +1423,7 @@ const LookIntoRHClone = () => {
                           {isIncomingTransaction(tx) ? truncateAddress(tx.from) : truncateAddress(tx.to)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-900">{formatETHValue(tx.value)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-500 text-sm">{formatTimestamp(tx.timeStamp)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-[var(--text-muted)] text-sm">{formatTimestamp(tx.timeStamp)}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <Badge className={tx.txreceipt_status === '1' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
                             {tx.txreceipt_status === '1' ? 'Success' : 'Failed'}
@@ -1452,12 +1452,12 @@ const LookIntoRHClone = () => {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Direction</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hash</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From/To</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value (ETH)</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Direction</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Hash</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">From/To</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Value (ETH)</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Time</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Type</th>
                   </tr>
                 </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -1477,7 +1477,7 @@ const LookIntoRHClone = () => {
                           {isIncomingTransaction(tx) ? truncateAddress(tx.from) : truncateAddress(tx.to)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-900">{formatETHValue(tx.value)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-500 text-sm">{formatTimestamp(tx.timeStamp)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-[var(--text-muted)] text-sm">{formatTimestamp(tx.timeStamp)}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <Badge className="bg-yellow-100 text-yellow-800">{tx.type || 'call'}</Badge>
                         </td>
@@ -1504,12 +1504,12 @@ const LookIntoRHClone = () => {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Direction</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hash</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Token</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From/To</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Direction</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Hash</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Token</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">From/To</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Time</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -1532,7 +1532,7 @@ const LookIntoRHClone = () => {
                           {isIncomingTransaction(tx) ? truncateAddress(tx.from) : truncateAddress(tx.to)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-900">{formatTokenValue(tx.value, tx.tokenDecimal)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-500 text-sm">{formatTimestamp(tx.timeStamp)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-[var(--text-muted)] text-sm">{formatTimestamp(tx.timeStamp)}</td>
                       </tr>
                     ))}
                 </tbody>
@@ -1551,8 +1551,8 @@ const LookIntoRHClone = () => {
                 </h3>
               </div>
               <div className="p-12 text-center">
-                <div className="text-gray-400 text-lg mb-2">🎨 NFT Collection Coming Soon</div>
-                <div className="text-gray-500 text-sm">Richard Heart's NFT portfolio and collectibles</div>
+                <div className="text-[var(--text-muted)] text-lg mb-2">🎨 NFT Collection Coming Soon</div>
+                <div className="text-[var(--text-muted)] text-sm">Richard Heart's NFT portfolio and collectibles</div>
               </div>
             </Card>
           </TabsContent>
@@ -1581,13 +1581,13 @@ const LookIntoRHClone = () => {
                         <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
                           <div className="flex items-center justify-between">
                             <div>
-                              <div className="text-xs text-gray-500">Address</div>
+                              <div className="text-xs text-[var(--text-muted)]">Address</div>
                               <div className="font-mono text-sm text-slate-950">{truncateAddress(addr)}</div>
                             </div>
                             <div className="text-right">
-                              <div className="text-xs text-gray-500">Balance</div>
+                              <div className="text-xs text-[var(--text-muted)]">Balance</div>
                               <div className="text-sm font-semibold text-gray-900">{balanceEth.toFixed(4)} ETH</div>
-                              <div className="text-xs text-gray-500">{fmtUsd(balanceUsd)}</div>
+                              <div className="text-xs text-[var(--text-muted)]">{fmtUsd(balanceUsd)}</div>
                             </div>
                           </div>
                         </div>
@@ -1595,12 +1595,12 @@ const LookIntoRHClone = () => {
                           {/* Balance history (approx) */}
                           {entry.history && entry.history.length > 0 ? (
                             <div>
-                              <div className="text-xs text-gray-500 mb-1">Balance History (approx)</div>
+                              <div className="text-xs text-[var(--text-muted)] mb-1">Balance History (approx)</div>
                               <div className="h-16 bg-gray-50 rounded-md p-2 overflow-x-auto">
                                 <div className="flex space-x-4 text-xs text-gray-600">
                                   {entry.history.slice(-10).map((h) => (
                                     <div key={h.date} className="min-w-[80px]">
-                                      <div className="text-gray-500">{h.date}</div>
+                                      <div className="text-[var(--text-muted)]">{h.date}</div>
                                       <div className="font-medium">{h.balanceEth.toFixed(2)} ETH</div>
                                     </div>
                                   ))}
@@ -1608,7 +1608,7 @@ const LookIntoRHClone = () => {
                               </div>
                             </div>
                           ) : (
-                            <div className="text-xs text-gray-400">History will appear after loading details.</div>
+                            <div className="text-xs text-[var(--text-muted)]">History will appear after loading details.</div>
                           )}
 
                           {/* Actions */}
@@ -1690,10 +1690,10 @@ const LookIntoRHClone = () => {
                                   <table className="w-full text-sm">
                                     <thead className="bg-gray-50">
                                       <tr>
-                                        <th className="px-3 py-2 text-left text-xs text-gray-500">Dir</th>
-                                        <th className="px-3 py-2 text-left text-xs text-gray-500">Hash</th>
-                                        <th className="px-3 py-2 text-left text-xs text-gray-500">Value (ETH)</th>
-                                        <th className="px-3 py-2 text-left text-xs text-gray-500">Time</th>
+                                        <th className="px-3 py-2 text-left text-xs text-[var(--text-muted)]">Dir</th>
+                                        <th className="px-3 py-2 text-left text-xs text-[var(--text-muted)]">Hash</th>
+                                        <th className="px-3 py-2 text-left text-xs text-[var(--text-muted)]">Value (ETH)</th>
+                                        <th className="px-3 py-2 text-left text-xs text-[var(--text-muted)]">Time</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
@@ -1706,7 +1706,7 @@ const LookIntoRHClone = () => {
                                           </td>
                                           <td className="px-3 py-2 font-mono text-xs text-slate-950">{truncateAddress(tx.hash)}</td>
                                           <td className="px-3 py-2">{formatETHValue(tx.value)}</td>
-                                          <td className="px-3 py-2 text-gray-500">{formatTimestamp(tx.timeStamp)}</td>
+                                          <td className="px-3 py-2 text-[var(--text-muted)]">{formatTimestamp(tx.timeStamp)}</td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -1721,10 +1721,10 @@ const LookIntoRHClone = () => {
                                   <table className="w-full text-sm">
                                     <thead className="bg-gray-50">
                                       <tr>
-                                        <th className="px-3 py-2 text-left text-xs text-gray-500">Dir</th>
-                                        <th className="px-3 py-2 text-left text-xs text-gray-500">Hash</th>
-                                        <th className="px-3 py-2 text-left text-xs text-gray-500">Value (ETH)</th>
-                                        <th className="px-3 py-2 text-left text-xs text-gray-500">Time</th>
+                                        <th className="px-3 py-2 text-left text-xs text-[var(--text-muted)]">Dir</th>
+                                        <th className="px-3 py-2 text-left text-xs text-[var(--text-muted)]">Hash</th>
+                                        <th className="px-3 py-2 text-left text-xs text-[var(--text-muted)]">Value (ETH)</th>
+                                        <th className="px-3 py-2 text-left text-xs text-[var(--text-muted)]">Time</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
@@ -1737,7 +1737,7 @@ const LookIntoRHClone = () => {
                                           </td>
                                           <td className="px-3 py-2 font-mono text-xs text-slate-950">{truncateAddress(tx.hash)}</td>
                                           <td className="px-3 py-2">{formatETHValue(tx.value)}</td>
-                                          <td className="px-3 py-2 text-gray-500">{formatTimestamp(tx.timeStamp)}</td>
+                                          <td className="px-3 py-2 text-[var(--text-muted)]">{formatTimestamp(tx.timeStamp)}</td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -1770,23 +1770,23 @@ const LookIntoRHClone = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="space-y-1">
-                    <span className="text-gray-500 font-medium">Hash:</span>
+                    <span className="text-[var(--text-muted)] font-medium">Hash:</span>
                     <div className="font-mono text-slate-950 break-all text-xs">{selectedTransaction.hash}</div>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-gray-500 font-medium">Block:</span>
+                    <span className="text-[var(--text-muted)] font-medium">Block:</span>
                     <div className="font-mono">{selectedTransaction.blockNumber}</div>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-gray-500 font-medium">From:</span>
+                    <span className="text-[var(--text-muted)] font-medium">From:</span>
                     <div className="font-mono break-all text-xs">{selectedTransaction.from}</div>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-gray-500 font-medium">To:</span>
+                    <span className="text-[var(--text-muted)] font-medium">To:</span>
                     <div className="font-mono break-all text-xs">{selectedTransaction.to}</div>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-gray-500 font-medium">Value:</span>
+                    <span className="text-[var(--text-muted)] font-medium">Value:</span>
                     <div className="font-semibold">
                       {'tokenSymbol' in selectedTransaction ? (
                         `${formatTokenValue(selectedTransaction.value, selectedTransaction.tokenDecimal)} ${selectedTransaction.tokenSymbol}`
@@ -1796,11 +1796,11 @@ const LookIntoRHClone = () => {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-gray-500 font-medium">Time:</span>
+                    <span className="text-[var(--text-muted)] font-medium">Time:</span>
                     <div>{formatTimestamp(selectedTransaction.timeStamp)}</div>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-gray-500 font-medium">Direction:</span>
+                    <span className="text-[var(--text-muted)] font-medium">Direction:</span>
                     <div>
                       <Badge className={`${getTransactionDirection(selectedTransaction) === 'IN' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                         {getTransactionDirection(selectedTransaction)}
@@ -1809,7 +1809,7 @@ const LookIntoRHClone = () => {
                   </div>
                   {'tokenName' in selectedTransaction && (
                     <div className="space-y-1">
-                      <span className="text-gray-500 font-medium">Token:</span>
+                      <span className="text-[var(--text-muted)] font-medium">Token:</span>
                       <div>{selectedTransaction.tokenName} ({selectedTransaction.tokenSymbol})</div>
             </div>
           )}

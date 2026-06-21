@@ -63,11 +63,11 @@ export default function NewMultiTokenPreview({
           <h2 className="text-xl font-semibold mb-4 text-blue-400">
             Multi-Token Dashboard
           </h2>
-          <p className="text-gray-300 mb-6">
+          <p className="text-[var(--text-muted)] mb-6">
             Search for tokens in the header to add them to your dashboard
           </p>
-          <div className="rounded-lg p-4 bg-gray-700/50 border border-white/10">
-            <p className="text-sm text-gray-300">
+          <div className="rounded-lg p-4 bg-[var(--surface-2)] border border-[var(--line)]">
+            <p className="text-sm text-[var(--text-muted)]">
               💡 Use the search bar above to find and add tokens
             </p>
           </div>
@@ -134,7 +134,7 @@ export default function NewMultiTokenPreview({
 
       {/* Instructions */}
       {config.tokens.length > 0 && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-950/80 backdrop-blur-lg border border-white/20 rounded-lg px-4 py-2 text-white text-sm z-40">
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-[var(--app-bg)] backdrop-blur-lg border border-[var(--line-strong)] rounded-lg px-4 py-2 text-[var(--text)] text-sm z-40">
           <span>💡 Click "Add Stats" on any card to customize the displayed information</span>
         </div>
       )}

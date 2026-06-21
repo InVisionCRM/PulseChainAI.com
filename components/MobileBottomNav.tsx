@@ -6,6 +6,7 @@ import { IconHome, IconSearch, IconWallet, IconDots } from "@tabler/icons-react"
 import { NavigationDrawer } from "./NavigationDrawer";
 import SearchModal from "./Screener/SearchModal";
 import { useScreenerWatchlist } from "./Screener/watchlist";
+import { ThemeToggle } from "./theme/ThemeToggle";
 
 type NavItem = {
   label: string;
@@ -43,7 +44,7 @@ export const MobileBottomNav = () => {
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0C2340]/90 border-t border-white/10 backdrop-blur-xl">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[var(--panel)] border-t border-[var(--line)] backdrop-blur-xl">
         <div className="flex items-center justify-around h-16 px-2">
           {navItems.map((item) => {
             const isActive = item.href ? pathname === item.href : false;
@@ -52,7 +53,7 @@ export const MobileBottomNav = () => {
                 className={`flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors ${
                   isActive
                     ? "text-orange-500"
-                    : "text-white/70 hover:text-white"
+                    : "text-[var(--text-muted)] hover:text-[var(--text)]"
                 }`}
               >
                 {item.icon}
@@ -66,7 +67,7 @@ export const MobileBottomNav = () => {
                 <button
                   key={item.label}
                   onClick={item.onClick}
-                  className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg text-white/70 hover:text-white transition-colors"
+                  className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
                 >
                   {content}
                 </button>
@@ -93,10 +94,13 @@ export const MobileBottomNav = () => {
             );
           })}
 
+          {/* Theme toggle — pull-chain dark/light switch */}
+          <ThemeToggle variant="bar" />
+
           {/* More Button */}
           <button
             onClick={() => setIsDrawerOpen(true)}
-            className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg text-white/70 hover:text-white transition-colors"
+            className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
           >
             <IconDots className="h-5 w-5" />
             <span className="text-xs font-medium">More</span>

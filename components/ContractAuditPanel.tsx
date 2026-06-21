@@ -108,7 +108,7 @@ export default function ContractAuditPanel({
   if (!isContractVerified || !hasSourceCode) {
     return (
       <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">
+        <h3 className="text-sm font-semibold text-[var(--text)] uppercase tracking-wider mb-4">
           Contract Audit
         </h3>
         <div className="text-center py-8">
@@ -118,7 +118,7 @@ export default function ContractAuditPanel({
             </svg>
           </div>
           <p className="text-yellow-400 font-semibold mb-2">Contract Not Verified</p>
-          <p className="text-gray-400 text-sm max-w-md mx-auto leading-relaxed">
+          <p className="text-[var(--text-muted)] text-sm max-w-md mx-auto leading-relaxed">
             This contract's source code is not available on the blockchain. Without verified source code, 
             we cannot perform a comprehensive security audit. The contract may still function, but we 
             recommend caution when interacting with unverified contracts as their behavior cannot be verified.
@@ -131,7 +131,7 @@ export default function ContractAuditPanel({
   if (!auditResult) {
     return (
       <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-4">
-        <div className="text-center text-gray-400 text-sm py-4">
+        <div className="text-center text-[var(--text-muted)] text-sm py-4">
           No audit data available
         </div>
       </div>
@@ -140,7 +140,7 @@ export default function ContractAuditPanel({
 
   return (
     <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-4">
-      <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">
+      <h3 className="text-sm font-semibold text-[var(--text)] uppercase tracking-wider mb-4">
         Contract Audit
       </h3>
       
@@ -156,13 +156,13 @@ export default function ContractAuditPanel({
           return (
             <div
               key={check.key}
-              className="flex items-center justify-between py-2 border-b border-white/5 last:border-b-0"
+              className="flex items-center justify-between py-2 border-b border-[var(--line-soft)] last:border-b-0"
             >
               <div className="flex items-center gap-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button 
-                      className="text-gray-500 hover:text-gray-400 transition-colors"
+                      className="text-[var(--text-muted)] hover:text-[var(--text-muted)] transition-colors"
                       aria-label={`Information about ${check.label}`}
                       title={`Information about ${check.label}`}
                       type="button"
@@ -177,7 +177,7 @@ export default function ContractAuditPanel({
                     <p className="text-xs max-w-xs">{check.tooltip}</p>
                   </TooltipContent>
                 </Tooltip>
-                <span className="text-xs text-gray-400 font-medium">{check.label}</span>
+                <span className="text-xs text-[var(--text-muted)] font-medium">{check.label}</span>
               </div>
               <span className={`text-xs font-semibold ${colorClass}`}>
                 {formatBoolean(value)}
@@ -187,16 +187,16 @@ export default function ContractAuditPanel({
         })}
         
         {/* Creator and Owner Addresses */}
-        <div className="pt-2 mt-2 border-t border-white/10">
+        <div className="pt-2 mt-2 border-t border-[var(--line)]">
           <div className="flex items-center justify-between py-2">
-            <span className="text-xs text-gray-400 font-medium">Creator address</span>
-            <span className="text-xs text-white font-mono font-semibold">
+            <span className="text-xs text-[var(--text-muted)] font-medium">Creator address</span>
+            <span className="text-xs text-[var(--text)] font-mono font-semibold">
               {formatAddress(auditResult.creatorAddress)}
             </span>
           </div>
           <div className="flex items-center justify-between py-2">
-            <span className="text-xs text-gray-400 font-medium">Owner address</span>
-            <span className="text-xs text-white font-mono font-semibold">
+            <span className="text-xs text-[var(--text-muted)] font-medium">Owner address</span>
+            <span className="text-xs text-[var(--text)] font-mono font-semibold">
               {formatAddress(auditResult.ownerAddress)}
             </span>
           </div>

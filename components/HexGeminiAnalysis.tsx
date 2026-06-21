@@ -272,7 +272,7 @@ const HexGeminiAnalysis: React.FC<HexGeminiAnalysisProps> = ({
 
   return (
     <div className="relative overflow-hidden rounded-2xl p-[1px] bg-gradient-to-br from-white/10 via-white/5 to-white/10 shadow-[0_0_40px_-15px_rgba(168,85,247,0.45)]">
-      <div className="relative bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.6)]">
+      <div className="relative bg-[var(--surface)] backdrop-blur-xl rounded-2xl border border-[var(--line)] p-6 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.6)]">
         {/* Dynamic Background Image */}
         <div className="absolute inset-0 -z-10">
           <img 
@@ -298,21 +298,21 @@ const HexGeminiAnalysis: React.FC<HexGeminiAnalysisProps> = ({
             }}
           />
           {/* slate-950 overlay for better text contrast */}
-          <div className="absolute inset-0 bg-slate-950/50"></div>
+          <div className="absolute inset-0 bg-[var(--app-bg)]"></div>
         </div>
 
         {/* Ambient glow */}
-        <div className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-slate-950/210 blur-2xl" />
+        <div className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-[var(--app-bg)] blur-2xl" />
         <div className="pointer-events-none absolute -bottom-16 -right-24 h-72 w-72 rounded-full bg-cyan-500/10 blur-2xl" />
 
         {/* Network Selection */}
         <div className="mb-2 flex items-center gap-3 relative z-10">
-          <label htmlFor="hex-analysis-network" className="text-sm text-white font-medium">Network:</label>
+          <label htmlFor="hex-analysis-network" className="text-sm text-[var(--text)] font-medium">Network:</label>
           <select
             id="hex-analysis-network"
             value={network}
             onChange={(e)=> setNetwork(e.target.value as 'ethereum' | 'pulsechain' | 'both')}
-            className="text-sm bg-white/40 border border-white/20 text-slate-950 rounded-lg px-3 py-1 transition-colors hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+            className="text-sm bg-[var(--surface)] border border-[var(--line-strong)] text-slate-950 rounded-lg px-3 py-1 transition-colors hover:bg-[var(--surface-3)] focus:outline-none focus:ring-2 focus:ring-blue-500/60"
           >
             <option value="pulsechain">PulseChain HEX</option>
             <option value="ethereum">Ethereum HEX</option>
@@ -328,13 +328,13 @@ const HexGeminiAnalysis: React.FC<HexGeminiAnalysisProps> = ({
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
                 placeholder="Ask anything about HEX data..."
-                className="w-full p-3 pr-20 border border-white/20 bg-white/50 text-slate-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/60 placeholder-slate-800/80 font-bold"
+                className="w-full p-3 pr-20 border border-[var(--line-strong)] bg-[var(--surface)]0 text-slate-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/60 placeholder-slate-800/80 font-bold"
                 rows={3}
               />
               <button
                 onClick={handleCustomAnalysis}
                 disabled={isLoading || !customPrompt.trim()}
-                className="absolute right-2 top-2 bg-slate-950 text-white border border-cyan-500 font-medium py-1.5 px-3 rounded-md transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-gray-800 text-sm"
+                className="absolute right-2 top-2 bg-[var(--app-bg)] text-[var(--text)] border border-cyan-500 font-medium py-1.5 px-3 rounded-md transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-[var(--panel)] text-sm"
               >
                 {isLoading ? '...' : 'Ask AI'}
               </button>
@@ -352,7 +352,7 @@ const HexGeminiAnalysis: React.FC<HexGeminiAnalysisProps> = ({
             <p className="text-sm mt-1">{error}</p>
             <button
               onClick={clearError}
-              className="text-xs text-red-300 hover:text-white mt-2"
+              className="text-xs text-red-300 hover:text-[var(--text)] mt-2"
             >
               Dismiss
             </button>
@@ -361,18 +361,18 @@ const HexGeminiAnalysis: React.FC<HexGeminiAnalysisProps> = ({
 
         {/* Analysis Display */}
         {(isLoading || displayAnalysis) && (
-          <div className="mb-4 p-4 rounded-2xl border border-white/20 bg-white/10 shadow-[inset_0_0_60px_-30px_rgba(168,85,247,0.4)] relative z-10">
+          <div className="mb-4 p-4 rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-2)] shadow-[inset_0_0_60px_-30px_rgba(168,85,247,0.4)] relative z-10">
             {isLoading && (
               <div className="flex items-center gap-2 mb-3">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 shadow-[0_0_12px_rgba(168,85,247,0.8)]"></div>
-                <span className="text-white font-medium drop-shadow-[0_0_10px_rgba(168,85,247,0.6)]">
+                <span className="text-[var(--text)] font-medium drop-shadow-[0_0_10px_rgba(168,85,247,0.6)]">
                   Analyzing your question...
                 </span>
               </div>
             )}
             {displayAnalysis && (
               <>
-                <div className="prose prose-invert max-w-none prose-headings:font-bold prose-p:leading-relaxed prose-ul:my-2 prose-li:my-0.5 prose-strong:font-bold text-white/90 prose-strong:text-white">
+                <div className="prose prose-invert max-w-none prose-headings:font-bold prose-p:leading-relaxed prose-ul:my-2 prose-li:my-0.5 prose-strong:font-bold text-[var(--text)] prose-strong:text-[var(--text)]">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {expanded ? displayAnalysis : (() => {
                       const lines = displayAnalysis.split('\n');
@@ -386,7 +386,7 @@ const HexGeminiAnalysis: React.FC<HexGeminiAnalysisProps> = ({
                   <div className="mt-2">
                     <button
                       onClick={() => setExpanded(e => !e)}
-                      className="text-xs text-blue-300 hover:text-white"
+                      className="text-xs text-blue-300 hover:text-[var(--text)]"
                     >
                       {expanded ? 'Show less' : 'Show more'}
                     </button>
@@ -398,7 +398,7 @@ const HexGeminiAnalysis: React.FC<HexGeminiAnalysisProps> = ({
         )}
 
         {/* Debug Info - Remove this after fixing */}
-        <div className="mt-4 p-2 bg-slate-950/20 border border-blue-500/30 rounded text-xs text-blue-300 relative z-10">
+        <div className="mt-4 p-2 bg-[var(--app-bg)] border border-blue-500/30 rounded text-xs text-blue-300 relative z-10">
           <div>Debug: isLoading={isLoading.toString()}</div>
           <div>Debug: displayAnalysis length={displayAnalysis ? displayAnalysis.length : 0}</div>
           <div>Debug: displayAnalysis preview={displayAnalysis ? displayAnalysis.substring(0, 100) + '...' : 'None'}</div>
@@ -416,7 +416,7 @@ const HexGeminiAnalysis: React.FC<HexGeminiAnalysisProps> = ({
                 console.error('🧪 Test API error:', testError);
               }
             }}
-            className="mt-2 px-2 py-1 bg-slate-950 text-white text-xs rounded hover:bg-slate-950"
+            className="mt-2 px-2 py-1 bg-[var(--app-bg)] text-[var(--text)] text-xs rounded hover:bg-[var(--app-bg)]"
           >
             Test API Connection
           </button>
@@ -424,7 +424,7 @@ const HexGeminiAnalysis: React.FC<HexGeminiAnalysisProps> = ({
 
         {/* Conversation History Indicator */}
         {conversationHistory.length > 0 && (
-          <div className="mt-4 text-xs text-white/60 relative z-10">
+          <div className="mt-4 text-xs text-[var(--text-muted)] relative z-10">
             💬 Continuous conversation: {conversationHistory.length} messages exchanged
           </div>
         )}

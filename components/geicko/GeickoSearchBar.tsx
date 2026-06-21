@@ -68,7 +68,7 @@ export default function GeickoSearchBar({
               ref={inputRef}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 pr-28 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+              className="w-full bg-[var(--panel)] border border-[var(--line)] rounded-lg px-3 py-2 pr-28 text-sm text-[var(--text)] placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
               placeholder={placeholder}
             />
             {/* Loading indicator inside input */}
@@ -86,7 +86,7 @@ export default function GeickoSearchBar({
           <button
             type="submit"
             disabled={isSearching}
-            className="px-3 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white border border-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-[var(--text)] border border-[var(--line)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Search
           </button>
@@ -94,7 +94,7 @@ export default function GeickoSearchBar({
 
         {/* Search Results Dropdown */}
         {showSearchResults && searchResults && searchResults.length > 0 && (
-          <div className="absolute z-50 mt-2 w-full bg-gray-900 border border-gray-800 rounded-lg shadow-xl overflow-hidden max-h-[400px] overflow-y-auto">
+          <div className="absolute z-50 mt-2 w-full bg-[var(--panel)] border border-[var(--line)] rounded-lg shadow-xl overflow-hidden max-h-[400px] overflow-y-auto">
             {searchResults.map((item) => {
               const holders = 'holders' in item ? (item.holders as number | null | undefined) : undefined;
               return (
@@ -102,20 +102,20 @@ export default function GeickoSearchBar({
                   key={item.address}
                   type="button"
                   onClick={() => onSelectResult(item)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-800 transition-colors gap-3"
+                  className="w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-[var(--panel)] transition-colors gap-3"
                 >
                   <div className="min-w-0">
-                    <div className="font-semibold text-white truncate">
+                    <div className="font-semibold text-[var(--text)] truncate">
                       {item.name || item.symbol || 'Token'}
                     </div>
-                    <div className="text-[11px] text-gray-400 truncate">
+                    <div className="text-[11px] text-[var(--text-muted)] truncate">
                       {item.symbol || '—'} • Holders:{' '}
                       {holders !== null && holders !== undefined
                         ? holders.toLocaleString()
                         : '—'}
                     </div>
                   </div>
-                  <span className="font-mono text-xs text-gray-400">
+                  <span className="font-mono text-xs text-[var(--text-muted)]">
                     {item.address.slice(0, 6)}...{item.address.slice(-4)}
                   </span>
                 </button>

@@ -59,10 +59,10 @@ export default function ImplementationCodeSection({ statId }: ImplementationCode
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-white">Implementation Code</h2>
+        <h2 className="text-xl font-semibold text-[var(--text)]">Implementation Code</h2>
         <button
           onClick={() => setShowCode(!showCode)}
-          className="px-4 py-2 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+          className="px-4 py-2 text-sm bg-purple-600 hover:bg-purple-700 text-[var(--text)] rounded-lg transition-colors"
         >
           {showCode ? 'Hide Code' : 'Show Implementation'}
         </button>
@@ -71,23 +71,23 @@ export default function ImplementationCodeSection({ statId }: ImplementationCode
       {showCode && (
         <div className="space-y-3">
           <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-            <p className="text-sm text-gray-300">
+            <p className="text-sm text-[var(--text-muted)]">
               This is a simplified version of the actual implementation from <code className="text-purple-400">AdminStatsPanel.tsx</code>. 
               The real code includes error handling, caching, pagination logic, and data transformations.
             </p>
           </div>
           
-          <div className="bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800">
-              <span className="text-sm font-semibold text-white">Pseudo-Code Implementation</span>
+          <div className="bg-[var(--app-bg)] border border-[var(--line)] rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 bg-[var(--panel)] border-b border-[var(--line)]">
+              <span className="text-sm font-semibold text-[var(--text)]">Pseudo-Code Implementation</span>
               <button
                 onClick={copyCode}
-                className="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 rounded transition-colors"
+                className="text-xs px-3 py-1.5 bg-[var(--panel)] hover:bg-[var(--surface-2)] text-[var(--text)] border border-[var(--line)] rounded transition-colors"
               >
                 📋 Copy
               </button>
             </div>
-            <pre className="p-6 overflow-x-auto text-sm text-gray-300 font-mono">
+            <pre className="p-6 overflow-x-auto text-sm text-[var(--text-muted)] font-mono">
               {generatePseudoCode()}
             </pre>
           </div>
@@ -98,7 +98,7 @@ export default function ImplementationCodeSection({ statId }: ImplementationCode
                 <span className="text-purple-400 text-lg">📝</span>
                 <h3 className="text-sm font-semibold text-purple-300">Implementation Notes</h3>
               </div>
-              <p className="text-sm text-gray-300 ml-7">{mapping.implementationNotes}</p>
+              <p className="text-sm text-[var(--text-muted)] ml-7">{mapping.implementationNotes}</p>
             </div>
           )}
         </div>

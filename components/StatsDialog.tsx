@@ -219,26 +219,26 @@ export default function StatsDialog({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-[var(--app-bg)] backdrop-blur-sm z-50 flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="bg-gray-900/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
+          className="bg-[var(--panel)] backdrop-blur-xl border border-[var(--line-strong)] rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="p-6 border-b border-white/10">
+          <div className="p-6 border-b border-[var(--line)]">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-white">Select Stats for {token.name}</h2>
-                <p className="text-sm text-gray-400 mt-1">Choose which stats to display on your card</p>
+                <h2 className="text-xl font-bold text-[var(--text)]">Select Stats for {token.name}</h2>
+                <p className="text-sm text-[var(--text-muted)] mt-1">Choose which stats to display on your card</p>
               </div>
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-white transition-colors p-2"
+                className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors p-2"
                 title="Close stats dialog"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -258,8 +258,8 @@ export default function StatsDialog({
                   animate={{ opacity: 1, x: 0 }}
                   className={`p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
                     stat.enabled
-                      ? 'bg-slate-950/20 border-blue-500/50'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10'
+                      ? 'bg-[var(--app-bg)] border-blue-500/50'
+                      : 'bg-[var(--surface)] border-[var(--line)] hover:bg-[var(--surface-2)]'
                   }`}
                   onClick={() => handleStatToggle(stat.id, !stat.enabled)}
                 >
@@ -270,12 +270,12 @@ export default function StatsDialog({
                           type="checkbox"
                           checked={stat.enabled}
                           onChange={() => handleStatToggle(stat.id, !stat.enabled)}
-                          className="w-4 h-4 text-slate-950 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2 transition-all duration-200 hover:scale-110"
+                          className="w-4 h-4 text-slate-950 bg-[var(--surface-2)] border-[var(--line)] rounded focus:ring-blue-500 focus:ring-2 transition-all duration-200 hover:scale-110"
                           title={`Toggle ${stat.label} stat`}
                         />
                         <div>
-                          <h3 className="font-medium text-white">{stat.label}</h3>
-                          <p className="text-sm text-gray-400">{stat.description}</p>
+                          <h3 className="font-medium text-[var(--text)]">{stat.label}</h3>
+                          <p className="text-sm text-[var(--text-muted)]">{stat.description}</p>
                         </div>
                       </div>
                     </div>
@@ -291,14 +291,14 @@ export default function StatsDialog({
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-white/10">
+          <div className="p-6 border-t border-[var(--line)]">
             <div className="flex justify-between items-center">
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-[var(--text-muted)]">
                 {currentStats.length} stat{currentStats.length !== 1 ? 's' : ''} selected
               </p>
               <button
                 onClick={onClose}
-                className="bg-slate-950 hover:bg-slate-950 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)] text-[var(--text)] px-6 py-2 rounded-lg font-medium transition-colors"
               >
                 Done
               </button>

@@ -12,11 +12,11 @@ export default function StatBuilderHeader({
   currentView = 'preview' 
 }: StatBuilderHeaderProps) {
   return (
-    <div className="bg-slate-950/80 backdrop-blur-xl border-b border-white/20 p-4">
+    <div className="bg-[var(--app-bg)] backdrop-blur-xl border-b border-[var(--line-strong)] p-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Left side - Title and Tabs */}
         <div className="flex items-center space-x-6">
-          <h1 className="text-xl font-bold text-white flex items-center space-x-2">
+          <h1 className="text-xl font-bold text-[var(--text)] flex items-center space-x-2">
             <span>📊</span>
             <span>Stat Builder</span>
           </h1>
@@ -27,8 +27,8 @@ export default function StatBuilderHeader({
               onClick={() => onViewToggle?.('preview')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 currentView === 'preview'
-                  ? 'bg-slate-950 text-white'
-                  : 'text-gray-300 hover:text-white hover:bg-white/10'
+                  ? 'bg-[var(--app-bg)] text-[var(--text)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
               }`}
             >
               Preview
@@ -37,8 +37,8 @@ export default function StatBuilderHeader({
               onClick={() => onViewToggle?.('code')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 currentView === 'code'
-                  ? 'bg-slate-950 text-white'
-                  : 'text-gray-300 hover:text-white hover:bg-white/10'
+                  ? 'bg-[var(--app-bg)] text-[var(--text)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
               }`}
             >
               Code
@@ -50,19 +50,19 @@ export default function StatBuilderHeader({
         <div className="flex items-center space-x-3">
           <button
             onClick={() => {}}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-[var(--text)] rounded-lg text-sm font-medium transition-colors"
             title="Test Button"
           >
             Test
           </button>
           <button
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-[var(--surface-2)] hover:bg-[var(--surface-2)] text-[var(--text)] rounded-lg text-sm font-medium transition-colors"
             title="Settings"
           >
             ⚙️
           </button>
           <button
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-[var(--surface-2)] hover:bg-[var(--surface-2)] text-[var(--text)] rounded-lg text-sm font-medium transition-colors"
             title="Help"
           >
             ?

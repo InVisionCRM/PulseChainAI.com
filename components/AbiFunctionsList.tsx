@@ -17,10 +17,10 @@ const FunctionItem: React.FC<{ func: ExplainedFunction }> = ({ func }) => {
   };
 
   return (
-    <div className="border-b border-slate-700 last:border-b-0">
+    <div className="border-b border-[var(--line)] last:border-b-0">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex justify-between items-center text-left p-4 hover:bg-slate-700/50 transition-colors focus:outline-none focus:bg-slate-700/50"
+        className="w-full flex justify-between items-center text-left p-4 hover:bg-[var(--surface-2)] transition-colors focus:outline-none focus:bg-[var(--surface-2)]"
       >
         <span className="font-mono break-all">
           <span className="text-blue-400">{func.name}{formatParams(func.inputs)}</span>
@@ -35,21 +35,21 @@ const FunctionItem: React.FC<{ func: ExplainedFunction }> = ({ func }) => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
         </svg>
       </button>
-      <div id={`func-details-${func.name}`} hidden={!isOpen} className="p-4 bg-slate-900/50">
-          <p className="text-slate-300 mb-3 text-sm">{func.explanation}</p>
+      <div id={`func-details-${func.name}`} hidden={!isOpen} className="p-4 bg-[var(--panel)]">
+          <p className="text-[var(--text-muted)] mb-3 text-sm">{func.explanation}</p>
           <div className="text-xs space-y-1">
             {func.inputs.length > 0 && (
                 <div>
-                    <h4 className="font-semibold text-slate-400">Inputs:</h4>
-                    <ul className="list-disc list-inside pl-2 font-mono text-slate-300">
+                    <h4 className="font-semibold text-[var(--text-muted)]">Inputs:</h4>
+                    <ul className="list-disc list-inside pl-2 font-mono text-[var(--text-muted)]">
                         {func.inputs.map((input, i) => <li key={i}>{input.name || `param_${i}`}: {input.type}</li>)}
                     </ul>
                 </div>
             )}
              {func.outputs.length > 0 && (
                 <div className="mt-2">
-                    <h4 className="font-semibold text-slate-400">Outputs:</h4>
-                     <ul className="list-disc list-inside pl-2 font-mono text-slate-300">
+                    <h4 className="font-semibold text-[var(--text-muted)]">Outputs:</h4>
+                     <ul className="list-disc list-inside pl-2 font-mono text-[var(--text-muted)]">
                         {func.outputs.map((output, i) => <li key={i}>{output.name || `return_${i}`}: {output.type}</li>)}
                     </ul>
                 </div>
@@ -66,16 +66,16 @@ const AbiFunctionsList: React.FC<{ functions: ExplainedFunction[] | null, isLoad
 
     return (
         <section>
-            <h3 className="text-lg font-bold text-white mb-2 px-4">{title}</h3>
-            <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+            <h3 className="text-lg font-bold text-[var(--text)] mb-2 px-4">{title}</h3>
+            <div className="bg-[var(--panel)] rounded-xl border border-[var(--line)] overflow-hidden">
                 {isLoading && (
                      <div className="flex items-center justify-center p-8">
                         <LoadingSpinner />
-                        <span className="ml-3 text-slate-300">AI is analyzing functions...</span>
+                        <span className="ml-3 text-[var(--text-muted)]">AI is analyzing functions...</span>
                      </div>
                 )}
                 {!isLoading && !hasFunctions && (
-                     <div className="p-8 text-center text-slate-400">
+                     <div className="p-8 text-center text-[var(--text-muted)]">
                         No {title.replace(' Functions', '').toLowerCase()} functions found in ABI.
                      </div>
                 )}

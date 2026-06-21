@@ -28,16 +28,16 @@ export default function StatDocumentationPage({ params }: PageProps) {
   
   if (!statConfig) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-[var(--app-bg)] via-[var(--panel)] to-[var(--app-bg)] p-8">
         <div className="max-w-7xl mx-auto">
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-8 text-center">
             <h1 className="text-2xl font-bold text-red-400 mb-2">Stat Not Found</h1>
-            <p className="text-gray-400 mb-4">
+            <p className="text-[var(--text-muted)] mb-4">
               The stat "{resolvedParams.statId}" does not exist.
             </p>
             <button
               onClick={() => router.push('/stat-docs')}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded transition-colors"
+              className="px-4 py-2 bg-[var(--panel)] hover:bg-[var(--surface-2)] text-[var(--text)] rounded transition-colors"
             >
               View All Stats
             </button>
@@ -60,26 +60,26 @@ export default function StatDocumentationPage({ params }: PageProps) {
   );
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--app-bg)] via-[var(--panel)] to-[var(--app-bg)]">
       {/* Morbius Banner */}
       <MorbiusBanner />
       
       {/* Header */}
-      <div className="border-b border-slate-800 bg-slate-950/50 backdrop-blur">
+      <div className="border-b border-[var(--line)] bg-[var(--app-bg)] backdrop-blur">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/stat-docs')}
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
             >
               ← Back to All Stats
             </button>
             <span className="text-gray-600">|</span>
-            <h1 className="text-sm font-semibold text-white">Stat Documentation</h1>
+            <h1 className="text-sm font-semibold text-[var(--text)]">Stat Documentation</h1>
           </div>
           <a
             href="/admin-stats"
-            className="px-3 py-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors"
+            className="px-3 py-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-[var(--text)] rounded transition-colors"
           >
             Try in Admin Panel
           </a>
@@ -135,13 +135,13 @@ export default function StatDocumentationPage({ params }: PageProps) {
         
         {/* Footer CTA */}
         <div className="mt-12 bg-gradient-to-r from-purple-900/20 via-blue-900/20 to-cyan-900/20 border border-purple-500/30 rounded-xl p-8 text-center">
-          <h2 className="text-2xl font-bold text-white mb-3">Ready to Test This Stat?</h2>
-          <p className="text-gray-300 mb-6">
+          <h2 className="text-2xl font-bold text-[var(--text)] mb-3">Ready to Test This Stat?</h2>
+          <p className="text-[var(--text-muted)] mb-6">
             Try this stat live in the Admin Stats Panel with real PulseChain data
           </p>
           <a
             href={`/admin-stats?stat=${resolvedParams.statId}`}
-            className="inline-block px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors"
+            className="inline-block px-6 py-3 bg-purple-600 hover:bg-purple-700 text-[var(--text)] font-semibold rounded-lg transition-colors"
           >
             Open in Admin Panel →
           </a>

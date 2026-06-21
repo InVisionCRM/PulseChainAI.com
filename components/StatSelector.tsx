@@ -203,27 +203,27 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
   return (
     <div className="space-y-6">
       {/* Token Address Display */}
-      <div className="bg-slate-950/20 border border-blue-500/30 rounded-lg p-4">
+      <div className="bg-[var(--app-bg)] border border-blue-500/30 rounded-lg p-4">
         <h4 className="text-lg font-semibold text-blue-300 mb-2">Current Token Address</h4>
-        <div className="bg-gray-600 rounded p-3 font-mono text-sm">
+        <div className="bg-[var(--surface-2)] rounded p-3 font-mono text-sm">
           {localStorage.getItem('selectedTokenAddress') || 'No token selected'}
         </div>
       </div>
 
       {/* Stats Selection */}
-      <div className="bg-slate-600/90 rounded-xl p-6 border border-white/10 backdrop-blur">
+      <div className="bg-[var(--surface-2)] rounded-xl p-6 border border-[var(--line)] backdrop-blur">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h3 className="text-xl font-semibold text-white">Select Statistics</h3>
-            <p className="text-gray-300">Choose stats to display. Click a tile to toggle. Preview shows how it appears on a card.</p>
+            <h3 className="text-xl font-semibold text-[var(--text)]">Select Statistics</h3>
+            <p className="text-[var(--text-muted)]">Choose stats to display. Click a tile to toggle. Preview shows how it appears on a card.</p>
           </div>
         </div>
 
         {availableStats.length === 0 ? (
           <div className="text-center py-8">
             <div className="text-4xl mb-4">📊</div>
-            <p className="text-gray-400">No stats available yet</p>
-            <p className="text-sm text-gray-500 mt-2">
+            <p className="text-[var(--text-muted)]">No stats available yet</p>
+            <p className="text-sm text-[var(--text-muted)] mt-2">
               Stats will appear here as they are implemented
             </p>
           </div>
@@ -233,8 +233,8 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
               stats.length === 0 ? null : (
                 <div key={category}>
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-lg font-semibold text-white/90">{category}</h4>
-                    <span className="text-xs text-white/50">{stats.length} stats</span>
+                    <h4 className="text-lg font-semibold text-[var(--text)]">{category}</h4>
+                    <span className="text-xs text-[var(--text-faint)]">{stats.length} stats</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {stats.map((stat) => {
@@ -246,7 +246,7 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
                           className={`relative p-4 rounded-xl cursor-pointer transition-all border overflow-hidden ${
                             isSelected
                               ? 'border-blue-500/60 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]'
-                              : 'border-white/10 hover:bg-white/10'
+                              : 'border-[var(--line)] hover:bg-[var(--surface-2)]'
                           }`}
                           onClick={() => handleStatToggle(stat.id)}
                           title={`${isSelected ? 'Remove' : 'Add'} ${stat.name}`}
@@ -263,15 +263,15 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
-                                <h5 className="font-semibold text-white leading-tight">{stat.name}</h5>
-                                <span className="text-[10px] uppercase tracking-wider text-white/60 bg-white/10 border border-white/10 rounded px-1.5 py-0.5">{stat.format}</span>
+                                <h5 className="font-semibold text-[var(--text)] leading-tight">{stat.name}</h5>
+                                <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] bg-[var(--surface-2)] border border-[var(--line)] rounded px-1.5 py-0.5">{stat.format}</span>
                               </div>
-                              <p className="text-xs text-white/60 mt-1 line-clamp-2">{stat.description}</p>
-                              <div className="mt-3 bg-slate-950/30 border border-white/10 rounded-lg p-3">
-                                <div className="text-xs text-white/60">Preview</div>
+                              <p className="text-xs text-[var(--text-muted)] mt-1 line-clamp-2">{stat.description}</p>
+                              <div className="mt-3 bg-[var(--app-bg)] border border-[var(--line)] rounded-lg p-3">
+                                <div className="text-xs text-[var(--text-muted)]">Preview</div>
                                 <div className="mt-1 flex items-baseline justify-between">
-                                  <span className="text-xs text-white/60">{stat.name}</span>
-                                  <span className="text-sm font-bold text-white">{getSampleFormattedValue(stat)}</span>
+                                  <span className="text-xs text-[var(--text-muted)]">{stat.name}</span>
+                                  <span className="text-sm font-bold text-[var(--text)]">{getSampleFormattedValue(stat)}</span>
                                 </div>
                               </div>
                             </div>
@@ -279,7 +279,7 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => handleStatToggle(stat.id)}
-                              className="mt-1 w-4 h-4 text-slate-950 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                              className="mt-1 w-4 h-4 text-slate-950 bg-[var(--surface-2)] border-[var(--line)] rounded focus:ring-blue-500"
                               title={`Select ${stat.name} stat`}
                             />
                           </div>
@@ -301,8 +301,8 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
           disabled={isLoading || !token?.address || selectedStats.length === 0}
           className={`w-full py-3 px-6 rounded-lg font-semibold transition-all mt-6 ${
             isLoading || !token?.address || selectedStats.length === 0
-              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-              : 'bg-slate-950 hover:bg-slate-950 text-white'
+              ? 'bg-[var(--surface-2)] text-[var(--text-muted)] cursor-not-allowed'
+              : 'bg-[var(--app-bg)] hover:bg-[var(--app-bg)] text-[var(--text)]'
           }`}
         >
           {isLoading ? 'Loading Stats...' : 'Load Selected Stats'}
@@ -311,8 +311,8 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
 
       {/* Results Display */}
       {Object.keys(statResults).length > 0 && (
-        <div className="bg-gray-800 rounded-lg p-6">
-          <h3 className="text-xl font-semibold text-white mb-4">Live Results</h3>
+        <div className="bg-[var(--panel)] rounded-lg p-6">
+          <h3 className="text-xl font-semibold text-[var(--text)] mb-4">Live Results</h3>
           <div className="grid grid-cols-2 gap-4">
             {Object.entries(statResults).map(([statId, result]) => (
               <motion.div
@@ -322,14 +322,14 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
                 className={`p-4 rounded-lg border-2 ${
                   result.error
                     ? 'border-red-500 bg-red-900/20'
-                    : 'border-blue-500 bg-slate-950/20'
+                    : 'border-blue-500 bg-[var(--app-bg)]'
                 }`}
               >
                 <div className="text-center">
-                  <h4 className="font-semibold text-white mb-2">
+                  <h4 className="font-semibold text-[var(--text)] mb-2">
                     {availableStats.find(s => s.id === statId)?.name || statId}
                   </h4>
-                  <div className="text-2xl font-bold text-white">
+                  <div className="text-2xl font-bold text-[var(--text)]">
                     {result.formattedValue}
                   </div>
                   {result.error && (
@@ -346,7 +346,7 @@ export default function StatSelector({ token, onStatsChange, onStatResultsChange
 
       {/* Token Balance Form Modal */}
       {showTokenBalanceForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--app-bg)] backdrop-blur-sm">
           <TokenBalanceForm
             onConfirm={handleTokenBalanceConfirm}
             onCancel={handleTokenBalanceCancel}

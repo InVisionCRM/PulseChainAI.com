@@ -6,7 +6,7 @@ export default function HostingTab() {
   const hostingProviders = [
     {
       name: 'Vercel',
-      icon: <IconBrandVercel className="h-8 w-8 text-white" />,
+      icon: <IconBrandVercel className="h-8 w-8 text-[var(--text)]" />,
       url: 'https://vercel.com/',
       description: 'Frontend cloud platform for static sites and serverless functions. Perfect for Next.js applications with automatic deployments from Git.',
       pricing: 'Free tier available, generous limits',
@@ -69,7 +69,7 @@ export default function HostingTab() {
     },
     {
       name: 'GitHub Pages',
-      icon: <IconExternalLink className="h-8 w-8 text-gray-400" />,
+      icon: <IconExternalLink className="h-8 w-8 text-[var(--text-muted)]" />,
       url: 'https://pages.github.com/',
       description: 'Free hosting for static websites directly from your GitHub repositories. Perfect for documentation, portfolios, and simple sites.',
       pricing: 'Completely free',
@@ -119,20 +119,20 @@ export default function HostingTab() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.3 }}
-      className="rounded-lg border border-white/10 bg-white/5 p-6"
+      className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6"
     >
       <h2 className="mb-6 text-2xl font-bold text-[#FA4616]">Hosting & Deployment Platforms</h2>
-      <p className="mb-6 text-white/70">
+      <p className="mb-6 text-[var(--text-muted)]">
         Choose the right hosting platform for your PulseChain DApps. From free tiers for learning to enterprise-grade solutions.
       </p>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {hostingProviders.map((provider, index) => (
-          <div key={provider.name} className="rounded-lg border border-white/20 bg-white/5 p-4">
+          <div key={provider.name} className="rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] p-4">
             <div className="flex items-center gap-3 mb-3">
               {provider.icon}
               <div>
-                <h3 className="font-semibold text-white">{provider.name}</h3>
+                <h3 className="font-semibold text-[var(--text)]">{provider.name}</h3>
                 <a
                   href={provider.url}
                   target="_blank"
@@ -143,7 +143,7 @@ export default function HostingTab() {
                 </a>
               </div>
             </div>
-            <p className="text-sm text-white/70 mb-3">
+            <p className="text-sm text-[var(--text-muted)] mb-3">
               {provider.description}
             </p>
             <div className="mb-3">
@@ -152,14 +152,14 @@ export default function HostingTab() {
               </span>
             </div>
             <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-white/90">Key Features:</h4>
-              <ul className="text-xs text-white/60 space-y-1">
+              <h4 className="text-sm font-semibold text-[var(--text)]">Key Features:</h4>
+              <ul className="text-xs text-[var(--text-muted)] space-y-1">
                 {provider.strengths.map((strength, idx) => (
                   <li key={idx}>• {strength}</li>
                 ))}
               </ul>
             </div>
-            <div className="mt-3 pt-3 border-t border-white/10">
+            <div className="mt-3 pt-3 border-t border-[var(--line)]">
               <p className="text-xs text-[#FA4616] font-semibold">{provider.bestFor}</p>
             </div>
           </div>
@@ -167,12 +167,12 @@ export default function HostingTab() {
       </div>
 
       {/* Hosting Decision Guide */}
-      <div className="mt-8 rounded-lg border border-white/20 bg-white/5 p-6">
-        <h3 className="text-xl font-semibold text-white mb-4">Choosing the Right Hosting Platform</h3>
+      <div className="mt-8 rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] p-6">
+        <h3 className="text-xl font-semibold text-[var(--text)] mb-4">Choosing the Right Hosting Platform</h3>
         <div className="grid md:grid-cols-2 gap-6">
           <div>
             <h4 className="font-semibold text-[#FA4616] mb-3">For Learning & Prototyping</h4>
-            <ul className="text-sm text-white/80 space-y-2">
+            <ul className="text-sm text-[var(--text)] space-y-2">
               <li>• <strong>Vercel</strong> - Best for Next.js projects</li>
               <li>• <strong>Netlify</strong> - Excellent for static sites</li>
               <li>• <strong>GitHub Pages</strong> - Completely free for simple sites</li>
@@ -182,7 +182,7 @@ export default function HostingTab() {
           </div>
           <div>
             <h4 className="font-semibold text-[#FA4616] mb-3">For Production DApps</h4>
-            <ul className="text-sm text-white/80 space-y-2">
+            <ul className="text-sm text-[var(--text)] space-y-2">
               <li>• <strong>Vercel</strong> - Scalable Next.js deployments</li>
               <li>• <strong>AWS Amplify</strong> - Enterprise-grade with CI/CD</li>
               <li>• <strong>Firebase</strong> - Real-time features and hosting</li>
@@ -194,12 +194,12 @@ export default function HostingTab() {
       </div>
 
       {/* Deployment Best Practices */}
-      <div className="mt-6 rounded-lg border border-white/20 bg-white/5 p-6">
-        <h3 className="text-xl font-semibold text-white mb-4">Deployment Best Practices</h3>
+      <div className="mt-6 rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] p-6">
+        <h3 className="text-xl font-semibold text-[var(--text)] mb-4">Deployment Best Practices</h3>
         <div className="grid md:grid-cols-3 gap-4">
           <div>
             <h4 className="font-semibold text-[#FA4616] mb-2">Environment Setup</h4>
-            <ul className="text-sm text-white/80 space-y-1">
+            <ul className="text-sm text-[var(--text)] space-y-1">
               <li>• Use environment variables</li>
               <li>• Separate dev/staging/prod</li>
               <li>• Secure API keys</li>
@@ -208,7 +208,7 @@ export default function HostingTab() {
           </div>
           <div>
             <h4 className="font-semibold text-[#FA4616] mb-2">Performance</h4>
-            <ul className="text-sm text-white/80 space-y-1">
+            <ul className="text-sm text-[var(--text)] space-y-1">
               <li>• Enable compression</li>
               <li>• Use CDN for assets</li>
               <li>• Optimize images</li>
@@ -217,7 +217,7 @@ export default function HostingTab() {
           </div>
           <div>
             <h4 className="font-semibold text-[#FA4616] mb-2">Monitoring</h4>
-            <ul className="text-sm text-white/80 space-y-1">
+            <ul className="text-sm text-[var(--text)] space-y-1">
               <li>• Set up error tracking</li>
               <li>• Monitor performance</li>
               <li>• Log important events</li>
@@ -228,15 +228,15 @@ export default function HostingTab() {
       </div>
 
       {/* PulseChain-Specific Considerations */}
-      <div className="mt-6 rounded-lg border border-white/20 bg-white/5 p-6">
-        <h3 className="text-xl font-semibold text-white mb-4">PulseChain DApp Hosting Considerations</h3>
+      <div className="mt-6 rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] p-6">
+        <h3 className="text-xl font-semibold text-[var(--text)] mb-4">PulseChain DApp Hosting Considerations</h3>
         <div className="grid md:grid-cols-2 gap-6">
           <div>
             <h4 className="font-semibold text-[#FA4616] mb-3">Frontend Hosting</h4>
-            <p className="text-sm text-white/80 mb-3">
+            <p className="text-sm text-[var(--text)] mb-3">
               Your React/Next.js frontend can be hosted on any modern platform. Focus on fast global delivery.
             </p>
-            <ul className="text-sm text-white/70 space-y-1">
+            <ul className="text-sm text-[var(--text-muted)] space-y-1">
               <li>• Vercel for Next.js optimization</li>
               <li>• Netlify for static generation</li>
               <li>• Cloudflare for global performance</li>
@@ -245,10 +245,10 @@ export default function HostingTab() {
           </div>
           <div>
             <h4 className="font-semibold text-[#FA4616] mb-3">API & Backend Hosting</h4>
-            <p className="text-sm text-white/80 mb-3">
+            <p className="text-sm text-[var(--text)] mb-3">
               Backend services need reliable hosting with good uptime for blockchain interactions.
             </p>
-            <ul className="text-sm text-white/70 space-y-1">
+            <ul className="text-sm text-[var(--text-muted)] space-y-1">
               <li>• Railway for full-stack simplicity</li>
               <li>• Render for managed services</li>
               <li>• Fly.io for global distribution</li>

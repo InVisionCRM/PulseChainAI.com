@@ -309,24 +309,24 @@ export default function AdminGoldBadgesPage() {
   if (!secret) {
     return (
       <div className="min-h-screen bg-black/90 flex items-center justify-center p-4">
-        <div className="w-full max-w-md rounded-2xl overflow-hidden border-2 border-cyan-500/30 bg-gradient-to-br from-slate-900 to-slate-800 shadow-2xl p-6">
+        <div className="w-full max-w-md rounded-2xl overflow-hidden border-2 border-cyan-500/30 bg-gradient-to-br from-[var(--panel)] to-[var(--panel)] shadow-2xl p-6">
           <div className="flex items-center gap-2 text-cyan-400 mb-4">
             <Lock className="w-5 h-5" />
             <h1 className="text-xl font-semibold">GOLD Badges Admin</h1>
           </div>
-          <p className="text-slate-400 text-sm mb-4">Enter the admin secret from .env (GOLD_ADMIN_SECRET or ADMIN_SECRET).</p>
+          <p className="text-[var(--text-muted)] text-sm mb-4">Enter the admin secret from .env (GOLD_ADMIN_SECRET or ADMIN_SECRET).</p>
           <form onSubmit={login} className="space-y-3">
             <input
               type="password"
               value={inputSecret}
               onChange={(e) => setInputSecret(e.target.value)}
               placeholder="Admin secret"
-              className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-cyan-500/30 text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500/50"
+              className="w-full px-3 py-2 rounded-lg bg-[var(--panel)] border border-cyan-500/30 text-[var(--text)] placeholder-slate-500 focus:ring-2 focus:ring-cyan-500/50"
               autoComplete="current-password"
             />
             <button
               type="submit"
-              className="w-full py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-medium hover:opacity-90"
+              className="w-full py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-[var(--text)] font-medium hover:opacity-90"
             >
               Continue
             </button>
@@ -337,13 +337,13 @@ export default function AdminGoldBadgesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black/90 text-white p-4 md:p-6">
+    <div className="min-h-screen bg-black/90 text-[var(--text)] p-4 md:p-6">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-semibold text-cyan-400">GOLD Badges Admin</h1>
           <button
             onClick={logout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:bg-white/5 text-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--line)] text-[var(--text-muted)] hover:bg-[var(--surface)] text-sm"
           >
             <LogOut className="w-4 h-4" /> Log out
           </button>
@@ -356,13 +356,13 @@ export default function AdminGoldBadgesPage() {
         )}
 
         <div className="rounded-xl p-4 mb-6" style={panelStyle}>
-          <h2 className="text-lg font-medium text-slate-200 mb-3">Add token</h2>
+          <h2 className="text-lg font-medium text-[var(--text)] mb-3">Add token</h2>
           <form onSubmit={addBadge} className="grid gap-3 md:grid-cols-2">
             <input
               value={addAddress}
               onChange={(e) => setAddAddress(e.target.value)}
               placeholder="Token address (0x...)"
-              className="md:col-span-2 px-3 py-2 rounded-lg bg-slate-800/80 border border-cyan-500/30 text-white placeholder-slate-500 font-mono text-sm"
+              className="md:col-span-2 px-3 py-2 rounded-lg bg-[var(--panel)] border border-cyan-500/30 text-[var(--text)] placeholder-slate-500 font-mono text-sm"
               required
             />
             <input
@@ -371,24 +371,24 @@ export default function AdminGoldBadgesPage() {
               placeholder="Display order (optional)"
               type="number"
               min={1}
-              className="px-3 py-2 rounded-lg bg-slate-800/80 border border-cyan-500/30 text-white placeholder-slate-500"
+              className="px-3 py-2 rounded-lg bg-[var(--panel)] border border-cyan-500/30 text-[var(--text)] placeholder-slate-500"
             />
             <input
               value={addSymbol}
               onChange={(e) => setAddSymbol(e.target.value)}
               placeholder="Symbol (optional)"
-              className="px-3 py-2 rounded-lg bg-slate-800/80 border border-cyan-500/30 text-white placeholder-slate-500"
+              className="px-3 py-2 rounded-lg bg-[var(--panel)] border border-cyan-500/30 text-[var(--text)] placeholder-slate-500"
             />
             <input
               value={addName}
               onChange={(e) => setAddName(e.target.value)}
               placeholder="Name (optional)"
-              className="px-3 py-2 rounded-lg bg-slate-800/80 border border-cyan-500/30 text-white placeholder-slate-500"
+              className="px-3 py-2 rounded-lg bg-[var(--panel)] border border-cyan-500/30 text-[var(--text)] placeholder-slate-500"
             />
             <div className="md:col-span-2">
               <button
                 type="submit"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-medium hover:opacity-90"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-[var(--text)] font-medium hover:opacity-90"
               >
                 <Plus className="w-4 h-4" /> Add GOLD badge
               </button>
@@ -398,14 +398,14 @@ export default function AdminGoldBadgesPage() {
 
         <div className="rounded-xl p-4 mb-4" style={panelStyle}>
           <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-            <h2 className="text-lg font-medium text-slate-200">Current GOLD badges ({list.length})</h2>
+            <h2 className="text-lg font-medium text-[var(--text)]">Current GOLD badges ({list.length})</h2>
             <div className="flex items-center gap-2">
               {orderDirty && (
                 <button
                   type="button"
                   onClick={saveOrder}
                   disabled={savingOrder}
-                  className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-[var(--text)] text-sm font-medium disabled:opacity-50"
                 >
                   {savingOrder ? 'Saving…' : 'Save order'}
                 </button>
@@ -414,7 +414,7 @@ export default function AdminGoldBadgesPage() {
                 <button
                   onClick={seedDefaults}
                   disabled={seeding}
-                  className="px-3 py-1.5 rounded-lg bg-cyan-600/80 text-white text-sm hover:bg-cyan-600 disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-lg bg-cyan-600/80 text-[var(--text)] text-sm hover:bg-cyan-600 disabled:opacity-50"
                 >
                   {seeding ? 'Adding…' : 'Seed 13 defaults'}
                 </button>
@@ -425,22 +425,22 @@ export default function AdminGoldBadgesPage() {
             <p className="text-amber-200/90 text-xs mb-2">Change position number or use ↑↓ then click Save order to apply.</p>
           )}
           {loading ? (
-            <p className="text-slate-500">Loading…</p>
+            <p className="text-[var(--text-muted)]">Loading…</p>
           ) : list.length === 0 ? (
-            <p className="text-slate-500">No GOLD badges yet. Add one above or seed defaults.</p>
+            <p className="text-[var(--text-muted)]">No GOLD badges yet. Add one above or seed defaults.</p>
           ) : (
             <ul className="space-y-2">
               {list.map((row, index) => (
                 <li
                   key={`${row.token_address}-${index}`}
-                  className="flex items-center gap-2 py-2 px-3 rounded-lg bg-slate-800/50 border border-slate-700/50"
+                  className="flex items-center gap-2 py-2 px-3 rounded-lg bg-[var(--panel)] border border-[var(--line)]"
                 >
                   <div className="flex flex-col">
                     <button
                       type="button"
                       onClick={() => move(index, 'up')}
                       disabled={index === 0}
-                      className="p-0.5 text-slate-400 hover:text-cyan-400 disabled:opacity-30"
+                      className="p-0.5 text-[var(--text-muted)] hover:text-cyan-400 disabled:opacity-30"
                       aria-label="Move up"
                     >
                       <ArrowUp className="w-4 h-4" />
@@ -449,7 +449,7 @@ export default function AdminGoldBadgesPage() {
                       type="button"
                       onClick={() => move(index, 'down')}
                       disabled={index === list.length - 1}
-                      className="p-0.5 text-slate-400 hover:text-cyan-400 disabled:opacity-30"
+                      className="p-0.5 text-[var(--text-muted)] hover:text-cyan-400 disabled:opacity-30"
                       aria-label="Move down"
                     >
                       <ArrowDown className="w-4 h-4" />
@@ -460,7 +460,7 @@ export default function AdminGoldBadgesPage() {
                     min={1}
                     max={list.length}
                     defaultValue={index + 1}
-                    className="w-9 h-7 text-center text-sm tabular-nums rounded bg-slate-700/80 border border-slate-600 text-slate-200 focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 focus:outline-none"
+                    className="w-9 h-7 text-center text-sm tabular-nums rounded bg-[var(--surface-2)] border border-[var(--line)] text-[var(--text)] focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 focus:outline-none"
                     aria-label={`Position 1–${list.length}`}
                     onBlur={(e) => {
                       const n = parseInt(e.target.value, 10);
@@ -475,12 +475,12 @@ export default function AdminGoldBadgesPage() {
                   />
                   <GripVertical className="w-4 h-4 text-slate-600 flex-shrink-0" />
                   {/* Logo: uploaded/custom first, else DexScreener fallback */}
-                  <div className="flex-shrink-0 w-9 h-9 rounded-full bg-slate-700/50 flex items-center justify-center overflow-hidden">
+                  <div className="flex-shrink-0 w-9 h-9 rounded-full bg-[var(--surface-2)] flex items-center justify-center overflow-hidden">
                     {(() => {
                       const src = row.logo_url || dexLogoCache[row.token_address];
                       if (!src) {
                         fetchDexLogo(row.token_address);
-                        return <span className="text-slate-500 text-xs">—</span>;
+                        return <span className="text-[var(--text-muted)] text-xs">—</span>;
                       }
                       return (
                         <img
@@ -493,10 +493,10 @@ export default function AdminGoldBadgesPage() {
                     })()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-slate-200 truncate" title={row.token_address}>
+                    <div className="text-sm font-medium text-[var(--text)] truncate" title={row.token_address}>
                       {row.name || row.symbol || `${row.token_address.slice(0, 10)}…${row.token_address.slice(-8)}`}
                     </div>
-                    <div className="text-xs text-slate-500 font-mono truncate" title={row.token_address}>
+                    <div className="text-xs text-[var(--text-muted)] font-mono truncate" title={row.token_address}>
                       {(row.name || row.symbol) ? `${row.token_address.slice(0, 8)}…${row.token_address.slice(-6)}` : row.token_address}
                     </div>
                   </div>
@@ -524,35 +524,35 @@ export default function AdminGoldBadgesPage() {
 
         {profileModalAddress && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 border-2 border-cyan-500/30 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
-              <div className="p-4 border-b border-slate-700">
+            <div className="bg-gradient-to-br from-[var(--panel)] to-[var(--panel)] border-2 border-cyan-500/30 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="p-4 border-b border-[var(--line)]">
                 <h3 className="text-lg font-semibold text-cyan-400">Token profile</h3>
-                <p className="text-xs text-slate-500 font-mono mt-0.5 truncate">{profileModalAddress}</p>
+                <p className="text-xs text-[var(--text-muted)] font-mono mt-0.5 truncate">{profileModalAddress}</p>
               </div>
               <form onSubmit={saveProfile} className="p-4 overflow-y-auto flex-1 space-y-4">
                 {profileLoading ? (
-                  <p className="text-slate-500">Loading…</p>
+                  <p className="text-[var(--text-muted)]">Loading…</p>
                 ) : (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-slate-400 mb-1">Description</label>
+                      <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Description</label>
                       <textarea
                         value={profileForm.description}
                         onChange={(e) => setProfileForm((f) => ({ ...f, description: e.target.value }))}
                         rows={4}
                         placeholder="Custom description for token profile tab"
-                        className="w-full px-3 py-2 rounded-lg bg-slate-800/80 border border-cyan-500/30 text-white placeholder-slate-500 text-sm resize-y"
+                        className="w-full px-3 py-2 rounded-lg bg-[var(--panel)] border border-cyan-500/30 text-[var(--text)] placeholder-slate-500 text-sm resize-y"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-400 mb-1">Logo (URL or upload)</label>
+                      <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Logo (URL or upload)</label>
                       <div className="flex gap-2">
                         <input
                           type="url"
                           value={profileForm.logo_url}
                           onChange={(e) => setProfileForm((f) => ({ ...f, logo_url: e.target.value }))}
                           placeholder="https://… or upload below"
-                          className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-slate-800/80 border border-cyan-500/30 text-white placeholder-slate-500 text-sm"
+                          className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-[var(--panel)] border border-cyan-500/30 text-[var(--text)] placeholder-slate-500 text-sm"
                         />
                         <input
                           ref={logoFileInputRef}
@@ -582,11 +582,11 @@ export default function AdminGoldBadgesPage() {
                           <Upload className="w-4 h-4" /> {isUploadingLogo ? 'Uploading…' : 'Upload'}
                         </button>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">Uses custom logo if set; otherwise DexScreener logo is shown.</p>
+                      <p className="text-xs text-[var(--text-muted)] mt-1">Uses custom logo if set; otherwise DexScreener logo is shown.</p>
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="block text-sm font-medium text-slate-400">Custom links</label>
+                        <label className="block text-sm font-medium text-[var(--text-muted)]">Custom links</label>
                         <button type="button" onClick={addProfileLink} className="text-xs text-cyan-400 hover:underline flex items-center gap-1">
                           <LinkIcon className="w-3 h-3" /> Add link
                         </button>
@@ -598,14 +598,14 @@ export default function AdminGoldBadgesPage() {
                               value={link.label}
                               onChange={(e) => updateProfileLink(i, 'label', e.target.value)}
                               placeholder="Label"
-                              className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-cyan-500/30 text-white placeholder-slate-500 text-sm"
+                              className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-[var(--panel)] border border-cyan-500/30 text-[var(--text)] placeholder-slate-500 text-sm"
                             />
                             <input
                               type="url"
                               value={link.url}
                               onChange={(e) => updateProfileLink(i, 'url', e.target.value)}
                               placeholder="https://…"
-                              className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-cyan-500/30 text-white placeholder-slate-500 text-sm"
+                              className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-[var(--panel)] border border-cyan-500/30 text-[var(--text)] placeholder-slate-500 text-sm"
                             />
                             <button
                               type="button"
@@ -626,14 +626,14 @@ export default function AdminGoldBadgesPage() {
                   <button
                     type="button"
                     onClick={closeProfileModal}
-                    className="flex-1 py-2 rounded-lg border border-slate-600 text-slate-400 hover:bg-white/5"
+                    className="flex-1 py-2 rounded-lg border border-[var(--line)] text-[var(--text-muted)] hover:bg-[var(--surface)]"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={profileLoading || profileSaving}
-                    className="flex-1 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-medium hover:opacity-90 disabled:opacity-50"
+                    className="flex-1 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-[var(--text)] font-medium hover:opacity-90 disabled:opacity-50"
                   >
                     {profileSaving ? 'Saving…' : 'Save profile'}
                   </button>
@@ -643,9 +643,9 @@ export default function AdminGoldBadgesPage() {
           </div>
         )}
 
-        <p className="text-slate-500 text-sm">
-          TokenTable and TopTickerBar use this list. Set <code className="bg-slate-800 px-1 rounded">GOLD_ADMIN_SECRET</code> or{' '}
-          <code className="bg-slate-800 px-1 rounded">ADMIN_SECRET</code> in .env to protect add/remove/reorder.
+        <p className="text-[var(--text-muted)] text-sm">
+          TokenTable and TopTickerBar use this list. Set <code className="bg-[var(--panel)] px-1 rounded">GOLD_ADMIN_SECRET</code> or{' '}
+          <code className="bg-[var(--panel)] px-1 rounded">ADMIN_SECRET</code> in .env to protect add/remove/reorder.
         </p>
       </div>
     </div>

@@ -46,7 +46,7 @@ export const WobbleCard = ({
         transition: "transform 0.1s ease-out",
       }}
       className={cn(
-        "mx-auto w-full bg-slate-950/20 backdrop-blur-xl border border-white/10 relative rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)] neon-cyan neon-blue",
+        "mx-auto w-full bg-[var(--app-bg)] backdrop-blur-xl border border-[var(--line)] relative rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)] neon-cyan neon-blue",
         "before:absolute before:inset-0 before:rounded-2xl before:border before:border-cyan-400/30 before:pointer-events-none",
         "after:absolute after:inset-0 after:rounded-2xl after:border after:border-blue-400/20 after:pointer-events-none",
         containerClassName
@@ -57,7 +57,7 @@ export const WobbleCard = ({
       } as React.CSSProperties}
     >
               <div
-          className="relative h-full bg-slate-950/10 backdrop-blur-sm sm:mx-0 sm:rounded-2xl overflow-hidden"
+          className="relative h-full bg-[var(--app-bg)] backdrop-blur-sm sm:mx-0 sm:rounded-2xl overflow-hidden"
           style={{
             boxShadow:
               "0 10px 32px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(255, 255, 255, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 6px rgba(0, 0, 0, 0.1), 0 24px 108px rgba(0, 0, 0, 0.15)",

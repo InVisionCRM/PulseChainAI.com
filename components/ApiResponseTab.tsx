@@ -25,7 +25,7 @@ const SubTabButton: React.FC<{ name: string; tabId: string; activeTab: string; o
         <button
             type="button"
             onClick={() => onClick(tabId)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus:outline-none flex-shrink-0 ${isActive ? 'text-white bg-slate-950' : 'text-slate-300 hover:bg-slate-700'}`}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus:outline-none flex-shrink-0 ${isActive ? 'text-[var(--text)] bg-[var(--app-bg)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-2)]'}`}
         >
             {name}
         </button>
@@ -47,7 +47,7 @@ const ApiResponseTab: React.FC<{ responses: Record<string, unknown> }> = ({ resp
 
     if (availableTabs.length === 0) {
         return (
-            <div className="flex items-center justify-center p-8 text-slate-400 h-full">
+            <div className="flex items-center justify-center p-8 text-[var(--text-muted)] h-full">
                 No API responses to display. Load a contract first.
             </div>
         );
@@ -55,7 +55,7 @@ const ApiResponseTab: React.FC<{ responses: Record<string, unknown> }> = ({ resp
     
     return (
         <div className="flex flex-col h-full">
-            <div className="p-2 border-b border-slate-700 bg-slate-900/50">
+            <div className="p-2 border-b border-[var(--line)] bg-[var(--panel)]">
                 <div className="flex items-center gap-2 overflow-x-auto">
                     {availableTabs.map(key => (
                         <SubTabButton
@@ -71,7 +71,7 @@ const ApiResponseTab: React.FC<{ responses: Record<string, unknown> }> = ({ resp
             <div className="flex-grow overflow-hidden">
                 {availableTabs.map(key => (
                     <div key={key} hidden={activeTab !== key} className="h-full flex flex-col">
-                         <div className="p-2 bg-slate-900 text-xs text-slate-400 font-mono border-b border-slate-700">
+                         <div className="p-2 bg-[var(--panel)] text-xs text-[var(--text-muted)] font-mono border-b border-[var(--line)]">
                             GET {API_ENDPOINT_MAP[key] || ''}
                          </div>
                          <div className="flex-grow overflow-auto p-4 font-mono text-sm">

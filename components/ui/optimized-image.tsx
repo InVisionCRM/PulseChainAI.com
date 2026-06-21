@@ -71,7 +71,7 @@ export function OptimizedImage({
           <div className="absolute inset-0 bg-gray-200 animate-pulse" />
         )}
         {error && (
-          <div className="absolute inset-0 bg-gray-300 flex items-center justify-center text-gray-500 text-xs">
+          <div className="absolute inset-0 bg-gray-300 flex items-center justify-center text-[var(--text-muted)] text-xs">
             Failed to load
           </div>
         )}

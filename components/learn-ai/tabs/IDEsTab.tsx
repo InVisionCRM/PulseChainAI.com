@@ -75,20 +75,20 @@ export default function IDEsTab() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.3 }}
-      className="rounded-lg border border-white/10 bg-white/5 p-6"
+      className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6"
     >
       <h2 className="mb-6 text-2xl font-bold text-[#FA4616]">Development Environments</h2>
-      <p className="mb-6 text-white/70">
+      <p className="mb-6 text-[var(--text-muted)]">
         Choose the right development environment for your AI-assisted coding journey. Each IDE offers unique features and learning curves.
       </p>
 
       <div className="grid gap-6 md:grid-cols-2">
         {ides.map((ide, index) => (
-          <div key={ide.name} className="rounded-lg border border-white/20 bg-white/5 p-4">
+          <div key={ide.name} className="rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] p-4">
             <div className="flex items-center gap-3 mb-3">
               {ide.icon}
               <div>
-                <h3 className="font-semibold text-white">{ide.name}</h3>
+                <h3 className="font-semibold text-[var(--text)]">{ide.name}</h3>
                 <a
                   href={ide.url}
                   target="_blank"
@@ -99,18 +99,18 @@ export default function IDEsTab() {
                 </a>
               </div>
             </div>
-            <p className="text-sm text-white/70 mb-3">
+            <p className="text-sm text-[var(--text-muted)] mb-3">
               {ide.description}
             </p>
             <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-white/90">Key Features:</h4>
-              <ul className="text-xs text-white/60 space-y-1">
+              <h4 className="text-sm font-semibold text-[var(--text)]">Key Features:</h4>
+              <ul className="text-xs text-[var(--text-muted)] space-y-1">
                 {ide.extensions.map((feature, idx) => (
                   <li key={idx}>• {feature}</li>
                 ))}
               </ul>
             </div>
-            <div className="mt-3 pt-3 border-t border-white/10">
+            <div className="mt-3 pt-3 border-t border-[var(--line)]">
               <p className="text-xs text-[#FA4616] font-semibold">{ide.bestFor}</p>
             </div>
           </div>
@@ -118,12 +118,12 @@ export default function IDEsTab() {
       </div>
 
       {/* AI Integration Tips */}
-      <div className="mt-8 rounded-lg border border-white/20 bg-white/5 p-6">
-        <h3 className="text-xl font-semibold text-white mb-4">AI Integration Tips</h3>
+      <div className="mt-8 rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] p-6">
+        <h3 className="text-xl font-semibold text-[var(--text)] mb-4">AI Integration Tips</h3>
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <h4 className="font-semibold text-[#FA4616] mb-2">Cursor-Specific Features</h4>
-            <ul className="text-sm text-white/80 space-y-1">
+            <ul className="text-sm text-[var(--text)] space-y-1">
               <li>• Built-in AI chat interface</li>
               <li>• Code generation from natural language</li>
               <li>• Multi-file context understanding</li>
@@ -132,7 +132,7 @@ export default function IDEsTab() {
           </div>
           <div>
             <h4 className="font-semibold text-[#FA4616] mb-2">VS Code AI Extensions</h4>
-            <ul className="text-sm text-white/80 space-y-1">
+            <ul className="text-sm text-[var(--text)] space-y-1">
               <li>• GitHub Copilot for code completion</li>
               <li>• Tabnine for intelligent suggestions</li>
               <li>• CodeStream for AI code reviews</li>

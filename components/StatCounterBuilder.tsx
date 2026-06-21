@@ -352,7 +352,7 @@ export default function StatCounterBuilder() {
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: 'url(/Mirage.jpg)' }} /* eslint-disable-line react/forbid-dom-props */
           />
-          <div className="absolute inset-0 bg-slate-950/40" />
+          <div className="absolute inset-0 bg-[var(--app-bg)]" />
         </div>
         {currentView === 'preview' ? (
           /* Preview View */
@@ -380,7 +380,7 @@ export default function StatCounterBuilder() {
             </div>
 
             {/* Zoom indicator */}
-            <div className="absolute bottom-3 right-4 bg-slate-950/70 text-white text-xs px-2 py-1 rounded-md border border-white/10">
+            <div className="absolute bottom-3 right-4 bg-[var(--app-bg)] text-[var(--text)] text-xs px-2 py-1 rounded-md border border-[var(--line)]">
               {Math.round(zoom * 100)}%
             </div>
           </div>
@@ -392,12 +392,12 @@ export default function StatCounterBuilder() {
               <h2 className="text-xl font-semibold mb-4 text-blue-400">
                 Code Generation
               </h2>
-              <p className="text-gray-300 mb-6">
+              <p className="text-[var(--text-muted)] mb-6">
                 Generate embeddable code for your dashboard
               </p>
               <button
                 onClick={() => setCodeModalOpen(true)}
-                className="bg-slate-950 hover:bg-slate-950 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)] text-[var(--text)] px-6 py-3 rounded-lg font-medium transition-colors"
               >
                 Generate Code
               </button>
@@ -407,7 +407,7 @@ export default function StatCounterBuilder() {
       </div>
 
       {/* Search Bar at Bottom */}
-      <div className="p-4 bg-slate-950/80 backdrop-blur-xl border-t border-white/20">
+      <div className="p-4 bg-[var(--app-bg)] backdrop-blur-xl border-t border-[var(--line-strong)]">
         <div className="max-w-2xl mx-auto relative">
           <div className="relative">
             <input
@@ -417,7 +417,7 @@ export default function StatCounterBuilder() {
               onFocus={handleInputFocus}
               onBlur={handleInputBlur}
               placeholder="Search for tokens to add to your dashboard..."
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300"
+              className="w-full bg-[var(--surface-2)] border border-[var(--line-strong)] rounded-xl px-4 py-3 text-[var(--text)] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300"
               disabled={isSearching}
             />
             
@@ -436,7 +436,7 @@ export default function StatCounterBuilder() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
-                className="absolute z-50 w-full bottom-full mb-2 bg-slate-950/90 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl max-h-80 overflow-y-auto"
+                className="absolute z-50 w-full bottom-full mb-2 bg-[var(--app-bg)] backdrop-blur-xl border border-[var(--line-strong)] rounded-xl shadow-2xl max-h-80 overflow-y-auto"
               >
                 {searchResults.map((token, index) => (
                   <motion.div
@@ -444,7 +444,7 @@ export default function StatCounterBuilder() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    className="p-4 hover:bg-white/10 cursor-pointer border-b border-white/10 last:border-b-0 transition-all duration-200"
+                    className="p-4 hover:bg-[var(--surface-2)] cursor-pointer border-b border-[var(--line)] last:border-b-0 transition-all duration-200"
                     onClick={() => {
                       handleAddToken(token);
                     }}
@@ -452,8 +452,8 @@ export default function StatCounterBuilder() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-1">
-                          <span className="font-semibold text-white">{token.name}</span>
-                          <span className="text-sm text-gray-300">({token.symbol})</span>
+                          <span className="font-semibold text-[var(--text)]">{token.name}</span>
+                          <span className="text-sm text-[var(--text-muted)]">({token.symbol})</span>
                         </div>
                         <div className="text-sm text-blue-400 font-mono">
                           {token.address.length > 20 
@@ -463,7 +463,7 @@ export default function StatCounterBuilder() {
                         </div>
                       </div>
                       <div 
-                        className="ml-4 bg-slate-950 hover:bg-slate-950 hover:scale-110 text-white p-3 rounded-lg transition-all duration-200 z-50 relative cursor-pointer border-2 border-blue-400"
+                        className="ml-4 bg-[var(--app-bg)] hover:bg-[var(--app-bg)] hover:scale-110 text-[var(--text)] p-3 rounded-lg transition-all duration-200 z-50 relative cursor-pointer border-2 border-blue-400"
                         style={{ 
                           pointerEvents: 'auto',
                           transform: 'translateZ(0)',

@@ -191,8 +191,8 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
     const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
     return (
-      <div className="flex flex-col sm:flex-row items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-t border-white/10 gap-2 sm:gap-0">
-        <div className="text-xs sm:text-sm text-slate-400 order-2 sm:order-1">
+      <div className="flex flex-col sm:flex-row items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-t border-[var(--line)] gap-2 sm:gap-0">
+        <div className="text-xs sm:text-sm text-[var(--text-muted)] order-2 sm:order-1">
           <span className="hidden sm:inline">Showing {startItem} to {endItem} of {totalItems} stakes</span>
           <span className="sm:hidden">{startItem}-{endItem} of {totalItems}</span>
         </div>
@@ -200,18 +200,18 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
           <button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className="px-2 sm:px-3 py-1 text-xs sm:text-sm rounded bg-white/5 border border-white/10 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/10"
+            className="px-2 sm:px-3 py-1 text-xs sm:text-sm rounded bg-[var(--surface)] border border-[var(--line)] text-[var(--text)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--surface-2)]"
           >
             <span className="hidden sm:inline">Previous</span>
             <span className="sm:hidden">Prev</span>
           </button>
-          <span className="text-xs sm:text-sm text-slate-400 px-1 sm:px-2">
+          <span className="text-xs sm:text-sm text-[var(--text-muted)] px-1 sm:px-2">
             {currentPage}/{totalPages}
           </span>
           <button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="px-2 sm:px-3 py-1 text-xs sm:text-sm rounded bg-white/5 border border-white/10 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/10"
+            className="px-2 sm:px-3 py-1 text-xs sm:text-sm rounded bg-[var(--surface)] border border-[var(--line)] text-[var(--text)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--surface-2)]"
           >
             Next
           </button>
@@ -247,11 +247,11 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
     return (
       <div className="text-center py-8 sm:py-12 px-4">
         <RefreshCw className="w-8 h-8 sm:w-12 sm:h-12 animate-spin text-blue-500 mx-auto mb-3 sm:mb-4" />
-        <h2 className="text-lg sm:text-xl font-semibold text-white mb-2">
+        <h2 className="text-lg sm:text-xl font-semibold text-[var(--text)] mb-2">
           <span className="hidden sm:inline">Loading Multi-Network HEX Staking Data...</span>
           <span className="sm:hidden">Loading Staking Data...</span>
         </h2>
-        <p className="text-sm sm:text-base text-slate-400">
+        <p className="text-sm sm:text-base text-[var(--text-muted)]">
           <span className="hidden sm:inline">Fetching data from Ethereum & PulseChain Graph APIs</span>
           <span className="sm:hidden">Fetching API data...</span>
         </p>
@@ -311,7 +311,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
           <p className="mb-4">{stakingError}</p>
           <button
             onClick={loadStakingData}
-            className="bg-slate-950 hover:bg-slate-950 text-white font-bold py-2 px-4 rounded"
+            className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)] text-[var(--text)] font-bold py-2 px-4 rounded"
           >
             Try Again
           </button>
@@ -332,7 +332,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
   return (
     <div className="space-y-6">
       {/* Mobile-optimized Cache & Database Status Display */}
-      <div className="bg-white/5 backdrop-blur border border-white/10 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+      <div className="bg-[var(--surface)] backdrop-blur border border-[var(--line)] rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
         <h4 className="text-xs sm:text-sm font-semibold text-blue-400 mb-2 sm:mb-3">
           <span className="hidden sm:inline">🔧 PulseChain Data Status</span>
           <span className="sm:hidden">🔧 Data Status</span>
@@ -353,23 +353,23 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
           {cacheStatus.databaseAvailable && cacheStatus.databaseCounts && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs">
               <div className="truncate">
-                <span className="text-slate-400 hidden sm:inline">DB Stakes:</span>
-                <span className="text-slate-400 sm:hidden">Stakes:</span>
+                <span className="text-[var(--text-muted)] hidden sm:inline">DB Stakes:</span>
+                <span className="text-[var(--text-muted)] sm:hidden">Stakes:</span>
                 <span className="ml-1 sm:ml-2 text-blue-300 font-semibold">{cacheStatus.databaseCounts.stakeStarts.toLocaleString()}</span>
               </div>
               <div className="truncate">
-                <span className="text-slate-400 hidden sm:inline">DB Ends:</span>
-                <span className="text-slate-400 sm:hidden">Ends:</span>
+                <span className="text-[var(--text-muted)] hidden sm:inline">DB Ends:</span>
+                <span className="text-[var(--text-muted)] sm:hidden">Ends:</span>
                 <span className="ml-1 sm:ml-2 text-blue-300 font-semibold">{cacheStatus.databaseCounts.stakeEnds.toLocaleString()}</span>
               </div>
               <div className="truncate">
-                <span className="text-slate-400 hidden sm:inline">DB Global:</span>
-                <span className="text-slate-400 sm:hidden">Global:</span>
+                <span className="text-[var(--text-muted)] hidden sm:inline">DB Global:</span>
+                <span className="text-[var(--text-muted)] sm:hidden">Global:</span>
                 <span className="ml-1 sm:ml-2 text-blue-300 font-semibold">{cacheStatus.databaseCounts.globalInfo.toLocaleString()}</span>
               </div>
               <div className="truncate">
-                <span className="text-slate-400 hidden sm:inline">DB Metrics:</span>
-                <span className="text-slate-400 sm:hidden">Metrics:</span>
+                <span className="text-[var(--text-muted)] hidden sm:inline">DB Metrics:</span>
+                <span className="text-[var(--text-muted)] sm:hidden">Metrics:</span>
                 <span className="ml-1 sm:ml-2 text-blue-300 font-semibold">{cacheStatus.databaseCounts.stakerMetrics.toLocaleString()}</span>
               </div>
             </div>
@@ -379,32 +379,32 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
         {/* Memory Cache Status - Mobile Compact */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 text-xs">
           <div className="truncate">
-            <span className="text-slate-400 hidden sm:inline">Memory Cache:</span>
-            <span className="text-slate-400 sm:hidden">Cache:</span>
+            <span className="text-[var(--text-muted)] hidden sm:inline">Memory Cache:</span>
+            <span className="text-[var(--text-muted)] sm:hidden">Cache:</span>
             <span className={`ml-1 sm:ml-2 ${cacheStatus.hasStakeStarts ? 'text-green-400' : 'text-red-400'}`}>
               {cacheStatus.hasStakeStarts ? '✅' : '❌'}
               <span className="hidden sm:inline ml-1">{cacheStatus.hasStakeStarts ? 'Active' : 'Empty'}</span>
             </span>
           </div>
           <div className="truncate">
-            <span className="text-slate-400 hidden sm:inline">Stake Ends:</span>
-            <span className="text-slate-400 sm:hidden">Ends:</span>
+            <span className="text-[var(--text-muted)] hidden sm:inline">Stake Ends:</span>
+            <span className="text-[var(--text-muted)] sm:hidden">Ends:</span>
             <span className={`ml-1 sm:ml-2 ${cacheStatus.hasStakeEnds ? 'text-green-400' : 'text-red-400'}`}>
               {cacheStatus.hasStakeEnds ? '✅' : '❌'}
               <span className="hidden sm:inline ml-1">{cacheStatus.hasStakeEnds ? 'Cached' : 'Not Cached'}</span>
             </span>
           </div>
           <div className="truncate">
-            <span className="text-slate-400 hidden sm:inline">Active Stakes:</span>
-            <span className="text-slate-400 sm:hidden">Active:</span>
+            <span className="text-[var(--text-muted)] hidden sm:inline">Active Stakes:</span>
+            <span className="text-[var(--text-muted)] sm:hidden">Active:</span>
             <span className={`ml-1 sm:ml-2 ${cacheStatus.hasActiveStakes ? 'text-green-400' : 'text-red-400'}`}>
               {cacheStatus.hasActiveStakes ? '✅' : '❌'}
               <span className="hidden sm:inline ml-1">{cacheStatus.hasActiveStakes ? 'Cached' : 'Not Cached'}</span>
             </span>
           </div>
           <div className="truncate">
-            <span className="text-slate-400 hidden sm:inline">Cache Age:</span>
-            <span className="text-slate-400 sm:hidden">Age:</span>
+            <span className="text-[var(--text-muted)] hidden sm:inline">Cache Age:</span>
+            <span className="text-[var(--text-muted)] sm:hidden">Age:</span>
             <span className={`ml-1 sm:ml-2 ${cacheStatus.isExpired ? 'text-yellow-400' : 'text-green-400'}`}>
               {cacheStatus.cacheAge ? `${cacheStatus.cacheAge}s` : 'N/A'}
             </span>
@@ -413,23 +413,23 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
       </div>
 
       {/* Pagination Info */}
-      <div className="bg-slate-950/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+      <div className="bg-[var(--app-bg)] border border-blue-500/30 rounded-lg p-4 mb-6">
         <h4 className="text-sm font-semibold text-blue-400 mb-2">📄 Pagination Features</h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div>
-            <span className="text-slate-300">📊 All Stake Starts:</span>
+            <span className="text-[var(--text-muted)]">📊 All Stake Starts:</span>
             <span className="ml-2 text-blue-300">
               {allStakeStarts.length > 0 ? `${allStakeStarts.length} stakes (${allStakesPerPage} per page)` : 'Not loaded'}
             </span>
           </div>
           <div>
-            <span className="text-slate-300">📊 Active Stakes:</span>
+            <span className="text-[var(--text-muted)]">📊 Active Stakes:</span>
             <span className="ml-2 text-blue-300">
               {activeStakes.length > 0 ? `${activeStakes.length} stakes (${activeStakesPerPage} per page)` : 'Not loaded'}
             </span>
           </div>
           <div>
-            <span className="text-slate-300">📊 PulseChain Data:</span>
+            <span className="text-[var(--text-muted)]">📊 PulseChain Data:</span>
             <span className="ml-2 text-blue-300">
               {pulsechainStakeStarts.length > 0 ? `${pulsechainStakeStarts.length} stakes` : 'Not loaded'} | 
               {pulsechainActiveStakes.length > 0 ? ` ${pulsechainActiveStakes.length} active` : ' Not loaded'}
@@ -443,13 +443,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
             <span className="font-semibold">💾 Full Dataset Status:</span>
             <div className="mt-1 grid grid-cols-2 gap-2">
               <div>
-                <span className="text-slate-300">Ethereum:</span>
+                <span className="text-[var(--text-muted)]">Ethereum:</span>
                 <span className="ml-2 text-green-400">
                   {allStakeStarts.length > 0 ? `${allStakeStarts.length} total stakes` : 'Not loaded'}
                 </span>
               </div>
               <div>
-                <span className="text-slate-300">PulseChain:</span>
+                <span className="text-[var(--text-muted)]">PulseChain:</span>
                 <span className="ml-2 text-blue-400">
                   {cacheStatus.totalStakeStarts > 0 ? `${cacheStatus.totalStakeStarts} total stakes` : 'Not loaded'}
                 </span>
@@ -460,14 +460,14 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
       </div>
 
       {/* Mobile-optimized Staking Sub-Tabs */}
-      <div className="border-b border-white/10 mb-4 sm:mb-6">
+      <div className="border-b border-[var(--line)] mb-4 sm:mb-6">
         <nav className="-mb-px flex flex-wrap gap-1 sm:gap-4 lg:gap-8">
           <button
             onClick={() => handleTabChange('overview')}
             className={`py-1.5 sm:py-2 px-2 sm:px-3 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
               stakingSubTab === 'overview'
                 ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-slate-400 hover:text-slate-300'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-muted)]'
             }`}
           >
             <span className="hidden sm:inline">Overview & Top Stakes</span>
@@ -483,7 +483,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
             className={`py-1.5 sm:py-2 px-2 sm:px-3 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
               stakingSubTab === 'all-stakes'
                 ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-slate-400 hover:text-slate-300'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-muted)]'
             }`}
           >
             <span className="hidden sm:inline">All Stake Starts</span>
@@ -499,7 +499,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
             className={`py-1.5 sm:py-2 px-2 sm:px-3 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 whitespace-nowrap ${
               stakingSubTab === 'active-stakes'
                 ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-slate-400 hover:text-slate-300'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-muted)]'
             }`}
           >
             <Users className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -512,9 +512,9 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
       {stakingSubTab === 'overview' && (
         <>
           {/* Mobile-optimized Staking Overview Metrics */}
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] p-4 sm:p-6">
+          <div className="bg-[var(--surface)] backdrop-blur-xl border border-[var(--line)] rounded-xl sm:rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0">
-              <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+              <h3 className="text-lg sm:text-xl font-bold text-[var(--text)] flex items-center gap-2">
                 <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="hidden sm:inline">Multi-Network HEX Staking Overview</span>
                 <span className="sm:hidden">Staking Overview</span>
@@ -522,7 +522,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
               <button
                 onClick={loadStakingData}
                 disabled={isLoadingStaking}
-                className="bg-slate-950 hover:bg-slate-950 disabled:bg-blue-400 text-white font-bold py-2 px-3 sm:px-4 rounded-lg flex items-center gap-2 text-sm sm:text-base"
+                className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)] disabled:bg-blue-400 text-[var(--text)] font-bold py-2 px-3 sm:px-4 rounded-lg flex items-center gap-2 text-sm sm:text-base"
               >
                 <RefreshCw className={`w-3 h-3 sm:w-4 sm:h-4 ${isLoadingStaking ? 'animate-spin' : ''}`} />
                 <span className="hidden sm:inline">Refresh</span>
@@ -532,39 +532,39 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
 
             {/* Mobile-optimized Combined Network Metrics */}
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
-              <div className="text-center bg-white/5 backdrop-blur rounded-lg p-3 sm:p-4 border border-white/10">
+              <div className="text-center bg-[var(--surface)] backdrop-blur rounded-lg p-3 sm:p-4 border border-[var(--line)]">
                 <div className="text-lg sm:text-2xl font-bold text-blue-400">
                   {combinedData.latestStakeId || 'N/A'}
                 </div>
-                <div className="text-xs sm:text-sm text-slate-400">
+                <div className="text-xs sm:text-sm text-[var(--text-muted)]">
                   <span className="hidden sm:inline">Latest Stake ID</span>
                   <span className="sm:hidden">Latest ID</span>
               </div>
                 </div>
-              <div className="text-center bg-white/5 backdrop-blur rounded-lg p-3 sm:p-4 border border-white/10">
+              <div className="text-center bg-[var(--surface)] backdrop-blur rounded-lg p-3 sm:p-4 border border-[var(--line)]">
                 <div className="text-lg sm:text-2xl font-bold text-blue-400">
                   {combinedData.totalActiveStakes.toLocaleString()}
               </div>
-                <div className="text-xs sm:text-sm text-slate-400">
+                <div className="text-xs sm:text-sm text-[var(--text-muted)]">
                   <span className="hidden sm:inline">Total Active Stakes</span>
                   <span className="sm:hidden">Active Stakes</span>
                 </div>
               </div>
-              <div className="text-center bg-white/5 backdrop-blur rounded-lg p-3 sm:p-4 border border-white/10">
+              <div className="text-center bg-[var(--surface)] backdrop-blur rounded-lg p-3 sm:p-4 border border-[var(--line)]">
                 <div className="text-lg sm:text-2xl font-bold text-green-400">
                   <span className="hidden sm:inline">{hexStakingService.formatHexAmount(combinedData.totalStakedHearts)} HEX</span>
                   <span className="sm:hidden">{hexStakingService.formatHexAmount(combinedData.totalStakedHearts, true)}</span>
                 </div>
-                <div className="text-xs sm:text-sm text-slate-400">
+                <div className="text-xs sm:text-sm text-[var(--text-muted)]">
                   <span className="hidden sm:inline">Total Staked</span>
                   <span className="sm:hidden">Total HEX</span>
                 </div>
               </div>
-              <div className="text-center bg-white/5 backdrop-blur rounded-lg p-3 sm:p-4 border border-white/10">
+              <div className="text-center bg-[var(--surface)] backdrop-blur rounded-lg p-3 sm:p-4 border border-[var(--line)]">
                 <div className="text-lg sm:text-2xl font-bold text-orange-400">
                   {hexStakingService.formatStakeLength(combinedData.averageStakeLength)}
                 </div>
-                <div className="text-xs sm:text-sm text-slate-400">
+                <div className="text-xs sm:text-sm text-[var(--text-muted)]">
                   <span className="hidden sm:inline">Avg Stake Length</span>
                   <span className="sm:hidden">Avg Length</span>
                 </div>
@@ -572,8 +572,8 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
             </div>
 
             {/* Network Breakdown */}
-            <div className="border-t border-white/10 pt-4">
-              <h4 className="text-md font-semibold text-white mb-3">Network Breakdown</h4>
+            <div className="border-t border-[var(--line)] pt-4">
+              <h4 className="text-md font-semibold text-[var(--text)] mb-3">Network Breakdown</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Ethereum Network */}
                 <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
@@ -583,14 +583,14 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
-                      <div className="text-white font-bold">{ethereumData?.totalActiveStakes?.toLocaleString() || '0'}</div>
-                      <div className="text-slate-400">Active Stakes</div>
+                      <div className="text-[var(--text)] font-bold">{ethereumData?.totalActiveStakes?.toLocaleString() || '0'}</div>
+                      <div className="text-[var(--text-muted)]">Active Stakes</div>
                     </div>
                     <div>
                       <div className="text-blue-400 font-bold">
                         {ethereumData ? hexStakingService.formatHexAmount(ethereumData.totalStakedHearts) : '0 HEX'}
                       </div>
-                      <div className="text-slate-400">Total Staked</div>
+                      <div className="text-[var(--text-muted)]">Total Staked</div>
                     </div>
                   </div>
                 </div>
@@ -603,46 +603,46 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
-                      <div className="text-white font-bold">{pulsechainData?.totalActiveStakes?.toLocaleString() || '0'}</div>
-                      <div className="text-slate-400">Active Stakes</div>
+                      <div className="text-[var(--text)] font-bold">{pulsechainData?.totalActiveStakes?.toLocaleString() || '0'}</div>
+                      <div className="text-[var(--text-muted)]">Active Stakes</div>
                     </div>
                     <div>
                       <div className="text-blue-400 font-bold">
                         {pulsechainData ? hexStakingService.formatHexAmount(pulsechainData.totalStakedHearts) : '0 HEX'}
                       </div>
-                      <div className="text-slate-400">Total Staked</div>
+                      <div className="text-[var(--text-muted)]">Total Staked</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-6 border-t border-white/10 pt-4">
-              <h4 className="text-md font-semibold text-white mb-3">Protocol Global Metrics</h4>
+            <div className="mt-6 border-t border-[var(--line)] pt-4">
+              <h4 className="text-md font-semibold text-[var(--text)] mb-3">Protocol Global Metrics</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center bg-white/5 backdrop-blur rounded-lg p-3 border border-white/10">
+                <div className="text-center bg-[var(--surface)] backdrop-blur rounded-lg p-3 border border-[var(--line)]">
                   <div className="text-lg font-bold text-cyan-400">
                     {combinedData.totalStakeShares ? hexStakingService.formatTShareAmount(combinedData.totalStakeShares) : 'N/A'}
                   </div>
-                  <div className="text-xs text-slate-400">Stake Shares Total</div>
+                  <div className="text-xs text-[var(--text-muted)]">Stake Shares Total</div>
                 </div>
-                <div className="text-center bg-white/5 backdrop-blur rounded-lg p-3 border border-white/10">
+                <div className="text-center bg-[var(--surface)] backdrop-blur rounded-lg p-3 border border-[var(--line)]">
                   <div className="text-lg font-bold text-yellow-400">
                     {combinedData.hexDay || 'N/A'}
                   </div>
-                  <div className="text-xs text-slate-400">Current HEX Day</div>
+                  <div className="text-xs text-[var(--text-muted)]">Current HEX Day</div>
                 </div>
-                <div className="text-center bg-white/5 backdrop-blur rounded-lg p-3 border border-white/10">
+                <div className="text-center bg-[var(--surface)] backdrop-blur rounded-lg p-3 border border-[var(--line)]">
                   <div className="text-lg font-bold text-emerald-400">
                     {ethereumData?.globalInfo ? hexStakingService.formatHexAmount(ethereumData.globalInfo.lockedHeartsTotal) : 'N/A'} HEX
                   </div>
-                  <div className="text-xs text-slate-400">Locked Hearts Total</div>
+                  <div className="text-xs text-[var(--text-muted)]">Locked Hearts Total</div>
                 </div>
-                <div className="text-center bg-white/5 backdrop-blur rounded-lg p-3 border border-white/10">
+                <div className="text-center bg-[var(--surface)] backdrop-blur rounded-lg p-3 border border-[var(--line)]">
                   <div className="text-lg font-bold text-red-400">
                     {ethereumData?.globalInfo ? hexStakingService.formatHexAmount(ethereumData.globalInfo.stakePenaltyTotal) : 'N/A'} HEX
                   </div>
-                  <div className="text-xs text-slate-400">Penalties Total</div>
+                  <div className="text-xs text-[var(--text-muted)]">Penalties Total</div>
                 </div>
               </div>
             </div>
@@ -654,9 +654,9 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
       )}
 
       {stakingSubTab === 'all-stakes' && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-            <h4 className="text-lg font-semibold text-white">All HEX Stake Start Events (Ethereum)</h4>
+        <div className="bg-[var(--surface)] backdrop-blur-xl border border-[var(--line)] rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--line)]">
+            <h4 className="text-lg font-semibold text-[var(--text)]">All HEX Stake Start Events (Ethereum)</h4>
             {isLoadingAllStakes && (
               <RefreshCw className="w-5 h-5 animate-spin text-blue-400" />
             )}
@@ -665,16 +665,16 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
           {isLoadingAllStakes ? (
             <div className="p-8 text-center">
               <RefreshCw className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-4" />
-              <p className="text-white">Loading all Ethereum stake start events...</p>
-              <p className="text-sm text-slate-400">This may take a moment...</p>
+              <p className="text-[var(--text)]">Loading all Ethereum stake start events...</p>
+              <p className="text-sm text-[var(--text-muted)]">This may take a moment...</p>
             </div>
           ) : allStakeStarts.length > 0 ? (
             <div className="overflow-auto max-h-[70vh]">
-              <table className="min-w-full divide-y divide-white/10">
-                <thead className="bg-slate-900 text-white sticky top-0">
+              <table className="min-w-full divide-y divide-[var(--line)]">
+                <thead className="bg-[var(--panel)] text-[var(--text)] sticky top-0">
                   <tr>
                     <th 
-                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-[var(--panel)] transition-colors"
                       onClick={() => handleAllStakesSort('stakeId')}
                     >
                       <div className="flex items-center gap-1">
@@ -684,7 +684,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Staker Address</th>
                     <th 
-                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-[var(--panel)] transition-colors"
                       onClick={() => handleAllStakesSort('stakedHearts')}
                     >
                       <div className="flex items-center gap-1">
@@ -694,7 +694,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">T-Shares</th>
                     <th 
-                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-[var(--panel)] transition-colors"
                       onClick={() => handleAllStakesSort('stakedDays')}
                     >
                       <div className="flex items-center gap-1">
@@ -703,7 +703,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                       </div>
                     </th>
                     <th 
-                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-[var(--panel)] transition-colors"
                       onClick={() => handleAllStakesSort('startDay')}
                     >
                       <div className="flex items-center gap-1">
@@ -715,13 +715,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Date</th>
                   </tr>
                 </thead>
-                <tbody className="bg-transparent divide-y divide-white/10">
+                <tbody className="bg-transparent divide-y divide-[var(--line)]">
                   {paginatedAllStakes.map((stake) => (
-                    <tr key={stake.id} className="hover:bg-white/5">
-                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white">
+                    <tr key={stake.id} className="hover:bg-[var(--surface)]">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-[var(--text)]">
                         {stake.stakeId}
                       </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-300 font-mono">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-[var(--text-muted)] font-mono">
                         <button
                           onClick={() => handleStakerClick(stake.stakerAddr)}
                           className="hover:text-green-400 transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
@@ -766,10 +766,10 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
             </div>
           ) : (
             <div className="p-8 text-center">
-              <p className="text-white mb-2">No Ethereum stake start events loaded</p>
+              <p className="text-[var(--text)] mb-2">No Ethereum stake start events loaded</p>
               <button
                 onClick={loadAllStakeStarts}
-                className="bg-slate-950 hover:bg-slate-950 text-white font-bold py-2 px-4 rounded"
+                className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)] text-[var(--text)] font-bold py-2 px-4 rounded"
               >
                 Load Ethereum Stakes
               </button>
@@ -780,9 +780,9 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
 
       {/* PulseChain All Stake Starts Section */}
       {stakingSubTab === 'all-stakes' && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-            <h4 className="text-lg font-semibold text-white">All HEX Stake Start Events (PulseChain)</h4>
+        <div className="bg-[var(--surface)] backdrop-blur-xl border border-[var(--line)] rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--line)]">
+            <h4 className="text-lg font-semibold text-[var(--text)]">All HEX Stake Start Events (PulseChain)</h4>
             {isLoadingPulsechainStakes && (
               <RefreshCw className="w-5 h-5 animate-spin text-blue-400" />
             )}
@@ -791,13 +791,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
           {isLoadingPulsechainStakes ? (
             <div className="p-8 text-center">
               <RefreshCw className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-4" />
-              <p className="text-white">Loading all PulseChain stake start events...</p>
-              <p className="text-sm text-slate-400">This may take a moment...</p>
+              <p className="text-[var(--text)]">Loading all PulseChain stake start events...</p>
+              <p className="text-sm text-[var(--text-muted)]">This may take a moment...</p>
             </div>
           ) : pulsechainStakeStarts.length > 0 ? (
             <div className="overflow-auto max-h-[70vh]">
-              <table className="min-w-full divide-y divide-white/10">
-                <thead className="bg-slate-900 text-white sticky top-0">
+              <table className="min-w-full divide-y divide-[var(--line)]">
+                <thead className="bg-[var(--panel)] text-[var(--text)] sticky top-0">
                   <tr>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Stake ID</th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Staker Address</th>
@@ -809,13 +809,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Date</th>
                   </tr>
                 </thead>
-                <tbody className="bg-transparent divide-y divide-white/10">
+                <tbody className="bg-transparent divide-y divide-[var(--line)]">
                   {paginatedPulsechainStakeStarts.map((stake) => (
-                    <tr key={stake.id} className="hover:bg-white/5">
-                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white">
+                    <tr key={stake.id} className="hover:bg-[var(--surface)]">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-[var(--text)]">
                         {stake.stakeId}
                       </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-300 font-mono">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-[var(--text-muted)] font-mono">
                         <button
                           onClick={() => handleStakerClick(stake.stakerAddr)}
                           className="hover:text-green-400 transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
@@ -860,10 +860,10 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
             </div>
           ) : (
             <div className="p-8 text-center">
-              <p className="text-white mb-2">No PulseChain stake start events loaded</p>
+              <p className="text-[var(--text)] mb-2">No PulseChain stake start events loaded</p>
               <button
                 onClick={loadPulsechainStakeStarts}
-                className="bg-slate-950 hover:bg-slate-950 text-white font-bold py-2 px-4 rounded"
+                className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)] text-[var(--text)] font-bold py-2 px-4 rounded"
               >
                 Load PulseChain Stakes
               </button>
@@ -873,11 +873,11 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
       )}
 
       {stakingSubTab === 'active-stakes' && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div className="bg-[var(--surface)] backdrop-blur-xl border border-[var(--line)] rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--line)]">
             <div>
-              <h4 className="text-lg font-semibold text-white">All Active HEX Stakes (Ethereum)</h4>
-              <p className="text-sm text-slate-400">Stakes that have not yet ended</p>
+              <h4 className="text-lg font-semibold text-[var(--text)]">All Active HEX Stakes (Ethereum)</h4>
+              <p className="text-sm text-[var(--text-muted)]">Stakes that have not yet ended</p>
             </div>
             {isLoadingActiveStakes && (
               <RefreshCw className="w-5 h-5 animate-spin text-blue-400" />
@@ -887,16 +887,16 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
           {isLoadingActiveStakes ? (
             <div className="p-8 text-center">
               <RefreshCw className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-4" />
-              <p className="text-white">Loading all Ethereum active stakes...</p>
-              <p className="text-sm text-slate-400">Fetching and cross-referencing stake data...</p>
+              <p className="text-[var(--text)]">Loading all Ethereum active stakes...</p>
+              <p className="text-sm text-[var(--text-muted)]">Fetching and cross-referencing stake data...</p>
             </div>
           ) : activeStakes.length > 0 ? (
             <div className="overflow-auto max-h-[70vh]">
-              <table className="min-w-full divide-y divide-white/10">
-                <thead className="bg-slate-900 text-white sticky top-0">
+              <table className="min-w-full divide-y divide-[var(--line)]">
+                <thead className="bg-[var(--panel)] text-[var(--text)] sticky top-0">
                   <tr>
                     <th 
-                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-[var(--panel)] transition-colors"
                       onClick={() => handleActiveStakesSort('stakeId')}
                     >
                       <div className="flex items-center gap-1">
@@ -906,7 +906,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Staker</th>
                     <th 
-                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-[var(--panel)] transition-colors"
                       onClick={() => handleActiveStakesSort('stakedHearts')}
                     >
                       <div className="flex items-center gap-1">
@@ -916,7 +916,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">T-Shares</th>
                     <th 
-                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-[var(--panel)] transition-colors"
                       onClick={() => handleActiveStakesSort('stakedDays')}
                     >
                       <div className="flex items-center gap-1">
@@ -925,7 +925,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                       </div>
                     </th>
                     <th 
-                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-[var(--panel)] transition-colors"
                       onClick={() => handleActiveStakesSort('daysServed')}
                     >
                       <div className="flex items-center gap-1">
@@ -934,7 +934,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                       </div>
                     </th>
                     <th 
-                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors"
+                      className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-[var(--panel)] transition-colors"
                       onClick={() => handleActiveStakesSort('daysLeft')}
                     >
                       <div className="flex items-center gap-1">
@@ -946,18 +946,18 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                     <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">End Day</th>
                   </tr>
                 </thead>
-                <tbody className="bg-transparent divide-y divide-white/10">
+                <tbody className="bg-transparent divide-y divide-[var(--line)]">
                   {paginatedActiveStakes.map((stake) => {
                     const progress = stake.daysServed && stake.stakedDays 
                       ? (stake.daysServed / parseInt(stake.stakedDays)) * 100 
                       : 0;
                     
                     return (
-                      <tr key={stake.id} className="hover:bg-white/5">
-                        <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white">
+                      <tr key={stake.id} className="hover:bg-[var(--surface)]">
+                        <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-[var(--text)]">
                           {stake.stakeId}
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-slate-300">
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-[var(--text-muted)]">
                           <button
                             onClick={() => handleStakerClick(stake.stakerAddr)}
                             className="hover:text-green-400 transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
@@ -983,13 +983,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm">
                           <div className="flex items-center gap-2">
-                            <div className="w-16 bg-slate-700 rounded-full h-2">
+                            <div className="w-16 bg-[var(--surface-2)] rounded-full h-2">
                               <div 
                                 className="bg-gradient-to-r from-blue-500 to-blue-500 h-2 rounded-full transition-all"
                                 style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                               ></div>
                             </div>
-                            <span className="text-xs text-slate-400">{progress.toFixed(0)}%</span>
+                            <span className="text-xs text-[var(--text-muted)]">{progress.toFixed(0)}%</span>
                           </div>
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-cyan-400">
@@ -1015,10 +1015,10 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
             </div>
           ) : (
             <div className="p-8 text-center">
-              <p className="text-white mb-2">No Ethereum active stakes loaded</p>
+              <p className="text-[var(--text)] mb-2">No Ethereum active stakes loaded</p>
               <button
                 onClick={loadActiveStakes}
-                className="bg-slate-950 hover:bg-slate-950 text-white font-bold py-2 px-4 rounded"
+                className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)] text-[var(--text)] font-bold py-2 px-4 rounded"
               >
                 Load Ethereum Active Stakes
               </button>
@@ -1029,11 +1029,11 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
 
       {/* PulseChain Active Stakes Section */}
       {stakingSubTab === 'active-stakes' && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div className="bg-[var(--surface)] backdrop-blur-xl border border-[var(--line)] rounded-2xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)] overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--line)]">
             <div>
-              <h4 className="text-lg font-semibold text-white">All Active HEX Stakes (PulseChain)</h4>
-              <p className="text-sm text-slate-400">Stakes that have not yet ended</p>
+              <h4 className="text-lg font-semibold text-[var(--text)]">All Active HEX Stakes (PulseChain)</h4>
+              <p className="text-sm text-[var(--text-muted)]">Stakes that have not yet ended</p>
             </div>
             {isLoadingPulsechainStakes && (
               <RefreshCw className="w-5 h-5 animate-spin text-blue-400" />
@@ -1043,13 +1043,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
           {isLoadingPulsechainStakes ? (
             <div className="p-8 text-center">
               <RefreshCw className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-4" />
-              <p className="text-white">Loading all PulseChain active stakes...</p>
-              <p className="text-sm text-slate-400">Fetching and cross-referencing stake data...</p>
+              <p className="text-[var(--text)]">Loading all PulseChain active stakes...</p>
+              <p className="text-sm text-[var(--text-muted)]">Fetching and cross-referencing stake data...</p>
             </div>
           ) : pulsechainActiveStakes.length > 0 ? (
             <div className="overflow-auto max-h-[70vh]">
-              <table className="min-w-full divide-y divide-white/10">
-                <thead className="bg-slate-900 text-white sticky top-0">
+              <table className="min-w-full divide-y divide-[var(--line)]">
+                <thead className="bg-[var(--panel)] text-[var(--text)] sticky top-0">
                   <tr>
                     <th className="px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider">
                       <span className="hidden sm:inline">Stake ID</span>
@@ -1071,18 +1071,18 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                     <th className="px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider hidden sm:table-cell">End Day</th>
                   </tr>
                 </thead>
-                <tbody className="bg-transparent divide-y divide-white/10">
+                <tbody className="bg-transparent divide-y divide-[var(--line)]">
                   {paginatedPulsechainActiveStakes.map((stake) => {
                     const progress = stake.daysServed && stake.stakedDays 
                       ? (stake.daysServed / parseInt(stake.stakedDays)) * 100 
                       : 0;
                     
                     return (
-                      <tr key={stake.id} className="hover:bg-white/5">
-                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-white">
+                      <tr key={stake.id} className="hover:bg-[var(--surface)]">
+                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-[var(--text)]">
                           {stake.stakeId}
                         </td>
-                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-slate-300">
+                        <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-[var(--text-muted)]">
                           <button
                             onClick={() => handleStakerClick(stake.stakerAddr)}
                             className="hover:text-green-400 transition-colors cursor-pointer underline decoration-green-400/60 decoration-2 underline-offset-2"
@@ -1111,13 +1111,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                         </td>
                         <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
                           <div className="flex items-center gap-1 sm:gap-2">
-                            <div className="w-8 sm:w-16 bg-slate-700 rounded-full h-1.5 sm:h-2">
+                            <div className="w-8 sm:w-16 bg-[var(--surface-2)] rounded-full h-1.5 sm:h-2">
                               <div 
                                 className="bg-gradient-to-r from-blue-500 to-blue-500 h-1.5 sm:h-2 rounded-full transition-all"
                                 style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                               ></div>
                             </div>
-                            <span className="text-xs text-slate-400 hidden sm:inline">{progress.toFixed(0)}%</span>
+                            <span className="text-xs text-[var(--text-muted)] hidden sm:inline">{progress.toFixed(0)}%</span>
                           </div>
                         </td>
                         <td className="px-1 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-cyan-400 hidden sm:table-cell">
@@ -1141,7 +1141,7 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
               )}
               
               {/* Debug Info - Remove after fixing */}
-              <div className="px-6 py-2 text-xs text-slate-500 border-t border-white/10">
+              <div className="px-6 py-2 text-xs text-[var(--text-muted)] border-t border-[var(--line)]">
                 Debug: Showing {paginatedPulsechainActiveStakes.length} of {pulsechainActiveStakes.length} stakes | 
                 Page {validPulsechainActiveStakesCurrentPage} of {totalPulsechainActiveStakesPages} | 
                 Items per page: {activeStakesPerPage}
@@ -1149,13 +1149,13 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
             </div>
           ) : (
             <div className="p-6 sm:p-8 text-center">
-              <p className="text-white mb-3 text-sm sm:text-base">
+              <p className="text-[var(--text)] mb-3 text-sm sm:text-base">
                 <span className="hidden sm:inline">No PulseChain active stakes loaded</span>
                 <span className="sm:hidden">No PulseChain stakes loaded</span>
               </p>
               <button
                 onClick={loadPulsechainActiveStakes}
-                className="bg-slate-950 hover:bg-slate-950 text-white font-bold py-2 px-3 sm:px-4 rounded text-sm sm:text-base"
+                className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)] text-[var(--text)] font-bold py-2 px-3 sm:px-4 rounded text-sm sm:text-base"
               >
                 <span className="hidden sm:inline">Load PulseChain Active Stakes</span>
                 <span className="sm:hidden">Load Stakes</span>

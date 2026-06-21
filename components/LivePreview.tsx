@@ -12,16 +12,16 @@ export default function LivePreview({ config, statResults }: LivePreviewProps) {
 
   if (!config.token) {
     return (
-      <div className="rounded-lg p-4 border text-center bg-gray-800 text-white">
+      <div className="rounded-lg p-4 border text-center bg-[var(--panel)] text-[var(--text)]">
         <div className="text-6xl mb-4">📊</div>
         <h2 className="text-xl font-semibold mb-4 text-blue-400">
           Live Preview
         </h2>
-        <p className="mb-6 text-gray-300">
+        <p className="mb-6 text-[var(--text-muted)]">
           Select a token to see your stat counter preview
         </p>
-        <div className="rounded-lg p-4 bg-gray-700">
-          <p className="text-sm text-gray-300">
+        <div className="rounded-lg p-4 bg-[var(--surface-2)]">
+          <p className="text-sm text-[var(--text-muted)]">
             Open the sidebar to start building your stat counter
           </p>
         </div>
@@ -33,16 +33,16 @@ export default function LivePreview({ config, statResults }: LivePreviewProps) {
   
   if (enabledStats.length === 0) {
     return (
-      <div className="rounded-lg p-4 border border-gray-600 bg-gray-800 text-white text-center">
+      <div className="rounded-lg p-4 border border-[var(--line)] bg-[var(--panel)] text-[var(--text)] text-center">
         <div className="text-6xl mb-4">⚙️</div>
         <h2 className="text-xl font-semibold mb-4 text-blue-400">
           Configure Stats
         </h2>
-        <p className="mb-6 text-gray-300">
+        <p className="mb-6 text-[var(--text-muted)]">
           Select which statistics to display for {config.token.symbol}
         </p>
-        <div className="rounded-lg p-4 border border-gray-600 bg-gray-700">
-          <p className="text-sm text-gray-300">
+        <div className="rounded-lg p-4 border border-[var(--line)] bg-[var(--surface-2)]">
+          <p className="text-sm text-[var(--text-muted)]">
             Choose stats in the sidebar to see them here
           </p>
         </div>
@@ -55,14 +55,14 @@ export default function LivePreview({ config, statResults }: LivePreviewProps) {
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
-      className="rounded-lg p-4 border bg-gray-800 text-white"
+      className="rounded-lg p-4 border bg-[var(--panel)] text-[var(--text)]"
     >
       {/* Token Header */}
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold mb-2 text-blue-400">
           {config.token.name} ({config.token.symbol})
         </h2>
-        <p className="text-sm text-gray-300">
+        <p className="text-sm text-[var(--text-muted)]">
           {config.token.address.slice(0, 6)}...{config.token.address.slice(-4)}
         </p>
       </div>
@@ -75,10 +75,10 @@ export default function LivePreview({ config, statResults }: LivePreviewProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.1 }}
-            className="rounded-lg p-4 border bg-gray-700 text-center"
+            className="rounded-lg p-4 border bg-[var(--surface-2)] text-center"
           >
             <div className="text-center">
-              <h3 className="text-sm font-medium mb-2 text-gray-300">
+              <h3 className="text-sm font-medium mb-2 text-[var(--text-muted)]">
                 {stat.label}
               </h3>
               <div className="text-lg font-bold text-blue-400">
@@ -91,7 +91,7 @@ export default function LivePreview({ config, statResults }: LivePreviewProps) {
 
       {/* Last Updated */}
       <div className="mt-6 text-center">
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-[var(--text-muted)]">
           Last updated: {new Date().toLocaleTimeString()}
         </p>
       </div>

@@ -45,19 +45,19 @@ export default function GeickoHolderTransfersModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90/80 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--panel)] backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-5xl max-h-[90vh] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden"
+        className="relative w-full max-w-5xl max-h-[90vh] bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)] rounded-xl shadow-2xl border border-[var(--line)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between px-5 py-4 border-b border-gray-700 bg-gray-900/80 backdrop-blur">
+        <div className="flex items-start justify-between px-5 py-4 border-b border-[var(--line)] bg-[var(--panel)] backdrop-blur">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Holder activity</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">Holder activity</p>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm font-mono text-white">
+              <span className="text-sm font-mono text-[var(--text)]">
                 {truncateAddress(holderAddress)}
               </span>
               <a
@@ -72,7 +72,7 @@ export default function GeickoHolderTransfersModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            className="p-2 text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] rounded-lg transition-colors"
             aria-label="Close holder transfers"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,16 +82,16 @@ export default function GeickoHolderTransfersModal({
         </div>
 
         {/* Content */}
-        <div className="p-4 overflow-y-auto max-h-[calc(90vh-120px)] bg-gray-900">
+        <div className="p-4 overflow-y-auto max-h-[calc(90vh-120px)] bg-[var(--panel)]">
           {isLoading ? (
-            <div className="flex items-center justify-center py-10 text-gray-400 gap-3">
+            <div className="flex items-center justify-center py-10 text-[var(--text-muted)] gap-3">
               <LoaderThree />
               <span className="text-sm">Loading transfers...</span>
             </div>
           ) : error ? (
             <div className="text-center text-sm text-red-400 py-6">{error}</div>
           ) : transfers.length === 0 ? (
-            <div className="text-center text-sm text-gray-400 py-6">
+            <div className="text-center text-sm text-[var(--text-muted)] py-6">
               No transfers found for this holder.
             </div>
           ) : (
@@ -108,7 +108,7 @@ export default function GeickoHolderTransfersModal({
                 return (
                   <div
                     key={tx.txHash}
-                    className="rounded-lg border border-gray-700 bg-gray-800/70 p-3 shadow-sm"
+                    className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3 shadow-sm"
                   >
                     {/* Transaction Summary */}
                     <div className="flex items-center justify-between gap-3">
@@ -116,12 +116,12 @@ export default function GeickoHolderTransfersModal({
                         <span className={`text-[11px] px-2 py-1 rounded-full border ${badgeClasses}`}>
                           {tx.direction}
                         </span>
-                        <span className="text-white font-semibold">
+                        <span className="text-[var(--text)] font-semibold">
                           {tx.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}{' '}
                           {tokenSymbol}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                         <span>{tx.timestamp ? formatDateUTC(tx.timestamp) : '—'}</span>
                         <a
                           href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${tx.txHash}`}
@@ -134,7 +134,7 @@ export default function GeickoHolderTransfersModal({
                         <button
                           type="button"
                           onClick={() => onToggleExpand(tx.txHash)}
-                          className="text-blue-300 hover:text-white transition-colors"
+                          className="text-blue-300 hover:text-[var(--text)] transition-colors"
                         >
                           {isExpanded ? 'Hide details' : 'Details'}
                         </button>
@@ -143,10 +143,10 @@ export default function GeickoHolderTransfersModal({
 
                     {/* Expanded Details */}
                     {isExpanded && (
-                      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-200">
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-[var(--text)]">
                         {/* From Address */}
-                        <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
-                          <p className="text-gray-400">From</p>
+                        <div className="bg-[var(--panel)] border border-[var(--line)] rounded-lg p-2">
+                          <p className="text-[var(--text-muted)]">From</p>
                           <a
                             href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${tx.from}`}
                             target="_blank"
@@ -158,8 +158,8 @@ export default function GeickoHolderTransfersModal({
                         </div>
 
                         {/* To Address */}
-                        <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2">
-                          <p className="text-gray-400">To</p>
+                        <div className="bg-[var(--panel)] border border-[var(--line)] rounded-lg p-2">
+                          <p className="text-[var(--text-muted)]">To</p>
                           <a
                             href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${tx.to}`}
                             target="_blank"
@@ -171,8 +171,8 @@ export default function GeickoHolderTransfersModal({
                         </div>
 
                         {/* Transaction Hash */}
-                        <div className="bg-slate-900/90/30 border border-gray-700 rounded-lg p-2 md:col-span-2">
-                          <p className="text-gray-400">Transaction</p>
+                        <div className="bg-[var(--panel)] border border-[var(--line)] rounded-lg p-2 md:col-span-2">
+                          <p className="text-[var(--text-muted)]">Transaction</p>
                           <a
                             href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${tx.txHash}`}
                             target="_blank"

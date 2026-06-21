@@ -30,6 +30,22 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
+
+    /* ===== App theme tokens — LIGHT (default when .dark is absent) =====
+       The whole app is painted through these so it flips with the .dark class.
+       Brand orange (#FA4616) is intentionally constant across themes. */
+    --app-bg: #eef1f7;            /* page background */
+    --app-bg-2: #e3e8f1;          /* secondary page background / gradients */
+    --panel: #ffffff;             /* solid cards / panels */
+    --surface: rgba(15, 23, 42, 0.045);   /* translucent panel (was white/5) */
+    --surface-2: rgba(15, 23, 42, 0.08);  /* (was white/10) */
+    --surface-3: rgba(15, 23, 42, 0.12);  /* (was white/15–20) */
+    --line: rgba(15, 23, 42, 0.12);       /* borders (was white/10) */
+    --line-soft: rgba(15, 23, 42, 0.07);  /* (was white/5) */
+    --line-strong: rgba(15, 23, 42, 0.20);/* (was white/20) */
+    --text: #14233b;              /* primary text (was white) */
+    --text-muted: rgba(20, 35, 59, 0.66); /* secondary text (was white/60–70) */
+    --text-faint: rgba(20, 35, 59, 0.45); /* tertiary text (was white/40–50) */
   }
 
   .dark {
@@ -52,6 +68,20 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+
+    /* ===== App theme tokens — DARK (= the app's existing colors, unchanged) ===== */
+    --app-bg: #06182e;
+    --app-bg-2: #0a2440;
+    --panel: #0C2340;
+    --surface: rgba(255, 255, 255, 0.05);
+    --surface-2: rgba(255, 255, 255, 0.10);
+    --surface-3: rgba(255, 255, 255, 0.16);
+    --line: rgba(255, 255, 255, 0.10);
+    --line-soft: rgba(255, 255, 255, 0.06);
+    --line-strong: rgba(255, 255, 255, 0.20);
+    --text: #ffffff;
+    --text-muted: rgba(255, 255, 255, 0.70);
+    --text-faint: rgba(255, 255, 255, 0.45);
   }
 }
 
@@ -85,7 +115,18 @@ body {
   will-change: scroll-position;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #06182e;
+  background-color: var(--app-bg);
+  color: var(--text);
+}
+
+/* Smooth the dark <-> light flip for color-bearing surfaces */
+body * {
+  transition-property: background-color, border-color, color, fill;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  body * { transition: none; }
 }
 
 /* Brand color utilities */

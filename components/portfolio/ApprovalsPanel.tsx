@@ -137,14 +137,14 @@ export function ApprovalsPanel({ walletAddress, chains }: Props) {
   };
 
   return (
-    <section className="mt-3 rounded-xl border border-white/10 bg-black/20 overflow-hidden">
+    <section className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-white/5 transition-colors"
+        className="w-full flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-[var(--surface)] transition-colors"
         aria-expanded={open}
       >
-        <span className="flex items-center gap-2 text-xs uppercase tracking-wide font-semibold text-white/70">
+        <span className="flex items-center gap-2 text-xs uppercase tracking-wide font-semibold text-[var(--text-muted)]">
           <IconShieldHalf className="h-4 w-4 text-amber-400/80" />
           Token approvals
           {loaded && approvals.length > 0 && (
@@ -160,7 +160,7 @@ export function ApprovalsPanel({ walletAddress, chains }: Props) {
             </span>
           )}
         </span>
-        <span className="text-xs text-white/40">
+        <span className="text-xs text-[var(--text-faint)]">
           {open ? 'Hide' : 'Show'}
         </span>
       </button>
@@ -209,7 +209,7 @@ export function ApprovalsPanel({ walletAddress, chains }: Props) {
                 type="button"
                 onClick={() => void fetchApprovals(chain)}
                 disabled={loading}
-                className="text-white/50 hover:text-white disabled:opacity-40"
+                className="text-[var(--text-faint)] hover:text-[var(--text)] disabled:opacity-40"
                 title="Refresh"
               >
                 <IconRefresh className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -224,11 +224,11 @@ export function ApprovalsPanel({ walletAddress, chains }: Props) {
           ) : loading && approvals.length === 0 ? (
             <div className="space-y-2">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-10 rounded bg-white/5 animate-pulse" />
+                <div key={i} className="h-10 rounded bg-[var(--surface)] animate-pulse" />
               ))}
             </div>
           ) : approvals.length === 0 ? (
-            <div className="text-xs text-white/50 py-4 text-center flex items-center justify-center gap-1.5">
+            <div className="text-xs text-[var(--text-faint)] py-4 text-center flex items-center justify-center gap-1.5">
               <IconInfoCircle className="h-3.5 w-3.5" />
               No active token approvals on {CHAIN_LABEL[chain]} for this wallet.
             </div>
@@ -236,7 +236,7 @@ export function ApprovalsPanel({ walletAddress, chains }: Props) {
             <div className="overflow-x-auto -mx-1">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-left text-[10px] uppercase tracking-wide text-white/40">
+                  <tr className="text-left text-[10px] uppercase tracking-wide text-[var(--text-faint)]">
                     <th className="px-2 py-1.5 font-semibold">Token</th>
                     <th className="px-2 py-1.5 font-semibold">Spender</th>
                     <th className="px-2 py-1.5 font-semibold text-right">Allowance</th>
@@ -277,10 +277,10 @@ function ApprovalRow({
   const spenderLabel = approval.spenderName || truncate(approval.spender);
 
   return (
-    <tr className="border-t border-white/5 hover:bg-white/5">
+    <tr className="border-t border-[var(--line-soft)] hover:bg-[var(--surface)]">
       <td className="px-2 py-2">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center overflow-hidden shrink-0">
+          <div className="w-6 h-6 rounded-full bg-[var(--surface-2)] flex items-center justify-center overflow-hidden shrink-0">
             {approval.token.logoURI ? (
               <img
                 src={approval.token.logoURI}
@@ -291,22 +291,22 @@ function ApprovalRow({
                 }}
               />
             ) : (
-              <span className="text-[8px] text-white font-semibold">
+              <span className="text-[8px] text-[var(--text)] font-semibold">
                 {sym.slice(0, 3).toUpperCase()}
               </span>
             )}
           </div>
           <div className="min-w-0">
-            <div className="text-white font-semibold truncate">{sym}</div>
-            <div className="text-[10px] text-white/40 truncate">{name}</div>
+            <div className="text-[var(--text)] font-semibold truncate">{sym}</div>
+            <div className="text-[10px] text-[var(--text-faint)] truncate">{name}</div>
           </div>
         </div>
       </td>
       <td className="px-2 py-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <div className="min-w-0">
-            <div className="text-white/80 truncate">{spenderLabel}</div>
-            <div className="text-[10px] text-white/40 truncate font-mono">
+            <div className="text-[var(--text)] truncate">{spenderLabel}</div>
+            <div className="text-[10px] text-[var(--text-faint)] truncate font-mono">
               {truncate(approval.spender)}
             </div>
           </div>
@@ -316,7 +316,7 @@ function ApprovalRow({
             chain={chain}
             context={{ spenderName: approval.spenderName ?? undefined, tokenSymbol: sym }}
             size={14}
-            className="shrink-0 text-white/30 hover:text-orange-300 transition-colors"
+            className="shrink-0 text-[var(--text-faint)] hover:text-orange-300 transition-colors"
           />
         </div>
       </td>
@@ -333,12 +333,12 @@ function ApprovalRow({
             Unlimited
           </span>
         ) : (
-          <span className="text-white/80 tabular-nums">
+          <span className="text-[var(--text)] tabular-nums">
             {fmtAmount(approval.amount, 18)}
           </span>
         )}
       </td>
-      <td className="px-2 py-2 text-right text-white/50">
+      <td className="px-2 py-2 text-right text-[var(--text-faint)]">
         {fmtRelative(approval.updatedAt)}
       </td>
       <td className="px-2 py-2 text-right">

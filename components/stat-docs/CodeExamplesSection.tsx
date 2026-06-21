@@ -87,20 +87,20 @@ export default function CodeExamplesSection({ examples, statId, tokenAddress }: 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-white">Complete Working Code</h2>
+        <h2 className="text-xl font-semibold text-[var(--text)]">Complete Working Code</h2>
         <div className="flex items-center gap-2">
           {(activeTab === 'javascript' || activeTab === 'typescript') && (
             <button
               onClick={runCode}
               disabled={running}
-              className="text-xs px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-500 rounded transition-colors disabled:opacity-50"
+              className="text-xs px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-[var(--text)] border border-emerald-500 rounded transition-colors disabled:opacity-50"
             >
               {running ? '⏳ Running...' : '▶️ Run Code'}
             </button>
           )}
           <button
             onClick={copyToClipboard}
-            className="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 rounded transition-colors"
+            className="px-3 py-1.5 text-xs bg-[var(--panel)] hover:bg-[var(--surface-2)] text-[var(--text)] border border-[var(--line)] rounded transition-colors"
           >
             {copied ? '✓ Copied!' : '📋 Copy'}
           </button>
@@ -108,7 +108,7 @@ export default function CodeExamplesSection({ examples, statId, tokenAddress }: 
       </div>
       
       {/* Language Tabs */}
-      <div className="flex gap-2 border-b border-slate-700">
+      <div className="flex gap-2 border-b border-[var(--line)]">
         {(Object.keys(languageLabels) as Language[]).map(lang => (
           <button
             key={lang}
@@ -116,7 +116,7 @@ export default function CodeExamplesSection({ examples, statId, tokenAddress }: 
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === lang
                 ? 'text-purple-400 border-b-2 border-purple-500'
-                : 'text-gray-400 hover:text-gray-300'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-muted)]'
             }`}
           >
             {languageLabels[lang]}
@@ -125,9 +125,9 @@ export default function CodeExamplesSection({ examples, statId, tokenAddress }: 
       </div>
       
       {/* Code Display */}
-      <div className="bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
+      <div className="bg-[var(--app-bg)] border border-[var(--line)] rounded-lg overflow-hidden">
         <pre className="p-6 overflow-x-auto text-sm">
-          <code className="text-gray-300 font-mono whitespace-pre">
+          <code className="text-[var(--text-muted)] font-mono whitespace-pre">
             {examples[activeTab]}
           </code>
         </pre>
@@ -137,16 +137,16 @@ export default function CodeExamplesSection({ examples, statId, tokenAddress }: 
       {showConsole && consoleOutput.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-white">Console Output</h3>
+            <h3 className="text-sm font-semibold text-[var(--text)]">Console Output</h3>
             <button
               onClick={() => setShowConsole(false)}
-              className="text-xs text-gray-400 hover:text-white"
+              className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]"
             >
               ✕ Close
             </button>
           </div>
-          <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 max-h-96 overflow-y-auto">
-            <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap">
+          <div className="bg-[var(--app-bg)] border border-[var(--line)] rounded-lg p-4 max-h-96 overflow-y-auto">
+            <pre className="text-xs text-[var(--text-muted)] font-mono whitespace-pre-wrap">
               {consoleOutput.join('\n')}
             </pre>
           </div>
@@ -159,7 +159,7 @@ export default function CodeExamplesSection({ examples, statId, tokenAddress }: 
           <span className="text-blue-400 text-xl">💡</span>
           <h3 className="text-sm font-semibold text-blue-300">Complete Implementation</h3>
         </div>
-        <p className="text-xs text-gray-300 ml-7">
+        <p className="text-xs text-[var(--text-muted)] ml-7">
           This is ONE complete executable function you can copy-paste and run immediately. 
           It includes all API calls, pagination logic, error handling, and data processing.
           {(activeTab === 'javascript' || activeTab === 'typescript') && ' Click "▶️ Run Code" to test it live!'}

@@ -26,16 +26,16 @@ export default function GeickoOwnershipPanel({
 
   return (
     <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg p-3">
-      <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">
+      <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider">
         Ownership
       </div>
 
       {ownershipData.isLoading ? (
-        <div className="text-center text-gray-500 text-sm">Loading...</div>
+        <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
       ) : isRenounced ? (
         <div className="text-center">
           <div className="text-base text-green-400 font-semibold">Renounced ✓</div>
-          <div className="text-xs text-gray-400 mt-0.5">
+          <div className="text-xs text-[var(--text-muted)] mt-0.5">
             {isPumpTires ? 'Pump.Tires' : 'No Owner'}
           </div>
         </div>

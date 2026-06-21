@@ -2566,14 +2566,14 @@ export default function AdminStatsPanel({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[11px] uppercase tracking-wider text-orange-400/80 font-semibold">Advanced Stats</p>
-          <h2 className="text-base font-bold text-white mt-0.5">Stat Explorer</h2>
+          <h2 className="text-base font-bold text-[var(--text)] mt-0.5">Stat Explorer</h2>
         </div>
         <div className="flex items-center gap-2">
           <a
             href="/stat-docs"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-2.5 py-1 text-xs bg-white/10 hover:bg-white/15 border border-white/15 text-white rounded-md transition-colors font-semibold"
+            className="px-2.5 py-1 text-xs bg-[var(--surface-2)] hover:bg-[var(--surface-3)] border border-[var(--line)] text-[var(--text)] rounded-md transition-colors font-semibold"
           >
             API Docs
           </a>
@@ -2581,7 +2581,7 @@ export default function AdminStatsPanel({
             href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-2.5 py-1 text-xs bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white rounded-md transition-colors font-semibold"
+            className="px-2.5 py-1 text-xs bg-[var(--surface)] hover:bg-[var(--surface-2)] border border-[var(--line)] text-[var(--text)] hover:text-[var(--text)] rounded-md transition-colors font-semibold"
           >
             Get Morbius
           </a>
@@ -2591,29 +2591,29 @@ export default function AdminStatsPanel({
       {/* Token Address Search */}
       {variant === 'default' && (
         <div className="space-y-2">
-          <label htmlFor="token" className="text-white block">Token Address</label>
+          <label htmlFor="token" className="text-[var(--text)] block">Token Address</label>
           <div className="relative flex items-center gap-2">
             <input
               id="token"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className={`w-full bg-white/[0.04] backdrop-blur border border-white/15 focus:border-white/30 focus:outline-none rounded-md px-2.5 text-white placeholder:text-white/40 ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+              className={`w-full bg-[var(--surface)] backdrop-blur border border-[var(--line)] focus:border-[var(--line-strong)] focus:outline-none rounded-md px-2.5 text-[var(--text)] placeholder:text-[var(--text-faint)] ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
               placeholder="Search by address..."
             />
             <button
               type="button"
               onClick={() => handleLoadNewToken(searchInput)}
-              className={`shrink-0 px-5 rounded-md bg-brand-orange hover:bg-brand-orange/90 text-white font-semibold transition-colors ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+              className={`shrink-0 px-5 rounded-md bg-brand-orange hover:bg-brand-orange/90 text-[var(--text)] font-semibold transition-colors ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
             >
               Load
             </button>
-            {isSearching && <div className="absolute top-full mt-1 w-full bg-slate-900/50 backdrop-blur border border-gray-700 rounded p-2 text-white">Searching...</div>}
+            {isSearching && <div className="absolute top-full mt-1 w-full bg-[var(--panel)] backdrop-blur border border-[var(--line)] rounded p-2 text-[var(--text)]">Searching...</div>}
             {searchResults.length > 0 && (
-              <div className="absolute top-full mt-1 w-full bg-slate-900/50 backdrop-blur border border-gray-700 rounded z-10">
+              <div className="absolute top-full mt-1 w-full bg-[var(--panel)] backdrop-blur border border-[var(--line)] rounded z-10">
                 {searchResults.map((item: any) => (
                   <div
                     key={item.address}
-                    className="p-2 hover:bg-gray-900 cursor-pointer text-white"
+                    className="p-2 hover:bg-[var(--panel)] cursor-pointer text-[var(--text)]"
                     onClick={() => handleLoadNewToken(item.address)}
                   >
                     {item.name} ({item.symbol})
@@ -2627,13 +2627,13 @@ export default function AdminStatsPanel({
 
       {/* Stat Selector */}
       <div className="space-y-3">
-        <label className="text-white block text-sm lg:text-base">{statLabelText}</label>
+        <label className="text-[var(--text)] block text-sm lg:text-base">{statLabelText}</label>
 
         {statCategories.length > 0 && (
           <div className="hidden md:flex flex-col gap-4" aria-label="Stat selector">
             <div className="w-full space-y-3 overflow-hidden">
               <div className="relative">
-                <div className="flex w-full items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-1 text-white overflow-x-auto scrollbar-hide">
+                <div className="flex w-full items-center gap-1 rounded-xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl p-1 text-[var(--text)] overflow-x-auto scrollbar-hide">
                   {statCategories.map(category => (
                     <button
                       key={category.title}
@@ -2642,8 +2642,8 @@ export default function AdminStatsPanel({
                         compact ? 'px-3 py-1 text-xs' : 'px-3.5 py-1.5 text-sm'
                       } ${
                         resolvedCategoryTitle === category.title
-                          ? 'border-brand-orange/40 bg-brand-orange/15 text-white'
-                          : 'border-transparent text-white/60 hover:text-white hover:bg-white/[0.06]'
+                          ? 'border-brand-orange/40 bg-brand-orange/15 text-[var(--text)]'
+                          : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)]'
                       }`}
                     >
                       {category.title}
@@ -2653,7 +2653,7 @@ export default function AdminStatsPanel({
               </div>
 
               <div className="focus-visible:outline-none focus-visible:ring-0">
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl">
+                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl">
                   {statCategories
                     .find(category => category.title === resolvedCategoryTitle)
                     ?.stats.length ? (
@@ -2669,15 +2669,15 @@ export default function AdminStatsPanel({
                                 onClick={() => setSelectedStat(stat.id)}
                                 className={`text-left rounded-lg border px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black/50 ${
                                   isActive
-                                    ? 'border-brand-orange/40 bg-brand-orange/10 text-white shadow-[inset_0_0_0_1px_rgba(250,70,22,0.15)]'
-                                    : 'border-white/10 bg-white/[0.03] text-white/80 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
+                                    ? 'border-brand-orange/40 bg-brand-orange/10 text-[var(--text)] shadow-[inset_0_0_0_1px_rgba(250,70,22,0.15)]'
+                                    : 'border-[var(--line)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)] hover:text-[var(--text)]'
                                 }`}
                               >
                                 <p className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>
                                   {stat.label}
                                 </p>
                                 {stat.description && (
-                                  <p className={`${compact ? 'text-[10px]' : 'text-xs'} text-white/70 mt-1 line-clamp-2`}>
+                                  <p className={`${compact ? 'text-[10px]' : 'text-xs'} text-[var(--text-muted)] mt-1 line-clamp-2`}>
                                     {stat.description}
                                   </p>
                                 )}
@@ -2686,7 +2686,7 @@ export default function AdminStatsPanel({
                           })}
                       </div>
                     ) : (
-                      <span className={`${compact ? 'text-[11px]' : 'text-sm'} block p-4 text-white/70`}>
+                      <span className={`${compact ? 'text-[11px]' : 'text-sm'} block p-4 text-[var(--text-muted)]`}>
                         No stats available.
                       </span>
                     )}
@@ -2696,7 +2696,7 @@ export default function AdminStatsPanel({
 
             {selectedStatMeta?.description && (
               <div className="space-y-2">
-              <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-white`}>
+              <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-[var(--text)]`}>
                 {selectedStatMeta.description}
               </p>
                 <a
@@ -2717,14 +2717,14 @@ export default function AdminStatsPanel({
           <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} dismissible={false}>
             <DrawerTrigger asChild>
               <button
-                className={`w-full bg-white/[0.04] backdrop-blur border border-white/15 hover:border-white/25 rounded-lg px-4 text-left text-white transition-colors ${
+                className={`w-full bg-[var(--surface)] backdrop-blur border border-[var(--line)] hover:border-[var(--line-strong)] rounded-lg px-4 text-left text-[var(--text)] transition-colors ${
                   compact ? 'py-2 text-xs' : 'py-3 text-sm'
                 }`}
               >
                 {selectedStat ? selectedStatMeta?.label ?? statLabelText : statLabelText}
               </button>
             </DrawerTrigger>
-            <DrawerContent className="bg-[#0C2340] backdrop-blur-sm border-white/10 z-50" onClick={(e) => e.stopPropagation()}>
+            <DrawerContent className="bg-[var(--panel)] backdrop-blur-sm border-[var(--line)] z-50" onClick={(e) => e.stopPropagation()}>
               <DrawerHeader className="flex flex-row items-center justify-between">
                 <DrawerTitle className="text-orange-400/90 text-xs font-semibold uppercase tracking-wider">Select Stat</DrawerTitle>
                 <Button
@@ -2742,10 +2742,10 @@ export default function AdminStatsPanel({
                 <div className="max-h-[60vh] overflow-y-auto px-4 pb-32">
                   {statCategories.map(category => (
                     <div key={category.title} className="mb-4">
-                      <div className="bg-white/[0.04] border border-white/10 text-white font-semibold px-3 py-2 rounded-t-lg text-xs uppercase tracking-wider">
+                      <div className="bg-[var(--surface)] border border-[var(--line)] text-[var(--text)] font-semibold px-3 py-2 rounded-t-lg text-xs uppercase tracking-wider">
                         {category.title}
                       </div>
-                      <div className="bg-white/[0.02] border-x border-b border-white/10 rounded-b-lg">
+                      <div className="bg-[var(--surface)] border-x border-b border-[var(--line)] rounded-b-lg">
                         {category.stats.map(stat => (
                           <button
                             key={stat.id}
@@ -2753,13 +2753,13 @@ export default function AdminStatsPanel({
                               setSelectedStat(stat.id);
                               setDrawerOpen(false);
                             }}
-                            className={`w-full text-left px-3 py-2 border-b border-white/[0.06] last:border-b-0 hover:bg-white/[0.04] transition-colors ${
-                              selectedStat === stat.id ? 'bg-brand-orange/10 text-white' : 'text-white/85'
+                            className={`w-full text-left px-3 py-2 border-b border-[var(--line-soft)] last:border-b-0 hover:bg-[var(--surface)] transition-colors ${
+                              selectedStat === stat.id ? 'bg-brand-orange/10 text-[var(--text)]' : 'text-[var(--text-muted)]'
                             }`}
                           >
                             <div>{stat.label}</div>
                             {stat.description && (
-                              <div className="text-xs text-white/70 mt-0.5">{stat.description}</div>
+                              <div className="text-xs text-[var(--text-muted)] mt-0.5">{stat.description}</div>
                             )}
                           </button>
                         ))}
@@ -2773,7 +2773,7 @@ export default function AdminStatsPanel({
         </div>
 
         {selectedStatMeta?.description && (
-          <p className={`md:hidden ${compact ? 'text-[11px]' : 'text-xs'} text-white`}>
+          <p className={`md:hidden ${compact ? 'text-[11px]' : 'text-xs'} text-[var(--text)]`}>
             {selectedStatMeta.description}
           </p>
         )}
@@ -2782,11 +2782,11 @@ export default function AdminStatsPanel({
       {/* Custom Input Fields */}
       {requiredInputs.length > 0 && (
         <div className="space-y-2">
-          <label className="text-white block text-sm">Required Parameters</label>
+          <label className="text-[var(--text)] block text-sm">Required Parameters</label>
           <div className="space-y-2">
             {requiredInputs.map((input) => (
               <div key={input.key} className="space-y-1">
-                <label htmlFor={input.key} className="text-white/80 text-xs block">
+                <label htmlFor={input.key} className="text-[var(--text)] text-xs block">
                   {input.label}
                 </label>
                 <input
@@ -2794,7 +2794,7 @@ export default function AdminStatsPanel({
                   type="text"
                   value={customInputs[input.key] || ''}
                   onChange={(e) => setCustomInputs(prev => ({ ...prev, [input.key]: e.target.value }))}
-                  className={`w-full bg-white/[0.04] backdrop-blur border border-white/15 focus:border-white/30 focus:outline-none rounded-md px-2.5 text-white placeholder:text-white/40 ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+                  className={`w-full bg-[var(--surface)] backdrop-blur border border-[var(--line)] focus:border-[var(--line-strong)] focus:outline-none rounded-md px-2.5 text-[var(--text)] placeholder:text-[var(--text-faint)] ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
                   placeholder={input.placeholder}
                 />
               </div>
@@ -2808,7 +2808,7 @@ export default function AdminStatsPanel({
         <Button
           onClick={handleTestStat}
           disabled={!selectedStat || busyStat === selectedStat}
-          className={`px-4 bg-brand-orange hover:bg-brand-orange/90 text-white font-semibold rounded-md disabled:opacity-50 disabled:cursor-not-allowed ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
+          className={`px-4 bg-brand-orange hover:bg-brand-orange/90 text-[var(--text)] font-semibold rounded-md disabled:opacity-50 disabled:cursor-not-allowed ${compact ? 'py-1 text-xs' : 'py-2 text-sm'}`}
         >
           {busyStat === selectedStat ? 'Testing...' : actionText}
         </Button>
@@ -2816,9 +2816,9 @@ export default function AdminStatsPanel({
 
       {/* Current Request Details */}
       {currentRequest && (
-        <div className="pt-3 border-t border-white/10 space-y-3">
+        <div className="pt-3 border-t border-[var(--line)] space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">Results</h3>
+            <h3 className="font-semibold text-[var(--text)]">Results</h3>
             <button
               onClick={clearCurrentRequest}
               className="text-xs px-2 py-1 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 rounded-md text-rose-200 font-semibold transition-colors"
@@ -2831,10 +2831,10 @@ export default function AdminStatsPanel({
             {networkEvents.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <div className="text-white">Network Activity</div>
-                  <div className="text-[10px] text-white/70 italic">Click 📋 to copy</div>
+                  <div className="text-[var(--text)]">Network Activity</div>
+                  <div className="text-[10px] text-[var(--text-muted)] italic">Click 📋 to copy</div>
                 </div>
-                <div className="relative rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl w-full overflow-hidden">
+                <div className="relative rounded-xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl w-full overflow-hidden">
                   <div
                     ref={networkListRef}
                     className="space-y-2 max-h-36 overflow-y-auto p-3 pr-4 text-[11px] w-full"
@@ -2856,7 +2856,7 @@ export default function AdminStatsPanel({
                       return (
                         <div
                           key={event.id}
-                          className="rounded-lg border border-white/10 bg-slate-900/50 backdrop-blur p-2 text-white/80 space-y-1 break-words max-w-full group"
+                          className="rounded-lg border border-[var(--line)] bg-[var(--panel)] backdrop-blur p-2 text-[var(--text)] space-y-1 break-words max-w-full group"
                         >
                           <div className="flex items-center justify-between text-[10px] uppercase tracking-widest">
                             <span>{event.method}</span>
@@ -2869,7 +2869,7 @@ export default function AdminStatsPanel({
                             </span>
                           </div>
                           <div className="flex items-start justify-between gap-2">
-                            <div className="text-[10px] text-gray-300 break-all whitespace-pre-wrap flex-1">
+                            <div className="text-[10px] text-[var(--text-muted)] break-all whitespace-pre-wrap flex-1">
                               {event.url}
                             </div>
                             <button
@@ -2886,24 +2886,24 @@ export default function AdminStatsPanel({
                                   btn.classList.remove('text-green-400');
                                 }, 1000);
                               }}
-                              className="md:opacity-0 md:group-hover:opacity-100 transition-opacity text-[10px] px-1.5 py-0.5 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 hover:text-white flex-shrink-0"
+                              className="md:opacity-0 md:group-hover:opacity-100 transition-opacity text-[10px] px-1.5 py-0.5 bg-[var(--surface-2)] hover:bg-[var(--surface-2)] rounded text-[var(--text-muted)] hover:text-[var(--text)] flex-shrink-0"
                               title="Copy endpoint"
                             >
                               📋
                             </button>
                           </div>
-                          <div className="text-[10px] text-gray-500 flex flex-wrap gap-3">
+                          <div className="text-[10px] text-[var(--text-muted)] flex flex-wrap gap-3">
                             {started && <span>{started}</span>}
                             {duration && <span>{duration}</span>}
                             {event.statusCode && <span>Status {event.statusCode}</span>}
                           </div>
                           {event.requestBody && (
-                            <div className="text-[10px] text-gray-400 break-all whitespace-pre-wrap">
+                            <div className="text-[10px] text-[var(--text-muted)] break-all whitespace-pre-wrap">
                               Req: {event.requestBody}
                             </div>
                           )}
                           {event.responseSnippet && (
-                            <div className="text-[10px] text-gray-400 break-all whitespace-pre-wrap">
+                            <div className="text-[10px] text-[var(--text-muted)] break-all whitespace-pre-wrap">
                               Res: {event.responseSnippet}
                             </div>
                           )}
@@ -2926,8 +2926,8 @@ export default function AdminStatsPanel({
               if (formatted.displayType === 'value') {
                 return (
                   <div>
-                    <div className="text-gray-400 mb-2">Result</div>
-                    <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur px-6 py-8 rounded-xl border border-purple-500/20 shadow-lg">
+                    <div className="text-[var(--text-muted)] mb-2">Result</div>
+                    <div className="bg-gradient-to-br from-[var(--panel)] to-[var(--panel)] backdrop-blur px-6 py-8 rounded-xl border border-purple-500/20 shadow-lg">
                       <div className="text-4xl md:text-5xl font-bold text-center bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
                         {formatted.displayValue}
                       </div>
@@ -2939,21 +2939,21 @@ export default function AdminStatsPanel({
               if (formatted.displayType === 'array' && Array.isArray(currentRequest.response)) {
                 return (
                   <div>
-                    <div className="text-gray-400 mb-2">Result ({currentRequest.response.length} items)</div>
-                    <div className="bg-slate-900/60 backdrop-blur rounded-xl border border-purple-500/20 shadow-lg max-h-96 overflow-y-auto">
+                    <div className="text-[var(--text-muted)] mb-2">Result ({currentRequest.response.length} items)</div>
+                    <div className="bg-[var(--panel)] backdrop-blur rounded-xl border border-purple-500/20 shadow-lg max-h-96 overflow-y-auto">
                       <div className="p-4 space-y-2">
                         {currentRequest.response.slice(0, 10).map((item, index) => (
-                          <div key={index} className="bg-slate-800/50 rounded p-3 text-sm">
+                          <div key={index} className="bg-[var(--panel)] rounded p-3 text-sm">
                             {typeof item === 'object' ?
-                              <pre className="text-xs text-gray-300 whitespace-pre-wrap font-mono">
+                              <pre className="text-xs text-[var(--text-muted)] whitespace-pre-wrap font-mono">
                                 {JSON.stringify(item, null, 2)}
                               </pre> :
-                              <span className="text-white">{String(item)}</span>
+                              <span className="text-[var(--text)]">{String(item)}</span>
                             }
                           </div>
                         ))}
                         {currentRequest.response.length > 10 && (
-                          <div className="text-center text-gray-500 text-sm py-2">
+                          <div className="text-center text-[var(--text-muted)] text-sm py-2">
                             ... and {currentRequest.response.length - 10} more items
                           </div>
                         )}
@@ -2966,13 +2966,13 @@ export default function AdminStatsPanel({
               if (formatted.displayType === 'object' && typeof currentRequest.response === 'object') {
                 return (
                   <div>
-                    <div className="text-gray-400 mb-2">Result</div>
-                    <div className="bg-slate-900/60 backdrop-blur rounded-xl border border-purple-500/20 shadow-lg">
+                    <div className="text-[var(--text-muted)] mb-2">Result</div>
+                    <div className="bg-[var(--panel)] backdrop-blur rounded-xl border border-purple-500/20 shadow-lg">
                       <div className="p-4 space-y-3">
                         {Object.entries(currentRequest.response).map(([key, value]) => (
                           <div key={key} className="flex justify-between items-center">
-                            <span className="text-gray-400 capitalize text-sm">{key.replace(/([A-Z])/g, ' $1')}:</span>
-                            <span className="text-white font-semibold text-sm">
+                            <span className="text-[var(--text-muted)] capitalize text-sm">{key.replace(/([A-Z])/g, ' $1')}:</span>
+                            <span className="text-[var(--text)] font-semibold text-sm">
                               {formatResponseForDisplay(value).displayValue}
                             </span>
                           </div>

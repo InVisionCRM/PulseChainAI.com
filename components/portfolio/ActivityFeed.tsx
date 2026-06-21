@@ -278,7 +278,7 @@ export function ActivityFeed({ walletAddress, chains }: Props) {
     <div className="space-y-3">
       {/* toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex rounded-lg border border-white/12 bg-white/5 p-0.5">
+        <div className="inline-flex rounded-lg border border-[var(--line)] bg-[var(--surface)] p-0.5">
           {FILTERS.map((f) => (
             <button
               key={f.key}
@@ -286,8 +286,8 @@ export function ActivityFeed({ walletAddress, chains }: Props) {
               onClick={() => setTypeFilter(f.key)}
               className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
                 typeFilter === f.key
-                  ? 'bg-white/12 text-white'
-                  : 'text-white/55 hover:text-white/80'
+                  ? 'bg-[var(--surface)] text-[var(--text)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text)]'
               }`}
             >
               {f.label}
@@ -313,7 +313,7 @@ export function ActivityFeed({ walletAddress, chains }: Props) {
             </button>
           ))}
 
-        <label className="ml-auto inline-flex items-center gap-1.5 text-xs text-white/55 cursor-pointer select-none">
+        <label className="ml-auto inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer select-none">
           Hide scam{scamCount > 0 ? ` (${scamCount})` : ''}
           <button
             type="button"
@@ -334,7 +334,7 @@ export function ActivityFeed({ walletAddress, chains }: Props) {
           type="button"
           onClick={refresh}
           disabled={loading}
-          className="text-white/50 hover:text-white disabled:opacity-40"
+          className="text-[var(--text-faint)] hover:text-[var(--text)] disabled:opacity-40"
           title="Refresh"
         >
           <IconRefresh className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -351,7 +351,7 @@ export function ActivityFeed({ walletAddress, chains }: Props) {
           <button
             type="button"
             onClick={refresh}
-            className="rounded-md border border-white/20 px-2.5 py-1 font-semibold text-white hover:bg-white/10"
+            className="rounded-md border border-[var(--line-strong)] px-2.5 py-1 font-semibold text-[var(--text)] hover:bg-[var(--surface-2)]"
           >
             Retry
           </button>
@@ -359,8 +359,8 @@ export function ActivityFeed({ walletAddress, chains }: Props) {
       ) : loading && txns.length === 0 ? (
         <SkeletonRows />
       ) : visible.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-white/50">
-          <IconHistory className="h-6 w-6 text-white/30" />
+        <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-[var(--text-faint)]">
+          <IconHistory className="h-6 w-6 text-[var(--text-faint)]" />
           {txns.length === 0
             ? 'No activity found for this wallet yet.'
             : 'No transactions match the current filters.'}
@@ -369,7 +369,7 @@ export function ActivityFeed({ walletAddress, chains }: Props) {
         <div>
           {groups.map(([label, rows]) => (
             <div key={label}>
-              <div className="px-1 pt-3 pb-1.5 text-[11px] font-bold uppercase tracking-wide text-white/40">
+              <div className="px-1 pt-3 pb-1.5 text-[11px] font-bold uppercase tracking-wide text-[var(--text-faint)]">
                 {label}
               </div>
               {rows.map((t) => (
@@ -383,7 +383,7 @@ export function ActivityFeed({ walletAddress, chains }: Props) {
               type="button"
               onClick={loadMore}
               disabled={loadingMore}
-              className="mt-2 w-full rounded-lg border border-white/8 bg-white/[0.03] py-2.5 text-xs font-semibold text-white/60 hover:bg-white/5 disabled:opacity-50"
+              className="mt-2 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] py-2.5 text-xs font-semibold text-[var(--text-muted)] hover:bg-[var(--surface)] disabled:opacity-50"
             >
               {loadingMore ? 'Loading…' : 'Load more ↓'}
             </button>
@@ -403,16 +403,16 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
   return (
     <div className={`relative pl-12 ${tx.isScam ? 'opacity-50' : ''}`}>
       {/* rail */}
-      <span className="absolute left-[26px] top-0 bottom-0 w-px bg-white/10" />
+      <span className="absolute left-[26px] top-0 bottom-0 w-px bg-[var(--surface-2)]" />
       <span
         className="absolute left-[19px] top-[18px] h-3.5 w-3.5 rounded-full ring-4 ring-[#0e1117]"
         style={{ background: meta.color }}
       />
-      <span className="absolute left-2 top-[38px] w-7 text-center text-[9px] tabular-nums text-white/30">
+      <span className="absolute left-2 top-[38px] w-7 text-center text-[9px] tabular-nums text-[var(--text-faint)]">
         {fmtClock(tx.timestamp)}
       </span>
 
-      <div className="flex items-start gap-3 border-t border-white/5 py-3">
+      <div className="flex items-start gap-3 border-t border-[var(--line-soft)] py-3">
         {/* action glyph + chain badge */}
         <div className="relative shrink-0">
           <div
@@ -443,7 +443,7 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
             >
               {meta.label}
             </span>
-            <span className="truncate text-sm font-semibold text-white">{titleFor(tx)}</span>
+            <span className="truncate text-sm font-semibold text-[var(--text)]">{titleFor(tx)}</span>
             <CounterpartyBadge category={known?.category} label={known?.label} />
             {tx.isScam && (
               <span className="rounded border border-red-400/40 bg-red-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-red-300">
@@ -451,7 +451,7 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
               </span>
             )}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-white/40">
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--text-faint)]">
             {tx.method && <span className="font-mono">{tx.method.replace(/\(.*$/, '')}</span>}
             <span className={failed ? 'font-semibold text-red-300' : 'text-emerald-300/80'}>
               {failed ? '✗ Failed' : '✓ Success'}
@@ -463,7 +463,7 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
               href={EXPLORER_TX[tx.chain](tx.hash)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-0.5 hover:text-white/70"
+              className="inline-flex items-center gap-0.5 hover:text-[var(--text-muted)]"
             >
               {EXPLORER_NAME[tx.chain]}
               <IconExternalLink className="h-3 w-3" />
@@ -474,7 +474,7 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
         {/* token flows */}
         <div className="flex shrink-0 flex-col items-end gap-1">
           {tx.flows.length === 0 ? (
-            <span className="text-xs text-white/35">no balance change</span>
+            <span className="text-xs text-[var(--text-muted)]">no balance change</span>
           ) : (
             tx.flows.map((f, i) => <FlowChip key={i} flow={f} />)
           )}
@@ -494,7 +494,7 @@ function FlowChip({ flow }: { flow: TokenFlow }) {
   const sign = flow.direction === 'in' ? '+' : '−';
   return (
     <div className="flex items-center justify-end gap-1.5 text-[13px] font-semibold" style={{ color }}>
-      {usd && <span className="text-[11px] font-normal text-white/35">{usd}</span>}
+      {usd && <span className="text-[11px] font-normal text-[var(--text-muted)]">{usd}</span>}
       <span className="tabular-nums">
         {sign}
         {fmtAmount(flow.amountFormatted)} {flow.symbol}
@@ -506,7 +506,7 @@ function FlowChip({ flow }: { flow: TokenFlow }) {
 
 function TokenDot({ flow }: { flow: TokenFlow }) {
   return (
-    <span className="grid h-[18px] w-[18px] place-items-center overflow-hidden rounded-full bg-white/10 text-[8px] font-bold text-white/70">
+    <span className="grid h-[18px] w-[18px] place-items-center overflow-hidden rounded-full bg-[var(--surface-2)] text-[8px] font-bold text-[var(--text-muted)]">
       {flow.logoURI ? (
         <img
           src={flow.logoURI}
@@ -528,12 +528,12 @@ function SkeletonRows() {
     <div className="space-y-2 py-2">
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex items-center gap-3">
-          <div className="h-9 w-9 shrink-0 rounded-xl bg-white/5 animate-pulse" />
+          <div className="h-9 w-9 shrink-0 rounded-xl bg-[var(--surface)] animate-pulse" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-3 w-2/5 rounded bg-white/5 animate-pulse" />
-            <div className="h-2.5 w-1/4 rounded bg-white/5 animate-pulse" />
+            <div className="h-3 w-2/5 rounded bg-[var(--surface)] animate-pulse" />
+            <div className="h-2.5 w-1/4 rounded bg-[var(--surface)] animate-pulse" />
           </div>
-          <div className="h-3 w-20 rounded bg-white/5 animate-pulse" />
+          <div className="h-3 w-20 rounded bg-[var(--surface)] animate-pulse" />
         </div>
       ))}
     </div>

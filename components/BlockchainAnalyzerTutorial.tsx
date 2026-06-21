@@ -167,13 +167,13 @@ export const BlockchainAnalyzerTutorial: React.FC<BlockchainAnalyzerTutorialProp
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.8 }}
-          className="bg-blue-500/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 max-w-sm w-full mx-4"
+          className="bg-blue-500/10 backdrop-blur-sm border border-[var(--line-strong)] rounded-xl p-6 max-w-sm w-full mx-4"
           style={getModalPosition()}
         >
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 text-white/60 hover:text-white transition-colors"
+            className="absolute top-3 right-3 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -182,10 +182,10 @@ export const BlockchainAnalyzerTutorial: React.FC<BlockchainAnalyzerTutorialProp
 
           {/* Content */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-white mb-2">
+            <h3 className="text-lg font-semibold text-[var(--text)] mb-2">
               {currentStepData.title}
             </h3>
-            <p className="text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm text-[var(--text-muted)] leading-relaxed">
               {currentStepData.description}
             </p>
           </div>
@@ -196,7 +196,7 @@ export const BlockchainAnalyzerTutorial: React.FC<BlockchainAnalyzerTutorialProp
               <div
                 key={index}
                 className={`h-2 rounded-full transition-all duration-300 ${
-                  index <= currentStep ? 'bg-blue-500' : 'bg-white/20'
+                  index <= currentStep ? 'bg-blue-500' : 'bg-[var(--surface-3)]'
                 }`}
                 style={{ width: `${100 / tutorialSteps.length}%` }}
               />
@@ -209,21 +209,21 @@ export const BlockchainAnalyzerTutorial: React.FC<BlockchainAnalyzerTutorialProp
               {currentStep > 0 && (
                 <button
                   onClick={handlePrevious}
-                  className="px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors"
+                  className="px-4 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
                 >
                   Previous
                 </button>
               )}
               <button
                 onClick={handleSkip}
-                className="px-4 py-2 text-sm text-slate-400 hover:text-slate-300 transition-colors"
+                className="px-4 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-muted)] transition-colors"
               >
                 Skip Tutorial
               </button>
             </div>
             <button
               onClick={handleNext}
-              className="px-6 py-2 bg-slate-950 hover:bg-slate-950 text-white rounded-lg font-medium transition-colors"
+              className="px-6 py-2 bg-[var(--app-bg)] hover:bg-[var(--app-bg)] text-[var(--text)] rounded-lg font-medium transition-colors"
             >
               {currentStep === tutorialSteps.length - 1 ? 'Start Analyzing' : 'Next'}
             </button>

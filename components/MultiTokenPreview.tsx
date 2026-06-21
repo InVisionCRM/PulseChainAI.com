@@ -78,16 +78,16 @@ export default function MultiTokenPreview({
 
   if (config.tokens.length === 0) {
     return (
-      <div className="backdrop-blur-lg rounded-lg p-4 border text-center bg-gray-800 text-white">
+      <div className="backdrop-blur-lg rounded-lg p-4 border text-center bg-[var(--panel)] text-[var(--text)]">
         <div className="text-6xl mb-4">📊</div>
         <h2 className="text-xl font-semibold mb-4 text-blue-400">
           Multi-Token Dashboard
         </h2>
-        <p className="mb-6 text-gray-300">
+        <p className="mb-6 text-[var(--text-muted)]">
           Add tokens to create your dashboard
         </p>
-        <div className="rounded-lg p-4 bg-gray-700">
-          <p className="text-sm text-gray-300">
+        <div className="rounded-lg p-4 bg-[var(--surface-2)]">
+          <p className="text-sm text-[var(--text-muted)]">
             Use the sidebar to add your first token
           </p>
         </div>
@@ -243,13 +243,13 @@ export default function MultiTokenPreview({
                   e.stopPropagation();
                   onTokenCardDelete(tokenCard.id);
                 }}
-                className={`${isMobileView ? 'bg-red-500/90' : 'bg-red-500/80 hover:bg-red-600/80'} text-white ${isMobileView ? 'p-0.5' : 'p-1'} rounded ${isMobileView ? 'text-xs' : 'text-xs'}`}
+                className={`${isMobileView ? 'bg-red-500/90' : 'bg-red-500/80 hover:bg-red-600/80'} text-[var(--text)] ${isMobileView ? 'p-0.5' : 'p-1'} rounded ${isMobileView ? 'text-xs' : 'text-xs'}`}
                 title="Delete this card"
               >
                 ×
               </button>
             ) : (
-              <div className="text-gray-400 text-xs">
+              <div className="text-[var(--text-muted)] text-xs">
                 Empty Card
               </div>
             )}
@@ -267,8 +267,8 @@ export default function MultiTokenPreview({
                 statResults={statResults[tokenCard.id] || {}}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-800/50 rounded-lg">
-                <div className="text-center text-gray-400">
+              <div className="w-full h-full flex items-center justify-center bg-[var(--panel)] rounded-lg">
+                <div className="text-center text-[var(--text-muted)]">
                   <div className="text-4xl mb-2">📊</div>
                   <div className="text-sm">Empty Card</div>
                   <div className="text-xs mt-1">Click "+ Add Token" to configure</div>
@@ -283,14 +283,14 @@ export default function MultiTokenPreview({
 
       {/* Instructions */}
       {config.tokens.length > 0 && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-slate-950/80 backdrop-blur-lg border border-white/20 rounded-lg px-4 py-2 text-white text-sm z-40">
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-[var(--app-bg)] backdrop-blur-lg border border-[var(--line-strong)] rounded-lg px-4 py-2 text-[var(--text)] text-sm z-40">
           <span>💡 Drag cards to reposition • Cards snap to grid and align with others</span>
         </div>
       )}
       
       {/* View Mode Indicator */}
       {isMobileView && (
-        <div className="fixed top-4 right-4 bg-blue-500/90 backdrop-blur-lg border border-blue-300/30 rounded-lg px-3 py-1 text-white text-xs z-40">
+        <div className="fixed top-4 right-4 bg-blue-500/90 backdrop-blur-lg border border-blue-300/30 rounded-lg px-3 py-1 text-[var(--text)] text-xs z-40">
           📱 Mobile View
         </div>
       )}

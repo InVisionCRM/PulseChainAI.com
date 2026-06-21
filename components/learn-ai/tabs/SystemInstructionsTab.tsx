@@ -82,7 +82,7 @@ BLOCKCHAIN INTEGRATION:
     {
       id: 'solidity',
       title: 'Solidity Smart Contract Development',
-      icon: <IconCode className="h-6 w-6 text-gray-400" />,
+      icon: <IconCode className="h-6 w-6 text-[var(--text-muted)]" />,
       preview: 'Security-first approach, OpenZeppelin contracts, gas optimization, NatSpec documentation, PulseChain considerations.',
       fullContent: `You are an expert Solidity developer writing secure smart contracts for PulseChain.
 
@@ -443,10 +443,10 @@ MAINTENANCE:
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.3 }}
-      className="rounded-lg border border-white/10 bg-white/5 p-6"
+      className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6"
     >
       <h2 className="mb-6 text-2xl font-bold text-[#FA4616]">System Instructions for AI Development</h2>
-      <p className="mb-6 text-white/70">
+      <p className="mb-6 text-[var(--text-muted)]">
         Configure your AI assistant with these language-specific system instructions to ensure
         optimal code generation and project structure for PulseChain DApp development.
       </p>
@@ -455,17 +455,17 @@ MAINTENANCE:
         {systemInstructions.map((instruction) => (
           <motion.div
             key={instruction.id}
-            className="rounded-lg border border-white/20 bg-white/5 overflow-hidden cursor-pointer"
+            className="rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] overflow-hidden cursor-pointer"
             onClick={() => setExpandedCard(expandedCard === instruction.id ? null : instruction.id)}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            <div className="p-4 border-b border-white/10">
+            <div className="p-4 border-b border-[var(--line)]">
               <div className="flex items-center gap-3 mb-2">
                 {instruction.icon}
-                <h3 className="font-semibold text-white text-sm">{instruction.title}</h3>
+                <h3 className="font-semibold text-[var(--text)] text-sm">{instruction.title}</h3>
               </div>
-              <p className="text-xs text-white/70 leading-relaxed">{instruction.preview}</p>
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">{instruction.preview}</p>
             </div>
 
             <motion.div
@@ -477,8 +477,8 @@ MAINTENANCE:
               transition={{ duration: 0.3 }}
               className="overflow-hidden"
             >
-              <div className="p-4 bg-black/20">
-                <pre className="text-xs text-white/80 whitespace-pre-wrap font-mono">
+              <div className="p-4 bg-[var(--surface)]">
+                <pre className="text-xs text-[var(--text)] whitespace-pre-wrap font-mono">
                   {instruction.fullContent}
                 </pre>
               </div>

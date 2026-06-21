@@ -66,7 +66,7 @@ export function TickerCardWithPopover({ token, onPause, onResume }: TickerCardPr
       <HoverCardTrigger asChild>
         <div
           onClick={handleClick}
-          className="flex items-center gap-2 cursor-pointer hover:bg-white/5 transition-all duration-200 rounded-lg px-3 py-1.5 group"
+          className="flex items-center gap-2 cursor-pointer hover:bg-[var(--surface)] transition-all duration-200 rounded-lg px-3 py-1.5 group"
         >
           <img
             src={`https://dd.dexscreener.com/ds-data/tokens/pulsechain/${token.address}.png?key=6eae20`}
@@ -76,7 +76,7 @@ export function TickerCardWithPopover({ token, onPause, onResume }: TickerCardPr
               (e.target as HTMLImageElement).style.display = 'none';
             }}
           />
-          <span className="text-sm font-medium text-white/90 whitespace-nowrap">
+          <span className="text-sm font-medium text-[var(--text)] whitespace-nowrap">
             {token.symbol} ${token.priceUsd.toFixed(6)}
           </span>
           <span
@@ -85,20 +85,20 @@ export function TickerCardWithPopover({ token, onPause, onResume }: TickerCardPr
           >
             {isPositive ? '+' : ''}{token.priceChange24h.toFixed(2)}%
           </span>
-          <span className="text-white/30 mx-1">•</span>
+          <span className="text-[var(--text-faint)] mx-1">•</span>
         </div>
       </HoverCardTrigger>
 
       <HoverCardContent
-        className="w-80 bg-slate-950/98 border-2 border-[#FA4616]/40 shadow-2xl backdrop-blur-xl z-[9999] bg-cover bg-center relative overflow-hidden"
+        className="w-80 bg-[var(--app-bg)] border-2 border-[#FA4616]/40 shadow-2xl backdrop-blur-xl z-[9999] bg-cover bg-center relative overflow-hidden"
         style={{ backgroundImage: 'url(/Mirage.jpg)' }}
         side="bottom"
         align="center"
       >
-        <div className="absolute inset-0 bg-slate-950/70 z-0"></div>
+        <div className="absolute inset-0 bg-[var(--app-bg)] z-0"></div>
         <div className="space-y-3 relative z-10">
             {/* Header */}
-            <div className="flex items-center gap-3 mb-4 pb-3 border-b border-white/10">
+            <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[var(--line)]">
               <img
                 src={`https://dd.dexscreener.com/ds-data/tokens/pulsechain/${token.address}.png?key=6eae20`}
                 alt={token.symbol}
@@ -108,31 +108,31 @@ export function TickerCardWithPopover({ token, onPause, onResume }: TickerCardPr
                 }}
               />
               <div>
-                <div className="text-lg font-bold text-white">{token.symbol}</div>
-                <div className="text-xs text-white/50">{token.name}</div>
+                <div className="text-lg font-bold text-[var(--text)]">{token.symbol}</div>
+                <div className="text-xs text-[var(--text-faint)]">{token.name}</div>
               </div>
             </div>
 
             {/* Price Info */}
             <div className="space-y-2 mb-3">
               <div className="flex justify-between items-center">
-                <span className="text-white/60 text-sm">Price</span>
-                <span className="text-white font-semibold">${token.priceUsd.toFixed(8)}</span>
+                <span className="text-[var(--text-muted)] text-sm">Price</span>
+                <span className="text-[var(--text)] font-semibold">${token.priceUsd.toFixed(8)}</span>
               </div>
             </div>
 
             {/* Price Changes */}
-            <div className="grid grid-cols-3 gap-2 mb-3 p-2 bg-white/5 rounded-lg">
+            <div className="grid grid-cols-3 gap-2 mb-3 p-2 bg-[var(--surface)] rounded-lg">
               <div className="text-center">
-                <div className="text-xs text-white/50 mb-1">1h</div>
+                <div className="text-xs text-[var(--text-faint)] mb-1">1h</div>
                 <div className="text-sm font-semibold">{formatPercent(token.priceChange1h)}</div>
               </div>
               <div className="text-center">
-                <div className="text-xs text-white/50 mb-1">6h</div>
+                <div className="text-xs text-[var(--text-faint)] mb-1">6h</div>
                 <div className="text-sm font-semibold">{formatPercent(token.priceChange6h)}</div>
               </div>
               <div className="text-center">
-                <div className="text-xs text-white/50 mb-1">24h</div>
+                <div className="text-xs text-[var(--text-faint)] mb-1">24h</div>
                 <div className="text-sm font-semibold">{formatPercent(token.priceChange24h)}</div>
               </div>
             </div>
@@ -140,33 +140,33 @@ export function TickerCardWithPopover({ token, onPause, onResume }: TickerCardPr
             {/* Volume & Liquidity */}
             <div className="space-y-2 mb-3">
               <div className="flex justify-between items-center">
-                <span className="text-white/60 text-sm">Volume 24h</span>
-                <span className="text-white font-semibold">{formatNumber(token.volume24h, 0)}</span>
+                <span className="text-[var(--text-muted)] text-sm">Volume 24h</span>
+                <span className="text-[var(--text)] font-semibold">{formatNumber(token.volume24h, 0)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-white/60 text-sm">Liquidity</span>
-                <span className="text-white font-semibold">{formatNumber(token.liquidity, 0)}</span>
+                <span className="text-[var(--text-muted)] text-sm">Liquidity</span>
+                <span className="text-[var(--text)] font-semibold">{formatNumber(token.liquidity, 0)}</span>
               </div>
               {token.marketCap && (
                 <div className="flex justify-between items-center">
-                  <span className="text-white/60 text-sm">Market Cap</span>
-                  <span className="text-white font-semibold">{formatNumber(token.marketCap, 0)}</span>
+                  <span className="text-[var(--text-muted)] text-sm">Market Cap</span>
+                  <span className="text-[var(--text)] font-semibold">{formatNumber(token.marketCap, 0)}</span>
                 </div>
               )}
               {token.fdv && (
                 <div className="flex justify-between items-center">
-                  <span className="text-white/60 text-sm">FDV</span>
-                  <span className="text-white font-semibold">{formatNumber(token.fdv, 0)}</span>
+                  <span className="text-[var(--text-muted)] text-sm">FDV</span>
+                  <span className="text-[var(--text)] font-semibold">{formatNumber(token.fdv, 0)}</span>
                 </div>
               )}
             </div>
 
             {/* Transactions */}
             {token.txCount24h !== undefined && (
-              <div className="space-y-2 p-2 bg-white/5 rounded-lg">
+              <div className="space-y-2 p-2 bg-[var(--surface)] rounded-lg">
                 <div className="flex justify-between items-center">
-                  <span className="text-white/60 text-sm">Txns 24h</span>
-                  <span className="text-white font-semibold">{token.txCount24h}</span>
+                  <span className="text-[var(--text-muted)] text-sm">Txns 24h</span>
+                  <span className="text-[var(--text)] font-semibold">{token.txCount24h}</span>
                 </div>
                 {token.buys24h !== undefined && token.sells24h !== undefined && (
                   <div className="flex justify-between items-center text-xs">
@@ -178,7 +178,7 @@ export function TickerCardWithPopover({ token, onPause, onResume }: TickerCardPr
             )}
 
           {/* Footer */}
-          <div className="mt-3 pt-3 border-t border-white/10 text-center">
+          <div className="mt-3 pt-3 border-t border-[var(--line)] text-center">
             <span className="text-xs text-[#FA4616] font-semibold">
               Click to view details
             </span>

@@ -95,7 +95,7 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-[11px] text-white/40">
+      <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-[11px] text-[var(--text-faint)]">
         <IconRefresh className="mr-1 inline h-3.5 w-3.5 animate-spin" />
         Tracing source of funds…
       </div>
@@ -103,7 +103,7 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
   }
   if (!trace || !trace.supported || trace.steps.length < 2) {
     return (
-      <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-[11px] text-white/40">
+      <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-[11px] text-[var(--text-faint)]">
         No funding ancestry found.
       </div>
     );
@@ -116,10 +116,10 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
   const crossesEth = steps.some((s) => s.fundedBy?.preFork);
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-      <div className="mb-2 text-[11px] uppercase tracking-wide text-white/45">
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+      <div className="mb-2 text-[11px] uppercase tracking-wide text-[var(--text-faint)]">
         Source of funds
-        <span className="ml-1 normal-case text-white/30">
+        <span className="ml-1 normal-case text-[var(--text-faint)]">
           · {steps.length - 1} hop{steps.length - 1 === 1 ? '' : 's'}
           {trace.reachedOrigin
             ? ` → origin: ${origin.label ?? truncate(origin.address)}`
@@ -147,16 +147,16 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
                   className="h-6 w-6 rounded-full border"
                   style={{ background: hexA(color, 0.3), borderColor: color }}
                 />
-                <span className="mt-1 max-w-[88px] truncate text-[10px] text-white/70">
+                <span className="mt-1 max-w-[88px] truncate text-[10px] text-[var(--text-muted)]">
                   {isSelf ? 'This wallet' : s.label ?? truncate(s.address)}
                 </span>
                 {s.category && <CounterpartyBadge category={s.category} label={s.label} />}
               </div>
               {next && (
-                <div className="flex shrink-0 flex-col items-center pt-1.5 text-white/30">
+                <div className="flex shrink-0 flex-col items-center pt-1.5 text-[var(--text-faint)]">
                   <IconArrowRight className="h-3.5 w-3.5" />
                   {edge?.amount != null && (
-                    <span className="mt-0.5 flex items-center gap-0.5 text-[9px] tabular-nums text-white/40">
+                    <span className="mt-0.5 flex items-center gap-0.5 text-[9px] tabular-nums text-[var(--text-faint)]">
                       {fmtAmt(edge.amount)}
                       <ChainLogo chain={edge.chain} size={9} />
                     </span>
@@ -175,22 +175,22 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
           const fb = s.fundedBy;
           const ec = fb.chain; // chain the funding transfer really happened on
           return (
-            <div key={`hop-${i}`} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-white/50">
-              <span className="text-white/30">{i === 0 ? 'Funded by' : '↳ then'}</span>
+            <div key={`hop-${i}`} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--text-faint)]">
+              <span className="text-[var(--text-faint)]">{i === 0 ? 'Funded by' : '↳ then'}</span>
               <a
                 href={`${EXPLORER_ADDRESS[ec]}${funder.address}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium text-white/80 hover:text-white"
+                className="font-medium text-[var(--text)] hover:text-[var(--text)]"
               >
                 {funder.label ?? truncate(funder.address)}
               </a>
               <CounterpartyBadge category={funder.category} label={funder.label} />
               {fb.amount != null && (
-                <span className="inline-flex items-center gap-1 tabular-nums text-white/35">
+                <span className="inline-flex items-center gap-1 tabular-nums text-[var(--text-muted)]">
                   · {fmtAmt(fb.amount)}
                   <ChainLogo chain={ec} size={12} />
-                  <span className={fb.preFork ? 'text-indigo-300/70' : 'text-white/35'}>
+                  <span className={fb.preFork ? 'text-indigo-300/70' : 'text-[var(--text-muted)]'}>
                     {fb.asset}
                   </span>
                 </span>
@@ -200,7 +200,7 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
                   href={fb.txHash ? `${EXPLORER_TX[ec]}${fb.txHash}` : '#'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-0.5 text-white/30 hover:text-white/70"
+                  className="inline-flex items-center gap-0.5 text-[var(--text-faint)] hover:text-[var(--text-muted)]"
                 >
                   · {fmtDate(fb.timestamp)}
                   <IconExternalLink className="h-2.5 w-2.5" />
@@ -212,7 +212,7 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
                 chain={ec}
                 context={{ direction: 'sender' }}
                 size={12}
-                className="text-white/25 hover:text-orange-300 transition-colors"
+                className="text-[var(--text-muted)] hover:text-orange-300 transition-colors"
               />
             </div>
           );

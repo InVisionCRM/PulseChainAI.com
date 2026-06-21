@@ -15,7 +15,7 @@ const DashboardActions: React.FC<DashboardActionsProps> = ({
       <button
         onClick={fetchData}
         disabled={isLoading}
-        className="bg-slate-950 hover:bg-slate-950 disabled:bg-blue-400 text-white font-bold py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg flex items-center gap-2 text-xs sm:text-sm"
+        className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)] disabled:bg-blue-400 text-[var(--text)] font-bold py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg flex items-center gap-2 text-xs sm:text-sm"
       >
         <RefreshCw className={`w-3 h-3 sm:w-4 sm:h-4 ${isLoading ? 'animate-spin' : ''}`} />
         <span className="hidden sm:inline">Refresh Data</span>
@@ -23,7 +23,7 @@ const DashboardActions: React.FC<DashboardActionsProps> = ({
       </button>
       <button
         onClick={() => setShowGeminiAnalysis(!showGeminiAnalysis)}
-        className="bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg flex items-center gap-2 text-xs sm:text-sm"
+        className="bg-green-600 hover:bg-green-700 text-[var(--text)] font-bold py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg flex items-center gap-2 text-xs sm:text-sm"
       >
         <Brain className="w-3 h-3 sm:w-4 sm:h-4" />
         <span className="hidden sm:inline">{showGeminiAnalysis ? 'Hide' : 'Show'} AI Analysis</span>
@@ -34,7 +34,7 @@ const DashboardActions: React.FC<DashboardActionsProps> = ({
           setShowDexPairs(true);
           void loadDexPairs();
         }}
-        className="bg-white/10 hover:bg-white/20 text-white font-bold py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg border border-white/20 text-xs sm:text-sm"
+        className="bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] font-bold py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg border border-[var(--line-strong)] text-xs sm:text-sm"
         title="View PulseChain HEX liquidity pairs (DexScreener)"
       >
         <span className="hidden sm:inline">View HEX Pairs (PLS)</span>

@@ -101,23 +101,23 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onApiKeySet,
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-[var(--app-bg)] backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
-          className="bg-slate-800/90 backdrop-blur-sm border border-slate-600/50 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+          className="bg-[var(--panel)] backdrop-blur-sm border border-[var(--line)] rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
         >
           <div className="p-6">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-white mb-2">Gemini API Key Setup</h2>
-                <p className="text-slate-400 text-sm">Configure your personal API key for enhanced reliability</p>
+                <h2 className="text-2xl font-bold text-[var(--text)] mb-2">Gemini API Key Setup</h2>
+                <p className="text-[var(--text-muted)] text-sm">Configure your personal API key for enhanced reliability</p>
               </div>
               <button
                 onClick={handleClose}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
                 title="Close"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,19 +127,19 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onApiKeySet,
             </div>
 
             {/* Tutorial Section */}
-            <div className="bg-slate-700/50 rounded-lg p-4 mb-6">
-              <h3 className="text-lg font-semibold text-white mb-3">📚 How to Get Your API Key</h3>
-              <div className="space-y-3 text-sm text-slate-300">
+            <div className="bg-[var(--surface-2)] rounded-lg p-4 mb-6">
+              <h3 className="text-lg font-semibold text-[var(--text)] mb-3">📚 How to Get Your API Key</h3>
+              <div className="space-y-3 text-sm text-[var(--text-muted)]">
                 <div className="flex items-start gap-3">
-                  <span className="bg-slate-950 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">1</span>
+                  <span className="bg-[var(--app-bg)] text-[var(--text)] rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">1</span>
                   <p>Visit <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">Google AI Studio</a> and sign in with your Google account</p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="bg-slate-950 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">2</span>
+                  <span className="bg-[var(--app-bg)] text-[var(--text)] rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">2</span>
                   <p>Click "Create API Key" and select "Create API Key in new project"</p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="bg-slate-950 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">3</span>
+                  <span className="bg-[var(--app-bg)] text-[var(--text)] rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">3</span>
                   <p>Copy your API key (starts with "AIza...") and paste it below</p>
                 </div>
               </div>
@@ -163,7 +163,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onApiKeySet,
             </div>
 
             {/* Storage Notice */}
-            <div className="bg-slate-950/20 border border-slate-800/30 rounded-lg p-4 mb-6">
+            <div className="bg-[var(--app-bg)] border border-[var(--line)] rounded-lg p-4 mb-6">
               <div className="flex items-start gap-3">
                 <svg className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
@@ -181,7 +181,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onApiKeySet,
             {/* API Key Input */}
             <div className="space-y-4">
               <div>
-                <label htmlFor="apiKey" className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="apiKey" className="block text-sm font-medium text-[var(--text-muted)] mb-2">
                   Gemini API Key
                 </label>
                 <div className="relative">
@@ -191,13 +191,13 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onApiKeySet,
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="AIzaSy..."
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none transition pr-12"
+                    className="w-full bg-[var(--surface-2)] border border-[var(--line)] rounded-lg px-4 py-3 text-[var(--text)] placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none transition pr-12"
                     disabled={isValidating}
                   />
                   <button
                     type="button"
                     onClick={() => setShowKey(!showKey)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
                   >
                     {showKey ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -241,7 +241,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onApiKeySet,
                 <button
                   onClick={handleSave}
                   disabled={!apiKey.trim() || isValidating}
-                  className="flex-1 bg-slate-950 hover:bg-slate-950 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                  className="flex-1 bg-[var(--app-bg)] hover:bg-[var(--app-bg)] disabled:bg-[var(--surface-2)] disabled:cursor-not-allowed text-[var(--text)] font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
                 >
                   {isValidating ? (
                     <>
@@ -256,7 +256,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onApiKeySet,
                 {currentApiKey && (
                   <button
                     onClick={handleClear}
-                    className="bg-slate-600 hover:bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+                    className="bg-[var(--surface-2)] hover:bg-[var(--surface-2)] text-[var(--text)] font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
                   >
                     Clear Key
                   </button>
@@ -264,7 +264,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onApiKeySet,
                 
                 <button
                   onClick={handleClose}
-                  className="bg-transparent border border-slate-600 hover:border-slate-500 text-slate-300 hover:text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+                  className="bg-transparent border border-[var(--line)] hover:border-[var(--line)] text-[var(--text-muted)] hover:text-[var(--text)] font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
                 >
                   Cancel
                 </button>

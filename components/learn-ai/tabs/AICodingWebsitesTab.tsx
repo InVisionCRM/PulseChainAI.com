@@ -107,21 +107,21 @@ export default function AICodingWebsitesTab() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.3 }}
-      className="rounded-lg border border-white/10 bg-white/5 p-6"
+      className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6"
     >
       <h2 className="mb-6 text-2xl font-bold text-[#FA4616]">Best AI Coding Websites & Tools</h2>
-      <p className="mb-6 text-white/70">
+      <p className="mb-6 text-[var(--text-muted)]">
         Essential AI-powered tools and platforms for modern development. Each tool offers unique capabilities
         for different aspects of the coding workflow.
       </p>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {aiWebsites.map((site, index) => (
-          <div key={site.name} className="rounded-lg border border-white/20 bg-white/5 p-4">
+          <div key={site.name} className="rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] p-4">
             <div className="flex items-center gap-3 mb-3">
               {site.icon}
               <div>
-                <h3 className="font-semibold text-white">{site.name}</h3>
+                <h3 className="font-semibold text-[var(--text)]">{site.name}</h3>
                 <a
                   href={site.url}
                   target="_blank"
@@ -132,18 +132,18 @@ export default function AICodingWebsitesTab() {
                 </a>
               </div>
             </div>
-            <p className="text-sm text-white/70 mb-3">
+            <p className="text-sm text-[var(--text-muted)] mb-3">
               {site.description}
             </p>
             <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-white/90">Key Strengths:</h4>
-              <ul className="text-xs text-white/60 space-y-1">
+              <h4 className="text-sm font-semibold text-[var(--text)]">Key Strengths:</h4>
+              <ul className="text-xs text-[var(--text-muted)] space-y-1">
                 {site.strengths.map((strength, idx) => (
                   <li key={idx}>• {strength}</li>
                 ))}
               </ul>
             </div>
-            <div className="mt-3 pt-3 border-t border-white/10">
+            <div className="mt-3 pt-3 border-t border-[var(--line)]">
               <p className="text-xs text-[#FA4616] font-semibold">{site.bestFor}</p>
             </div>
           </div>
@@ -151,12 +151,12 @@ export default function AICodingWebsitesTab() {
       </div>
 
       {/* AI Integration Best Practices */}
-      <div className="mt-8 rounded-lg border border-white/20 bg-white/5 p-6">
-        <h3 className="text-xl font-semibold text-white mb-4">AI Integration Best Practices</h3>
+      <div className="mt-8 rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] p-6">
+        <h3 className="text-xl font-semibold text-[var(--text)] mb-4">AI Integration Best Practices</h3>
         <div className="grid md:grid-cols-2 gap-6">
           <div>
             <h4 className="font-semibold text-[#FA4616] mb-3">Effective Prompting</h4>
-            <ul className="text-sm text-white/80 space-y-2">
+            <ul className="text-sm text-[var(--text)] space-y-2">
               <li>• Be specific about your requirements</li>
               <li>• Include context about your tech stack</li>
               <li>• Mention PulseChain-specific needs</li>
@@ -166,7 +166,7 @@ export default function AICodingWebsitesTab() {
           </div>
           <div>
             <h4 className="font-semibold text-[#FA4616] mb-3">Workflow Integration</h4>
-            <ul className="text-sm text-white/80 space-y-2">
+            <ul className="text-sm text-[var(--text)] space-y-2">
               <li>• Use AI for planning and architecture</li>
               <li>• Generate boilerplate code efficiently</li>
               <li>• Debug with AI assistance</li>
@@ -178,29 +178,29 @@ export default function AICodingWebsitesTab() {
       </div>
 
       {/* Getting Started Tips */}
-      <div className="mt-6 rounded-lg border border-white/20 bg-white/5 p-6">
-        <h3 className="text-xl font-semibold text-white mb-4">Getting Started with AI Coding</h3>
+      <div className="mt-6 rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] p-6">
+        <h3 className="text-xl font-semibold text-[var(--text)] mb-4">Getting Started with AI Coding</h3>
         <div className="grid md:grid-cols-3 gap-4">
           <div className="text-center">
             <div className="w-12 h-12 bg-[#FA4616] rounded-full flex items-center justify-center mx-auto mb-2">
-              <span className="text-white font-bold">1</span>
+              <span className="text-[var(--text)] font-bold">1</span>
             </div>
-            <h4 className="font-semibold text-white mb-1">Choose Your Tool</h4>
-            <p className="text-sm text-white/70">Start with 1-2 AI tools that match your workflow</p>
+            <h4 className="font-semibold text-[var(--text)] mb-1">Choose Your Tool</h4>
+            <p className="text-sm text-[var(--text-muted)]">Start with 1-2 AI tools that match your workflow</p>
           </div>
           <div className="text-center">
             <div className="w-12 h-12 bg-[#FA4616] rounded-full flex items-center justify-center mx-auto mb-2">
-              <span className="text-white font-bold">2</span>
+              <span className="text-[var(--text)] font-bold">2</span>
             </div>
-            <h4 className="font-semibold text-white mb-1">Learn Prompting</h4>
-            <p className="text-sm text-white/70">Practice writing clear, specific instructions</p>
+            <h4 className="font-semibold text-[var(--text)] mb-1">Learn Prompting</h4>
+            <p className="text-sm text-[var(--text-muted)]">Practice writing clear, specific instructions</p>
           </div>
           <div className="text-center">
             <div className="w-12 h-12 bg-[#FA4616] rounded-full flex items-center justify-center mx-auto mb-2">
-              <span className="text-white font-bold">3</span>
+              <span className="text-[var(--text)] font-bold">3</span>
             </div>
-            <h4 className="font-semibold text-white mb-1">Iterate & Learn</h4>
-            <p className="text-sm text-white/70">Review AI suggestions and learn from corrections</p>
+            <h4 className="font-semibold text-[var(--text)] mb-1">Iterate & Learn</h4>
+            <p className="text-sm text-[var(--text-muted)]">Review AI suggestions and learn from corrections</p>
           </div>
         </div>
       </div>

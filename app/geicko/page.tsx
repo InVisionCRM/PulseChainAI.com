@@ -66,9 +66,9 @@ function ContractHolderTooltipRow({
     }
   }, [holder.address]);
   return (
-    <li className="text-xs font-mono text-gray-400 space-y-0.5 border-b border-white/10 pb-1.5 last:border-0">
+    <li className="text-xs font-mono text-[var(--text-muted)] space-y-0.5 border-b border-[var(--line)] pb-1.5 last:border-0">
       <div className="flex items-center gap-1.5">
-        <span className="text-gray-300">{truncateAddress(holder.address)}</span>
+        <span className="text-[var(--text-muted)]">{truncateAddress(holder.address)}</span>
         <button
           type="button"
           onClick={(e) => {
@@ -86,7 +86,7 @@ function ContractHolderTooltipRow({
           )}
         </button>
       </div>
-      <div className="text-[10px] text-gray-500 mt-0.5">
+      <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
         {holder.type} · {holder.percent.toFixed(2)}% of supply
       </div>
     </li>
@@ -1485,9 +1485,9 @@ function GeickoPageContent() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-[#0C2340] via-[#0d2a4d] to-[#0C2340] text-white font-sans px-2 md:px-3 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)] text-[var(--text)] font-sans px-2 md:px-3 relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute top-24 left-16 h-72 w-72 bg-gradient-to-br from-[#0d2a4d] via-[#0C2340]/40 to-transparent blur-3xl" />
+          <div className="absolute top-24 left-16 h-72 w-72 bg-gradient-to-br from-[var(--surface-2)] via-[var(--panel)] to-transparent blur-3xl" />
           <div className="absolute bottom-24 right-1/4 h-64 w-64 bg-gradient-to-tr from-brand-orange/10 via-transparent to-transparent blur-3xl" />
         </div>
       {/* Header Section */}
@@ -1501,8 +1501,8 @@ function GeickoPageContent() {
           </div>
         ) : effectivePair ? (
           <div className="px-2 mb-2 pt-2">
-            <div className="bg-gray-900/80 border border-gray-800 rounded-2xl overflow-hidden shadow-[0_12px_35px_rgba(0,0,0,0.45)]">
-              <div className="relative h-40 border-b border-gray-800/70 bg-slate-900">
+            <div className="bg-[var(--panel)] border border-[var(--line)] rounded-2xl overflow-hidden shadow-[0_12px_35px_rgba(0,0,0,0.45)]">
+              <div className="relative h-40 border-b border-[var(--line)] bg-[var(--panel)]">
                 {headerImageUrl ? (
                   <img
                     src={headerImageUrl}
@@ -1525,7 +1525,7 @@ function GeickoPageContent() {
                       href="https://pump.tires"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 backdrop-blur border border-white/15 text-white text-xs font-semibold tracking-wide hover:bg-white/15 hover:border-white/25 transition-all"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--surface-2)] backdrop-blur border border-[var(--line)] text-[var(--text)] text-xs font-semibold tracking-wide hover:bg-[var(--surface-3)] hover:border-[var(--line-strong)] transition-all"
                     >
                       <span aria-hidden>🛞</span>
                       <span>Pump.Tires</span>
@@ -1541,28 +1541,28 @@ function GeickoPageContent() {
                           aria-label="Select trading pair"
                           value={displayPair?.pairAddress ?? ''}
                           onChange={(e) => setSelectedPairAddress(e.target.value || null)}
-                          className="w-auto max-w-[160px] text-xl font-bold text-white rounded-tl-lg bg-white/10 border border-white/20 backdrop-blur-md tracking-tight cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-400/50 pr-6 appearance-none bg-no-repeat bg-[length:10px] bg-[position:right_0.25rem_center]"
-                          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}
+                          className="w-auto max-w-[160px] text-xl font-bold text-[var(--text)] rounded-tl-lg bg-[var(--surface-2)] border border-[var(--line-strong)] backdrop-blur-md tracking-tight cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-400/50 pr-6 appearance-none bg-no-repeat bg-[length:10px] bg-[position:right_0.25rem_center]"
+                          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%238a93a0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}
                         >
                           {(dexScreenerData?.pairs ?? [])
                             .sort((a: { liquidity?: { usd?: number } }, b: { liquidity?: { usd?: number } }) => Number(b?.liquidity?.usd ?? 0) - Number(a?.liquidity?.usd ?? 0))
                             .map((p: { pairAddress?: string; baseToken?: { symbol?: string }; quoteToken?: { symbol?: string }; liquidity?: { usd?: number }; volume?: { h24?: number }; priceChange?: { h24?: number } }) => (
-                              <option key={p.pairAddress} value={p.pairAddress ?? ''} className="bg-gray-900 text-white text-sm">
+                              <option key={p.pairAddress} value={p.pairAddress ?? ''} className="bg-[var(--panel)] text-[var(--text)] text-sm">
                                 {[p.baseToken?.symbol, p.quoteToken?.symbol].filter(Boolean).join(' / ') || 'Pair'}
                               </option>
                             ))}
                         </select>
                       ) : (
-                        <div className="text-lg p-1 font-bold text-white rounded-tl-lg bg-transparent backdrop-blur-md tracking-tight">
-                          {(effectivePair?.baseToken?.symbol ?? baseSymbol)} <span className="text-white pb-1 bg-transparent">/</span> {(effectivePair?.quoteToken?.symbol ?? quoteSymbol)}
+                        <div className="text-lg p-1 font-bold text-[var(--text)] rounded-tl-lg bg-transparent backdrop-blur-md tracking-tight">
+                          {(effectivePair?.baseToken?.symbol ?? baseSymbol)} <span className="text-[var(--text)] pb-1 bg-transparent">/</span> {(effectivePair?.quoteToken?.symbol ?? quoteSymbol)}
                         </div>
                       )}
-                      <div className="text-xs text-white pb-1 text-left pl-2 bg-transparent backdrop-blur-xs">
+                      <div className="text-xs text-[var(--text)] pb-1 text-left pl-2 bg-transparent backdrop-blur-xs">
                         {tokenNameDisplay}
                       </div>
                     </div>
                     <div className="text-center justify-center">
-                      <div className="text-lg p-1 font-semibold text-white rounded-tr-lg bg-transparent backdrop-blur-md">
+                      <div className="text-lg p-1 font-semibold text-[var(--text)] rounded-tr-lg bg-transparent backdrop-blur-md">
                         ${((): string => {
                           const p = Number(effectivePair?.priceUsd || 0);
                           return p >= 1 ? p.toFixed(4) : p.toFixed(6);
@@ -1594,17 +1594,17 @@ function GeickoPageContent() {
                       }}
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-brand-navy border border-white/10 flex items-center justify-center text-white font-bold">
+                    <div className="w-10 h-10 rounded-full bg-brand-navy border border-[var(--line)] flex items-center justify-center text-[var(--text)] font-bold">
                       {baseSymbol.charAt(0)}
                     </div>
                   )}
-                  <div className="text-sm font-semibold text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.9)] truncate max-w-[220px]">
+                  <div className="text-sm font-semibold text-[var(--text)] drop-shadow-[0_0_10px_rgba(0,0,0,0.9)] truncate max-w-[220px]">
                     {heroTagline}
                   </div>
                 </div>
               </div>
               {hasSocialLinks && (
-                <div className="flex divide-x divide-gray-800 bg-gray-900/70">
+                <div className="flex divide-x divide-gray-800 bg-[var(--panel)]">
                   {socialTabs.map((tab) => (
                     <button
                       key={tab.label}
@@ -1622,8 +1622,8 @@ function GeickoPageContent() {
                       }}
                       disabled={!tab.url && !tab.isDownload}
                       className={`flex-1 text-center text-xs font-semibold px-3 py-2 transition-colors ${
-                        activeSocialTab === tab.label ? 'text-white bg-gray-800' : 'text-gray-400'
-                      } ${(tab.url || tab.isDownload) ? 'hover:text-white hover:bg-gray-800/60' : 'opacity-40 cursor-not-allowed'}`}
+                        activeSocialTab === tab.label ? 'text-[var(--text)] bg-[var(--panel)]' : 'text-[var(--text-muted)]'
+                      } ${(tab.url || tab.isDownload) ? 'hover:text-[var(--text)] hover:bg-[var(--panel)]' : 'opacity-40 cursor-not-allowed'}`}
                     >
                       {tab.label}
                     </button>
@@ -1633,7 +1633,7 @@ function GeickoPageContent() {
             </div>
           </div>
         ) : (
-          <div className="text-xs text-gray-400 py-4 text-center">No token data available</div>
+          <div className="text-xs text-[var(--text-muted)] py-4 text-center">No token data available</div>
         )}
       </div>
 
@@ -1649,7 +1649,7 @@ function GeickoPageContent() {
                 {apiTokenAddress && (
                   <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                     <div className="flex flex-col space-y-1 items-center">
-                      <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Contract</span>
+                      <span className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider text-center">Contract</span>
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => handleCopyAddress(apiTokenAddress)}
@@ -1660,7 +1660,7 @@ function GeickoPageContent() {
                         </button>
                         <button
                           onClick={() => handleCopyAddress(apiTokenAddress)}
-                          className="flex items-center justify-center w-5 h-5 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                          className="flex items-center justify-center w-5 h-5 rounded bg-[var(--surface)] border border-[var(--line)] hover:bg-[var(--surface-2)] transition-colors"
                           aria-label="Copy contract address"
                           title="Copy contract address"
                         >
@@ -1673,7 +1673,7 @@ function GeickoPageContent() {
                 {/* Creator */}
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                   <div className="flex flex-col space-y-1 items-center">
-                    <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Creator</span>
+                    <span className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider text-center">Creator</span>
                     <div className="flex items-center justify-center gap-1">
                       {ownershipData.creatorAddress ? (
                         <>
@@ -1688,7 +1688,7 @@ function GeickoPageContent() {
                           </a>
                           <button
                             onClick={() => handleCopyAddress(ownershipData.creatorAddress!)}
-                            className="flex items-center justify-center w-5 h-5 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                            className="flex items-center justify-center w-5 h-5 rounded bg-[var(--surface)] border border-[var(--line)] hover:bg-[var(--surface-2)] transition-colors"
                             aria-label="Copy creator address"
                             title="Copy creator address"
                           >
@@ -1703,7 +1703,7 @@ function GeickoPageContent() {
                           />
                         </>
                       ) : (
-                        <span className="text-xs text-white font-semibold">—</span>
+                        <span className="text-xs text-[var(--text)] font-semibold">—</span>
                       )}
                     </div>
                   </div>
@@ -1711,13 +1711,13 @@ function GeickoPageContent() {
 
                 {/* Ownership Status */}
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Ownership</div>
+                  <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Ownership</div>
                   {ownershipData.isLoading ? (
-                    <div className="text-center text-gray-500 text-sm">Loading...</div>
+                    <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
                   ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
                     <div className="text-center">
                       <div className="text-xs text-green-400 font-semibold">Renounced</div>
-                      <div className="text-xs text-gray-400 mt-0.5">
+                      <div className="text-xs text-[var(--text-muted)] mt-0.5">
                         {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
                       </div>
                     </div>
@@ -1754,8 +1754,8 @@ function GeickoPageContent() {
                 {/* Decimals */}
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Decimals</span>
-                    <span className="text-xs text-white font-semibold">
+                    <span className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Decimals</span>
+                    <span className="text-xs text-[var(--text)] font-semibold">
                       {totalSupply?.decimals !== undefined ? totalSupply.decimals : <LoaderOne />}
                     </span>
                   </div>
@@ -1763,11 +1763,11 @@ function GeickoPageContent() {
 
                 {/* Supply & Token Info */}
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Supply Info</div>
+                  <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Supply Info</div>
                   <div className="space-y-0.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400 font-medium">Total Supply</span>
-                      <span className="text-xs text-white font-semibold">
+                      <span className="text-xs text-[var(--text-muted)] font-medium">Total Supply</span>
+                      <span className="text-xs text-[var(--text)] font-semibold">
                         {totalSupply ? (() => {
                           const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
                           return formatAbbrev(supply);
@@ -1775,10 +1775,10 @@ function GeickoPageContent() {
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400 font-medium">Circ.</span>
+                      <span className="text-xs text-[var(--text-muted)] font-medium">Circ.</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="text-xs text-white font-semibold">
+                          <span className="text-xs text-[var(--text)] font-semibold">
                             {totalSupply ? (() => {
                               const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
                               const burned = burnedTokens?.amount ?? 0;
@@ -1800,13 +1800,13 @@ function GeickoPageContent() {
                       </Tooltip>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400 font-medium">Holders</span>
+                      <span className="text-xs text-[var(--text-muted)] font-medium">Holders</span>
                       {isLoadingMetrics ? (
                         <Skeleton className="h-4 w-12" />
                       ) : (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="text-xs text-white font-semibold">
+                            <span className="text-xs text-[var(--text)] font-semibold">
                               {holdersCount !== null ? (holdersCount >= 1000 ? `${(holdersCount / 1000).toFixed(1)}k` : holdersCount) : '—'}
                             </span>
                           </TooltipTrigger>
@@ -1819,11 +1819,11 @@ function GeickoPageContent() {
                       )}
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400 font-medium">Age</span>
+                      <span className="text-xs text-[var(--text-muted)] font-medium">Age</span>
                       {isLoadingMetrics ? (
                         <Skeleton className="h-4 w-16" />
                       ) : (
-                        <span className="text-xs text-white font-semibold">{creationDate || '—'}</span>
+                        <span className="text-xs text-[var(--text)] font-semibold">{creationDate || '—'}</span>
                       )}
                     </div>
                   </div>
@@ -1832,7 +1832,7 @@ function GeickoPageContent() {
                 {/* Supply Held */}
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                   <div className="flex items-center justify-between mb-1">
-                    <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center flex-1">Supply Held</div>
+                    <div className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider text-center flex-1">Supply Held</div>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
@@ -1851,24 +1851,24 @@ function GeickoPageContent() {
                     </Tooltip>
                   </div>
                   {supplyHeld.isLoading ? (
-                    <div className="text-center text-gray-500 text-sm">Loading...</div>
+                    <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
                   ) : (
                     <div className="space-y-0.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400 font-medium">Top 10</span>
-                        <span className="text-xs text-white font-semibold">
+                        <span className="text-xs text-[var(--text-muted)] font-medium">Top 10</span>
+                        <span className="text-xs text-[var(--text)] font-semibold">
                           {supplyHeld.top10 > 0 ? `${Math.round(supplyHeld.top10)}%` : '—'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400 font-medium">Top 20</span>
-                        <span className="text-xs text-white font-semibold">
+                        <span className="text-xs text-[var(--text-muted)] font-medium">Top 20</span>
+                        <span className="text-xs text-[var(--text)] font-semibold">
                           {supplyHeld.top20 > 0 ? `${Math.round(supplyHeld.top20)}%` : '—'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400 font-medium">Top 50</span>
-                        <span className="text-xs text-white font-semibold">
+                        <span className="text-xs text-[var(--text-muted)] font-medium">Top 50</span>
+                        <span className="text-xs text-[var(--text)] font-semibold">
                           {supplyHeld.top50 > 0 ? `${Math.round(supplyHeld.top50)}%` : '—'}
                         </span>
                       </div>
@@ -1879,7 +1879,7 @@ function GeickoPageContent() {
                 {/* Smart Contract Holder Share */}
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                   <div className="flex items-center justify-between mb-1">
-                    <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center flex-1">Supply In Contracts</div>
+                    <div className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider text-center flex-1">Supply In Contracts</div>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
@@ -1892,7 +1892,7 @@ function GeickoPageContent() {
                       </TooltipTrigger>
                       <TooltipContent side="left" className="max-w-[340px] p-2">
                         <div className="space-y-1.5">
-                          <p className="text-xs text-gray-300 font-medium">Addresses counted (top 50):</p>
+                          <p className="text-xs text-[var(--text-muted)] font-medium">Addresses counted (top 50):</p>
                           {smartContractHolderShare.contractHolders?.length ? (
                             <>
                               <ul className="space-y-0 max-h-48 overflow-y-auto">
@@ -1903,34 +1903,34 @@ function GeickoPageContent() {
                             </>
                           ) : smartContractHolderShare.contractAddresses?.length ? (
                             <>
-                              <ul className="text-xs font-mono text-gray-400 space-y-0.5 max-h-40 overflow-y-auto">
+                              <ul className="text-xs font-mono text-[var(--text-muted)] space-y-0.5 max-h-40 overflow-y-auto">
                                 {smartContractHolderShare.contractAddresses.map((addr: string) => (
-                                  <li key={addr} className="text-gray-300">
+                                  <li key={addr} className="text-[var(--text-muted)]">
                                     {truncateAddress(addr)}
                                   </li>
                                 ))}
                               </ul>
                             </>
                           ) : (
-                            <p className="text-[10px] text-gray-500">No contract holders in top 50.</p>
+                            <p className="text-[10px] text-[var(--text-muted)]">No contract holders in top 50.</p>
                           )}
                         </div>
                       </TooltipContent>
                     </Tooltip>
                   </div>
                   {smartContractHolderShare.isLoading ? (
-                    <div className="text-center text-gray-500 text-sm">Loading...</div>
+                    <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
                   ) : (
                     <div className="space-y-0.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400 font-medium">Share</span>
-                        <span className="text-xs text-white font-semibold">
+                        <span className="text-xs text-[var(--text-muted)] font-medium">Share</span>
+                        <span className="text-xs text-[var(--text)] font-semibold">
                           {smartContractHolderShare.percent > 0 ? `${smartContractHolderShare.percent.toFixed(2)}%` : '—'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400 font-medium">Contracts</span>
-                        <span className="text-xs text-white font-semibold">
+                        <span className="text-xs text-[var(--text-muted)] font-medium">Contracts</span>
+                        <span className="text-xs text-[var(--text)] font-semibold">
                           {smartContractHolderShare.contractCount > 0 ? smartContractHolderShare.contractCount : '—'}
                         </span>
                       </div>
@@ -1943,8 +1943,8 @@ function GeickoPageContent() {
               <div className="space-y-0.5">
                 {/* Liquidity */}
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Liquidity</div>
-                  <div className="text-center text-base text-white font-semibold">
+                  <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Liquidity</div>
+                  <div className="text-center text-base text-[var(--text)] font-semibold">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span>
@@ -1970,8 +1970,8 @@ function GeickoPageContent() {
 
                 {/* Market Cap */}
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Market Cap</div>
-                  <div className="text-center text-base text-white font-semibold">
+                  <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Market Cap</div>
+                  <div className="text-center text-base text-[var(--text)] font-semibold">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span>
@@ -1997,8 +1997,8 @@ function GeickoPageContent() {
 
                 {/* Liq/MCAP Ratio */}
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Liq/MCAP</div>
-                  <div className="text-center text-base text-white font-semibold">
+                  <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Liq/MCAP</div>
+                  <div className="text-center text-base text-[var(--text)] font-semibold">
                     {(() => {
                       const p = displayPair ?? effectivePair;
                       const liquidity = Number(p?.liquidity?.usd || 0);
@@ -2011,11 +2011,11 @@ function GeickoPageContent() {
 
                 {/* Total Liquidity */}
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Total Liquidity</div>
+                  <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Total Liquidity</div>
                   {totalLiquidity.isLoading ? (
-                    <div className="text-center text-gray-500 text-sm">Loading...</div>
+                    <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
                   ) : (
-                    <div className="text-center text-base text-white font-semibold">
+                    <div className="text-center text-base text-[var(--text)] font-semibold">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span>
@@ -2039,14 +2039,14 @@ function GeickoPageContent() {
 
                 {/* Burned Tokens */}
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                  <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Burned</div>
+                  <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Burned</div>
                   {isLoadingMetrics ? (
                     <div className="flex justify-center"><Skeleton className="h-6 w-16" /></div>
                   ) : burnedTokens ? (
                     <div className="text-center">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
+                          <div className="text-base text-[var(--text)] font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>{burnedTokens.amount.toLocaleString()}</p>
@@ -2055,7 +2055,7 @@ function GeickoPageContent() {
                       <div className="text-xs text-green-400 font-medium mt-0.5">{burnedTokens.percent.toFixed(1)}% of supply</div>
                     </div>
                   ) : (
-                    <div className="text-center text-base text-white font-semibold">—</div>
+                    <div className="text-center text-base text-[var(--text)] font-semibold">—</div>
                   )}
                 </div>
 
@@ -2088,14 +2088,14 @@ function GeickoPageContent() {
 
           {/* Content Tables */}
           <div className="px-2 md:px-3 py-1 min-w-0 flex-1 min-h-0 flex flex-col">
-          <div className="bg-gray-900 rounded-t-none border-t-0 border border-gray-800 w-full min-w-0 relative z-20 overflow-auto rounded-lg flex-1 min-h-0">
+          <div className="bg-[var(--panel)] rounded-t-none border-t-0 border border-[var(--line)] w-full min-w-0 relative z-20 overflow-auto rounded-lg flex-1 min-h-0">
               {/* GOLD Tab */}
               {activeTab === 'gold' && isGoldToken && (
-                <div className="min-h-[360px] p-4 md:p-6 border border-amber-500/30 bg-gradient-to-b from-amber-950/20 to-transparent rounded-b-lg">
+                <div className="min-h-[360px] p-4 md:p-6 border border-amber-500/30 bg-gradient-to-b from-amber-100/70 to-transparent dark:from-amber-950/20 rounded-b-lg">
                   {goldProfile === null ? (
                     <div className="flex items-center justify-center py-12">
                       <LoaderThree />
-                      <span className="text-amber-200/80 text-sm ml-2">Loading GOLD profile…</span>
+                      <span className="text-amber-700 dark:text-amber-200/80 text-sm ml-2">Loading GOLD profile…</span>
                     </div>
                   ) : (
                     <div className="space-y-5">
@@ -2128,12 +2128,12 @@ function GeickoPageContent() {
                         </div>
                       )}
                       {goldProfile.description && (
-                        <p className="text-amber-100/90 text-sm md:text-base leading-relaxed max-w-2xl mx-auto text-center whitespace-pre-wrap">{goldProfile.description}</p>
+                        <p className="text-amber-900 dark:text-amber-100/90 text-sm md:text-base leading-relaxed max-w-2xl mx-auto text-center whitespace-pre-wrap">{goldProfile.description}</p>
                       )}
                       {goldProfile.custom_links && goldProfile.custom_links.length > 0 && (
                         <div className="flex flex-wrap gap-2 justify-center">
                           {goldProfile.custom_links.map((link, i) => (
-                            <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-lg bg-amber-500/20 text-amber-200 border border-amber-500/40 text-sm font-medium hover:bg-amber-500/30 transition-colors">
+                            <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-lg bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/40 text-sm font-medium hover:bg-amber-500/30 transition-colors">
                               {link.label || link.url}
                             </a>
                           ))}
@@ -2141,7 +2141,7 @@ function GeickoPageContent() {
                       )}
                       {/* CTA */}
                       <div className="mt-6 pt-6 border-t border-amber-500/20 text-center">
-                        <p className="text-amber-200/90 text-xs md:text-sm max-w-xl mx-auto mb-4">
+                        <p className="text-amber-800 dark:text-amber-200/90 text-xs md:text-sm max-w-xl mx-auto mb-4">
                           You think your token deserves to be GOLD Verified by MORBIUS? Get it today along with your token&apos;s own custom games table on Morbius.io! Limited promotion.
                         </p>
                         <a
@@ -2165,7 +2165,7 @@ function GeickoPageContent() {
                     <div className="flex-1 flex items-center justify-center">
                       <div className="text-center">
                         <LoaderThree />
-                        <p className="text-gray-400 text-xs mt-2">Loading chart...</p>
+                        <p className="text-[var(--text-muted)] text-xs mt-2">Loading chart...</p>
                       </div>
                     </div>
                   ) : displayPair?.pairAddress ? (
@@ -2173,7 +2173,7 @@ function GeickoPageContent() {
                       <DexScreenerChart pairAddress={displayPair.pairAddress} />
                     </div>
                   ) : (
-                    <div className="flex-1 flex items-center justify-center text-center text-gray-500">
+                    <div className="flex-1 flex items-center justify-center text-center text-[var(--text-muted)]">
                       <div className="text-xs">No chart data available</div>
                     </div>
                   )}
@@ -2244,7 +2244,7 @@ function GeickoPageContent() {
               {/* Contract Tab */}
               {activeTab === 'contract' && (
                 <div className="flex flex-col h-[calc(160vh-300px)] min-h-[900px]">
-                  <div className="flex-shrink-0 border-b border-gray-800">
+                  <div className="flex-shrink-0 border-b border-[var(--line)]">
                     <div className="h-[400px]">
                       <TokenAIChat contractAddress={apiTokenAddress} compact={true} />
                     </div>
@@ -2258,14 +2258,14 @@ function GeickoPageContent() {
           </div>
 
           {/* Token Information Tabs */}
-          <div className="px-2 md:px-3 py-2 border-t border-gray-800">
+          <div className="px-2 md:px-3 py-2 border-t border-[var(--line)]">
 
             {/* View More Stats Button */}
             {displayPair && (
               <div className="px-2 md:px-3 pt-3 pb-3">
                 <button
                   onClick={() => setIsStatsModalOpen(true)}
-                  className="relative w-full overflow-hidden text-xs text-blue-200 hover:text-white font-semibold py-3 rounded-lg border border-cyan-400/40 bg-gradient-to-r from-blue-900/40 via-purple-900/30 to-cyan-900/40 shadow-[0_0_15px_rgba(59,130,246,0.6),0_0_25px_rgba(168,85,247,0.45)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(59,130,246,0.85),0_0_40px_rgba(168,85,247,0.7)]"
+                  className="relative w-full overflow-hidden text-xs text-blue-200 hover:text-[var(--text)] font-semibold py-3 rounded-lg border border-cyan-400/40 bg-gradient-to-r from-blue-900/40 via-purple-900/30 to-cyan-900/40 shadow-[0_0_15px_rgba(59,130,246,0.6),0_0_25px_rgba(168,85,247,0.45)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(59,130,246,0.85),0_0_40px_rgba(168,85,247,0.7)]"
                 >
                   <span className="absolute inset-0 bg-gradient-to-r from-cyan-400/10 via-transparent to-purple-400/10 blur-md" aria-hidden="true" />
                   <span className="pointer-events-none relative">View More Stats →</span>
@@ -2286,7 +2286,7 @@ function GeickoPageContent() {
                         href={website.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-3 py-2 bg-slate-700/60 text-white text-xs sm:text-sm font-semibold rounded-full border border-white/30 backdrop-blur-lg shadow-[0_8px_25px_rgba(0,0,0,0.2)] hover:bg-slate-600/70 transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-2)] text-[var(--text)] text-xs sm:text-sm font-semibold rounded-full border border-[var(--line-strong)] backdrop-blur-lg shadow-[0_8px_25px_rgba(0,0,0,0.2)] hover:bg-[var(--surface-2)] transition-colors"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -2328,7 +2328,7 @@ function GeickoPageContent() {
                           href={social.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-2 px-3 py-2 bg-slate-700/60 text-white text-xs sm:text-sm font-semibold rounded-full border border-white/30 backdrop-blur-lg shadow-[0_8px_25px_rgba(0,0,0,0.2)] hover:bg-slate-600/70 transition-colors"
+                          className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-2)] text-[var(--text)] text-xs sm:text-sm font-semibold rounded-full border border-[var(--line-strong)] backdrop-blur-lg shadow-[0_8px_25px_rgba(0,0,0,0.2)] hover:bg-[var(--surface-2)] transition-colors"
                         >
                           {getIcon(social.type)}
                           <span className="capitalize">{social.type ?? 'Link'}</span>
@@ -2342,7 +2342,7 @@ function GeickoPageContent() {
             {/* Quick Audit Section */}
             {tokenInfoTab === 'token' && profileData?.quickAudit && (
               <div className="mb-4">
-                <h2 className="text-sm font-semibold text-white mb-2">Quick Audit</h2>
+                <h2 className="text-sm font-semibold text-[var(--text)] mb-2">Quick Audit</h2>
 
                 {(() => {
                   const quickAudit = profileData?.quickAudit;
@@ -2350,19 +2350,19 @@ function GeickoPageContent() {
                     <>
                       {/* Contract Information */}
                       <div className="grid grid-cols-1 gap-2 mb-2">
-                        <div className="bg-gray-800 rounded p-2">
-                          <div className="text-xs text-gray-400 mb-1">Contract Info</div>
+                        <div className="bg-[var(--panel)] rounded p-2">
+                          <div className="text-xs text-[var(--text-muted)] mb-1">Contract Info</div>
                           <div className="space-y-1 text-xs">
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Name:</span>
-                              <span className="text-white font-mono text-xs truncate ml-2">{quickAudit.contractName}</span>
+                              <span className="text-[var(--text-muted)]">Name:</span>
+                              <span className="text-[var(--text)] font-mono text-xs truncate ml-2">{quickAudit.contractName}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Creator:</span>
-                              <span className="text-white font-mono text-xs">{quickAudit.contractCreator ? `${quickAudit.contractCreator.slice(0, 6)}...${quickAudit.contractCreator.slice(-4)}` : 'Unknown'}</span>
+                              <span className="text-[var(--text-muted)]">Creator:</span>
+                              <span className="text-[var(--text)] font-mono text-xs">{quickAudit.contractCreator ? `${quickAudit.contractCreator.slice(0, 6)}...${quickAudit.contractCreator.slice(-4)}` : 'Unknown'}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Owner:</span>
+                              <span className="text-[var(--text-muted)]">Owner:</span>
                               <span className={`font-mono text-xs ${quickAudit.contractRenounced ? 'text-green-400' : 'text-red-400'}`}>
                                 {quickAudit.contractRenounced ? 'Renounced' : (quickAudit.contractOwner ? `${quickAudit.contractOwner.slice(0, 6)}...${quickAudit.contractOwner.slice(-4)}` : 'Unknown')}
                               </span>
@@ -2370,23 +2370,23 @@ function GeickoPageContent() {
                           </div>
                         </div>
 
-                        <div className="bg-gray-800 rounded p-2">
-                          <div className="text-xs text-gray-400 mb-1">Security</div>
+                        <div className="bg-[var(--panel)] rounded p-2">
+                          <div className="text-xs text-[var(--text-muted)] mb-1">Security</div>
                           <div className="space-y-1 text-xs">
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Proxy:</span>
+                              <span className="text-[var(--text-muted)]">Proxy:</span>
                               <span className={quickAudit.isProxy ? 'text-red-400' : 'text-green-400'}>
                                 {quickAudit.isProxy ? 'Yes' : 'No'}
                               </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">External Risk:</span>
+                              <span className="text-[var(--text-muted)]">External Risk:</span>
                               <span className={quickAudit.hasExternalContractRisk ? 'text-red-400' : 'text-green-400'}>
                                 {quickAudit.hasExternalContractRisk ? 'Yes' : 'No'}
                               </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Suspicious:</span>
+                              <span className="text-[var(--text-muted)]">Suspicious:</span>
                               <span className={quickAudit.hasSuspiciousFunctions ? 'text-red-400' : 'text-green-400'}>
                                 {quickAudit.hasSuspiciousFunctions ? 'Yes' : 'No'}
                               </span>
@@ -2396,53 +2396,53 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Capabilities Grid */}
-                      <div className="bg-gray-800 rounded p-2 mb-2">
-                        <div className="text-xs text-gray-400 mb-2">Capabilities</div>
+                      <div className="bg-[var(--panel)] rounded p-2 mb-2">
+                        <div className="text-xs text-[var(--text-muted)] mb-2">Capabilities</div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Mint:</span>
+                            <span className="text-[var(--text-muted)]">Mint:</span>
                             <span className={quickAudit.canMint ? 'text-red-400' : 'text-green-400'}>
                               {quickAudit.canMint ? 'Yes' : 'No'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Burn:</span>
+                            <span className="text-[var(--text-muted)]">Burn:</span>
                             <span className={quickAudit.canBurn ? 'text-yellow-400' : 'text-green-400'}>
                               {quickAudit.canBurn ? 'Yes' : 'No'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Blacklist:</span>
+                            <span className="text-[var(--text-muted)]">Blacklist:</span>
                             <span className={quickAudit.canBlacklist ? 'text-red-400' : 'text-green-400'}>
                               {quickAudit.canBlacklist ? 'Yes' : 'No'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Pause:</span>
+                            <span className="text-[var(--text-muted)]">Pause:</span>
                             <span className={quickAudit.canPauseTrading ? 'text-red-400' : 'text-green-400'}>
                               {quickAudit.canPauseTrading ? 'Yes' : 'No'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Fees:</span>
+                            <span className="text-[var(--text-muted)]">Fees:</span>
                             <span className={quickAudit.canUpdateFees ? 'text-red-400' : 'text-green-400'}>
                               {quickAudit.canUpdateFees ? 'Yes' : 'No'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Max Wallet:</span>
+                            <span className="text-[var(--text-muted)]">Max Wallet:</span>
                             <span className={quickAudit.canUpdateMaxWallet ? 'text-red-400' : 'text-green-400'}>
                               {quickAudit.canUpdateMaxWallet ? 'Yes' : 'No'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Max TX:</span>
+                            <span className="text-[var(--text-muted)]">Max TX:</span>
                             <span className={quickAudit.canUpdateMaxTx ? 'text-red-400' : 'text-green-400'}>
                               {quickAudit.canUpdateMaxTx ? 'Yes' : 'No'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-400">Cooldown:</span>
+                            <span className="text-[var(--text-muted)]">Cooldown:</span>
                             <span className={quickAudit.hasCooldown ? 'text-yellow-400' : 'text-green-400'}>
                               {quickAudit.hasCooldown ? 'Yes' : 'No'}
                             </span>
@@ -2458,7 +2458,7 @@ function GeickoPageContent() {
         </div>
 
         {/* Right Panel - Token Info */}
-        <div className="w-full md:flex-[1.4] min-w-0 bg-gray-900 md:border-l border-gray-800 mt-2 md:mt-0 md:h-full md:min-h-0 md:overflow-y-auto md:pt-3">
+        <div className="w-full md:flex-[1.4] min-w-0 bg-[var(--panel)] md:border-l border-[var(--line)] mt-2 md:mt-0 md:h-full md:min-h-0 md:overflow-y-auto md:pt-3">
           {/* Token Header - Hidden on mobile, shown on desktop */}
           <div className="hidden md:block px-0 mb-1">
             {isLoadingData ? (
@@ -2467,8 +2467,8 @@ function GeickoPageContent() {
               </div>
             ) : effectivePair ? (
               <div className="px-2 mb-2 pt-0">
-                <div className="bg-gray-900/80 border border-gray-800 rounded-2xl overflow-hidden shadow-[0_12px_35px_rgba(0,0,0,0.45)]">
-                  <div className="px-4 pt-2 pb-3 border-b border-gray-800/70">
+                <div className="bg-[var(--panel)] border border-[var(--line)] rounded-2xl overflow-hidden shadow-[0_12px_35px_rgba(0,0,0,0.45)]">
+                  <div className="px-4 pt-2 pb-3 border-b border-[var(--line)]">
                     <div className="mt-0 flex items-end justify-between gap-4">
                       <div>
                         {(dexScreenerData?.pairs?.length ?? 0) > 1 ? (
@@ -2476,28 +2476,28 @@ function GeickoPageContent() {
                             aria-label="Select trading pair"
                             value={displayPair?.pairAddress ?? ''}
                             onChange={(e) => setSelectedPairAddress(e.target.value || null)}
-                            className="w-auto max-w-[220px] text-2xl font-bold text-white tracking-tight bg-gray-800/80 border border-gray-600/50 rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-500/50 pr-8 appearance-none bg-no-repeat bg-[length:12px] bg-[position:right_0.5rem_center]"
-                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2388c0d0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}
+                            className="w-auto max-w-[220px] text-2xl font-bold text-[var(--text)] tracking-tight bg-[var(--panel)] border border-[var(--line)] rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-500/50 pr-8 appearance-none bg-no-repeat bg-[length:12px] bg-[position:right_0.5rem_center]"
+                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a93a0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}
                           >
                             {(dexScreenerData?.pairs ?? [])
                               .sort((a: { liquidity?: { usd?: number } }, b: { liquidity?: { usd?: number } }) => Number(b?.liquidity?.usd ?? 0) - Number(a?.liquidity?.usd ?? 0))
                               .map((p: { pairAddress?: string; baseToken?: { symbol?: string }; quoteToken?: { symbol?: string }; liquidity?: { usd?: number }; volume?: { h24?: number }; priceChange?: { h24?: number } }) => (
-                                <option key={p.pairAddress} value={p.pairAddress ?? ''} className="bg-gray-900 text-white text-sm">
+                                <option key={p.pairAddress} value={p.pairAddress ?? ''} className="bg-[var(--panel)] text-[var(--text)] text-sm">
                                   {[p.baseToken?.symbol, p.quoteToken?.symbol].filter(Boolean).join(' / ') || 'Pair'}
                                 </option>
                               ))}
                           </select>
                         ) : (
-                          <div className="text-2xl font-bold text-white tracking-tight">
-                            {(effectivePair?.baseToken?.symbol ?? baseSymbol)} <span className="text-gray-500">/</span> {(effectivePair?.quoteToken?.symbol ?? quoteSymbol)}
+                          <div className="text-2xl font-bold text-[var(--text)] tracking-tight">
+                            {(effectivePair?.baseToken?.symbol ?? baseSymbol)} <span className="text-[var(--text-muted)]">/</span> {(effectivePair?.quoteToken?.symbol ?? quoteSymbol)}
                           </div>
                         )}
-                        <div className="text-xs text-gray-400 mt-1 truncate">
+                        <div className="text-xs text-[var(--text-muted)] mt-1 truncate">
                           {tokenNameDisplay}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-xl font-semibold text-white">
+                        <div className="text-xl font-semibold text-[var(--text)]">
                           ${((): string => {
                             const p = Number(effectivePair?.priceUsd || 0);
                             return p >= 1 ? p.toFixed(4) : p.toFixed(6);
@@ -2512,7 +2512,7 @@ function GeickoPageContent() {
                   </div>
                 </div>
               </div>
-                  <div className="relative h-44 border-b border-gray-800/70 bg-gradient-to-r from-gray-900 via-gray-800 to-black">
+                  <div className="relative h-44 border-b border-[var(--line)] bg-gradient-to-r from-[var(--panel)] via-[var(--surface-2)] to-black">
                     {headerImageUrl ? (
                       <img
                         src={headerImageUrl}
@@ -2535,7 +2535,7 @@ function GeickoPageContent() {
                           href="https://pump.tires"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 backdrop-blur border border-white/15 text-white text-xs font-semibold tracking-wide hover:bg-white/15 hover:border-white/25 transition-all"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--surface-2)] backdrop-blur border border-[var(--line)] text-[var(--text)] text-xs font-semibold tracking-wide hover:bg-[var(--surface-3)] hover:border-[var(--line-strong)] transition-all"
                         >
                           <span aria-hidden>🛞</span>
                           <span>Pump.Tires</span>
@@ -2547,7 +2547,7 @@ function GeickoPageContent() {
                         <img
                           src={tokenLogoSrc}
                           alt={`${tokenNameDisplay} logo`}
-                          className="w-10 h-10 rounded-full border border-white/20 bg-slate-900/90/30 object-cover"
+                          className="w-10 h-10 rounded-full border border-[var(--line-strong)] bg-[var(--panel)] object-cover"
                           data-fallback="false"
                           onError={(e) => {
                             if (e.currentTarget.dataset.fallback === 'true') {
@@ -2559,17 +2559,17 @@ function GeickoPageContent() {
                           }}
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-gray-900/80 border border-white/10 flex items-center justify-center text-white font-bold">
+                        <div className="w-10 h-10 rounded-full bg-[var(--panel)] border border-[var(--line)] flex items-center justify-center text-[var(--text)] font-bold">
                           {baseSymbol.charAt(0)}
                         </div>
                       )}
-                      <div className="text-sm font-semibold text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.9)] truncate max-w-[220px]">
+                      <div className="text-sm font-semibold text-[var(--text)] drop-shadow-[0_0_10px_rgba(0,0,0,0.9)] truncate max-w-[220px]">
                         {heroTagline}
                       </div>
                     </div>
                   </div>
                   {hasSocialLinks && (
-                    <div className="flex divide-x divide-gray-800 bg-gray-900/70">
+                    <div className="flex divide-x divide-gray-800 bg-[var(--panel)]">
                       {socialTabs.map((tab) => (
                         <button
                           key={tab.label}
@@ -2587,8 +2587,8 @@ function GeickoPageContent() {
                           }}
                           disabled={!tab.url && !tab.isDownload}
                           className={`flex-1 text-center text-xs font-semibold px-3 py-2 transition-colors ${
-                            activeSocialTab === tab.label ? 'text-white bg-gray-800' : 'text-gray-400'
-                          } ${(tab.url || tab.isDownload) ? 'hover:text-white hover:bg-gray-800/60' : 'opacity-40 cursor-not-allowed'}`}
+                            activeSocialTab === tab.label ? 'text-[var(--text)] bg-[var(--panel)]' : 'text-[var(--text-muted)]'
+                          } ${(tab.url || tab.isDownload) ? 'hover:text-[var(--text)] hover:bg-[var(--panel)]' : 'opacity-40 cursor-not-allowed'}`}
                         >
                           {tab.label}
                         </button>
@@ -2598,7 +2598,7 @@ function GeickoPageContent() {
                 </div>
               </div>
             ) : (
-              <div className="text-xs text-gray-400 py-4 text-center">No token data available</div>
+              <div className="text-xs text-[var(--text-muted)] py-4 text-center">No token data available</div>
             )}
           </div>
 
@@ -2620,7 +2620,7 @@ function GeickoPageContent() {
                       {apiTokenAddress && (
                         <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                           <div className="flex flex-col space-y-1 items-center">
-                            <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Contract</span>
+                            <span className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider text-center">Contract</span>
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => handleCopyAddress(apiTokenAddress)}
@@ -2631,7 +2631,7 @@ function GeickoPageContent() {
                               </button>
                               <button
                                 onClick={() => handleCopyAddress(apiTokenAddress)}
-                                className="flex items-center justify-center w-5 h-5 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                                className="flex items-center justify-center w-5 h-5 rounded bg-[var(--surface)] border border-[var(--line)] hover:bg-[var(--surface-2)] transition-colors"
                                 aria-label="Copy contract address"
                                 title="Copy contract address"
                               >
@@ -2644,7 +2644,7 @@ function GeickoPageContent() {
                       {/* Creator */}
                       <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                         <div className="flex flex-col space-y-1 items-center">
-                          <span className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center">Creator</span>
+                          <span className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider text-center">Creator</span>
                           <div className="flex items-center justify-center gap-1">
                             {ownershipData.creatorAddress ? (
                               <>
@@ -2659,7 +2659,7 @@ function GeickoPageContent() {
                                 </a>
                                 <button
                                   onClick={() => handleCopyAddress(ownershipData.creatorAddress!)}
-                                  className="flex items-center justify-center w-5 h-5 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                                  className="flex items-center justify-center w-5 h-5 rounded bg-[var(--surface)] border border-[var(--line)] hover:bg-[var(--surface-2)] transition-colors"
                                   aria-label="Copy creator address"
                                   title="Copy creator address"
                                 >
@@ -2674,7 +2674,7 @@ function GeickoPageContent() {
                                 />
                               </>
                             ) : (
-                              <span className="text-xs text-white font-semibold">—</span>
+                              <span className="text-xs text-[var(--text)] font-semibold">—</span>
                             )}
                           </div>
                         </div>
@@ -2682,13 +2682,13 @@ function GeickoPageContent() {
 
                       {/* Ownership Status */}
                       <div className="relative h-16 bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                        <div className="absolute left-1/2 -translate-x-1/2 top-2 text-xs text-gray-400 font-medium uppercase tracking-wider">Ownership</div>
+                        <div className="absolute left-1/2 -translate-x-1/2 top-2 text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Ownership</div>
                         {ownershipData.isLoading ? (
-                          <div className="text-center text-gray-500 text-sm">Loading...</div>
+                          <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
                         ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
                           <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-center">
                             <div className="text-xs text-green-400 font-semibold">Renounced</div>
-                            <div className="text-xs text-gray-400 mt-0.5">
+                            <div className="text-xs text-[var(--text-muted)] mt-0.5">
                               {ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ? 'Pump.Tires' : 'No Owner'}
                             </div>
                           </div>
@@ -2725,8 +2725,8 @@ function GeickoPageContent() {
                       {/* Decimals */}
                       <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Decimals</span>
-                          <span className="text-xs text-white font-semibold">
+                          <span className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Decimals</span>
+                          <span className="text-xs text-[var(--text)] font-semibold">
                             {totalSupply?.decimals !== undefined ? totalSupply.decimals : '—'}
                           </span>
                         </div>
@@ -2734,11 +2734,11 @@ function GeickoPageContent() {
 
                       {/* Supply & Token Info */}
                       <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider text-center">Supply Info</div>
+                        <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Supply Info</div>
                         <div className="space-y-0.5">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 font-medium">Total Supply</span>
-                            <span className="text-xs text-white font-semibold">
+                            <span className="text-xs text-[var(--text-muted)] font-medium">Total Supply</span>
+                            <span className="text-xs text-[var(--text)] font-semibold">
                               {totalSupply ? (() => {
                                 const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
                                 return formatAbbrev(supply);
@@ -2746,10 +2746,10 @@ function GeickoPageContent() {
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 font-medium">Circ.</span>
+                            <span className="text-xs text-[var(--text-muted)] font-medium">Circ.</span>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <span className="text-xs text-white font-semibold">
+                                <span className="text-xs text-[var(--text)] font-semibold">
                                   {totalSupply ? (() => {
                                     const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
                                     const burned = burnedTokens?.amount ?? 0;
@@ -2771,13 +2771,13 @@ function GeickoPageContent() {
                             </Tooltip>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 font-medium">Holders</span>
+                            <span className="text-xs text-[var(--text-muted)] font-medium">Holders</span>
                             {isLoadingMetrics ? (
                               <Skeleton className="h-4 w-12" />
                             ) : (
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="text-xs text-white font-semibold">
+                                  <span className="text-xs text-[var(--text)] font-semibold">
                                     {holdersCount !== null ? (holdersCount >= 1000 ? `${(holdersCount / 1000).toFixed(1)}k` : holdersCount) : '—'}
                                   </span>
                                 </TooltipTrigger>
@@ -2790,11 +2790,11 @@ function GeickoPageContent() {
                             )}
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 font-medium">Age</span>
+                            <span className="text-xs text-[var(--text-muted)] font-medium">Age</span>
                             {isLoadingMetrics ? (
                               <Skeleton className="h-4 w-16" />
                             ) : (
-                              <span className="text-xs text-white font-semibold">{creationDate || '—'}</span>
+                              <span className="text-xs text-[var(--text)] font-semibold">{creationDate || '—'}</span>
                             )}
                           </div>
                         </div>
@@ -2803,7 +2803,7 @@ function GeickoPageContent() {
                       {/* Supply Held */}
                       <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                         <div className="flex items-center justify-between mb-1">
-                          <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center flex-1">Supply Held</div>
+                          <div className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider text-center flex-1">Supply Held</div>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button
@@ -2822,24 +2822,24 @@ function GeickoPageContent() {
                           </Tooltip>
                         </div>
                         {supplyHeld.isLoading ? (
-                          <div className="text-center text-gray-500 text-sm">Loading...</div>
+                          <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
                         ) : (
                           <div className="space-y-0.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-400 font-medium">Top 10</span>
-                              <span className="text-xs text-white font-semibold">
+                              <span className="text-xs text-[var(--text-muted)] font-medium">Top 10</span>
+                              <span className="text-xs text-[var(--text)] font-semibold">
                                 {supplyHeld.top10 > 0 ? `${Math.round(supplyHeld.top10)}%` : '—'}
                               </span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-400 font-medium">Top 20</span>
-                              <span className="text-xs text-white font-semibold">
+                              <span className="text-xs text-[var(--text-muted)] font-medium">Top 20</span>
+                              <span className="text-xs text-[var(--text)] font-semibold">
                                 {supplyHeld.top20 > 0 ? `${Math.round(supplyHeld.top20)}%` : '—'}
                               </span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-400 font-medium">Top 50</span>
-                              <span className="text-xs text-white font-semibold">
+                              <span className="text-xs text-[var(--text-muted)] font-medium">Top 50</span>
+                              <span className="text-xs text-[var(--text)] font-semibold">
                                 {supplyHeld.top50 > 0 ? `${Math.round(supplyHeld.top50)}%` : '—'}
                               </span>
                             </div>
@@ -2850,7 +2850,7 @@ function GeickoPageContent() {
                       {/* Smart Contract Holder Share */}
                       <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                         <div className="flex items-center justify-between mb-1">
-                          <div className="text-xs text-gray-400 font-medium uppercase tracking-wider text-center flex-1">Supply In Contracts</div>
+                          <div className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider text-center flex-1">Supply In Contracts</div>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button
@@ -2863,7 +2863,7 @@ function GeickoPageContent() {
                             </TooltipTrigger>
                             <TooltipContent side="left" className="max-w-[340px] p-2">
                               <div className="space-y-1.5">
-                                <p className="text-xs text-gray-300 font-medium">Addresses counted (top 50):</p>
+                                <p className="text-xs text-[var(--text-muted)] font-medium">Addresses counted (top 50):</p>
                                 {smartContractHolderShare.contractHolders?.length ? (
                                   <>
                                     <ul className="space-y-0 max-h-48 overflow-y-auto">
@@ -2874,34 +2874,34 @@ function GeickoPageContent() {
                                   </>
                                 ) : smartContractHolderShare.contractAddresses?.length ? (
                                   <>
-                                    <ul className="text-xs font-mono text-gray-400 space-y-0.5 max-h-40 overflow-y-auto">
+                                    <ul className="text-xs font-mono text-[var(--text-muted)] space-y-0.5 max-h-40 overflow-y-auto">
                                       {smartContractHolderShare.contractAddresses.map((addr: string) => (
-                                        <li key={addr} className="text-gray-300">
+                                        <li key={addr} className="text-[var(--text-muted)]">
                                           {truncateAddress(addr)}
                                         </li>
                                       ))}
                                     </ul>
                                   </>
                                 ) : (
-                                  <p className="text-[10px] text-gray-500">No contract holders in top 50.</p>
+                                  <p className="text-[10px] text-[var(--text-muted)]">No contract holders in top 50.</p>
                                 )}
                               </div>
                             </TooltipContent>
                           </Tooltip>
                         </div>
                         {smartContractHolderShare.isLoading ? (
-                          <div className="text-center text-gray-500 text-sm">Loading...</div>
+                          <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
                         ) : (
                           <div className="space-y-0.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-400 font-medium">Share</span>
-                              <span className="text-xs text-white font-semibold">
+                              <span className="text-xs text-[var(--text-muted)] font-medium">Share</span>
+                              <span className="text-xs text-[var(--text)] font-semibold">
                                 {smartContractHolderShare.percent > 0 ? `${smartContractHolderShare.percent.toFixed(2)}%` : '—'}
                               </span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-400 font-medium">Contracts</span>
-                              <span className="text-xs text-white font-semibold">
+                              <span className="text-xs text-[var(--text-muted)] font-medium">Contracts</span>
+                              <span className="text-xs text-[var(--text)] font-semibold">
                                 {smartContractHolderShare.contractCount > 0 ? smartContractHolderShare.contractCount : '—'}
                               </span>
                             </div>
@@ -2913,9 +2913,9 @@ function GeickoPageContent() {
                     {/* Right Column */}
                     <div className="space-y-0.5">
                       {/* Price in WPLS */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
-                        <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-gray-400 font-medium uppercase tracking-wider">Price (WPLS)</div>
-                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Price (WPLS)</div>
+                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span>
@@ -2938,9 +2938,9 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Total Volume */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
-                        <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-gray-400 font-medium uppercase tracking-wider">Total Volume</div>
-                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Total Volume</div>
+                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span>
@@ -2965,9 +2965,9 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Liquidity */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
-                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liquidity</div>
-                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Liquidity</div>
+                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span>
@@ -2990,9 +2990,9 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Market Cap */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
-                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider whitespace-nowrap">Market Cap</div>
-                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider whitespace-nowrap">Market Cap</div>
+                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span>
@@ -3015,9 +3015,9 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Liq/MCAP Ratio */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
-                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Liq/MCAP</div>
-                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Liq/MCAP</div>
+                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
                           {(() => {
                             const liquidity = Number(displayPair.liquidity?.usd || 0);
                             const mcap = displayPair.fdv ? Number(displayPair.fdv) : Number(displayPair.marketCap || 0);
@@ -3028,12 +3028,12 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Total Liquidity */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[80px] flex items-center justify-center">
-                        <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-gray-400 font-medium uppercase tracking-wider">Total Liquidity</div>
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] py-0 px-3 min-h-[80px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Total Liquidity</div>
                         {totalLiquidity.isLoading ? (
-                          <div className="text-center text-gray-500 text-sm">Loading...</div>
+                          <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
                         ) : totalLiquidity.usd > 0 ? (
-                          <div className="absolute bottom-6 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                          <div className="absolute bottom-6 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <span>
@@ -3048,7 +3048,7 @@ function GeickoPageContent() {
                             </Tooltip>
                           </div>
                         ) : (
-                          <div className="text-center text-base text-white font-semibold">—</div>
+                          <div className="text-center text-base text-[var(--text)] font-semibold">—</div>
                         )}
                         {totalLiquidity.pairCount > 0 && (
                           <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-xs text-green-400 font-medium">
@@ -3058,15 +3058,15 @@ function GeickoPageContent() {
                       </div>
 
                       {/* Burned Tokens */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 py-0 px-3 min-h-[60px] flex items-center justify-center">
-                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-gray-400 font-medium uppercase tracking-wider">Burned</div>
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Burned</div>
                         {isLoadingMetrics ? (
                           <Skeleton className="h-6 w-16" />
                         ) : burnedTokens ? (
-                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-white font-semibold">
+                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <div className="text-base text-white font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
+                                <div className="text-base text-[var(--text)] font-semibold">{formatAbbrev(burnedTokens.amount)}</div>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p>{burnedTokens.amount.toLocaleString()}</p>
@@ -3074,7 +3074,7 @@ function GeickoPageContent() {
                             </Tooltip>
                           </div>
                         ) : (
-                          <div className="text-center text-base text-white font-semibold">—</div>
+                          <div className="text-center text-base text-[var(--text)] font-semibold">—</div>
                         )}
                         {burnedTokens && !isLoadingMetrics && (
                           <div className="absolute top-4 right-2 flex items-center justify-center w-8 h-8 rounded-full border-2 border-green-400">
@@ -3091,7 +3091,7 @@ function GeickoPageContent() {
             {/* Token Amount Calculator */}
             {displayPair && (
               <div className="mb-2">
-                <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-2 shadow-[0_10px_35px_rgba(0,0,0,0.35)]">
+                <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-md p-2 shadow-[0_10px_35px_rgba(0,0,0,0.35)]">
                   <div className="mb-2">
                     <div className="relative">
                       <input
@@ -3102,21 +3102,21 @@ function GeickoPageContent() {
                           setTokenAmount(value);
                         }}
                         placeholder="1"
-                        className="w-full bg-slate-900/40 border border-white/10 rounded px-3 py-2 pr-16 text-white text-sm font-semibold focus:outline-none focus:border-orange-500 transition-colors backdrop-blur"
+                        className="w-full bg-[var(--panel)] border border-[var(--line)] rounded px-3 py-2 pr-16 text-[var(--text)] text-sm font-semibold focus:outline-none focus:border-orange-500 transition-colors backdrop-blur"
                       />
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium pointer-events-none">
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-xs font-medium pointer-events-none">
                         {displayPair.baseToken?.symbol || 'TOKEN'}
                       </div>
                     </div>
                     <div className="flex items-center justify-center my-1">
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                       </svg>
                     </div>
                   </div>
 
-                  <div className="bg-slate-900/90/40 border border-white/10 rounded px-3 py-2 mb-2 backdrop-blur">
-                    <div className="text-lg font-bold text-white flex items-center justify-between">
+                  <div className="bg-[var(--panel)] border border-[var(--line)] rounded px-3 py-2 mb-2 backdrop-blur">
+                    <div className="text-lg font-bold text-[var(--text)] flex items-center justify-between">
                       {(() => {
                         const amount = Number(tokenAmount) || 0;
                         const priceUsd = Number(displayPair.priceUsd || 0);
@@ -3135,7 +3135,7 @@ function GeickoPageContent() {
                           return (
                             <>
                               <span className="flex-1">{totalWpls.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</span>
-                              <span className="text-gray-400 text-sm ml-2">WPLS</span>
+                              <span className="text-[var(--text-muted)] text-sm ml-2">WPLS</span>
                             </>
                           );
                         }
@@ -3149,7 +3149,7 @@ function GeickoPageContent() {
                       className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
                         calculatorCurrency === 'usd'
                           ? 'text-green-400'
-                          : 'text-gray-500'
+                          : 'text-[var(--text-muted)]'
                       }`}
                     >
                       {calculatorCurrency === 'usd' && (
@@ -3164,7 +3164,7 @@ function GeickoPageContent() {
                       className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
                         calculatorCurrency === 'wpls'
                           ? 'text-green-400'
-                          : 'text-gray-500'
+                          : 'text-[var(--text-muted)]'
                       }`}
                     >
                       {calculatorCurrency === 'wpls' && (
@@ -3183,7 +3183,7 @@ function GeickoPageContent() {
 
             {/* Wallet Ad */}
             <div className="mb-2 px-0">
-              <div className="text-xs text-center text-white/50 mb-1">Advertise Here</div>
+              <div className="text-xs text-center text-[var(--text-faint)] mb-1">Advertise Here</div>
               <a
                 href="https://internetmoney.io"
                 target="_blank"
@@ -3216,14 +3216,14 @@ function GeickoPageContent() {
 
       {/* Stats Modal */}
       {isStatsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90/80 backdrop-blur-sm p-4" onClick={() => setIsStatsModalOpen(false)}>
-          <div className="relative w-full max-w-6xl max-h-[90vh] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--panel)] backdrop-blur-sm p-4" onClick={() => setIsStatsModalOpen(false)}>
+          <div className="relative w-full max-w-6xl max-h-[90vh] bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)] rounded-xl shadow-2xl border border-[var(--line)] overflow-hidden" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
-            <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-gradient-to-r from-gray-800/95 via-gray-800/90 to-gray-800/95 backdrop-blur-sm border-b border-gray-700">
-              <h2 className="text-base font-semibold text-white uppercase tracking-wider">Advanced Stats</h2>
+            <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-gradient-to-r from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)] backdrop-blur-sm border-b border-[var(--line)]">
+              <h2 className="text-base font-semibold text-[var(--text)] uppercase tracking-wider">Advanced Stats</h2>
               <button
                 onClick={() => setIsStatsModalOpen(false)}
-                className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] rounded-lg transition-all"
                 title="Close"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3233,8 +3233,8 @@ function GeickoPageContent() {
             </div>
 
             {/* Modal Content */}
-            <div className="overflow-y-auto max-h-[calc(90vh-70px)] p-4 bg-gray-900">
-              <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-white/5 p-4">
+            <div className="overflow-y-auto max-h-[calc(90vh-70px)] p-4 bg-[var(--panel)]">
+              <div className="bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] p-4">
                 <AdminStatsPanel
                   initialAddress={apiTokenAddress}
                   compact
@@ -3264,7 +3264,7 @@ export default function GeickoPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
+        <div className="min-h-screen bg-[var(--panel)] text-[var(--text)] flex items-center justify-center">
           <LoaderThree />
         </div>
       }

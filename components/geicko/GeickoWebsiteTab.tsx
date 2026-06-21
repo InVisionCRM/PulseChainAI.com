@@ -22,7 +22,7 @@ export default function GeickoWebsiteTab({ websiteLink }: GeickoWebsiteTabProps)
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
         />
       ) : (
-        <div className="text-center text-gray-400">
+        <div className="text-center text-[var(--text-muted)]">
           <p className="text-lg mb-2">No website available</p>
           <p className="text-sm">
             This token doesn&apos;t have a website listed on DexScreener

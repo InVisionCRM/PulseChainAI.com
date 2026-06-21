@@ -189,9 +189,9 @@ export default function GeickoPortfolioModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[80vh] overflow-hidden bg-brand-navy border-white/20">
+      <DialogContent className="max-w-5xl max-h-[80vh] overflow-hidden bg-brand-navy border-[var(--line-strong)]">
         <DialogHeader>
-          <DialogTitle className="text-white text-xl">
+          <DialogTitle className="text-[var(--text)] text-xl">
             Portfolio - {holderAddress ? formatAddress(holderAddress) : 'Unknown Address'}
           </DialogTitle>
         </DialogHeader>
@@ -201,7 +201,7 @@ export default function GeickoPortfolioModal({
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <LoaderThree />
-                <p className="text-gray-400 text-sm mt-2">Loading portfolio...</p>
+                <p className="text-[var(--text-muted)] text-sm mt-2">Loading portfolio...</p>
               </div>
             </div>
           ) : error ? (
@@ -209,12 +209,12 @@ export default function GeickoPortfolioModal({
               <div className="text-center text-red-400">
                 <div className="text-2xl mb-2">⚠️</div>
                 <div className="text-sm">Error loading portfolio</div>
-                <div className="text-xs text-gray-400 mt-1">{error}</div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">{error}</div>
               </div>
             </div>
           ) : portfolio.length === 0 ? (
             <div className="flex items-center justify-center py-12">
-              <div className="text-center text-gray-400">
+              <div className="text-center text-[var(--text-muted)]">
                 <div className="text-2xl mb-2">📊</div>
                 <div className="text-sm">No tokens found</div>
                 <div className="text-xs mt-1">This address holds no tokens</div>
@@ -223,7 +223,7 @@ export default function GeickoPortfolioModal({
           ) : (
             <div className="space-y-2">
               {/* Header */}
-              <div className="grid grid-cols-11 gap-1 px-1 py-2 text-xs font-semibold text-white/60 border-b border-white/10 bg-white/5 rounded">
+              <div className="grid grid-cols-11 gap-1 px-1 py-2 text-xs font-semibold text-[var(--text-muted)] border-b border-[var(--line)] bg-[var(--surface)] rounded">
                 <div className="col-span-1 text-left">#</div>
                 <div className="col-span-4 text-left">Token</div>
                 <div className="col-span-2 text-left">Balance</div>
@@ -236,14 +236,14 @@ export default function GeickoPortfolioModal({
                 {portfolio.map((token, index) => (
                   <div
                     key={token.address}
-                    className="grid grid-cols-11 gap-4 px-3 py-2 text-sm hover:bg-white/5 rounded transition-colors"
+                    className="grid grid-cols-11 gap-4 px-3 py-2 text-sm hover:bg-[var(--surface)] rounded transition-colors"
                   >
                     {/* Rank */}
-                    <div className="col-span-1 text-white/60 font-medium">{index + 1}</div>
+                    <div className="col-span-1 text-[var(--text-muted)] font-medium">{index + 1}</div>
 
                     {/* Token Info */}
                     <div className="col-span-3 flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-[var(--surface-2)] flex items-center justify-center overflow-hidden flex-shrink-0">
                         {token.logoURI ? (
                           <img
                             src={token.logoURI}
@@ -260,23 +260,23 @@ export default function GeickoPortfolioModal({
                         </div>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="font-medium text-white truncate">{token.name}</div>
-                        <div className="text-xs text-white/60 truncate">{token.symbol}</div>
+                        <div className="font-medium text-[var(--text)] truncate">{token.name}</div>
+                        <div className="text-xs text-[var(--text-muted)] truncate">{token.symbol}</div>
                       </div>
                     </div>
 
                     {/* Balance */}
-                    <div className="col-span-3 text-left text-white font-mono">
+                    <div className="col-span-3 text-left text-[var(--text)] font-mono">
                       {token.balanceFormatted}
                     </div>
 
                     {/* Price */}
-                    <div className="col-span-2 text-left text-white font-mono">
+                    <div className="col-span-2 text-left text-[var(--text)] font-mono">
                       {formatPrice(token.priceUsd)}
                     </div>
 
                     {/* Value */}
-                    <div className="col-span-2 text-left text-white font-semibold font-mono">
+                    <div className="col-span-2 text-left text-[var(--text)] font-semibold font-mono">
                       {token.valueUsd ? fmtUsd(parseFloat(token.valueUsd.replace(/,/g, ''))) : 'N/A'}
                     </div>
                   </div>

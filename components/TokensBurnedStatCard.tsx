@@ -15,10 +15,10 @@ interface TokensBurnedStatCardProps {
 export default function TokensBurnedStatCard({ data, isLoading, error }: TokensBurnedStatCardProps) {
   if (isLoading) {
     return (
-      <div className="bg-white/5 backdrop-blur-md border border-white/20 rounded-lg p-4">
+      <div className="bg-[var(--surface)] backdrop-blur-md border border-[var(--line-strong)] rounded-lg p-4">
         <div className="animate-pulse">
-          <div className="h-4 bg-white/10 rounded mb-2"></div>
-          <div className="h-6 bg-white/10 rounded mb-4"></div>
+          <div className="h-4 bg-[var(--surface-2)] rounded mb-2"></div>
+          <div className="h-6 bg-[var(--surface-2)] rounded mb-4"></div>
         </div>
       </div>
     );
@@ -33,15 +33,15 @@ export default function TokensBurnedStatCard({ data, isLoading, error }: TokensB
   }
 
   return (
-    <div className="bg-white/5 backdrop-blur-md border border-white/20 rounded-lg p-4 animate-fade-in">
+    <div className="bg-[var(--surface)] backdrop-blur-md border border-[var(--line-strong)] rounded-lg p-4 animate-fade-in">
       <div className="mb-3">
-        <h3 className="text-lg font-semibold text-white mb-1">Tokens Burned</h3>
-        <div className="text-2xl font-bold text-white">
+        <h3 className="text-lg font-semibold text-[var(--text)] mb-1">Tokens Burned</h3>
+        <div className="text-2xl font-bold text-[var(--text)]">
           {data.totalBurned.toLocaleString()}
         </div>
       </div>
       
-      <div className="text-sm text-gray-400">
+      <div className="text-sm text-[var(--text-muted)]">
         Total tokens burned across all burn addresses
       </div>
     </div>

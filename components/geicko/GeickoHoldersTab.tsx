@@ -60,7 +60,7 @@ export default function GeickoHoldersTab({
       <div className="flex items-center justify-center py-8">
         <div className="text-center">
           <LoaderThree />
-          <p className="text-gray-400 text-xs mt-2">Loading holders...</p>
+          <p className="text-[var(--text-muted)] text-xs mt-2">Loading holders...</p>
         </div>
       </div>
     );
@@ -69,7 +69,7 @@ export default function GeickoHoldersTab({
   if (holders.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="text-center text-gray-400">
+        <div className="text-center text-[var(--text-muted)]">
           <div className="text-xl mb-1">👥</div>
           <div className="text-xs">No holders found</div>
         </div>
@@ -89,29 +89,29 @@ export default function GeickoHoldersTab({
       {/* Holder Stats Cards */}
       <div className="grid grid-cols-3 gap-1">
         {/* Total Holders */}
-        <div className="border border-white/20 px-2 py-1.5">
+        <div className="border border-[var(--line-strong)] px-2 py-1.5">
           <div className="text-sm text-center justify-center uppercase tracking-wider text-cyan-500">
             Total Holders
           </div>
-          <div className="text-sm font-medium text-center justify-center text-white">
+          <div className="text-sm font-medium text-center justify-center text-[var(--text)]">
             {holderStats.totalHolders ? fmtNum(holderStats.totalHolders) : '—'}
           </div>
         </div>
 
         {/* LP Addresses */}
-        <div className="border border-white/20 px-2 py-1.5">
+        <div className="border border-[var(--line-strong)] px-2 py-1.5">
           <div className="text-sm text-center justify-center uppercase tracking-wider text-cyan-500">
             LP Addresses
           </div>
-          <div className="text-sm font-medium text-center justify-center text-white">{holderStats.lpCount}</div>
+          <div className="text-sm font-medium text-center justify-center text-[var(--text)]">{holderStats.lpCount}</div>
         </div>
 
         {/* Contracts */}
-        <div className="border border-white/20 px-2 py-1.5">
+        <div className="border border-[var(--line-strong)] px-2 py-1.5">
           <div className="text-sm text-center justify-center uppercase tracking-wider text-cyan-500">
             Contracts
           </div>
-          <div className="text-sm font-medium text-center justify-center text-white">
+          <div className="text-sm font-medium text-center justify-center text-[var(--text)]">
             {holderStats.contractCount}
           </div>
         </div>
@@ -123,9 +123,9 @@ export default function GeickoHoldersTab({
       </div>
 
       {/* Holders Table */}
-      <div className="border border-white/20 overflow-hidden">
+      <div className="border border-[var(--line-strong)] overflow-hidden">
         {/* Table Header */}
-        <div className="flex items-center px-2 py-1 text-[10px] uppercase tracking-wider text-white/60 border-b border-white/20 bg-white/5">
+        <div className="flex items-center px-2 py-1 text-[10px] uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--line-strong)] bg-[var(--surface)]">
           <div className="flex-[0.6] min-w-[30px]">#</div>
           <div className="flex-[1.5] min-w-[90px]">Address & Tags</div>
           <div className="flex-[2] min-w-[70px]">Balance</div>
@@ -134,7 +134,7 @@ export default function GeickoHoldersTab({
         </div>
 
         {/* Table Rows */}
-        <div className="divide-y divide-white/10">
+        <div className="divide-y divide-[var(--line)]">
           {currentPageHolders.map((holder, i) => {
             const globalIndex = startIndex + i + 1;
             const balance = Number(holder.value) / Math.pow(10, decimals);
@@ -148,17 +148,17 @@ export default function GeickoHoldersTab({
             return (
               <div
                 key={holder.address || i}
-                className="flex items-center px-2 py-1 text-sm hover:bg-white/5 transition-colors"
+                className="flex items-center px-2 py-1 text-sm hover:bg-[var(--surface)] transition-colors"
               >
                 {/* Rank */}
-                <div className="flex-[0.6] min-w-[30px] text-white font-medium">{globalIndex}</div>
+                <div className="flex-[0.6] min-w-[30px] text-[var(--text)] font-medium">{globalIndex}</div>
 
                 {/* Address & Tags */}
                 <div className="flex-[1.5] min-w-[90px] flex items-center gap-1 truncate">
                   <button
                     type="button"
                     onClick={() => onOpenHolderTransfers(holder.address)}
-                    className="text-white hover:text-white/80 underline cursor-pointer font-mono truncate text-left"
+                    className="text-[var(--text)] hover:text-[var(--text)] underline cursor-pointer font-mono truncate text-left"
                   >
                     {formattedAddress}
                   </button>
@@ -182,12 +182,12 @@ export default function GeickoHoldersTab({
                 </div>
 
                 {/* Balance */}
-                <div className="flex-[2] min-w-[70px] text-white truncate font-semibold">
+                <div className="flex-[2] min-w-[70px] text-[var(--text)] truncate font-semibold">
                   {fmtAmount(Math.floor(balance))}
                 </div>
 
                 {/* Percentage */}
-                <div className="flex-[1.5] min-w-[60px] text-white font-semibold">
+                <div className="flex-[1.5] min-w-[60px] text-[var(--text)] font-semibold">
                   {percentage.toFixed(1)}%
                 </div>
 
@@ -225,8 +225,8 @@ export default function GeickoHoldersTab({
 
         {/* Pagination Controls */}
         {holders.length > holdersPerPage && (
-          <div className="flex items-center justify-between px-2 py-1.5 border-t border-white/10 bg-white/5">
-            <div className="text-xs text-white/70 font-medium">
+          <div className="flex items-center justify-between px-2 py-1.5 border-t border-[var(--line)] bg-[var(--surface)]">
+            <div className="text-xs text-[var(--text-muted)] font-medium">
               Showing {startIndex + 1}-{Math.min(endIndex, holders.length)} of{' '}
               {holders.length}
             </div>
@@ -235,7 +235,7 @@ export default function GeickoHoldersTab({
               <button
                 onClick={() => onPageChange(Math.max(1, holdersPage - 1))}
                 disabled={holdersPage === 1}
-                className="px-2 py-0.5 text-xs font-medium bg-white/10 hover:bg-white/15 disabled:bg-white/5 disabled:text-white/40 disabled:cursor-not-allowed text-white rounded border border-white/15 transition-colors"
+                className="px-2 py-0.5 text-xs font-medium bg-[var(--surface-2)] hover:bg-[var(--surface-3)] disabled:bg-[var(--surface)] disabled:text-[var(--text-faint)] disabled:cursor-not-allowed text-[var(--text)] rounded border border-[var(--line)] transition-colors"
               >
                 Prev
               </button>
@@ -259,8 +259,8 @@ export default function GeickoHoldersTab({
                     onClick={() => onPageChange(pageNum)}
                     className={`px-2 py-0.5 text-xs font-medium rounded border transition-colors ${
                       holdersPage === pageNum
-                        ? 'bg-cyan-500/30 text-white border-cyan-400/50'
-                        : 'bg-white/10 hover:bg-white/15 text-white border-white/15'
+                        ? 'bg-cyan-500/30 text-[var(--text)] border-cyan-400/50'
+                        : 'bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] border-[var(--line)]'
                     }`}
                   >
                     {pageNum}
@@ -272,7 +272,7 @@ export default function GeickoHoldersTab({
               <button
                 onClick={() => onPageChange(Math.min(totalPages, holdersPage + 1))}
                 disabled={holdersPage === totalPages}
-                className="px-2 py-0.5 text-xs font-medium bg-white/10 hover:bg-white/15 disabled:bg-white/5 disabled:text-white/40 disabled:cursor-not-allowed text-white rounded border border-white/15 transition-colors"
+                className="px-2 py-0.5 text-xs font-medium bg-[var(--surface-2)] hover:bg-[var(--surface-3)] disabled:bg-[var(--surface)] disabled:text-[var(--text-faint)] disabled:cursor-not-allowed text-[var(--text)] rounded border border-[var(--line)] transition-colors"
               >
                 Next
               </button>

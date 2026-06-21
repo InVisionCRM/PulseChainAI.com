@@ -9,7 +9,7 @@ export default function StickyBanner() {
   if (isClosed) return null;
 
   return (
-    <div className="sticky top-0 z-50 w-full bg-black/25 text-white backdrop-blur-sm">
+    <div className="sticky top-0 z-50 w-full bg-[var(--surface)] text-[var(--text)] backdrop-blur-sm">
       <div className="mx-auto flex w-full items-center justify-between gap-2 px-3 py-2 md:px-4">
         <p className="font-poppins font-bold text-[11px] md:text-sm text-center flex-1">
           Poker and Multiplayer BlackJack are now live on Morbius.io! Click{' '}
@@ -26,7 +26,7 @@ export default function StickyBanner() {
         <button
           type="button"
           onClick={() => setIsClosed(true)}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--text)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] transition-colors"
           aria-label="Close banner"
           title="Close banner"
         >
