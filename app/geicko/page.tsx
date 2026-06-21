@@ -49,6 +49,7 @@ import {
 import { MobileSearchBar } from '@/components/MobileSearchBar';
 import { DesktopSearchBar } from '@/components/DesktopSearchBar';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
+import { BubbleMap } from '@/components/portfolio/BubbleMap';
 
 function ContractHolderTooltipRow({
   holder,
@@ -2223,7 +2224,15 @@ function GeickoPageContent() {
 
               {/* Holders Tab */}
               {activeTab === 'holders' && (
-                <GeickoHoldersTab
+                <div className="space-y-3">
+                  {apiTokenAddress && (
+                    <BubbleMap
+                      token={apiTokenAddress}
+                      chain="pulsechain"
+                      symbol={tokenInfo?.symbol}
+                    />
+                  )}
+                  <GeickoHoldersTab
                   holders={holders}
                   holderStats={holderStats}
                   holdersPage={holdersPage}
@@ -2234,6 +2243,7 @@ function GeickoPageContent() {
                   onPageChange={setHoldersPage}
                   onOpenHolderTransfers={handleOpenHolderTransfers}
                 />
+                </div>
               )}
 
               {/* Liquidity Tab */}
