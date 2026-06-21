@@ -19,6 +19,7 @@ import {
   IconShield,
   IconRobot,
   IconArrowsExchange,
+  IconChartBubble,
 } from '@tabler/icons-react';
 import dynamic from 'next/dynamic';
 import { useOutsideClick } from '@/hooks/use-outside-click';
@@ -44,6 +45,12 @@ const TokenAIChat = dynamic(() => import('@/components/TokenAIChat'), {
 const CandleChart = dynamic(() => import('@/components/portfolio/CandleChart'), {
   ssr: false,
   loading: () => <div className="h-[460px] rounded-lg bg-[var(--surface)] animate-pulse" />,
+});
+
+// Holder bubble map pulls in a canvas force-sim — lazy-load with the tab.
+const BubbleMap = dynamic(() => import('@/components/portfolio/BubbleMap'), {
+  ssr: false,
+  loading: () => <div className="h-[520px] rounded-lg bg-[var(--surface)] animate-pulse" />,
 });
 
 // Chain marks overlaid as a small logo badge on the token icon (matches
@@ -102,7 +109,7 @@ interface Insights {
   ownershipRenounced: boolean | null;
 }
 
-type TabId = 'overview' | 'chart' | 'liquidity' | 'chat';
+type TabId = 'overview' | 'chart' | 'liquidity' | 'bubblemap' | 'chat';
 
 const SOCIAL_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   twitter: IconBrandTwitter,
@@ -372,6 +379,7 @@ function TabBar({
     { id: 'overview', label: 'Overview', Icon: IconShield },
     { id: 'chart', label: 'Chart', Icon: IconChartLine },
     { id: 'liquidity', label: 'Liquidity', Icon: IconChartCandle },
+    { id: 'bubblemap', label: 'Bubble Map', Icon: IconChartBubble },
     { id: 'chat', label: 'AI Chat', Icon: IconRobot },
   ];
   return (
@@ -427,6 +435,7 @@ function CardBody({
       {tab === 'liquidity' && (
         <LiquidityTab insights={insights} loading={loading} />
       )}
+      {tab === 'bubblemap' && <BubbleMapTab token={token} />}
       {tab === 'chat' && <ChatTab token={token} />}
     </div>
   );
@@ -557,6 +566,29 @@ function ChartTab({
   // DexScreener embed (using this pair) when no native OHLC is available.
   const pairAddress = insights?.topPairs?.[0]?.pairAddress ?? null;
   return <CandleChart token={token} pairAddress={pairAddress} />;
+}
+
+function BubbleMapTab({ token }: { token: PortfolioToken }) {
+  // Holders are an ERC-20 concept — native coins map to their wrapped contract.
+  const addr = token.isNative ? WRAPPED_NATIVE[token.chain] : token.address;
+  return (
+    <div className="space-y-3">
+      <BubbleMap token={addr} chain={token.chain} symbol={token.symbol} />
+      {token.chain === 'ethereum' && (
+        // Bubblemaps supports Ethereum (not PulseChain) — offer their richer map
+        // as a free complement on the chains they cover.
+        <a
+          href={`https://v2.bubblemaps.io/map?address=${addr}&chain=eth`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface)] hover:bg-[var(--surface-2)] border border-[var(--line)] text-xs text-[var(--text)] transition-colors"
+        >
+          <IconExternalLink className="h-3.5 w-3.5" />
+          Open in Bubblemaps
+        </a>
+      )}
+    </div>
+  );
 }
 
 function ChatTab({ token }: { token: PortfolioToken }) {
