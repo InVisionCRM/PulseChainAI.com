@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  IconSearch,
   IconFlame,
   IconTrophy,
   IconTrendingUp,
@@ -25,7 +24,8 @@ interface Props {
   onTab: (tab: ScreenerUiTab) => void;
   onWindow: (w: ScreenerWindow) => void;
   onFilters: (f: ScreenerFilters) => void;
-  onOpenSearch: () => void;
+  view: 'table' | 'bubbles';
+  onView: (v: 'table' | 'bubbles') => void;
 }
 
 const WINDOWS: { id: ScreenerWindow; label: string }[] = [
@@ -151,7 +151,7 @@ function FiltersPopover({
   );
 }
 
-export default function FilterBar({ dexes, dexId, tab, window, filters, onDex, onTab, onWindow, onFilters, onOpenSearch }: Props) {
+export default function FilterBar({ dexes, dexId, tab, window, filters, onDex, onTab, onWindow, onFilters, view, onView }: Props) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const onServerTab = tab !== 'watchlist';
   const activeFilterCount = [filters.minLiq, filters.minVol24, filters.minAgeH, filters.maxAgeH].filter((v) => v !== null).length;
@@ -242,14 +242,20 @@ export default function FilterBar({ dexes, dexId, tab, window, filters, onDex, o
           ) : null}
         </div>
 
-        <button
-          onClick={onOpenSearch}
-          className="ml-auto flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl px-3 py-1.5 text-xs text-[var(--text-faint)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
-        >
-          <IconSearch className="h-3.5 w-3.5" />
-          <span>Search pairs</span>
-          <kbd className="rounded border border-[var(--line-strong)] px-1 text-[10px]">/</kbd>
-        </button>
+        <div className="ml-auto flex items-center gap-0.5 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-0.5 backdrop-blur-xl">
+          {(['table', 'bubbles'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => onView(v)}
+              className={`rounded-lg px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
+                view === v ? 'bg-[var(--surface-2)] text-orange-300' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

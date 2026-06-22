@@ -28,7 +28,8 @@ import {
   type ForceX,
   type ForceY,
 } from 'd3-force';
-import { IconRefresh, IconExternalLink, IconX } from '@tabler/icons-react';
+import { createPortal } from 'react-dom';
+import { IconRefresh, IconExternalLink, IconX, IconMaximize, IconMinimize } from '@tabler/icons-react';
 import type { ChainId } from '@/services';
 import type { AddressCategory } from '@/lib/gumshoe/address-labels';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
@@ -110,6 +111,7 @@ interface Props {
 
 export function BubbleMap({ token, chain, symbol }: Props) {
   const [limit, setLimit] = useState<number>(DEFAULT_LIMIT);
+  const [fs, setFs] = useState(false);
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
   const [edgesStatus, setEdgesStatus] = useState<'idle' | 'loading' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -220,6 +222,14 @@ export function BubbleMap({ token, chain, symbol }: Props) {
 
   useEffect(() => { void load(); }, [load]);
 
+  // Exit fullscreen on Escape.
+  useEffect(() => {
+    if (!fs) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFs(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fs]);
+
   // Canvas render + d3-force (Barnes-Hut) simulation. Reads dataRef each frame
   // so edges that arrive in phase 2 are incorporated live.
   useEffect(() => {
@@ -238,7 +248,7 @@ export function BubbleMap({ token, chain, symbol }: Props) {
 
     function measure() {
       const r = cvs.getBoundingClientRect();
-      W = r.width; H = 460;
+      W = r.width; H = Math.max(1, r.height);
       cvs.width = W * DPR; cvs.height = H * DPR;
       view.scale = 0.92; view.ox = W * 0.04; view.oy = H * 0.04;
       cx = W / 2; cy = H / 2;
@@ -420,7 +430,7 @@ export function BubbleMap({ token, chain, symbol }: Props) {
       cvs.removeEventListener('mouseleave', onLeave);
       window.removeEventListener('resize', onResize);
     };
-  }, [status]);
+  }, [status, fs]);
 
   const legend = useMemo(() => {
     const items: { label: string; color: string }[] = [];
@@ -430,8 +440,14 @@ export function BubbleMap({ token, chain, symbol }: Props) {
     return items;
   }, [meta.clusters]);
 
-  return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
+  const card = (
+    <div
+      className={
+        fs
+          ? 'fixed inset-0 z-[200] flex flex-col bg-[var(--app-bg)] p-3 sm:p-4'
+          : 'rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3'
+      }
+    >
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
           Holder bubble map
@@ -471,6 +487,14 @@ export function BubbleMap({ token, chain, symbol }: Props) {
           >
             <IconRefresh className={`h-4 w-4 ${status === 'loading' ? 'animate-spin' : ''}`} />
           </button>
+          <button
+            type="button"
+            onClick={() => setFs((v) => !v)}
+            className="text-[var(--text-faint)] hover:text-[var(--text)]"
+            title={fs ? 'Exit full screen (Esc)' : 'Full screen'}
+          >
+            {fs ? <IconMinimize className="h-4 w-4" /> : <IconMaximize className="h-4 w-4" />}
+          </button>
         </div>
       </div>
 
@@ -479,19 +503,20 @@ export function BubbleMap({ token, chain, symbol }: Props) {
       ) : status === 'empty' ? (
         <div className="py-10 text-center text-sm text-[var(--text-faint)]">No holder data indexed for this token.</div>
       ) : status === 'loading' ? (
-        <div className="grid h-[460px] place-items-center rounded-lg bg-[var(--surface)]">
+        <div className={`grid place-items-center rounded-lg bg-[var(--surface)] ${fs ? 'flex-1' : 'h-[460px]'}`}>
           <span className="inline-flex items-center gap-2 text-sm text-[var(--text-faint)]">
             <IconRefresh className="h-4 w-4 animate-spin" /> Loading top {limit} holders…
           </span>
         </div>
       ) : (
         <>
-          <div className="relative w-full">
+          <div className={fs ? 'relative w-full flex-1 min-h-0' : 'relative w-full'}>
             <canvas
               ref={canvasRef}
               role="img"
               aria-label="Force-directed bubble map of this token's top holders"
-              className="block h-[460px] w-full rounded-lg border border-[var(--line)]"
+              className="block w-full rounded-lg border border-[var(--line)]"
+              style={{ height: fs ? '100%' : 460 }}
             />
             <div
               ref={tipRef}
@@ -529,6 +554,9 @@ export function BubbleMap({ token, chain, symbol }: Props) {
       )}
     </div>
   );
+  // Portal to <body> when fullscreen so the fixed overlay escapes the token-card
+  // modal's transformed (containing-block) ancestor and truly fills the viewport.
+  return fs && typeof document !== 'undefined' ? createPortal(card, document.body) : card;
 }
 
 function SelectedBar({ node: n, chain, onClose }: { node: BNode; chain: ChainId; onClose: () => void }) {

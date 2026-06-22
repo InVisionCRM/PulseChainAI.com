@@ -12,26 +12,35 @@
 // equilibrium layout. Data comes from /api/screener, paged up to the chosen
 // count, respecting the screener's current tab / dex / filters.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { IconRefresh } from '@tabler/icons-react';
+import { IconRefresh, IconMaximize, IconMinimize } from '@tabler/icons-react';
 import type { ScreenerRow, ScreenerUiTab, ScreenerFilters } from '@/lib/screener/types';
 import { fmtUsd } from '@/lib/format';
 
-const COUNT_OPTIONS = [100, 250, 500] as const;
-const DEFAULT_COUNT = 250;
+// Counts above 100 look cramped on a phone, so mobile gets a lighter set.
+const COUNT_OPTIONS_DESKTOP = [100, 250, 500] as const;
+const COUNT_OPTIONS_MOBILE = [25, 50, 100] as const;
+const DEFAULT_COUNT = 100;
+const DEFAULT_COUNT_MOBILE = 25;
 const PAGE_SIZE = 50;
 const CANVAS_H = 580;
 
 const METRICS = [
   { id: 'chg24', label: '24h %' },
-  { id: 'chg6', label: '6h %' },
-  { id: 'chg1', label: '1h %' },
-  { id: 'vol', label: 'Volume' },
-  { id: 'mcap', label: 'Mkt Cap' },
-  { id: 'liq', label: 'Liquidity' },
+  { id: 'vol', label: 'Vol' },
+  { id: 'mcap', label: 'MC' },
+  { id: 'liq', label: 'Liq' },
 ] as const;
 type Metric = (typeof METRICS)[number]['id'];
+
+// "Main" quote tokens — a token's liquidity is measured ONLY against pairs
+// quoted in these, so junk/wash pairs (TOKEN/scamcoin) don't inflate it.
+// Covers PulseChain majors + bridged majors incl. Ethereum HEX (eHEX).
+const MAIN_QUOTES = new Set(['WPLS', 'PLSX', 'HEX', 'EHEX', 'INC', 'WETH', 'DAI', 'USDC', 'USDT']);
+function isMainQuote(sym: string | null): boolean {
+  return !!sym && MAIN_QUOTES.has(sym.trim().toUpperCase());
+}
 
 // Colour endpoints — dim (small move) → bright (big move), per direction.
 const GREEN_DIM = [16, 94, 70] as const;
@@ -41,15 +50,12 @@ const RED_BRIGHT = [245, 70, 92] as const;
 const NEUTRAL = [100, 116, 139] as const;
 const CHG_CAP = 25;
 
-// Sizing: a steep power keeps the top movers dramatically huge; a generous MIN
-// floor keeps the long tail big enough to pack the field FULL (not a sea of
-// dots). Floor + max both shrink as the count grows so it stays fittable.
+// Sizing: a steep power keeps the top movers dramatically huge. Min/max are
+// derived from the ACTUAL canvas area + token count at render time (see
+// computeTargets), and the total bubble area is capped so the field never crams
+// — and grows to fill the extra room in fullscreen.
 const SIZE_EXP = 0.9;
-function sizeParamsFor(count: number): { min: number; max: number } {
-  if (count <= 100) return { min: 14, max: 120 };
-  if (count <= 250) return { min: 11, max: 92 };
-  return { min: 8, max: 68 };
-}
+const FILL = 0.6; // max fraction of the canvas the bubbles may cover
 
 // Physics.
 const RESTITUTION = 0.86; // bounciness on collisions / walls
@@ -63,18 +69,15 @@ type RGB = [number, number, number];
 function sizeVal(row: ScreenerRow, m: Metric): number {
   switch (m) {
     case 'chg24': return Math.abs(row.chg.h24 ?? 0);
-    case 'chg6': return Math.abs(row.chg.h6 ?? 0);
-    case 'chg1': return Math.abs(row.chg.h1 ?? 0);
     case 'vol': return row.vol.h24 ?? 0;
     case 'mcap': return row.marketCap ?? 0;
     case 'liq': return row.liquidityUsd ?? 0;
   }
 }
+// Colour is always 24h performance for the remaining metrics.
 function colorChg(row: ScreenerRow, m: Metric): number | null {
   switch (m) {
-    case 'chg6': return row.chg.h6;
-    case 'chg1': return row.chg.h1;
-    default: return row.chg.h24;
+    case 'chg24': case 'vol': case 'mcap': case 'liq': return row.chg.h24;
   }
 }
 function fmtSignedPct(v: number | null): string {
@@ -85,8 +88,6 @@ function fmtSignedPct(v: number | null): string {
 function valLabel(row: ScreenerRow, m: Metric): string {
   switch (m) {
     case 'chg24': return fmtSignedPct(row.chg.h24);
-    case 'chg6': return fmtSignedPct(row.chg.h6);
-    case 'chg1': return fmtSignedPct(row.chg.h1);
     case 'vol': return fmtUsd(row.vol.h24);
     case 'mcap': return fmtUsd(row.marketCap);
     case 'liq': return fmtUsd(row.liquidityUsd);
@@ -141,6 +142,13 @@ function getGlassSprite(): HTMLCanvasElement | null {
   spark.addColorStop(0, 'rgba(255,255,255,0.16)');
   spark.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = spark; g.fillRect(0, 0, S, S);
+  // Inset shadow — transparent centre darkening to the rim (biased to the
+  // bottom) so the bubble reads as a 3D recessed/domed glass button.
+  const inset = g.createRadialGradient(cx, cy - r * 0.12, r * 0.5, cx, cy + r * 0.06, r);
+  inset.addColorStop(0, 'rgba(0,0,0,0)');
+  inset.addColorStop(0.74, 'rgba(0,0,0,0)');
+  inset.addColorStop(1, 'rgba(0,0,0,0.5)');
+  g.fillStyle = inset; g.fillRect(0, 0, S, S);
   g.restore();
   g.lineCap = 'round';
   g.lineWidth = S * 0.024;
@@ -149,6 +157,80 @@ function getGlassSprite(): HTMLCanvasElement | null {
   g.strokeStyle = 'rgba(0,0,0,0.20)';
   g.beginPath(); g.arc(cx, cy, r - g.lineWidth, Math.PI * 0.08, Math.PI * 0.7); g.stroke();
   _glassSprite = c;
+  return c;
+}
+
+// Bake a token's bubble face ONCE: circular-clipped logo (cover) + a magnified
+// refraction band at the rim + the glass highlight overlay. Drawn per frame as a
+// single scaled image, so no expensive clipping happens in the animation loop.
+function buildNodeSprite(img: HTMLImageElement): HTMLCanvasElement | null {
+  if (typeof document === 'undefined') return null;
+  const S = 240, c = document.createElement('canvas');
+  c.width = S; c.height = S;
+  const g = c.getContext('2d');
+  if (!g) return null;
+  const cx = S / 2, cy = S / 2, r = S / 2, TAU = Math.PI * 2;
+  const cover = (scale: number) => {
+    const iw = img.naturalWidth || 1, ih = img.naturalHeight || 1;
+    const sc = Math.max((r * 2 * scale) / iw, (r * 2 * scale) / ih);
+    const dw = iw * sc, dh = ih * sc;
+    try { g.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh); } catch { /* tainted */ }
+  };
+  g.save();
+  g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.clip();
+  cover(1);
+  // Refraction band — magnified redraw in the outer ring bends the logo at the rim.
+  g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.arc(cx, cy, r * 0.78, 0, TAU, true);
+  g.clip('evenodd');
+  cover(1.34);
+  g.restore();
+  const glass = getGlassSprite();
+  if (glass) g.drawImage(glass, 0, 0, S, S);
+  return c;
+}
+
+function hashStr(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+// Generated identity for logo-less tokens: a unique 2-colour gradient (hues
+// hashed from the address, so it's deterministic and distinct per token) + the
+// ticker in bold, finished with the same glass + inset-shadow overlay as logo
+// bubbles. Premium, Stripe/Linear-style — colour is identity here, not perf.
+function buildFallbackSprite(symbol: string, address: string | null): HTMLCanvasElement | null {
+  if (typeof document === 'undefined') return null;
+  const S = 240, c = document.createElement('canvas');
+  c.width = S; c.height = S;
+  const g = c.getContext('2d');
+  if (!g) return null;
+  const cx = S / 2, cy = S / 2, r = S / 2, TAU = Math.PI * 2;
+  const seed = hashStr((address || symbol || '?').toLowerCase());
+  const h1 = seed % 360;
+  const h2 = (h1 + 30 + ((seed >> 9) % 60)) % 360;
+  g.save();
+  g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.clip();
+  const grad = g.createLinearGradient(S * 0.15, 0, S * 0.85, S);
+  grad.addColorStop(0, `hsl(${h1},66%,56%)`);
+  grad.addColorStop(1, `hsl(${h2},60%,40%)`);
+  g.fillStyle = grad; g.fillRect(0, 0, S, S);
+  const txt = symbol.slice(0, 8);
+  let fontPx = 120;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `700 ${fontPx}px ui-sans-serif,system-ui,sans-serif`;
+  const maxW = S * 0.82, w = g.measureText(txt).width;
+  if (w > maxW) {
+    fontPx = Math.max(26, Math.floor((fontPx * maxW) / w));
+    g.font = `700 ${fontPx}px ui-sans-serif,system-ui,sans-serif`;
+  }
+  g.fillStyle = 'rgba(0,0,0,0.28)';
+  g.fillText(txt, cx, cy + S * 0.016);
+  g.fillStyle = 'rgba(255,255,255,0.97)';
+  g.fillText(txt, cx, cy);
+  g.restore();
+  const glass = getGlassSprite();
+  if (glass) g.drawImage(glass, 0, 0, S, S);
   return c;
 }
 
@@ -162,6 +244,9 @@ interface MNode {
   fixed: boolean; // being dragged
   img: HTMLImageElement | null;
   imgOk: boolean;
+  // Pre-rendered circular logo + baked glass treatment — drawn as ONE image per
+  // frame (no per-frame clipping), which is what keeps 500 bubbles at 60fps.
+  sprite: HTMLCanvasElement | null;
 }
 
 interface Props {
@@ -173,11 +258,14 @@ interface Props {
 
 export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: Props) {
   const router = useRouter();
-  const [count, setCount] = useState<number>(DEFAULT_COUNT);
+  const mobileInit = typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
+  const [isMobile, setIsMobile] = useState(mobileInit);
+  const [count, setCount] = useState<number>(mobileInit ? DEFAULT_COUNT_MOBILE : DEFAULT_COUNT);
   const [metric, setMetric] = useState<Metric>('chg24');
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [simKey, setSimKey] = useState(0);
+  const [fs, setFs] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const tipRef = useRef<HTMLDivElement | null>(null);
@@ -185,29 +273,46 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
   const metricRef = useRef<Metric>(metric);
   const retargetRef = useRef<(() => void) | null>(null);
 
-  const { min: minR, max: maxRadius } = sizeParamsFor(count);
-
   const fetchRows = useCallback(async (): Promise<ScreenerRow[]> => {
-    // The screener is PAIR-based: one token can have many pairs (WPLS/DAI,
-    // WPLS/USDC, … and the same pair across several DEXes). One bubble per token
-    // is what people expect, so we dedupe by base token — keeping the
-    // highest-ranked pair (first seen in the tab's order) — and over-fetch pages
-    // until we have `count` DISTINCT tokens.
+    // The screener is PAIR-based: one token has many pairs (WPLS/DAI, WPLS/USDC,
+    // the same pair across DEXes, plus junk pairs). We want ONE bubble per token
+    // with its liquidity measured ONLY against the main quote tokens (summed
+    // across those pairs). So we group every fetched pair by base token, sum
+    // main-pair liquidity, and represent the token by its deepest main pair
+    // (falling back to its biggest pair if it has none). Over-fetch pages until
+    // we have `count` distinct tokens.
+    interface Agg { rep: ScreenerRow; repLiq: number; repMain: boolean; mainLiq: number }
+    const byToken = new Map<string, Agg>();
     const keyOf = (r: ScreenerRow) =>
       r.baseAddress ? `${r.chainId ?? 'p'}:${r.baseAddress.toLowerCase()}` : `pair:${r.pairAddress}`;
-    const seen = new Map<string, ScreenerRow>();
+    const addPair = (r: ScreenerRow) => {
+      if (!r.baseSymbol) return;
+      const k = keyOf(r);
+      const main = isMainQuote(r.quoteSymbol);
+      const liq = r.liquidityUsd ?? 0;
+      const e = byToken.get(k);
+      if (!e) { byToken.set(k, { rep: r, repLiq: liq, repMain: main, mainLiq: main ? liq : 0 }); return; }
+      if (main) e.mainLiq += liq;
+      // Prefer a main pair as the representative; among equals, the deepest one.
+      if ((main && !e.repMain) || (main === e.repMain && liq > e.repLiq)) {
+        e.rep = r; e.repLiq = liq; e.repMain = main;
+      }
+    };
+    // Override each token's liquidity with its summed main-pair liquidity.
+    const finalize = (): ScreenerRow[] =>
+      [...byToken.values()].slice(0, count).map((e) => ({ ...e.rep, liquidityUsd: e.mainLiq }));
 
     if (tab === 'watchlist') {
       if (!watchlistParam) return [];
       const res = await fetch(`/api/watchlist?tokens=${encodeURIComponent(watchlistParam)}`);
       if (!res.ok) throw new Error(`watchlist ${res.status}`);
       const json: { rows: ScreenerRow[] } = await res.json();
-      for (const r of json.rows) { const k = keyOf(r); if (!seen.has(k)) seen.set(k, r); }
-      return [...seen.values()].slice(0, count);
+      json.rows.forEach(addPair);
+      return finalize();
     }
 
     const MAX_PAGES = 24; // safety cap (~1200 pairs scanned)
-    for (let p = 0; p < MAX_PAGES && seen.size < count; p++) {
+    for (let p = 0; p < MAX_PAGES && byToken.size < count; p++) {
       const qs = new URLSearchParams({ tab, window: 'h24', page: String(p) });
       if (dexId) qs.set('dex', dexId);
       if (filters.minLiq !== null) qs.set('minLiq', String(filters.minLiq));
@@ -218,10 +323,10 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       if (!res.ok) throw new Error(`screener ${res.status}`);
       const json = await res.json();
       const rows: ScreenerRow[] = json.rows ?? [];
-      for (const r of rows) { const k = keyOf(r); if (!seen.has(k)) seen.set(k, r); }
+      rows.forEach(addPair);
       if (rows.length < PAGE_SIZE) break;
     }
-    return [...seen.values()].slice(0, count);
+    return finalize();
   }, [tab, dexId, filters, watchlistParam, count]);
 
   const load = useCallback(async () => {
@@ -233,28 +338,32 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       if (usable.length === 0) { dataRef.current = null; setStatus('empty'); return; }
 
       const m = metricRef.current;
-      const maxV = Math.max(1e-9, ...usable.map((r) => sizeVal(r, m)));
+      // Radii (tr) are computed in the canvas effect (computeTargets) once the
+      // real canvas size is known, so sizing fits whatever space is available.
       const nodes: MNode[] = usable.map((r) => {
-        const tr = minR + Math.pow(sizeVal(r, m) / maxV, SIZE_EXP) * (maxRadius - minR);
         const tcol = colFor(colorChg(r, m));
         let img: HTMLImageElement | null = null;
         const node: MNode = {
           address: r.baseAddress,
           symbol: r.baseSymbol ?? '?',
           row: r,
-          r: tr * 0.2, tr,
+          r: 0, tr: 0,
           col: [...tcol] as RGB, tcol,
           x: 0, y: 0, vx: 0, vy: 0, fixed: false,
-          img: null, imgOk: false,
+          img: null, imgOk: false, sprite: null,
         };
         if (r.imageUrl) {
           img = new Image();
           // No crossOrigin — many logo hosts lack CORS headers; drawImage still
           // renders fine (canvas just becomes read-tainted, which we don't need).
-          img.onload = () => { node.imgOk = true; };
-          img.onerror = () => { node.imgOk = false; };
+          img.onload = () => { node.imgOk = true; node.sprite = buildNodeSprite(img!); };
+          // Failed logo → fall back to the generated seeded-gradient identity.
+          img.onerror = () => { node.imgOk = false; node.sprite = buildFallbackSprite(node.symbol, node.address); };
           img.src = r.imageUrl;
           node.img = img;
+        } else {
+          // No logo at all → generated identity straight away.
+          node.sprite = buildFallbackSprite(node.symbol, node.address);
         }
         return node;
       });
@@ -265,7 +374,7 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       setError(e instanceof Error ? e.message : 'Failed to load market bubbles');
       setStatus('error');
     }
-  }, [fetchRows, minR, maxRadius]);
+  }, [fetchRows]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -273,6 +382,33 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
     metricRef.current = metric;
     retargetRef.current?.();
   }, [metric]);
+
+  // Track phone vs desktop; clamp count to the mobile set (≤100) on a phone.
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+  useEffect(() => {
+    if (isMobile && count > 100) setCount(100);
+  }, [isMobile, count]);
+
+  // Exit fullscreen on Escape.
+  useEffect(() => {
+    if (!fs) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFs(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fs]);
+
+  // After the fullscreen layout settles, re-measure the canvas (triggers the
+  // running sim's resize handler → re-fit bubble sizes to the new area).
+  useEffect(() => {
+    const t = setTimeout(() => window.dispatchEvent(new Event('resize')), 60);
+    return () => clearTimeout(t);
+  }, [fs]);
 
   // Canvas + custom physics loop. Rebuilt only when a fresh dataset arrives.
   useEffect(() => {
@@ -291,17 +427,31 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
 
     function measure() {
       const r = cvs.getBoundingClientRect();
-      W = r.width; H = CANVAS_H;
+      W = r.width; H = Math.max(1, r.height);
       cvs.width = W * DPR; cvs.height = H * DPR;
     }
-    measure();
-    // Scatter across the whole field (not the centre) so they start spread out.
-    nodes.forEach((n) => {
-      n.x = n.r + Math.random() * Math.max(1, W - 2 * n.r);
-      n.y = n.r + Math.random() * Math.max(1, H - 2 * n.r);
-      const a = Math.random() * Math.PI * 2, s = 0.3 + Math.random() * 0.6;
-      n.vx = Math.cos(a) * s; n.vy = Math.sin(a) * s;
-    });
+    // Target radius per bubble from the CURRENT canvas area + token count, then
+    // cap total coverage so the field never crams — and grows to fill the extra
+    // room in fullscreen. Re-run on metric change and on resize.
+    function computeTargets() {
+      const m = metricRef.current;
+      const area = W * H;
+      const unit = Math.sqrt(area / Math.max(1, nodes.length));
+      const min = Math.max(4, unit * 0.34);
+      const max = Math.min(Math.min(W, H) * 0.44, Math.max(min * 3, unit * 3.4));
+      const maxV = Math.max(1e-9, ...nodes.map((n) => sizeVal(n.row, m)));
+      let total = 0;
+      for (const n of nodes) {
+        n.tr = min + Math.pow(sizeVal(n.row, m) / maxV, SIZE_EXP) * (max - min);
+        n.tcol = colFor(colorChg(n.row, m));
+        total += Math.PI * n.tr * n.tr;
+      }
+      if (total > FILL * area) {
+        const s = Math.sqrt((FILL * area) / total);
+        for (const n of nodes) n.tr *= s;
+      }
+    }
+    retargetRef.current = computeTargets;
 
     function separate(passes: number) {
       for (let p = 0; p < passes; p++) {
@@ -321,6 +471,17 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
         }
       }
     }
+
+    measure();
+    computeTargets();
+    nodes.forEach((n) => { n.r = n.tr * 0.25; }); // grow-in
+    // Scatter across the whole field (not the centre) so they start spread out.
+    nodes.forEach((n) => {
+      n.x = n.tr + Math.random() * Math.max(1, W - 2 * n.tr);
+      n.y = n.tr + Math.random() * Math.max(1, H - 2 * n.tr);
+      const a = Math.random() * Math.PI * 2, s = 0.3 + Math.random() * 0.6;
+      n.vx = Math.cos(a) * s; n.vy = Math.sin(a) * s;
+    });
     separate(40); // resolve initial overlaps before motion starts
 
     function physics() {
@@ -371,65 +532,45 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       }
     }
 
-    const glass = getGlassSprite();
     const TAU = 6.2831853;
-    function drawCover(img: HTMLImageElement, ix: number, iy: number, w: number, h: number) {
-      const iw = img.naturalWidth || 1, ih = img.naturalHeight || 1;
-      const scale = Math.max(w / iw, h / ih);
-      const dw = iw * scale, dh = ih * scale;
-      try { ctx.drawImage(img, ix - dw / 2, iy - dh / 2, dw, dh); } catch { /* tainted/decoding */ }
-    }
+    const glass = getGlassSprite(); // shared overlay for fallback discs (logos bake their own)
 
     function drawNode(n: MNode) {
       const r = n.r;
-      const hasLogo = !!(n.img && n.imgOk);
+      const chg = n.row.chg.h24;
+      // Performance ring colour — green up / red down (grey when unknown).
+      const ring: RGB = chg == null ? [120, 140, 160] : chg >= 0 ? [34, 230, 156] : [245, 70, 92];
 
-      // Outer performance glow — the up/down signal + depth, brighter for big moves.
-      const mag = colorMag(n.row, metricRef.current);
-      if (r >= 7) {
-        ctx.globalAlpha = 0.12 + mag * 0.26;
-        ctx.lineWidth = Math.max(2, r * 0.16);
-        ctx.strokeStyle = rgbStr(n.col, 1);
-        ctx.beginPath(); ctx.arc(n.x, n.y, r + ctx.lineWidth * 0.35, 0, TAU); ctx.stroke();
-        ctx.globalAlpha = 1;
+      // Dust fast-path: tiny bubbles render as a single coloured dot.
+      if (r < 7) {
+        ctx.fillStyle = rgbStr(ring, 0.95);
+        ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, TAU); ctx.fill();
+        return;
       }
 
-      // Base fill: the logo IS the whole bubble. Fallback = frosted tinted disc.
-      ctx.save();
-      ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, TAU); ctx.clip();
-      if (hasLogo) {
-        drawCover(n.img!, n.x, n.y, r * 2, r * 2);
+      // Body: the pre-baked circular logo + glass sprite — one draw, no clipping.
+      // Fallback to a tinted disc + symbol until the sprite is ready / for no logo.
+      if (n.sprite) {
+        ctx.drawImage(n.sprite, n.x - r, n.y - r, r * 2, r * 2);
       } else {
         const g = ctx.createRadialGradient(n.x - r * 0.3, n.y - r * 0.34, r * 0.1, n.x, n.y, r);
         g.addColorStop(0, rgbStr([n.col[0] + 55, n.col[1] + 55, n.col[2] + 55] as RGB, 0.95));
         g.addColorStop(1, rgbStr(n.col, 0.92));
-        ctx.fillStyle = g; ctx.fillRect(n.x - r, n.y - r, r * 2, r * 2);
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, TAU); ctx.fill();
         if (r >= 13) {
           ctx.fillStyle = 'rgba(255,255,255,0.95)';
           ctx.font = `700 ${Math.min(15, Math.max(9, r * 0.4))}px ui-sans-serif,system-ui,sans-serif`;
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           ctx.fillText(n.symbol.slice(0, 6), n.x, n.y);
         }
+        // Give fallback discs the same glass + inset-shadow treatment as logos.
+        if (glass) ctx.drawImage(glass, n.x - r, n.y - r, r * 2, r * 2);
       }
-      // Refraction band: a magnified redraw of the logo in the outer ring bends
-      // the content at the rim like a real glass lens — the "distortion border".
-      if (hasLogo && r >= 13) {
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, r, 0, TAU);
-        ctx.arc(n.x, n.y, r * 0.78, 0, TAU, true);
-        ctx.clip('evenodd');
-        drawCover(n.img!, n.x, n.y, r * 2 * 1.34, r * 2 * 1.34);
-      }
-      ctx.restore();
 
-      // Apple-glass overlay: specular highlight + top light + rim sheen (cached).
-      if (glass) ctx.drawImage(glass, n.x - r, n.y - r, r * 2, r * 2);
-
-      // Coloured glass rim (performance) — a bright lit edge.
-      ctx.lineWidth = Math.max(1.4, r * 0.05);
-      ctx.strokeStyle = rgbStr([
-        Math.min(255, n.col[0] + 30), Math.min(255, n.col[1] + 30), Math.min(255, n.col[2] + 30),
-      ] as RGB, 0.95);
+      // Performance ring — green up / red down, hugging the bubble edge.
+      ctx.lineWidth = Math.max(2, r * 0.08);
+      ctx.strokeStyle = rgbStr(ring, 0.95);
       ctx.beginPath(); ctx.arc(n.x, n.y, r - ctx.lineWidth / 2, 0, TAU); ctx.stroke();
 
       if (n === hover) {
@@ -438,13 +579,15 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       }
 
       // Value chip near the bottom for big bubbles, so the logo stays clear.
-      if (r >= 26) {
+      // Font scales with bubble size (capped) so large bubbles read clearly.
+      if (r >= 30) {
         const txt = valLabel(n.row, metricRef.current);
-        ctx.font = `800 ${Math.min(13, r * 0.24)}px ui-sans-serif,system-ui,sans-serif`;
+        const fs = Math.max(11, Math.min(30, r * 0.26));
+        ctx.font = `800 ${fs}px ui-sans-serif,system-ui,sans-serif`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        const tw = ctx.measureText(txt).width, ch = Math.min(16, r * 0.3), yy = n.y + r * 0.54;
+        const tw = ctx.measureText(txt).width, ch = fs + 7, yy = n.y + r * 0.5;
         ctx.fillStyle = 'rgba(6,14,26,0.72)';
-        ctx.fillRect(n.x - tw / 2 - 5, yy - ch / 2, tw + 10, ch);
+        ctx.fillRect(n.x - tw / 2 - 6, yy - ch / 2, tw + 12, ch);
         ctx.fillStyle = 'rgba(255,255,255,0.98)';
         ctx.fillText(txt, n.x, yy);
       }
@@ -473,15 +616,6 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       raf = requestAnimationFrame(frame);
     }
 
-    retargetRef.current = () => {
-      const m = metricRef.current;
-      const maxV = Math.max(1e-9, ...nodes.map((n) => sizeVal(n.row, m)));
-      for (const n of nodes) {
-        n.tr = minR + Math.pow(sizeVal(n.row, m) / maxV, SIZE_EXP) * (maxRadius - minR);
-        n.tcol = colFor(colorChg(n.row, m));
-      }
-    };
-
     function mpos(e: MouseEvent) { const r = cvs.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
     function pick(p: { x: number; y: number }) {
       // Topmost hit (iterate from end). Bias toward bigger bubbles is natural.
@@ -503,7 +637,7 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       html += `<div style="${row}"><span>24h</span><span style="color:${chgCol}">${fmtSignedPct(r.chg.h24)}</span></div>`;
       html += `<div style="${row}"><span>Vol 24h</span><span>${fmtUsd(r.vol.h24)}</span></div>`;
       html += `<div style="${row}"><span>Mkt cap</span><span>${fmtUsd(r.marketCap)}</span></div>`;
-      html += `<div style="${row}"><span>Liquidity</span><span>${fmtUsd(r.liquidityUsd)}</span></div>`;
+      html += `<div style="${row}"><span>Liq (main)</span><span>${fmtUsd(r.liquidityUsd)}</span></div>`;
       html += `<div style="${sub};margin-top:5px">Click to open in analyzer →</div>`;
       tip.innerHTML = html; tip.style.opacity = '1';
       let tx = n.x + 16; if (tx > W - 184) tx = n.x - 184;
@@ -535,7 +669,19 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       }
     };
     const onLeave = () => { if (!drag) { hover = null; hideTip(); } };
-    const onResize = () => { measure(); separate(8); };
+    const onResize = () => {
+      const oldW = W, oldH = H;
+      measure();
+      // Proportionally spread positions into the new canvas (e.g. entering
+      // fullscreen) so the field fills the space immediately instead of slowly
+      // drifting out from the old, smaller region.
+      if (oldW > 0 && oldH > 0 && (W !== oldW || H !== oldH)) {
+        const sx = W / oldW, sy = H / oldH;
+        for (const n of nodes) { n.x *= sx; n.y *= sy; }
+      }
+      computeTargets();
+      separate(8);
+    };
 
     cvs.addEventListener('mousemove', onMove);
     cvs.addEventListener('mousedown', onDown);
@@ -556,18 +702,16 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simKey]);
 
-  const headerCount = useMemo(() => dataRef.current?.nodes.length ?? 0, [simKey]);
-
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-          Market bubbles
-          {status === 'ready' && (
-            <span className="font-normal normal-case text-[var(--text-faint)]">{headerCount} tokens · size = {METRICS.find((m) => m.id === metric)?.label}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
+    <div
+      className={
+        fs
+          ? 'fixed inset-0 z-[130] flex flex-col bg-[var(--app-bg)] p-3 sm:p-4'
+          : 'rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3'
+      }
+    >
+      <div className="mb-2 flex flex-wrap items-center justify-end gap-1.5">
+        <div className="flex items-center gap-1.5">
           <div className="flex items-center rounded-md border border-[var(--line)] overflow-hidden">
             {METRICS.map((m) => (
               <button
@@ -584,13 +728,13 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
             ))}
           </div>
           <div className="flex items-center rounded-md border border-[var(--line)] overflow-hidden">
-            {COUNT_OPTIONS.map((opt) => (
+            {(isMobile ? COUNT_OPTIONS_MOBILE : COUNT_OPTIONS_DESKTOP).map((opt) => (
               <button
                 key={opt}
                 type="button"
                 onClick={() => setCount(opt)}
                 disabled={status === 'loading'}
-                className={`px-2 py-0.5 text-[11px] font-semibold tabular-nums transition-colors disabled:opacity-40 ${
+                className={`px-1.5 py-0.5 text-[11px] font-semibold tabular-nums transition-colors disabled:opacity-40 ${
                   opt === count ? 'bg-[var(--surface-2)] text-[var(--text)]' : 'text-[var(--text-faint)] hover:text-[var(--text)]'
                 }`}
                 title={`Show top ${opt} tokens`}
@@ -608,6 +752,14 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
           >
             <IconRefresh className={`h-4 w-4 ${status === 'loading' ? 'animate-spin' : ''}`} />
           </button>
+          <button
+            type="button"
+            onClick={() => setFs((v) => !v)}
+            className="text-[var(--text-faint)] hover:text-[var(--text)]"
+            title={fs ? 'Exit full screen (Esc)' : 'Full screen'}
+          >
+            {fs ? <IconMinimize className="h-4 w-4" /> : <IconMaximize className="h-4 w-4" />}
+          </button>
         </div>
       </div>
 
@@ -616,31 +768,26 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       ) : status === 'empty' ? (
         <div className="py-10 text-center text-sm text-[var(--text-faint)]">No tokens for this tab/filters.</div>
       ) : status === 'loading' ? (
-        <div className="grid place-items-center rounded-lg bg-[var(--surface)]" style={{ height: CANVAS_H }}>
+        <div className={`grid place-items-center rounded-lg bg-[var(--surface)] ${fs ? 'flex-1' : ''}`} style={fs ? undefined : { height: CANVAS_H }}>
           <span className="inline-flex items-center gap-2 text-sm text-[var(--text-faint)]">
             <IconRefresh className="h-4 w-4 animate-spin" /> Loading top {count} tokens…
           </span>
         </div>
       ) : (
         <>
-          <div className="relative w-full">
+          <div className={fs ? 'relative w-full flex-1 min-h-0' : 'relative w-full'}>
             <canvas
               ref={canvasRef}
               role="img"
               aria-label="Floating bubble map of tokens sized by the selected metric, coloured by 24h performance"
               className="block w-full rounded-lg border border-[var(--line)]"
-              style={{ height: CANVAS_H }}
+              style={{ height: fs ? '100%' : CANVAS_H }}
             />
             <div
               ref={tipRef}
               className="pointer-events-none absolute z-10 w-[184px] rounded-[10px] border border-[var(--line)] px-2.5 py-2 text-xs leading-snug text-[var(--text)] opacity-0 transition-opacity"
               style={{ background: 'rgba(6,18,34,.95)' }}
             />
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-faint)]">
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#22e69c' }} /> Up</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#f5465c' }} /> Down</span>
-            <span>· brighter = bigger move · size = {METRICS.find((m) => m.id === metric)?.label} · drag to fling · click to open</span>
           </div>
         </>
       )}
