@@ -159,7 +159,7 @@ export default function Screener() {
       : rows;
 
   return (
-    <div className="w-full min-w-0 space-y-3">
+    <div className="w-full min-w-0 space-y-2">
       <StatsBar stats={stats} fetchedAt={fetchedAt} />
       <FilterBar
         dexes={dexes}
@@ -171,28 +171,9 @@ export default function Screener() {
         onTab={onTab}
         onWindow={(w) => setWindow(w)}
         onFilters={(f) => setFilters(f)}
-        onOpenSearch={() => setSearchOpen(true)}
+        view={view}
+        onView={setView}
       />
-
-      {/* Table ⇄ bubbles view toggle. */}
-      <div className="flex justify-end">
-        <div className="flex items-center rounded-md border border-[var(--line)] overflow-hidden text-[11px] font-semibold">
-          {(['table', 'bubbles'] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setView(v)}
-              className={`px-3 py-1 capitalize transition-colors ${
-                view === v
-                  ? 'bg-[var(--surface-2)] text-[var(--text)]'
-                  : 'text-[var(--text-faint)] hover:text-[var(--text)]'
-              }`}
-            >
-              {v}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {view === 'bubbles' ? (
         <MarketBubbles tab={tab} dexId={dexId} filters={filters} watchlistParam={watchlistParam} />

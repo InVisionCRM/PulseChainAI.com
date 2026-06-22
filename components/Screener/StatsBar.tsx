@@ -11,10 +11,12 @@ interface Props {
 
 function Cell({ label, value, suffix }: { label: string; value: string; suffix?: string }) {
   return (
-    <div className="flex-1 min-w-[160px] rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl px-4 py-2.5 flex items-baseline justify-center gap-2">
-      <span className="text-[11px] uppercase tracking-wider text-[var(--text-faint)]">{label}</span>
-      <span className="text-sm font-semibold text-[var(--text)] tabular-nums">{value}</span>
-      {suffix ? <span className="text-[11px] text-[var(--text-faint)] tabular-nums">{suffix}</span> : null}
+    <div className="flex-1 min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-center backdrop-blur-xl">
+      <div className="truncate text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
+      <div className="mt-0.5 flex items-baseline justify-center gap-1.5">
+        <span className="text-sm font-semibold tabular-nums text-[var(--text)]">{value}</span>
+        {suffix ? <span className="text-[10px] tabular-nums text-[var(--text-faint)]">{suffix}</span> : null}
+      </div>
     </div>
   );
 }
