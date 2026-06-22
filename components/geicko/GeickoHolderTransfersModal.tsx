@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { LoaderThree } from '@/components/ui/loader';
 import { HolderTransfer } from './types';
 import { truncateAddress, formatDateUTC } from './utils';
+import { HexStakes } from '@/components/portfolio/HexStakes';
+import { isHexAddress } from '@/lib/hex/hexDay';
 
 export interface GeickoHolderTransfersModalProps {
   /** Is modal open */
@@ -18,6 +20,10 @@ export interface GeickoHolderTransfersModalProps {
   expandedTxs: Set<string>;
   /** Token symbol to display */
   tokenSymbol?: string;
+  /** Address of the token being viewed — enables the HEX "Stakes" tab. */
+  tokenAddress?: string;
+  /** Current token (HEX) USD price, for USD figures in the stakes view. */
+  tokenPriceUsd?: number | null;
   /** Callback when modal is closed */
   onClose: () => void;
   /** Callback when transaction is toggled */
@@ -36,9 +42,16 @@ export default function GeickoHolderTransfersModal({
   error,
   expandedTxs,
   tokenSymbol = 'TOKEN',
+  tokenAddress,
+  tokenPriceUsd,
   onClose,
   onToggleExpand,
 }: GeickoHolderTransfersModalProps) {
+  const isHex = isHexAddress(tokenAddress);
+  const [tab, setTab] = useState<'stakes' | 'transactions'>('stakes');
+  // Default to Stakes for HEX; reset when the holder changes.
+  useEffect(() => { setTab(isHex ? 'stakes' : 'transactions'); }, [isHex, holderAddress]);
+
   if (!isOpen || !holderAddress) {
     return null;
   }
@@ -81,9 +94,19 @@ export default function GeickoHolderTransfersModal({
           </button>
         </div>
 
+        {/* Stakes / Transactions tabs (HEX only) */}
+        {isHex && (
+          <div className="flex items-center gap-2 border-b border-[var(--line)] bg-[var(--panel)] px-5 py-2">
+            <button type="button" onClick={() => setTab('stakes')} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${tab === 'stakes' ? 'bg-[var(--surface-2)] text-orange-300' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>Stakes</button>
+            <button type="button" onClick={() => setTab('transactions')} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${tab === 'transactions' ? 'bg-[var(--surface-2)] text-orange-300' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>Transactions</button>
+          </div>
+        )}
+
         {/* Content */}
         <div className="p-4 overflow-y-auto max-h-[calc(90vh-120px)] bg-[var(--panel)]">
-          {isLoading ? (
+          {isHex && tab === 'stakes' ? (
+            <HexStakes address={holderAddress} hexUsd={tokenPriceUsd} />
+          ) : isLoading ? (
             <div className="flex items-center justify-center py-10 text-[var(--text-muted)] gap-3">
               <LoaderThree />
               <span className="text-sm">Loading transfers...</span>
