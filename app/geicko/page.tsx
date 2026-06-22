@@ -3220,6 +3220,8 @@ function GeickoPageContent() {
         error={holderTransfersError}
         expandedTxs={expandedHolderTxs}
         tokenSymbol={baseSymbol || 'TOKEN'}
+        tokenAddress={apiTokenAddress}
+        tokenPriceUsd={priceUsd || null}
         onClose={handleCloseHolderTransfers}
         onToggleExpand={toggleExpandedHolderTx}
       />
