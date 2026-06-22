@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'motion/react';
@@ -20,14 +20,65 @@ import {
   IconRobot,
   IconArrowsExchange,
   IconChartBubble,
+  IconHistory,
 } from '@tabler/icons-react';
 import dynamic from 'next/dynamic';
 import { useOutsideClick } from '@/hooks/use-outside-click';
 import { useInsightsStore } from '@/lib/stores/insightsStore';
-import type { ChainId, PortfolioToken } from '@/services';
-import { WRAPPED_NATIVE } from '@/services';
-import { pulsechainTokenUrl } from '@/lib/pulsechainExplorer';
+import { usePortfolioStore } from '@/lib/stores/portfolioStore';
+import type {
+  ChainId,
+  PortfolioToken,
+  TokenFlow,
+  WalletTransaction,
+  WalletHistoryResponse,
+} from '@/services';
+import { WRAPPED_NATIVE, NATIVE_TOKEN_ADDRESS } from '@/services';
+import { ACTION_META } from '@/components/portfolio/ActivityFeed';
+import { pulsechainTokenUrl, pulsechainTxUrl } from '@/lib/pulsechainExplorer';
 import { fmtUsd, fmtPrice, fmtAmount, fmtNum } from '@/lib/format';
+
+// A token's real holding, resolved from the portfolio store across every
+// tracked wallet (keyed by chain + contract). Lets the modal show the user's
+// true balance even when it was opened from the watchlist (whose synthesized
+// token has no balance), and tells the History tab which wallet(s) to query.
+interface TokenHolding {
+  owners: string[]; // wallet addresses actually holding this token
+  balanceFormatted: number; // summed across owners
+  valueUsd: number; // summed across owners
+}
+
+function useTokenHolding(token: PortfolioToken | null): TokenHolding | null {
+  const wallets = usePortfolioStore((s) => s.wallets);
+  const snapshotsByAddress = usePortfolioStore((s) => s.snapshotsByAddress);
+  return useMemo(() => {
+    if (!token) return null;
+    const addr = token.address.toLowerCase();
+    const owners: string[] = [];
+    let balanceFormatted = 0;
+    let valueUsd = 0;
+    for (const w of wallets) {
+      const snap = snapshotsByAddress[w.address]?.snapshot;
+      if (!snap) continue;
+      const held = snap.tokens.find(
+        (t) => t.chain === token.chain && t.address.toLowerCase() === addr,
+      );
+      if (held && held.balanceFormatted > 0) {
+        owners.push(w.address);
+        balanceFormatted += held.balanceFormatted;
+        valueUsd += held.valueUsd ?? 0;
+      }
+    }
+    if (owners.length > 0) return { owners, balanceFormatted, valueUsd };
+    // Fallback: the token passed in may already carry a real balance (opened
+    // from a wallet card) even if its snapshot isn't in the scan above. We can
+    // still show the balance, but without an owner address there's no history.
+    if (token.balanceFormatted > 0) {
+      return { owners: [], balanceFormatted: token.balanceFormatted, valueUsd: token.valueUsd ?? 0 };
+    }
+    return null;
+  }, [token, wallets, snapshotsByAddress]);
+}
 
 // TokenAIChat is heavy (pulls the whole geicko chat stack). Lazy-load
 // only when the user opens the AI tab.
@@ -109,7 +160,7 @@ interface Insights {
   ownershipRenounced: boolean | null;
 }
 
-type TabId = 'overview' | 'chart' | 'liquidity' | 'bubblemap' | 'chat';
+type TabId = 'overview' | 'chart' | 'liquidity' | 'bubblemap' | 'history' | 'chat';
 
 const SOCIAL_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   twitter: IconBrandTwitter,
@@ -132,6 +183,11 @@ export function TokenInsightsCard() {
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<TabId>('overview');
+
+  const holding = useTokenHolding(token);
+  // History needs a wallet to query, so it only appears for tokens the user
+  // actually holds in a tracked wallet.
+  const canShowHistory = !!holding && holding.owners.length > 0;
 
   useOutsideClick(ref, () => {
     if (token) onClose();
@@ -211,12 +267,17 @@ export function TokenInsightsCard() {
                 insights={insights}
                 onClose={onClose}
               />
-              <TabBar active={tab} onChange={setTab} chain={token.chain} />
+              <TabBar
+                active={tab}
+                onChange={setTab}
+                showHistory={canShowHistory}
+              />
               <CardBody
                 token={token}
                 insights={insights}
                 loading={loading}
                 tab={tab}
+                holding={holding}
               />
               <CardFooter token={token} />
             </motion.div>
@@ -369,43 +430,54 @@ function CardHeader({
 function TabBar({
   active,
   onChange,
-  chain,
+  showHistory,
 }: {
   active: TabId;
   onChange: (t: TabId) => void;
-  chain: ChainId;
+  showHistory: boolean;
 }) {
   const tabs: { id: TabId; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'overview', label: 'Overview', Icon: IconShield },
     { id: 'chart', label: 'Chart', Icon: IconChartLine },
     { id: 'liquidity', label: 'Liquidity', Icon: IconChartCandle },
     { id: 'bubblemap', label: 'Bubble Map', Icon: IconChartBubble },
+    // History only when the user holds the token (it needs a wallet to query).
+    ...(showHistory
+      ? [{ id: 'history' as TabId, label: 'History', Icon: IconHistory }]
+      : []),
     { id: 'chat', label: 'AI Chat', Icon: IconRobot },
   ];
   return (
-    <div className="flex items-center gap-1 px-4 pt-3 border-b border-[var(--line)]">
+    // Icons always show; labels hide below `sm` so all tabs fit on a phone
+    // without horizontal scrolling.
+    <div className="flex items-center justify-between sm:justify-start gap-0.5 sm:gap-1 px-2 sm:px-4 pt-3 border-b border-[var(--line)]">
       {tabs.map(({ id, label, Icon }) => {
         const isActive = active === id;
+        const isAi = id === 'chat';
+        // The AI tab gets a persistent cyan treatment + pulsing glow so it
+        // stands out; everything else uses the card's violet accent.
+        const accent = isAi ? '#22d3ee' : '#a855f7';
         return (
           <button
             key={id}
             type="button"
             onClick={() => onChange(id)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-colors"
+            title={label}
+            aria-label={label}
+            className={`inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 text-xs font-semibold border-b-2 transition-colors ${
+              isAi ? 'ai-tab-glow' : ''
+            }`}
             style={
               isActive
-                ? {
-                    borderColor: '#a855f7',
-                    color: '#fff',
-                  }
+                ? { borderColor: accent, color: isAi ? accent : '#fff' }
                 : {
                     borderColor: 'transparent',
-                    color: 'rgba(255, 255, 255, 0.5)',
+                    color: isAi ? accent : 'rgba(255, 255, 255, 0.5)',
                   }
             }
           >
-            <Icon className="h-3.5 w-3.5" />
-            {label}
+            <Icon className="h-3.5 w-3.5 shrink-0" />
+            <span className="hidden sm:inline">{label}</span>
           </button>
         );
       })}
@@ -418,16 +490,18 @@ function CardBody({
   insights,
   loading,
   tab,
+  holding,
 }: {
   token: PortfolioToken;
   insights: Insights | null;
   loading: boolean;
   tab: TabId;
+  holding: TokenHolding | null;
 }) {
   return (
     <div className="px-6 py-5 min-h-[200px]">
       {tab === 'overview' && (
-        <OverviewTab token={token} insights={insights} loading={loading} />
+        <OverviewTab token={token} insights={insights} loading={loading} holding={holding} />
       )}
       {tab === 'chart' && (
         <ChartTab token={token} insights={insights} />
@@ -436,6 +510,9 @@ function CardBody({
         <LiquidityTab insights={insights} loading={loading} />
       )}
       {tab === 'bubblemap' && <BubbleMapTab token={token} />}
+      {tab === 'history' && holding && holding.owners.length > 0 && (
+        <TokenHistoryTab token={token} owners={holding.owners} />
+      )}
       {tab === 'chat' && <ChatTab token={token} />}
     </div>
   );
@@ -445,10 +522,12 @@ function OverviewTab({
   token,
   insights,
   loading,
+  holding,
 }: {
   token: PortfolioToken;
   insights: Insights | null;
   loading: boolean;
+  holding: TokenHolding | null;
 }) {
   return (
     <div className="space-y-5">
@@ -457,7 +536,7 @@ function OverviewTab({
           {insights.description}
         </p>
       )}
-      <StatsGrid token={token} insights={insights} loading={loading} />
+      <StatsGrid token={token} insights={insights} loading={loading} holding={holding} />
       <ActionsRow token={token} insights={insights} />
       <LinksRow insights={insights} loading={loading} />
     </div>
@@ -607,24 +686,224 @@ function ChatTab({ token }: { token: PortfolioToken }) {
   );
 }
 
+// ── History tab ───────────────────────────────────────────────────────────
+// A focused, token-scoped slice of the wallet's activity feed: every decoded
+// transaction in which this specific token moved in or out of the wallet(s)
+// that hold it. Reuses /api/portfolio/history (the same source as the wallet
+// ActivityFeed), then keeps only the flows touching this contract.
+
+interface TokenHistoryRow {
+  tx: WalletTransaction;
+  flows: TokenFlow[];
+}
+
+const fmtHistoryDate = (ts: number) =>
+  new Date(ts).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+function TokenHistoryTab({
+  token,
+  owners,
+}: {
+  token: PortfolioToken;
+  owners: string[];
+}) {
+  const [rows, setRows] = useState<TokenHistoryRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  // Native coin movements are recorded against the sentinel address; ERC-20s
+  // match on their contract.
+  const matchAddr = token.isNative
+    ? NATIVE_TOKEN_ADDRESS.toLowerCase()
+    : token.address.toLowerCase();
+  const ownersKey = owners.join(',');
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+    (async () => {
+      try {
+        const results = await Promise.all(
+          owners.map((addr) =>
+            fetch('/api/portfolio/history', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ address: addr, chain: token.chain }),
+            })
+              .then((r) => (r.ok ? (r.json() as Promise<WalletHistoryResponse>) : null))
+              .catch(() => null),
+          ),
+        );
+        if (cancelled) return;
+        const seen = new Set<string>();
+        const out: TokenHistoryRow[] = [];
+        for (const res of results) {
+          if (!res) continue;
+          for (const tx of res.items) {
+            const flows = tx.flows.filter(
+              (f) => f.tokenAddress.toLowerCase() === matchAddr,
+            );
+            if (flows.length === 0) continue;
+            const k = `${tx.chain}:${tx.hash}`;
+            if (seen.has(k)) continue;
+            seen.add(k);
+            out.push({ tx, flows });
+          }
+        }
+        out.sort((a, b) => b.tx.timestamp - a.tx.timestamp);
+        setRows(out);
+        if (results.every((r) => r === null)) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ownersKey, token.chain, matchAddr]);
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-14 rounded-lg bg-[var(--surface)] animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center gap-1.5 py-10 text-center text-sm text-[var(--text-faint)]">
+        <IconAlertTriangle className="h-6 w-6" />
+        Couldn’t load activity from the explorer.
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-1.5 py-10 text-center text-sm text-[var(--text-faint)]">
+        <IconHistory className="h-6 w-6" />
+        No recent {token.symbol} activity for your {owners.length > 1 ? 'wallets' : 'wallet'}.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="text-[10px] uppercase tracking-wide font-semibold text-[var(--text-faint)] mb-1">
+        Your {token.symbol} activity
+      </div>
+      {rows.map(({ tx, flows }) => (
+        <HistoryRow key={`${tx.chain}:${tx.hash}`} tx={tx} flows={flows} symbol={token.symbol} />
+      ))}
+    </div>
+  );
+}
+
+function HistoryRow({
+  tx,
+  flows,
+  symbol,
+}: {
+  tx: WalletTransaction;
+  flows: TokenFlow[];
+  symbol: string;
+}) {
+  const meta = ACTION_META[tx.action];
+  // Net signed movement of this token in the tx (usually a single leg).
+  const net = flows.reduce(
+    (s, f) => s + (f.direction === 'in' ? f.amountFormatted : -f.amountFormatted),
+    0,
+  );
+  const usd = flows.reduce(
+    (s, f) => s + (f.valueUsd ?? 0) * (f.direction === 'in' ? 1 : -1),
+    0,
+  );
+  const failed = tx.status === 'failed';
+  const href =
+    tx.chain === 'ethereum'
+      ? `https://etherscan.io/tx/${tx.hash}`
+      : pulsechainTxUrl(tx.hash);
+  const positive = net >= 0;
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] hover:bg-[var(--surface-2)] px-3 py-2.5 transition-colors"
+    >
+      <div
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-base font-bold"
+        style={{
+          color: meta.color,
+          background: `${meta.color}22`,
+          border: `1px solid ${meta.color}55`,
+        }}
+      >
+        {meta.glyph}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold text-[var(--text)]">{meta.label}</div>
+        <div className="text-[11px] text-[var(--text-faint)] tabular-nums">
+          {fmtHistoryDate(tx.timestamp)}
+          {failed && <span className="text-red-300"> · Failed</span>}
+        </div>
+      </div>
+      <div className="text-right shrink-0">
+        <div
+          className="text-sm font-semibold tabular-nums"
+          style={{ color: positive ? '#6ee7b7' : '#fda4af' }}
+        >
+          {positive ? '+' : '−'}
+          {fmtAmount(Math.abs(net))} {symbol}
+        </div>
+        {usd !== 0 && (
+          <div className="text-[11px] text-[var(--text-faint)] tabular-nums">
+            {fmtUsd(Math.abs(usd))}
+          </div>
+        )}
+      </div>
+      <IconExternalLink className="h-3.5 w-3.5 shrink-0 text-[var(--text-faint)]" />
+    </a>
+  );
+}
+
 function StatsGrid({
   token,
   insights,
   loading,
+  holding,
 }: {
   token: PortfolioToken;
   insights: Insights | null;
   loading: boolean;
+  holding: TokenHolding | null;
 }) {
   const cells: Array<{ label: string; value: string | null }> = [
-    {
-      label: 'Your balance',
-      value: fmtAmount(token.balanceFormatted) + ' ' + token.symbol,
-    },
-    {
-      label: 'Your value',
-      value: fmtUsd(token.valueUsd ?? null),
-    },
+    // "Your balance / value" only when the user actually holds the token.
+    // Watchlist tokens have no balance, so showing a misleading "$0" / "0"
+    // is worse than omitting these two cells entirely.
+    ...(holding
+      ? [
+          {
+            label: 'Your balance',
+            value: fmtAmount(holding.balanceFormatted) + ' ' + token.symbol,
+          },
+          {
+            label: 'Your value',
+            value: fmtUsd(holding.valueUsd),
+          },
+        ]
+      : []),
     {
       label: 'Market cap',
       value: fmtUsd(insights?.marketCap ?? null),

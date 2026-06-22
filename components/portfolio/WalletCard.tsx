@@ -18,10 +18,12 @@ import { useManageTokensStore } from '@/lib/stores/manageTokensStore';
 import { ApprovalsPanel } from '@/components/portfolio/ApprovalsPanel';
 import { MoveToGroupMenu } from '@/components/portfolio/MoveToGroupMenu';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
+import { HexStakes } from '@/components/portfolio/HexStakes';
 import { WalletConnections } from '@/components/portfolio/WalletConnections';
 import { WalletRelated } from '@/components/portfolio/WalletRelated';
 import { WalletGraph } from '@/components/portfolio/WalletGraph';
 import { WalletFundingTrace } from '@/components/portfolio/WalletFundingTrace';
+import { isHexAddress } from '@/lib/hex/hexDay';
 import {
   applyTokenVisibility,
   autoHiddenForReview,
@@ -83,7 +85,7 @@ export function WalletCard({ wallet }: Props) {
   const removeWallet = usePortfolioStore((s) => s.removeWallet);
 
   const [expanded, setExpanded] = useState(true);
-  const [view, setView] = useState<'tokens' | 'activity' | 'connections' | 'funding'>('tokens');
+  const [view, setView] = useState<'tokens' | 'activity' | 'staking' | 'connections' | 'funding'>('tokens');
   const [connView, setConnView] = useState<'list' | 'graph'>('list');
   const [sortKey, setSortKey] = useState<SortKey>('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -132,6 +134,16 @@ export function WalletCard({ wallet }: Props) {
     () => filteredTokens.reduce((sum, t) => sum + (t.valueUsd ?? 0), 0),
     [filteredTokens],
   );
+
+  // Current pHEX price for USD figures in the Staking tab — pulled from the
+  // wallet's own HEX holding when present (null if the wallet holds no liquid
+  // HEX; HexStakes then shows HEX amounts without USD). The HEX staking
+  // subgraph is PulseChain-only, so the tab is gated on a pulsechain wallet.
+  const hexUsd = useMemo(
+    () => tokens.find((t) => isHexAddress(t.address))?.priceUsd ?? null,
+    [tokens],
+  );
+  const showStaking = wallet.chains.includes('pulsechain');
 
   const sortedTokens = useMemo(() => {
     const copy = [...filteredTokens];
@@ -364,6 +376,17 @@ export function WalletCard({ wallet }: Props) {
             >
               Activity
             </button>
+            {showStaking && (
+              <button
+                type="button"
+                onClick={() => setView('staking')}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                  view === 'staking' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                Staking
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setView('connections')}
@@ -386,6 +409,8 @@ export function WalletCard({ wallet }: Props) {
 
           {view === 'activity' ? (
             <ActivityFeed walletAddress={wallet.address} chains={wallet.chains} />
+          ) : view === 'staking' ? (
+            <HexStakes address={wallet.address} hexUsd={hexUsd} />
           ) : view === 'connections' ? (
             <div className="space-y-3">
               <div className="inline-flex rounded-lg border border-[var(--line)] bg-[var(--surface)] p-0.5">

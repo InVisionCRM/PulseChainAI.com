@@ -569,3 +569,13 @@ img {
 .breathe-1 { animation: breathe 2s ease-in-out infinite; }
 .breathe-2 { animation: breathe 2s ease-in-out infinite 0.7s; }
 .breathe-3 { animation: breathe 2s ease-in-out infinite 1.4s; }
+
+/* Cyan "AI" glow — draws the eye to the AI Chat tab in the token insights
+   card. Pulses a cyan drop-shadow on the tab's icon + label. */
+@keyframes aiTabGlow {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(34, 211, 238, 0.55)); }
+  50%      { filter: drop-shadow(0 0 8px rgba(34, 211, 238, 1)); }
+}
+.ai-tab-glow {
+  animation: aiTabGlow 2.2s ease-in-out infinite;
+}

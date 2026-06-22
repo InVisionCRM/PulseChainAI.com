@@ -63,7 +63,7 @@ const EXPLORER_NAME: Record<ChainId, string> = {
   ethereum: 'Etherscan',
 };
 
-const ACTION_META: Record<TxActionType, { label: string; glyph: string; color: string }> = {
+export const ACTION_META: Record<TxActionType, { label: string; glyph: string; color: string }> = {
   swap: { label: 'Swap', glyph: '⇄', color: '#8b5cf6' },
   send: { label: 'Send', glyph: '↑', color: '#fb7185' },
   receive: { label: 'Receive', glyph: '↓', color: '#34d399' },
@@ -83,7 +83,11 @@ const FILTERS: { key: string; label: string; actions: TxActionType[] | null }[] 
   { key: 'swaps', label: 'Swaps', actions: ['swap', 'wrap', 'unwrap'] },
   { key: 'transfers', label: 'Transfers', actions: ['send', 'receive'] },
   { key: 'approvals', label: 'Approvals', actions: ['approve'] },
-  { key: 'staking', label: 'Staking', actions: ['add_lp', 'remove_lp', 'stake', 'unstake', 'claim'] },
+  // LP add/remove + stake/unstake/claim used to live behind a "Staking" chip
+  // here, but that conflated PulseX liquidity moves with actual HEX stakes.
+  // Real HEX stakes now have their own wallet-card "Staking" tab (HexStakes);
+  // these txns still appear under "All".
+  { key: 'liquidity', label: 'Liquidity', actions: ['add_lp', 'remove_lp'] },
 ];
 const FILTER_SETS: Record<string, Set<TxActionType> | null> = Object.fromEntries(
   FILTERS.map((f) => [f.key, f.actions ? new Set(f.actions) : null]),
