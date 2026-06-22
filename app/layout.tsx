@@ -206,6 +206,17 @@ export default function RootLayout({
                           href: "https://plstart.me",
                           icon: <IconRocket className="h-5 w-5 shrink-0 text-[var(--text)]" />,
                         },
+                        {
+                          label: "Liquid Liberty",
+                          href: "https://liquidliberty.io/",
+                          icon: (
+                            <img
+                              src="https://cdn.dexscreener.com/cms/images/ad1c2e9c26c49bcaafa3dbad58c07b82893f2366dc64a47e75b40902ffddc098?width=64&height=64&quality=95&format=auto"
+                              alt="Liquid Liberty (LBRTY)"
+                              className="h-5 w-5 shrink-0 rounded-full object-cover"
+                            />
+                          ),
+                        },
                       ]}
                     />
 
