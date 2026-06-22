@@ -86,13 +86,16 @@ interface PortfolioStore {
 
   refreshWallet: (address: string) => Promise<void>;
   refreshAll: () => Promise<void>;
+  /** Append (or replace, within the throttle window) a point for the current
+   *  aggregate value. Safe to call often — it throttles itself. */
+  recordHistory: () => void;
   clearSnapshots: () => void;
   clearHistory: () => void;
 }
 
 const DEFAULT_CHAINS: ChainId[] = ['ethereum', 'pulsechain'];
 const ADDRESS_RX = /^0x[a-fA-F0-9]{40}$/;
-const HISTORY_THROTTLE_MS = 60 * 60 * 1000; // 1 hour
+const HISTORY_THROTTLE_MS = 5 * 60 * 1000; // 5 min — within a bucket the last point is replaced
 const HISTORY_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
 
 const normaliseAddress = (a: string) => a.trim().toLowerCase();
@@ -299,9 +302,17 @@ export const usePortfolioStore = create<PortfolioStore>()(
       refreshAll: async () => {
         const wallets = get().wallets;
         await Promise.all(wallets.map((w) => get().refreshWallet(w.address)));
-        // Snapshot the aggregate total *after* every wallet has resolved.
-        const { wallets: w, snapshotsByAddress } = get();
-        const totalUsd = w.reduce((sum, wal) => {
+        // Record the aggregate total *after* every wallet has resolved.
+        get().recordHistory();
+      },
+
+      // Append (or replace, within the throttle bucket) a value point for the
+      // current aggregate. Called from refreshAll and, on the portfolio page,
+      // whenever the settled aggregate changes + on a periodic tick — so the
+      // chart builds up during normal use, not only via manual "Refresh all".
+      recordHistory: () => {
+        const { wallets, snapshotsByAddress } = get();
+        const totalUsd = wallets.reduce((sum, wal) => {
           const snap = snapshotsByAddress[wal.address]?.snapshot;
           return sum + (snap?.totalValueUsd ?? 0);
         }, 0);
@@ -312,12 +323,9 @@ export const usePortfolioStore = create<PortfolioStore>()(
           const last = state.history[state.history.length - 1];
           let history: PortfolioHistoryPoint[];
           if (last && now - last.ts < HISTORY_THROTTLE_MS) {
-            // Same hour bucket — replace the last point so the chart stays
-            // current without ballooning the history array on every refresh.
-            history = [
-              ...state.history.slice(0, -1),
-              { ts: now, totalUsd },
-            ];
+            // Same bucket — replace the last point so the chart stays current
+            // without ballooning the history array on every update.
+            history = [...state.history.slice(0, -1), { ts: now, totalUsd }];
           } else {
             history = [...state.history, { ts: now, totalUsd }];
           }
