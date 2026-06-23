@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { LoaderThree } from '@/components/ui/loader';
 import { Holder, HolderStats, TokenInfo } from './types';
 import { isBurnAddress } from './utils';
-import GeickoPortfolioModal from './GeickoPortfolioModal';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import { fmtAmount, fmtNum } from '@/lib/format';
 
@@ -23,8 +22,8 @@ export interface GeickoHoldersTabProps {
   lpAddressSet: Set<string>;
   /** Callback when page changes */
   onPageChange: (page: number) => void;
-  /** Callback when opening holder transfers modal */
-  onOpenHolderTransfers: (address: string) => void;
+  /** Callback when opening the holder modal (portfolio / transactions / stakes) */
+  onViewHolder: (address: string) => void;
 }
 
 /**
@@ -40,21 +39,8 @@ export default function GeickoHoldersTab({
   tokenInfo,
   lpAddressSet,
   onPageChange,
-  onOpenHolderTransfers,
+  onViewHolder,
 }: GeickoHoldersTabProps) {
-  const [portfolioModalOpen, setPortfolioModalOpen] = useState(false);
-  const [selectedHolderAddress, setSelectedHolderAddress] = useState<string | null>(null);
-
-  const handleOpenPortfolio = (address: string) => {
-    setSelectedHolderAddress(address);
-    setPortfolioModalOpen(true);
-  };
-
-  const handleClosePortfolio = () => {
-    setPortfolioModalOpen(false);
-    setSelectedHolderAddress(null);
-  };
-
   if (isLoadingHolders) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -155,13 +141,9 @@ export default function GeickoHoldersTab({
 
                 {/* Address & Tags */}
                 <div className="flex-[1.5] min-w-[90px] flex items-center gap-1 truncate">
-                  <button
-                    type="button"
-                    onClick={() => onOpenHolderTransfers(holder.address)}
-                    className="text-[var(--text)] hover:text-[var(--text)] underline cursor-pointer font-mono truncate text-left"
-                  >
+                  <span className="text-[var(--text)] font-mono truncate text-left">
                     {formattedAddress}
-                  </button>
+                  </span>
                   <div className="flex items-center gap-0.5 flex-wrap">
                     {isLpHolder && (
                       <span className="px-1 py-0.5 text-[11px] font-bold text-blue-300">
@@ -198,11 +180,11 @@ export default function GeickoHoldersTab({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleOpenPortfolio(holder.address);
+                          onViewHolder(holder.address);
                         }}
                         className="inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-semibold bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded border border-blue-500/30 transition-colors"
                       >
-                        View O
+                        View
                       </button>
                       <AddToGroupButton
                         address={holder.address}
@@ -280,13 +262,6 @@ export default function GeickoHoldersTab({
           </div>
         )}
       </div>
-
-      {/* Portfolio Modal */}
-      <GeickoPortfolioModal
-        isOpen={portfolioModalOpen}
-        onClose={handleClosePortfolio}
-        holderAddress={selectedHolderAddress}
-      />
     </div>
   );
 }

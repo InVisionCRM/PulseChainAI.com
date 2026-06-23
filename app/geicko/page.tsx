@@ -35,7 +35,7 @@ import { useToast } from '@/components/ui/toast-provider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  GeickoHolderTransfersModal,
+  GeickoHolderModal,
   GeickoHoldersTab,
   GeickoSwapTab,
   GeickoWebsiteTab,
@@ -2241,7 +2241,7 @@ function GeickoPageContent() {
                   tokenInfo={tokenInfo}
                   lpAddressSet={lpAddressSet}
                   onPageChange={setHoldersPage}
-                  onOpenHolderTransfers={handleOpenHolderTransfers}
+                  onViewHolder={handleOpenHolderTransfers}
                 />
                 </div>
               )}
@@ -3211,8 +3211,8 @@ function GeickoPageContent() {
         </div>
       </div>
 
-      {/* Holder Transfers Modal */}
-      <GeickoHolderTransfersModal
+      {/* Holder Modal (Portfolio / Transactions / Stakes) */}
+      <GeickoHolderModal
         isOpen={isHolderTransfersOpen}
         holderAddress={holderTransfersAddress}
         transfers={holderTransfers}
