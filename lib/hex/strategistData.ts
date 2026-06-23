@@ -1,6 +1,9 @@
 // Shared live-rate loading for the HEX Strategist (Designer + Doctor). Pulls
 // current rates and a trailing-30-day payout average from /api/hex-proxy
-// (hexdailystats.com) — the same source the legacy dashboard uses.
+// (hexdailystats.com). Resilient: hexdailystats' `livedata` endpoint is flaky,
+// so we merge it with the newest row of the daily series (`fulldata` /
+// `fulldatapulsechain`), which carries the same fields, and only fail if
+// neither source yields a usable T-Share rate.
 
 export type Network = 'ethereum' | 'pulsechain';
 
@@ -21,70 +24,96 @@ export const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-/** Pull the network-appropriate live rate fields out of the livedata blob. */
-function pickLive(live: Record<string, unknown>, net: Network) {
-  if (net === 'pulsechain') {
-    return {
-      tShareRateHex: num(live.tshareRateHEX_Pulsechain),
-      payout: num(live.payoutPerTshare_Pulsechain),
-      tSharePriceUsd: num(live.tsharePrice_Pulsechain),
-      priceUsd: num(live.pricePulseX ?? live.price_Pulsechain),
-      stakedHex: num(live.stakedHEX_Pulsechain),
-      circulatingHex: num(live.circulatingHEX_Pulsechain),
-    };
+type Rec = Record<string, unknown>;
+
+/** First non-zero value across a list of candidate keys on a record. */
+function field(rec: Rec | null, keys: string[]): number {
+  if (!rec) return 0;
+  for (const k of keys) {
+    const v = num(rec[k]);
+    if (v) return v;
   }
+  return 0;
+}
+
+// hexdailystats uses different key spellings between `livedata` (suffixed for
+// PulseChain) and the daily rows (base names, plus `payoutPerTshareHEX`). Read
+// all known variants so either source works.
+function readRates(rec: Rec | null, net: Network) {
+  const p = net === 'pulsechain';
   return {
-    tShareRateHex: num(live.tshareRateHEX),
-    payout: num(live.payoutPerTshare),
-    tSharePriceUsd: num(live.tsharePrice),
-    priceUsd: num(live.price),
-    stakedHex: num(live.stakedHEX),
-    circulatingHex: num(live.circulatingHEX),
+    tShareRateHex: field(rec, p ? ['tshareRateHEX_Pulsechain', 'tshareRateHEX'] : ['tshareRateHEX']),
+    payout: field(rec, p
+      ? ['payoutPerTshare_Pulsechain', 'payoutPerTshareHEX_Pulsechain', 'payoutPerTshare', 'payoutPerTshareHEX']
+      : ['payoutPerTshare', 'payoutPerTshareHEX']),
+    tSharePriceUsd: field(rec, p ? ['tsharePrice_Pulsechain', 'tsharePrice'] : ['tsharePrice']),
+    priceUsd: field(rec, p ? ['pricePulseX', 'price_Pulsechain', 'price'] : ['price', 'priceUV2UV3', 'priceUV3']),
+    stakedHex: field(rec, p ? ['stakedHEX_Pulsechain', 'stakedHEX'] : ['stakedHEX']),
+    circulatingHex: field(rec, p ? ['circulatingHEX_Pulsechain', 'circulatingHEX'] : ['circulatingHEX']),
   };
 }
 
-const rowPayout = (r: Record<string, unknown>) => num(r.payoutPerTshare ?? r.payoutPerTshare_Pulsechain);
-const rowTSharePrice = (r: Record<string, unknown>) => num(r.tsharePrice ?? r.tsharePrice_Pulsechain);
+const rowPayout = (r: Rec, net: Network) => readRates(r, net).payout;
 
 export async function loadRates(net: Network): Promise<Rates> {
   const dailyEndpoint = net === 'pulsechain' ? 'fulldatapulsechain' : 'fulldata';
-  const [liveRes, dailyRes] = await Promise.all([
+  const [liveRes, dailyRes] = await Promise.allSettled([
     fetch('/api/hex-proxy?endpoint=livedata'),
     fetch(`/api/hex-proxy?endpoint=${dailyEndpoint}`),
   ]);
-  if (!liveRes.ok) throw new Error('Failed to load live HEX rates');
-  const live = (await liveRes.json()) as Record<string, unknown>;
-  const picked = pickLive(live, net);
 
-  // Daily series → trailing 30-day average payout + 30-day trends. hexdailystats
-  // returns newest-first; guard for either ordering by sorting on currentDay.
-  let daily: Record<string, unknown>[] = [];
-  if (dailyRes.ok) {
-    const d = await dailyRes.json();
-    daily = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
-    daily = [...daily].sort((a, b) => num(b.currentDay) - num(a.currentDay));
+  let live: Rec | null = null;
+  if (liveRes.status === 'fulfilled' && liveRes.value.ok) {
+    try { live = (await liveRes.value.json()) as Rec; } catch { live = null; }
   }
 
-  const recent = daily.slice(0, 30);
-  const payoutVals = recent.map(rowPayout).filter((v) => v > 0);
-  const avgPayout = payoutVals.length ? payoutVals.reduce((s, v) => s + v, 0) / payoutVals.length : picked.payout;
+  // Daily series, newest-first (guard for either ordering by sorting on currentDay).
+  let daily: Rec[] = [];
+  if (dailyRes.status === 'fulfilled' && dailyRes.value.ok) {
+    try {
+      const d = await dailyRes.value.json();
+      const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
+      daily = [...arr].sort((a, b) => num(b.currentDay) - num(a.currentDay));
+    } catch { daily = []; }
+  }
+  const latest = daily[0] ?? null;
 
-  const trend = (cur: number, key: 'payout' | 'tprice'): number | null => {
+  // For each field, take the first source (live → newest daily) that has it.
+  const sources: (Rec | null)[] = [live, latest];
+  const pick = (sel: (r: ReturnType<typeof readRates>) => number): number => {
+    for (const rec of sources) {
+      if (!rec) continue;
+      const v = sel(readRates(rec, net));
+      if (v) return v;
+    }
+    return 0;
+  };
+
+  const tShareRateHex = pick((r) => r.tShareRateHex);
+  if (!tShareRateHex) throw new Error('Failed to load live HEX rates');
+
+  const livePayout = pick((r) => r.payout);
+  const recent = daily.slice(0, 30);
+  const payoutVals = recent.map((r) => rowPayout(r, net)).filter((v) => v > 0);
+  const avgPayout = payoutVals.length ? payoutVals.reduce((s, v) => s + v, 0) / payoutVals.length : livePayout;
+
+  const tSharePriceUsd = pick((r) => r.tSharePriceUsd);
+  const trend = (cur: number, sel: (r: ReturnType<typeof readRates>) => number): number | null => {
     const older = daily[30];
     if (!older) return null;
-    const prev = key === 'payout' ? rowPayout(older) : rowTSharePrice(older);
+    const prev = sel(readRates(older, net));
     if (!prev || !cur) return null;
     return (cur - prev) / prev;
   };
 
   return {
-    tShareRateHex: picked.tShareRateHex,
-    dailyPayoutPerTShare: avgPayout || picked.payout,
-    priceUsd: picked.priceUsd,
-    tSharePriceUsd: picked.tSharePriceUsd,
-    stakedHex: picked.stakedHex,
-    circulatingHex: picked.circulatingHex,
-    payoutTrend: trend(avgPayout || picked.payout, 'payout'),
-    tSharePriceTrend: trend(picked.tSharePriceUsd, 'tprice'),
+    tShareRateHex,
+    dailyPayoutPerTShare: avgPayout || livePayout,
+    priceUsd: pick((r) => r.priceUsd),
+    tSharePriceUsd,
+    stakedHex: pick((r) => r.stakedHex),
+    circulatingHex: pick((r) => r.circulatingHex),
+    payoutTrend: trend(avgPayout || livePayout, (r) => r.payout),
+    tSharePriceTrend: trend(tSharePriceUsd, (r) => r.tSharePriceUsd),
   };
 }
