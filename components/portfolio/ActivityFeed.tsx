@@ -35,6 +35,8 @@ import { fmtUsd, fmtAmount } from '@/lib/format';
 interface Props {
   walletAddress: string;
   chains: ChainId[];
+  /** When set, only show transactions that move this token (e.g. HEX-only). */
+  tokenAddress?: string;
 }
 
 // Per-chain pagination cursor as returned by the route (opaque Blockscout
@@ -137,8 +139,9 @@ function titleFor(t: WalletTransaction): string {
 
 const rowKey = (t: WalletTransaction) => `${t.chain}:${t.hash}`;
 
-export function ActivityFeed({ walletAddress, chains }: Props) {
+export function ActivityFeed({ walletAddress, chains, tokenAddress }: Props) {
   const chainsKey = chains.join(',');
+  const tokenFilter = tokenAddress?.toLowerCase();
 
   const [txns, setTxns] = useState<WalletTransaction[]>([]);
   const [cursors, setCursors] = useState<Record<string, Cursor>>({});
@@ -261,9 +264,11 @@ export function ActivityFeed({ walletAddress, chains }: Props) {
       if (hideScam && t.isScam) return false;
       if (!activeChains.has(t.chain)) return false;
       if (set && !set.has(t.action)) return false;
+      // Restrict to transactions that move the requested token (e.g. HEX).
+      if (tokenFilter && !t.flows.some((f) => f.tokenAddress?.toLowerCase() === tokenFilter)) return false;
       return true;
     });
-  }, [txns, hideScam, activeChains, typeFilter]);
+  }, [txns, hideScam, activeChains, typeFilter, tokenFilter]);
 
   const groups = useMemo(() => {
     const m = new Map<string, WalletTransaction[]>();
