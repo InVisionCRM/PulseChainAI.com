@@ -136,13 +136,40 @@ export class HexStakingDb {
     }
   }
 
+  // Recently ended stakes joined to their start, for realized-return analysis.
+  // committed_days = the term the staker committed to; served_days = actual.
+  async getEndedStakeReturns(
+    network: NetworkType,
+    limit = 5000,
+  ): Promise<Array<{ committed_days: number; served_days: number; payout: string; penalty: string; staked_hearts: string }>> {
+    try {
+      const rows = await sql`
+        SELECT s.staked_days AS committed_days,
+               e.served_days,
+               e.payout,
+               e.penalty,
+               e.staked_hearts
+        FROM hex_stake_ends e
+        JOIN hex_stake_starts s
+          ON s.stake_id = e.stake_id AND s.network = e.network
+        WHERE e.network = ${network}
+        ORDER BY e.timestamp DESC
+        LIMIT ${limit}
+      `;
+      return rows as Array<{ committed_days: number; served_days: number; payout: string; penalty: string; staked_hearts: string }>;
+    } catch (error) {
+      console.error('Error getting ended stake returns:', error);
+      throw error;
+    }
+  }
+
   // Get latest global info for a network
   async getLatestGlobalInfo(network: NetworkType): Promise<DbGlobalInfo | null> {
     try {
       const result = await sql`
-        SELECT * FROM hex_global_info 
+        SELECT * FROM hex_global_info
         WHERE network = ${network}
-        ORDER BY timestamp DESC 
+        ORDER BY timestamp DESC
         LIMIT 1
       `;
       return result.length > 0 ? (result[0] as DbGlobalInfo) : null;

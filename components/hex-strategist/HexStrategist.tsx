@@ -31,6 +31,7 @@ import {
 import { fmtHex, fmtTShares, fmtDuration } from '@/lib/hex/hexDay';
 import { fmtUsd } from '@/lib/format';
 import { type Network, type Rates, num, loadRates } from '@/lib/hex/strategistData';
+import RealizedReturns from './RealizedReturns';
 
 export default function HexStrategist({ net }: { net: Network }) {
   const [rates, setRates] = useState<Rates | null>(null);
@@ -206,6 +207,9 @@ export default function HexStrategist({ net }: { net: Network }) {
         depend on total network T-Shares and Big Pay Day — treat ROI/APY as a scenario, not a guarantee. T-Share count
         and the LPB/BPB bonus are exact (HEX contract math).
       </p>
+
+      {/* Reality check: what stakers actually earned, by length. */}
+      <RealizedReturns net={net} />
     </div>
   );
 }
