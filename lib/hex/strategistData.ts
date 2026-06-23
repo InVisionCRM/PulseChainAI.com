@@ -97,7 +97,10 @@ export async function loadRates(net: Network): Promise<Rates> {
   const payoutVals = recent.map((r) => rowPayout(r, net)).filter((v) => v > 0);
   const avgPayout = payoutVals.length ? payoutVals.reduce((s, v) => s + v, 0) / payoutVals.length : livePayout;
 
-  const tSharePriceUsd = pick((r) => r.tSharePriceUsd);
+  const priceUsd = pick((r) => r.priceUsd);
+  // T-Share price isn't always present in the feed; derive it from the rate ×
+  // HEX price when missing (USD/T-Share = HEX-per-T-Share × USD-per-HEX).
+  const tSharePriceUsd = pick((r) => r.tSharePriceUsd) || (tShareRateHex && priceUsd ? tShareRateHex * priceUsd : 0);
   const trend = (cur: number, sel: (r: ReturnType<typeof readRates>) => number): number | null => {
     const older = daily[30];
     if (!older) return null;
@@ -109,7 +112,7 @@ export async function loadRates(net: Network): Promise<Rates> {
   return {
     tShareRateHex,
     dailyPayoutPerTShare: avgPayout || livePayout,
-    priceUsd: pick((r) => r.priceUsd),
+    priceUsd,
     tSharePriceUsd,
     stakedHex: pick((r) => r.stakedHex),
     circulatingHex: pick((r) => r.circulatingHex),

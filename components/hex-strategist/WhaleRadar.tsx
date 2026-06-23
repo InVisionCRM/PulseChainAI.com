@@ -1,6 +1,6 @@
 'use client';
 
-// HEX Whale Unlock Radar — big stakes (≥25M HEX) ending in the next 30 days,
+// HEX Whale Unlock Radar — big stakes (≥WHALE_MIN_HEX) ending in the next 30 days,
 // with a behavior-based sell-vs-restake read per whale, an aggregate
 // sell-pressure forecast, and an unlock calendar. Per-whale drill-down reuses
 // the existing HexStakes (history) and ActivityFeed (HEX activity) components.

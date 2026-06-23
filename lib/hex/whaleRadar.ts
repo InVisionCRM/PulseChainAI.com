@@ -5,7 +5,7 @@
 
 import { hexDayToDate } from './hexDay';
 
-export const WHALE_MIN_HEX = 25_000_000;
+export const WHALE_MIN_HEX = 1_000_000;
 export const UNLOCK_WINDOW_DAYS = 30;
 const RESTAKE_WINDOW_SEC = 14 * 86_400; // a new stake within 14d of an end = "re-staked"
 // When a whale has no end history to learn from, assume a coin-flip for the
