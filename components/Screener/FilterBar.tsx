@@ -91,12 +91,12 @@ function FiltersPopover({
   };
 
   const field = 'w-full rounded-lg bg-[var(--surface-2)] border border-[var(--line)] px-2 py-1.5 text-xs text-[var(--text)] tabular-nums outline-none placeholder:text-[var(--text-faint)] focus:border-orange-500/60';
-  const label = 'mb-1 block text-[10px] uppercase tracking-wider text-[var(--text-faint)]';
+  const label = 'mb-1 block text-[10px] uppercase tracking-wider text-[var(--text-muted)]';
 
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-full z-30 mt-1 w-64 rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-3 shadow-2xl"
+      className="absolute right-0 top-full z-30 mt-1 w-64 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-3 shadow-2xl backdrop-blur-xl"
     >
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-semibold text-[var(--text)]">Filters</span>
