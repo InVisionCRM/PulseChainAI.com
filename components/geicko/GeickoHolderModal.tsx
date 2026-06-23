@@ -6,23 +6,9 @@ import { HolderTransfer } from './types';
 import { truncateAddress, formatDateUTC } from './utils';
 import { HexStakes } from '@/components/portfolio/HexStakes';
 import { isHexAddress } from '@/lib/hex/hexDay';
-import { pulsechainApi } from '@/services/blockchain/pulsechainApi';
-import { dexscreenerApi } from '@/services/blockchain/dexscreenerApi';
-import { moralisApi } from '@/services/blockchain/moralisApi';
 import { fmtUsd, fmtAmount, fmtPrice } from '@/lib/format';
-
-interface PortfolioToken {
-  address: string;
-  name: string;
-  symbol: string;
-  balance: string;
-  balanceFormatted: string;
-  decimals: number;
-  logoURI?: string;
-  priceUsd?: string;
-  priceChange?: number;
-  valueUsd?: string;
-}
+import { portfolioService } from '@/services';
+import type { PortfolioToken } from '@/services';
 
 type HolderModalTab = 'portfolio' | 'transactions' | 'stakes';
 
@@ -93,119 +79,16 @@ export default function GeickoHolderModal({
     setPortfolioFetchedFor(address);
 
     try {
-      const tokenBalancesResponse = await pulsechainApi.getAddressTokenBalances(address);
-
-      if (!tokenBalancesResponse.success || !tokenBalancesResponse.data) {
-        throw new Error(tokenBalancesResponse.error || 'Failed to fetch token balances');
+      // Reuse the same fast path the Portfolio page uses (Blockscout balances
+      // enriched with prices/LP/icons), already sorted by USD value.
+      const res = await portfolioService.getPortfolio(address, ['pulsechain']);
+      if (!res.success || !res.data) {
+        throw new Error(res.error || 'Failed to load portfolio');
       }
-
-      const tokenBalances = tokenBalancesResponse.data;
-      const enrichedTokens: PortfolioToken[] = [];
-
-      for (const balance of tokenBalances) {
-        try {
-          const tokenAddr = balance.token?.address || balance.contractAddress;
-          const rawBalance = balance.value || balance.balance || '0';
-          const decimals = balance.token?.decimals || balance.decimals || 18;
-
-          if (parseFloat(rawBalance) === 0) continue;
-
-          const profileResponse = await dexscreenerApi.getTokenProfile(tokenAddr);
-
-          let tokenInfo: PortfolioToken = {
-            address: tokenAddr,
-            name: balance.token?.name || balance.name || 'Unknown Token',
-            symbol: balance.token?.symbol || balance.symbol || 'UNKNOWN',
-            balance: rawBalance,
-            balanceFormatted: fmtAmount(Math.floor(parseFloat(rawBalance) / Math.pow(10, decimals))),
-            decimals,
-            logoURI: balance.token?.logoURI || balance.logoURI,
-          };
-
-          if (profileResponse.success && profileResponse.data) {
-            const profile = profileResponse.data;
-            tokenInfo = {
-              ...tokenInfo,
-              name: profile.tokenInfo?.name || tokenInfo.name,
-              symbol: profile.tokenInfo?.symbol || tokenInfo.symbol,
-              logoURI: profile.tokenInfo?.logoURI || profile.profile?.logo || tokenInfo.logoURI,
-              priceUsd: profile.marketData?.priceUsd?.toString(),
-              priceChange: (() => {
-                const change = profile.marketData?.priceChange;
-                if (change === null || change === undefined) return undefined;
-                const parsed = parseFloat(change.toString());
-                return isNaN(parsed) ? undefined : parsed;
-              })(),
-            };
-
-            if (tokenInfo.priceUsd) {
-              const balanceNum = parseFloat(rawBalance) / Math.pow(10, decimals);
-              const priceNum = parseFloat(tokenInfo.priceUsd);
-              tokenInfo.valueUsd = (balanceNum * priceNum).toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              });
-            }
-          }
-
-          enrichedTokens.push(tokenInfo);
-        } catch (tokenError) {
-          console.warn('Failed to enrich token:', tokenError);
-          const tokenAddr = balance.token?.address || balance.contractAddress;
-          const rawBalance = balance.value || balance.balance || '0';
-          const decimals = balance.token?.decimals || balance.decimals || 18;
-
-          if (parseFloat(rawBalance) > 0) {
-            enrichedTokens.push({
-              address: tokenAddr,
-              name: balance.token?.name || balance.name || 'Unknown Token',
-              symbol: balance.token?.symbol || balance.symbol || 'UNKNOWN',
-              balance: rawBalance,
-              balanceFormatted: fmtAmount(Math.floor(parseFloat(rawBalance) / Math.pow(10, decimals))),
-              decimals,
-              logoURI: balance.token?.logoURI || balance.logoURI,
-            });
-          }
-        }
-      }
-
-      enrichedTokens.sort((a, b) => {
-        const aValue = a.valueUsd ? parseFloat(a.valueUsd.replace(/,/g, '')) : 0;
-        const bValue = b.valueUsd ? parseFloat(b.valueUsd.replace(/,/g, '')) : 0;
-
-        if (aValue > 0 && bValue === 0) return -1;
-        if (bValue > 0 && aValue === 0) return 1;
-        if (aValue !== bValue) return bValue - aValue;
-        return parseFloat(b.balance) - parseFloat(a.balance);
-      });
-
-      setPortfolio(enrichedTokens);
+      setPortfolio(res.data.tokens);
     } catch (err) {
       console.error('Portfolio fetch error:', err);
       setPortfolioError(err instanceof Error ? err.message : 'Failed to load portfolio');
-
-      // Try Moralis as fallback
-      try {
-        if (moralisApi.isAvailable()) {
-          const moralisResponse = await moralisApi.getWalletTokenBalances(address);
-          if (moralisResponse.success && moralisResponse.data) {
-            const moralisTokens = moralisResponse.data.map((balance) => ({
-              address: balance.token.address,
-              name: balance.token.name || 'Unknown Token',
-              symbol: balance.token.symbol || 'UNKNOWN',
-              balance: balance.value,
-              balanceFormatted: fmtAmount(Math.floor(parseFloat(balance.value) / Math.pow(10, balance.token.decimals))),
-              decimals: balance.token.decimals,
-              logoURI: balance.token.icon_url,
-            }));
-
-            setPortfolio(moralisTokens);
-            setPortfolioError(null);
-          }
-        }
-      } catch (moralisError) {
-        console.error('Moralis fallback failed:', moralisError);
-      }
     } finally {
       setIsLoadingPortfolio(false);
     }
@@ -223,14 +106,7 @@ export default function GeickoHolderModal({
     return null;
   }
 
-  const formatPrice = (price: string | undefined) => {
-    if (!price) return 'N/A';
-    return fmtPrice(parseFloat(price));
-  };
-
-  const totalPortfolioValue = portfolio.reduce((sum, t) => {
-    return sum + (t.valueUsd ? parseFloat(t.valueUsd.replace(/,/g, '')) : 0);
-  }, 0);
+  const totalPortfolioValue = portfolio.reduce((sum, t) => sum + (t.valueUsd ?? 0), 0);
 
   const tabButton = (id: HolderModalTab, label: string) => (
     <button
@@ -248,7 +124,7 @@ export default function GeickoHolderModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--panel)] backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
@@ -372,15 +248,15 @@ export default function GeickoHolderModal({
                       </div>
 
                       <div className="col-span-2 text-left text-[var(--text)] font-mono truncate">
-                        {token.balanceFormatted}
+                        {fmtAmount(token.balanceFormatted)}
                       </div>
 
                       <div className="col-span-2 text-left text-[var(--text)] font-mono truncate">
-                        {formatPrice(token.priceUsd)}
+                        {token.priceUsd != null ? fmtPrice(token.priceUsd) : 'N/A'}
                       </div>
 
                       <div className="col-span-2 text-left text-[var(--text)] font-semibold font-mono truncate">
-                        {token.valueUsd ? fmtUsd(parseFloat(token.valueUsd.replace(/,/g, ''))) : 'N/A'}
+                        {token.valueUsd != null ? fmtUsd(token.valueUsd) : 'N/A'}
                       </div>
                     </div>
                   ))}
