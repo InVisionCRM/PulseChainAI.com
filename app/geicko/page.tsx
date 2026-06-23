@@ -227,19 +227,6 @@ function GeickoPageContent() {
   const holdersPerPage = 25;
   const [isHolderTransfersOpen, setIsHolderTransfersOpen] = useState(false);
   const [holderTransfersAddress, setHolderTransfersAddress] = useState<string | null>(null);
-  const [holderTransfers, setHolderTransfers] = useState<
-    Array<{
-      txHash: string;
-      timestamp: string | null;
-      from: string;
-      to: string;
-      amount: number;
-      direction: 'Buy' | 'Sell' | 'Transfer';
-    }>
-  >([]);
-  const [isLoadingHolderTransfers, setIsLoadingHolderTransfers] = useState(false);
-  const [holderTransfersError, setHolderTransfersError] = useState<string | null>(null);
-  const [expandedHolderTxs, setExpandedHolderTxs] = useState<Set<string>>(new Set());
 
 
   // Load token/contract data function - works for both tokens and non-token contracts
@@ -530,76 +517,6 @@ function GeickoPageContent() {
     runAuditAnalysis();
   }, [apiTokenAddress, contractData, ownershipData]);
 
-  const loadHolderTransfers = useCallback(
-    async (holderAddress: string) => {
-      if (!holderAddress || !apiTokenAddress) return;
-
-      const holderLower = holderAddress.toLowerCase();
-      const tokenLower = apiTokenAddress.toLowerCase();
-      setIsLoadingHolderTransfers(true);
-      setHolderTransfers([]);
-      setHolderTransfersError(null);
-      try {
-        const base = 'https://api.scan.pulsechain.com/api/v2';
-        const limit = 150;
-        const collected: any[] = [];
-        let nextParams: Record<string, string> | undefined;
-
-        for (let i = 0; i < 3; i += 1) {
-          const qs = new URLSearchParams({ limit: String(limit) });
-          if (nextParams) {
-            Object.entries(nextParams).forEach(([k, v]) => qs.set(k, String(v)));
-          }
-          const res = await fetch(`${base}/addresses/${holderAddress}/token-transfers?${qs.toString()}`, {
-            headers: { Accept: 'application/json' },
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
-          const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-          collected.push(...items);
-          if (data?.next_page_params) {
-            nextParams = data.next_page_params as Record<string, string>;
-          } else {
-            break;
-          }
-        }
-
-        const decimals = tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18;
-        const mapped = collected
-          .filter((item) => (item?.token?.address || item?.token?.hash || '').toLowerCase() === tokenLower)
-          .map((item) => {
-            const txHash = item?.tx_hash || item?.transaction_hash || item?.hash || '';
-            const from = item?.from?.hash || item?.from || '';
-            const to = item?.to?.hash || item?.to || '';
-            const rawValue = item?.total?.value || item?.value || '0';
-            const amount = Number(rawValue) / Math.pow(10, item?.total?.decimals ? Number(item.total.decimals) : decimals);
-            const ts = item?.timestamp || item?.block_signed_at || null;
-            let direction: 'Buy' | 'Sell' | 'Transfer' = 'Transfer';
-            if (from?.toLowerCase() === holderLower) direction = 'Sell';
-            else if (to?.toLowerCase() === holderLower) direction = 'Buy';
-
-            return {
-              txHash,
-              timestamp: ts,
-              from,
-              to,
-              amount,
-              direction,
-            };
-          })
-          .filter((item) => item.txHash);
-
-        setHolderTransfers(mapped);
-      } catch (error) {
-        console.error('Failed to load holder transfers:', error);
-        setHolderTransfersError('Failed to load transfers for this holder.');
-      } finally {
-        setIsLoadingHolderTransfers(false);
-      }
-    },
-    [apiTokenAddress, tokenInfo?.decimals]
-  );
-
   // Toast callback functions for AdminStatsPanel
   const handleFetchStart = useCallback((statId: string, statName: string) => {
     const fetchId = `${statId}_${Date.now()}`;
@@ -833,33 +750,14 @@ function GeickoPageContent() {
     setHoldersPage(1); // Reset pagination when address changes
   }, [apiTokenAddress, loadTokenData, loadTokenMetrics, loadTransactions, loadHolders]);
 
-  const handleOpenHolderTransfers = useCallback(
-    (address: string) => {
-      setHolderTransfersAddress(address);
-      setIsHolderTransfersOpen(true);
-      setExpandedHolderTxs(new Set());
-      loadHolderTransfers(address);
-    },
-    [loadHolderTransfers]
-  );
+  const handleOpenHolderTransfers = useCallback((address: string) => {
+    setHolderTransfersAddress(address);
+    setIsHolderTransfersOpen(true);
+  }, []);
 
   const handleCloseHolderTransfers = useCallback(() => {
     setIsHolderTransfersOpen(false);
-    setHolderTransfers([]);
     setHolderTransfersAddress(null);
-    setHolderTransfersError(null);
-  }, []);
-
-  const toggleExpandedHolderTx = useCallback((hash: string) => {
-    setExpandedHolderTxs((prev) => {
-      const next = new Set(prev);
-      if (next.has(hash)) {
-        next.delete(hash);
-      } else {
-        next.add(hash);
-      }
-      return next;
-    });
   }, []);
 
   // Search placeholders
@@ -3215,15 +3113,9 @@ function GeickoPageContent() {
       <GeickoHolderModal
         isOpen={isHolderTransfersOpen}
         holderAddress={holderTransfersAddress}
-        transfers={holderTransfers}
-        isLoading={isLoadingHolderTransfers}
-        error={holderTransfersError}
-        expandedTxs={expandedHolderTxs}
-        tokenSymbol={baseSymbol || 'TOKEN'}
         tokenAddress={apiTokenAddress}
         tokenPriceUsd={priceUsd || null}
         onClose={handleCloseHolderTransfers}
-        onToggleExpand={toggleExpandedHolderTx}
       />
 
       {/* Stats Modal */}
