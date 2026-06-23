@@ -6,7 +6,7 @@
 // the existing HexStakes (history) and ActivityFeed (HEX activity) components.
 
 import { useEffect, useState } from 'react';
-import { IconRadar2, IconRefresh, IconChevronDown, IconArrowsExchange, IconCashBanknote, IconQuestionMark } from '@tabler/icons-react';
+import { IconRadar2, IconRefresh, IconChevronDown, IconArrowsExchange, IconCashBanknote, IconQuestionMark, IconShieldCheck } from '@tabler/icons-react';
 import { type Network, type Rates, loadRates } from '@/lib/hex/strategistData';
 import type { WhaleRadarData, WhaleStake, WhaleBias } from '@/lib/hex/whaleRadar';
 import { WHALE_MIN_HEX } from '@/lib/hex/whaleRadar';
@@ -84,6 +84,9 @@ export default function WhaleRadar({ net }: { net: Network }) {
         <Stat label="Behavior-weighted sell" value={`${sellPct.toFixed(0)}%`} accent={sellPct >= 50 ? '#ef4444' : '#22c55e'} />
       </div>
 
+      {/* Trust panel — how well the sell/re-stake signal backtests */}
+      <RadarTrust net={net} />
+
       {/* Unlock calendar */}
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
@@ -150,6 +153,91 @@ function WhaleRow({ s, net, usd, hasPrice, hexUsd, payoutPerTShare }: { s: Whale
         </div>
       )}
     </div>
+  );
+}
+
+interface Backtest {
+  scored: number;
+  unknown: number;
+  censored: number;
+  baseRestakeRate: number;
+  accuracy: number;
+  lift: number;
+  restakeCalls: number;
+  restakePrecision: number;
+  sellCalls: number;
+  sellPrecision: number;
+}
+
+// Replays the sell/re-stake signal over historical ends so the user can judge
+// whether to trust it — accuracy vs. the naive base rate, plus per-call precision.
+function RadarTrust({ net }: { net: Network }) {
+  const [bt, setBt] = useState<Backtest | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+
+  useEffect(() => {
+    let alive = true;
+    setStatus('loading');
+    fetch(`/api/hex/radar-backtest?network=${net}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d: Backtest) => {
+        if (!alive) return;
+        setBt(d);
+        setStatus('ready');
+      })
+      .catch(() => alive && setStatus('error'));
+    return () => {
+      alive = false;
+    };
+  }, [net]);
+
+  const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
+
+  return (
+    <details className="group rounded-2xl border border-[var(--line)] bg-[var(--surface)] open:bg-[var(--surface)]">
+      <summary className="flex cursor-pointer list-none items-center gap-2 p-3 text-sm font-semibold text-[var(--text)]">
+        <IconShieldCheck className="h-4 w-4 text-emerald-400" />
+        How trustworthy is this call?
+        {status === 'ready' && bt && bt.scored > 0 && (
+          <span className="ml-1 rounded-full border border-emerald-500/40 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+            {pct(bt.accuracy)} accurate
+          </span>
+        )}
+        <IconChevronDown className="ml-auto h-4 w-4 text-[var(--text-muted)] transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="border-t border-[var(--line)] p-3">
+        {status === 'loading' && (
+          <div className="flex items-center gap-2 py-4 text-xs text-[var(--text-muted)]">
+            <IconRefresh className="h-3.5 w-3.5 animate-spin" /> Replaying the signal over past stake-ends…
+          </div>
+        )}
+        {status === 'error' && <div className="py-4 text-xs text-red-300">Couldn’t run the backtest right now.</div>}
+        {status === 'ready' && bt && (bt.scored === 0 ? (
+          <div className="py-4 text-xs text-[var(--text-faint)]">Not enough observable history on {net} to backtest yet.</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Stat label="Accuracy" value={pct(bt.accuracy)} accent="#34d399" sub={`${bt.scored.toLocaleString()} ends`} />
+              <Stat
+                label="Edge vs. base rate"
+                value={`${bt.lift >= 0 ? '+' : ''}${(bt.lift * 100).toFixed(0)}pt`}
+                accent={bt.lift > 0 ? '#34d399' : '#ef4444'}
+                sub={`base ${pct(bt.baseRestakeRate)} re-stake`}
+              />
+              <Stat label="“Re-stake” calls right" value={pct(bt.restakePrecision)} sub={`${bt.restakeCalls.toLocaleString()} calls`} />
+              <Stat label="“Sell” calls right" value={pct(bt.sellPrecision)} sub={`${bt.sellCalls.toLocaleString()} calls`} />
+            </div>
+            <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-faint)]">
+              For each past stake-end we re-built the prediction from only that wallet’s <em>earlier</em> ends, then checked
+              whether it really started a new stake within 14 days. “Edge vs. base rate” is how much the signal beats simply
+              guessing the majority outcome every time — positive means the behavioral read adds real information. Ends with no
+              prior history ({bt.unknown.toLocaleString()}) or whose window runs past our data ({bt.censored.toLocaleString()})
+              are excluded.
+            </p>
+          </>
+        ))}
+      </div>
+    </details>
   );
 }
 
