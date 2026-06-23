@@ -40,6 +40,14 @@ export const MobileBottomNav = () => {
       href: "/portfolio",
       icon: <IconWallet className="h-5 w-5" />,
     },
+    {
+      label: "HEX",
+      href: "/hex-strategist",
+      icon: (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/hex-logo.svg" alt="HEX" className="h-5 w-5 object-contain" />
+      ),
+    },
   ];
 
   return (
