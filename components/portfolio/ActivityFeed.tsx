@@ -110,6 +110,8 @@ export const ACTION_META: Record<TxActionType, { label: string; glyph: string; c
   claim: { label: 'Claim', glyph: '✦', color: '#34d399' },
   wrap: { label: 'Wrap', glyph: '⟳', color: '#38bdf8' },
   unwrap: { label: 'Unwrap', glyph: '⟳', color: '#38bdf8' },
+  mint: { label: 'Mint', glyph: '✚', color: '#34d399' },
+  burn: { label: 'Burn', glyph: '🜂', color: '#f97316' },
   contract: { label: 'Contract', glyph: '•', color: '#a1a1aa' },
 };
 
@@ -165,6 +167,10 @@ function titleFor(t: WalletTransaction): string {
       return 'Wrapped';
     case 'unwrap':
       return 'Unwrapped';
+    case 'mint':
+      return `Minted${on}`;
+    case 'burn':
+      return `Burned${on}`;
     default:
       return `Contract interaction${t.counterpartyLabel ? ` · ${cp}` : ''}`;
   }
