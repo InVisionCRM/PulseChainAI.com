@@ -1,23 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { IconBolt, IconChartHistogram, IconRadar2 } from '@tabler/icons-react';
+import { IconBolt, IconRadar2 } from '@tabler/icons-react';
 import type { Network } from '@/lib/hex/strategistData';
 import HexStrategist from './HexStrategist';
-import RealizedReturns from './RealizedReturns';
 import WhaleRadar from './WhaleRadar';
 
-type Mode = 'designer' | 'returns' | 'radar';
+type Mode = 'designer' | 'radar';
 
 const SUBTITLE: Record<Mode, string> = {
   designer: 'Design a stake — the math tells you the best length, not just the numbers.',
-  returns: 'What stakers actually earned, by the term they committed to — the reality check on the projection.',
   radar: 'Whale radar — big stakes unlocking soon, who’s likely to sell, and how well that call backtests.',
 };
 
 const TABS: { key: Mode; label: string; icon: React.ReactNode; active: string }[] = [
   { key: 'designer', label: 'Designer', icon: <IconBolt className="h-3.5 w-3.5" />, active: 'text-orange-300' },
-  { key: 'returns', label: 'Returns', icon: <IconChartHistogram className="h-3.5 w-3.5" />, active: 'text-emerald-300' },
   { key: 'radar', label: 'Radar', icon: <IconRadar2 className="h-3.5 w-3.5" />, active: 'text-cyan-300' },
 ];
 
@@ -65,13 +62,7 @@ export default function HexStrategistTabs() {
         ))}
       </div>
 
-      {mode === 'designer' ? (
-        <HexStrategist net={net} />
-      ) : mode === 'returns' ? (
-        <RealizedReturns net={net} />
-      ) : (
-        <WhaleRadar net={net} />
-      )}
+      {mode === 'designer' ? <HexStrategist net={net} /> : <WhaleRadar net={net} />}
     </div>
   );
 }

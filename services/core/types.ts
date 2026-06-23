@@ -448,6 +448,8 @@ export type TxActionType =
   | 'claim'
   | 'wrap'
   | 'unwrap'
+  | 'mint'
+  | 'burn'
   | 'contract';
 
 // A single asset movement within a transaction, signed relative to the

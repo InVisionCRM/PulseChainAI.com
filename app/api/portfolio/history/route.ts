@@ -417,7 +417,76 @@ const SELECTOR_METHODS: Record<string, string> = {
   '0xac9650d8': 'multicall',
   '0x5ae401dc': 'multicall',
   '0x3593564c': 'execute',
+  // Mint / burn — also detected structurally from zero-address Transfer legs.
+  '0x40c10f19': 'mint',
+  '0xa0712d68': 'mint',
+  '0x42966c68': 'burn',
+  '0x9dc29fac': 'burn',
+  '0x79cc6790': 'burnFrom',
 };
+
+// Best-effort 4-byte selector → function signature, via the ethereum-lists
+// mirror (the 4byte.directory API is blocked from our egress). So an unknown
+// call shows its real name ("stakeEnd(uint256,uint40)") instead of a raw
+// selector. Cached process-wide; misses cache null so we don't re-fetch them.
+const SIG_BASE = 'https://raw.githubusercontent.com/ethereum-lists/4bytes/master/signatures';
+const SIG_TIMEOUT_MS = 3500;
+const MAX_SIG_LOOKUPS = 50;
+const sigCache = new Map<string, string | null>();
+
+async function resolveSignature(selector: string): Promise<string | null> {
+  const key = selector.toLowerCase();
+  if (sigCache.has(key)) return sigCache.get(key) ?? null;
+  let sig: string | null = null;
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), SIG_TIMEOUT_MS);
+  try {
+    const r = await fetch(`${SIG_BASE}/${key.replace(/^0x/, '')}`, { signal: controller.signal });
+    if (r.ok) {
+      // Collisions are ';'-separated; the first entry is the canonical one.
+      const text = (await r.text()).trim();
+      sig = text.split(';')[0]?.trim() || null;
+    }
+  } catch {
+    sig = null;
+  } finally {
+    clearTimeout(t);
+  }
+  sigCache.set(key, sig);
+  return sig;
+}
+
+const RAW_SELECTOR_RX = /^0x[0-9a-f]{8}$/;
+
+// Replace raw-selector method labels with real signatures, in place. Unique
+// selectors are resolved once (deduped, in parallel, cached) so the cost is
+// bounded; a newly-known name can also sharpen a generic 'contract' action.
+async function enrichMethods(items: WalletTransaction[]): Promise<void> {
+  const selectors = [
+    ...new Set(items.map((it) => it.method).filter((m): m is string => !!m && RAW_SELECTOR_RX.test(m))),
+  ].slice(0, MAX_SIG_LOOKUPS);
+  if (selectors.length === 0) return;
+
+  const resolved = new Map<string, string>();
+  await Promise.all(
+    selectors.map(async (sel) => {
+      const sig = await resolveSignature(sel);
+      if (sig) resolved.set(sel, sig);
+    }),
+  );
+  if (resolved.size === 0) return;
+
+  for (const it of items) {
+    const sig = it.method && resolved.get(it.method);
+    if (!sig) continue;
+    it.method = sig;
+    if (it.action === 'contract') {
+      const hasIn = it.flows.some((f) => f.direction === 'in');
+      const hasOut = it.flows.some((f) => f.direction === 'out');
+      it.action = deriveAction(sig, false, hasIn, hasOut);
+    }
+  }
+}
 
 const hexToBig = (h: unknown): bigint => {
   try {
@@ -554,6 +623,10 @@ function assembleFromOts(wallet: string, tx: any, receipt: any): WalletTransacti
   const rawFlows: TokenFlow[] = [];
   let outPeer: string | undefined;
   let inPeer: string | undefined;
+  // Token created (Transfer from 0x0 → wallet) or destroyed (wallet → 0x0).
+  let mintedIn = false;
+  let burnedOut = false;
+  const ZERO = '0x0000000000000000000000000000000000000000';
   const logs: any[] = Array.isArray(receipt?.logs) ? receipt.logs : [];
   for (const log of logs) {
     const topics: string[] = Array.isArray(log?.topics) ? log.topics : [];
@@ -565,6 +638,8 @@ function assembleFromOts(wallet: string, tx: any, receipt: any): WalletTransacti
     if (!direction) continue;
     if (direction === 'out' && !outPeer) outPeer = lto;
     if (direction === 'in' && !inPeer) inPeer = lfrom;
+    if (direction === 'in' && lfrom === ZERO) mintedIn = true;
+    if (direction === 'out' && lto === ZERO) burnedOut = true;
     const token = String(log?.address || '').toLowerCase();
     const meta = tokenMetaCache.get(token) || {
       symbol: `${token.slice(0, 6)}…`,
@@ -611,7 +686,10 @@ function assembleFromOts(wallet: string, tx: any, receipt: any): WalletTransacti
   const selector = input.slice(0, 10).toLowerCase();
   const method = SELECTOR_METHODS[selector];
   const toIsWrapped = to === WRAPPED_NATIVE.pulsechain;
-  const action = deriveAction(method || '', toIsWrapped, hasIn, hasOut);
+  // Mint/burn (zero-address Transfer) take precedence over the flow-based guess
+  // — e.g. HEX minted to you on stake-end, or tokens you sent to the burn address.
+  const action: TxActionType =
+    burnedOut && !hasIn ? 'burn' : mintedIn && !hasOut ? 'mint' : deriveAction(method || '', toIsWrapped, hasIn, hasOut);
 
   const status: WalletTransaction['status'] =
     receipt?.status === '0x0' || receipt?.status === 0 ? 'failed' : 'success';
@@ -628,7 +706,6 @@ function assembleFromOts(wallet: string, tx: any, receipt: any): WalletTransacti
 
   // Prefer the real log peer; ignore mint/burn (zero address) and self, where
   // the meaningful counterparty is the contract the wallet interacted with.
-  const ZERO = '0x0000000000000000000000000000000000000000';
   const realPeer = (p: string | undefined) =>
     p && p !== ZERO && p !== wallet ? p : undefined;
   const counterparty =
@@ -766,6 +843,9 @@ export async function POST(req: NextRequest) {
   } else {
     result = await fetchViaBlockscout(chain, wallet, cursor);
   }
+
+  // Turn any remaining raw 4-byte selectors into real function names.
+  await enrichMethods(result.items);
 
   const payload: WalletHistoryResponse = {
     chain,
