@@ -102,3 +102,117 @@ export function defaultLengths(): number[] {
   set.add(HEX_MAX_STAKE_DAYS);
   return [...set].sort((a, b) => a - b);
 }
+
+// ── Penalty math (for the Stake Doctor) ─────────────────────────────────────
+//
+// HEX charges an Early-End-Stake penalty before a stake's committed term, a
+// 14-day penalty-free grace at the end, then a Late-End penalty after that.
+
+export const EARLY_PENALTY_MIN_DAYS = 90;
+export const LATE_GRACE_DAYS = 14;
+
+/** Length of the early-end penalty window: max(90, floor((committed+1)/2)). */
+export function earlyPenaltyDays(committedDays: number): number {
+  return Math.max(EARLY_PENALTY_MIN_DAYS, Math.floor((committedDays + 1) / 2));
+}
+
+/**
+ * Estimated Early-End-Stake penalty in HEX ≈ the payout accrued over the
+ * penalty window (T-Shares × daily payout × penaltyDays). When this exceeds the
+ * yield served so far, the difference comes out of principal. Estimate only —
+ * it assumes the current daily payout per T-Share.
+ */
+export function estimatedEarlyPenaltyHex(
+  tShares: number,
+  dailyPayoutPerTShare: number,
+  committedDays: number,
+): number {
+  return tShares * dailyPayoutPerTShare * earlyPenaltyDays(committedDays);
+}
+
+export type StakeStatus = 'locked' | 'grace' | 'late';
+
+export interface StakeTiming {
+  status: StakeStatus;
+  servedDays: number;
+  /** Days until the committed end day (0 once reached). */
+  daysToEnd: number;
+  /** Days until the penalty-free window opens (0 if open or past). */
+  opensInDays: number;
+  /** Days remaining inside the 14-day penalty-free window (only when in grace). */
+  graceDaysLeft: number;
+  /** Days elapsed past the penalty-free window (only when late). */
+  daysPastGrace: number;
+  progressPct: number;
+}
+
+/** Exact day-based timing/status for an active stake. */
+export function stakeTiming(startDay: number, endDay: number, committedDays: number, currentDay: number): StakeTiming {
+  const servedDays = Math.max(0, currentDay - startDay);
+  const graceEnd = endDay + LATE_GRACE_DAYS;
+  let status: StakeStatus = 'locked';
+  if (currentDay >= startDay && currentDay <= endDay) status = 'locked';
+  else if (currentDay > endDay && currentDay <= graceEnd) status = 'grace';
+  else if (currentDay > graceEnd) status = 'late';
+  return {
+    status,
+    servedDays,
+    daysToEnd: Math.max(0, endDay - currentDay),
+    opensInDays: Math.max(0, endDay - currentDay),
+    graceDaysLeft: status === 'grace' ? Math.max(0, graceEnd - currentDay) : 0,
+    daysPastGrace: status === 'late' ? currentDay - graceEnd : 0,
+    progressPct: committedDays > 0 ? Math.min(100, (servedDays / committedDays) * 100) : 0,
+  };
+}
+
+/**
+ * The HEX day on which a stake's early-end penalty stops eating principal —
+ * i.e. once `servedDays` reaches the penalty window (max(90, committed/2)),
+ * the penalty no longer exceeds accrued yield.
+ */
+export function penaltyCliffDay(startDay: number, committedDays: number): number {
+  return startDay + earlyPenaltyDays(committedDays);
+}
+
+export interface RestakeAnalysis {
+  /** T-Shares the live stake holds (on-chain). */
+  tSharesKeep: number;
+  /** T-Shares if you end early and re-stake the recovered HEX for `restakeDays`. */
+  tSharesRestake: number;
+  /** Swing in earning power (positive ⇒ re-staking gives more). */
+  deltaT: number;
+  recoveredHex: number;
+  penaltyHex: number;
+  restakeDays: number;
+}
+
+/**
+ * The end-early-and-re-stake decision. Compares the T-Shares you currently hold
+ * to what you'd mint by ending now (paying the estimated penalty, recovering
+ * principal + served yield) and re-staking at today's rate for `restakeDays`.
+ *
+ * T-Share counts drive all future yield, so the comparison is payout-rate
+ * independent in direction; only the recovered-HEX adjustment uses the payout.
+ */
+export function analyzeRestake(
+  principalHex: number,
+  tSharesKeep: number,
+  committedDays: number,
+  servedDays: number,
+  tShareRateHex: number,
+  dailyPayoutPerTShare: number,
+  restakeDays: number,
+): RestakeAnalysis {
+  const penaltyHex = estimatedEarlyPenaltyHex(tSharesKeep, dailyPayoutPerTShare, committedDays);
+  const servedYieldHex = tSharesKeep * dailyPayoutPerTShare * servedDays;
+  const recoveredHex = Math.max(0, principalHex + servedYieldHex - penaltyHex);
+  const tSharesRestake = projectedTShares(recoveredHex, restakeDays, tShareRateHex);
+  return {
+    tSharesKeep,
+    tSharesRestake,
+    deltaT: tSharesRestake - tSharesKeep,
+    recoveredHex,
+    penaltyHex,
+    restakeDays,
+  };
+}

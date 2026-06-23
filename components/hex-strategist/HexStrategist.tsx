@@ -30,105 +30,14 @@ import {
 } from '@/lib/hex/stakeMath';
 import { fmtHex, fmtTShares, fmtDuration } from '@/lib/hex/hexDay';
 import { fmtUsd } from '@/lib/format';
+import { type Network, type Rates, num, loadRates } from '@/lib/hex/strategistData';
 
-type Network = 'ethereum' | 'pulsechain';
-
-interface Rates {
-  tShareRateHex: number; // HEX per T-Share
-  dailyPayoutPerTShare: number; // HEX/day per T-Share (trailing avg)
-  priceUsd: number; // USD per HEX
-  tSharePriceUsd: number; // USD per T-Share
-  stakedHex: number;
-  circulatingHex: number;
-  // 30-day trends (ratio, e.g. +0.05 = +5%)
-  tSharePriceTrend: number | null;
-  payoutTrend: number | null;
-}
-
-const num = (v: unknown): number => {
-  const n = typeof v === 'string' ? parseFloat(v) : (v as number);
-  return Number.isFinite(n) ? n : 0;
-};
-
-/** Pull the network-appropriate live rate fields out of the livedata blob. */
-function pickLive(live: Record<string, unknown>, net: Network) {
-  if (net === 'pulsechain') {
-    return {
-      tShareRateHex: num(live.tshareRateHEX_Pulsechain),
-      payout: num(live.payoutPerTshare_Pulsechain),
-      tSharePriceUsd: num(live.tsharePrice_Pulsechain),
-      priceUsd: num(live.pricePulseX ?? live.price_Pulsechain),
-      stakedHex: num(live.stakedHEX_Pulsechain),
-      circulatingHex: num(live.circulatingHEX_Pulsechain),
-    };
-  }
-  return {
-    tShareRateHex: num(live.tshareRateHEX),
-    payout: num(live.payoutPerTshare),
-    tSharePriceUsd: num(live.tsharePrice),
-    priceUsd: num(live.price),
-    stakedHex: num(live.stakedHEX),
-    circulatingHex: num(live.circulatingHEX),
-  };
-}
-
-/** A daily payout value, tolerant of either eth- or pulsechain-keyed rows. */
-const rowPayout = (r: Record<string, unknown>) =>
-  num(r.payoutPerTshare ?? r.payoutPerTshare_Pulsechain);
-const rowTSharePrice = (r: Record<string, unknown>) =>
-  num(r.tsharePrice ?? r.tsharePrice_Pulsechain);
-
-async function loadRates(net: Network): Promise<Rates> {
-  const dailyEndpoint = net === 'pulsechain' ? 'fulldatapulsechain' : 'fulldata';
-  const [liveRes, dailyRes] = await Promise.all([
-    fetch('/api/hex-proxy?endpoint=livedata'),
-    fetch(`/api/hex-proxy?endpoint=${dailyEndpoint}`),
-  ]);
-  if (!liveRes.ok) throw new Error('Failed to load live HEX rates');
-  const live = (await liveRes.json()) as Record<string, unknown>;
-  const picked = pickLive(live, net);
-
-  // Daily series → trailing 30-day average payout + 30-day trends. hexdailystats
-  // returns newest-first; guard for either ordering by sorting on currentDay.
-  let daily: Record<string, unknown>[] = [];
-  if (dailyRes.ok) {
-    const d = await dailyRes.json();
-    daily = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
-    daily = [...daily].sort((a, b) => num(b.currentDay) - num(a.currentDay));
-  }
-
-  const recent = daily.slice(0, 30);
-  const payoutVals = recent.map(rowPayout).filter((v) => v > 0);
-  const avgPayout = payoutVals.length
-    ? payoutVals.reduce((s, v) => s + v, 0) / payoutVals.length
-    : picked.payout;
-
-  const trend = (cur: number, key: 'payout' | 'tprice'): number | null => {
-    const older = daily[30];
-    if (!older) return null;
-    const prev = key === 'payout' ? rowPayout(older) : rowTSharePrice(older);
-    if (!prev || !cur) return null;
-    return (cur - prev) / prev;
-  };
-
-  return {
-    tShareRateHex: picked.tShareRateHex,
-    dailyPayoutPerTShare: avgPayout || picked.payout,
-    priceUsd: picked.priceUsd,
-    tSharePriceUsd: picked.tSharePriceUsd,
-    stakedHex: picked.stakedHex,
-    circulatingHex: picked.circulatingHex,
-    payoutTrend: trend(avgPayout || picked.payout, 'payout'),
-    tSharePriceTrend: trend(picked.tSharePriceUsd, 'tprice'),
-  };
-}
-
-export default function HexStrategist() {
-  const [net, setNet] = useState<Network>('pulsechain');
+export default function HexStrategist({ net }: { net: Network }) {
   const [rates, setRates] = useState<Rates | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [amount, setAmount] = useState('1000000');
   const [days, setDays] = useState(LPB_FULL_BONUS_DAYS);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -147,7 +56,7 @@ export default function HexStrategist() {
     return () => {
       alive = false;
     };
-  }, [net]);
+  }, [net, reload]);
 
   const principal = Math.max(0, num(amount));
 
@@ -176,7 +85,7 @@ export default function HexStrategist() {
     return (
       <div className="py-20 text-center text-sm text-red-300">
         Couldn’t load HEX rates right now.
-        <button onClick={() => setNet((n) => n)} className="ml-2 underline">retry</button>
+        <button onClick={() => setReload((n) => n + 1)} className="ml-2 underline">retry</button>
       </div>
     );
   }
@@ -184,32 +93,7 @@ export default function HexStrategist() {
   const pctStaked = rates.circulatingHex > 0 ? (rates.stakedHex / rates.circulatingHex) * 100 : null;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4 px-3 py-4">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold text-[var(--text)]">
-            <IconBolt className="h-5 w-5 text-orange-400" /> HEX Stake Strategist
-          </h1>
-          <p className="text-xs text-[var(--text-muted)]">
-            Design a stake — the math tells you the best length, not just the numbers.
-          </p>
-        </div>
-        <div className="flex items-center gap-0.5 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-0.5">
-          {(['pulsechain', 'ethereum'] as const).map((n) => (
-            <button
-              key={n}
-              onClick={() => setNet(n)}
-              className={`rounded-lg px-3 py-1 text-xs font-semibold capitalize transition-colors ${
-                net === n ? 'bg-[var(--surface-2)] text-orange-300' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-              }`}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-      </div>
-
+    <div className="space-y-4">
       {/* Decision context strip */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Context label="T-Share price" value={fmtUsd(rates.tSharePriceUsd)} trend={rates.tSharePriceTrend} goodWhenDown />
