@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     const minHearts = WHALE_MIN_HEX * 1e8;
 
     // Big stakes ending within the window. getAllActiveStakes is ordered by
-    // size desc, so we keep ≥25M HEX with an end day inside the next 30.
+    // size desc, so we keep ≥WHALE_MIN_HEX with an end day inside the next 30.
     const ending = (active as Record<string, unknown>[])
       .filter((s) => {
         const hearts = num(s.stakedHearts);
