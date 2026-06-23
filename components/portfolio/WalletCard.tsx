@@ -257,22 +257,22 @@ export function WalletCard({ wallet }: Props) {
             <IconCopy className="h-4 w-4" />
           </button>
           {copied && <span className="shrink-0 mt-0.5 text-xs text-[var(--up)]">Copied</span>}
-        </div>
 
-        {/* Wallet value, left-aligned. */}
-        <div className="mt-1">
-          <div className="text-xs text-[var(--text-faint)] uppercase tracking-wide">Total</div>
-          <div className="text-lg font-semibold text-[var(--text)] tabular-nums">
-            {fmtUsd(filteredTotalUsd)}
-          </div>
-          {totalsDiffer && (
-            <div
-              className="text-[10px] uppercase tracking-wide tabular-nums"
-              style={{ color: 'rgba(255, 255, 255, 0.4)' }}
-            >
-              of {fmtUsd(totalUsd)}
+          {/* Total value, top-right. */}
+          <div className="ml-auto text-right shrink-0">
+            <div className="text-xs text-[var(--text-faint)] uppercase tracking-wide">Total</div>
+            <div className="text-lg font-semibold text-[var(--text)] tabular-nums">
+              {fmtUsd(filteredTotalUsd)}
             </div>
-          )}
+            {totalsDiffer && (
+              <div
+                className="text-[10px] uppercase tracking-wide tabular-nums"
+                style={{ color: 'rgba(255, 255, 255, 0.4)' }}
+              >
+                of {fmtUsd(totalUsd)}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Bottom row: network filters (left) + action icons (bottom-right). */}
