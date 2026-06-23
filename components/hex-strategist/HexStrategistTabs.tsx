@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { IconBolt, IconStethoscope } from '@tabler/icons-react';
+import { IconBolt, IconStethoscope, IconRadar2 } from '@tabler/icons-react';
 import type { Network } from '@/lib/hex/strategistData';
 import HexStrategist from './HexStrategist';
 import StakeDoctor from './StakeDoctor';
+import WhaleRadar from './WhaleRadar';
 
-type Mode = 'designer' | 'doctor';
+type Mode = 'designer' | 'doctor' | 'radar';
 
 export default function HexStrategistTabs() {
   const [net, setNet] = useState<Network>('pulsechain');
@@ -23,7 +24,9 @@ export default function HexStrategistTabs() {
           <p className="text-xs text-[var(--text-muted)]">
             {mode === 'designer'
               ? 'Design a stake — the math tells you the best length, not just the numbers.'
-              : 'Diagnose your stakes — when to end each one, and what ending early costs.'}
+              : mode === 'doctor'
+                ? 'Diagnose your stakes — when to end each one, and what ending early costs.'
+                : 'Whale radar — big stakes unlocking soon, and who’s likely to sell.'}
           </p>
         </div>
         <div className="flex items-center gap-0.5 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-0.5">
@@ -59,9 +62,17 @@ export default function HexStrategistTabs() {
         >
           <IconStethoscope className="h-3.5 w-3.5" /> Doctor
         </button>
+        <button
+          onClick={() => setMode('radar')}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+            mode === 'radar' ? 'bg-[var(--surface-2)] text-cyan-300' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+          }`}
+        >
+          <IconRadar2 className="h-3.5 w-3.5" /> Radar
+        </button>
       </div>
 
-      {mode === 'designer' ? <HexStrategist net={net} /> : <StakeDoctor net={net} />}
+      {mode === 'designer' ? <HexStrategist net={net} /> : mode === 'doctor' ? <StakeDoctor net={net} /> : <WhaleRadar net={net} />}
     </div>
   );
 }
