@@ -18,6 +18,9 @@ import {
   IconExternalLink,
   IconHistory,
   IconAlertTriangle,
+  IconChevronDown,
+  IconCopy,
+  IconCheck,
 } from '@tabler/icons-react';
 import type {
   ChainId,
@@ -26,7 +29,7 @@ import type {
   WalletTransaction,
   WalletHistoryResponse,
 } from '@/services';
-import { pulsechainTxUrl, PULSECHAIN_EXPLORER_NAME } from '@/lib/pulsechainExplorer';
+import { pulsechainTxUrl, pulsechainAddressUrl, PULSECHAIN_EXPLORER_NAME } from '@/lib/pulsechainExplorer';
 import { ChainLogo } from '@/components/ui/ChainLogo';
 import { getKnownAddress, getKnownAddressLabel } from '@/lib/gumshoe/address-labels';
 import { CounterpartyBadge } from '@/components/portfolio/counterpartyBadge';
@@ -35,6 +38,8 @@ import { fmtUsd, fmtAmount } from '@/lib/format';
 interface Props {
   walletAddress: string;
   chains: ChainId[];
+  /** When set, only show transactions that move this token (e.g. HEX-only). */
+  tokenAddress?: string;
 }
 
 // Per-chain pagination cursor as returned by the route (opaque Blockscout
@@ -62,6 +67,36 @@ const EXPLORER_NAME: Record<ChainId, string> = {
   pulsechain: PULSECHAIN_EXPLORER_NAME,
   ethereum: 'Etherscan',
 };
+const EXPLORER_ADDR: Record<ChainId, (a: string) => string> = {
+  pulsechain: pulsechainAddressUrl,
+  ethereum: (a) => `https://etherscan.io/address/${a}`,
+};
+
+// DexScreener slug per chain — used for its token-image CDN, which covers
+// almost any token that has a tradeable pair (lowercase-address friendly).
+const DS_CHAIN: Record<ChainId, string> = {
+  pulsechain: 'pulsechain',
+  ethereum: 'ethereum',
+};
+
+// Ordered list of logo URLs to try for a flow's token, best hint first. The
+// dot only shows the symbol fallback once every candidate has failed, so any
+// listed token with a known image gets an icon — not just the ones Blockscout
+// happened to return an icon_url for.
+function logoCandidates(flow: TokenFlow, chain: ChainId): string[] {
+  // Native gas coin (PLS / ETH) has no ERC-20 contract — use the chain logo.
+  if (flow.isNative) return [CHAIN_LOGO[chain]];
+  const out: string[] = [];
+  if (flow.logoURI) out.push(flow.logoURI);
+  const addr = flow.tokenAddress?.toLowerCase();
+  if (addr && /^0x[0-9a-f]{40}$/.test(addr)) {
+    out.push(`https://dd.dexscreener.com/ds-data/tokens/${DS_CHAIN[chain]}/${addr}.png`);
+    if (chain === 'pulsechain') {
+      out.push(`https://tokens.app.pulsex.com/images/tokens/${addr}.png`);
+    }
+  }
+  return out;
+}
 
 export const ACTION_META: Record<TxActionType, { label: string; glyph: string; color: string }> = {
   swap: { label: 'Swap', glyph: '⇄', color: '#8b5cf6' },
@@ -137,8 +172,9 @@ function titleFor(t: WalletTransaction): string {
 
 const rowKey = (t: WalletTransaction) => `${t.chain}:${t.hash}`;
 
-export function ActivityFeed({ walletAddress, chains }: Props) {
+export function ActivityFeed({ walletAddress, chains, tokenAddress }: Props) {
   const chainsKey = chains.join(',');
+  const tokenFilter = tokenAddress?.toLowerCase();
 
   const [txns, setTxns] = useState<WalletTransaction[]>([]);
   const [cursors, setCursors] = useState<Record<string, Cursor>>({});
@@ -261,9 +297,11 @@ export function ActivityFeed({ walletAddress, chains }: Props) {
       if (hideScam && t.isScam) return false;
       if (!activeChains.has(t.chain)) return false;
       if (set && !set.has(t.action)) return false;
+      // Restrict to transactions that move the requested token (e.g. HEX).
+      if (tokenFilter && !t.flows.some((f) => f.tokenAddress?.toLowerCase() === tokenFilter)) return false;
       return true;
     });
-  }, [txns, hideScam, activeChains, typeFilter]);
+  }, [txns, hideScam, activeChains, typeFilter, tokenFilter]);
 
   const groups = useMemo(() => {
     const m = new Map<string, WalletTransaction[]>();
@@ -403,6 +441,7 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
   const failed = tx.status === 'failed';
   const native = NATIVE_SYMBOL[tx.chain];
   const known = getKnownAddress(tx.counterparty);
+  const [open, setOpen] = useState(false);
 
   return (
     <div className={`relative pl-12 ${tx.isScam ? 'opacity-50' : ''}`}>
@@ -416,7 +455,12 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
         {fmtClock(tx.timestamp)}
       </span>
 
-      <div className="flex items-start gap-3 border-t border-[var(--line-soft)] py-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-start gap-3 border-t border-[var(--line-soft)] py-3 text-left"
+      >
         {/* action glyph + chain badge */}
         <div className="relative shrink-0">
           <div
@@ -463,15 +507,10 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
             {tx.gasFeeNative != null && tx.gasFeeNative > 0 && (
               <span>⛽ {fmtAmount(tx.gasFeeNative)} {native}</span>
             )}
-            <a
-              href={EXPLORER_TX[tx.chain](tx.hash)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-0.5 hover:text-[var(--text-muted)]"
-            >
-              {EXPLORER_NAME[tx.chain]}
-              <IconExternalLink className="h-3 w-3" />
-            </a>
+            <span className="inline-flex items-center gap-0.5 text-[var(--text-muted)]">
+              {open ? 'Hide details' : 'Details'}
+              <IconChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+            </span>
           </div>
         </div>
 
@@ -480,15 +519,177 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
           {tx.flows.length === 0 ? (
             <span className="text-xs text-[var(--text-muted)]">no balance change</span>
           ) : (
-            tx.flows.map((f, i) => <FlowChip key={i} flow={f} />)
+            tx.flows.map((f, i) => <FlowChip key={i} flow={f} chain={tx.chain} />)
           )}
         </div>
+      </button>
+
+      {open && <TxDetail tx={tx} />}
+    </div>
+  );
+}
+
+// Expanded on-chain detail panel: full timestamp, tx hash, from/to counterparty,
+// method, status, protocol, gas (native + USD), and every token flow with its
+// contract address — each with copy buttons and explorer links.
+function TxDetail({ tx }: { tx: WalletTransaction }) {
+  const native = NATIVE_SYMBOL[tx.chain];
+  const fullDate = new Date(tx.timestamp).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const cpLabel =
+    tx.counterpartyLabel || getKnownAddressLabel(tx.counterparty) || null;
+  const statusLabel =
+    tx.status === 'failed' ? 'Failed' : tx.status === 'pending' ? 'Pending' : 'Success';
+
+  return (
+    <div className="mb-3 ml-1 space-y-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-[11px]">
+      <DetailRow label="Time">
+        <span className="text-[var(--text)] tabular-nums">{fullDate}</span>
+      </DetailRow>
+
+      <DetailRow label="Tx hash">
+        <AddrLine value={tx.hash} href={EXPLORER_TX[tx.chain](tx.hash)} />
+      </DetailRow>
+
+      {tx.counterparty && (
+        <DetailRow label={tx.action === 'send' ? 'To' : tx.action === 'receive' ? 'From' : 'Interacted with'}>
+          <div className="flex flex-col gap-0.5">
+            {cpLabel && <span className="font-semibold text-[var(--text)]">{cpLabel}</span>}
+            <AddrLine value={tx.counterparty} href={EXPLORER_ADDR[tx.chain](tx.counterparty)} />
+          </div>
+        </DetailRow>
+      )}
+
+      {tx.method && (
+        <DetailRow label="Method">
+          <span className="break-all font-mono text-[var(--text)]">{tx.method}</span>
+        </DetailRow>
+      )}
+
+      {tx.protocol?.name && (
+        <DetailRow label="Protocol">
+          <span className="text-[var(--text)]">
+            {tx.protocol.name}
+            {tx.protocol.kind ? <span className="text-[var(--text-muted)]"> · {tx.protocol.kind}</span> : null}
+          </span>
+        </DetailRow>
+      )}
+
+      <DetailRow label="Status">
+        <span className={tx.status === 'failed' ? 'font-semibold text-red-300' : 'text-[var(--up)]'}>
+          {statusLabel}
+        </span>
+      </DetailRow>
+
+      {tx.gasFeeNative != null && tx.gasFeeNative > 0 && (
+        <DetailRow label="Gas fee">
+          <span className="text-[var(--text)] tabular-nums">
+            {fmtAmount(tx.gasFeeNative)} {native}
+            {tx.gasFeeUsd != null && (
+              <span className="text-[var(--text-muted)]"> · {fmtUsd(tx.gasFeeUsd)}</span>
+            )}
+          </span>
+        </DetailRow>
+      )}
+
+      {tx.flows.length > 0 && (
+        <div className="border-t border-[var(--line-soft)] pt-2">
+          <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[var(--text-faint)]">
+            Token transfers ({tx.flows.length})
+          </div>
+          <div className="space-y-1.5">
+            {tx.flows.map((f, i) => (
+              <FlowDetail key={i} flow={f} chain={tx.chain} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FlowDetail({ flow, chain }: { flow: TokenFlow; chain: ChainId }) {
+  const color = flow.isLp ? '#7dd3fc' : flow.direction === 'in' ? '#6ee7b7' : '#fda4af';
+  const sign = flow.direction === 'in' ? '+' : '−';
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <TokenDot flow={flow} chain={chain} />
+        <div className="min-w-0">
+          <div className="truncate text-[var(--text)]">
+            {flow.name || flow.symbol}
+            <span className="text-[var(--text-muted)]"> · {flow.symbol}</span>
+          </div>
+          {!flow.isNative && flow.tokenAddress && (
+            <AddrLine value={flow.tokenAddress} href={EXPLORER_ADDR[chain](flow.tokenAddress)} />
+          )}
+        </div>
+      </div>
+      <div className="shrink-0 text-right tabular-nums" style={{ color }}>
+        <div className="font-semibold">
+          {sign}
+          {fmtAmount(flow.amountFormatted)} {flow.symbol}
+        </div>
+        {flow.valueUsd != null && (
+          <div className="text-[10px] font-normal text-[var(--text-muted)]">{fmtUsd(flow.valueUsd)}</div>
+        )}
       </div>
     </div>
   );
 }
 
-function FlowChip({ flow }: { flow: TokenFlow }) {
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="w-24 shrink-0 text-[10px] uppercase tracking-wide text-[var(--text-faint)]">{label}</span>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
+// Monospaced address/hash with a copy button and an explorer link.
+function AddrLine({ value, href }: { value: string; href: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard?.writeText(value).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1200);
+      },
+      () => {},
+    );
+  };
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="break-all font-mono text-[var(--text-muted)]">{value}</span>
+      <button
+        type="button"
+        onClick={copy}
+        title="Copy"
+        className="shrink-0 text-[var(--text-faint)] hover:text-[var(--text)]"
+      >
+        {copied ? <IconCheck className="h-3 w-3 text-[var(--up)]" /> : <IconCopy className="h-3 w-3" />}
+      </button>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Open in explorer"
+        className="shrink-0 text-[var(--text-faint)] hover:text-[var(--text)]"
+      >
+        <IconExternalLink className="h-3 w-3" />
+      </a>
+    </span>
+  );
+}
+
+function FlowChip({ flow, chain }: { flow: TokenFlow; chain: ChainId }) {
   const usd = flow.valueUsd != null ? fmtUsd(flow.valueUsd) : null;
   const color = flow.isLp
     ? '#7dd3fc'
@@ -503,22 +704,27 @@ function FlowChip({ flow }: { flow: TokenFlow }) {
         {sign}
         {fmtAmount(flow.amountFormatted)} {flow.symbol}
       </span>
-      <TokenDot flow={flow} />
+      <TokenDot flow={flow} chain={chain} />
     </div>
   );
 }
 
-function TokenDot({ flow }: { flow: TokenFlow }) {
+function TokenDot({ flow, chain }: { flow: TokenFlow; chain: ChainId }) {
+  const candidates = useMemo(() => logoCandidates(flow, chain), [flow, chain]);
+  // Advance through candidate URLs on each load error; fall back to the
+  // symbol initials only after every source has failed.
+  const [idx, setIdx] = useState(0);
+  const src = candidates[idx];
   return (
     <span className="grid h-[18px] w-[18px] place-items-center overflow-hidden rounded-full bg-[var(--surface-2)] text-[8px] font-bold text-[var(--text-muted)]">
-      {flow.logoURI ? (
+      {src ? (
         <img
-          src={flow.logoURI}
+          key={src}
+          src={src}
           alt=""
+          loading="lazy"
           className="h-full w-full object-cover"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).style.display = 'none';
-          }}
+          onError={() => setIdx((i) => i + 1)}
         />
       ) : (
         flow.symbol.slice(0, 2).toUpperCase()

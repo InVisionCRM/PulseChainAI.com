@@ -47,11 +47,14 @@ interface Props {
   address: string;
   /** Current HEX (pHEX) USD price, for USD figures. Optional. */
   hexUsd?: number | null;
+  /** Current daily payout per T-Share (HEX) — enables an estimated-yield
+   *  figure on active stakes. Optional. */
+  payoutPerTShare?: number | null;
 }
 
 type Tab = 'active' | 'ended';
 
-export function HexStakes({ address, hexUsd }: Props) {
+export function HexStakes({ address, hexUsd, payoutPerTShare }: Props) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<PulseChainStakerHistoryMetrics | null>(null);
@@ -154,7 +157,7 @@ export function HexStakes({ address, hexUsd }: Props) {
           <div className="py-8 text-center text-sm text-[var(--text-faint)]">No active stakes.</div>
         ) : (
           <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
-            {view.active.map((s) => <ActiveStakeCard key={s.id} stake={s} currentDay={view.currentDay} hexUsd={hexUsd} />)}
+            {view.active.map((s) => <ActiveStakeCard key={s.id} stake={s} currentDay={view.currentDay} hexUsd={hexUsd} payoutPerTShare={payoutPerTShare} />)}
           </div>
         )
       ) : view.ended.length === 0 ? (
@@ -227,7 +230,7 @@ function DetailsToggle({ open, onClick }: { open: boolean; onClick: () => void }
   );
 }
 
-function ActiveStakeCard({ stake, currentDay, hexUsd }: { stake: PulseChainHexStake; currentDay: number; hexUsd?: number | null }) {
+function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare }: { stake: PulseChainHexStake; currentDay: number; hexUsd?: number | null; payoutPerTShare?: number | null }) {
   const [open, setOpen] = useState(false);
   const principal = heartsToHex(stake.stakedHearts);
   const tShares = sharesToTShares(stake.stakeShares);
@@ -238,6 +241,11 @@ function ActiveStakeCard({ stake, currentDay, hexUsd }: { stake: PulseChainHexSt
   const left = Math.max(0, endDay - currentDay);
   const pct = stakeProgress(startDay, stakedDays, currentDay) * 100;
   const usd = hexUsd != null ? principal * hexUsd : null;
+
+  // Estimated yield at the current daily payout per T-Share — what it's earned
+  // so far, and projected to its full term. Estimate (assumes constant payout).
+  const estEarnedHex = payoutPerTShare != null ? tShares * payoutPerTShare * served : null;
+  const estTermHex = payoutPerTShare != null ? tShares * payoutPerTShare * stakedDays : null;
 
   // Status: locked (pre-end), ready (in the 0..+14d grace), or late (penalties accrue past +14d).
   const past = currentDay - endDay;
@@ -278,6 +286,19 @@ function ActiveStakeCard({ stake, currentDay, hexUsd }: { stake: PulseChainHexSt
       <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
         <div className="h-full rounded-full transition-[width]" style={{ width: `${pct}%`, background: locked ? HEX_GRADIENT : barColor }} />
       </div>
+
+      {estEarnedHex != null && (
+        <div className="mt-3 flex items-center justify-between rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs">
+          <span className="text-[var(--text-muted)]">Est. yield so far</span>
+          <span className="text-right">
+            <span className="font-semibold text-[var(--up)]">+{fmtHex(estEarnedHex)} HEX</span>
+            {hexUsd != null && <span className="text-[var(--text-muted)]"> · {fmtUsdShort(estEarnedHex * hexUsd)}</span>}
+            {estTermHex != null && (
+              <span className="block text-[10px] text-[var(--text-faint)] tabular-nums">~{fmtHex(estTermHex)} HEX projected at maturity</span>
+            )}
+          </span>
+        </div>
+      )}
 
       <div className="mt-3 flex items-center justify-between text-[11px] text-[var(--text-muted)] tabular-nums">
         <span>{fmtHexDate(startDay)} → {fmtHexDate(endDay)}</span>

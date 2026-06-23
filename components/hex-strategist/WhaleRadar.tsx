@@ -10,7 +10,7 @@ import { IconRadar2, IconRefresh, IconChevronDown, IconArrowsExchange, IconCashB
 import { type Network, type Rates, loadRates } from '@/lib/hex/strategistData';
 import type { WhaleRadarData, WhaleStake, WhaleBias } from '@/lib/hex/whaleRadar';
 import { WHALE_MIN_HEX } from '@/lib/hex/whaleRadar';
-import { fmtHex, fmtTShares, fmtUsdShort, fmtDuration } from '@/lib/hex/hexDay';
+import { fmtHex, fmtTShares, fmtUsdShort, fmtDuration, HEX_ADDRESS } from '@/lib/hex/hexDay';
 import { HexStakes } from '@/components/portfolio/HexStakes';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
 
@@ -104,7 +104,7 @@ export default function WhaleRadar({ net }: { net: Network }) {
 
       {/* Whale list */}
       <div className="space-y-2">
-        {data.stakes.map((s) => <WhaleRow key={s.stakeId} s={s} net={net} usd={usd} hasPrice={hasPrice} hexUsd={rates?.priceUsd ?? null} />)}
+        {data.stakes.map((s) => <WhaleRow key={s.stakeId} s={s} net={net} usd={usd} hasPrice={hasPrice} hexUsd={rates?.priceUsd ?? null} payoutPerTShare={rates?.dailyPayoutPerTShare ?? null} />)}
       </div>
 
       <p className="px-1 text-[10px] leading-relaxed text-[var(--text-faint)]">
@@ -116,7 +116,7 @@ export default function WhaleRadar({ net }: { net: Network }) {
   );
 }
 
-function WhaleRow({ s, net, usd, hasPrice, hexUsd }: { s: WhaleStake; net: Network; usd: (h: number) => number; hasPrice: boolean; hexUsd: number | null }) {
+function WhaleRow({ s, net, usd, hasPrice, hexUsd, payoutPerTShare }: { s: WhaleStake; net: Network; usd: (h: number) => number; hasPrice: boolean; hexUsd: number | null; payoutPerTShare: number | null }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'stakes' | 'activity'>('stakes');
   const b = BIAS[s.bias];
@@ -145,8 +145,8 @@ function WhaleRow({ s, net, usd, hasPrice, hexUsd }: { s: WhaleStake; net: Netwo
             <button onClick={() => setTab('activity')} className={`rounded-md px-3 py-1 text-xs font-semibold ${tab === 'activity' ? 'bg-[var(--surface)] text-orange-300' : 'text-[var(--text-muted)]'}`}>HEX activity</button>
           </div>
           {tab === 'stakes'
-            ? <HexStakes address={s.stakerAddr} hexUsd={hexUsd} />
-            : <ActivityFeed walletAddress={s.stakerAddr} chains={[net]} />}
+            ? <HexStakes address={s.stakerAddr} hexUsd={hexUsd} payoutPerTShare={payoutPerTShare} />
+            : <ActivityFeed walletAddress={s.stakerAddr} chains={[net]} tokenAddress={HEX_ADDRESS} />}
         </div>
       )}
     </div>
