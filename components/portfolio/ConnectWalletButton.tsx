@@ -85,10 +85,10 @@ export function ConnectWalletButton() {
         href="https://metamask.io/download/"
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--line)] text-[var(--text-muted)] hover:text-[var(--text)] text-sm font-semibold px-3 py-2 transition-colors"
+        className="inline-flex items-center gap-1 sm:gap-1.5 rounded-lg border border-[var(--line)] text-[var(--text-muted)] hover:text-[var(--text)] text-xs sm:text-sm font-semibold px-2 py-1.5 sm:px-3 sm:py-2 transition-colors"
         title="No browser wallet detected — get one to connect"
       >
-        <IconWallet className="h-4 w-4" />
+        <IconWallet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         Get a wallet
       </a>
     );
@@ -100,10 +100,10 @@ export function ConnectWalletButton() {
         type="button"
         onClick={connect}
         disabled={busy}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] text-sm font-semibold px-3 py-2 transition-colors disabled:opacity-50"
+        className="inline-flex items-center gap-1 sm:gap-1.5 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] text-xs sm:text-sm font-semibold px-2 py-1.5 sm:px-3 sm:py-2 transition-colors disabled:opacity-50"
         title="Connect a browser wallet to add its address(es)"
       >
-        <IconWallet className="h-4 w-4" />
+        <IconWallet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         {busy ? 'Connecting…' : 'Connect wallet'}
       </button>
       {error && <span className="text-[11px] text-red-300">{error}</span>}

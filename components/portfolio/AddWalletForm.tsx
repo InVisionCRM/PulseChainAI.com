@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { IconPlus, IconAlertCircle } from '@tabler/icons-react';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import type { ChainId } from '@/services';
@@ -54,79 +54,136 @@ export function AddWalletForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl p-5 space-y-4"
+      className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl p-5"
     >
-      <div className="flex flex-col md:flex-row gap-3 md:items-end">
-        <label className="flex-1 space-y-1">
-          <span className="text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
-            Wallet address
-          </span>
-          <input
-            type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="0x…"
-            spellCheck={false}
-            autoComplete="off"
-            className="w-full rounded-lg bg-[var(--surface-2)] border border-[var(--line)] px-3 py-2 text-sm text-[var(--text)] font-mono placeholder-[var(--text-faint)] focus:outline-none focus:border-orange-500/60"
-          />
-        </label>
-        <label className="md:w-56 space-y-1">
-          <span className="text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
-            Label (optional)
-          </span>
-          <input
-            type="text"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="Main wallet"
-            className="w-full rounded-lg bg-[var(--surface-2)] border border-[var(--line)] px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-faint)] focus:outline-none focus:border-orange-500/60"
-          />
-        </label>
-        <button
-          type="submit"
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-orange-500/90 hover:bg-orange-500 text-[var(--text)] text-sm font-semibold px-4 py-2 transition-colors"
-        >
-          <IconPlus className="h-4 w-4" />
-          Add wallet
-        </button>
-      </div>
+      <FormVideoBackground />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
-          Track on
-        </span>
-        {ALL_CHAINS.map((c) => {
-          const active = chains.includes(c.id);
-          return (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => toggleChain(c.id)}
-              aria-pressed={active}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-all ${
-                active
-                  ? 'border-[var(--line)] bg-[var(--surface)] text-[var(--text)]'
-                  : 'border-[var(--line)] text-[var(--text-faint)] hover:text-[var(--text-muted)]'
-              }`}
-            >
-              <img
-                src={CHAIN_LOGO[c.id]}
-                alt=""
-                className={`h-4 w-4 object-contain ${active ? '' : 'grayscale opacity-60'}`}
-              />
-              {c.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {error && (
-        <div className="flex items-center gap-2 text-xs text-red-300">
-          <IconAlertCircle className="h-4 w-4 shrink-0" />
-          {error}
+      <div className="relative z-10 space-y-4">
+        <div className="flex flex-col md:flex-row gap-3 md:items-end">
+          <label className="flex-1 space-y-1">
+            <span className="text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
+              Wallet address
+            </span>
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="0x…"
+              spellCheck={false}
+              autoComplete="off"
+              className="w-full rounded-lg bg-[var(--surface-2)] border border-[var(--line)] px-3 py-2 text-sm text-[var(--text)] font-mono placeholder-[var(--text-faint)] focus:outline-none focus:border-orange-500/60"
+            />
+          </label>
+          <label className="md:w-56 space-y-1">
+            <span className="text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
+              Label (optional)
+            </span>
+            <input
+              type="text"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Main wallet"
+              className="w-full rounded-lg bg-[var(--surface-2)] border border-[var(--line)] px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-faint)] focus:outline-none focus:border-orange-500/60"
+            />
+          </label>
+          <button
+            type="submit"
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-orange-500/90 hover:bg-orange-500 text-[var(--text)] text-sm font-semibold px-4 py-2 transition-colors"
+          >
+            <IconPlus className="h-4 w-4" />
+            Add wallet
+          </button>
         </div>
-      )}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
+            Track on
+          </span>
+          {ALL_CHAINS.map((c) => {
+            const active = chains.includes(c.id);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => toggleChain(c.id)}
+                aria-pressed={active}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-all ${
+                  active
+                    ? 'border-[var(--line)] bg-[var(--surface)] text-[var(--text)]'
+                    : 'border-[var(--line)] text-[var(--text-faint)] hover:text-[var(--text-muted)]'
+                }`}
+              >
+                <img
+                  src={CHAIN_LOGO[c.id]}
+                  alt=""
+                  className={`h-4 w-4 object-contain ${active ? '' : 'grayscale opacity-60'}`}
+                />
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 text-xs text-red-300">
+            <IconAlertCircle className="h-4 w-4 shrink-0" />
+            {error}
+          </div>
+        )}
+      </div>
     </form>
+  );
+}
+
+/**
+ * Decorative looping video behind the add-wallet card.
+ * - Muted/looped/inline so it autoplays everywhere.
+ * - Pauses when scrolled offscreen to save battery/CPU.
+ * - Honors prefers-reduced-motion (leaves the poster frame, never plays).
+ */
+function FormVideoBackground() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const reduceMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+    if (reduceMotion) return;
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) void video.play().catch(() => {});
+        else video.pause();
+      },
+      { threshold: 0.1 },
+    );
+    io.observe(video);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
+      <video
+        ref={videoRef}
+        className="h-full w-full object-cover opacity-[0.18]"
+        poster="/add-wallet-bg.jpg"
+        muted
+        loop
+        playsInline
+        preload="metadata"
+      >
+        <source src="/add-wallet-bg.mp4" type="video/mp4" />
+      </video>
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'color-mix(in srgb, var(--surface) 55%, transparent)',
+        }}
+      />
+    </div>
   );
 }
