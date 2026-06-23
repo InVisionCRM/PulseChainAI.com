@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { LoaderThree } from '@/components/ui/loader';
-import { HolderTransfer } from './types';
-import { truncateAddress, formatDateUTC } from './utils';
+import { truncateAddress } from './utils';
 import { HexStakes } from '@/components/portfolio/HexStakes';
+import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
 import { isHexAddress } from '@/lib/hex/hexDay';
-import { fmtUsd, fmtAmount, fmtPrice } from '@/lib/format';
+import { fmtUsd, fmtAmount } from '@/lib/format';
 import { portfolioService } from '@/services';
 import type { PortfolioToken } from '@/services';
 
@@ -17,24 +17,12 @@ export interface GeickoHolderModalProps {
   isOpen: boolean;
   /** Holder address being viewed */
   holderAddress: string | null;
-  /** Array of transfers for this holder */
-  transfers: HolderTransfer[];
-  /** Is transfers data loading */
-  isLoading: boolean;
-  /** Error message for transfers, if any */
-  error: string | null;
-  /** Set of expanded transaction hashes */
-  expandedTxs: Set<string>;
-  /** Token symbol to display in the transactions list */
-  tokenSymbol?: string;
   /** Address of the token being viewed — enables the HEX "Stakes" tab. */
   tokenAddress?: string;
   /** Current token (HEX) USD price, for USD figures in the stakes view. */
   tokenPriceUsd?: number | null;
   /** Callback when modal is closed */
   onClose: () => void;
-  /** Callback when a transaction row is toggled */
-  onToggleExpand: (hash: string) => void;
 }
 
 /**
@@ -48,15 +36,9 @@ export interface GeickoHolderModalProps {
 export default function GeickoHolderModal({
   isOpen,
   holderAddress,
-  transfers,
-  isLoading,
-  error,
-  expandedTxs,
-  tokenSymbol = 'TOKEN',
   tokenAddress,
   tokenPriceUsd,
   onClose,
-  onToggleExpand,
 }: GeickoHolderModalProps) {
   const isHex = isHexAddress(tokenAddress);
   const [tab, setTab] = useState<HolderModalTab>('portfolio');
@@ -210,9 +192,8 @@ export default function GeickoHolderModal({
                 <div className="grid grid-cols-11 gap-1 px-3 py-2 text-xs font-semibold text-[var(--text-muted)] border-b border-[var(--line)] bg-[var(--surface)] rounded">
                   <div className="col-span-1 text-left">#</div>
                   <div className="col-span-4 text-left">Token</div>
-                  <div className="col-span-2 text-left">Balance</div>
-                  <div className="col-span-2 text-left">Price</div>
-                  <div className="col-span-2 text-left">Value</div>
+                  <div className="col-span-3 text-left">Balance</div>
+                  <div className="col-span-3 text-left">Value</div>
                 </div>
 
                 {/* Token rows */}
@@ -247,15 +228,11 @@ export default function GeickoHolderModal({
                         </div>
                       </div>
 
-                      <div className="col-span-2 text-left text-[var(--text)] font-mono truncate">
+                      <div className="col-span-3 text-left text-[var(--text)] font-mono truncate">
                         {fmtAmount(token.balanceFormatted)}
                       </div>
 
-                      <div className="col-span-2 text-left text-[var(--text)] font-mono truncate">
-                        {token.priceUsd != null ? fmtPrice(token.priceUsd) : 'N/A'}
-                      </div>
-
-                      <div className="col-span-2 text-left text-[var(--text)] font-semibold font-mono truncate">
+                      <div className="col-span-3 text-left text-[var(--text)] font-semibold font-mono truncate">
                         {token.valueUsd != null ? fmtUsd(token.valueUsd) : 'N/A'}
                       </div>
                     </div>
@@ -265,109 +242,9 @@ export default function GeickoHolderModal({
             )
           )}
 
-          {/* Transactions tab */}
+          {/* Transactions tab — reuse the Portfolio page's decoded activity feed. */}
           {tab === 'transactions' && (
-            isLoading ? (
-              <div className="flex items-center justify-center py-10 text-[var(--text-muted)] gap-3">
-                <LoaderThree />
-                <span className="text-sm">Loading transfers...</span>
-              </div>
-            ) : error ? (
-              <div className="text-center text-sm text-red-400 py-6">{error}</div>
-            ) : transfers.length === 0 ? (
-              <div className="text-center text-sm text-[var(--text-muted)] py-6">
-                No transfers found for this holder.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {transfers.map((tx) => {
-                  const isExpanded = expandedTxs.has(tx.txHash);
-                  const badgeClasses =
-                    tx.direction === 'Buy'
-                      ? 'bg-green-900/40 text-[var(--up)] border-green-700/50'
-                      : tx.direction === 'Sell'
-                      ? 'bg-red-900/40 text-red-300 border-red-700/50'
-                      : 'bg-blue-900/30 text-blue-200 border-blue-700/40';
-
-                  return (
-                    <div
-                      key={tx.txHash}
-                      className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3 shadow-sm"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[11px] px-2 py-1 rounded-full border ${badgeClasses}`}>
-                            {tx.direction}
-                          </span>
-                          <span className="text-[var(--text)] font-semibold">
-                            {tx.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}{' '}
-                            {tokenSymbol}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-                          <span>{tx.timestamp ? formatDateUTC(tx.timestamp) : '—'}</span>
-                          <a
-                            href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${tx.txHash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-400 hover:underline"
-                          >
-                            Explorer
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => onToggleExpand(tx.txHash)}
-                            className="text-blue-300 hover:text-[var(--text)] transition-colors"
-                          >
-                            {isExpanded ? 'Hide details' : 'Details'}
-                          </button>
-                        </div>
-                      </div>
-
-                      {isExpanded && (
-                        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-[var(--text)]">
-                          <div className="bg-[var(--panel)] border border-[var(--line)] rounded-lg p-2">
-                            <p className="text-[var(--text-muted)]">From</p>
-                            <a
-                              href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${tx.from}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-300 hover:underline break-all"
-                            >
-                              {tx.from || '—'}
-                            </a>
-                          </div>
-
-                          <div className="bg-[var(--panel)] border border-[var(--line)] rounded-lg p-2">
-                            <p className="text-[var(--text-muted)]">To</p>
-                            <a
-                              href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/address/${tx.to}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-300 hover:underline break-all"
-                            >
-                              {tx.to || '—'}
-                            </a>
-                          </div>
-
-                          <div className="bg-[var(--panel)] border border-[var(--line)] rounded-lg p-2 md:col-span-2">
-                            <p className="text-[var(--text-muted)]">Transaction</p>
-                            <a
-                              href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${tx.txHash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-300 hover:underline break-all"
-                            >
-                              {tx.txHash}
-                            </a>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )
+            <ActivityFeed walletAddress={holderAddress} chains={['pulsechain']} />
           )}
 
           {/* Stakes tab (HEX only) */}

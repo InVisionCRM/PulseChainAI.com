@@ -326,6 +326,35 @@ function EndedStakeRow({ end, start, hexUsd }: { end: PulseChainHexStakeEnd; sta
   const usd = hexUsd != null ? payout * hexUsd : null;
   const startDay = start ? Number(start.startDay) : null;
 
+  // Completion status for the history progress bar:
+  //  • early  — ended before the committed term (emergency end) → red, "Nd early"
+  //  • late   — served past term with a late penalty             → red, "Nd late"
+  //  • ontime — full term within the penalty-free grace          → green, "On time"
+  let endStatus: 'ontime' | 'early' | 'late' | 'unknown' = 'unknown';
+  let deltaDays = 0;
+  if (committed != null) {
+    if (served < committed) {
+      endStatus = 'early';
+      deltaDays = committed - served;
+    } else if (penalty > 0) {
+      endStatus = 'late';
+      deltaDays = served - committed;
+    } else {
+      endStatus = 'ontime';
+    }
+  }
+  const barPct = committed && committed > 0 ? Math.min(100, (served / committed) * 100) : 100;
+  const barColor =
+    endStatus === 'ontime' ? '#22c55e' : endStatus === 'unknown' ? '#6b7280' : '#ef4444';
+  const statusLabel =
+    endStatus === 'early'
+      ? `${deltaDays.toLocaleString()}d early`
+      : endStatus === 'late'
+        ? `${deltaDays.toLocaleString()}d late`
+        : endStatus === 'ontime'
+          ? 'On time'
+          : 'Ended';
+
   return (
     <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
       <div className="flex items-center justify-between gap-3">
@@ -345,6 +374,17 @@ function EndedStakeRow({ end, start, hexUsd }: { end: PulseChainHexStakeEnd; sta
           <div className="text-[11px] text-[var(--text-muted)] tabular-nums">+{fmtHex(payout)} HEX{usd != null ? ` · ${fmtUsdShort(usd)}` : ''}</div>
           {penalty > 0 && <div className="text-[11px] text-amber-300 tabular-nums">−{fmtHex(penalty)} penalty</div>}
         </div>
+      </div>
+
+      {/* Completion progress bar — green if ended on time, red if early/late. */}
+      <div className="mb-1.5 mt-3 flex items-center justify-between text-xs">
+        <span className="text-[var(--text-muted)] tabular-nums">
+          Day {served.toLocaleString()}{committed != null ? ` of ${committed.toLocaleString()}` : ''}
+        </span>
+        <span className="font-semibold tabular-nums" style={{ color: barColor }}>{statusLabel}</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
+        <div className="h-full rounded-full" style={{ width: `${barPct}%`, background: barColor }} />
       </div>
 
       <DetailsToggle open={open} onClick={() => setOpen((o) => !o)} />
