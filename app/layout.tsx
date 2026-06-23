@@ -129,6 +129,14 @@ export default function RootLayout({
       ),
     },
     {
+      label: "HEX Strategist",
+      href: "/hex-strategist",
+      icon: (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/hex-logo.svg" alt="HEX" className="h-5 w-5 shrink-0 object-contain" />
+      ),
+    },
+    {
       label: "Learn AI",
       href: "/learn-ai",
       icon: (

@@ -35,6 +35,12 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
       icon: <IconWallet className="h-8 w-8" />,
     },
     {
+      label: "HEX Strategist",
+      href: "/hex-strategist",
+      // eslint-disable-next-line @next/next/no-img-element
+      icon: <img src="/hex-logo.svg" alt="HEX" className="h-8 w-8 object-contain" />,
+    },
+    {
       label: "Learn AI",
       href: "/learn-ai",
       icon: <IconBook className="h-8 w-8" />,
