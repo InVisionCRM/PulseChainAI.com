@@ -1486,8 +1486,8 @@ function GeickoPageContent() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)] text-[var(--text)] font-sans px-2 md:px-3 relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0">
+      <div className="isolate min-h-screen bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)] text-[var(--text)] font-sans px-2 md:px-3 relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute top-24 left-16 h-72 w-72 bg-gradient-to-br from-[var(--surface-2)] via-[var(--panel)] to-transparent blur-3xl" />
           <div className="absolute bottom-24 right-1/4 h-64 w-64 bg-gradient-to-tr from-brand-orange/10 via-transparent to-transparent blur-3xl" />
         </div>
