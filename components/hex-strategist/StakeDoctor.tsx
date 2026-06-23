@@ -1,20 +1,25 @@
 'use client';
 
-// HEX Stake Strategist — Phase 2 "Stake Doctor".
+// HEX Stake Strategist — Phase 2 "Stake Doctor" (decision engine).
 //
-// Paste a wallet; for each ACTIVE stake it computes exact day-based timing (the
-// penalty-free window opens at the committed end day and lasts 14 days) and an
-// estimated dollar cost to end early, then gives a plain verdict: hold to term,
-// wait for the window, end now (in the window), or end ASAP (late). On-chain
-// stake data comes from the same staking services the dashboard uses; live
-// rates from /api/hex-proxy.
+// Paste a wallet; for each ACTIVE stake the Doctor answers the one HEX question
+// you can't net out in your head: is it worth ending early and re-staking at
+// today's rate? It compares the T-Shares you hold now vs what re-staking the
+// recovered HEX (after the estimated penalty) into a fresh 3641-day stake would
+// mint — a tug-of-war between the bonus jump (helps short stakes) and HEX's
+// ever-rising T-Share rate + the penalty (hurts). It also surfaces the exact
+// penalty-cliff day. Status (locked/grace/late) is demoted to a small badge.
 
 import { useState } from 'react';
-import { IconRefresh, IconStethoscope, IconSearch, IconAlertTriangle, IconCircleCheck, IconLock } from '@tabler/icons-react';
+import {
+  IconRefresh, IconStethoscope, IconSearch, IconArrowsExchange, IconLock, IconCircleCheck, IconAlertTriangle,
+} from '@tabler/icons-react';
 import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingService';
 import { hexStakingService } from '@/services/hexStakingService';
 import { type Network, type Rates, loadRates } from '@/lib/hex/strategistData';
-import { estimatedEarlyPenaltyHex, stakeTiming, type StakeStatus } from '@/lib/hex/stakeMath';
+import {
+  analyzeRestake, penaltyCliffDay, stakeTiming, LPB_FULL_BONUS_DAYS, type StakeStatus, type RestakeAnalysis,
+} from '@/lib/hex/stakeMath';
 import {
   heartsToHex, sharesToTShares, currentHexDay, fmtHex, fmtTShares, fmtDuration, fmtHexDate, fmtUsdShort,
 } from '@/lib/hex/hexDay';
@@ -22,9 +27,7 @@ import {
 interface DoctorStake {
   stakeId: string;
   principalHex: number;
-  tShares: number;
   committed: number;
-  startDay: number;
   endDay: number;
   status: StakeStatus;
   servedDays: number;
@@ -32,9 +35,10 @@ interface DoctorStake {
   graceDaysLeft: number;
   daysPastGrace: number;
   progressPct: number;
-  penaltyHex: number; // estimated early-end penalty
-  netIfEndNowHex: number; // served yield − penalty (negative ⇒ principal loss)
-  costVsHoldHex: number; // penalty + forgone remaining yield
+  restake: RestakeAnalysis;
+  // Penalty cliff (only meaningful while still in the penalty window).
+  daysToCliff: number;
+  cliffDay: number;
 }
 
 const num = (v: unknown) => {
@@ -80,15 +84,12 @@ export default function StakeDoctor({ net }: { net: Network }) {
           const startDay = num(s.startDay);
           const endDay = num(s.endDay);
           const t = stakeTiming(startDay, endDay, committed, currentDay);
-          const penaltyHex = estimatedEarlyPenaltyHex(tShares, payout, committed);
-          const servedYieldHex = tShares * payout * t.servedDays;
-          const remainingYieldHex = tShares * payout * t.daysToEnd;
+          const restake = analyzeRestake(principalHex, tShares, committed, t.servedDays, r.tShareRateHex, payout, LPB_FULL_BONUS_DAYS);
+          const cliffDay = penaltyCliffDay(startDay, committed);
           return {
             stakeId: String(s.stakeId ?? ''),
             principalHex,
-            tShares,
             committed,
-            startDay,
             endDay,
             status: t.status,
             servedDays: t.servedDays,
@@ -96,12 +97,13 @@ export default function StakeDoctor({ net }: { net: Network }) {
             graceDaysLeft: t.graceDaysLeft,
             daysPastGrace: t.daysPastGrace,
             progressPct: t.progressPct,
-            penaltyHex,
-            netIfEndNowHex: servedYieldHex - penaltyHex,
-            costVsHoldHex: penaltyHex + remainingYieldHex,
+            restake,
+            daysToCliff: Math.max(0, cliffDay - currentDay),
+            cliffDay,
           };
         })
-        .sort((a, b) => a.daysToEnd - b.daysToEnd);
+        // Surface the best re-stake opportunities first.
+        .sort((a, b) => b.restake.deltaT - a.restake.deltaT);
 
       setStakes(active);
       setStatus('ready');
@@ -112,6 +114,7 @@ export default function StakeDoctor({ net }: { net: Network }) {
   };
 
   const usd = (hex: number) => (rates ? hex * rates.priceUsd : 0);
+  const worthRestaking = stakes.filter((s) => s.restake.deltaT > 0).length;
 
   return (
     <div className="space-y-4">
@@ -121,7 +124,7 @@ export default function StakeDoctor({ net }: { net: Network }) {
           <IconStethoscope className="h-4 w-4 text-cyan-400" /> Diagnose a wallet’s stakes
         </div>
         <p className="mb-3 text-xs text-[var(--text-muted)]">
-          Paste any address — the Doctor grades each active stake and tells you when to end it.
+          The Doctor checks each active stake for the one hard call: end early &amp; re-stake at today’s rate, or hold?
         </p>
         <div className="flex gap-2">
           <input
@@ -150,12 +153,11 @@ export default function StakeDoctor({ net }: { net: Network }) {
 
       {status === 'ready' && stakes.length > 0 && rates && (
         <>
-          {/* Summary */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Summary label="Active stakes" value={String(stakes.length)} />
             <Summary label="Total principal" value={`${fmtHex(stakes.reduce((s, k) => s + k.principalHex, 0))} HEX`} sub={fmtUsdShort(usd(stakes.reduce((s, k) => s + k.principalHex, 0)))} />
+            <Summary label="Worth re-staking" value={String(worthRestaking)} good={worthRestaking > 0} />
             <Summary label="Endable penalty-free" value={String(stakes.filter((s) => s.status === 'grace').length)} good />
-            <Summary label="Late (act now)" value={String(stakes.filter((s) => s.status === 'late').length)} bad={stakes.some((s) => s.status === 'late')} />
           </div>
 
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -163,9 +165,11 @@ export default function StakeDoctor({ net }: { net: Network }) {
           </div>
 
           <p className="px-1 text-[10px] leading-relaxed text-[var(--text-faint)]">
-            Timing (penalty-free window, days served/left) is exact from on-chain stake days. Penalty and yield figures are
-            estimates at the trailing-30-day payout per T-Share — HEX’s exact early/late penalty depends on realized
-            payouts. Use as guidance, not gospel.
+            <span className="text-[var(--text-muted)]">Exact:</span> T-Shares kept (on-chain) and T-Shares from re-staking
+            (today’s real rate × HEX contract bonus math) — direction is reliable because the rate only ever rises.{' '}
+            <span className="text-[var(--text-muted)]">Estimated:</span> the penalty &amp; recovered-HEX dollars (assume the
+            trailing-30d payout). Re-staking buys earning power but re-locks you for {fmtDuration(LPB_FULL_BONUS_DAYS)} — a
+            capital-efficiency call, not free money.
           </p>
         </>
       )}
@@ -174,66 +178,84 @@ export default function StakeDoctor({ net }: { net: Network }) {
 }
 
 function DoctorCard({ s, usd }: { s: DoctorStake; usd: (hex: number) => number }) {
-  const meta =
+  const status =
     s.status === 'grace'
-      ? { color: '#22c55e', icon: <IconCircleCheck className="h-4 w-4" />, badge: 'Penalty-free window open' }
+      ? { color: '#22c55e', icon: <IconCircleCheck className="h-3.5 w-3.5" />, label: 'window open' }
       : s.status === 'late'
-        ? { color: '#ef4444', icon: <IconAlertTriangle className="h-4 w-4" />, badge: 'Late — penalty accruing' }
-        : { color: '#ff8a00', icon: <IconLock className="h-4 w-4" />, badge: 'Locked' };
+        ? { color: '#ef4444', icon: <IconAlertTriangle className="h-3.5 w-3.5" />, label: `${s.daysPastGrace}d late` }
+        : { color: '#8b98a5', icon: <IconLock className="h-3.5 w-3.5" />, label: `${s.daysToEnd.toLocaleString()}d left` };
 
-  const verdict =
-    s.status === 'grace'
-      ? `End now — you're in the penalty-free window (${s.graceDaysLeft} day${s.graceDaysLeft === 1 ? '' : 's'} left in it).`
-      : s.status === 'late'
-        ? `End ASAP — ${s.daysPastGrace} day${s.daysPastGrace === 1 ? '' : 's'} past the penalty-free window and late penalties are accruing.`
-        : s.daysToEnd <= 30
-          ? `Almost there — wait ${s.daysToEnd} day${s.daysToEnd === 1 ? '' : 's'} for the penalty-free window instead of ending early.`
-          : `Hold to term — ending today is ~${fmtUsdShort(usd(s.costVsHoldHex))} worse than waiting (penalty + forgone yield).`;
+  const r = s.restake;
+  const good = r.deltaT > 0;
+  const callColor = good ? '#22c55e' : '#ef4444';
 
   return (
     <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-[var(--text)]">Stake #{s.stakeId}</span>
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold" style={{ color: meta.color }}>
-          {meta.icon}{meta.badge}
-        </span>
-      </div>
-
-      <div className="mb-3 flex items-start justify-between gap-3">
+      {/* Top line: id + principal + small status badge */}
+      <div className="mb-3 flex items-start justify-between gap-2">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">Principal</div>
-          <div className="text-base font-bold tabular-nums text-[var(--text)]">{fmtHex(s.principalHex)} HEX</div>
-          <div className="text-[11px] text-[var(--text-muted)] tabular-nums">{fmtUsdShort(usd(s.principalHex))} · {fmtTShares(s.tShares)} T</div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-[var(--text)]">Stake #{s.stakeId}</span>
+            <span className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold"
+              style={{ color: status.color, borderColor: `${status.color}55` }}>
+              {status.icon}{status.label}
+            </span>
+          </div>
+          <div className="mt-0.5 text-[11px] text-[var(--text-muted)] tabular-nums">
+            {fmtHex(s.principalHex)} HEX · {fmtUsdShort(usd(s.principalHex))} · day {s.servedDays.toLocaleString()}/{s.committed.toLocaleString()}
+          </div>
         </div>
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">End-early penalty (est.)</div>
-          <div className="text-base font-bold tabular-nums" style={{ color: meta.color }}>~{fmtUsdShort(usd(s.penaltyHex))}</div>
-          {s.netIfEndNowHex < 0 && s.status === 'locked' && (
-            <div className="text-[11px] text-red-400 tabular-nums">eats principal</div>
+      </div>
+
+      {/* THE CALL: end-early-and-re-stake arbitrage */}
+      <div className="rounded-lg border p-3" style={{ borderColor: `${callColor}55`, background: `${callColor}0d` }}>
+        <div className="flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: callColor }}>
+            <IconArrowsExchange className="h-4 w-4" />
+            {good ? 'Re-stake wins' : 'Keep — don’t churn'}
+          </span>
+          <span className="text-sm font-bold tabular-nums" style={{ color: callColor }}>
+            {good ? '+' : ''}{r.deltaT.toFixed(1)} T-Shares
+          </span>
+        </div>
+        <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+          <Mini label="Keep" value={fmtTShares(r.tSharesKeep)} />
+          <Mini label={`Re-stake ${LPB_FULL_BONUS_DAYS.toLocaleString()}d`} value={fmtTShares(r.tSharesRestake)} accent={callColor} />
+          <Mini label="Penalty (est.)" value={`~${fmtUsdShort(usd(r.penaltyHex))}`} />
+        </div>
+        <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
+          {good ? (
+            <>End early (≈{fmtUsdShort(usd(r.penaltyHex))} penalty) and re-stake the {fmtHex(r.recoveredHex)} HEX you’d
+              recover → <span className="font-semibold" style={{ color: callColor }}>+{r.deltaT.toFixed(1)} T-Shares</span> of
+              earning power. Trade-off: re-locked for {fmtDuration(r.restakeDays)} (you have {fmtDuration(s.daysToEnd)} left now).</>
+          ) : (
+            <>Re-staking would <span className="font-semibold" style={{ color: callColor }}>lose {Math.abs(r.deltaT).toFixed(1)} T-Shares</span>{' '}
+              and cost ≈{fmtUsdShort(usd(r.penaltyHex))} — the rate has risen since you minted. Let it ride.</>
           )}
-        </div>
+        </p>
       </div>
 
-      {/* Progress bar */}
-      <div className="mb-1.5 flex items-center justify-between text-xs">
-        <span className="text-[var(--text-muted)] tabular-nums">Day {s.servedDays.toLocaleString()} of {s.committed.toLocaleString()}</span>
-        <span className="font-semibold tabular-nums" style={{ color: meta.color }}>
-          {s.status === 'locked' ? `${s.daysToEnd.toLocaleString()} days left` : s.status === 'grace' ? `${s.graceDaysLeft}d window` : `${s.daysPastGrace}d late`}
-        </span>
+      {/* Progress + penalty cliff */}
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--surface-2)]">
+        <div className="h-full rounded-full" style={{ width: `${s.progressPct}%`, background: status.color }} />
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
-        <div className="h-full rounded-full" style={{ width: `${s.progressPct}%`, background: meta.color }} />
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-muted)]">
+        <span>Penalty-free window: <span className="text-[var(--text)]">{fmtHexDate(s.endDay)}</span> → {fmtHexDate(s.endDay + 14)}</span>
+        {s.status === 'locked' && s.daysToCliff > 0 ? (
+          <span className="text-amber-300">⛳ Penalty stops eating principal in {fmtDuration(s.daysToCliff)} ({fmtHexDate(s.cliffDay)})</span>
+        ) : s.status === 'locked' ? (
+          <span className="text-[var(--up)]">✓ Past the penalty cliff — early-end no longer touches principal</span>
+        ) : null}
       </div>
+    </div>
+  );
+}
 
-      <div className="mt-2 text-[11px] text-[var(--text-muted)]">
-        Penalty-free window: <span className="text-[var(--text)]">{fmtHexDate(s.endDay)}</span> → {fmtHexDate(s.endDay + 14)}
-        {s.status === 'locked' && <> · opens in {fmtDuration(s.daysToEnd)}</>}
-      </div>
-
-      <div className="mt-3 rounded-lg border px-3 py-2 text-xs leading-relaxed" style={{ borderColor: `${meta.color}55`, background: `${meta.color}11`, color: 'var(--text)' }}>
-        <span style={{ color: meta.color }} className="font-semibold">Verdict: </span>
-        {verdict}
-      </div>
+function Mini({ label, value, accent }: { label: string; value: string; accent?: string }) {
+  return (
+    <div className="rounded-md bg-[var(--surface-2)] px-1.5 py-1">
+      <div className="truncate text-[9px] uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
+      <div className="text-xs font-bold tabular-nums" style={{ color: accent ?? 'var(--text)' }}>{value}</div>
     </div>
   );
 }

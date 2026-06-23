@@ -164,3 +164,55 @@ export function stakeTiming(startDay: number, endDay: number, committedDays: num
     progressPct: committedDays > 0 ? Math.min(100, (servedDays / committedDays) * 100) : 0,
   };
 }
+
+/**
+ * The HEX day on which a stake's early-end penalty stops eating principal —
+ * i.e. once `servedDays` reaches the penalty window (max(90, committed/2)),
+ * the penalty no longer exceeds accrued yield.
+ */
+export function penaltyCliffDay(startDay: number, committedDays: number): number {
+  return startDay + earlyPenaltyDays(committedDays);
+}
+
+export interface RestakeAnalysis {
+  /** T-Shares the live stake holds (on-chain). */
+  tSharesKeep: number;
+  /** T-Shares if you end early and re-stake the recovered HEX for `restakeDays`. */
+  tSharesRestake: number;
+  /** Swing in earning power (positive ⇒ re-staking gives more). */
+  deltaT: number;
+  recoveredHex: number;
+  penaltyHex: number;
+  restakeDays: number;
+}
+
+/**
+ * The end-early-and-re-stake decision. Compares the T-Shares you currently hold
+ * to what you'd mint by ending now (paying the estimated penalty, recovering
+ * principal + served yield) and re-staking at today's rate for `restakeDays`.
+ *
+ * T-Share counts drive all future yield, so the comparison is payout-rate
+ * independent in direction; only the recovered-HEX adjustment uses the payout.
+ */
+export function analyzeRestake(
+  principalHex: number,
+  tSharesKeep: number,
+  committedDays: number,
+  servedDays: number,
+  tShareRateHex: number,
+  dailyPayoutPerTShare: number,
+  restakeDays: number,
+): RestakeAnalysis {
+  const penaltyHex = estimatedEarlyPenaltyHex(tSharesKeep, dailyPayoutPerTShare, committedDays);
+  const servedYieldHex = tSharesKeep * dailyPayoutPerTShare * servedDays;
+  const recoveredHex = Math.max(0, principalHex + servedYieldHex - penaltyHex);
+  const tSharesRestake = projectedTShares(recoveredHex, restakeDays, tShareRateHex);
+  return {
+    tSharesKeep,
+    tSharesRestake,
+    deltaT: tSharesRestake - tSharesKeep,
+    recoveredHex,
+    penaltyHex,
+    restakeDays,
+  };
+}
