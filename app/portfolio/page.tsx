@@ -58,7 +58,7 @@ export default function PortfolioPage() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {wallets.length > 0 && (
               <>
                 <div className="text-right">
@@ -73,10 +73,10 @@ export default function PortfolioPage() {
                   type="button"
                   onClick={refreshAll}
                   disabled={anyLoading}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] text-sm font-semibold px-3 py-2 transition-colors disabled:opacity-40"
+                  className="inline-flex items-center gap-1 sm:gap-1.5 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] text-xs sm:text-sm font-semibold px-2 py-1.5 sm:px-3 sm:py-2 transition-colors disabled:opacity-40"
                 >
                   <IconRefresh
-                    className={`h-4 w-4 ${anyLoading ? 'animate-spin' : ''}`}
+                    className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${anyLoading ? 'animate-spin' : ''}`}
                   />
                   Refresh all
                 </button>
@@ -92,10 +92,10 @@ export default function PortfolioPage() {
                   .getElementById('watchlist')
                   ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
               }
-              className="lg:hidden inline-flex items-center gap-1.5 rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-300 hover:bg-orange-500/15 text-sm font-semibold px-3 py-2 transition-colors"
+              className="lg:hidden inline-flex items-center gap-1 sm:gap-1.5 rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-300 hover:bg-orange-500/15 text-xs sm:text-sm font-semibold px-2 py-1.5 sm:px-3 sm:py-2 transition-colors"
               title="Jump to your watchlist"
             >
-              <IconStar className="h-4 w-4" />
+              <IconStar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               Watchlist
             </button>
           </div>
