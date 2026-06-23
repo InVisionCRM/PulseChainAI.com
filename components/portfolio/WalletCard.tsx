@@ -44,8 +44,6 @@ const CHAIN_NAME: Record<ChainId, string> = {
   pulsechain: 'PulseChain',
 };
 
-const truncate = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
-
 // Token names are clamped to 15 characters (then ellipsised) so a long name
 // can't blow out the row layout.
 const clampName = (n: string | null | undefined) =>
@@ -226,130 +224,141 @@ export function WalletCard({ wallet }: Props) {
 
   return (
     <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl overflow-hidden">
-      <header className="flex flex-wrap items-center gap-3 p-4 border-b border-[var(--line)]">
-        <button
-          type="button"
-          onClick={() => setExpanded((p) => !p)}
-          className="flex items-center gap-2 text-[var(--text)]"
-          aria-expanded={expanded}
-        >
-          <IconChevronDown
-            className={`h-4 w-4 text-[var(--text-muted)] transition-transform ${expanded ? '' : '-rotate-90'}`}
-          />
-          <span className="font-semibold">
-            {wallet.label || truncate(wallet.address)}
-          </span>
-        </button>
-
-        {wallet.label && (
-          <span className="text-xs text-[var(--text-faint)] font-mono">{truncate(wallet.address)}</span>
-        )}
-
-        <button
-          type="button"
-          onClick={copyAddress}
-          className="text-[var(--text-faint)] hover:text-[var(--text)]"
-          title="Copy address"
-        >
-          <IconCopy className="h-4 w-4" />
-        </button>
-        {copied && <span className="text-xs text-[var(--up)]">Copied</span>}
-
-        <div className="flex items-center gap-1">
-          {wallet.chains.map((c) => {
-            const active = activeChains.has(c);
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => toggleChainFilter(c)}
-                aria-pressed={active}
-                title={active ? `Hide ${CHAIN_NAME[c]} tokens` : `Show ${CHAIN_NAME[c]} tokens`}
-                className={`flex items-center justify-center h-7 w-7 rounded-md border transition-all ${
-                  active
-                    ? 'border-[var(--line)] bg-[var(--surface)]'
-                    : 'border-transparent opacity-60 grayscale hover:opacity-90'
-                }`}
-              >
-                <img
-                  src={CHAIN_LOGO[c]}
-                  alt={CHAIN_NAME[c]}
-                  className="h-4 w-4 object-contain"
-                />
-              </button>
-            );
-          })}
+      <header className="p-2 border-b border-[var(--line)]">
+        {/* Address (full, mono) wrapping into two lines, with copy. */}
+        <div className="flex items-start gap-1.5">
+          <button
+            type="button"
+            onClick={() => setExpanded((p) => !p)}
+            className="flex items-start gap-1.5 text-[var(--text)] min-w-0 text-left"
+            aria-expanded={expanded}
+          >
+            <IconChevronDown
+              className={`h-4 w-4 mt-0.5 shrink-0 text-[var(--text-muted)] transition-transform ${expanded ? '' : '-rotate-90'}`}
+            />
+            <span className="min-w-0">
+              {wallet.label && (
+                <span className="block font-semibold leading-tight">{wallet.label}</span>
+              )}
+              <span className="block text-sm font-mono leading-tight text-[var(--text)]">
+                {wallet.address.slice(0, 21)}
+              </span>
+              <span className="block text-sm font-mono leading-tight text-[var(--text)]">
+                {wallet.address.slice(21)}
+              </span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={copyAddress}
+            className="shrink-0 mt-0.5 text-[var(--text-faint)] hover:text-[var(--text)]"
+            title="Copy address"
+          >
+            <IconCopy className="h-4 w-4" />
+          </button>
+          {copied && <span className="shrink-0 mt-0.5 text-xs text-[var(--up)]">Copied</span>}
         </div>
 
-        <div className="ml-auto flex items-center gap-3">
-          <div className="text-right">
-            <div className="text-xs text-[var(--text-faint)] uppercase tracking-wide">Total</div>
-            <div className="text-lg font-semibold text-[var(--text)] tabular-nums">
-              {fmtUsd(filteredTotalUsd)}
-            </div>
-            {totalsDiffer && (
-              <div
-                className="text-[10px] uppercase tracking-wide tabular-nums"
-                style={{ color: 'rgba(255, 255, 255, 0.4)' }}
-              >
-                of {fmtUsd(totalUsd)}
-              </div>
-            )}
+        {/* Wallet value, left-aligned. */}
+        <div className="mt-1">
+          <div className="text-xs text-[var(--text-faint)] uppercase tracking-wide">Total</div>
+          <div className="text-lg font-semibold text-[var(--text)] tabular-nums">
+            {fmtUsd(filteredTotalUsd)}
           </div>
-          <a
-            href={`https://revoke.cash/address/${wallet.address}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[var(--text-muted)] hover:text-amber-300"
-            title="Check & revoke token approvals on revoke.cash"
-            aria-label="Revoke approvals on revoke.cash"
-          >
-            <IconShieldHalf className="h-5 w-5" />
-          </a>
-          <button
-            type="button"
-            onClick={() => openManageTokens(wallet.address)}
-            className="text-[var(--text-muted)] hover:text-[var(--text)] relative"
-            title={
-              hiddenForChain.length > 0
-                ? `Manage tokens (${hiddenForChain.length} hidden)`
-                : 'Manage tokens'
-            }
-            aria-label="Manage tokens"
-          >
-            <IconAdjustmentsHorizontal className="h-5 w-5" />
-            {hiddenForChain.length > 0 && (
-              <span
-                className="absolute -top-1 -right-1 text-[9px] font-bold rounded-full px-1 leading-none py-0.5 min-w-[16px] text-center"
-                style={{
-                  backgroundColor: 'rgba(168, 85, 247, 0.85)',
-                  color: '#fff',
-                }}
-              >
-                {hiddenForChain.length}
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={refresh}
-            disabled={isLoading}
-            className="text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40"
-            title="Refresh"
-          >
-            <IconRefresh
-              className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`}
-            />
-          </button>
-          <MoveToGroupMenu address={wallet.address} />
-          <button
-            type="button"
-            onClick={() => removeWallet(wallet.address)}
-            className="text-[var(--text-faint)] hover:text-red-400"
-            title="Remove wallet"
-          >
-            <IconTrash className="h-5 w-5" />
-          </button>
+          {totalsDiffer && (
+            <div
+              className="text-[10px] uppercase tracking-wide tabular-nums"
+              style={{ color: 'rgba(255, 255, 255, 0.4)' }}
+            >
+              of {fmtUsd(totalUsd)}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom row: network filters (left) + action icons (bottom-right). */}
+        <div className="mt-1 flex items-end justify-between gap-2">
+          <div className="flex items-center gap-1">
+            {wallet.chains.map((c) => {
+              const active = activeChains.has(c);
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => toggleChainFilter(c)}
+                  aria-pressed={active}
+                  title={active ? `Hide ${CHAIN_NAME[c]} tokens` : `Show ${CHAIN_NAME[c]} tokens`}
+                  className={`flex items-center justify-center h-7 w-7 rounded-md border transition-all ${
+                    active
+                      ? 'border-[var(--line)] bg-[var(--surface)]'
+                      : 'border-transparent opacity-60 grayscale hover:opacity-90'
+                  }`}
+                >
+                  <img
+                    src={CHAIN_LOGO[c]}
+                    alt={CHAIN_NAME[c]}
+                    className="h-4 w-4 object-contain"
+                  />
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <a
+              href={`https://revoke.cash/address/${wallet.address}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--text-muted)] hover:text-amber-300"
+              title="Check & revoke token approvals on revoke.cash"
+              aria-label="Revoke approvals on revoke.cash"
+            >
+              <IconShieldHalf className="h-5 w-5" />
+            </a>
+            <button
+              type="button"
+              onClick={() => openManageTokens(wallet.address)}
+              className="text-[var(--text-muted)] hover:text-[var(--text)] relative"
+              title={
+                hiddenForChain.length > 0
+                  ? `Manage tokens (${hiddenForChain.length} hidden)`
+                  : 'Manage tokens'
+              }
+              aria-label="Manage tokens"
+            >
+              <IconAdjustmentsHorizontal className="h-5 w-5" />
+              {hiddenForChain.length > 0 && (
+                <span
+                  className="absolute -top-1 -right-1 text-[9px] font-bold rounded-full px-1 leading-none py-0.5 min-w-[16px] text-center"
+                  style={{
+                    backgroundColor: 'rgba(168, 85, 247, 0.85)',
+                    color: '#fff',
+                  }}
+                >
+                  {hiddenForChain.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={refresh}
+              disabled={isLoading}
+              className="text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40"
+              title="Refresh"
+            >
+              <IconRefresh
+                className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`}
+              />
+            </button>
+            <MoveToGroupMenu address={wallet.address} />
+            <button
+              type="button"
+              onClick={() => removeWallet(wallet.address)}
+              className="text-[var(--text-faint)] hover:text-red-400"
+              title="Remove wallet"
+            >
+              <IconTrash className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -357,7 +366,7 @@ export function WalletCard({ wallet }: Props) {
         <div className="p-4 space-y-3">
           {/* Tokens | Activity switch — Activity is the DeBank-style decoded
               transaction history; Tokens is the holdings table + approvals. */}
-          <div className="inline-flex rounded-lg border border-[var(--line)] bg-[var(--surface)] p-0.5">
+          <div className="flex flex-wrap justify-center gap-0.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-0.5">
             <button
               type="button"
               onClick={() => setView('tokens')}
