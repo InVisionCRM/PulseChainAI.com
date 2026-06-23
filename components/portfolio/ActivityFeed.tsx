@@ -18,6 +18,9 @@ import {
   IconExternalLink,
   IconHistory,
   IconAlertTriangle,
+  IconChevronDown,
+  IconCopy,
+  IconCheck,
 } from '@tabler/icons-react';
 import type {
   ChainId,
@@ -26,7 +29,7 @@ import type {
   WalletTransaction,
   WalletHistoryResponse,
 } from '@/services';
-import { pulsechainTxUrl, PULSECHAIN_EXPLORER_NAME } from '@/lib/pulsechainExplorer';
+import { pulsechainTxUrl, pulsechainAddressUrl, PULSECHAIN_EXPLORER_NAME } from '@/lib/pulsechainExplorer';
 import { ChainLogo } from '@/components/ui/ChainLogo';
 import { getKnownAddress, getKnownAddressLabel } from '@/lib/gumshoe/address-labels';
 import { CounterpartyBadge } from '@/components/portfolio/counterpartyBadge';
@@ -63,6 +66,10 @@ const EXPLORER_TX: Record<ChainId, (h: string) => string> = {
 const EXPLORER_NAME: Record<ChainId, string> = {
   pulsechain: PULSECHAIN_EXPLORER_NAME,
   ethereum: 'Etherscan',
+};
+const EXPLORER_ADDR: Record<ChainId, (a: string) => string> = {
+  pulsechain: pulsechainAddressUrl,
+  ethereum: (a) => `https://etherscan.io/address/${a}`,
 };
 
 export const ACTION_META: Record<TxActionType, { label: string; glyph: string; color: string }> = {
@@ -408,6 +415,7 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
   const failed = tx.status === 'failed';
   const native = NATIVE_SYMBOL[tx.chain];
   const known = getKnownAddress(tx.counterparty);
+  const [open, setOpen] = useState(false);
 
   return (
     <div className={`relative pl-12 ${tx.isScam ? 'opacity-50' : ''}`}>
@@ -421,7 +429,12 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
         {fmtClock(tx.timestamp)}
       </span>
 
-      <div className="flex items-start gap-3 border-t border-[var(--line-soft)] py-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-start gap-3 border-t border-[var(--line-soft)] py-3 text-left"
+      >
         {/* action glyph + chain badge */}
         <div className="relative shrink-0">
           <div
@@ -468,15 +481,10 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
             {tx.gasFeeNative != null && tx.gasFeeNative > 0 && (
               <span>⛽ {fmtAmount(tx.gasFeeNative)} {native}</span>
             )}
-            <a
-              href={EXPLORER_TX[tx.chain](tx.hash)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-0.5 hover:text-[var(--text-muted)]"
-            >
-              {EXPLORER_NAME[tx.chain]}
-              <IconExternalLink className="h-3 w-3" />
-            </a>
+            <span className="inline-flex items-center gap-0.5 text-[var(--text-muted)]">
+              {open ? 'Hide details' : 'Details'}
+              <IconChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+            </span>
           </div>
         </div>
 
@@ -488,8 +496,170 @@ function TimelineRow({ tx }: { tx: WalletTransaction }) {
             tx.flows.map((f, i) => <FlowChip key={i} flow={f} />)
           )}
         </div>
+      </button>
+
+      {open && <TxDetail tx={tx} />}
+    </div>
+  );
+}
+
+// Expanded on-chain detail panel: full timestamp, tx hash, from/to counterparty,
+// method, status, protocol, gas (native + USD), and every token flow with its
+// contract address — each with copy buttons and explorer links.
+function TxDetail({ tx }: { tx: WalletTransaction }) {
+  const native = NATIVE_SYMBOL[tx.chain];
+  const fullDate = new Date(tx.timestamp).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const cpLabel =
+    tx.counterpartyLabel || getKnownAddressLabel(tx.counterparty) || null;
+  const statusLabel =
+    tx.status === 'failed' ? 'Failed' : tx.status === 'pending' ? 'Pending' : 'Success';
+
+  return (
+    <div className="mb-3 ml-1 space-y-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-[11px]">
+      <DetailRow label="Time">
+        <span className="text-[var(--text)] tabular-nums">{fullDate}</span>
+      </DetailRow>
+
+      <DetailRow label="Tx hash">
+        <AddrLine value={tx.hash} href={EXPLORER_TX[tx.chain](tx.hash)} />
+      </DetailRow>
+
+      {tx.counterparty && (
+        <DetailRow label={tx.action === 'send' ? 'To' : tx.action === 'receive' ? 'From' : 'Interacted with'}>
+          <div className="flex flex-col gap-0.5">
+            {cpLabel && <span className="font-semibold text-[var(--text)]">{cpLabel}</span>}
+            <AddrLine value={tx.counterparty} href={EXPLORER_ADDR[tx.chain](tx.counterparty)} />
+          </div>
+        </DetailRow>
+      )}
+
+      {tx.method && (
+        <DetailRow label="Method">
+          <span className="break-all font-mono text-[var(--text)]">{tx.method}</span>
+        </DetailRow>
+      )}
+
+      {tx.protocol?.name && (
+        <DetailRow label="Protocol">
+          <span className="text-[var(--text)]">
+            {tx.protocol.name}
+            {tx.protocol.kind ? <span className="text-[var(--text-muted)]"> · {tx.protocol.kind}</span> : null}
+          </span>
+        </DetailRow>
+      )}
+
+      <DetailRow label="Status">
+        <span className={tx.status === 'failed' ? 'font-semibold text-red-300' : 'text-[var(--up)]'}>
+          {statusLabel}
+        </span>
+      </DetailRow>
+
+      {tx.gasFeeNative != null && tx.gasFeeNative > 0 && (
+        <DetailRow label="Gas fee">
+          <span className="text-[var(--text)] tabular-nums">
+            {fmtAmount(tx.gasFeeNative)} {native}
+            {tx.gasFeeUsd != null && (
+              <span className="text-[var(--text-muted)]"> · {fmtUsd(tx.gasFeeUsd)}</span>
+            )}
+          </span>
+        </DetailRow>
+      )}
+
+      {tx.flows.length > 0 && (
+        <div className="border-t border-[var(--line-soft)] pt-2">
+          <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[var(--text-faint)]">
+            Token transfers ({tx.flows.length})
+          </div>
+          <div className="space-y-1.5">
+            {tx.flows.map((f, i) => (
+              <FlowDetail key={i} flow={f} chain={tx.chain} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FlowDetail({ flow, chain }: { flow: TokenFlow; chain: ChainId }) {
+  const color = flow.isLp ? '#7dd3fc' : flow.direction === 'in' ? '#6ee7b7' : '#fda4af';
+  const sign = flow.direction === 'in' ? '+' : '−';
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <TokenDot flow={flow} />
+        <div className="min-w-0">
+          <div className="truncate text-[var(--text)]">
+            {flow.name || flow.symbol}
+            <span className="text-[var(--text-muted)]"> · {flow.symbol}</span>
+          </div>
+          {!flow.isNative && flow.tokenAddress && (
+            <AddrLine value={flow.tokenAddress} href={EXPLORER_ADDR[chain](flow.tokenAddress)} />
+          )}
+        </div>
+      </div>
+      <div className="shrink-0 text-right tabular-nums" style={{ color }}>
+        <div className="font-semibold">
+          {sign}
+          {fmtAmount(flow.amountFormatted)} {flow.symbol}
+        </div>
+        {flow.valueUsd != null && (
+          <div className="text-[10px] font-normal text-[var(--text-muted)]">{fmtUsd(flow.valueUsd)}</div>
+        )}
       </div>
     </div>
+  );
+}
+
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="w-24 shrink-0 text-[10px] uppercase tracking-wide text-[var(--text-faint)]">{label}</span>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
+// Monospaced address/hash with a copy button and an explorer link.
+function AddrLine({ value, href }: { value: string; href: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard?.writeText(value).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1200);
+      },
+      () => {},
+    );
+  };
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="break-all font-mono text-[var(--text-muted)]">{value}</span>
+      <button
+        type="button"
+        onClick={copy}
+        title="Copy"
+        className="shrink-0 text-[var(--text-faint)] hover:text-[var(--text)]"
+      >
+        {copied ? <IconCheck className="h-3 w-3 text-[var(--up)]" /> : <IconCopy className="h-3 w-3" />}
+      </button>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Open in explorer"
+        className="shrink-0 text-[var(--text-faint)] hover:text-[var(--text)]"
+      >
+        <IconExternalLink className="h-3 w-3" />
+      </a>
+    </span>
   );
 }
 
