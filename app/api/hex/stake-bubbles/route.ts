@@ -3,22 +3,10 @@ import { currentHexDay, HEX_ADDRESS } from '@/lib/hex/hexDay';
 import { buildHolderGraph } from '@/lib/portfolio/holderGraph';
 import type { HolderNode, ChainId } from '@/lib/portfolio/holders';
 import { getKnownAddress } from '@/lib/gumshoe/address-labels';
+import { hexSubgraphQuery, type HexNet as Net } from '@/lib/hex/subgraph';
 
 export const revalidate = 0;
 export const maxDuration = 60;
-
-type Net = 'ethereum' | 'pulsechain';
-
-const SUBGRAPH: Record<Net, { url: string; headers: Record<string, string> }> = {
-  pulsechain: {
-    url: 'https://graph.pulsechain.com/subgraphs/name/Codeakk/Hex',
-    headers: { 'Content-Type': 'application/json' },
-  },
-  ethereum: {
-    url: 'https://gateway.thegraph.com/api/subgraphs/id/A6JyHRn6CUvvgBZwni9JyrgovKWK6FoSQ8TVt6JJGhcp',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer a08fcab20e333b38bb75daf3d97a0bb5' },
-  },
-};
 
 const FIELDS = 'stakeId stakerAddr stakedHearts stakeShares stakedDays startDay endDay';
 // How many staker addresses we cluster (transfer scan each) — bounded like the
@@ -31,14 +19,7 @@ interface RawStart {
   stakedDays: string; startDay: string; endDay: string;
 }
 
-async function gql<T>(net: Net, query: string): Promise<T> {
-  const cfg = SUBGRAPH[net];
-  const res = await fetch(cfg.url, { method: 'POST', headers: cfg.headers, body: JSON.stringify({ query }) });
-  if (!res.ok) throw new Error(`subgraph ${res.status}`);
-  const j = await res.json();
-  if (j.errors?.length) throw new Error(j.errors[0]?.message || 'subgraph error');
-  return j.data as T;
-}
+const gql = hexSubgraphQuery;
 
 async function endedIds(net: Net, starts: RawStart[]): Promise<Set<string>> {
   const ended = new Set<string>();

@@ -6,35 +6,16 @@ import {
   activeByAmount, completedByAmount, highestRoi, activeOverdue, recentPenalties,
   recentStarts, recentEnds, topHolders, aggregateStaked,
 } from '@/lib/hex/leaderboards';
+import { hexSubgraphQuery, type HexNet as Net } from '@/lib/hex/subgraph';
 
 export const revalidate = 0;
 // The days-late board can page deep, so give it headroom over the 10s default.
 export const maxDuration = 60;
 
-type Net = 'ethereum' | 'pulsechain';
-
-const SUBGRAPH: Record<Net, { url: string; headers: Record<string, string> }> = {
-  pulsechain: {
-    url: 'https://graph.pulsechain.com/subgraphs/name/Codeakk/Hex',
-    headers: { 'Content-Type': 'application/json' },
-  },
-  ethereum: {
-    url: 'https://gateway.thegraph.com/api/subgraphs/id/A6JyHRn6CUvvgBZwni9JyrgovKWK6FoSQ8TVt6JJGhcp',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer a08fcab20e333b38bb75daf3d97a0bb5' },
-  },
-};
-
 const START_FIELDS = 'stakeId stakerAddr stakedHearts stakeShares stakedDays startDay endDay timestamp';
 const END_FIELDS = 'stakeId stakerAddr payout stakedHearts penalty servedDays timestamp';
 
-async function gql<T>(net: Net, query: string): Promise<T> {
-  const cfg = SUBGRAPH[net];
-  const res = await fetch(cfg.url, { method: 'POST', headers: cfg.headers, body: JSON.stringify({ query }) });
-  if (!res.ok) throw new Error(`subgraph ${res.status}`);
-  const j = await res.json();
-  if (j.errors?.length) throw new Error(j.errors[0]?.message || 'subgraph error');
-  return j.data as T;
-}
+const gql = hexSubgraphQuery;
 
 /** stakeIds that already have an end event, for excluding still-active stakes. */
 async function endedIds(net: Net, starts: RawStart[]): Promise<Set<string>> {

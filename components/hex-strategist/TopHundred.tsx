@@ -99,22 +99,32 @@ export default function TopHundred({ net }: { net: Network }) {
   const [rows, setRows] = useState<LeaderRow[]>([]);
   const [note, setNote] = useState<string | undefined>();
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [errMsg, setErrMsg] = useState<string | null>(null);
   const [rates, setRates] = useState<Rates | null>(null);
   const [detail, setDetail] = useState<string | null>(null); // address being inspected
 
   useEffect(() => {
     let alive = true;
     setStatus('loading');
+    setErrMsg(null);
     setRows([]);
     fetch(`/api/hex/leaderboards?network=${net}&board=${board}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(async (r) => {
+        if (r.ok) return r.json();
+        const j = await r.json().catch(() => null);
+        throw new Error(j?.error || `HTTP ${r.status}`);
+      })
       .then((d: { rows: LeaderRow[]; note?: string }) => {
         if (!alive) return;
         setRows(d.rows ?? []);
         setNote(d.note);
         setStatus('ready');
       })
-      .catch(() => alive && setStatus('error'));
+      .catch((e) => {
+        if (!alive) return;
+        setErrMsg(e instanceof Error ? e.message : null);
+        setStatus('error');
+      });
     return () => {
       alive = false;
     };
@@ -161,7 +171,12 @@ export default function TopHundred({ net }: { net: Network }) {
           <span className="inline-flex items-center gap-2"><IconRefresh className="h-4 w-4 animate-spin" /> Loading the leaderboard…</span>
         </div>
       )}
-      {status === 'error' && <div className="py-12 text-center text-sm text-red-300">Couldn’t load this leaderboard.</div>}
+      {status === 'error' && (
+        <div className="py-12 text-center text-sm text-red-300">
+          Couldn’t load this leaderboard.
+          {errMsg && <div className="mt-2 text-xs text-[var(--text-faint)]">{errMsg}</div>}
+        </div>
+      )}
       {status === 'ready' && rows.length === 0 && (
         <div className="py-12 text-center text-sm text-[var(--text-faint)]">No rows for {net} yet.</div>
       )}

@@ -1,20 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { backtestRadar, type TimedEvent } from '@/lib/hex/radarBacktest';
+import { hexSubgraphQuery, type HexNet as Net } from '@/lib/hex/subgraph';
 
 export const revalidate = 0;
-
-type Net = 'ethereum' | 'pulsechain';
-
-const SUBGRAPH: Record<Net, { url: string; headers: Record<string, string> }> = {
-  pulsechain: {
-    url: 'https://graph.pulsechain.com/subgraphs/name/Codeakk/Hex',
-    headers: { 'Content-Type': 'application/json' },
-  },
-  ethereum: {
-    url: 'https://gateway.thegraph.com/api/subgraphs/id/A6JyHRn6CUvvgBZwni9JyrgovKWK6FoSQ8TVt6JJGhcp',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer a08fcab20e333b38bb75daf3d97a0bb5' },
-  },
-};
+// Pulls 1000 starts + 1000 ends from the (slower) decentralized gateway on
+// Ethereum — past the 10s default.
+export const maxDuration = 60;
 
 // We pull more starts than ends so the re-stake window after recent ends is
 // well covered (re-stakes happen *after* the end we're scoring).
@@ -22,12 +13,7 @@ const ENDS = 1000;
 const STARTS = 1000;
 
 async function gql<T>(net: Net, query: string): Promise<T> {
-  const cfg = SUBGRAPH[net];
-  const res = await fetch(cfg.url, { method: 'POST', headers: cfg.headers, body: JSON.stringify({ query }) });
-  if (!res.ok) throw new Error(`subgraph ${res.status}`);
-  const j = await res.json();
-  if (j.errors?.length) throw new Error(j.errors[0]?.message || 'subgraph error');
-  return j.data as T;
+  return hexSubgraphQuery<T>(net, query);
 }
 
 const num = (v: unknown) => {
