@@ -4,19 +4,16 @@ import { useMemo, useState } from 'react';
 import {
   IconChevronDown,
   IconCopy,
-  IconRefresh,
-  IconTrash,
   IconAlertTriangle,
   IconChartHistogram,
   IconAdjustmentsHorizontal,
-  IconShieldHalf,
 } from '@tabler/icons-react';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { useInsightsStore } from '@/lib/stores/insightsStore';
 import { useManageTokensStore } from '@/lib/stores/manageTokensStore';
 import { ApprovalsPanel } from '@/components/portfolio/ApprovalsPanel';
-import { MoveToGroupMenu } from '@/components/portfolio/MoveToGroupMenu';
+import { WalletActionsMenu } from '@/components/portfolio/WalletActionsMenu';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
 import { ProtocolPositions } from '@/components/portfolio/ProtocolPositions';
 import { HexStakes } from '@/components/portfolio/HexStakes';
@@ -82,8 +79,11 @@ interface Props {
 export function WalletCard({ wallet }: Props) {
   const { snapshot, tokens, totalUsd, isLoading, error, refresh } = usePortfolio(wallet.address);
   const removeWallet = usePortfolioStore((s) => s.removeWallet);
+  const setWalletLabel = usePortfolioStore((s) => s.setWalletLabel);
 
   const [expanded, setExpanded] = useState(true);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(wallet.label ?? '');
   const [view, setView] = useState<'tokens' | 'activity' | 'defi' | 'staking' | 'connections' | 'funding'>('tokens');
   const [connView, setConnView] = useState<'list' | 'graph'>('list');
   const [sortKey, setSortKey] = useState<SortKey>('value');
@@ -223,6 +223,15 @@ export function WalletCard({ wallet }: Props) {
     }
   };
 
+  const startRename = () => {
+    setNameDraft(wallet.label ?? '');
+    setEditingName(true);
+  };
+  const commitName = () => {
+    setWalletLabel(wallet.address, nameDraft.trim());
+    setEditingName(false);
+  };
+
   return (
     <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl overflow-hidden">
       <header className="p-2 border-b border-[var(--line)]">
@@ -238,7 +247,7 @@ export function WalletCard({ wallet }: Props) {
               className={`h-4 w-4 mt-0.5 shrink-0 text-[var(--text-muted)] transition-transform ${expanded ? '' : '-rotate-90'}`}
             />
             <span className="min-w-0">
-              {wallet.label && (
+              {wallet.label && !editingName && (
                 <span className="block font-semibold leading-tight">{wallet.label}</span>
               )}
               <span className="block text-sm font-mono leading-tight text-[var(--text)]">
@@ -276,7 +285,33 @@ export function WalletCard({ wallet }: Props) {
           </div>
         </div>
 
-        {/* Bottom row: network filters (left) + action icons (bottom-right). */}
+        {editingName && (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <input
+              autoFocus
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitName();
+                if (e.key === 'Escape') setEditingName(false);
+              }}
+              onBlur={commitName}
+              placeholder="Wallet name"
+              maxLength={40}
+              className="min-w-0 flex-1 rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-3 py-1.5 text-sm text-[var(--text)] placeholder-[var(--text-faint)] focus:border-[var(--line-strong)] focus:outline-none"
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={commitName}
+              className="shrink-0 rounded-lg border border-[var(--line)] px-3 py-1.5 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface-3)]"
+            >
+              Save
+            </button>
+          </div>
+        )}
+
+        {/* Bottom row: network filters (left) + actions menu (bottom-right). */}
         <div className="mt-1 flex items-end justify-between gap-2">
           <div className="flex items-center gap-1">
             {wallet.chains.map((c) => {
@@ -304,62 +339,15 @@ export function WalletCard({ wallet }: Props) {
             })}
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
-            <a
-              href={`https://revoke.cash/address/${wallet.address}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[var(--text-muted)] hover:text-amber-300"
-              title="Check & revoke token approvals on revoke.cash"
-              aria-label="Revoke approvals on revoke.cash"
-            >
-              <IconShieldHalf className="h-5 w-5" />
-            </a>
-            <button
-              type="button"
-              onClick={() => openManageTokens(wallet.address)}
-              className="text-[var(--text-muted)] hover:text-[var(--text)] relative"
-              title={
-                hiddenForChain.length > 0
-                  ? `Manage tokens (${hiddenForChain.length} hidden)`
-                  : 'Manage tokens'
-              }
-              aria-label="Manage tokens"
-            >
-              <IconAdjustmentsHorizontal className="h-5 w-5" />
-              {hiddenForChain.length > 0 && (
-                <span
-                  className="absolute -top-1 -right-1 text-[9px] font-bold rounded-full px-1 leading-none py-0.5 min-w-[16px] text-center"
-                  style={{
-                    backgroundColor: 'rgba(168, 85, 247, 0.85)',
-                    color: '#fff',
-                  }}
-                >
-                  {hiddenForChain.length}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={refresh}
-              disabled={isLoading}
-              className="text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40"
-              title="Refresh"
-            >
-              <IconRefresh
-                className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`}
-              />
-            </button>
-            <MoveToGroupMenu address={wallet.address} />
-            <button
-              type="button"
-              onClick={() => removeWallet(wallet.address)}
-              className="text-[var(--text-faint)] hover:text-red-400"
-              title="Remove wallet"
-            >
-              <IconTrash className="h-5 w-5" />
-            </button>
-          </div>
+          <WalletActionsMenu
+            address={wallet.address}
+            hiddenCount={hiddenForChain.length}
+            isLoading={isLoading}
+            onRename={startRename}
+            onManageTokens={() => openManageTokens(wallet.address)}
+            onRefresh={refresh}
+            onRemove={() => removeWallet(wallet.address)}
+          />
         </div>
       </header>
 
