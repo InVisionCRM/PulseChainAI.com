@@ -39,6 +39,8 @@ export function IntroSplash() {
   useEffect(() => {
     if (!show) return;
     const hardStop = setTimeout(dismiss, MAX_MS);
+    // Force playback so iOS/Safari never shows its native play-button overlay.
+    videoRef.current?.play().catch(() => {});
     return () => clearTimeout(hardStop);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show]);
@@ -63,9 +65,12 @@ export function IntroSplash() {
         autoPlay
         muted
         playsInline
+        controls={false}
+        disablePictureInPicture
         preload="auto"
+        onCanPlay={(e) => e.currentTarget.play().catch(() => {})}
         onEnded={dismiss}
-        className="h-full w-full object-cover"
+        className="h-full w-full object-contain"
       />
 
       {/* Tagline — fades in over the lower third for legibility */}
