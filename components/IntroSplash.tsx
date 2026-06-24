@@ -67,6 +67,27 @@ export function IntroSplash() {
         onEnded={dismiss}
         className="h-full w-full object-cover"
       />
+
+      {/* Tagline — fades in over the lower third for legibility */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-6 pb-20 pt-24 text-center">
+        <h1 className="intro-fade flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-lg font-semibold tracking-tight text-white sm:text-2xl">
+          <span>Token Analyzer</span>
+          <span className="text-white/30">/</span>
+          <span>AI Code Reader</span>
+          <span className="text-white/30">/</span>
+          <span>Portfolio Manager</span>
+        </h1>
+        <p className="intro-fade intro-fade-delay text-sm font-medium tracking-wide text-purple-300 sm:text-base">
+          Morbius.io
+        </p>
+      </div>
+
+      <style>{`
+        @keyframes introFadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .intro-fade { opacity: 0; animation: introFadeUp 0.8s ease-out 0.5s forwards; }
+        .intro-fade-delay { animation-delay: 0.9s; }
+      `}</style>
+
       <button
         type="button"
         onClick={(e) => {
