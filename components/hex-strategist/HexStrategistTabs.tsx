@@ -1,12 +1,23 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { IconBolt, IconRadar2, IconTrophy, IconChartBubble } from '@tabler/icons-react';
 import type { Network } from '@/lib/hex/strategistData';
-import HexStrategist from './HexStrategist';
-import WhaleRadar from './WhaleRadar';
-import TopHundred from './TopHundred';
-import StakeBubbleMap from './StakeBubbleMap';
+
+// Each tab pulls in heavy libs (recharts for the designer/radar, d3-force for
+// the bubble map). Loading them on demand keeps the initial Strategist payload
+// small — only the recharts/d3 chunk for the tab you actually open is fetched.
+const TabSkeleton = () => (
+  <div className="grid h-[420px] place-items-center rounded-2xl border border-[var(--line)] bg-[var(--surface)] text-sm text-[var(--text-faint)]">
+    Loading…
+  </div>
+);
+const dynOpts = { loading: TabSkeleton, ssr: false };
+const HexStrategist = dynamic(() => import('./HexStrategist'), dynOpts);
+const WhaleRadar = dynamic(() => import('./WhaleRadar'), dynOpts);
+const TopHundred = dynamic(() => import('./TopHundred'), dynOpts);
+const StakeBubbleMap = dynamic(() => import('./StakeBubbleMap'), dynOpts);
 
 type Mode = 'designer' | 'radar' | 'top100' | 'bubbles';
 

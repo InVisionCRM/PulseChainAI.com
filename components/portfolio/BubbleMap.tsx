@@ -39,7 +39,9 @@ import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 // network call each. Kept constant so wait time doesn't grow with bubble count.
 const EDGE_LIMIT = 150;
 const NODE_OPTIONS = [250, 500, 1000] as const;
-const DEFAULT_LIMIT = 500;
+// Default to the lowest option for the fastest first paint — bigger counts are
+// one click away, and clusters always cover the top EDGE_LIMIT regardless.
+const DEFAULT_LIMIT = NODE_OPTIONS[0];
 
 const EXPLORER_ADDRESS: Record<ChainId, string> = {
   ethereum: 'https://etherscan.io/address/',

@@ -48,7 +48,21 @@ import {
 } from '@/components/geicko';
 import { DesktopSearchBar } from '@/components/DesktopSearchBar';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
-import { BubbleMap } from '@/components/portfolio/BubbleMap';
+import dynamic from 'next/dynamic';
+
+// The bubble map pulls in d3-force and only renders inside the Holders tab, so
+// load it on demand instead of in the page's initial bundle.
+const BubbleMap = dynamic(
+  () => import('@/components/portfolio/BubbleMap').then((m) => m.BubbleMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="grid h-[460px] place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface)] text-sm text-[var(--text-faint)]">
+        Loading bubble map…
+      </div>
+    ),
+  },
+);
 
 function ContractHolderTooltipRow({
   holder,

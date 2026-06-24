@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { TickerCardWithPopover } from './TickerCardWithPopover';
+import { usePollingEffect } from '@/hooks/usePollingEffect';
 
 const GOLD_BADGES_FALLBACK = [
   '0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1',
@@ -55,37 +56,34 @@ export function TopTickerBar() {
       .catch(() => setPriorityAddresses(GOLD_BADGES_FALLBACK));
   }, []);
 
-  useEffect(() => {
+  // Single server-proxied call replaces the previous fan-out of browser
+  // fetches to api.dexscreener.com. Direct browser calls were silently
+  // hitting Cloudflare's HTML challenge (no real User-Agent) and
+  // resolving to null for every token, which is why the ticker bar
+  // had been rendering nothing. The server route filters to PulseChain
+  // pairs that include WPLS and returns the exact same shape this
+  // component (and TickerCardWithPopover) already consume.
+  const fetchTokens = useCallback(async () => {
     const list = priorityAddresses.length > 0 ? priorityAddresses : GOLD_BADGES_FALLBACK;
     if (list.length === 0) return;
-
-    // Single server-proxied call replaces the previous fan-out of browser
-    // fetches to api.dexscreener.com. Direct browser calls were silently
-    // hitting Cloudflare's HTML challenge (no real User-Agent) and
-    // resolving to null for every token, which is why the ticker bar
-    // had been rendering nothing. The server route filters to PulseChain
-    // pairs that include WPLS and returns the exact same shape this
-    // component (and TickerCardWithPopover) already consume.
-    const fetchTokens = async () => {
-      try {
-        const res = await fetch('/api/portfolio/ticker-pairs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ addresses: list }),
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        const fetched: TokenData[] = Array.isArray(data?.tokens) ? data.tokens : [];
-        if (fetched.length > 0) setTokens(fetched);
-      } catch (error) {
-        console.error('❌ Failed to fetch priority tokens:', error);
-      }
-    };
-
-    fetchTokens();
-    const interval = setInterval(fetchTokens, 120000);
-    return () => clearInterval(interval);
+    try {
+      const res = await fetch('/api/portfolio/ticker-pairs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ addresses: list }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const fetched: TokenData[] = Array.isArray(data?.tokens) ? data.tokens : [];
+      if (fetched.length > 0) setTokens(fetched);
+    } catch (error) {
+      console.error('❌ Failed to fetch priority tokens:', error);
+    }
   }, [priorityAddresses]);
+
+  // Initial load; the interval (visibility-aware) is owned by usePollingEffect.
+  useEffect(() => { void fetchTokens(); }, [fetchTokens]);
+  usePollingEffect(() => void fetchTokens(), 120000);
 
   const handlePause = () => {
     console.log('🔴 Pausing ticker animation');
