@@ -2,17 +2,12 @@
 
 import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import AdminStatsPanel from '@/components/AdminStatsPanel';
-import TokenAIChat from '@/components/TokenAIChat';
-import TokenContractView from '@/components/TokenContractView';
 import DexScreenerChart from '@/components/DexScreenerChart';
-import LiquidityTab from '@/components/LiquidityTab';
 import { LoaderOne, LoaderThree } from "@/components/ui/loader";
 import { Copy, Download, Info } from 'lucide-react';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem, ContractAuditResult } from '../../types';
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '@/services';
 import { analyzeContractAudit } from '../../services/contractAuditService';
-import ContractAuditPanel from '@/components/ContractAuditPanel';
 import {
   normalizeLabel,
   formatChainLabel,
@@ -63,6 +58,18 @@ const BubbleMap = dynamic(
     ),
   },
 );
+
+// These tab panels are only mounted when their tab/modal is opened, and several
+// pull heavy deps (syntax highlighter, markdown, audit logic). Loading them on
+// demand keeps the initial /geicko bundle lean.
+const TabLoading = () => (
+  <div className="grid h-48 place-items-center text-sm text-[var(--text-faint)]">Loading…</div>
+);
+const AdminStatsPanel = dynamic(() => import('@/components/AdminStatsPanel'), { loading: TabLoading });
+const TokenAIChat = dynamic(() => import('@/components/TokenAIChat'), { ssr: false, loading: TabLoading });
+const TokenContractView = dynamic(() => import('@/components/TokenContractView'), { ssr: false, loading: TabLoading });
+const LiquidityTab = dynamic(() => import('@/components/LiquidityTab'), { loading: TabLoading });
+const ContractAuditPanel = dynamic(() => import('@/components/ContractAuditPanel'), { ssr: false, loading: TabLoading });
 
 function ContractHolderTooltipRow({
   holder,
