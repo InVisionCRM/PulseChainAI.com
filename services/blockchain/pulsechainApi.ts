@@ -29,6 +29,7 @@ import type {
 
 import { SERVICE_CONFIG, API_ENDPOINTS, DEFAULT_PAGINATION_LIMIT } from '../core/config';
 import { validateAddress, handleApiError, withRetry } from '../core/errors';
+import { fetchWithTimeout } from '../core/fetchWithTimeout';
 
 export class PulsechainApiClient {
   private baseUrl: string;
@@ -73,9 +74,9 @@ export class PulsechainApiClient {
           ? `${url}?${searchParams.toString()}`
           : `${url}${endpoint}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
 
-        const response = await fetch(fullUrl, {
+        const response = await fetchWithTimeout(fullUrl, {
           headers: SERVICE_CONFIG.pulsechain.headers,
-        });
+        }, SERVICE_CONFIG.pulsechain.timeout);
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -800,7 +801,7 @@ export class PulsechainApiClient {
     }
     try {
       const url = `https://api.scan.pulsechain.com/api?module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${walletAddress}`;
-      const res = await fetch(url);
+      const res = await fetchWithTimeout(url, {}, SERVICE_CONFIG.pulsechain.timeout);
       if (!res.ok) {
         return { error: `HTTP ${res.status}`, success: false };
       }
