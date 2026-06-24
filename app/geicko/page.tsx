@@ -259,14 +259,28 @@ function GeickoPageContent() {
     setIsLoadingData(true);
     setError(null);
 
+    // The shared API client declares timeouts but never wires them to an
+    // AbortController, so a stalled upstream (Blockscout/DexScreener) leaves a
+    // fetch pending forever — which would hang Promise.allSettled below and pin
+    // isLoadingData=true, spinning the chart/stat tabs endlessly. Guard each
+    // call with a hard timeout so the load always settles and the UI resolves
+    // to real data or an empty state instead of an infinite spinner.
+    const withTimeout = <T,>(p: Promise<T>, ms = 20000): Promise<T> =>
+      Promise.race([
+        p,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error('request timed out')), ms),
+        ),
+      ]);
+
     try {
       // Always fetch contract data first (works for both tokens and non-token contracts)
       // Token-specific data is optional and failures are handled gracefully
       const [contractResult, tokenResult, dexResult, profileResult] = await Promise.allSettled([
-        fetchContract(address),
-        fetchTokenInfo(address).catch(() => ({ data: null, raw: null })), // Gracefully handle non-token contracts
-        fetchDexScreenerData(address).catch(() => ({ data: null, raw: null })), // Gracefully handle non-token contracts
-        dexscreenerApi.getTokenProfile(address).catch(() => ({ success: false, data: null })) // Gracefully handle non-token contracts
+        withTimeout(fetchContract(address)),
+        withTimeout(fetchTokenInfo(address)).catch(() => ({ data: null, raw: null })), // Gracefully handle non-token contracts
+        withTimeout(fetchDexScreenerData(address)).catch(() => ({ data: null, raw: null })), // Gracefully handle non-token contracts
+        withTimeout(dexscreenerApi.getTokenProfile(address)).catch(() => ({ success: false, data: null })) // Gracefully handle non-token contracts
       ]);
 
       // Handle contract data - this should always work for any contract
