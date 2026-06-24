@@ -28,7 +28,7 @@ import {
   projectStake,
   projectionCurve,
 } from '@/lib/hex/stakeMath';
-import { fmtHex, fmtTShares, fmtDuration } from '@/lib/hex/hexDay';
+import { fmtHex, fmtTShares, fmtDuration, fmtHexDate, currentHexDay } from '@/lib/hex/hexDay';
 import { fmtUsd } from '@/lib/format';
 import { type Network, type Rates, num, loadRates } from '@/lib/hex/strategistData';
 
@@ -90,7 +90,11 @@ export default function HexStrategist({ net }: { net: Network }) {
     );
   }
 
-  const pctStaked = rates.circulatingHex > 0 ? (rates.stakedHex / rates.circulatingHex) * 100 : null;
+  // "Circulating" supply excludes staked HEX, so % staked is of the total
+  // (staked + circulating) — not staked/circulating (which can exceed 100%).
+  const totalHex = rates.stakedHex + rates.circulatingHex;
+  const pctStaked = totalHex > 0 ? (rates.stakedHex / totalHex) * 100 : null;
+  const endDate = fmtHexDate(currentHexDay() + days);
 
   return (
     <div className="space-y-4">
@@ -129,6 +133,15 @@ export default function HexStrategist({ net }: { net: Network }) {
             />
           </label>
         </div>
+        {/* Maturity date + current APY for the chosen length. */}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-[var(--line)] pt-3 text-xs">
+          <span className="text-[var(--text-muted)]">
+            Ends ~ <span className="font-semibold text-[var(--text)]">{endDate}</span>
+          </span>
+          <span className="text-[var(--text-muted)]">
+            Current APY <span className="font-semibold text-orange-300">{target.apyPct.toFixed(1)}%</span>
+          </span>
+        </div>
       </div>
 
       {/* Projection for the chosen length */}
@@ -147,7 +160,7 @@ export default function HexStrategist({ net }: { net: Network }) {
         </div>
         <div className="h-56 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={curve} margin={{ top: 6, right: 8, bottom: 0, left: -12 }}>
+            <AreaChart data={curve} margin={{ top: 24, right: 12, bottom: 0, left: -12 }}>
               <defs>
                 <linearGradient id="roiFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#ff8a00" stopOpacity={0.45} />
@@ -160,7 +173,12 @@ export default function HexStrategist({ net }: { net: Network }) {
                 tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
                 tickFormatter={(d) => (d >= 365 ? `${(d / 365).toFixed(0)}y` : `${d}d`)}
               />
-              <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickFormatter={(v) => `${v}%`} width={44} />
+              <YAxis
+                tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+                tickFormatter={(v) => `${v}%`}
+                width={44}
+                domain={[0, (dataMax: number) => Math.ceil((dataMax * 1.12) / 10) * 10]}
+              />
               <Tooltip
                 contentStyle={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 12 }}
                 labelFormatter={(d) => `${Number(d).toLocaleString()} days (${fmtDuration(Number(d))})`}

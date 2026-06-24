@@ -31,9 +31,16 @@ export function stakeProgress(startDay: number, stakedDays: number, currentDay: 
 
 export function fmtDuration(days: number): string {
   if (!Number.isFinite(days) || days < 0) return '—';
-  const y = Math.floor(days / 365);
-  const d = Math.round(days - y * 365);
-  return y > 0 ? `${y}y ${d}d` : `${d}d`;
+  const total = Math.round(days);
+  const y = Math.floor(total / 365);
+  const rem = total - y * 365;
+  const m = Math.floor(rem / 30);
+  const d = rem - m * 30;
+  const parts: string[] = [];
+  if (y) parts.push(`${y}y`);
+  if (m) parts.push(`${m}mo`);
+  if (d || !parts.length) parts.push(`${d}d`);
+  return parts.join(' ');
 }
 
 export function fmtHex(hex: number): string {
