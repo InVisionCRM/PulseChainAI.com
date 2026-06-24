@@ -89,16 +89,26 @@ export async function probeMasterChef(
 /**
  * Probe a contract for a Synthetix StakingRewards-style position: `balanceOf`
  * is the user's staked amount and `stakingToken()` identifies what's staked.
- * Returns null if the contract isn't a staker or the user has nothing in it.
+ *
+ * Many PulseChain stakers (e.g. pTGC) are custom single-asset stakers that
+ * track `balanceOf(user)` but expose no `stakingToken()` view. For those we
+ * fall back to `approvedToken` — the token the user approved *to this very
+ * contract* is, by construction, what they staked here. Returns null if the
+ * contract isn't a staker or the user has nothing in it.
  */
 export async function probeStakingRewards(
   chain: ChainId,
   contract: string,
   user: string,
   name?: string,
+  approvedToken?: string,
 ): Promise<ProtocolPosition | null> {
-  const stakingToken = toAddr(await ethCall(chain, contract, STAKING.stakingToken));
-  if (!stakingToken) return null; // not a StakingRewards
+  let stakingToken = toAddr(await ethCall(chain, contract, STAKING.stakingToken));
+  if (!stakingToken) {
+    // No stakingToken() — fall back to the token the user approved to this contract.
+    if (!approvedToken || !/^0x[0-9a-f]{40}$/.test(approvedToken.toLowerCase())) return null;
+    stakingToken = approvedToken.toLowerCase();
+  }
   const staked = toBig(await ethCall(chain, contract, callData(STAKING.balanceOf, user.toLowerCase().replace(/^0x/, ''))));
   if (staked <= 0n) return null;
   const dec = await decomposeV2(chain, stakingToken, staked);
