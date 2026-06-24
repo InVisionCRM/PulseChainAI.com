@@ -29,6 +29,8 @@ import { ToastProvider } from "@/components/ui/toast-provider";
 import { AddToGroupModal } from "@/components/portfolio/AddToGroupModal";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { PullChainOverlay } from "@/components/theme/PullChainOverlay";
+import { IntroSplash } from "@/components/IntroSplash";
+import { InstallButton } from "@/components/pwa/InstallButton";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -175,6 +177,14 @@ export default function RootLayout({
             __html: `(function(){try{var t=localStorage.getItem('pc-theme');if(t!=='light'&&t!=='dark'){t='dark';}document.documentElement.classList.toggle('dark',t==='dark');}catch(e){document.documentElement.classList.add('dark');}})();`,
           }}
         />
+        {/* PWA: installable app metadata */}
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <meta name="theme-color" content="#0b0613" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Morbius" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} text-md md:text-base antialiased min-h-screen bg-[var(--app-bg)]`}
@@ -199,6 +209,9 @@ export default function RootLayout({
                         Get Morbius
                       </span>
                     </a>
+
+                    {/* Install as a PWA (hidden when already installed) */}
+                    <InstallButton />
 
                     {primaryLinks.map((link, idx) => (
                       <SidebarLink key={idx} link={link} />
@@ -263,6 +276,7 @@ export default function RootLayout({
         </div>
         <AddToGroupModal />
         <PullChainOverlay />
+        <IntroSplash />
         <Analytics />
       </body>
     </html>
