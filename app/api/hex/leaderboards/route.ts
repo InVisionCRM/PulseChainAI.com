@@ -76,36 +76,28 @@ const endsByServed = (net: Net, first: number) =>
   gql<{ stakeEnds: RawEnd[] }>(net, `{ stakeEnds(orderBy: servedDays, orderDirection: desc, first: ${first}){ ${END_FIELDS} } }`)
     .then((d) => d.stakeEnds ?? []);
 
-/**
- * Active stakes that are overdue: their committed end day is in the past, yet
- * no stake-end exists. We page starts ordered by endDay ascending (the most
- * overdue first), drop any that have actually ended, and collect the first 100
- * still-active ones — which are therefore the most overdue active stakes.
- */
-async function overdueActiveStarts(net: Net, currentDay: number): Promise<RawStart[]> {
-  const PAGE = 1000;
-  const MAX_PAGES = 8; // up to 8k oldest-end candidates — plenty to find 100 active
-  const collected: RawStart[] = [];
+// 1,000,000 HEX in hearts (1 HEX = 1e8 hearts) — the overdue board's floor.
+const MIN_OVERDUE_HEARTS = '100000000000000';
 
-  for (let page = 0; page < MAX_PAGES && collected.length < 100; page++) {
-    let rows: RawStart[];
-    try {
-      const d = await gql<{ stakeStarts: RawStart[] }>(
-        net,
-        `{ stakeStarts(where:{ endDay_lt: ${currentDay} }, orderBy: endDay, orderDirection: asc, first: ${PAGE}, skip: ${page * PAGE}){ ${START_FIELDS} } }`,
-      );
-      rows = d.stakeStarts ?? [];
-    } catch {
-      break;
-    }
-    if (rows.length === 0) break;
-    const ended = await endedIds(net, rows);
-    for (const r of rows) {
-      if (!ended.has(String(r.stakeId))) collected.push(r);
-      if (collected.length >= 100) break;
-    }
+/**
+ * Candidate overdue stakes: ≥1M HEX and past their end day, biggest first.
+ * We pull the largest such stakes straight from the subgraph (so the board is
+ * ordered by size) and drop any that have actually ended; the pure
+ * `activeOverdue` then removes fully-penalised stakes.
+ */
+async function overdueBigStakes(net: Net, currentDay: number): Promise<RawStart[]> {
+  let rows: RawStart[] = [];
+  try {
+    const d = await gql<{ stakeStarts: RawStart[] }>(
+      net,
+      `{ stakeStarts(where:{ stakedHearts_gte: "${MIN_OVERDUE_HEARTS}", endDay_lt: ${currentDay} }, orderBy: stakedHearts, orderDirection: desc, first: 1000){ ${START_FIELDS} } }`,
+    );
+    rows = d.stakeStarts ?? [];
+  } catch {
+    return [];
   }
-  return collected;
+  const ended = await endedIds(net, rows);
+  return rows.filter((r) => !ended.has(String(r.stakeId)));
 }
 
 async function buildBoard(net: Net, board: BoardKey): Promise<{ rows: LeaderRow[]; sample: number; note?: string }> {
@@ -127,11 +119,11 @@ async function buildBoard(net: Net, board: BoardKey): Promise<{ rows: LeaderRow[
       return { rows: highestRoi(ends), sample: ends.length, note: 'Ranked over the 1,000 longest-served ended stakes.' };
     }
     case 'days-late': {
-      const overdue = await overdueActiveStarts(net, currentDay);
+      const overdue = await overdueBigStakes(net, currentDay);
       return {
         rows: activeOverdue(overdue, currentDay),
         sample: overdue.length,
-        note: 'Active stakes whose end day has already passed but that have not been ended yet.',
+        note: 'Active stakes ≥1M HEX past their end day, largest first. HEX bleeds an overdue stake ~1%/week after a 14-day grace; stakes already fully lost are excluded. “Lost” = share of the stake gone to the penalty so far.',
       };
     }
     case 'recent-penalties': {

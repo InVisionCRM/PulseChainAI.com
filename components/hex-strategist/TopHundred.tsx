@@ -51,9 +51,9 @@ const COLUMNS: Record<BoardKey, Col[]> = {
     { header: 'Served', align: 'right', render: (r) => days(r.servedDays) },
   ],
   'days-late': [
-    { header: 'Overdue', align: 'right', accent: true, render: (r) => days(r.daysLate) },
-    { header: 'Length', align: 'right', render: (r) => (r.committedDays != null ? fmtDuration(r.committedDays) : '—') },
-    { header: 'Principal', align: 'right', render: (r) => hx(r.principalHex) },
+    { header: 'Principal', align: 'right', accent: true, render: (r) => hx(r.principalHex) },
+    { header: 'Overdue', align: 'right', render: (r) => days(r.daysLate) },
+    { header: 'Lost', align: 'right', render: (r) => (r.penaltyPct != null ? `${r.penaltyPct.toFixed(1)}%` : '—') },
     { header: 'Due', align: 'right', render: (r) => (r.endDay != null ? fmtHexDate(r.endDay) : '—') },
   ],
   'recent-penalties': [
