@@ -82,14 +82,14 @@ export function ConnectWalletButton() {
   if (!hasWallet) {
     return (
       <a
-        href="https://metamask.io/download/"
+        href="https://internetmoney.io"
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center gap-1 sm:gap-1.5 rounded-lg border border-[var(--line)] text-[var(--text-muted)] hover:text-[var(--text)] text-xs sm:text-sm font-semibold px-2 py-1.5 sm:px-3 sm:py-2 transition-colors"
-        title="No browser wallet detected — get one to connect"
+        title="No browser wallet detected — get the Internet Money wallet"
       >
         <IconWallet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-        Get a wallet
+        Get Wallet
       </a>
     );
   }
