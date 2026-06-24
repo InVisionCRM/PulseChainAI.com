@@ -70,7 +70,7 @@ export function IntroSplash() {
         preload="auto"
         onCanPlay={(e) => e.currentTarget.play().catch(() => {})}
         onEnded={dismiss}
-        className="h-full w-full object-contain"
+        className="intro-video h-full w-full object-contain"
       />
 
       {/* Tagline — fades in over the lower third for legibility */}
@@ -91,6 +91,14 @@ export function IntroSplash() {
         @keyframes introFadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         .intro-fade { opacity: 0; animation: introFadeUp 0.8s ease-out 0.5s forwards; }
         .intro-fade-delay { animation-delay: 0.9s; }
+        /* Suppress iOS Safari's native play-button overlay, which appears even
+           with controls={false} when the browser declines autoplay (e.g. Low
+           Power Mode). The clip is decorative and tap-to-skip, so no controls. */
+        .intro-video::-webkit-media-controls,
+        .intro-video::-webkit-media-controls-enclosure,
+        .intro-video::-webkit-media-controls-panel,
+        .intro-video::-webkit-media-controls-start-playback-button,
+        .intro-video::-webkit-media-controls-play-button { display: none !important; -webkit-appearance: none; }
       `}</style>
 
       <button
