@@ -1,6 +1,7 @@
 // CoinGecko API client for comprehensive token profile data
 
 import type { ApiResponse } from '../core/types';
+import { fetchWithTimeout, DEFAULT_FETCH_TIMEOUT } from '../core/fetchWithTimeout';
 
 export interface CoinGeckoTokenInfo {
   id: string;
@@ -175,14 +176,15 @@ export class CoinGeckoApiClient {
       }
 
       // Use the new comprehensive endpoint
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `${this.baseUrl}/coins/${platform.id}/contract/${address}`,
         {
           headers: {
             'x-cg-pro-api-key': this.apiKey || '',
             'Content-Type': 'application/json',
           },
-        }
+        },
+        DEFAULT_FETCH_TIMEOUT
       );
 
       if (!response.ok) {
@@ -215,7 +217,7 @@ export class CoinGeckoApiClient {
             'Content-Type': 'application/json',
           };
 
-          const response = await fetch(url, { headers });
+          const response = await fetchWithTimeout(url, { headers }, DEFAULT_FETCH_TIMEOUT);
           if (response.ok) {
             const data = await response.json();
             return { success: true, data };
@@ -247,7 +249,7 @@ export class CoinGeckoApiClient {
         headers['X-CG-Pro-API-Key'] = this.apiKey;
       }
 
-      const response = await fetch(url, { headers });
+      const response = await fetchWithTimeout(url, { headers }, DEFAULT_FETCH_TIMEOUT);
 
       if (!response.ok) {
         throw new Error(`CoinGecko API error: ${response.status} ${response.statusText}`);
@@ -277,7 +279,7 @@ export class CoinGeckoApiClient {
         headers['X-CG-Pro-API-Key'] = this.apiKey;
       }
 
-      const response = await fetch(url, { headers });
+      const response = await fetchWithTimeout(url, { headers }, DEFAULT_FETCH_TIMEOUT);
 
       if (!response.ok) {
         throw new Error(`CoinGecko market data error: ${response.status} ${response.statusText}`);

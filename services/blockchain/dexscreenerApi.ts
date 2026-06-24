@@ -2,7 +2,10 @@
 
 import { SERVICE_CONFIG, API_ENDPOINTS } from '../core/config';
 import { validateAddress, withRetry, handleApiError } from '../core/errors';
+import { fetchWithTimeout } from '../core/fetchWithTimeout';
 import type { DexScreenerData, ApiResponse } from '../core/types';
+
+const DS_TIMEOUT = SERVICE_CONFIG.dexscreener.timeout;
 
 export class DexScreenerApiClient {
   private baseUrl: string;
@@ -19,8 +22,8 @@ export class DexScreenerApiClient {
       const data = await withRetry(async () => {
         // Fetch both token data and search results for comprehensive profile
         const [tokenResponse, searchResponse] = await Promise.all([
-          fetch(`${this.baseUrl}tokens/${address}`),
-          fetch(`${this.baseUrl}search/?q=${address}`)
+          fetchWithTimeout(`${this.baseUrl}tokens/${address}`, {}, DS_TIMEOUT),
+          fetchWithTimeout(`${this.baseUrl}search/?q=${address}`, {}, DS_TIMEOUT)
         ]);
 
         if (!tokenResponse.ok && !searchResponse.ok) {
@@ -232,11 +235,12 @@ export class DexScreenerApiClient {
 
     try {
       const data = await withRetry(async () => {
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `${this.baseUrl}${API_ENDPOINTS.dexscreener.tokens}/${address}`,
           {
             headers: SERVICE_CONFIG.dexscreener.headers,
-          }
+          },
+          DS_TIMEOUT
         );
 
         if (!response.ok) {
@@ -261,11 +265,12 @@ export class DexScreenerApiClient {
 
     try {
       const data = await withRetry(async () => {
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `${this.baseUrl}${API_ENDPOINTS.dexscreener.pairs}/${pairAddress}`,
           {
             headers: SERVICE_CONFIG.dexscreener.headers,
-          }
+          },
+          DS_TIMEOUT
         );
 
         if (!response.ok) {
@@ -290,11 +295,12 @@ export class DexScreenerApiClient {
 
     try {
       const data = await withRetry(async () => {
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `${this.baseUrl}search/?q=${tokenAddress}`,
           {
             headers: SERVICE_CONFIG.dexscreener.headers,
-          }
+          },
+          DS_TIMEOUT
         );
 
         if (!response.ok) {
@@ -333,7 +339,7 @@ export class DexScreenerApiClient {
     try {
       const data = await withRetry(async () => {
         // First get the pair address for this token
-        const searchResponse = await fetch(`${this.baseUrl}search/?q=${tokenAddress}`);
+        const searchResponse = await fetchWithTimeout(`${this.baseUrl}search/?q=${tokenAddress}`, {}, DS_TIMEOUT);
         if (!searchResponse.ok) {
           throw new Error('Failed to find token pairs');
         }
@@ -354,9 +360,9 @@ export class DexScreenerApiClient {
 
         // Fetch detailed pair data from v4 endpoint which includes transactions
         const pairDetailsUrl = `/api/dexscreener-v4/${chainId}/${mainPair.pairAddress}`;
-        const pairResponse = await fetch(pairDetailsUrl, {
+        const pairResponse = await fetchWithTimeout(pairDetailsUrl, {
           cache: 'no-store'
-        });
+        }, DS_TIMEOUT);
 
         if (!pairResponse.ok) {
           throw new Error(`Failed to fetch pair details: ${pairResponse.statusText}`);
@@ -396,9 +402,9 @@ export class DexScreenerApiClient {
       const data = await withRetry(async () => {
         // Fetch from v4 endpoint via proxy
         const pairDetailsUrl = `/api/dexscreener-v4/${chainId}/${pairAddress}`;
-        const response = await fetch(pairDetailsUrl, {
+        const response = await fetchWithTimeout(pairDetailsUrl, {
           cache: 'no-store'
-        });
+        }, DS_TIMEOUT);
 
         if (!response.ok) {
           throw new Error(`Failed to fetch pair transactions: ${response.statusText}`);
