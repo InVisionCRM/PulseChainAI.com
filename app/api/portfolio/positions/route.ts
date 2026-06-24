@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { ChainId } from '@/services';
 import { detectHeldPosition, type ProtocolPosition } from '@/lib/portfolio/positions';
 import { scanFarms } from '@/lib/portfolio/protocolRegistry';
+import { detectV3Positions } from '@/lib/portfolio/positionsV3';
+import { discoverStakedPositions } from '@/lib/portfolio/positionDiscovery';
+import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingService';
+import { HEX_ADDRESS, heartsToHex } from '@/lib/hex/hexDay';
 
 export const revalidate = 0;
 export const maxDuration = 60;
@@ -63,6 +67,49 @@ function priceAll(positions: ProtocolPosition[], prices: Map<string, number>) {
   }
 }
 
+/** Approval spender contracts — candidate custodial farm/staker addresses. */
+async function approvalSpenders(origin: string, address: string, chain: ChainId): Promise<string[]> {
+  try {
+    const r = await fetch(`${origin}/api/portfolio/approvals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address, chain }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!r.ok) return [];
+    const d = await r.json();
+    return ((d?.approvals as any[]) ?? []).map((a) => String(a?.spender ?? '').toLowerCase()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/** Sum the wallet's active HEX stakes into a single staking position. */
+async function hexStakePosition(address: string): Promise<ProtocolPosition | null> {
+  const hist = await pulsechainHexStakingService.getStakerHistory(address);
+  const stakes = (hist?.stakes ?? []) as { stakedHearts?: string; isActive?: boolean }[];
+  const hearts = stakes.filter((s) => s.isActive).reduce((sum, s) => sum + Number(s.stakedHearts ?? 0), 0);
+  if (hearts <= 0) return null;
+  return {
+    kind: 'staking',
+    address: HEX_ADDRESS,
+    symbol: 'HEX',
+    protocol: 'HEX',
+    note: 'Staked',
+    underlying: [{ address: HEX_ADDRESS, symbol: 'HEX', decimals: 8, amount: heartsToHex(hearts) }],
+  };
+}
+
+/** Drop duplicate positions (same kind + address), in place. */
+function dedupePositions(positions: ProtocolPosition[]): void {
+  const seen = new Set<string>();
+  for (let i = positions.length - 1; i >= 0; i--) {
+    const key = `${positions[i].kind}:${positions[i].address.toLowerCase()}`;
+    if (seen.has(key)) positions.splice(i, 1);
+    else seen.add(key);
+  }
+}
+
 export async function POST(req: NextRequest) {
   let body: { address?: string; chain?: ChainId };
   try {
@@ -104,12 +151,29 @@ export async function POST(req: NextRequest) {
         }
       }
     };
-    const [, farmPositions] = await Promise.all([
+    // In parallel: held-token detection, registry farms, V3 NFT positions,
+    // footprint-discovered custodial stakers, and (PulseChain) HEX stakes.
+    const origin = req.nextUrl.origin;
+    const [, farmPositions, v3Positions, discovered, hexPositions] = await Promise.all([
       Promise.all(Array.from({ length: CONC }, detectWorker)),
       scanFarms(chain, address).catch(() => [] as ProtocolPosition[]),
+      detectV3Positions(chain, address).catch(() => [] as ProtocolPosition[]),
+      approvalSpenders(origin, address, chain)
+        .then((cands) => discoverStakedPositions(chain, address, cands))
+        .catch(() => [] as ProtocolPosition[]),
+      chain === 'pulsechain'
+        ? hexStakePosition(address).catch(() => null)
+        : Promise.resolve(null),
     ]);
 
-    const positions = [...heldPositions, ...farmPositions];
+    const positions = [
+      ...heldPositions,
+      ...farmPositions,
+      ...v3Positions,
+      ...discovered,
+      ...(hexPositions ? [hexPositions] : []),
+    ];
+    dedupePositions(positions);
 
     // Price the underlying assets, then sum per position.
     const prices = await priceMap(positions.flatMap((p) => p.underlying.map((u) => u.address)));

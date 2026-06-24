@@ -31,7 +31,20 @@ const SEL = {
   exchangeRateStored: '0x182df0f5',
   // Aave aToken / debt token
   aUnderlying: '0xb16a19de',
+  // Balancer pool token (BPT)
+  getPoolId: '0x38fff2d0',
+  getVault: '0x8d928af8',
+  getPoolTokens: '0xf94d4668', // Vault.getPoolTokens(bytes32)
 } as const;
+
+// Liquid-staking receipt tokens held in the wallet → surface as staking
+// positions. Valued by the receipt token's own price (already a DEX-priced
+// ERC-20), grouped under "Staking".
+const LIQUID_STAKING: Record<string, string> = {
+  stpls: 'Project Pi',
+  vpls: 'Vouch',
+  upls: 'ValidatorX',
+};
 
 const pad = (hex: string) => hex.replace(/^0x/, '').padStart(64, '0');
 const encUint = (n: bigint) => pad(n.toString(16));
@@ -96,6 +109,25 @@ function decodeSymbol(hex: string | null): string | null {
     return null;
   }
 }
+// Decode Balancer Vault.getPoolTokens → parallel (address[], uint256[]) arrays.
+function decodeTokensAndBalances(hex: string): { tokens: string[]; balances: bigint[] } | null {
+  try {
+    const b = hex.replace(/^0x/, '');
+    const rd = (i: number) => b.slice(i * 64, i * 64 + 64);
+    const off0 = Number(BigInt('0x' + rd(0))) / 32; // tokens array word offset
+    const off1 = Number(BigInt('0x' + rd(1))) / 32; // balances array word offset
+    const tLen = Number(BigInt('0x' + rd(off0)));
+    const tokens: string[] = [];
+    for (let k = 0; k < tLen; k++) tokens.push('0x' + rd(off0 + 1 + k).slice(24));
+    const bLen = Number(BigInt('0x' + rd(off1)));
+    const balances: bigint[] = [];
+    for (let k = 0; k < bLen; k++) balances.push(BigInt('0x' + rd(off1 + 1 + k)));
+    return { tokens, balances };
+  } catch {
+    return null;
+  }
+}
+
 function hexToUtf8(h: string): string {
   let s = '';
   for (let i = 0; i + 1 < h.length; i += 2) {
@@ -118,6 +150,20 @@ export async function detectHeldPosition(
   symbol: string,
 ): Promise<ProtocolPosition | null> {
   if (balanceRaw <= 0n) return null;
+
+  // 0) Liquid-staking receipt (stPLS / vPLS / uPLS) — show the held token as a
+  //    staking position; it's priced by its own DEX pair downstream.
+  const ls = LIQUID_STAKING[symbol.toLowerCase()];
+  if (ls) {
+    return {
+      kind: 'staking',
+      address: token,
+      symbol,
+      protocol: ls,
+      note: 'Liquid staking',
+      underlying: [{ address: token, symbol, decimals, amount: fmt(balanceRaw, decimals) }],
+    };
+  }
 
   // 1) Uniswap-V2 LP — has token0 + getReserves.
   const [t0, reservesHex] = await Promise.all([
@@ -146,6 +192,29 @@ export async function detectHeldPosition(
           { address: t1, symbol: m1.symbol, decimals: m1.decimals, amount: fmt(r1, m1.decimals) * share },
         ],
       };
+    }
+  }
+
+  // 1b) Balancer pool token (BPT) — getPoolId + getVault, then Vault.getPoolTokens.
+  const vault = toAddr(await ethCall(chain, token, SEL.getVault));
+  const poolIdHex = await ethCall(chain, token, SEL.getPoolId);
+  if (vault && poolIdHex && poolIdHex.length >= 66) {
+    const poolId = poolIdHex.replace(/^0x/, '').slice(0, 64);
+    const totalSupply = toBig(await ethCall(chain, token, SEL.totalSupply));
+    const ptHex = await ethCall(chain, vault, SEL.getPoolTokens + poolId);
+    const arrs = ptHex ? decodeTokensAndBalances(ptHex) : null;
+    if (totalSupply > 0n && arrs) {
+      const share = Number(balanceRaw) / Number(totalSupply);
+      const underlying: UnderlyingAsset[] = [];
+      for (let k = 0; k < arrs.tokens.length; k++) {
+        const ta = arrs.tokens[k];
+        if (!ta || ta.toLowerCase() === token.toLowerCase()) continue; // skip phantom BPT
+        const m = await erc20Meta(chain, ta);
+        underlying.push({ address: ta, symbol: m.symbol, decimals: m.decimals, amount: fmt(arrs.balances[k], m.decimals) * share });
+      }
+      if (underlying.length) {
+        return { kind: 'lp', address: token, symbol, protocol: protocolFromSymbol(symbol) ?? 'Balancer', note: 'Pool', underlying };
+      }
     }
   }
 

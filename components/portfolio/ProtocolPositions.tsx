@@ -91,7 +91,7 @@ export function ProtocolPositions({ walletAddress, chains }: { walletAddress: st
       {status === 'error' && <div className="py-10 text-center text-sm text-red-300">Couldn’t scan protocol positions.</div>}
       {status === 'ready' && groups.length === 0 && (
         <div className="py-10 text-center text-sm text-[var(--text-faint)]">
-          No DeFi positions detected. We find lending, vault, LP and farm positions automatically — exotic protocols may not be covered yet.
+          No DeFi positions detected. We auto-find lending, LP (V2 + V3), vaults, liquid staking, HEX stakes, and farms you’ve staked into — very exotic protocols may not be covered yet.
         </div>
       )}
 
@@ -135,7 +135,7 @@ export function ProtocolPositions({ walletAddress, chains }: { walletAddress: st
       ))}
 
       <p className="px-1 text-[10px] leading-relaxed text-[var(--text-faint)]">
-        Positions are detected on-chain by archetype (LP, lending receipt, ERC-4626 vault, MasterChef farm) — no protocol list needed for the common cases. Borrowed amounts show as negative. Some custodial or exotic protocols may not be detected.
+        Positions are detected on-chain by archetype — V2/V3 LP, lending receipts, ERC-4626 vaults, Balancer pools, liquid staking, HEX stakes — plus custodial farms discovered from your own approvals. No protocol address list needed. Borrowed amounts show as negative; V3 amounts use floating-point price math (display-grade). Some exotic protocols may not be detected.
       </p>
     </div>
   );

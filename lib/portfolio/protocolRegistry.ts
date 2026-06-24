@@ -7,7 +7,7 @@
 // pool). Add new farms by dropping their contract in FARMS below — no code.
 
 import { ethCall } from './evmRpc';
-import { SEL, callData, encUint, toBig, toAddr, decomposeV2, type ProtocolPosition } from './positions';
+import { callData, encUint, toBig, toAddr, erc20Meta, fmt, decomposeV2, type ProtocolPosition } from './positions';
 import type { ChainId } from '@/services';
 
 export interface FarmContract {
@@ -35,37 +35,50 @@ const MASTERCHEF = {
 
 const MAX_POOLS = 200; // bound the scan per farm
 
-/** Scan one MasterChef for the user's staked positions. Fail-safe → []. */
-async function scanFarm(farm: FarmContract, user: string): Promise<ProtocolPosition[]> {
-  const lenHex = await ethCall(farm.chain, farm.address, MASTERCHEF.poolLength);
+// Synthetix StakingRewards / single-asset staker ABI (covers most non-MasterChef
+// farms and single-asset stakers — the contract tracks the staked balance).
+const STAKING = {
+  balanceOf: '0x70a08231', // balanceOf(address) → staked amount
+  stakingToken: '0x72f702f3',
+};
+
+/**
+ * Probe a contract for MasterChef-style staked positions. Fail-safe → [].
+ * Generic — works on any Sushi/Pancake fork without an address list.
+ */
+export async function probeMasterChef(
+  chain: ChainId,
+  contract: string,
+  user: string,
+  name?: string,
+  lpField = 0,
+  maxPools = MAX_POOLS,
+): Promise<ProtocolPosition[]> {
+  const lenHex = await ethCall(chain, contract, MASTERCHEF.poolLength);
   const poolLength = Number(toBig(lenHex));
   if (!poolLength || poolLength > 5000) return [];
 
-  const n = Math.min(poolLength, MAX_POOLS);
+  const n = Math.min(poolLength, maxPools);
   const userArg = user.toLowerCase().replace(/^0x/, '');
-  const lpField = farm.lpField ?? 0;
   const out: ProtocolPosition[] = [];
-
-  // Bounded concurrency over pools.
   const CONC = 8;
   let i = 0;
   async function worker() {
     while (i < n) {
       const pid = i++;
-      const amtHex = await ethCall(farm.chain, farm.address, callData(MASTERCHEF.userInfo, encUint(BigInt(pid)), userArg));
+      const amtHex = await ethCall(chain, contract, callData(MASTERCHEF.userInfo, encUint(BigInt(pid)), userArg));
       const amount = toBig(amtHex); // userInfo.amount is the first word
       if (amount <= 0n) continue;
-      const poolHex = await ethCall(farm.chain, farm.address, callData(MASTERCHEF.poolInfo, encUint(BigInt(pid))));
+      const poolHex = await ethCall(chain, contract, callData(MASTERCHEF.poolInfo, encUint(BigInt(pid))));
       if (!poolHex || poolHex === '0x') continue;
       const body = poolHex.replace(/^0x/, '');
       const lpToken = toAddr('0x' + body.slice(lpField * 64, lpField * 64 + 64));
       if (!lpToken) continue;
-      // Value the staked LP by decomposing the staked amount.
-      const dec = await decomposeV2(farm.chain, lpToken, amount);
+      const dec = await decomposeV2(chain, lpToken, amount);
       out.push(
         dec
-          ? { kind: 'farm', address: lpToken, symbol: dec.symbol, protocol: farm.name, note: 'Staked LP', underlying: dec.underlying }
-          : { kind: 'farm', address: lpToken, symbol: 'LP', protocol: farm.name, note: 'Staked', underlying: [] },
+          ? { kind: 'farm', address: lpToken, symbol: dec.symbol, protocol: name, note: 'Staked LP', underlying: dec.underlying }
+          : { kind: 'farm', address: lpToken, symbol: 'LP', protocol: name, note: 'Staked', underlying: [] },
       );
     }
   }
@@ -73,10 +86,40 @@ async function scanFarm(farm: FarmContract, user: string): Promise<ProtocolPosit
   return out;
 }
 
-/** Scan every registered farm on a chain for the user. */
+/**
+ * Probe a contract for a Synthetix StakingRewards-style position: `balanceOf`
+ * is the user's staked amount and `stakingToken()` identifies what's staked.
+ * Returns null if the contract isn't a staker or the user has nothing in it.
+ */
+export async function probeStakingRewards(
+  chain: ChainId,
+  contract: string,
+  user: string,
+  name?: string,
+): Promise<ProtocolPosition | null> {
+  const stakingToken = toAddr(await ethCall(chain, contract, STAKING.stakingToken));
+  if (!stakingToken) return null; // not a StakingRewards
+  const staked = toBig(await ethCall(chain, contract, callData(STAKING.balanceOf, user.toLowerCase().replace(/^0x/, ''))));
+  if (staked <= 0n) return null;
+  const dec = await decomposeV2(chain, stakingToken, staked);
+  if (dec) return { kind: 'farm', address: stakingToken, symbol: dec.symbol, protocol: name, note: 'Staked LP', underlying: dec.underlying };
+  const m = await erc20Meta(chain, stakingToken);
+  return {
+    kind: 'staking',
+    address: stakingToken,
+    symbol: m.symbol,
+    protocol: name,
+    note: 'Staked',
+    underlying: [{ address: stakingToken, symbol: m.symbol, decimals: m.decimals, amount: fmt(staked, m.decimals) }],
+  };
+}
+
+/** Scan every registered farm on a chain for the user (optional fast-path). */
 export async function scanFarms(chain: ChainId, user: string): Promise<ProtocolPosition[]> {
   const farms = FARMS.filter((f) => f.chain === chain);
   if (farms.length === 0) return [];
-  const results = await Promise.all(farms.map((f) => scanFarm(f, user).catch(() => [] as ProtocolPosition[])));
+  const results = await Promise.all(
+    farms.map((f) => probeMasterChef(f.chain, f.address, user, f.name, f.lpField).catch(() => [] as ProtocolPosition[])),
+  );
   return results.flat();
 }
