@@ -3,7 +3,7 @@ import type { ChainId } from '@/services';
 import { detectHeldPosition, type ProtocolPosition } from '@/lib/portfolio/positions';
 import { scanFarms } from '@/lib/portfolio/protocolRegistry';
 import { detectV3Positions } from '@/lib/portfolio/positionsV3';
-import { discoverStakedPositions } from '@/lib/portfolio/positionDiscovery';
+import { discoverStakedPositions, type Candidate } from '@/lib/portfolio/positionDiscovery';
 import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingService';
 import { HEX_ADDRESS, heartsToHex } from '@/lib/hex/hexDay';
 
@@ -67,8 +67,9 @@ function priceAll(positions: ProtocolPosition[], prices: Map<string, number>) {
   }
 }
 
-/** Approval spender contracts — candidate custodial farm/staker addresses. */
-async function approvalSpenders(origin: string, address: string, chain: ChainId): Promise<string[]> {
+/** Approval (spender, token) pairs — candidate custodial farm/staker contracts
+ * plus the token approved to each (the likely staked asset). */
+async function approvalCandidates(origin: string, address: string, chain: ChainId): Promise<Candidate[]> {
   try {
     const r = await fetch(`${origin}/api/portfolio/approvals`, {
       method: 'POST',
@@ -78,7 +79,12 @@ async function approvalSpenders(origin: string, address: string, chain: ChainId)
     });
     if (!r.ok) return [];
     const d = await r.json();
-    return ((d?.approvals as any[]) ?? []).map((a) => String(a?.spender ?? '').toLowerCase()).filter(Boolean);
+    return ((d?.approvals as any[]) ?? [])
+      .map((a) => ({
+        contract: String(a?.spender ?? '').toLowerCase(),
+        approvedToken: String(a?.token?.address ?? a?.token?.address_hash ?? '').toLowerCase() || undefined,
+      }))
+      .filter((c) => c.contract);
   } catch {
     return [];
   }
@@ -158,7 +164,7 @@ export async function POST(req: NextRequest) {
       Promise.all(Array.from({ length: CONC }, detectWorker)),
       scanFarms(chain, address).catch(() => [] as ProtocolPosition[]),
       detectV3Positions(chain, address).catch(() => [] as ProtocolPosition[]),
-      approvalSpenders(origin, address, chain)
+      approvalCandidates(origin, address, chain)
         .then((cands) => discoverStakedPositions(chain, address, cands))
         .catch(() => [] as ProtocolPosition[]),
       chain === 'pulsechain'
