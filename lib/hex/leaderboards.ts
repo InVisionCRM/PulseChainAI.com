@@ -17,7 +17,7 @@ export const BOARDS: { key: BoardKey; label: string; blurb: string }[] = [
   { key: 'active-amount', label: 'Active by size', blurb: 'Largest stakes currently locked.' },
   { key: 'completed-amount', label: 'Completed by size', blurb: 'Largest stakes that have ended.' },
   { key: 'roi', label: 'Highest ROI', blurb: 'Best realized return on principal (net of penalty).' },
-  { key: 'days-late', label: 'Most days late', blurb: 'Ended furthest past their committed term.' },
+  { key: 'days-late', label: 'Most overdue', blurb: 'Active stakes past their end day — most overdue first.' },
   { key: 'recent-penalties', label: 'Recent penalties', blurb: 'Latest stakes that paid an end penalty.' },
   { key: 'recent-starts', label: 'Recent starts', blurb: 'Newest stake-starts.' },
   { key: 'recent-ends', label: 'Recent ends', blurb: 'Newest stake-ends.' },
@@ -75,6 +75,31 @@ export function activeByAmount(starts: RawStart[], currentDay: number, limit = 1
       endDay: Number(s.endDay),
       daysToEnd: Math.max(0, Number(s.endDay) - currentDay),
     })),
+  );
+}
+
+/**
+ * Active stakes whose committed end day has already passed but that haven't
+ * been ended yet — "overdue". Most overdue first. Caller passes still-active
+ * starts (ended ones excluded); we compute lateness = currentDay − endDay.
+ */
+export function activeOverdue(starts: RawStart[], currentDay: number, limit = 100): LeaderRow[] {
+  return rank(
+    starts
+      .map((s) => ({ s, late: currentDay - Number(s.endDay) }))
+      .filter((x) => x.late > 0)
+      .sort((a, b) => b.late - a.late)
+      .slice(0, limit)
+      .map(({ s, late }) => ({
+        address: s.stakerAddr.toLowerCase(),
+        stakeId: s.stakeId,
+        principalHex: heartsToHex(s.stakedHearts),
+        tShares: Number(s.stakeShares) / TSHARE,
+        committedDays: Number(s.stakedDays),
+        startDay: Number(s.startDay),
+        endDay: Number(s.endDay),
+        daysLate: late,
+      })),
   );
 }
 

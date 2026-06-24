@@ -3,7 +3,7 @@ import { fetchTopHolders } from '@/lib/portfolio/holders';
 import { currentHexDay, HEX_ADDRESS } from '@/lib/hex/hexDay';
 import {
   type BoardKey, type RawStart, type RawEnd, type LeaderRow,
-  activeByAmount, completedByAmount, highestRoi, mostDaysLate, recentPenalties,
+  activeByAmount, completedByAmount, highestRoi, activeOverdue, recentPenalties,
   recentStarts, recentEnds, topHolders, aggregateStaked,
 } from '@/lib/hex/leaderboards';
 
@@ -35,11 +35,6 @@ async function gql<T>(net: Net, query: string): Promise<T> {
   if (j.errors?.length) throw new Error(j.errors[0]?.message || 'subgraph error');
   return j.data as T;
 }
-
-const num = (v: unknown) => {
-  const n = typeof v === 'string' ? parseFloat(v) : (v as number);
-  return Number.isFinite(n) ? n : 0;
-};
 
 /** stakeIds that already have an end event, for excluding still-active stakes. */
 async function endedIds(net: Net, starts: RawStart[]): Promise<Set<string>> {
@@ -81,83 +76,36 @@ const endsByServed = (net: Net, first: number) =>
   gql<{ stakeEnds: RawEnd[] }>(net, `{ stakeEnds(orderBy: servedDays, orderDirection: desc, first: ${first}){ ${END_FIELDS} } }`)
     .then((d) => d.stakeEnds ?? []);
 
-/** Committed days per stakeId, joined from starts (for the days-late board). */
-async function committedDaysFor(net: Net, ends: RawEnd[]): Promise<Map<string, number>> {
-  const map = new Map<string, number>();
-  const ids = ends.map((e) => e.stakeId);
-  for (let i = 0; i < ids.length; i += 500) {
-    const chunk = ids.slice(i, i + 500).map((id) => `"${id}"`).join(',');
-    try {
-      const d = await gql<{ stakeStarts: { stakeId: string; stakedDays: string }[] }>(
-        net,
-        `{ stakeStarts(where:{ stakeId_in: [${chunk}] }, first: 1000){ stakeId stakedDays } }`,
-      );
-      for (const s of d.stakeStarts ?? []) map.set(String(s.stakeId), num(s.stakedDays));
-    } catch {
-      /* best-effort */
-    }
-  }
-  return map;
-}
-
 /**
- * Exact global top-100 by lateness across all ended stakes. We stream ends
- * ordered by servedDays descending and join their committed days. Because
- * lateness = servedDays − committedDays ≤ servedDays, once the stream's
- * servedDays drops at or below our current 100th-best lateness, no unscanned
- * end can beat it — so we stop early with a provably complete result. A page
- * cap bounds the worst case; if hit, the result is "top-100 among the longest
- * served" rather than provably global.
+ * Active stakes that are overdue: their committed end day is in the past, yet
+ * no stake-end exists. We page starts ordered by endDay ascending (the most
+ * overdue first), drop any that have actually ended, and collect the first 100
+ * still-active ones — which are therefore the most overdue active stakes.
  */
-async function daysLateGlobal(net: Net): Promise<{ rows: LeaderRow[]; scanned: number; exact: boolean }> {
+async function overdueActiveStarts(net: Net, currentDay: number): Promise<RawStart[]> {
   const PAGE = 1000;
-  const MAX_PAGES = 40;
-  const ends: RawEnd[] = [];
-  const committed = new Map<string, number>();
-  const topLate: number[] = []; // sorted desc, capped at 100 — just the threshold
-  let cursor: number | null = null; // servedDays_lt for the next page
-  let exact = false;
+  const MAX_PAGES = 8; // up to 8k oldest-end candidates — plenty to find 100 active
+  const collected: RawStart[] = [];
 
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const where = cursor == null ? '' : `where:{ servedDays_lt: ${cursor} }, `;
-    let rows: RawEnd[];
+  for (let page = 0; page < MAX_PAGES && collected.length < 100; page++) {
+    let rows: RawStart[];
     try {
-      const d = await gql<{ stakeEnds: RawEnd[] }>(
+      const d = await gql<{ stakeStarts: RawStart[] }>(
         net,
-        `{ stakeEnds(${where}orderBy: servedDays, orderDirection: desc, first: ${PAGE}){ ${END_FIELDS} } }`,
+        `{ stakeStarts(where:{ endDay_lt: ${currentDay} }, orderBy: endDay, orderDirection: asc, first: ${PAGE}, skip: ${page * PAGE}){ ${START_FIELDS} } }`,
       );
-      rows = d.stakeEnds ?? [];
+      rows = d.stakeStarts ?? [];
     } catch {
-      break; // orderBy unsupported / transient — return what we have
+      break;
     }
-    if (rows.length === 0) { exact = true; break; }
-
-    const pageMinServed = Number(rows[rows.length - 1].servedDays);
-    const c = await committedDaysFor(net, rows);
-    for (const [k, v] of c) committed.set(k, v);
-
-    for (const e of rows) {
-      ends.push(e);
-      const cd = committed.get(String(e.stakeId));
-      if (cd == null) continue;
-      const late = Number(e.servedDays) - cd;
-      if (late <= 0) continue;
-      if (topLate.length < 100) {
-        topLate.push(late);
-        topLate.sort((a, b) => b - a);
-      } else if (late > topLate[99]) {
-        topLate[99] = late;
-        topLate.sort((a, b) => b - a);
-      }
+    if (rows.length === 0) break;
+    const ended = await endedIds(net, rows);
+    for (const r of rows) {
+      if (!ended.has(String(r.stakeId))) collected.push(r);
+      if (collected.length >= 100) break;
     }
-
-    cursor = pageMinServed;
-    // Early stop: the best any remaining end could score is its servedDays,
-    // and all remaining have servedDays < pageMinServed ≤ topLate[99].
-    if (topLate.length >= 100 && pageMinServed <= topLate[99]) { exact = true; break; }
   }
-
-  return { rows: mostDaysLate(ends, committed, 100), scanned: ends.length, exact };
+  return collected;
 }
 
 async function buildBoard(net: Net, board: BoardKey): Promise<{ rows: LeaderRow[]; sample: number; note?: string }> {
@@ -179,13 +127,11 @@ async function buildBoard(net: Net, board: BoardKey): Promise<{ rows: LeaderRow[
       return { rows: highestRoi(ends), sample: ends.length, note: 'Ranked over the 1,000 longest-served ended stakes.' };
     }
     case 'days-late': {
-      const { rows, scanned, exact } = await daysLateGlobal(net);
+      const overdue = await overdueActiveStarts(net, currentDay);
       return {
-        rows,
-        sample: scanned,
-        note: exact
-          ? `Exact global ranking — scanned every ended stake down to the cut-off (${scanned.toLocaleString()} checked).`
-          : `Top 100 among the ${scanned.toLocaleString()} longest-served ended stakes (scan cap reached).`,
+        rows: activeOverdue(overdue, currentDay),
+        sample: overdue.length,
+        note: 'Active stakes whose end day has already passed but that have not been ended yet.',
       };
     }
     case 'recent-penalties': {
