@@ -1,17 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import dynamic from 'next/dynamic';
 import { IconChartLine, IconTrash } from '@tabler/icons-react';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import type { PortfolioHistoryPoint } from '@/lib/stores/portfolioStore';
 import { fmtUsd } from '@/lib/format';
-
-// recharts only ships when there's actually a chart to draw (≥2 points).
-const PortfolioChartArea = dynamic(() => import('./PortfolioChartArea'), {
-  ssr: false,
-  loading: () => <div className="h-[200px] w-full animate-pulse rounded-lg bg-[var(--surface-2)]/40" />,
-});
+import PortfolioChartArea from './PortfolioChartArea';
 
 type Range = '24h' | '7d' | '30d' | 'all';
 

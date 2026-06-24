@@ -73,12 +73,13 @@ export default function PortfolioPage() {
                   type="button"
                   onClick={refreshAll}
                   disabled={anyLoading}
-                  className="inline-flex items-center gap-1 sm:gap-1.5 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] text-xs sm:text-sm font-semibold px-2 py-1.5 sm:px-3 sm:py-2 transition-colors disabled:opacity-40"
+                  title="Refresh all wallets"
+                  aria-label="Refresh all wallets"
+                  className="inline-flex items-center justify-center rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] p-1.5 sm:p-2 transition-colors disabled:opacity-40"
                 >
                   <IconRefresh
-                    className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${anyLoading ? 'animate-spin' : ''}`}
+                    className={`h-4 w-4 sm:h-5 sm:w-5 ${anyLoading ? 'animate-spin' : ''}`}
                   />
-                  Refresh all
                 </button>
               </>
             )}
