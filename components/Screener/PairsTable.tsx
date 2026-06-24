@@ -58,15 +58,12 @@ function DexBadge({ row }: { row: ScreenerRow }) {
 const HEADERS: { key: string; label: string; align: 'left' | 'right'; sort: SortKey | null }[] = [
   { key: 'star', label: '', align: 'left', sort: null },
   { key: 'token', label: 'Token', align: 'left', sort: null },
+  { key: 'h24', label: '24H', align: 'right', sort: 'h24' },
   { key: 'mcap', label: 'MCAP', align: 'right', sort: 'mcap' },
   { key: 'price', label: 'Price', align: 'right', sort: 'price' },
   { key: 'age', label: 'Age', align: 'right', sort: 'age' },
   { key: 'txns', label: 'Txns', align: 'right', sort: 'txns' },
   { key: 'volume', label: 'Volume', align: 'right', sort: 'volume' },
-  { key: 'm5', label: '5M', align: 'right', sort: 'm5' },
-  { key: 'h1', label: '1H', align: 'right', sort: 'h1' },
-  { key: 'h6', label: '6H', align: 'right', sort: 'h6' },
-  { key: 'h24', label: '24H', align: 'right', sort: 'h24' },
   { key: 'liq', label: 'Liquidity', align: 'right', sort: 'liq' },
 ];
 
@@ -75,7 +72,7 @@ export default function PairsTable({ rows, window, loading, sort, dir, onSort, w
 
   return (
     <div className="max-h-[calc(100vh-150px)] overflow-auto rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl">
-      <table className="w-full min-w-[1120px] border-collapse text-[13px]">
+      <table className="w-full min-w-[720px] border-collapse text-[13px]">
         <thead className="sticky top-0 z-30 bg-[var(--surface-2)] backdrop-blur-xl">
           <tr className="text-[11px] uppercase tracking-wider text-[var(--text-faint)]">
             {HEADERS.map((h) => {
@@ -126,27 +123,20 @@ export default function PairsTable({ rows, window, loading, sort, dir, onSort, w
                   <div className="flex items-center gap-2">
                     <DexBadge row={row} />
                     <TokenLogo row={row} />
-                    <span className="font-semibold text-[var(--text)]">{row.baseSymbol ?? '?'}</span>
+                    <span className={`font-semibold ${row.gold ? 'text-yellow-400' : 'text-[var(--text)]'}`}>{row.baseSymbol ?? '?'}</span>
                     <span className="text-[var(--text-faint)]">/{row.quoteSymbol ?? '?'}</span>
                     {row.chainId === 'ethereum' ? (
                       <ChainLogo chain="ethereum" size={14} />
                     ) : null}
-                    {row.gold ? (
-                      <span className="rounded-sm bg-yellow-500 px-1 py-px text-[9px] font-bold text-black">GOLD</span>
-                    ) : null}
                     <span className="hidden max-w-[180px] truncate text-[var(--text-faint)] lg:inline">{clampName(row.baseName)}</span>
                   </div>
                 </td>
+                <td className={`whitespace-nowrap px-3 py-2 text-right tabular-nums ${pctClass(row.chg.h24)}`}>{fmtPct(row.chg.h24)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right text-orange-600 dark:text-orange-300 tabular-nums">{fmtUsd(row.marketCap)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right text-[var(--text)] tabular-nums">{fmtPrice(row.priceUsd)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right text-[var(--text-muted)] tabular-nums">{fmtAge(row.pairCreatedAt)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right text-[var(--text)] tabular-nums">{fmtNum(row.txns[window])}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right text-[var(--text)] tabular-nums">{fmtUsd(row.vol[window])}</td>
-                {(['m5', 'h1', 'h6', 'h24'] as const).map((w) => (
-                  <td key={w} className={`whitespace-nowrap px-3 py-2 text-right tabular-nums ${pctClass(row.chg[w])}`}>
-                    {fmtPct(row.chg[w])}
-                  </td>
-                ))}
                 <td className="whitespace-nowrap px-3 py-2 text-right text-[var(--text)] tabular-nums">{fmtUsd(row.liquidityUsd)}</td>
               </tr>
             );
