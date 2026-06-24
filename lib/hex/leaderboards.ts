@@ -39,6 +39,8 @@ export interface LeaderRow {
   daysLate?: number;
   /** % of the stake already lost to the late-end penalty (overdue board). */
   penaltyPct?: number;
+  /** HEX already lost to the late-end penalty so far (overdue board). */
+  lostHex?: number;
   daysToEnd?: number;
   startDay?: number;
   endDay?: number;
@@ -117,6 +119,8 @@ export function activeOverdue(starts: RawStart[], currentDay: number, limit = 10
         endDay: Number(s.endDay),
         daysLate: late,
         penaltyPct,
+        // HEX bled to the penalty so far = principal × the share already lost.
+        lostHex: principalHex * (penaltyPct / 100),
       })),
   );
 }

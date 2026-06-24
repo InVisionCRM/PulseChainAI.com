@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { usePollingEffect } from '@/hooks/usePollingEffect';
 import {
   IconSearch,
   IconStar,
@@ -211,12 +212,9 @@ export function WatchlistPanel() {
     return () => clearTimeout(id);
   }, [query]);
 
-  // Refresh prices on mount + every 90s while panel is mounted
-  useEffect(() => {
-    void refresh();
-    const id = setInterval(() => void refresh(), 90_000);
-    return () => clearInterval(id);
-  }, [refresh]);
+  // Refresh prices on mount; then every 90s while the tab is visible.
+  useEffect(() => { void refresh(); }, [refresh]);
+  usePollingEffect(() => void refresh(), 90_000);
 
   const handleAdd = (hit: SearchHit) => {
     if (add(hit)) {

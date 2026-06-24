@@ -18,6 +18,7 @@ import PairsTable from './PairsTable';
 import MarketBubbles from './MarketBubbles';
 import SearchModal from './SearchModal';
 import { useScreenerWatchlist } from './watchlist';
+import { usePollingEffect } from '@/hooks/usePollingEffect';
 
 const REFRESH_MS = 60000;
 
@@ -114,11 +115,9 @@ export default function Screener() {
     load(0, false);
   }, [load]);
 
-  useEffect(() => {
-    if (page > 0) return;
-    const id = setInterval(() => load(0, false), REFRESH_MS);
-    return () => clearInterval(id);
-  }, [load, page]);
+  // Live refresh only on the first page; paused while a background tab and
+  // while paginated away. Becoming visible again refreshes immediately.
+  usePollingEffect(() => load(0, false), REFRESH_MS, { enabled: page === 0 });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

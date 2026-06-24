@@ -38,6 +38,8 @@ interface BEdge { a: number; b: number }
 const LIMIT_OPTIONS: { v: number; label: string }[] = [
   { v: 50, label: '50' }, { v: 250, label: '250' }, { v: 500, label: '500' }, { v: 1000, label: 'All' },
 ];
+// Lowest option by default — fastest first paint; larger counts are one click away.
+const DEFAULT_LIMIT = LIMIT_OPTIONS[0].v;
 const CLUSTER_PALETTE = ['#f59e0b', '#a855f7', '#22d3ee', '#34d399', '#f472b6', '#60a5fa', '#fb923c', '#a3e635', '#e879f9', '#2dd4bf'];
 const SOLO = '#8b5cf6'; // a staker with no detected link
 
@@ -46,7 +48,7 @@ const truncate = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 function hexA(h: string, a: number) { const n = parseInt(h.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
 
 export default function StakeBubbleMap({ net }: { net: Network }) {
-  const [limit, setLimit] = useState(250);
+  const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [fs, setFs] = useState(false);
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
   const [selected, setSelected] = useState<BNode | null>(null);
@@ -358,7 +360,7 @@ function StakeModal({ node, net, rates, onClose }: { node: BNode; net: Network; 
 
   return (
     <div className="fixed inset-0 z-[210] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" onClick={onClose}>
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-[var(--line)] bg-[var(--panel)] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="flex h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-[var(--line)] bg-[var(--panel)] mb-16 sm:mb-0 sm:max-h-[85vh] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] p-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
