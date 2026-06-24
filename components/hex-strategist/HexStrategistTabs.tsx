@@ -8,16 +8,16 @@ import type { Network } from '@/lib/hex/strategistData';
 // Each tab pulls in heavy libs (recharts for the designer/radar, d3-force for
 // the bubble map). Loading them on demand keeps the initial Strategist payload
 // small — only the recharts/d3 chunk for the tab you actually open is fetched.
+// next/dynamic's options must be an inline object literal (SWC requirement).
 const TabSkeleton = () => (
   <div className="grid h-[420px] place-items-center rounded-2xl border border-[var(--line)] bg-[var(--surface)] text-sm text-[var(--text-faint)]">
     Loading…
   </div>
 );
-const dynOpts = { loading: TabSkeleton, ssr: false };
-const HexStrategist = dynamic(() => import('./HexStrategist'), dynOpts);
-const WhaleRadar = dynamic(() => import('./WhaleRadar'), dynOpts);
-const TopHundred = dynamic(() => import('./TopHundred'), dynOpts);
-const StakeBubbleMap = dynamic(() => import('./StakeBubbleMap'), dynOpts);
+const HexStrategist = dynamic(() => import('./HexStrategist'), { loading: TabSkeleton, ssr: false });
+const WhaleRadar = dynamic(() => import('./WhaleRadar'), { loading: TabSkeleton, ssr: false });
+const TopHundred = dynamic(() => import('./TopHundred'), { loading: TabSkeleton, ssr: false });
+const StakeBubbleMap = dynamic(() => import('./StakeBubbleMap'), { loading: TabSkeleton, ssr: false });
 
 type Mode = 'designer' | 'radar' | 'top100' | 'bubbles';
 

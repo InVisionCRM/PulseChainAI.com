@@ -53,7 +53,21 @@ const COLUMNS: Record<BoardKey, Col[]> = {
   'days-late': [
     { header: 'Principal', align: 'right', accent: true, render: (r) => hx(r.principalHex) },
     { header: 'Overdue', align: 'right', render: (r) => days(r.daysLate) },
-    { header: 'Lost', align: 'right', render: (r) => (r.penaltyPct != null ? `${r.penaltyPct.toFixed(1)}%` : '—') },
+    {
+      header: 'Lost so far',
+      align: 'right',
+      render: (r) =>
+        r.lostHex != null ? (
+          <span className="inline-flex flex-col items-end leading-tight">
+            <span className="text-red-300">{fmtHex(r.lostHex)} HEX</span>
+            {r.penaltyPct != null && (
+              <span className="text-[10px] text-[var(--text-faint)]">{r.penaltyPct.toFixed(1)}%</span>
+            )}
+          </span>
+        ) : (
+          '—'
+        ),
+    },
     { header: 'Due', align: 'right', render: (r) => (r.endDay != null ? fmtHexDate(r.endDay) : '—') },
   ],
   'recent-penalties': [
@@ -257,9 +271,9 @@ function StakeDetailModal({ address, net, rates, onClose }: { address: string; n
   const [tab, setTab] = useState<'stakes' | 'activity'>('stakes');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" onClick={onClose}>
       <div
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-[var(--line)] bg-[var(--panel)] sm:rounded-2xl"
+        className="flex h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-[var(--line)] bg-[var(--panel)] mb-16 sm:mb-0 sm:max-h-[85vh] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] p-3">

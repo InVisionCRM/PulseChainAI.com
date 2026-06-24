@@ -360,7 +360,7 @@ function StakeModal({ node, net, rates, onClose }: { node: BNode; net: Network; 
 
   return (
     <div className="fixed inset-0 z-[210] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" onClick={onClose}>
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-[var(--line)] bg-[var(--panel)] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="flex h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-[var(--line)] bg-[var(--panel)] mb-16 sm:mb-0 sm:max-h-[85vh] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] p-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
