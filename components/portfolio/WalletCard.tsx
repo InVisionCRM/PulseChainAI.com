@@ -18,6 +18,7 @@ import { useManageTokensStore } from '@/lib/stores/manageTokensStore';
 import { ApprovalsPanel } from '@/components/portfolio/ApprovalsPanel';
 import { MoveToGroupMenu } from '@/components/portfolio/MoveToGroupMenu';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
+import { ProtocolPositions } from '@/components/portfolio/ProtocolPositions';
 import { HexStakes } from '@/components/portfolio/HexStakes';
 import { WalletConnections } from '@/components/portfolio/WalletConnections';
 import { WalletRelated } from '@/components/portfolio/WalletRelated';
@@ -83,7 +84,7 @@ export function WalletCard({ wallet }: Props) {
   const removeWallet = usePortfolioStore((s) => s.removeWallet);
 
   const [expanded, setExpanded] = useState(true);
-  const [view, setView] = useState<'tokens' | 'activity' | 'staking' | 'connections' | 'funding'>('tokens');
+  const [view, setView] = useState<'tokens' | 'activity' | 'defi' | 'staking' | 'connections' | 'funding'>('tokens');
   const [connView, setConnView] = useState<'list' | 'graph'>('list');
   const [sortKey, setSortKey] = useState<SortKey>('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -385,6 +386,15 @@ export function WalletCard({ wallet }: Props) {
             >
               Activity
             </button>
+            <button
+              type="button"
+              onClick={() => setView('defi')}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                view === 'defi' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              DeFi
+            </button>
             {showStaking && (
               <button
                 type="button"
@@ -418,6 +428,8 @@ export function WalletCard({ wallet }: Props) {
 
           {view === 'activity' ? (
             <ActivityFeed walletAddress={wallet.address} chains={wallet.chains} />
+          ) : view === 'defi' ? (
+            <ProtocolPositions walletAddress={wallet.address} chains={wallet.chains} />
           ) : view === 'staking' ? (
             <HexStakes address={wallet.address} hexUsd={hexUsd} />
           ) : view === 'connections' ? (
