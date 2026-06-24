@@ -51,6 +51,7 @@ export default function StakeBubbleMap({ net }: { net: Network }) {
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [fs, setFs] = useState(false);
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
+  const [errMsg, setErrMsg] = useState<string | null>(null);
   const [selected, setSelected] = useState<BNode | null>(null);
   const [rates, setRates] = useState<Rates | null>(null);
   const [meta, setMeta] = useState<{ bubbles: number; clusters: number }>({ bubbles: 0, clusters: 0 });
@@ -66,11 +67,15 @@ export default function StakeBubbleMap({ net }: { net: Network }) {
 
   const load = useCallback(async () => {
     setStatus('loading');
+    setErrMsg(null);
     setSelected(null);
     selectedRef.current = null;
     try {
       const res = await fetch(`/api/hex/stake-bubbles?network=${net}&limit=${limit}`);
-      if (!res.ok) throw new Error(`(${res.status})`);
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        throw new Error(j?.error || `HTTP ${res.status}`);
+      }
       const data = await res.json();
       const apiBubbles: ApiBubble[] = data.bubbles ?? [];
       if (apiBubbles.length === 0) { dataRef.current = null; setStatus('empty'); return; }
@@ -103,7 +108,8 @@ export default function StakeBubbleMap({ net }: { net: Network }) {
       dataRef.current = { nodes, edges };
       setMeta({ bubbles: nodes.length, clusters: (data.clusters ?? []).length });
       setStatus('ready');
-    } catch {
+    } catch (e) {
+      setErrMsg(e instanceof Error ? e.message : null);
       setStatus('error');
     }
   }, [net, limit]);
@@ -318,7 +324,9 @@ export default function StakeBubbleMap({ net }: { net: Network }) {
       </div>
 
       {status === 'error' ? (
-        <div className="rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">Couldn’t build the stake bubble map.</div>
+        <div className="rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+          Couldn’t build the stake bubble map.{errMsg ? ` ${errMsg}` : ''}
+        </div>
       ) : status === 'empty' ? (
         <div className="py-10 text-center text-sm text-[var(--text-faint)]">No active stakes found on {net}.</div>
       ) : status === 'loading' ? (

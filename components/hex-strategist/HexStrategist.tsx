@@ -35,6 +35,7 @@ import { type Network, type Rates, num, loadRates } from '@/lib/hex/strategistDa
 export default function HexStrategist({ net }: { net: Network }) {
   const [rates, setRates] = useState<Rates | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [errMsg, setErrMsg] = useState<string | null>(null);
   const [amount, setAmount] = useState('1000000');
   const [days, setDays] = useState(LPB_FULL_BONUS_DAYS);
   const [reload, setReload] = useState(0);
@@ -42,17 +43,23 @@ export default function HexStrategist({ net }: { net: Network }) {
   useEffect(() => {
     let alive = true;
     setStatus('loading');
+    setErrMsg(null);
     loadRates(net)
       .then((r) => {
         if (!alive) return;
         if (!r.tShareRateHex) {
+          setErrMsg('No T-Share rate in the live feed');
           setStatus('error');
           return;
         }
         setRates(r);
         setStatus('ready');
       })
-      .catch(() => alive && setStatus('error'));
+      .catch((e) => {
+        if (!alive) return;
+        setErrMsg(e instanceof Error ? e.message : null);
+        setStatus('error');
+      });
     return () => {
       alive = false;
     };
@@ -86,6 +93,7 @@ export default function HexStrategist({ net }: { net: Network }) {
       <div className="py-20 text-center text-sm text-red-300">
         Couldn’t load HEX rates right now.
         <button onClick={() => setReload((n) => n + 1)} className="ml-2 underline">retry</button>
+        {errMsg && <div className="mt-2 text-xs text-[var(--text-faint)]">{errMsg}</div>}
       </div>
     );
   }

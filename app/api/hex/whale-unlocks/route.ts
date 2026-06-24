@@ -2,34 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingService';
 import { hexStakingService } from '@/services/hexStakingService';
 import { heartsToHex, sharesToTShares, currentHexDay } from '@/lib/hex/hexDay';
+import { hexSubgraphQuery, type HexNet as Net } from '@/lib/hex/subgraph';
 import {
   WHALE_MIN_HEX, UNLOCK_WINDOW_DAYS, restakePropensity, buildWhaleStake, summarize,
   type WhaleStake, type WhaleRadarData,
 } from '@/lib/hex/whaleRadar';
 
 export const revalidate = 0;
+// The Ethereum path queries the decentralized gateway and resolves up to
+// MAX_WHALES per-wallet histories — well past the default function cap.
+export const maxDuration = 60;
 
 // Cap how many whales we resolve histories for, to bound subgraph work.
 const MAX_WHALES = 40;
-type Net = 'ethereum' | 'pulsechain';
 
 const num = (v: unknown) => {
   const n = typeof v === 'string' ? parseFloat(v) : (v as number);
   return Number.isFinite(n) ? n : 0;
-};
-
-// Subgraph endpoints — the same sources the staking services use. We query
-// these directly server-side so the Radar works even when the (DB-only)
-// getAllActiveStakes() path returns nothing because the cache isn't synced.
-const SUBGRAPH: Record<Net, { url: string; headers: Record<string, string> }> = {
-  pulsechain: {
-    url: 'https://graph.pulsechain.com/subgraphs/name/Codeakk/Hex',
-    headers: { 'Content-Type': 'application/json' },
-  },
-  ethereum: {
-    url: 'https://gateway.thegraph.com/api/subgraphs/id/A6JyHRn6CUvvgBZwni9JyrgovKWK6FoSQ8TVt6JJGhcp',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer a08fcab20e333b38bb75daf3d97a0bb5' },
-  },
 };
 
 interface RawStake {
@@ -38,14 +27,7 @@ interface RawStake {
 }
 const STAKE_FIELDS = 'stakeId stakerAddr stakedHearts stakeShares stakedDays startDay endDay';
 
-async function gql<T>(net: Net, query: string): Promise<T> {
-  const cfg = SUBGRAPH[net];
-  const res = await fetch(cfg.url, { method: 'POST', headers: cfg.headers, body: JSON.stringify({ query }) });
-  if (!res.ok) throw new Error(`subgraph ${res.status}`);
-  const j = await res.json();
-  if (j.errors?.length) throw new Error(j.errors[0]?.message || 'subgraph error');
-  return j.data as T;
-}
+const gql = hexSubgraphQuery;
 
 /** Drop stakes that have already been (early-)ended. */
 async function excludeEnded(net: Net, starts: RawStake[]): Promise<RawStake[]> {

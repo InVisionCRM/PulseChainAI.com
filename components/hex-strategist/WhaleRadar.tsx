@@ -28,13 +28,19 @@ export default function WhaleRadar({ net }: { net: Network }) {
   const [data, setData] = useState<WhaleRadarData | null>(null);
   const [rates, setRates] = useState<Rates | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [errMsg, setErrMsg] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
     let alive = true;
     setStatus('loading');
+    setErrMsg(null);
     Promise.all([
-      fetch(`/api/hex/whale-unlocks?network=${net}`).then((r) => (r.ok ? r.json() : Promise.reject())),
+      fetch(`/api/hex/whale-unlocks?network=${net}`).then(async (r) => {
+        if (r.ok) return r.json();
+        const j = await r.json().catch(() => null);
+        throw new Error(j?.error || `HTTP ${r.status}`);
+      }),
       loadRates(net).catch(() => null),
     ])
       .then(([d, r]) => {
@@ -43,7 +49,11 @@ export default function WhaleRadar({ net }: { net: Network }) {
         setRates(r);
         setStatus('ready');
       })
-      .catch(() => alive && setStatus('error'));
+      .catch((e) => {
+        if (!alive) return;
+        setErrMsg(e instanceof Error ? e.message : null);
+        setStatus('error');
+      });
     return () => {
       alive = false;
     };
@@ -64,6 +74,7 @@ export default function WhaleRadar({ net }: { net: Network }) {
       <div className="py-20 text-center text-sm text-red-300">
         Couldn’t load the radar.
         <button onClick={() => setReload((n) => n + 1)} className="ml-2 underline">retry</button>
+        {errMsg && <div className="mt-2 text-xs text-[var(--text-faint)]">{errMsg}</div>}
       </div>
     );
   }

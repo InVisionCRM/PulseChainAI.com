@@ -70,7 +70,9 @@ export interface StakerHistoryMetrics {
 
 export class HexStakingService {
   private baseUrl = 'https://gateway.thegraph.com/api';
-  private apiKey = 'a08fcab20e333b38bb75daf3d97a0bb5';
+  // Rotatable via THEGRAPH_API_KEY (Vercel env) without a redeploy; falls back
+  // to the historical key. Shared with the Strategist routes' subgraph config.
+  private apiKey = process.env.THEGRAPH_API_KEY || 'a08fcab20e333b38bb75daf3d97a0bb5';
   private subgraphId = 'A6JyHRn6CUvvgBZwni9JyrgovKWK6FoSQ8TVt6JJGhcp';
 
   // Database availability flag
