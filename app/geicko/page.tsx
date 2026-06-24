@@ -46,7 +46,6 @@ import {
   GeickoToast,
   type OwnershipData,
 } from '@/components/geicko';
-import { MobileSearchBar } from '@/components/MobileSearchBar';
 import { DesktopSearchBar } from '@/components/DesktopSearchBar';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import { BubbleMap } from '@/components/portfolio/BubbleMap';
@@ -1964,9 +1963,6 @@ function GeickoPageContent() {
           </div>
         )}
       </div>
-
-      {/* Mobile Search Bar */}
-      <MobileSearchBar />
 
       {/* Main Content */}
       <div className="flex flex-col md:flex-row md:items-stretch md:h-[calc(100vh-100px)] md:min-h-[760px] pt-4">
