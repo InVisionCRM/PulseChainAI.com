@@ -1,1 +1,4 @@
 *.mp4 filter=lfs diff=lfs merge=lfs -text
+
+# Intro clip committed directly (small) — opt out of LFS so it serves without git-lfs
+public/intro.mp4 -filter -diff -merge text=auto
