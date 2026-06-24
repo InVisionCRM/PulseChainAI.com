@@ -36,6 +36,23 @@ const TABS: { key: Mode; label: string; icon: React.ReactNode; active: string }[
   { key: 'bubbles', label: 'Bubble Map', icon: <IconChartBubble className="h-3.5 w-3.5" />, active: 'text-purple-300' },
 ];
 
+// eHEX (HEX on Ethereum) is gated off until the Ethereum data source is wired
+// up — the four tabs short-circuit to this rather than attempting a fetch.
+function ComingSoon() {
+  return (
+    <div className="grid place-items-center rounded-2xl border border-[var(--line)] bg-[var(--surface)] py-20 text-center">
+      <div className="space-y-2">
+        <div className="inline-flex items-center gap-2 text-base font-semibold text-[var(--text)]">
+          <IconBolt className="h-5 w-5 text-orange-400" /> eHEX — coming soon
+        </div>
+        <p className="mx-auto max-w-sm text-xs text-[var(--text-muted)]">
+          HEX-on-Ethereum support is on the way. For now, switch to PulseChain to use the Designer, Radar, Top 100, and Bubble Map.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function HexStrategistTabs() {
   const [net, setNet] = useState<Network>('pulsechain');
   const [mode, setMode] = useState<Mode>('designer');
@@ -80,7 +97,9 @@ export default function HexStrategistTabs() {
         ))}
       </div>
 
-      {mode === 'designer' ? (
+      {net === 'ethereum' ? (
+        <ComingSoon />
+      ) : mode === 'designer' ? (
         <HexStrategist net={net} />
       ) : mode === 'radar' ? (
         <WhaleRadar net={net} />
