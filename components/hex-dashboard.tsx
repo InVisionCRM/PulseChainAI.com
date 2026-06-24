@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
+import { usePollingEffect } from '@/hooks/usePollingEffect';
 import { RefreshCw, Calendar, Download, Filter, Brain, Users, Lock, Globe, Search, X, BarChart3 } from 'lucide-react';
 import { dexscreenerApi } from '@/services/blockchain/dexscreenerApi';
 import { OptimizedImage } from '@/components/ui/optimized-image';
@@ -1456,16 +1457,11 @@ const HEXDataDashboard = () => {
     return databaseLoadingStates[network][operation];
   }, [databaseLoadingStates]);
 
-  useEffect(() => {
-    fetchData();
-    
-    // Check database status on mount
-    checkDatabaseStatus();
-    
-    // Set up auto-refresh every 5 minutes
-    const interval = setInterval(fetchData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+  // Initial load + database status; the 5-minute auto-refresh is
+  // visibility-aware (paused in a background tab, refreshes on return).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchData(); checkDatabaseStatus(); }, []);
+  usePollingEffect(() => fetchData(), 5 * 60 * 1000);
 
   // Load initial staking data for both networks
   useEffect(() => {

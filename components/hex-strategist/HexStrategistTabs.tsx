@@ -4,17 +4,18 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { IconBolt, IconRadar2, IconTrophy, IconChartBubble } from '@tabler/icons-react';
 import type { Network } from '@/lib/hex/strategistData';
+// Designer is the default tab — import it directly so it renders immediately
+// with no loading flash (lazy-loading the always-shown view buys nothing).
+import HexStrategist from './HexStrategist';
 
-// Each tab pulls in heavy libs (recharts for the designer/radar, d3-force for
-// the bubble map). Loading them on demand keeps the initial Strategist payload
-// small — only the recharts/d3 chunk for the tab you actually open is fetched.
-// next/dynamic's options must be an inline object literal (SWC requirement).
+// The non-default tabs are loaded on demand — each pulls heavy libs (recharts
+// for the radar, d3-force for the bubble map), so their chunk is only fetched
+// when you open that tab. next/dynamic options must be inline literals (SWC).
 const TabSkeleton = () => (
   <div className="grid h-[420px] place-items-center rounded-2xl border border-[var(--line)] bg-[var(--surface)] text-sm text-[var(--text-faint)]">
     Loading…
   </div>
 );
-const HexStrategist = dynamic(() => import('./HexStrategist'), { loading: TabSkeleton, ssr: false });
 const WhaleRadar = dynamic(() => import('./WhaleRadar'), { loading: TabSkeleton, ssr: false });
 const TopHundred = dynamic(() => import('./TopHundred'), { loading: TabSkeleton, ssr: false });
 const StakeBubbleMap = dynamic(() => import('./StakeBubbleMap'), { loading: TabSkeleton, ssr: false });
