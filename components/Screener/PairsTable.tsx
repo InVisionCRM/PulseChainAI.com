@@ -57,7 +57,6 @@ function DexBadge({ row }: { row: ScreenerRow }) {
 
 const HEADERS: { key: string; label: string; align: 'left' | 'right'; sort: SortKey | null }[] = [
   { key: 'star', label: '', align: 'left', sort: null },
-  { key: 'rank', label: '#', align: 'left', sort: null },
   { key: 'token', label: 'Token', align: 'left', sort: null },
   { key: 'mcap', label: 'MCAP', align: 'right', sort: 'mcap' },
   { key: 'price', label: 'Price', align: 'right', sort: 'price' },
@@ -82,7 +81,7 @@ export default function PairsTable({ rows, window, loading, sort, dir, onSort, w
             {HEADERS.map((h) => {
               const active = h.sort !== null && sort === h.sort;
               const windowCol = ['m5', 'h1', 'h6', 'h24'].includes(h.key) && h.key === window;
-              const colw = h.key === 'star' ? 'w-9' : h.key === 'rank' ? 'w-12' : '';
+              const colw = h.key === 'star' ? 'w-9' : '';
               return (
                 <th
                   key={h.key}
@@ -103,7 +102,7 @@ export default function PairsTable({ rows, window, loading, sort, dir, onSort, w
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => {
+          {rows.map((row) => {
             const starred = watchlist.has(row.baseAddress, row.chainId === 'ethereum' ? 'ethereum' : 'pulsechain');
             return (
               <tr
@@ -123,7 +122,6 @@ export default function PairsTable({ rows, window, loading, sort, dir, onSort, w
                     {starred ? <IconStarFilled className="h-3.5 w-3.5" /> : <IconStar className="h-3.5 w-3.5" />}
                   </button>
                 </td>
-                <td className="w-12 px-2 py-2 text-[11px] text-[var(--text-faint)] tabular-nums">#{i + 1}</td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2">
                     <DexBadge row={row} />
