@@ -8,6 +8,8 @@ import {
 } from '@/lib/hex/leaderboards';
 
 export const revalidate = 0;
+// The days-late board can page deep, so give it headroom over the 10s default.
+export const maxDuration = 60;
 
 type Net = 'ethereum' | 'pulsechain';
 
@@ -98,6 +100,66 @@ async function committedDaysFor(net: Net, ends: RawEnd[]): Promise<Map<string, n
   return map;
 }
 
+/**
+ * Exact global top-100 by lateness across all ended stakes. We stream ends
+ * ordered by servedDays descending and join their committed days. Because
+ * lateness = servedDays − committedDays ≤ servedDays, once the stream's
+ * servedDays drops at or below our current 100th-best lateness, no unscanned
+ * end can beat it — so we stop early with a provably complete result. A page
+ * cap bounds the worst case; if hit, the result is "top-100 among the longest
+ * served" rather than provably global.
+ */
+async function daysLateGlobal(net: Net): Promise<{ rows: LeaderRow[]; scanned: number; exact: boolean }> {
+  const PAGE = 1000;
+  const MAX_PAGES = 40;
+  const ends: RawEnd[] = [];
+  const committed = new Map<string, number>();
+  const topLate: number[] = []; // sorted desc, capped at 100 — just the threshold
+  let cursor: number | null = null; // servedDays_lt for the next page
+  let exact = false;
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const where = cursor == null ? '' : `where:{ servedDays_lt: ${cursor} }, `;
+    let rows: RawEnd[];
+    try {
+      const d = await gql<{ stakeEnds: RawEnd[] }>(
+        net,
+        `{ stakeEnds(${where}orderBy: servedDays, orderDirection: desc, first: ${PAGE}){ ${END_FIELDS} } }`,
+      );
+      rows = d.stakeEnds ?? [];
+    } catch {
+      break; // orderBy unsupported / transient — return what we have
+    }
+    if (rows.length === 0) { exact = true; break; }
+
+    const pageMinServed = Number(rows[rows.length - 1].servedDays);
+    const c = await committedDaysFor(net, rows);
+    for (const [k, v] of c) committed.set(k, v);
+
+    for (const e of rows) {
+      ends.push(e);
+      const cd = committed.get(String(e.stakeId));
+      if (cd == null) continue;
+      const late = Number(e.servedDays) - cd;
+      if (late <= 0) continue;
+      if (topLate.length < 100) {
+        topLate.push(late);
+        topLate.sort((a, b) => b - a);
+      } else if (late > topLate[99]) {
+        topLate[99] = late;
+        topLate.sort((a, b) => b - a);
+      }
+    }
+
+    cursor = pageMinServed;
+    // Early stop: the best any remaining end could score is its servedDays,
+    // and all remaining have servedDays < pageMinServed ≤ topLate[99].
+    if (topLate.length >= 100 && pageMinServed <= topLate[99]) { exact = true; break; }
+  }
+
+  return { rows: mostDaysLate(ends, committed, 100), scanned: ends.length, exact };
+}
+
 async function buildBoard(net: Net, board: BoardKey): Promise<{ rows: LeaderRow[]; sample: number; note?: string }> {
   const currentDay = currentHexDay();
   switch (board) {
@@ -117,9 +179,14 @@ async function buildBoard(net: Net, board: BoardKey): Promise<{ rows: LeaderRow[
       return { rows: highestRoi(ends), sample: ends.length, note: 'Ranked over the 1,000 longest-served ended stakes.' };
     }
     case 'days-late': {
-      const ends = await recentEndRows(net, 1000);
-      const committed = await committedDaysFor(net, ends);
-      return { rows: mostDaysLate(ends, committed), sample: ends.length, note: 'Over the 1,000 most recent ended stakes.' };
+      const { rows, scanned, exact } = await daysLateGlobal(net);
+      return {
+        rows,
+        sample: scanned,
+        note: exact
+          ? `Exact global ranking — scanned every ended stake down to the cut-off (${scanned.toLocaleString()} checked).`
+          : `Top 100 among the ${scanned.toLocaleString()} longest-served ended stakes (scan cap reached).`,
+      };
     }
     case 'recent-penalties': {
       const ends = await recentEndRows(net, 1000);
