@@ -1,24 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import { IconBolt, IconRadar2, IconTrophy } from '@tabler/icons-react';
+import { IconBolt, IconRadar2, IconTrophy, IconChartBubble } from '@tabler/icons-react';
 import type { Network } from '@/lib/hex/strategistData';
 import HexStrategist from './HexStrategist';
 import WhaleRadar from './WhaleRadar';
 import TopHundred from './TopHundred';
+import StakeBubbleMap from './StakeBubbleMap';
 
-type Mode = 'designer' | 'radar' | 'top100';
+type Mode = 'designer' | 'radar' | 'top100' | 'bubbles';
 
 const SUBTITLE: Record<Mode, string> = {
   designer: 'Design a stake — the math tells you the best length, not just the numbers.',
   radar: 'Whale radar — big stakes unlocking soon, who’s likely to sell, and how well that call backtests.',
   top100: 'Top 100 leaderboards — biggest stakes, best ROI, latest activity, and the largest holders.',
+  bubbles: 'Stake bubble map — every staker sized by their total stake, with linked-wallet clusters.',
 };
 
 const TABS: { key: Mode; label: string; icon: React.ReactNode; active: string }[] = [
   { key: 'designer', label: 'Designer', icon: <IconBolt className="h-3.5 w-3.5" />, active: 'text-orange-300' },
   { key: 'radar', label: 'Radar', icon: <IconRadar2 className="h-3.5 w-3.5" />, active: 'text-cyan-300' },
   { key: 'top100', label: 'Top 100', icon: <IconTrophy className="h-3.5 w-3.5" />, active: 'text-amber-300' },
+  { key: 'bubbles', label: 'Bubble Map', icon: <IconChartBubble className="h-3.5 w-3.5" />, active: 'text-purple-300' },
 ];
 
 export default function HexStrategistTabs() {
@@ -69,8 +72,10 @@ export default function HexStrategistTabs() {
         <HexStrategist net={net} />
       ) : mode === 'radar' ? (
         <WhaleRadar net={net} />
-      ) : (
+      ) : mode === 'top100' ? (
         <TopHundred net={net} />
+      ) : (
+        <StakeBubbleMap net={net} />
       )}
     </div>
   );
