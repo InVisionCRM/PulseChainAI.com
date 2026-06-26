@@ -18,6 +18,7 @@ import type {
 import {
   heartsToHex, sharesToTShares, stakeProgress, currentHexDay,
   fmtDuration, fmtHex, fmtTShares, fmtHexDate, fmtUsdShort,
+  latePenaltyStatus, LATE_PENALTY_GRACE_DAYS, LATE_PENALTY_SCALE_DAYS,
 } from '@/lib/hex/hexDay';
 
 const PLS_EXPLORER_TX = 'https://midgard.wtf/tx/';
@@ -251,13 +252,21 @@ function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare }: { stake
   const past = currentDay - endDay;
   const status = currentDay < endDay
     ? { label: 'Locked', cls: 'text-[var(--text-faint)]', icon: <IconLock className="h-3 w-3" /> }
-    : past <= 14
+    : past <= LATE_PENALTY_GRACE_DAYS
       ? { label: 'Ready to end', cls: 'text-[var(--up)]', icon: null }
       : { label: 'Late — penalty accruing', cls: 'text-amber-300', icon: <IconAlertTriangle className="h-3 w-3" /> };
 
   // Locked stakes get the brand gradient; ready/late keep their semantic colors.
   const locked = currentDay < endDay;
-  const barColor = locked ? '#ff2e7e' : past <= 14 ? '#22c55e' : '#f59e0b';
+  const barColor = locked ? '#ff2e7e' : past <= LATE_PENALTY_GRACE_DAYS ? '#22c55e' : '#f59e0b';
+
+  // Late-end penalty: once a matured stake is past the 14-day grace period its
+  // total return (principal + interest locked in at maturity) bleeds away over
+  // 700 days. Estimate the return from the projected at-maturity yield, falling
+  // back to principal alone when no payout-per-T-Share is available.
+  const stakeReturn = principal + (estTermHex ?? 0);
+  const penalty = latePenaltyStatus(endDay, currentDay, stakeReturn);
+  const penaltyUsd = hexUsd != null ? penalty.penaltyHex * hexUsd : null;
 
   return (
     <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
@@ -286,6 +295,51 @@ function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare }: { stake
       <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
         <div className="h-full rounded-full transition-[width]" style={{ width: `${pct}%`, background: locked ? HEX_GRADIENT : barColor }} />
       </div>
+
+      {penalty.isBleeding && (
+        <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/[0.06] px-3 py-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-400">
+              <IconAlertTriangle className="h-3.5 w-3.5" />
+              {penalty.fullyDepleted ? 'Fully bled out' : 'Bleeding out'}
+            </span>
+            <span className="text-[11px] font-semibold tabular-nums text-amber-300">
+              {penalty.daysPastMaturity.toLocaleString()}d past maturity
+              <span className="text-[var(--text-faint)]"> · {penalty.daysPastGrace.toLocaleString()}d past grace</span>
+            </span>
+          </div>
+
+          {/* Bleed-out bar: fraction of the total return already lost to penalty. */}
+          <div className="mb-1 mt-2.5 flex items-center justify-between text-[10px] tabular-nums">
+            <span className="text-red-300">{(penalty.fraction * 100).toFixed(1)}% depleted</span>
+            <span className="text-[var(--text-faint)]">
+              {penalty.fullyDepleted
+                ? 'depleted'
+                : `${penalty.daysUntilDepleted.toLocaleString()} days until $0`}
+            </span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
+            <div
+              className="h-full rounded-full transition-[width]"
+              style={{ width: `${penalty.fraction * 100}%`, background: 'linear-gradient(90deg, #f59e0b 0%, #ef4444 100%)' }}
+            />
+          </div>
+
+          {/* Penalty accrued so far, in HEX and USD. */}
+          <div className="mt-2.5 flex items-end justify-between gap-3">
+            <span className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">Penalty so far</span>
+            <span className="text-right">
+              <span className="text-sm font-semibold tabular-nums text-red-400">−{fmtHex(penalty.penaltyHex)} HEX</span>
+              {penaltyUsd != null && (
+                <span className="block text-[10px] text-[var(--text-faint)] tabular-nums">−{fmtUsdShort(penaltyUsd)}</span>
+              )}
+            </span>
+          </div>
+          {estTermHex == null && (
+            <div className="mt-1 text-[10px] text-[var(--text-faint)]">Estimated from principal only — connect payout data for full return.</div>
+          )}
+        </div>
+      )}
 
       {estEarnedHex != null && (
         <div className="mt-3 flex items-center justify-between rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs">
@@ -323,6 +377,15 @@ function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare }: { stake
           <DetailRow label="Days served" value={served.toLocaleString()} />
           <DetailRow label="Days left" value={left.toLocaleString()} />
           <DetailRow label="Progress" value={`${pct.toFixed(1)}%`} />
+          {penalty.isBleeding && (
+            <>
+              <DetailRow label="Days past maturity" value={penalty.daysPastMaturity.toLocaleString()} />
+              <DetailRow label="Days past grace" value={`${penalty.daysPastGrace.toLocaleString()} (of ${LATE_PENALTY_SCALE_DAYS.toLocaleString()})`} />
+              <DetailRow label="Penalty so far" value={`−${fmtHex(penalty.penaltyHex)} HEX${penaltyUsd != null ? ` · −${fmtUsdShort(penaltyUsd)}` : ''}`} />
+              <DetailRow label="Depleted" value={`${(penalty.fraction * 100).toFixed(1)}%`} />
+              <DetailRow label="Days until fully bled out" value={penalty.fullyDepleted ? 'Fully depleted' : penalty.daysUntilDepleted.toLocaleString()} />
+            </>
+          )}
           <DetailRow label="Auto-stake" value={stake.isAutoStake ? 'Yes' : 'No'} />
           <DetailRow label="Staker" value={<ExplorerLink href={`${PLS_EXPLORER_ADDR}${stake.stakerAddr}`}>{shortHash(stake.stakerAddr)}</ExplorerLink>} mono />
           <DetailRow label="Tx hash" value={<ExplorerLink href={`${PLS_EXPLORER_TX}${stake.transactionHash}`}>{shortHash(stake.transactionHash)}</ExplorerLink>} mono />
