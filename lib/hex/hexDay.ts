@@ -29,6 +29,55 @@ export function stakeProgress(startDay: number, stakedDays: number, currentDay: 
   return Math.max(0, Math.min(1, (currentDay - startDay) / stakedDays));
 }
 
+// HEX late-end penalty constants (mirror HEX.sol). A matured stake left unended
+// is penalty-free for a 14-day grace period; after that its total return
+// (principal + interest) bleeds away linearly over 700 days, hitting zero
+// 714 days past the maturity (end) day.
+export const LATE_PENALTY_GRACE_DAYS = 14;
+export const LATE_PENALTY_SCALE_DAYS = 700;
+
+export interface LatePenaltyStatus {
+  /** Past the 14-day grace period — penalties are actively accruing. */
+  isBleeding: boolean;
+  /** Whole days since the stake matured (end day). */
+  daysPastMaturity: number;
+  /** Whole days past the end of the 14-day grace period. */
+  daysPastGrace: number;
+  /** 0–1 fraction of the stake's total return already lost to penalty. */
+  fraction: number;
+  /** Estimated penalty accrued so far, in HEX. */
+  penaltyHex: number;
+  /** Days remaining until the stake is fully depleted (return → 0). */
+  daysUntilDepleted: number;
+  /** True once the entire return has bled out (700 days past grace). */
+  fullyDepleted: boolean;
+}
+
+/**
+ * Late-end penalty status for a matured HEX stake left unended.
+ * Mirrors HEX.sol `_calcLatePenalty`: penalty = stakeReturn × daysPastGrace / 700.
+ *
+ * @param endDay      the stake's maturity HEX day
+ * @param currentDay  today's HEX day
+ * @param stakeReturn principal + interest at maturity (HEX) — the amount that bleeds
+ */
+export function latePenaltyStatus(endDay: number, currentDay: number, stakeReturn: number): LatePenaltyStatus {
+  const graceEndDay = endDay + LATE_PENALTY_GRACE_DAYS;
+  const daysPastMaturity = Math.max(0, currentDay - endDay);
+  const daysPastGrace = Math.max(0, currentDay - graceEndDay);
+  const fraction = Math.min(1, daysPastGrace / LATE_PENALTY_SCALE_DAYS);
+  const penaltyHex = Math.max(0, stakeReturn) * fraction;
+  return {
+    isBleeding: daysPastGrace > 0,
+    daysPastMaturity,
+    daysPastGrace,
+    fraction,
+    penaltyHex,
+    daysUntilDepleted: Math.max(0, LATE_PENALTY_SCALE_DAYS - daysPastGrace),
+    fullyDepleted: daysPastGrace >= LATE_PENALTY_SCALE_DAYS,
+  };
+}
+
 export function fmtDuration(days: number): string {
   if (!Number.isFinite(days) || days < 0) return '—';
   const total = Math.round(days);
