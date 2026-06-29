@@ -7,7 +7,8 @@ export type BoardKey =
   | 'active-amount'
   | 'completed-amount'
   | 'roi'
-  | 'days-late'
+  | 'active-penalties'
+  | 'depleted'
   | 'recent-penalties'
   | 'recent-starts'
   | 'recent-ends'
@@ -17,7 +18,8 @@ export const BOARDS: { key: BoardKey; label: string; blurb: string }[] = [
   { key: 'active-amount', label: 'Active by size', blurb: 'Largest stakes currently locked.' },
   { key: 'completed-amount', label: 'Completed by size', blurb: 'Largest stakes that have ended.' },
   { key: 'roi', label: 'Highest ROI', blurb: 'Best realized return on principal (net of penalty).' },
-  { key: 'days-late', label: 'Most overdue', blurb: 'Active stakes ≥1M HEX past their end day, largest first (drops stakes already lost to penalties).' },
+  { key: 'active-penalties', label: 'Active penalties', blurb: 'Largest stakes past their end day that are actively bleeding the late-end penalty and have NOT been good-accounted (good-accounted stakes are frozen, so excluded). Largest first.' },
+  { key: 'depleted', label: 'Depleted', blurb: 'Largest stakes that never got good-accounted and bled the full 700-day penalty period — the entire return is gone. Largest first.' },
   { key: 'recent-penalties', label: 'Recent penalties', blurb: 'Latest stakes that paid an end penalty.' },
   { key: 'recent-starts', label: 'Recent starts', blurb: 'Newest stake-starts.' },
   { key: 'recent-ends', label: 'Recent ends', blurb: 'Newest stake-ends.' },
@@ -82,46 +84,83 @@ export function activeByAmount(starts: RawStart[], currentDay: number, limit = 1
   );
 }
 
-/**
- * Active stakes whose committed end day has already passed but that haven't
- * been ended yet — "overdue". HEX charges a late-end penalty after a 14-day
- * grace period that bleeds the stake at 1%/week (1/700 per day), reaching 100%
- * (nothing left) at 700 days past grace. We therefore drop stakes that are
- * fully penalised, keep only sizeable ones (≥ MIN_OVERDUE_HEX), and sort by the
- * largest stake first. `penaltyPct` is the share of the stake already lost.
- */
+// HEX charges a late-end penalty after a 14-day grace period that bleeds the
+// stake at 1%/week (1/700 per day), reaching 100% (nothing left) at 700 days
+// past grace — UNLESS the stake is good-accounted, which freezes it. The two
+// overdue boards below therefore operate only on stakes that were never
+// good-accounted (the caller passes the set of good-accounted stakeIds).
 export const LATE_GRACE_DAYS = 14;
 export const LATE_SCALE_DAYS = 700;
 export const MIN_OVERDUE_HEX = 1_000_000;
 
-export function activeOverdue(starts: RawStart[], currentDay: number, limit = 100): LeaderRow[] {
+function deriveOverdue(s: RawStart, currentDay: number) {
+  const principalHex = heartsToHex(s.stakedHearts);
+  const late = currentDay - Number(s.endDay);
+  const pastGrace = Math.max(0, late - LATE_GRACE_DAYS);
+  const penaltyPct = Math.min(100, (pastGrace / LATE_SCALE_DAYS) * 100);
+  return { s, principalHex, late, penaltyPct };
+}
+
+function overdueRow({ s, principalHex, late, penaltyPct }: ReturnType<typeof deriveOverdue>): Omit<LeaderRow, 'rank'> {
+  return {
+    address: s.stakerAddr.toLowerCase(),
+    stakeId: s.stakeId,
+    principalHex,
+    tShares: Number(s.stakeShares) / TSHARE,
+    committedDays: Number(s.stakedDays),
+    startDay: Number(s.startDay),
+    endDay: Number(s.endDay),
+    daysLate: late,
+    penaltyPct,
+    // HEX bled to the penalty so far = principal × the share already lost.
+    lostHex: principalHex * (penaltyPct / 100),
+  };
+}
+
+/**
+ * Active penalties: largest stakes past their end day that are ACTIVELY bleeding
+ * the late-end penalty (past the 14-day grace, not yet fully depleted) and were
+ * never good-accounted. Good-accounted stakes are frozen, so excluded. Caller
+ * passes the set of good-accounted stakeIds and already-ended exclusion.
+ */
+export function activePenalties(
+  starts: RawStart[],
+  currentDay: number,
+  goodAccountedIds: Set<string>,
+  limit = 100,
+): LeaderRow[] {
   return rank(
     starts
-      .map((s) => {
-        const principalHex = heartsToHex(s.stakedHearts);
-        const late = currentDay - Number(s.endDay);
-        const pastGrace = Math.max(0, late - LATE_GRACE_DAYS);
-        const penaltyPct = Math.min(100, (pastGrace / LATE_SCALE_DAYS) * 100);
-        return { s, principalHex, late, penaltyPct };
-      })
-      // Overdue, still worth something (not fully penalised), and sizeable.
-      .filter((x) => x.late > 0 && x.penaltyPct < 100 && x.principalHex >= MIN_OVERDUE_HEX)
-      // Largest overdue stake first.
+      .filter((s) => !goodAccountedIds.has(String(s.stakeId)))
+      .map((s) => deriveOverdue(s, currentDay))
+      // Penalty actively accruing (past grace) but not yet fully gone; sizeable.
+      .filter((x) => x.penaltyPct > 0 && x.penaltyPct < 100 && x.principalHex >= MIN_OVERDUE_HEX)
       .sort((a, b) => b.principalHex - a.principalHex)
       .slice(0, limit)
-      .map(({ s, principalHex, late, penaltyPct }) => ({
-        address: s.stakerAddr.toLowerCase(),
-        stakeId: s.stakeId,
-        principalHex,
-        tShares: Number(s.stakeShares) / TSHARE,
-        committedDays: Number(s.stakedDays),
-        startDay: Number(s.startDay),
-        endDay: Number(s.endDay),
-        daysLate: late,
-        penaltyPct,
-        // HEX bled to the penalty so far = principal × the share already lost.
-        lostHex: principalHex * (penaltyPct / 100),
-      })),
+      .map(overdueRow),
+  );
+}
+
+/**
+ * Depleted: largest stakes that never got good-accounted and bled the FULL
+ * 700-day penalty period past grace (penalty = 100%) — the entire return is gone.
+ * No size floor: fully-bled stakes are rarer (most big overdue stakes get
+ * good-accounted), so we show the largest that exist rather than hide them.
+ */
+export function depletedStakes(
+  starts: RawStart[],
+  currentDay: number,
+  goodAccountedIds: Set<string>,
+  limit = 100,
+): LeaderRow[] {
+  return rank(
+    starts
+      .filter((s) => !goodAccountedIds.has(String(s.stakeId)))
+      .map((s) => deriveOverdue(s, currentDay))
+      .filter((x) => x.penaltyPct >= 100)
+      .sort((a, b) => b.principalHex - a.principalHex)
+      .slice(0, limit)
+      .map(overdueRow),
   );
 }
 
