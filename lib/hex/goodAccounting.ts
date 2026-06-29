@@ -130,6 +130,22 @@ export function classifyMaturedStake(args: {
 }): StakeAccountingStatus {
   const { principalHex, endDay, currentDay, hasEnd, ga } = args;
 
+  // Ending is the TERMINAL state and takes precedence over good-accounting: a
+  // stake can be good-accounted and then ended later, and once ended the funds
+  // are withdrawn (nothing left to claim). Check this first.
+  if (hasEnd) {
+    return {
+      state: 'ended',
+      confirmed: true,
+      penaltyHex: 0,
+      penaltyFraction: 0,
+      netClaimableHex: 0,
+      note: ga
+        ? 'Stake was good-accounted and then ENDED — withdrawn, nothing claimable.'
+        : 'Stake already ended on-chain.',
+    };
+  }
+
   if (ga) {
     const gross = ga.principalHex + ga.payoutHex;
     const frozenOnDay = Math.round(
@@ -145,17 +161,6 @@ export function classifyMaturedStake(args: {
       note:
         'Good-accounted on-chain — penalty and payout are FROZEN. The stake is ' +
         'NOT still bleeding; remaining HEX stays claimable until the staker ends it.',
-    };
-  }
-
-  if (hasEnd) {
-    return {
-      state: 'ended',
-      confirmed: true,
-      penaltyHex: 0,
-      penaltyFraction: 0,
-      netClaimableHex: 0,
-      note: 'Stake already ended on-chain.',
     };
   }
 

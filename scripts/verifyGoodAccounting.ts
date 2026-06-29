@@ -27,6 +27,7 @@ import {
   classifyMaturedStake,
   type GoodAccountingRecord,
 } from '../lib/hex/goodAccounting';
+import { onChainStakeIds } from '../lib/hex/onchainStakes';
 
 interface RawStart {
   stakeId: string;
@@ -102,15 +103,34 @@ async function main() {
   const ids = starts.map((s) => s.stakeId);
   const [ended, gaMap] = await Promise.all([endedSet(net, ids), fetchGoodAccountings(net, ids)]);
 
+  // Definitive cross-check: which stakeIds are still in each staker's on-chain
+  // stakeList. Presence => provably never ended (HEX deletes ended stakes). A
+  // stake the subgraph thinks is open but that is ABSENT here was really ended.
+  const stakers = [...new Set(starts.map((s) => s.stakerAddr.toLowerCase()))];
+  const onChain = new Map<string, Set<string>>();
+  await Promise.all(
+    stakers.map(async (addr) => {
+      try {
+        onChain.set(addr, await onChainStakeIds(net, addr));
+      } catch (e) {
+        console.warn(`  (on-chain read failed for ${addr}: ${e instanceof Error ? e.message : e})`);
+      }
+    }),
+  );
+
   console.log(`\nNetwork: ${net}   Current HEX day: ${currentDay}   Stakes checked: ${starts.length}\n`);
   for (const s of starts) {
     const endDay = Number(s.endDay);
     const ga: GoodAccountingRecord | null = gaMap.get(String(s.stakeId)) ?? null;
+    const liveSet = onChain.get(s.stakerAddr.toLowerCase());
+    const presentOnChain = liveSet?.has(String(s.stakeId));
+    // Trust the contract for "ended" when we have it; fall back to the subgraph.
+    const hasEnd = liveSet ? !presentOnChain : ended.has(String(s.stakeId));
     const status = classifyMaturedStake({
       principalHex: Number(s.stakedHearts) / 1e8,
       endDay,
       currentDay,
-      hasEnd: ended.has(String(s.stakeId)),
+      hasEnd,
       ga,
     });
 
@@ -125,8 +145,18 @@ async function main() {
               ? '⏳ MATURED, in grace'
               : '🔒 ACTIVE';
 
+    const subgraphEnded = ended.has(String(s.stakeId));
+    const liveLabel =
+      liveSet === undefined
+        ? 'on-chain: (unavailable)'
+        : presentOnChain
+          ? 'on-chain: STILL IN stakeList → never ended ✅'
+          : 'on-chain: ABSENT → was ended ⏹';
+    const mismatch = liveSet !== undefined && subgraphEnded !== !presentOnChain;
+
     console.log(`Stake ${s.stakeId}  —  ${verdict}`);
     console.log(`  staker        ${s.stakerAddr}`);
+    console.log(`  ended check   ${liveLabel}   (subgraph stakeEnd: ${subgraphEnded ? 'yes' : 'no'})${mismatch ? '  ⚠️ SUBGRAPH DISAGREES — trusting chain' : ''}`);
     console.log(`  end day       ${endDay} (${fmtHexDate(endDay)})   ${currentDay - endDay} days ago`);
     if (ga) {
       console.log(`  GA recorded   penalty ${hex(ga.penaltyHex)} HEX, payout ${hex(ga.payoutHex)} HEX, on ${new Date(ga.timestamp).toISOString().slice(0, 10)}`);
