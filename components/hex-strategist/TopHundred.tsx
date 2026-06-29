@@ -53,7 +53,7 @@ const COLUMNS: Record<BoardKey, Col[]> = {
     { header: 'Payout', align: 'right', hex: true, render: (r) => hx(r.payoutHex) },
     { header: 'Served', align: 'right', render: (r) => days(r.servedDays) },
   ],
-  'days-late': [
+  'active-penalties': [
     { header: 'Principal', align: 'right', accent: true, hex: true, render: (r) => hx(r.principalHex) },
     { header: 'Overdue', align: 'right', render: (r) => days(r.daysLate) },
     {
@@ -67,6 +67,25 @@ const COLUMNS: Record<BoardKey, Col[]> = {
             {r.penaltyPct != null && (
               <span className="text-[10px] text-[var(--text-faint)]">{r.penaltyPct.toFixed(1)}%</span>
             )}
+          </span>
+        ) : (
+          '—'
+        ),
+    },
+    { header: 'Due', align: 'right', render: (r) => (r.endDay != null ? fmtHexDate(r.endDay) : '—') },
+  ],
+  depleted: [
+    { header: 'Principal', align: 'right', accent: true, hex: true, render: (r) => hx(r.principalHex) },
+    { header: 'Overdue', align: 'right', render: (r) => days(r.daysLate) },
+    {
+      header: 'Lost',
+      align: 'right',
+      hex: true,
+      render: (r) =>
+        r.lostHex != null ? (
+          <span className="inline-flex flex-col items-end leading-tight">
+            <span className="text-red-400">{fmtHex(r.lostHex)}</span>
+            <span className="text-[10px] text-red-300">100% bled out</span>
           </span>
         ) : (
           '—'

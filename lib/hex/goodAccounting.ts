@@ -2,7 +2,7 @@
 //
 // Why this exists: the leaderboard/overdue logic infers how much of a matured
 // stake has "bled out" purely from `currentDay - endDay` (see
-// `latePenaltyStatus` in hexDay.ts and `activeOverdue` in leaderboards.ts). That
+// `latePenaltyStatus` in hexDay.ts and the overdue boards in leaderboards.ts). That
 // estimate is WRONG the moment anyone calls HEX's `stakeGoodAccounting` on the
 // stake. Good-accounting removes the stake's shares from the global pool and
 // LOCKS IN the payout + late-end penalty as of the day it ran — the stake stops

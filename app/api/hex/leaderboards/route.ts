@@ -3,13 +3,15 @@ import { fetchTopHolders } from '@/lib/portfolio/holders';
 import { currentHexDay, HEX_ADDRESS } from '@/lib/hex/hexDay';
 import {
   type BoardKey, type RawStart, type RawEnd, type LeaderRow,
-  activeByAmount, completedByAmount, highestRoi, activeOverdue, recentPenalties,
+  activeByAmount, completedByAmount, highestRoi, activePenalties, depletedStakes, recentPenalties,
   recentStarts, recentEnds, topHolders, aggregateStaked,
 } from '@/lib/hex/leaderboards';
 import { hexSubgraphQuery, type HexNet as Net } from '@/lib/hex/subgraph';
+import { fetchGoodAccountings } from '@/lib/hex/goodAccounting';
 
 export const revalidate = 0;
-// The days-late board can page deep, so give it headroom over the 10s default.
+// The overdue boards (active-penalties / depleted) page deep + fetch good-
+// accounting, so give them headroom over the 10s default.
 export const maxDuration = 60;
 
 const START_FIELDS = 'stakeId stakerAddr stakedHearts stakeShares stakedDays startDay endDay timestamp';
@@ -64,7 +66,8 @@ const MIN_OVERDUE_HEARTS = '100000000000000';
  * Candidate overdue stakes: ≥1M HEX and past their end day, biggest first.
  * We pull the largest such stakes straight from the subgraph (so the board is
  * ordered by size) and drop any that have actually ended; the pure
- * `activeOverdue` then removes fully-penalised stakes.
+ * `activePenalties` / `depletedStakes` then split them by penalty status and
+ * drop good-accounted ones.
  */
 async function overdueBigStakes(net: Net, currentDay: number): Promise<RawStart[]> {
   let rows: RawStart[] = [];
@@ -72,6 +75,31 @@ async function overdueBigStakes(net: Net, currentDay: number): Promise<RawStart[
     const d = await gql<{ stakeStarts: RawStart[] }>(
       net,
       `{ stakeStarts(where:{ stakedHearts_gte: "${MIN_OVERDUE_HEARTS}", endDay_lt: ${currentDay} }, orderBy: stakedHearts, orderDirection: desc, first: 1000){ ${START_FIELDS} } }`,
+    );
+    rows = d.stakeStarts ?? [];
+  } catch {
+    return [];
+  }
+  const ended = await endedIds(net, rows);
+  return rows.filter((r) => !ended.has(String(r.stakeId)));
+}
+
+// Past the full 14-day grace + 700-day bleed = a stake is fully depleted.
+const FULLY_BLED_DAYS = 714;
+
+/**
+ * Candidate fully-depleted stakes: end day ≥714 days in the past, largest first,
+ * NO size floor (fully-bled stakes are rarer, so we surface the biggest that
+ * exist). Ended ones are dropped; the pure `depletedStakes` then drops
+ * good-accounted ones (which were frozen and never actually bled out).
+ */
+async function depletedCandidates(net: Net, currentDay: number): Promise<RawStart[]> {
+  const cutoff = currentDay - FULLY_BLED_DAYS;
+  let rows: RawStart[] = [];
+  try {
+    const d = await gql<{ stakeStarts: RawStart[] }>(
+      net,
+      `{ stakeStarts(where:{ endDay_lt: ${cutoff} }, orderBy: stakedHearts, orderDirection: desc, first: 1000){ ${START_FIELDS} } }`,
     );
     rows = d.stakeStarts ?? [];
   } catch {
@@ -99,12 +127,22 @@ async function buildBoard(net: Net, board: BoardKey): Promise<{ rows: LeaderRow[
       const ends = await endsByServed(net, 1000);
       return { rows: highestRoi(ends), sample: ends.length, note: 'Ranked over the 1,000 longest-served ended stakes.' };
     }
-    case 'days-late': {
+    case 'active-penalties': {
       const overdue = await overdueBigStakes(net, currentDay);
+      const gaIds = new Set((await fetchGoodAccountings(net, overdue.map((s) => s.stakeId))).keys());
       return {
-        rows: activeOverdue(overdue, currentDay),
+        rows: activePenalties(overdue, currentDay, gaIds),
         sample: overdue.length,
-        note: 'Active stakes ≥1M HEX past their end day, largest first. HEX bleeds an overdue stake ~1%/week after a 14-day grace; stakes already fully lost are excluded. “Lost” = share of the stake gone to the penalty so far.',
+        note: 'Active stakes ≥1M HEX past their end day, actively bleeding the late-end penalty, largest first. Good-accounted (frozen) stakes are excluded — they’ve stopped bleeding. “Lost” = share of the stake gone to the penalty so far.',
+      };
+    }
+    case 'depleted': {
+      const candidates = await depletedCandidates(net, currentDay);
+      const gaIds = new Set((await fetchGoodAccountings(net, candidates.map((s) => s.stakeId))).keys());
+      return {
+        rows: depletedStakes(candidates, currentDay, gaIds),
+        sample: candidates.length,
+        note: 'Stakes that never got good-accounted and bled the full 700-day penalty period past the 14-day grace — the entire return is gone. Largest first; good-accounted (frozen) stakes are excluded.',
       };
     }
     case 'recent-penalties': {
@@ -147,7 +185,7 @@ async function buildBoard(net: Net, board: BoardKey): Promise<{ rows: LeaderRow[
 }
 
 const BOARD_KEYS: BoardKey[] = [
-  'active-amount', 'completed-amount', 'roi', 'days-late',
+  'active-amount', 'completed-amount', 'roi', 'active-penalties', 'depleted',
   'recent-penalties', 'recent-starts', 'recent-ends', 'holders',
 ];
 
