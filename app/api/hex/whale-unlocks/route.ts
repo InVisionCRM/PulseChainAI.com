@@ -4,8 +4,8 @@ import { hexStakingService } from '@/services/hexStakingService';
 import { heartsToHex, sharesToTShares, currentHexDay } from '@/lib/hex/hexDay';
 import { hexSubgraphQuery, type HexNet as Net } from '@/lib/hex/subgraph';
 import {
-  WHALE_MIN_HEX, UNLOCK_WINDOW_DAYS, restakePropensity, buildWhaleStake, summarize,
-  type WhaleStake, type WhaleRadarData,
+  WHALE_MIN_HEX, UNLOCK_WINDOW_DAYS, restakeEvidence, rateFromEvidence, buildWhaleStake, summarize,
+  type WhaleStake, type WhaleRadarData, type HistoryRecord, type RestakeEvent,
 } from '@/lib/hex/whaleRadar';
 
 export const revalidate = 0;
@@ -72,18 +72,30 @@ async function endingFromGraph(net: Net, currentDay: number, minHearts: number):
   }
 }
 
-/** A wallet's stake start/end timestamps, for the re-stake propensity signal. */
-async function stakerHistoryFromGraph(net: Net, addr: string): Promise<{ rate: number | null; count: number }> {
+interface RawHist { stakeId?: string; timestamp?: unknown; stakedHearts?: unknown; transactionHash?: unknown }
+
+/** Map raw subgraph/service start or end rows to evidence HistoryRecords. */
+function toRecords(rows: RawHist[]): HistoryRecord[] {
+  return (rows ?? [])
+    .map((r) => ({
+      stakeId: String(r.stakeId ?? ''),
+      timestamp: num(r.timestamp),
+      principalHex: num(r.stakedHearts) / 1e8,
+      tx: r.transactionHash ? String(r.transactionHash) : undefined,
+    }))
+    .filter((r) => r.timestamp > 0);
+}
+
+/** A wallet's full start/end records (with tx hashes) for the re-stake evidence. */
+async function stakerRecordsFromGraph(net: Net, addr: string): Promise<{ starts: HistoryRecord[]; ends: HistoryRecord[] }> {
   try {
-    const d = await gql<{ stakeStarts: { timestamp: string }[]; stakeEnds: { timestamp: string }[] }>(
+    const d = await gql<{ stakeStarts: RawHist[]; stakeEnds: RawHist[] }>(
       net,
-      `{ stakeStarts(where:{ stakerAddr: "${addr}" }, first: 1000){ timestamp } stakeEnds(where:{ stakerAddr: "${addr}" }, first: 1000){ timestamp } }`,
+      `{ stakeStarts(where:{ stakerAddr: "${addr}" }, first: 1000){ stakeId timestamp stakedHearts transactionHash } stakeEnds(where:{ stakerAddr: "${addr}" }, first: 1000){ stakeId timestamp stakedHearts transactionHash } }`,
     );
-    const starts = (d.stakeStarts ?? []).map((s) => num(s.timestamp)).filter((t) => t > 0);
-    const ends = (d.stakeEnds ?? []).map((e) => num(e.timestamp)).filter((t) => t > 0);
-    return restakePropensity(starts, ends);
+    return { starts: toRecords(d.stakeStarts), ends: toRecords(d.stakeEnds) };
   } catch {
-    return { rate: null, count: 0 };
+    return { starts: [], ends: [] };
   }
 }
 
@@ -120,30 +132,31 @@ export async function GET(req: NextRequest) {
 
     ending = ending.sort((a, b) => num(b.stakedHearts) - num(a.stakedHearts)).slice(0, MAX_WHALES);
 
-    // Behavioral signal per unique whale (re-stake history).
+    // Behavioral signal + per-end evidence per unique whale (re-stake history).
     const addrs = [...new Set(ending.map((s) => s.stakerAddr.toLowerCase()))];
-    const histByAddr = new Map<string, { rate: number | null; count: number }>();
+    const evidenceByAddr = new Map<string, RestakeEvent[]>();
     await Promise.all(
       addrs.map(async (addr) => {
+        let recs: { starts: HistoryRecord[]; ends: HistoryRecord[] } = { starts: [], ends: [] };
         if (usedGraph) {
-          histByAddr.set(addr, await stakerHistoryFromGraph(net, addr));
-          return;
+          recs = await stakerRecordsFromGraph(net, addr);
+        } else {
+          try {
+            const h = (await svc.getStakerHistory(addr)) as unknown as {
+              stakes?: RawHist[]; stakeEnds?: RawHist[];
+            };
+            recs = { starts: toRecords(h.stakes ?? []), ends: toRecords(h.stakeEnds ?? []) };
+          } catch {
+            recs = await stakerRecordsFromGraph(net, addr);
+          }
         }
-        try {
-          const h = (await svc.getStakerHistory(addr)) as unknown as {
-            stakes?: { timestamp?: unknown }[]; stakeEnds?: { timestamp?: unknown }[];
-          };
-          const starts = (h.stakes ?? []).map((s) => num(s.timestamp)).filter((t) => t > 0);
-          const ends = (h.stakeEnds ?? []).map((e) => num(e.timestamp)).filter((t) => t > 0);
-          histByAddr.set(addr, restakePropensity(starts, ends));
-        } catch {
-          histByAddr.set(addr, await stakerHistoryFromGraph(net, addr));
-        }
+        evidenceByAddr.set(addr, restakeEvidence(recs.starts, recs.ends));
       }),
     );
 
-    const stakes: WhaleStake[] = ending.map((s) =>
-      buildWhaleStake(
+    const stakes: WhaleStake[] = ending.map((s) => {
+      const evidence = evidenceByAddr.get(s.stakerAddr.toLowerCase()) ?? [];
+      return buildWhaleStake(
         {
           stakeId: s.stakeId,
           stakerAddr: s.stakerAddr,
@@ -153,9 +166,10 @@ export async function GET(req: NextRequest) {
           endDay: num(s.endDay),
         },
         currentDay,
-        histByAddr.get(s.stakerAddr.toLowerCase()) ?? { rate: null, count: 0 },
-      ),
-    );
+        rateFromEvidence(evidence),
+        evidence,
+      );
+    });
 
     const data: WhaleRadarData = { network: net, currentDay, stakes, ...summarize(stakes) };
     return NextResponse.json(data, {

@@ -14,6 +14,30 @@ const UNKNOWN_SELL_PROB = 0.5;
 
 export type WhaleBias = 'restake' | 'sell' | 'mixed' | 'unknown';
 
+/** One past stake-end and what the wallet did next — the evidence behind the
+ *  sell/re-stake rating. `restaked` is true when a new stake started within
+ *  RESTAKE_WINDOW_SEC of this end. */
+export interface RestakeEvent {
+  endStakeId: string;
+  endTimestamp: number; // unix seconds
+  endHex: number;
+  endTx?: string;
+  restaked: boolean;
+  restakeStakeId?: string;
+  restakeTimestamp?: number;
+  restakeHex?: number;
+  restakeTx?: string;
+  daysAfter?: number; // whole days between the end and the re-stake
+}
+
+/** A wallet stake start/end record used to derive the re-stake evidence. */
+export interface HistoryRecord {
+  stakeId: string;
+  timestamp: number; // unix seconds
+  principalHex: number;
+  tx?: string;
+}
+
 export interface WhaleStake {
   stakeId: string;
   stakerAddr: string;
@@ -27,6 +51,8 @@ export interface WhaleStake {
   restakeRate: number | null; // null when no prior ends
   sellProb: number | null;
   bias: WhaleBias;
+  /** Per-end evidence behind the rating (most recent first). */
+  evidence: RestakeEvent[];
 }
 
 export interface CalendarBucket {
@@ -46,21 +72,6 @@ export interface WhaleRadarData {
   calendar: CalendarBucket[];
 }
 
-/**
- * Re-stake propensity from a wallet's history: fraction of past stake-ends that
- * were followed by a new stake within RESTAKE_WINDOW_SEC. Returns null when the
- * wallet has no prior ends to learn from.
- */
-export function restakePropensity(startTimestamps: number[], endTimestamps: number[]): { rate: number | null; count: number } {
-  if (!endTimestamps.length) return { rate: null, count: 0 };
-  const starts = [...startTimestamps].sort((a, b) => a - b);
-  let restaked = 0;
-  for (const e of endTimestamps) {
-    if (starts.some((s) => s > e && s <= e + RESTAKE_WINDOW_SEC)) restaked++;
-  }
-  return { rate: restaked / endTimestamps.length, count: endTimestamps.length };
-}
-
 export function classifyBias(rate: number | null): WhaleBias {
   if (rate == null) return 'unknown';
   if (rate >= 0.66) return 'restake';
@@ -68,11 +79,47 @@ export function classifyBias(rate: number | null): WhaleBias {
   return 'mixed';
 }
 
+/**
+ * Per-end evidence behind the rating: for each past stake-end, the earliest
+ * new stake the wallet started within RESTAKE_WINDOW_SEC (if any). Returned most
+ * recent first so the UI can show the latest behavior first.
+ */
+export function restakeEvidence(starts: HistoryRecord[], ends: HistoryRecord[]): RestakeEvent[] {
+  const sortedStarts = [...starts].sort((a, b) => a.timestamp - b.timestamp);
+  return [...ends]
+    .sort((a, b) => b.timestamp - a.timestamp) // most recent end first
+    .map((e) => {
+      const match = sortedStarts.find(
+        (s) => s.timestamp > e.timestamp && s.timestamp <= e.timestamp + RESTAKE_WINDOW_SEC,
+      );
+      return {
+        endStakeId: e.stakeId,
+        endTimestamp: e.timestamp,
+        endHex: e.principalHex,
+        endTx: e.tx,
+        restaked: !!match,
+        restakeStakeId: match?.stakeId,
+        restakeTimestamp: match?.timestamp,
+        restakeHex: match?.principalHex,
+        restakeTx: match?.tx,
+        daysAfter: match ? Math.round((match.timestamp - e.timestamp) / 86_400) : undefined,
+      };
+    });
+}
+
+/** Re-stake rate (+ count) derived from the per-end evidence. */
+export function rateFromEvidence(evidence: RestakeEvent[]): { rate: number | null; count: number } {
+  if (!evidence.length) return { rate: null, count: 0 };
+  const restaked = evidence.filter((e) => e.restaked).length;
+  return { rate: restaked / evidence.length, count: evidence.length };
+}
+
 /** Build a single whale stake row from raw values + the wallet's behavior. */
 export function buildWhaleStake(
   raw: { stakeId: string; stakerAddr: string; principalHex: number; tShares: number; startDay: number; endDay: number },
   currentDay: number,
   history: { rate: number | null; count: number },
+  evidence: RestakeEvent[] = [],
 ): WhaleStake {
   const sellProb = history.rate == null ? null : 1 - history.rate;
   return {
@@ -83,6 +130,7 @@ export function buildWhaleStake(
     restakeRate: history.rate,
     sellProb,
     bias: classifyBias(history.rate),
+    evidence,
   };
 }
 
