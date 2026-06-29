@@ -1,5 +1,6 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { HexLogo } from '@/components/hex/HexAmount';
 import type { DataTableProps, HexRow } from './types';
 
 // Utility functions (extracted from main component)
@@ -178,6 +179,7 @@ const DataTable: React.FC<DataTableProps> = ({
                     className={`sticky top-0 z-10 bg-[var(--app-bg)] backdrop-blur px-1 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-[var(--surface-3)] select-none ${!isMobileVisible ? 'hidden sm:table-cell' : ''}`}
                   >
                     <div className="flex items-center gap-1">
+                      {column.label.includes('HEX') && <HexLogo className="h-3 w-3" />}
                       <span className="hidden sm:inline">{column.label}</span>
                       <span className="sm:hidden">{column.shortLabel || column.label}</span>
                       <span className="text-[var(--text)] text-xs">{getSortIcon(column.key as keyof HexRow)}</span>

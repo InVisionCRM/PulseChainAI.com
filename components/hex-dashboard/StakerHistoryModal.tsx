@@ -7,6 +7,7 @@ import { liquidHexBalanceService, type LiquidHexBalances } from '@/services/liqu
 import { hexSwapService, type HexSwap, type SwapResponse } from '@/services/hexSwapService';
 import { GridPattern } from '@/components/magicui/grid-pattern';
 import { OptimizedImage } from '@/components/ui/optimized-image';
+import { HexLogo } from '@/components/hex/HexAmount';
 import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
 
 interface StakerHistoryModalProps {
@@ -452,7 +453,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                   <div className="space-y-4">
                     {/* Liquid HEX Balances */}
                     <div className="space-y-3">
-                      <h4 className="text-[var(--text)] font-medium text-sm uppercase tracking-wider">Liquid HEX</h4>
+                      <h4 className="flex items-center gap-1.5 text-[var(--text)] font-medium text-sm uppercase tracking-wider"><HexLogo className="h-3.5 w-3.5" />Liquid HEX</h4>
                       
                       {liquidHexBalances.ethereum !== null && liquidHexBalances.ethereum > 0 && (
                         <div className="flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg">
@@ -547,15 +548,16 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="flex items-center justify-between py-3 px-4 bg-green-500/10 rounded-lg">
                       <span className="text-[var(--up)] text-sm font-medium">Earned So Far</span>
-                      <span className="text-[var(--text)] font-bold">
+                      <span className="inline-flex items-center gap-1 text-[var(--text)] font-bold">
+                      <HexLogo className="h-3.5 w-3.5" />
                       {(() => {
                         if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
-                        
+
                         const activeStakes = historyData.stakes.filter(s => s && s.isActive);
                         const totalEarned = activeStakes.reduce((sum, stake) => {
                           return sum + calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays);
                         }, 0);
-                        
+
                           const service = activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
                         return service.formatHexAmount((totalEarned * 100000000).toString()) + ' HEX';
                       })()}
@@ -564,15 +566,16 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
 
                     <div className="flex items-center justify-between py-3 px-4 bg-blue-500/10 rounded-lg">
                       <span className="text-blue-300 text-sm font-medium">Expected Total</span>
-                      <span className="text-[var(--text)] font-bold">
+                      <span className="inline-flex items-center gap-1 text-[var(--text)] font-bold">
+                      <HexLogo className="h-3.5 w-3.5" />
                       {(() => {
                         if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
-                        
+
                         const activeStakes = historyData.stakes.filter(s => s && s.isActive);
                         const totalExpected = activeStakes.reduce((sum, stake) => {
                           return sum + calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays);
                         }, 0);
-                        
+
                           const service = activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
                         return service.formatHexAmount((totalExpected * 100000000).toString()) + ' HEX';
                       })()}
@@ -581,10 +584,11 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
 
                     <div className="flex items-center justify-between py-3 px-4 bg-blue-500/10 rounded-lg">
                       <span className="text-blue-300 text-sm font-medium">Remaining to Earn</span>
-                      <span className="text-[var(--text)] font-bold">
+                      <span className="inline-flex items-center gap-1 text-[var(--text)] font-bold">
+                      <HexLogo className="h-3.5 w-3.5" />
                       {(() => {
                         if (!historyData || !historyData.stakes || !Array.isArray(historyData.stakes)) return '0 HEX';
-                        
+
                         const activeStakes = historyData.stakes.filter(s => s && s.isActive);
                         const totalEarned = activeStakes.reduce((sum, stake) => {
                           return sum + calculateEarnedSoFar(stake.stakedHearts, stake.daysServed || 0, stake.stakedDays);
@@ -592,7 +596,7 @@ const StakerHistoryModal: React.FC<StakerHistoryModalProps> = ({
                         const totalExpected = activeStakes.reduce((sum, stake) => {
                           return sum + calculateExpectedEarnings(stake.stakedHearts, stake.stakedDays);
                         }, 0);
-                        
+
                           const service = activeNetwork === 'ethereum' ? hexStakingService : pulsechainHexStakingService;
                         return service.formatHexAmount(((totalExpected - totalEarned) * 100000000).toString()) + ' HEX';
                       })()}

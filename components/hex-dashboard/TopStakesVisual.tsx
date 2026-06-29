@@ -5,6 +5,7 @@ import { multiNetworkHexStakingService } from '@/services/multiNetworkHexStaking
 import StakeDetailModal from './StakeDetailModal';
 import StakerHistoryModal from './StakerHistoryModal';
 import { OptimizedImage } from '@/components/ui/optimized-image';
+import { HexLogo } from '@/components/hex/HexAmount';
 import type { HexStake } from '@/services/hexStakingService';
 import type { MultiNetworkHexStake } from '@/services/multiNetworkHexStakingService';
 
@@ -111,15 +112,12 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
 
   return (
     <div className="bg-gradient-to-b from-[var(--panel)] to-[var(--panel)] via-[var(--panel)] to-blue-500/30  bg-opacity-50 backdrop-blur-lg border border-[var(--line)] rounded-2xl shadow-lg overflow-hidden">
-      <div className="px-6 py-4 border-b border-[var(--line)] relative overflow-hidden bg-gradient-to-r from-orange-500 via-red-500 to-[var(--app-bg)] via-pink-500 to-blue-500">
-        {/* Simplified background with CSS gradient instead of heavy image */}
-        <div className="absolute inset-0 -z-10 bg-[var(--app-bg)]"></div>
-        
-        <div className="relative z-10">
-          <div className="text-left">
-            <h4 className="text-xl font-bold text-[var(--text)]">Top 50 Active HEX Stakes</h4>
-            <p className="text-sm text-[var(--text)]">Largest current active stakes</p>
-          </div>
+      <div className="px-6 py-4 border-b border-[var(--line)] bg-[var(--surface)]">
+        <div className="text-left">
+          <h4 className="flex items-center gap-2 text-xl font-bold text-[var(--text)]">
+            <HexLogo className="h-5 w-5" /> Top 50 Active HEX Stakes
+          </h4>
+          <p className="text-sm text-[var(--text-muted)]">Largest current active stakes</p>
         </div>
       </div>
       
@@ -211,7 +209,7 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
                         <div className="text-lg font-bold text-[var(--text)]">
                           {multiNetworkHexStakingService.formatHexAmount(stake.stakedHearts)}
                         </div>
-                        <div className="text-sm text-[var(--text)] font-bold">HEX</div>
+                        <div className="flex items-center justify-center gap-1 text-sm text-[var(--text)] font-bold"><HexLogo className="h-3.5 w-3.5" />HEX</div>
                         {hexPrice > 0 && (
                           <div className="text-xs font-semibold text-[var(--text)]">
                             {formatUSD(calculateStakeUSD(stake.stakedHearts))}
@@ -301,7 +299,8 @@ const TopStakesVisual: React.FC<TopStakesVisualProps> = ({ stakes, hexPrice = 0 
       <div className="px-6 py-4 border-t border-white bg-[var(--panel)]">
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <div className="text-lg font-bold text-[var(--up)]">
+            <div className="flex items-center justify-center gap-1 text-lg font-bold text-[var(--up)]">
+              <HexLogo className="h-4 w-4" />
               {hexStakingService.formatHexAmount(
                 stakes.reduce((sum, stake) => sum + parseFloat(stake.stakedHearts), 0).toString()
               )}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import { multiNetworkHexStakingService } from '@/services/multiNetworkHexStakingService';
+import { HexLogo } from '@/components/hex/HexAmount';
 import type { HexStake, MultiNetworkHexStake } from '@/services/hexStakingService';
 
 interface StakeDetailModalProps {
@@ -104,7 +105,7 @@ const StakeDetailModal: React.FC<StakeDetailModalProps> = ({
           {/* Staking Details */}
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-[var(--text)]">Staked HEX:</span>
+              <span className="inline-flex items-center gap-1 text-[var(--text)]"><HexLogo className="h-3.5 w-3.5" />Staked HEX:</span>
               <span className="text-[var(--text)] font-semibold">
                 {multiNetworkHexStakingService.formatHexAmount(stake.stakedHearts)}
               </span>
