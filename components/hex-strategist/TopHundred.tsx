@@ -117,6 +117,15 @@ const COLUMNS: Record<BoardKey, Col[]> = {
   ],
 };
 
+// Extra in-tab context for boards whose result counts are legitimately small or
+// empty — so a short list doesn't read like a bug or a hidden display cap.
+const BOARD_CONTEXT: Partial<Record<BoardKey, string>> = {
+  'active-penalties':
+    'Counts here are usually small. Most stakes past their end day get ended or good-accounted within days, so only a handful are ever actively bleeding the penalty at once — the number shown is the real count, not a display limit. Ranked over the largest matured stakes.',
+  depleted:
+    'Often short or empty. Almost every large overdue stake gets good-accounted (which freezes it) rather than left to fully bleed out over 700 days, so few ever truly deplete — the number shown is the real count, not a display limit.',
+};
+
 export default function TopHundred({ net }: { net: Network }) {
   const [board, setBoard] = useState<BoardKey>('active-amount');
   const [rows, setRows] = useState<LeaderRow[]>([]);
@@ -189,6 +198,12 @@ export default function TopHundred({ net }: { net: Network }) {
         <span>{active.blurb} · tap a row for stake details.</span>
       </div>
 
+      {BOARD_CONTEXT[board] && (
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
+          {BOARD_CONTEXT[board]}
+        </div>
+      )}
+
       {status === 'loading' && (
         <div className="grid place-items-center py-16 text-sm text-[var(--text-muted)]">
           <span className="inline-flex items-center gap-2"><IconRefresh className="h-4 w-4 animate-spin" /> Loading the leaderboard…</span>
@@ -201,7 +216,13 @@ export default function TopHundred({ net }: { net: Network }) {
         </div>
       )}
       {status === 'ready' && rows.length === 0 && (
-        <div className="py-12 text-center text-sm text-[var(--text-faint)]">No rows for {net} yet.</div>
+        <div className="py-12 text-center text-sm text-[var(--text-faint)]">
+          {board === 'depleted'
+            ? `No fully-depleted stakes on ${net} right now — every large overdue stake here was good-accounted (frozen) instead of bleeding out.`
+            : board === 'active-penalties'
+              ? `No stakes are actively bleeding the penalty on ${net} right now.`
+              : `No rows for ${net} yet.`}
+        </div>
       )}
 
       {status === 'ready' && rows.length > 0 && (
