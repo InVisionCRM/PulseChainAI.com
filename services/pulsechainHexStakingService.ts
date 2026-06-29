@@ -9,10 +9,24 @@ export interface PulseChainHexStakeEnd extends HexStakeEnd {
   network: 'pulsechain';
 }
 
+/** A `StakeGoodAccounting` event — penalty + payout FROZEN on the day someone
+ *  good-accounted a matured, unended stake. The authoritative signal that a
+ *  matured stake stopped bleeding (see lib/hex/goodAccounting.ts). */
+export interface PulseChainGoodAccounting {
+  stakeId: string;
+  stakerAddr: string;
+  stakedHearts: string;
+  payout: string;
+  penalty: string;
+  timestamp: string;
+}
+
 export interface PulseChainStakerHistoryMetrics extends StakerHistoryMetrics {
   network: 'pulsechain';
   stakes: PulseChainHexStake[];
   stakeEnds: PulseChainHexStakeEnd[];
+  /** Good-accounting events for this staker's stakes, keyed in the UI by stakeId. */
+  goodAccountings: PulseChainGoodAccounting[];
 }
 
 export class PulseChainHexStakingService {
@@ -456,8 +470,8 @@ export class PulseChainHexStakingService {
             blockNumber
           }
           stakeEnds(
-            where: { stakerAddr: $stakerAddr }, 
-            orderBy: timestamp, 
+            where: { stakerAddr: $stakerAddr },
+            orderBy: timestamp,
             orderDirection: desc,
             first: 1000
           ) {
@@ -471,6 +485,19 @@ export class PulseChainHexStakingService {
             timestamp
             transactionHash
             blockNumber
+          }
+          stakeGoodAccountings(
+            where: { stakerAddr: $stakerAddr },
+            orderBy: timestamp,
+            orderDirection: desc,
+            first: 1000
+          ) {
+            stakeId
+            stakerAddr
+            stakedHearts
+            payout
+            penalty
+            timestamp
           }
         }
       `;
@@ -503,6 +530,14 @@ export class PulseChainHexStakingService {
           transactionHash: string;
           blockNumber: string;
         }>;
+        stakeGoodAccountings: Array<{
+          stakeId: string;
+          stakerAddr: string;
+          stakedHearts: string;
+          payout: string;
+          penalty: string;
+          timestamp: string;
+        }>;
       }>(query, { stakerAddr });
 
       // Process stakes and add network identifier
@@ -518,6 +553,16 @@ export class PulseChainHexStakingService {
       const stakeEnds: PulseChainHexStakeEnd[] = data.stakeEnds.map(end => ({
         ...end,
         network: 'pulsechain' as const,
+      }));
+
+      // Good-accounting events (penalty/payout frozen for matured, unended stakes).
+      const goodAccountings: PulseChainGoodAccounting[] = (data.stakeGoodAccountings ?? []).map(ga => ({
+        stakeId: ga.stakeId,
+        stakerAddr: ga.stakerAddr,
+        stakedHearts: ga.stakedHearts,
+        payout: ga.payout,
+        penalty: ga.penalty,
+        timestamp: ga.timestamp,
       }));
 
       // Update active status based on stake ends
@@ -552,7 +597,8 @@ export class PulseChainHexStakingService {
         totalPayouts,
         totalPenalties,
         stakes,
-        stakeEnds
+        stakeEnds,
+        goodAccountings
       };
     } catch (error) {
       console.error(`❌ Error fetching PulseChain staker history for ${stakerAddr}:`, error);

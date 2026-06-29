@@ -14,26 +14,26 @@ import type {
   PulseChainStakerHistoryMetrics,
   PulseChainHexStake,
   PulseChainHexStakeEnd,
+  PulseChainGoodAccounting,
 } from '@/services/pulsechainHexStakingService';
 import {
   heartsToHex, sharesToTShares, stakeProgress, currentHexDay,
   fmtDuration, fmtHex, fmtTShares, fmtHexDate, fmtUsdShort,
   latePenaltyStatus, LATE_PENALTY_GRACE_DAYS, LATE_PENALTY_SCALE_DAYS,
+  HEX_LAUNCH_TS,
 } from '@/lib/hex/hexDay';
+import { HexAmount, HexUnit } from '@/components/hex/HexAmount';
 
 const PLS_EXPLORER_TX = 'https://midgard.wtf/tx/';
 
-// Brand accent gradient (orange → red → magenta) used across the stakes UI.
+// HEX brand gradient — used ONLY on the locked-stake progress bar now; amounts
+// use the portfolio's standard text tokens for a calmer, consistent look.
 const HEX_GRADIENT = 'linear-gradient(135deg, #ff9e00 0%, #ff2e7e 52%, #ff00d4 100%)';
-// Reusable "gradient text" style: paints the gradient and clips it to glyphs.
-const gradText = {
-  backgroundImage: HEX_GRADIENT,
-  WebkitBackgroundClip: 'text',
-  backgroundClip: 'text',
-  color: 'transparent',
-} as const;
 
 const PLS_EXPLORER_ADDR = 'https://midgard.wtf/address/';
+
+/** Whole HEX day for a unix-seconds timestamp (matches the contract's epoch). */
+const tsToHexDay = (ts: string | number) => Math.floor((Number(ts) - HEX_LAUNCH_TS) / 86400);
 
 const shortHash = (a?: string | null) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '—');
 const fmtDateTime = (ts: string | number) => {
@@ -92,6 +92,12 @@ export function HexStakes({ address, hexUsd, payoutPerTShare }: Props) {
       .filter((s) => s.isActive)
       .sort((a, b) => (a.daysLeft ?? 0) - (b.daysLeft ?? 0));
 
+    // Good-accounting events keyed by stakeId — the authoritative "this matured
+    // stake was frozen" signal, so we don't mislabel it as still bleeding.
+    const gaById = new Map<string, PulseChainGoodAccounting>(
+      (data.goodAccountings ?? []).map((g) => [g.stakeId, g]),
+    );
+
     // Join ends to their starts (for committed length + start date).
     const startById = new Map(data.stakes.map((s) => [s.stakeId, s]));
     const ended = data.stakeEnds.map((e) => ({ end: e, start: startById.get(e.stakeId) ?? null }))
@@ -108,7 +114,7 @@ export function HexStakes({ address, hexUsd, payoutPerTShare }: Props) {
       : 0;
 
     return {
-      currentDay, usd, active, ended,
+      currentDay, usd, active, ended, gaById,
       activePrincipal, activeTShares, realizedYield, totalPenalty, realizedRoi, avgLenDays,
     };
   }, [data, hexUsd]);
@@ -136,10 +142,10 @@ export function HexStakes({ address, hexUsd, payoutPerTShare }: Props) {
     <div className="space-y-3">
       {/* Summary strip */}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-        <Metric label="Staked" value={`${fmtHex(view.activePrincipal)}`} sub={view.usd(view.activePrincipal) != null ? fmtUsdShort(view.usd(view.activePrincipal)) : 'HEX'} grad />
-        <Metric label="T-Shares" value={fmtTShares(view.activeTShares)} sub={`${view.active.length} active`} grad />
+        <Metric label="Staked" value={fmtHex(view.activePrincipal)} sub={view.usd(view.activePrincipal) != null ? fmtUsdShort(view.usd(view.activePrincipal)) : <HexUnit className="text-[var(--text-faint)]" />} />
+        <Metric label="T-Shares" value={fmtTShares(view.activeTShares)} sub={`${view.active.length} active`} />
         <Metric label="Avg length" value={fmtDuration(view.avgLenDays)} sub="locked" />
-        <Metric label="Realized" value={`+${fmtHex(view.realizedYield)}`} sub={view.usd(view.realizedYield) != null ? fmtUsdShort(view.usd(view.realizedYield)) : 'HEX'} good />
+        <Metric label="Realized" value={`+${fmtHex(view.realizedYield)}`} sub={view.usd(view.realizedYield) != null ? fmtUsdShort(view.usd(view.realizedYield)) : <HexUnit className="text-[var(--text-faint)]" />} good />
         <Metric label="Net ROI" value={`${view.realizedRoi >= 0 ? '+' : ''}${view.realizedRoi.toFixed(1)}%`} sub={`${view.ended.length} ended`} good={view.realizedRoi >= 0} bad={view.realizedRoi < 0} />
         <Metric label="HEX day" value={String(view.currentDay)} sub="now" />
       </div>
@@ -158,7 +164,7 @@ export function HexStakes({ address, hexUsd, payoutPerTShare }: Props) {
           <div className="py-8 text-center text-sm text-[var(--text-faint)]">No active stakes.</div>
         ) : (
           <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
-            {view.active.map((s) => <ActiveStakeCard key={s.id} stake={s} currentDay={view.currentDay} hexUsd={hexUsd} payoutPerTShare={payoutPerTShare} />)}
+            {view.active.map((s) => <ActiveStakeCard key={s.id} stake={s} currentDay={view.currentDay} hexUsd={hexUsd} payoutPerTShare={payoutPerTShare} ga={view.gaById.get(s.stakeId) ?? null} />)}
           </div>
         )
       ) : view.ended.length === 0 ? (
@@ -172,15 +178,12 @@ export function HexStakes({ address, hexUsd, payoutPerTShare }: Props) {
   );
 }
 
-function Metric({ label, value, sub, good, bad, grad }: { label: string; value: string; sub?: string; good?: boolean; bad?: boolean; grad?: boolean }) {
+function Metric({ label, value, sub, good, bad }: { label: string; value: string; sub?: React.ReactNode; good?: boolean; bad?: boolean }) {
   return (
     <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2">
       <div className="truncate text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
-      <div
-        className={`mt-0.5 text-sm font-semibold tabular-nums ${grad ? '' : good ? 'text-[var(--up)]' : bad ? 'text-red-400' : 'text-[var(--text)]'}`}
-        style={grad ? gradText : undefined}
-      >{value}</div>
-      {sub ? <div className="text-[10px] text-[var(--text-faint)] tabular-nums">{sub}</div> : null}
+      <div className={`mt-0.5 text-sm font-semibold tabular-nums ${good ? 'text-[var(--up)]' : bad ? 'text-red-400' : 'text-[var(--text)]'}`}>{value}</div>
+      {sub != null ? <div className="text-[10px] text-[var(--text-faint)] tabular-nums">{sub}</div> : null}
     </div>
   );
 }
@@ -190,8 +193,7 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${active ? 'text-white shadow-sm shadow-[#ff2e7e]/20' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
-      style={active ? { backgroundImage: HEX_GRADIENT } : undefined}
+      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${active ? 'bg-[var(--surface-2)] text-[var(--text)] border border-[var(--line)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
     >
       {children}
     </button>
@@ -231,7 +233,7 @@ function DetailsToggle({ open, onClick }: { open: boolean; onClick: () => void }
   );
 }
 
-function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare }: { stake: PulseChainHexStake; currentDay: number; hexUsd?: number | null; payoutPerTShare?: number | null }) {
+function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare, ga }: { stake: PulseChainHexStake; currentDay: number; hexUsd?: number | null; payoutPerTShare?: number | null; ga?: PulseChainGoodAccounting | null }) {
   const [open, setOpen] = useState(false);
   const principal = heartsToHex(stake.stakedHearts);
   const tShares = sharesToTShares(stake.stakeShares);
@@ -248,25 +250,47 @@ function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare }: { stake
   const estEarnedHex = payoutPerTShare != null ? tShares * payoutPerTShare * served : null;
   const estTermHex = payoutPerTShare != null ? tShares * payoutPerTShare * stakedDays : null;
 
-  // Status: locked (pre-end), ready (in the 0..+14d grace), or late (penalties accrue past +14d).
   const past = currentDay - endDay;
-  const status = currentDay < endDay
+  const locked = currentDay < endDay;
+
+  // GOOD-ACCOUNTING (authoritative): once a matured, unended stake is
+  // good-accounted, its penalty + payout are FROZEN on that day — it stops
+  // bleeding. We surface the real frozen figures (and how long after maturity it
+  // was good-accounted) instead of the time-based "bleeding" estimate below.
+  const gaDay = ga ? tsToHexDay(ga.timestamp) : null;
+  const gaInfo = ga
+    ? (() => {
+        const penaltyHex = heartsToHex(ga.penalty);
+        const payoutHex = heartsToHex(ga.payout);
+        const gross = principal + payoutHex;
+        return {
+          daysAfterMaturity: Math.max(0, (gaDay ?? endDay) - endDay),
+          penaltyHex,
+          payoutHex,
+          fraction: gross > 0 ? Math.min(1, penaltyHex / gross) : 0,
+          claimableHex: Math.max(0, principal + payoutHex - penaltyHex),
+        };
+      })()
+    : null;
+
+  // Status pill: locked → ready (grace) → good-accounted (frozen) → late (bleeding).
+  const status = locked
     ? { label: 'Locked', cls: 'text-[var(--text-faint)]', icon: <IconLock className="h-3 w-3" /> }
-    : past <= LATE_PENALTY_GRACE_DAYS
-      ? { label: 'Ready to end', cls: 'text-[var(--up)]', icon: null }
-      : { label: 'Late — penalty accruing', cls: 'text-amber-300', icon: <IconAlertTriangle className="h-3 w-3" /> };
+    : gaInfo
+      ? { label: 'Good-accounted', cls: 'text-cyan-300', icon: null }
+      : past <= LATE_PENALTY_GRACE_DAYS
+        ? { label: 'Ready to end', cls: 'text-[var(--up)]', icon: null }
+        : { label: 'Late — penalty accruing', cls: 'text-amber-300', icon: <IconAlertTriangle className="h-3 w-3" /> };
 
   // Locked stakes get the brand gradient; ready/late keep their semantic colors.
-  const locked = currentDay < endDay;
   const barColor = locked ? '#ff2e7e' : past <= LATE_PENALTY_GRACE_DAYS ? '#22c55e' : '#f59e0b';
 
-  // Late-end penalty: once a matured stake is past the 14-day grace period its
-  // total return (principal + interest locked in at maturity) bleeds away over
-  // 700 days. Estimate the return from the projected at-maturity yield, falling
-  // back to principal alone when no payout-per-T-Share is available.
+  // Time-based late-end penalty ESTIMATE — only meaningful when the stake was
+  // NOT good-accounted (a GA freezes it, so we suppress the estimate then).
   const stakeReturn = principal + (estTermHex ?? 0);
   const penalty = latePenaltyStatus(endDay, currentDay, stakeReturn);
   const penaltyUsd = hexUsd != null ? penalty.penaltyHex * hexUsd : null;
+  const showBleeding = penalty.isBleeding && !gaInfo;
 
   return (
     <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
@@ -278,12 +302,12 @@ function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare }: { stake
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <div className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">Principal</div>
-          <div className="text-lg font-semibold tabular-nums" style={gradText}>{fmtHex(principal)} HEX</div>
+          <HexAmount hex={principal} className="text-lg font-semibold text-[var(--text)]" />
           {usd != null && <div className="text-xs text-[var(--text-muted)] tabular-nums">{fmtUsdShort(usd)}</div>}
         </div>
         <div className="text-right">
           <div className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">T-Shares</div>
-          <div className="text-lg font-semibold tabular-nums" style={gradText}>{fmtTShares(tShares)}</div>
+          <div className="text-lg font-semibold tabular-nums text-[var(--text)]">{fmtTShares(tShares)}</div>
           <div className="text-xs text-[var(--text-muted)] tabular-nums">{fmtDuration(stakedDays)} term</div>
         </div>
       </div>
@@ -296,7 +320,39 @@ function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare }: { stake
         <div className="h-full rounded-full transition-[width]" style={{ width: `${pct}%`, background: locked ? HEX_GRADIENT : barColor }} />
       </div>
 
-      {penalty.isBleeding && (
+      {gaInfo && (
+        <div className="mt-3 rounded-lg border border-cyan-500/30 bg-cyan-500/[0.06] px-3 py-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-300">
+              Good-accounted · penalty frozen
+            </span>
+            <span className="text-[11px] font-semibold tabular-nums text-[var(--text-muted)]">
+              {gaInfo.daysAfterMaturity.toLocaleString()}d after maturity
+            </span>
+          </div>
+
+          {/* Frozen penalty fraction — does NOT grow (the stake stopped bleeding). */}
+          <div className="mb-1 mt-2.5 flex items-center justify-between text-[10px] tabular-nums">
+            <span className="text-cyan-300">{(gaInfo.fraction * 100).toFixed(1)}% penalty locked in</span>
+            <span className="text-[var(--text-faint)]">frozen {gaDay != null ? fmtHexDate(gaDay) : fmtDateTime(ga!.timestamp)}</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
+            <div className="h-full rounded-full" style={{ width: `${gaInfo.fraction * 100}%`, background: '#06b6d4' }} />
+          </div>
+
+          <div className="mt-2.5 flex items-end justify-between gap-3">
+            <span className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">Still claimable</span>
+            <span className="text-right">
+              <HexAmount hex={gaInfo.claimableHex} className="text-sm font-semibold text-[var(--text)]" />
+              <span className="block text-[10px] text-[var(--text-faint)] tabular-nums">
+                penalty <HexAmount hex={gaInfo.penaltyHex} prefix="−" className="text-red-400" />
+              </span>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {showBleeding && (
         <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/[0.06] px-3 py-2.5">
           <div className="flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-400">
@@ -327,16 +383,19 @@ function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare }: { stake
 
           {/* Penalty accrued so far, in HEX and USD. */}
           <div className="mt-2.5 flex items-end justify-between gap-3">
-            <span className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">Penalty so far</span>
+            <span className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">Penalty so far (est.)</span>
             <span className="text-right">
-              <span className="text-sm font-semibold tabular-nums text-red-400">−{fmtHex(penalty.penaltyHex)} HEX</span>
+              <HexAmount hex={penalty.penaltyHex} prefix="−" className="text-sm font-semibold text-red-400" />
               {penaltyUsd != null && (
                 <span className="block text-[10px] text-[var(--text-faint)] tabular-nums">−{fmtUsdShort(penaltyUsd)}</span>
               )}
             </span>
           </div>
+          <div className="mt-1 text-[10px] text-[var(--text-faint)]">
+            Time-based estimate (not yet good-accounted){estTermHex == null ? ' · from principal only' : ''}.
+          </div>
           {estTermHex == null && (
-            <div className="mt-1 text-[10px] text-[var(--text-faint)]">Estimated from principal only — connect payout data for full return.</div>
+            <div className="mt-1 text-[10px] text-[var(--text-faint)]">Connect payout data for full return.</div>
           )}
         </div>
       )}
@@ -345,10 +404,10 @@ function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare }: { stake
         <div className="mt-3 flex items-center justify-between rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs">
           <span className="text-[var(--text-muted)]">Est. yield so far</span>
           <span className="text-right">
-            <span className="font-semibold text-[var(--up)]">+{fmtHex(estEarnedHex)} HEX</span>
+            <HexAmount hex={estEarnedHex} prefix="+" className="font-semibold text-[var(--up)]" />
             {hexUsd != null && <span className="text-[var(--text-muted)]"> · {fmtUsdShort(estEarnedHex * hexUsd)}</span>}
             {estTermHex != null && (
-              <span className="block text-[10px] text-[var(--text-faint)] tabular-nums">~{fmtHex(estTermHex)} HEX projected at maturity</span>
+              <span className="block text-[10px] text-[var(--text-faint)] tabular-nums">~<HexAmount hex={estTermHex} /> projected at maturity</span>
             )}
           </span>
         </div>
@@ -364,7 +423,7 @@ function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare }: { stake
       {open && (
         <dl className="mt-3 space-y-1.5 border-t border-[var(--line)] pt-3">
           <DetailRow label="Stake ID" value={stake.stakeId} />
-          <DetailRow label="Principal" value={`${fmtHex(principal)} HEX${usd != null ? ` · ${fmtUsdShort(usd)}` : ''}`} />
+          <DetailRow label="Principal" value={<><HexAmount hex={principal} />{usd != null ? ` · ${fmtUsdShort(usd)}` : ''}</>} />
           <DetailRow label="Principal (hearts)" value={stake.stakedHearts} mono />
           <DetailRow label="T-Shares" value={fmtTShares(tShares)} />
           <DetailRow label="Shares (raw)" value={stake.stakeShares} mono />
@@ -377,12 +436,20 @@ function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare }: { stake
           <DetailRow label="Days served" value={served.toLocaleString()} />
           <DetailRow label="Days left" value={left.toLocaleString()} />
           <DetailRow label="Progress" value={`${pct.toFixed(1)}%`} />
-          {penalty.isBleeding && (
+          {gaInfo && (
+            <>
+              <DetailRow label="Good-accounted" value={gaDay != null ? `${fmtHexDate(gaDay)} · day ${gaDay.toLocaleString()}` : fmtDateTime(ga!.timestamp)} />
+              <DetailRow label="Days after maturity" value={gaInfo.daysAfterMaturity.toLocaleString()} />
+              <DetailRow label="Penalty (frozen)" value={<><HexAmount hex={gaInfo.penaltyHex} prefix="−" /> · {(gaInfo.fraction * 100).toFixed(1)}%</>} />
+              <DetailRow label="Still claimable" value={<HexAmount hex={gaInfo.claimableHex} />} />
+            </>
+          )}
+          {showBleeding && (
             <>
               <DetailRow label="Days past maturity" value={penalty.daysPastMaturity.toLocaleString()} />
               <DetailRow label="Days past grace" value={`${penalty.daysPastGrace.toLocaleString()} (of ${LATE_PENALTY_SCALE_DAYS.toLocaleString()})`} />
-              <DetailRow label="Penalty so far" value={`−${fmtHex(penalty.penaltyHex)} HEX${penaltyUsd != null ? ` · −${fmtUsdShort(penaltyUsd)}` : ''}`} />
-              <DetailRow label="Depleted" value={`${(penalty.fraction * 100).toFixed(1)}%`} />
+              <DetailRow label="Penalty so far (est.)" value={<><HexAmount hex={penalty.penaltyHex} prefix="−" />{penaltyUsd != null ? ` · −${fmtUsdShort(penaltyUsd)}` : ''}</>} />
+              <DetailRow label="Depleted (est.)" value={`${(penalty.fraction * 100).toFixed(1)}%`} />
               <DetailRow label="Days until fully bled out" value={penalty.fullyDepleted ? 'Fully depleted' : penalty.daysUntilDepleted.toLocaleString()} />
             </>
           )}
@@ -455,8 +522,8 @@ function EndedStakeRow({ end, start, hexUsd }: { end: PulseChainHexStakeEnd; sta
         </div>
         <div className="shrink-0 text-right">
           <div className={`text-sm font-semibold tabular-nums ${roi >= 0 ? 'text-[var(--up)]' : 'text-red-400'}`}>{roi >= 0 ? '+' : ''}{roi.toFixed(1)}%</div>
-          <div className="text-[11px] text-[var(--text-muted)] tabular-nums">+{fmtHex(payout)} HEX{usd != null ? ` · ${fmtUsdShort(usd)}` : ''}</div>
-          {penalty > 0 && <div className="text-[11px] text-amber-300 tabular-nums">−{fmtHex(penalty)} penalty</div>}
+          <div className="flex items-center justify-end gap-1 text-[11px] text-[var(--text-muted)] tabular-nums"><HexAmount hex={payout} prefix="+" />{usd != null ? ` · ${fmtUsdShort(usd)}` : ''}</div>
+          {penalty > 0 && <div className="flex items-center justify-end gap-1 text-[11px] text-amber-300 tabular-nums"><HexAmount hex={penalty} prefix="−" /> penalty</div>}
         </div>
       </div>
 
@@ -476,13 +543,13 @@ function EndedStakeRow({ end, start, hexUsd }: { end: PulseChainHexStakeEnd; sta
       {open && (
         <dl className="mt-3 space-y-1.5 border-t border-[var(--line)] pt-3">
           <DetailRow label="Stake ID" value={end.stakeId} />
-          <DetailRow label="Principal" value={`${fmtHex(principal)} HEX`} />
+          <DetailRow label="Principal" value={<HexAmount hex={principal} />} />
           <DetailRow label="Principal (hearts)" value={end.stakedHearts} mono />
-          <DetailRow label="Payout" value={`${fmtHex(payout)} HEX${usd != null ? ` · ${fmtUsdShort(usd)}` : ''}`} />
+          <DetailRow label="Payout" value={<><HexAmount hex={payout} prefix="+" />{usd != null ? ` · ${fmtUsdShort(usd)}` : ''}</>} />
           <DetailRow label="Payout (hearts)" value={end.payout} mono />
-          <DetailRow label="Penalty" value={`${fmtHex(penalty)} HEX`} />
+          <DetailRow label="Penalty" value={<HexAmount hex={penalty} prefix={penalty > 0 ? '−' : ''} />} />
           <DetailRow label="Penalty (hearts)" value={end.penalty} mono />
-          <DetailRow label="Net yield" value={`${net >= 0 ? '+' : ''}${fmtHex(net)} HEX`} />
+          <DetailRow label="Net yield" value={<HexAmount hex={Math.abs(net)} prefix={net >= 0 ? '+' : '−'} />} />
           <DetailRow label="ROI" value={`${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%`} />
           <DetailRow label="Days served" value={served.toLocaleString()} />
           <DetailRow label="Committed term" value={committed != null ? `${committed.toLocaleString()} days` : '—'} />
