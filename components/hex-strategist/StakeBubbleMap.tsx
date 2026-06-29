@@ -15,6 +15,7 @@ import { IconRefresh, IconExternalLink, IconX, IconMaximize, IconMinimize, IconC
 import { createPortal } from 'react-dom';
 import { type Network, type Rates, loadRates } from '@/lib/hex/strategistData';
 import { fmtHex, fmtTShares, fmtDuration, fmtHexDate, fmtUsdShort, HEX_ADDRESS } from '@/lib/hex/hexDay';
+import { HexAmount } from '@/components/hex/HexAmount';
 import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { HexStakes } from '@/components/portfolio/HexStakes';
@@ -233,7 +234,7 @@ export default function StakeBubbleMap({ net }: { net: Network }) {
       const row = 'color:rgba(255,255,255,.8);margin-top:2px';
       let html = `<div style="display:flex;align-items:center;gap:6px;font-weight:600"><span style="width:9px;height:9px;border-radius:50%;flex:none;background:${n.color}"></span>${n.label || n.short}</div>`;
       html += `<div style="${sub}">${n.short}</div>`;
-      html += `<div style="${row}">${fmtHex(n.totalHex)} HEX · ${n.stakeCount} stake${n.stakeCount === 1 ? '' : 's'}</div>`;
+      html += `<div style="${row};display:flex;align-items:center;gap:4px"><img src="/hex-logo.svg" alt="" style="width:11px;height:11px"/>${fmtHex(n.totalHex)} HEX · ${n.stakeCount} stake${n.stakeCount === 1 ? '' : 's'}</div>`;
       if (n.cluster >= 0) html += `<div style="${row}">Cluster #${n.cluster + 1}</div>`;
       tip.innerHTML = html; tip.style.opacity = '1';
       const sx = n.x * view.scale + view.ox, sy = n.y * view.scale + view.oy;
@@ -382,8 +383,8 @@ function StakeModal({ node, net, rates, onClose }: { node: BNode; net: Network; 
               )}
               <AddrActions address={node.address} net={net} />
             </div>
-            <div className="mt-0.5 text-[11px] text-[var(--text-muted)] tabular-nums">
-              {fmtHex(node.totalHex)} HEX{usd(node.totalHex) != null ? ` · ${fmtUsdShort(usd(node.totalHex))}` : ''} · {fmtTShares(node.tShares)} T · {node.stakeCount} active stake{node.stakeCount === 1 ? '' : 's'}
+            <div className="flex flex-wrap items-center gap-1 mt-0.5 text-[11px] text-[var(--text-muted)] tabular-nums">
+              <HexAmount hex={node.totalHex} />{usd(node.totalHex) != null ? ` · ${fmtUsdShort(usd(node.totalHex))}` : ''} · {fmtTShares(node.tShares)} T · {node.stakeCount} active stake{node.stakeCount === 1 ? '' : 's'}
             </div>
           </div>
           <button type="button" onClick={onClose} className="text-[var(--text-faint)] hover:text-[var(--text)]"><IconX className="h-5 w-5" /></button>
@@ -402,7 +403,7 @@ function StakeModal({ node, net, rates, onClose }: { node: BNode; net: Network; 
               {node.stakes.map((s) => (
                 <div key={s.stakeId} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="font-semibold text-[var(--text)]">{fmtHex(s.principalHex)} HEX</span>
+                    <HexAmount hex={s.principalHex} className="font-semibold text-[var(--text)]" />
                     <span className="text-[var(--text-muted)] tabular-nums">{fmtTShares(s.tShares)} T</span>
                   </div>
                   <div className="mt-1 flex items-center justify-between text-[11px] text-[var(--text-muted)] tabular-nums">

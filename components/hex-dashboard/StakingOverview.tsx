@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { RefreshCw, Lock, Users, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { hexStakingService } from '@/services/hexStakingService';
+import { HexLogo } from '@/components/hex/HexAmount';
 import TopStakesVisual from './TopStakesVisual';
 import StakerHistoryModal from './StakerHistoryModal';
 import type { StakingOverviewProps } from './types';
@@ -551,7 +552,8 @@ const StakingOverview: React.FC<StakingOverviewProps> = ({
                 </div>
               </div>
               <div className="text-center bg-[var(--surface)] backdrop-blur rounded-lg p-3 sm:p-4 border border-[var(--line)]">
-                <div className="text-lg sm:text-2xl font-bold text-[var(--up)]">
+                <div className="flex items-center justify-center gap-1 text-lg sm:text-2xl font-bold text-[var(--up)]">
+                  <HexLogo className="h-4 w-4 sm:h-5 sm:w-5" />
                   <span className="hidden sm:inline">{hexStakingService.formatHexAmount(combinedData.totalStakedHearts)} HEX</span>
                   <span className="sm:hidden">{hexStakingService.formatHexAmount(combinedData.totalStakedHearts, true)}</span>
                 </div>
