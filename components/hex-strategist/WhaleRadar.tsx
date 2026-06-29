@@ -11,6 +11,7 @@ import { type Network, type Rates, loadRates } from '@/lib/hex/strategistData';
 import type { WhaleRadarData, WhaleStake, WhaleBias } from '@/lib/hex/whaleRadar';
 import { WHALE_MIN_HEX } from '@/lib/hex/whaleRadar';
 import { fmtHex, fmtTShares, fmtUsdShort, fmtDuration, HEX_ADDRESS } from '@/lib/hex/hexDay';
+import { HexAmount, HexUnit } from '@/components/hex/HexAmount';
 import { HexStakes } from '@/components/portfolio/HexStakes';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
 
@@ -90,8 +91,8 @@ export default function WhaleRadar({ net }: { net: Network }) {
       {/* Aggregate forecast */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Stat label="Whales ending (30d)" value={String(data.stakes.length)} />
-        <Stat label="HEX unlocking" value={`${fmtHex(data.totalEndingHex)}`} sub={hasPrice ? fmtUsdShort(usd(data.totalEndingHex)) : undefined} />
-        <Stat label="Est. sell pressure" value={hasPrice ? fmtUsdShort(usd(data.estSellHex)) : `${fmtHex(data.estSellHex)} HEX`} accent="#ef4444" />
+        <Stat label="HEX unlocking" value={fmtHex(data.totalEndingHex)} hex sub={hasPrice ? fmtUsdShort(usd(data.totalEndingHex)) : undefined} />
+        <Stat label="Est. sell pressure" value={hasPrice ? fmtUsdShort(usd(data.estSellHex)) : fmtHex(data.estSellHex)} hex={!hasPrice} accent="#ef4444" />
         <Stat label="Behavior-weighted sell" value={`${sellPct.toFixed(0)}%`} accent={sellPct >= 50 ? '#ef4444' : '#22c55e'} />
       </div>
 
@@ -145,8 +146,8 @@ function WhaleRow({ s, net, usd, hasPrice, hexUsd, payoutPerTShare }: { s: Whale
               {b.icon}{b.label}{s.priorEnds > 0 ? ` · ${(s.restakeRate! * 100).toFixed(0)}% re-stake` : ''}
             </span>
           </div>
-          <div className="mt-0.5 text-[11px] text-[var(--text-muted)] tabular-nums">
-            {fmtHex(s.principalHex)} HEX{hasPrice ? ` · ${fmtUsdShort(usd(s.principalHex))}` : ''} · {fmtTShares(s.tShares)} T · ends in {fmtDuration(s.daysToEnd)}
+          <div className="flex flex-wrap items-center gap-1 mt-0.5 text-[11px] text-[var(--text-muted)] tabular-nums">
+            <HexAmount hex={s.principalHex} />{hasPrice ? ` · ${fmtUsdShort(usd(s.principalHex))}` : ''} · {fmtTShares(s.tShares)} T · ends in {fmtDuration(s.daysToEnd)}
           </div>
         </div>
         <IconChevronDown className={`h-4 w-4 shrink-0 text-[var(--text-muted)] transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -252,11 +253,13 @@ function RadarTrust({ net }: { net: Network }) {
   );
 }
 
-function Stat({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
+function Stat({ label, value, sub, accent, hex }: { label: string; value: string; sub?: string; accent?: string; hex?: boolean }) {
   return (
     <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2">
       <div className="truncate text-[10px] uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
-      <div className="mt-0.5 text-base font-bold tabular-nums" style={{ color: accent ?? 'var(--text)' }}>{value}</div>
+      <div className="mt-0.5 flex items-center gap-1 text-base font-bold tabular-nums" style={{ color: accent ?? 'var(--text)' }}>
+        {value}{hex && <HexUnit className="text-[0.7em] font-semibold" />}
+      </div>
       {sub && <div className="text-[10px] text-[var(--text-muted)] tabular-nums">{sub}</div>}
     </div>
   );

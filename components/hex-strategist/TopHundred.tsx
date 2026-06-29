@@ -13,6 +13,7 @@ import {
 import { type Network, type Rates, loadRates } from '@/lib/hex/strategistData';
 import { BOARDS, type BoardKey, type LeaderRow } from '@/lib/hex/leaderboards';
 import { fmtHex, fmtTShares, fmtDuration, fmtHexDate, HEX_ADDRESS } from '@/lib/hex/hexDay';
+import { HexLogo } from '@/components/hex/HexAmount';
 import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { HexStakes } from '@/components/portfolio/HexStakes';
@@ -31,35 +32,38 @@ interface Col {
   align?: 'right';
   render: (r: LeaderRow) => React.ReactNode;
   accent?: boolean;
+  /** HEX-denominated column — its header carries the HEX logo as the unit. */
+  hex?: boolean;
 }
 
 const COLUMNS: Record<BoardKey, Col[]> = {
   'active-amount': [
-    { header: 'Principal', align: 'right', accent: true, render: (r) => hx(r.principalHex) },
+    { header: 'Principal', align: 'right', accent: true, hex: true, render: (r) => hx(r.principalHex) },
     { header: 'T-Shares', align: 'right', render: (r) => fmtTShares(r.tShares ?? 0) },
     { header: 'Ends in', align: 'right', render: (r) => (r.daysToEnd != null ? fmtDuration(r.daysToEnd) : '—') },
   ],
   'completed-amount': [
-    { header: 'Principal', align: 'right', accent: true, render: (r) => hx(r.principalHex) },
-    { header: 'Payout', align: 'right', render: (r) => hx(r.payoutHex) },
+    { header: 'Principal', align: 'right', accent: true, hex: true, render: (r) => hx(r.principalHex) },
+    { header: 'Payout', align: 'right', hex: true, render: (r) => hx(r.payoutHex) },
     { header: 'Served', align: 'right', render: (r) => days(r.servedDays) },
   ],
   roi: [
     { header: 'ROI', align: 'right', accent: true, render: (r) => (r.roiPct != null ? `${r.roiPct.toFixed(0)}%` : '—') },
-    { header: 'Principal', align: 'right', render: (r) => hx(r.principalHex) },
-    { header: 'Payout', align: 'right', render: (r) => hx(r.payoutHex) },
+    { header: 'Principal', align: 'right', hex: true, render: (r) => hx(r.principalHex) },
+    { header: 'Payout', align: 'right', hex: true, render: (r) => hx(r.payoutHex) },
     { header: 'Served', align: 'right', render: (r) => days(r.servedDays) },
   ],
   'days-late': [
-    { header: 'Principal', align: 'right', accent: true, render: (r) => hx(r.principalHex) },
+    { header: 'Principal', align: 'right', accent: true, hex: true, render: (r) => hx(r.principalHex) },
     { header: 'Overdue', align: 'right', render: (r) => days(r.daysLate) },
     {
       header: 'Lost so far',
       align: 'right',
+      hex: true,
       render: (r) =>
         r.lostHex != null ? (
           <span className="inline-flex flex-col items-end leading-tight">
-            <span className="text-red-300">{fmtHex(r.lostHex)} HEX</span>
+            <span className="text-red-300">{fmtHex(r.lostHex)}</span>
             {r.penaltyPct != null && (
               <span className="text-[10px] text-[var(--text-faint)]">{r.penaltyPct.toFixed(1)}%</span>
             )}
@@ -71,26 +75,26 @@ const COLUMNS: Record<BoardKey, Col[]> = {
     { header: 'Due', align: 'right', render: (r) => (r.endDay != null ? fmtHexDate(r.endDay) : '—') },
   ],
   'recent-penalties': [
-    { header: 'Penalty', align: 'right', accent: true, render: (r) => hx(r.penaltyHex) },
-    { header: 'Payout', align: 'right', render: (r) => hx(r.payoutHex) },
+    { header: 'Penalty', align: 'right', accent: true, hex: true, render: (r) => hx(r.penaltyHex) },
+    { header: 'Payout', align: 'right', hex: true, render: (r) => hx(r.payoutHex) },
     { header: 'Served', align: 'right', render: (r) => days(r.servedDays) },
     { header: 'When', align: 'right', render: (r) => fmtWhen(r.timestamp) },
   ],
   'recent-starts': [
-    { header: 'Principal', align: 'right', accent: true, render: (r) => hx(r.principalHex) },
+    { header: 'Principal', align: 'right', accent: true, hex: true, render: (r) => hx(r.principalHex) },
     { header: 'Length', align: 'right', render: (r) => (r.committedDays != null ? fmtDuration(r.committedDays) : '—') },
     { header: 'When', align: 'right', render: (r) => fmtWhen(r.timestamp) },
   ],
   'recent-ends': [
-    { header: 'Principal', align: 'right', accent: true, render: (r) => hx(r.principalHex) },
-    { header: 'Payout', align: 'right', render: (r) => hx(r.payoutHex) },
-    { header: 'Penalty', align: 'right', render: (r) => hx(r.penaltyHex) },
+    { header: 'Principal', align: 'right', accent: true, hex: true, render: (r) => hx(r.principalHex) },
+    { header: 'Payout', align: 'right', hex: true, render: (r) => hx(r.payoutHex) },
+    { header: 'Penalty', align: 'right', hex: true, render: (r) => hx(r.penaltyHex) },
     { header: 'When', align: 'right', render: (r) => fmtWhen(r.timestamp) },
   ],
   holders: [
-    { header: 'Total', align: 'right', accent: true, render: (r) => hx(r.totalHex) },
-    { header: 'Liquid', align: 'right', render: (r) => hx(r.liquidHex) },
-    { header: 'Staked', align: 'right', render: (r) => hx(r.stakedHex) },
+    { header: 'Total', align: 'right', accent: true, hex: true, render: (r) => hx(r.totalHex) },
+    { header: 'Liquid', align: 'right', hex: true, render: (r) => hx(r.liquidHex) },
+    { header: 'Staked', align: 'right', hex: true, render: (r) => hx(r.stakedHex) },
   ],
 };
 
@@ -190,7 +194,13 @@ export default function TopHundred({ net }: { net: Network }) {
                 <th className="px-3 py-2 text-left font-semibold">Address</th>
                 {cols.map((c) => (
                   <th key={c.header} className={`px-3 py-2 font-semibold ${c.align === 'right' ? 'text-right' : 'text-left'}`}>
-                    {c.header}
+                    {c.hex ? (
+                      <span className={`inline-flex items-center gap-1 ${c.align === 'right' ? 'justify-end' : ''}`}>
+                        <HexLogo className="h-3 w-3" />{c.header}
+                      </span>
+                    ) : (
+                      c.header
+                    )}
                   </th>
                 ))}
                 <th className="px-3 py-2 text-right font-semibold"></th>
@@ -237,8 +247,8 @@ export default function TopHundred({ net }: { net: Network }) {
       )}
 
       <p className="px-1 text-[10px] leading-relaxed text-[var(--text-faint)]">
-        {note ? `${note} ` : ''}HEX amounts shown in whole HEX. Data from the staking subgraph
-        {board === 'holders' ? ' + on-chain holder balances' : ''}.
+        {note ? `${note} ` : ''}Columns marked <HexLogo className="inline-block h-2.5 w-2.5 align-[-0.1em]" /> are in whole HEX.
+        Data from the staking subgraph{board === 'holders' ? ' + on-chain holder balances' : ''}.
       </p>
 
       {detail && (
