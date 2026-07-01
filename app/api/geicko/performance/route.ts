@@ -165,11 +165,17 @@ export async function GET(req: NextRequest) {
 
   try {
     const isPls = chain === 'pulsechain';
-    // "full" = launch-to-now (PulseX subgraph); "partial" = ~6mo (GeckoTerminal).
-    const coverage: 'full' | 'partial' = isPls ? 'full' : 'partial';
-    const usdSeries = isPls && token
-      ? await pulsexDaily(token)
-      : await geckoDaily(GT_NET[chain] || chain, token, pool);
+    // Preferred source for PulseChain is the PulseX subgraph (launch-to-now, "full"
+    // coverage). But it only indexes tokens with a PulseX pair — tokens that trade
+    // on 9mm/9inch/other DEXes, or very new tokens, aren't in it. In that case fall
+    // back to GeckoTerminal, which aggregates every PulseChain DEX (~6mo, "partial").
+    let usdSeries: Point[] = isPls && token ? await pulsexDaily(token) : [];
+    let coverage: 'full' | 'partial' = usdSeries.length >= 2 ? 'full' : 'partial';
+    if (usdSeries.length < 2) {
+      // GT_NET has no 'pulsechain' entry, so `|| chain` resolves it to 'pulsechain'.
+      usdSeries = await geckoDaily(GT_NET[chain] || chain, token, pool);
+      coverage = 'partial';
+    }
 
     const usd = computeView(usdSeries, coverage, livePrice);
     if (!usd) return NextResponse.json({ error: 'no price history' }, { status: 404 });
