@@ -550,7 +550,7 @@ export function BubbleMap({ token, chain, symbol }: Props) {
           )}
 
           <p className="mt-2 text-[11px] text-[var(--text-muted)]">
-            Bubble size = share of supply · lines = direct transfers between holders · clusters = likely-linked wallets among the top {EDGE_LIMIT} (recent transfers; contracts excluded). Hover to focus · drag to pin · double-click to unpin.
+            Bubble size = share of supply · lines link wallets that trade the token directly or share a funding source · clusters = likely-linked wallets among the top {EDGE_LIMIT} (recent transfers; contracts excluded). Hover to focus · drag to pin · double-click to unpin.
           </p>
         </>
       )}
