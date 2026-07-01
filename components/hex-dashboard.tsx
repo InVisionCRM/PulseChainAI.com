@@ -1393,7 +1393,7 @@ const HEXDataDashboard = () => {
     setDexPairsError(null);
     try {
       // HEX on PulseChain
-      const HEX_PLS = '0x57fde0a71132198dfc1b2490b26c17fcef9601b2';
+      const HEX_PLS = '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
       const res = await dexscreenerApi.getTokenData(HEX_PLS);
       if (!res.success || !res.data) {
         throw new Error(res.error || 'Failed to fetch DexScreener data');
@@ -2085,7 +2085,7 @@ const HEXDataDashboard = () => {
               concise
               // Optional: pass canonical HEX addresses for better Dex liquidity
               dexTokenAddressEth="0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39"
-              dexTokenAddressPls="0x57fde0a71132198dfc1b2490b26c17fcef9601b2"
+              dexTokenAddressPls="0x2b591e99afe9f32eaa6214f7b7629768c40eeb39"
             />
           </div>
         )} */}

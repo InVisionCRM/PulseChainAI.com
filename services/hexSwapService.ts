@@ -59,7 +59,7 @@ export class HexSwapService {
   private isHexToken(tokenAddress: string, tokenSymbol: string, network: 'ethereum' | 'pulsechain'): boolean {
     const hexAddresses = {
       ethereum: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39',
-      pulsechain: '0x57fde0a71132198dfc1b2490b26c17fcef9601b2'
+      pulsechain: '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39'
     };
 
     const hexSymbols = ['HEX', 'pHEX', 'eHEX'];
@@ -131,7 +131,7 @@ export class HexSwapService {
   private determineSwapType(swap: any, network: 'ethereum' | 'pulsechain'): 'HEX_IN' | 'HEX_OUT' | 'OTHER' {
     const hexAddresses = {
       ethereum: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39',
-      pulsechain: '0x57fde0a71132198dfc1b2490b26c17fcef9601b2'
+      pulsechain: '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39'
     };
 
     const hexAddress = hexAddresses[network].toLowerCase();
