@@ -15,7 +15,7 @@ interface LiqResp {
   supported?: boolean;
   empty?: boolean;
   pairCount?: number;
-  window?: { fromTs: number; toTs: number; days: number };
+  days?: number;
   totals?: { added: number; removed: number; net: number; addCount: number; removeCount: number };
   daily?: Daily[];
   events?: Evt[];
@@ -100,9 +100,9 @@ export default function GeickoLiquidityPanel({
     <div className="mb-2 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Liquidity Flow</h3>
-        {status === 'ready' && data?.window && (
+        {status === 'ready' && data?.days && (
           <span className="text-[10px] tabular-nums text-[var(--text-faint)]">
-            {data.window.days > 0 ? `last ${data.window.days}d` : 'recent'}
+            last {data.days}d
             {data.pairCount ? ` · ${data.pairCount} pair${data.pairCount === 1 ? '' : 's'}` : ''}
           </span>
         )}

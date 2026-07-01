@@ -32,6 +32,7 @@ interface LiquidityEvent {
   txHash: string;
   from: string;
   method: string;
+  usd?: number;
 }
 
 interface PairLiquidityEvents {
@@ -201,37 +202,23 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
     }));
 
     try {
-      // Fetch recent transactions for the pair address
-      const response = await pulsechainApiService.getAddressTransactions(pairAddress, 1, 50);
-      
-      // Parse response structure
-      const transactions = Array.isArray(response) ? response 
-                         : (response as any).data && Array.isArray((response as any).data) ? (response as any).data
-                         : (response as any).items && Array.isArray((response as any).items) ? (response as any).items
-                         : [];
-      
-      // Filter for liquidity-related transactions
-      const liquidityEvents: LiquidityEvent[] = transactions
-        .filter((tx: any) => {
-          const method = (tx.method || '').toLowerCase();
-          return method.includes('addliquidity') || 
-                 method.includes('removeliquidity') ||
-                 method.includes('add_liquidity') ||
-                 method.includes('remove_liquidity');
-        })
-        .slice(0, 10) // Only keep the 10 most recent
-        .map((tx: any) => {
-          const method = (tx.method || '').toLowerCase();
-          const isAdd = method.includes('add');
-          
-          return {
-            type: isAdd ? 'add' : 'remove',
-            timestamp: tx.timestamp || tx.block_timestamp || '',
-            txHash: tx.hash || '',
-            from: tx.from?.hash || tx.from || '',
-            method: tx.method || 'Unknown'
-          } as LiquidityEvent;
-        });
+      // Liquidity adds/removes come from the PulseX subgraph (mint/burn entities)
+      // via /api/geicko/pair-events. Scanning the pair's transactions for
+      // addLiquidity/removeLiquidity doesn't work: those are router methods, not
+      // the pair-level mint/burn calls, so that approach matched nothing.
+      const response = await fetch(`/api/geicko/pair-events?pair=${pairAddress}`);
+      const json = await response.json();
+      const raw = Array.isArray(json?.events) ? json.events : [];
+
+      const liquidityEvents: LiquidityEvent[] = raw.map((e: any) => ({
+        type: e.type === 'remove' ? 'remove' : 'add',
+        // formatTimeAgo parses a date string; the subgraph gives unix seconds.
+        timestamp: e.ts ? new Date(e.ts * 1000).toISOString() : '',
+        txHash: e.tx || '',
+        from: e.wallet || '',
+        method: e.type === 'remove' ? 'Burn' : 'Mint',
+        usd: typeof e.usd === 'number' ? e.usd : undefined,
+      }));
 
       setPairLiquidityEvents(prev => ({
         ...prev,
@@ -682,6 +669,11 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                                 <span className={`font-semibold text-sm ${event.type === 'add' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
                                   {event.type === 'add' ? 'Added' : 'Removed'}
                                 </span>
+                                {typeof event.usd === 'number' && event.usd > 0 && (
+                                  <span className={`text-xs font-semibold tabular-nums ${event.type === 'add' ? 'text-[var(--up)]' : 'text-rose-300'}`}>
+                                    {formatNumber(event.usd)}
+                                  </span>
+                                )}
                                 <span className="text-xs text-[var(--text-faint)]">{formatTimeAgo(event.timestamp)}</span>
                               </div>
                               <div className="flex items-center gap-1.5 text-xs text-[var(--text-faint)]">
@@ -690,7 +682,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                                   {event.from ? `${event.from.slice(0, 8)}...${event.from.slice(-6)}` : 'Unknown'}
                                 </code>
                                 <a
-                                  href={`https://scan.mypinata.cloud/ipfs/bafybeienxyoyrhn5tswclvd3gdjy5mtkkwmu37aqtml6onbf7xnb3o22pe/#/tx/${event.txHash}`}
+                                  href={`https://scan.pulsechain.com/tx/${event.txHash}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-orange-400/80 hover:text-orange-300"
