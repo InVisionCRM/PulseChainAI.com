@@ -40,6 +40,7 @@ import {
   GeickoMarketStatsPanel,
   GeickoPerformancePanel,
   GeickoLiquidityPanel,
+  GeickoPressurePanel,
   GeickoToast,
   type OwnershipData,
 } from '@/components/geicko';
@@ -2038,6 +2039,10 @@ function GeickoPageContent() {
                 token={apiTokenAddress}
                 pool={displayPair?.pairAddress}
                 price={priceUsd}
+              />
+              <GeickoPressurePanel
+                network={displayPair?.chainId}
+                token={apiTokenAddress}
               />
             </div>
           )}
