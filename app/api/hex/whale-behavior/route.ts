@@ -2,19 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { hexSubgraphQuery, type HexNet as Net } from '@/lib/hex/subgraph';
 import {
   classifyEnds, behaviorSummary,
-  type StakeRecord, type SellRecord,
+  type StakeRecord, type OutflowRecord,
 } from '@/lib/hex/whaleBehavior';
 
 export const revalidate = 0;
-// Pages the wallet's swap history + its stake history, so give it headroom.
+// Pages the wallet's HEX transfer history + resolves DEX pairs over RPC.
 export const maxDuration = 60;
 
-// How far back to page the wallet's HEX swaps (bounds Moralis usage). Ends older
-// than the oldest swap we see are reported "unknown" rather than guessed.
-const MAX_SWAP_PAGES = 6;
-const SWAP_PAGE_SIZE = 100;
+// How far back to page the wallet's HEX transfers (bounds explorer calls). Ends
+// older than the oldest transfer we see are reported "unknown", never guessed.
+const MAX_TRANSFER_PAGES = 12;
 // Cap the ends we return so a wallet with a huge history stays responsive.
 const MAX_ENDS = 40;
+// Cap unique counterparties we probe for DEX-pairness (bounds RPC calls).
+const MAX_PAIR_PROBES = 80;
 
 const num = (v: unknown) => {
   const n = typeof v === 'string' ? parseFloat(v) : (v as number);
@@ -51,69 +52,114 @@ const tsOf = (iso: unknown) => {
   const ms = Date.parse(String(iso));
   return Number.isFinite(ms) ? Math.floor(ms / 1000) : 0;
 };
+const lc = (a: unknown) => String(a ?? '').toLowerCase();
 
-const HEX_TOKEN: Record<Net, string> = {
-  ethereum: '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39',
-  pulsechain: '0x57fde0a71132198dfc1b2490b26c17fcef9601b2',
+// HEX is the SAME contract on Ethereum and PulseChain (PulseChain forked it).
+const HEX_TOKEN = '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
+const ZERO = '0x0000000000000000000000000000000000000000';
+
+// Native, key-free PulseChain data: Blockscout indexes transfers; the public RPC
+// answers token0()/token1() so we can tell a DEX pair from a plain wallet/CEX.
+const EXPLORER: Record<Net, string> = {
+  pulsechain: 'https://api.scan.pulsechain.com/api/v2',
+  ethereum: 'https://eth.blockscout.com/api/v2',
 };
-const MORALIS_CHAIN: Record<Net, string> = { ethereum: '0x1', pulsechain: '0x171' };
-const MORALIS_KEY = process.env.NEXT_PUBLIC_MORALIS_API_KEY || process.env.MORALIS_API_KEY || '';
-const addrEq = (a: unknown, b: string) => String(a ?? '').toLowerCase() === b;
+const RPC_URL: Record<Net, string> = {
+  pulsechain: process.env.PULSECHAIN_RPC_URL || 'https://rpc.pulsechain.com',
+  ethereum: process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com',
+};
 
-/**
- * Extract a HEX sale from one Moralis swap row, defensively across response
- * shapes: the documented `{ sold, bought }` swaps shape (amounts already
- * human-scaled) and the older flat `{ token_address, direction, amount }` shape.
- * Returns the HEX amount + USD when the wallet sold HEX, else null.
- */
-function hexSoldFromSwap(row: Record<string, unknown>, hexAddr: string): { hex: number; usd: number } | null {
-  const sold = row.sold as Record<string, unknown> | undefined;
-  if (sold && addrEq(sold.address ?? sold.token_address, hexAddr)) {
-    const hex = num(sold.amount);
-    return hex > 0 ? { hex, usd: num(sold.usd_amount ?? sold.usdAmount ?? sold.usd_value) } : null;
-  }
-  if (addrEq(row.token_address, hexAddr) && String(row.direction ?? '').toUpperCase() === 'OUT') {
-    const hex = num(row.amount) / Math.pow(10, num(row.token_decimals) || 8);
-    return hex > 0 ? { hex, usd: num(row.value_usd) } : null;
-  }
-  return null;
-}
+interface RawTransfer { ts: number; to: string; toIsContract: boolean; hex: number; tx: string }
 
-/**
- * Wallet's HEX sells + the oldest swap timestamp we saw (the boundary of our
- * activity coverage). Bounded pagination against Moralis. Reads swaps directly
- * so it isn't tied to one assumed response shape.
- */
-async function hexSells(net: Net, addr: string): Promise<{ sells: SellRecord[]; oldestActivityTs: number | null }> {
-  const sells: SellRecord[] = [];
+/** Page the wallet's HEX ERC-20 transfers from the explorer (indexed on-chain
+ *  data). Returns OUT transfers only + the oldest transfer timestamp seen. */
+async function hexTransfersOut(net: Net, addr: string): Promise<{ out: RawTransfer[]; oldestActivityTs: number | null }> {
+  const out: RawTransfer[] = [];
   let oldest: number | null = null;
-  if (!MORALIS_KEY) return { sells, oldestActivityTs: oldest };
-  const hexAddr = HEX_TOKEN[net];
+  let url: string | null = `${EXPLORER[net]}/addresses/${addr}/token-transfers?type=ERC-20&token=${HEX_TOKEN}`;
 
-  for (let page = 0; page < MAX_SWAP_PAGES; page++) {
-    let rows: Record<string, unknown>[] = [];
-    let cursor: string | undefined;
+  for (let page = 0; page < MAX_TRANSFER_PAGES && url; page++) {
+    let items: Record<string, unknown>[] = [];
+    let next: Record<string, string> | null = null;
     try {
-      const url = `https://deep-index.moralis.io/api/v2.2/wallets/${addr}/swaps?chain=${MORALIS_CHAIN[net]}&order=DESC&limit=${SWAP_PAGE_SIZE}&offset=${page * SWAP_PAGE_SIZE}`;
-      const res = await fetch(url, { headers: { accept: 'application/json', 'X-API-Key': MORALIS_KEY } });
+      const res = await fetch(url, { headers: { accept: 'application/json' } });
       if (!res.ok) break;
       const j = await res.json();
-      rows = (j.result ?? []) as Record<string, unknown>[];
-      cursor = j.cursor as string | undefined;
+      items = (j.items ?? []) as Record<string, unknown>[];
+      next = (j.next_page_params ?? null) as Record<string, string> | null;
     } catch {
       break;
     }
-    for (const row of rows) {
-      const ts = tsOf(row.block_timestamp ?? (row as Record<string, unknown>).blockTimestamp);
+    for (const it of items) {
+      const ts = tsOf(it.timestamp);
       if (ts > 0) oldest = oldest == null ? ts : Math.min(oldest, ts);
-      const sale = hexSoldFromSwap(row, hexAddr);
-      if (sale && ts > 0) {
-        sells.push({ timestamp: ts, hex: sale.hex, usd: sale.usd, tx: String(row.transaction_hash ?? row.transactionHash ?? '') });
-      }
+      const from = lc((it.from as Record<string, unknown>)?.hash);
+      const toObj = it.to as Record<string, unknown> | undefined;
+      const to = lc(toObj?.hash);
+      // Only outflows from this wallet, excluding stake mints/burns (to 0x0 or the
+      // HEX contract) which are staking activity, not sells or transfers.
+      if (from !== addr || to === ZERO || to === HEX_TOKEN || !to) continue;
+      const total = it.total as Record<string, unknown> | undefined;
+      const dec = num(total?.decimals) || 8;
+      const hex = num(total?.value) / Math.pow(10, dec);
+      if (hex > 0) out.push({ ts, to, toIsContract: !!toObj?.is_contract, hex, tx: String(it.transaction_hash ?? '') });
     }
-    if (!cursor || rows.length === 0) break; // no more pages
+    url = next && Object.keys(next).length ? `${EXPLORER[net]}/addresses/${addr}/token-transfers?type=ERC-20&token=${HEX_TOKEN}&${new URLSearchParams(next).toString()}` : null;
   }
-  return { sells, oldestActivityTs: oldest };
+  return { out, oldestActivityTs: oldest };
+}
+
+async function ethCall(net: Net, to: string, data: string): Promise<string | null> {
+  try {
+    const res = await fetch(RPC_URL[net], {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to, data }, 'latest'] }),
+    });
+    if (!res.ok) return null;
+    const j = await res.json();
+    return typeof j.result === 'string' ? j.result : null;
+  } catch {
+    return null;
+  }
+}
+
+const addrFromWord = (r: string | null) => (r && r.length >= 66 ? '0x' + r.slice(-40).toLowerCase() : null);
+
+/**
+ * Of the given contract addresses, which are DEX pairs that hold HEX — i.e. a
+ * HEX transfer to them is a sale. Detected via UniswapV2 token0()/token1().
+ */
+async function detectHexPairs(net: Net, contracts: string[]): Promise<Set<string>> {
+  const pairs = new Set<string>();
+  await Promise.all(
+    contracts.slice(0, MAX_PAIR_PROBES).map(async (c) => {
+      const [t0, t1] = await Promise.all([ethCall(net, c, '0x0dfe1681'), ethCall(net, c, '0xd21220a7')]); // token0(), token1()
+      const a0 = addrFromWord(t0);
+      const a1 = addrFromWord(t1);
+      if (a0 && a1 && (a0 === HEX_TOKEN || a1 === HEX_TOKEN)) pairs.add(c);
+    }),
+  );
+  return pairs;
+}
+
+/**
+ * Wallet's HEX outflows classified as DEX sells vs plain "moves", plus the oldest
+ * HEX-transfer timestamp (activity-coverage boundary). All from native on-chain
+ * data — no third-party keyed API.
+ */
+async function hexOutflows(net: Net, addr: string): Promise<{ outflows: OutflowRecord[]; oldestActivityTs: number | null }> {
+  const { out, oldestActivityTs } = await hexTransfersOut(net, addr);
+  const contracts = [...new Set(out.filter((t) => t.toIsContract).map((t) => t.to))];
+  const pairs = await detectHexPairs(net, contracts);
+  const outflows: OutflowRecord[] = out.map((t) => ({
+    timestamp: t.ts,
+    hex: t.hex,
+    usd: 0, // explorer has no historical USD; the UI approximates with the live price
+    tx: t.tx,
+    kind: t.toIsContract && pairs.has(t.to) ? 'sell' : 'move',
+  }));
+  return { outflows, oldestActivityTs };
 }
 
 export async function GET(req: NextRequest) {
@@ -124,12 +170,12 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const [{ starts, ends }, { sells, oldestActivityTs }] = await Promise.all([
+    const [{ starts, ends }, { outflows, oldestActivityTs }] = await Promise.all([
       stakeHistory(net, address),
-      hexSells(net, address),
+      hexOutflows(net, address),
     ]);
 
-    const behavior = classifyEnds(ends, starts, sells, oldestActivityTs).slice(0, MAX_ENDS);
+    const behavior = classifyEnds(ends, starts, outflows, oldestActivityTs).slice(0, MAX_ENDS);
     const summary = behaviorSummary(behavior);
 
     return NextResponse.json(

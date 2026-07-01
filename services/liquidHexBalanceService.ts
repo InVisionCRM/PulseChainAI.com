@@ -71,7 +71,7 @@ export class LiquidHexBalanceService {
     try {
       // Method 1: Try PulseChain block explorer API
       const explorerResponse = await fetch(
-        `https://scan.pulsechain.com/api?module=account&action=tokenbalance&contractaddress=0x57fde0a71132198dfc1b2490b26c17fcef9601b2&address=${address}&tag=latest`
+        `https://scan.pulsechain.com/api?module=account&action=tokenbalance&contractaddress=0x2b591e99afe9f32eaa6214f7b7629768c40eeb39&address=${address}&tag=latest`
       );
       
       if (explorerResponse.ok) {
@@ -90,7 +90,7 @@ export class LiquidHexBalanceService {
           method: 'eth_call',
           params: [
             {
-              to: '0x57fde0a71132198dfc1b2490b26c17fcef9601b2',
+              to: '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39',
               data: `0x70a08231000000000000000000000000${address.slice(2)}`
             },
             'latest'

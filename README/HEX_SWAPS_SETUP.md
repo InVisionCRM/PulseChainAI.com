@@ -59,7 +59,7 @@ The service automatically filters swaps to show only HEX-related transactions:
 
 - **HEX Token Addresses**:
   - Ethereum: `0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39`
-  - PulseChain: `0x57fde0a71132198dfc1b2490b26c17fcef9601b2`
+  - PulseChain: `0x2b591e99afe9f32eaa6214f7b7629768c40eeb39`
 
 - **Token Symbols**: `HEX`, `pHEX`, `eHEX`
 
