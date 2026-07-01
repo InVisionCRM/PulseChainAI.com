@@ -6,9 +6,9 @@
 // the existing HexStakes (history) and ActivityFeed (HEX activity) components.
 
 import { useEffect, useState } from 'react';
-import { IconRadar2, IconRefresh, IconChevronDown, IconArrowsExchange, IconCashBanknote, IconQuestionMark, IconShieldCheck } from '@tabler/icons-react';
+import { IconRadar2, IconRefresh, IconChevronDown, IconArrowsExchange, IconCashBanknote, IconQuestionMark, IconShieldCheck, IconExternalLink, IconArrowRight } from '@tabler/icons-react';
 import { type Network, type Rates, loadRates } from '@/lib/hex/strategistData';
-import type { WhaleRadarData, WhaleStake, WhaleBias } from '@/lib/hex/whaleRadar';
+import type { WhaleRadarData, WhaleStake, WhaleBias, RestakeEvent } from '@/lib/hex/whaleRadar';
 import { WHALE_MIN_HEX } from '@/lib/hex/whaleRadar';
 import { fmtHex, fmtTShares, fmtUsdShort, fmtDuration, HEX_ADDRESS } from '@/lib/hex/hexDay';
 import { HexAmount, HexUnit } from '@/components/hex/HexAmount';
@@ -23,7 +23,10 @@ const BIAS: Record<WhaleBias, { color: string; label: string; icon: React.ReactN
 };
 
 const fmtDate = (ms: number) => new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+const fmtDateY = (ms: number) => new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 const shortAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+const txUrl = (net: Network, tx: string) =>
+  net === 'ethereum' ? `https://etherscan.io/tx/${tx}` : `https://midgard.wtf/tx/${tx}`;
 
 export default function WhaleRadar({ net }: { net: Network }) {
   const [data, setData] = useState<WhaleRadarData | null>(null);
@@ -125,7 +128,8 @@ export default function WhaleRadar({ net }: { net: Network }) {
       <p className="px-1 text-[10px] leading-relaxed text-[var(--text-faint)]">
         Sell-vs-re-stake is a <span className="text-[var(--text-muted)]">behavioral probability</span> from each wallet’s own
         history — how often it started a new stake within ~14 days of a past stake-end. “No history” wallets are weighted at
-        50% in the aggregate. A whale can always surprise you.
+        50% in the aggregate. A whale can always surprise you. Tap any whale → <span className="text-[var(--text-muted)]">“Why this rating”</span> to
+        see the exact stake-ends and re-stakes (with transactions) behind its rating.
       </p>
     </div>
   );
@@ -133,7 +137,7 @@ export default function WhaleRadar({ net }: { net: Network }) {
 
 function WhaleRow({ s, net, usd, hasPrice, hexUsd, payoutPerTShare }: { s: WhaleStake; net: Network; usd: (h: number) => number; hasPrice: boolean; hexUsd: number | null; payoutPerTShare: number | null }) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<'stakes' | 'activity'>('stakes');
+  const [tab, setTab] = useState<'why' | 'stakes' | 'activity'>('why');
   const b = BIAS[s.bias];
 
   return (
@@ -156,13 +160,82 @@ function WhaleRow({ s, net, usd, hasPrice, hexUsd, payoutPerTShare }: { s: Whale
       {open && (
         <div className="border-t border-[var(--line)] p-3">
           <div className="mb-3 inline-flex rounded-lg border border-[var(--line)] bg-[var(--surface-2)] p-0.5">
+            <button onClick={() => setTab('why')} className={`rounded-md px-3 py-1 text-xs font-semibold ${tab === 'why' ? 'bg-[var(--surface)] text-orange-300' : 'text-[var(--text-muted)]'}`}>Why this rating</button>
             <button onClick={() => setTab('stakes')} className={`rounded-md px-3 py-1 text-xs font-semibold ${tab === 'stakes' ? 'bg-[var(--surface)] text-orange-300' : 'text-[var(--text-muted)]'}`}>Stake history</button>
             <button onClick={() => setTab('activity')} className={`rounded-md px-3 py-1 text-xs font-semibold ${tab === 'activity' ? 'bg-[var(--surface)] text-orange-300' : 'text-[var(--text-muted)]'}`}>HEX activity</button>
           </div>
-          {tab === 'stakes'
-            ? <HexStakes address={s.stakerAddr} hexUsd={hexUsd} payoutPerTShare={payoutPerTShare} />
-            : <ActivityFeed walletAddress={s.stakerAddr} chains={[net]} tokenAddress={HEX_ADDRESS} />}
+          {tab === 'why'
+            ? <RatingEvidence s={s} net={net} />
+            : tab === 'stakes'
+              ? <HexStakes address={s.stakerAddr} hexUsd={hexUsd} payoutPerTShare={payoutPerTShare} />
+              : <ActivityFeed walletAddress={s.stakerAddr} chains={[net]} tokenAddress={HEX_ADDRESS} />}
         </div>
+      )}
+    </div>
+  );
+}
+
+// The evidence behind a whale's sell/re-stake rating: a plain-language summary
+// plus every past stake-end and whether the wallet re-staked within 14 days,
+// with links to the actual on-chain transactions.
+function RatingEvidence({ s, net }: { s: WhaleStake; net: Network }) {
+  const b = BIAS[s.bias];
+  const restaked = s.evidence.filter((e) => e.restaked).length;
+  const total = s.evidence.length;
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border px-3 py-2.5 text-xs" style={{ borderColor: `${b.color}55`, background: `${b.color}14` }}>
+        <div className="flex items-center gap-1.5 font-semibold" style={{ color: b.color }}>
+          {b.icon}{b.label}
+        </div>
+        <p className="mt-1 leading-relaxed text-[var(--text-muted)]">
+          {total === 0 ? (
+            'No prior stake-ends on record for this wallet, so there’s no behaviour to learn from — rated “No history” and weighted at 50% in the aggregate.'
+          ) : (
+            <>
+              This wallet re-staked within 14 days after{' '}
+              <span className="font-semibold text-[var(--text)]">{restaked}</span> of its{' '}
+              <span className="font-semibold text-[var(--text)]">{total}</span> past stake-end{total === 1 ? '' : 's'}
+              {s.restakeRate != null ? ` (${(s.restakeRate * 100).toFixed(0)}%)` : ''}. ≥66% → likely re-stake, ≤34% → likely sell, in between → mixed.
+            </>
+          )}
+        </p>
+      </div>
+
+      {total > 0 && (
+        <div className="space-y-1.5">
+          <div className="px-1 text-[10px] uppercase tracking-wider text-[var(--text-faint)]">Past stake-ends · newest first</div>
+          {s.evidence.map((e) => <EvidenceRow key={e.endStakeId} e={e} net={net} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EvidenceRow({ e, net }: { e: RestakeEvent; net: Network }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px]">
+      <span className="inline-flex items-center gap-1 text-[var(--text-muted)] tabular-nums">
+        Ended {fmtDateY(e.endTimestamp * 1000)} · <HexAmount hex={e.endHex} />
+      </span>
+      {e.endTx && (
+        <a href={txUrl(net, e.endTx)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[var(--text-faint)] hover:text-orange-300" title="End transaction">
+          end tx<IconExternalLink className="h-2.5 w-2.5" />
+        </a>
+      )}
+      <IconArrowRight className="h-3 w-3 shrink-0 text-[var(--text-faint)]" />
+      {e.restaked ? (
+        <span className="inline-flex flex-wrap items-center gap-1.5 font-semibold text-[#22c55e]">
+          <span className="inline-flex items-center gap-1">re-staked {e.daysAfter}d later{e.restakeHex != null ? <> · <HexAmount hex={e.restakeHex} /></> : null}</span>
+          {e.restakeTx && (
+            <a href={txUrl(net, e.restakeTx)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-normal text-[var(--text-faint)] hover:text-orange-300" title="Re-stake transaction">
+              tx<IconExternalLink className="h-2.5 w-2.5" />
+            </a>
+          )}
+        </span>
+      ) : (
+        <span className="font-semibold text-[#ef4444]">no re-stake within 14d → likely sold</span>
       )}
     </div>
   );
