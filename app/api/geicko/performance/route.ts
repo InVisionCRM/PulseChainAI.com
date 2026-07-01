@@ -109,6 +109,30 @@ function changeOver(series: Point[], nowTs: number, days: number, current: numbe
   return ref && ref.p > 0 ? (current / ref.p - 1) * 100 : null;
 }
 
+/**
+ * Price a token in WPLS by dividing each USD point by the WPLS/USD price on the
+ * same day — or, when that exact day is missing from the WPLS series, the most
+ * recent prior day WPLS traded. Both inputs must be sorted ascending by day.
+ *
+ * Using nearest-preceding (rather than an exact-day match) means a token whose
+ * daily points don't line up 1:1 with WPLS's — e.g. USD sourced from
+ * GeckoTerminal while WPLS comes from the subgraph — still gets a full ratio
+ * series. In practice WPLS has traded every day since PulseChain launch, so this
+ * yields a WPLS-denominated point for essentially every USD point we have.
+ */
+function ratioSeries(tokenUsd: Point[], wplsUsd: Point[]): Point[] {
+  if (!wplsUsd.length) return [];
+  const out: Point[] = [];
+  let i = 0;
+  for (const s of tokenUsd) {
+    while (i + 1 < wplsUsd.length && wplsUsd[i + 1].t <= s.t) i++;
+    // wplsUsd[i] is now the latest WPLS day at or before s.t (if one exists).
+    const w = wplsUsd[i].t <= s.t ? wplsUsd[i].p : 0;
+    if (w > 0) out.push({ t: s.t, p: s.p / w });
+  }
+  return out;
+}
+
 function sparkline(series: Point[], n = 72): number[] {
   const v = series.map((c) => c.p);
   if (v.length <= n) return v;
@@ -185,10 +209,7 @@ export async function GET(req: NextRequest) {
     let wpls: ReturnType<typeof computeView> = null;
     if (isPls && token && token !== WPLS) {
       const wplsSeries = await pulsexDaily(WPLS);
-      const wmap = new Map(wplsSeries.map((s) => [s.t, s.p]));
-      const ratio = usdSeries
-        .filter((s) => (wmap.get(s.t) ?? 0) > 0)
-        .map((s) => ({ t: s.t, p: s.p / (wmap.get(s.t) as number) }));
+      const ratio = ratioSeries(usdSeries, wplsSeries);
       wpls = ratio.length >= 2 ? computeView(ratio, coverage, 0) : null;
     }
 
