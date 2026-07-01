@@ -5,6 +5,7 @@ import type { DexScreenerData } from '@/types';
 import { pulsechainApiService } from '@/services/pulsechainApiService';
 import AddressDetailsModal from './AddressDetailsModal';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
+import { txUrl, addressUrl } from '@/lib/pulsechain/explorer';
 
 interface LiquidityTabProps {
   dexScreenerData: DexScreenerData | null;
@@ -678,11 +679,31 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                               </div>
                               <div className="flex items-center gap-1.5 text-xs text-[var(--text-faint)]">
                                 <span>By</span>
-                                <code className="font-mono text-[var(--text-muted)]">
-                                  {event.from ? `${event.from.slice(0, 8)}...${event.from.slice(-6)}` : 'Unknown'}
-                                </code>
+                                {event.from ? (
+                                  <a
+                                    href={addressUrl(event.from)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-mono text-[var(--text-muted)] hover:text-[var(--text)]"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {`${event.from.slice(0, 8)}...${event.from.slice(-6)}`}
+                                  </a>
+                                ) : (
+                                  <code className="font-mono text-[var(--text-muted)]">Unknown</code>
+                                )}
+                                {event.from && (
+                                  <AddToGroupButton
+                                    address={event.from}
+                                    source="lp"
+                                    chain="pulsechain"
+                                    context={{ tokenSymbol: pair.baseToken?.symbol }}
+                                    size={12}
+                                    className="text-[var(--text-muted)] hover:text-orange-300 transition-colors"
+                                  />
+                                )}
                                 <a
-                                  href={`https://scan.pulsechain.com/tx/${event.txHash}`}
+                                  href={txUrl(event.txHash)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-orange-400/80 hover:text-orange-300"
