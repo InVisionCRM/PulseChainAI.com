@@ -32,27 +32,6 @@ const fmtPrice = (v: number, denom: Denom) => {
 const fmtDate = (ts: number) => new Date(ts * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 const clsOf = (v?: number | null) => (v == null ? 'text-[var(--text-muted)]' : v >= 0 ? 'text-[var(--up)]' : 'text-red-400');
 
-function Sparkline({ data, up }: { data: number[]; up: boolean }) {
-  if (!data || data.length < 2) return null;
-  const w = 100, h = 30;
-  const min = Math.min(...data), max = Math.max(...data), rng = max - min || 1;
-  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / rng) * h}`).join(' ');
-  const color = up ? 'var(--up)' : '#f87171';
-  const gid = `pg-${up ? 'u' : 'd'}`;
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="w-full h-9" aria-hidden>
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={`0,${h} ${pts} ${w},${h}`} fill={`url(#${gid})`} />
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-    </svg>
-  );
-}
-
 function ChangeChip({ label, value }: { label: string; value: number | null }) {
   return (
     <div className="rounded-lg bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 border border-[var(--line)] p-2 text-center">
@@ -120,7 +99,6 @@ export default function GeickoPerformancePanel({
 
   const view = data ? (denom === 'wpls' ? data.views.wpls : data.views.usd) : null;
   const full = view?.coverage === 'full';
-  const up = view ? (view.launch.pct ?? 0) >= 0 : true;
 
   return (
     <div className="mb-2 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3">
@@ -134,11 +112,6 @@ export default function GeickoPerformancePanel({
             </div>
           )}
         </div>
-        {status === 'ready' && view && (
-          <span className="text-[10px] tabular-nums text-[var(--text-faint)]">
-            {full ? `on-chain history since ${fmtDate(view.launch.date)}` : 'last ~6 months'}
-          </span>
-        )}
       </div>
 
       {status === 'loading' && (
@@ -155,8 +128,6 @@ export default function GeickoPerformancePanel({
             <ChangeChip label="30D" value={view.changes.d30} />
             <ChangeChip label="1Y" value={view.changes.d365} />
           </div>
-
-          <Sparkline data={view.spark} up={up} />
 
           <div className="mt-2 grid grid-cols-3 gap-2">
             <ExtremeCard denom={denom} label={full ? 'All-time high' : '6-mo high'} price={view.ath.price} date={view.ath.date} pct={view.ath.fromPct} />

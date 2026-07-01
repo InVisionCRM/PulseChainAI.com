@@ -2010,6 +2010,18 @@ function GeickoPageContent() {
           </div>
 
 
+          {/* Price Performance — sits above the tabbed container, not inside it */}
+          {apiTokenAddress && (
+            <div className="px-2 md:px-3">
+              <GeickoPerformancePanel
+                network={displayPair?.chainId}
+                token={apiTokenAddress}
+                pool={displayPair?.pairAddress}
+                price={priceUsd}
+              />
+            </div>
+          )}
+
           {/* Bottom Tabs */}
           <GeickoTabNavigation
             activeTab={activeTab}
@@ -2019,14 +2031,6 @@ function GeickoPageContent() {
 
           {/* Content Tables */}
           <div className="px-2 md:px-3 py-1 min-w-0 flex-1 min-h-0 flex flex-col">
-          {apiTokenAddress && (
-            <GeickoPerformancePanel
-              network={displayPair?.chainId}
-              token={apiTokenAddress}
-              pool={displayPair?.pairAddress}
-              price={priceUsd}
-            />
-          )}
           <div className="bg-[var(--panel)] rounded-t-none border-t-0 border border-[var(--line)] w-full min-w-0 relative z-20 overflow-auto rounded-lg flex-1 min-h-0">
               {/* GOLD Tab */}
               {activeTab === 'gold' && isGoldToken && (
