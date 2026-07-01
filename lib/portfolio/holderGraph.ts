@@ -1,19 +1,26 @@
 // Bubble-map edges + clusters for a set of top holders.
 //
-// An edge is a direct transfer of THIS token between two addresses that are
-// BOTH in the top-N holder set. We source these from Blockscout's per-address
-// `token-transfers?token=…` endpoint (verified shape: from.hash / to.hash /
-// total.value), scanning a bounded number of pages per holder so a high-volume
-// token can't blow up the request budget — this is the expensive half of the
-// pipeline, so it's concurrency-limited and the calling route caches it for an
-// hour.
+// Two relationship signals, both drawn from the SAME per-holder transfer scan
+// (Blockscout `token-transfers?token=…`, verified shape from.hash / to.hash /
+// total.value), so the stronger signal costs no extra requests:
+//
+//   1. Direct transfer — the token moved directly between two addresses that
+//      are BOTH in the top-N set. Strong but rare among big holders (whales
+//      seldom send each other the token), so on its own most tokens show zero
+//      clusters.
+//   2. Shared funder — two top holders both RECEIVED the token from the same
+//      source address. Wallets seeded by a common funder are the classic
+//      linked-wallet ("same entity") signal, and this is what actually makes
+//      clusters appear on established tokens. We only trust a funder that seeded
+//      between MIN and MAX distinct top holders: 1 is no relationship, and a
+//      high-degree funder is a distributor/CEX/pair, not a person.
 //
 // Infrastructure (the LP pair, routers, factories, lockers, burn, wrapped
-// native) is excluded from edges and clusters: those addresses transfer with
-// huge numbers of wallets and would otherwise hub the whole graph into one
-// meaningless blob. They still render as labelled bubbles. Clusters are the
-// connected components over the surviving edges — wallets that move the token
-// directly between each other, the actual Bubblemaps signal.
+// native) is excluded from edges and clusters — as edge endpoints AND as
+// funders — because those addresses transfer with huge numbers of wallets and
+// would otherwise hub the whole graph into one meaningless blob. They still
+// render as labelled bubbles. Clusters are the connected components over the
+// surviving edges.
 
 import type { ChainId, HolderNode } from '@/lib/portfolio/holders';
 import type { AddressCategory } from '@/lib/gumshoe/address-labels';
@@ -55,7 +62,13 @@ export interface HolderGraph {
 
 const FETCH_TIMEOUT_MS = 8_000;
 const PAGES_PER_HOLDER = 1; // recent transfers only (v1); UI notes the window
-const CONCURRENCY = 8;
+const CONCURRENCY = 12;
+// A shared funder links holders only when it seeded ≥ MIN and ≤ MAX of them.
+// Above MAX it's a distributor / CEX / pair (would hub unrelated wallets); MAX 4
+// keeps clusters tight and avoids fake mega-blobs (validated against HEX/LBRTY).
+const MIN_FUNDER_DEGREE = 2;
+const MAX_FUNDER_DEGREE = 4;
+const ZERO_ADDR = '0x0000000000000000000000000000000000000000';
 // Hard wall-clock cap on the whole edge scan. Mega-tokens (e.g. PLSX) have
 // extremely active top holders whose transfer queries are slow, and 150 of them
 // can run for minutes. Past this budget we stop scanning and return whatever
@@ -111,7 +124,16 @@ export async function buildHolderGraph(
   );
   const inSet = new Set(eligible.map((h) => h.address));
 
+  // Addresses that must never count as a "funder": the token itself, the zero
+  // address (mints), and any infra/contract holder (pair, router, CEX, …).
+  const excludedFunders = new Set<string>([ZERO_ADDR, tok]);
+  for (const h of holders) {
+    if (h.isContract || (h.category && INFRA.has(h.category))) excludedFunders.add(h.address);
+  }
+
   const pairCounts = new Map<string, HolderEdge>();
+  // funder address → the set of top holders it sent the token to.
+  const funderToHolders = new Map<string, Set<string>>();
   const start = Date.now();
   let completed = 0;
   let budgetHit = false;
@@ -128,7 +150,14 @@ export async function buildHolderGraph(
         const from = String(it?.from?.hash ?? '').toLowerCase();
         const to = String(it?.to?.hash ?? '').toLowerCase();
         if (!from || !to || from === to) continue;
-        // Both ends must be eligible holders for this to be an intra-cluster edge.
+        // Signal 2: this holder received the token from `from` — record the
+        // funder so wallets sharing a source can be linked after the scan.
+        if (to === h.address && !excludedFunders.has(from)) {
+          let s = funderToHolders.get(from);
+          if (!s) { s = new Set(); funderToHolders.set(from, s); }
+          s.add(h.address);
+        }
+        // Signal 1 (direct edge): both ends must be eligible top holders.
         if (!inSet.has(from) || !inSet.has(to)) continue;
         const a = from < to ? from : to;
         const b = from < to ? to : from;
@@ -146,6 +175,20 @@ export async function buildHolderGraph(
     }
     completed += 1;
   });
+
+  // Shared-funder edges: for each funder that seeded 2..MAX top holders, link
+  // its recipients together (star from the first) so they cluster. Reuses the
+  // transfers already scanned — no extra requests.
+  for (const recips of funderToHolders.values()) {
+    if (recips.size < MIN_FUNDER_DEGREE || recips.size > MAX_FUNDER_DEGREE) continue;
+    const arr = [...recips];
+    for (let k = 1; k < arr.length; k++) {
+      const from = arr[0] < arr[k] ? arr[0] : arr[k];
+      const to = arr[0] < arr[k] ? arr[k] : arr[0];
+      const key = `${from}|${to}`;
+      if (!pairCounts.has(key)) pairCounts.set(key, { from, to, count: 1 });
+    }
+  }
 
   const edges = [...pairCounts.values()];
 

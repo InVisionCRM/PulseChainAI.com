@@ -96,3 +96,40 @@ export async function pageEvents(
   }
   return out;
 }
+
+export interface SwapRow {
+  timestamp: string;
+  amountUSD: string;
+  amount0In: string;
+  amount1In: string;
+  amount0Out: string;
+  amount1Out: string;
+  pair: { token0: { id: string }; token1: { id: string } };
+}
+
+const SWAP_FIELDS = `{ timestamp amountUSD amount0In amount1In amount0Out amount1Out pair{ token0{ id } token1{ id } } }`;
+
+/** Page `swaps` for a set of pairs newest-first back to `cutoff`. */
+export async function pageSwaps(
+  url: string,
+  pairIds: string[],
+  cutoff: number,
+  maxPages = 8,
+): Promise<SwapRow[]> {
+  const inList = pairIds.map((id) => `"${id}"`).join(',');
+  const out: SwapRow[] = [];
+  let before = 9_999_999_999;
+  for (let p = 0; p < maxPages; p++) {
+    const d = await gql(
+      url,
+      `{ swaps(first:1000, orderBy:timestamp, orderDirection:desc, where:{pair_in:[${inList}], timestamp_lt:${before}}) ${SWAP_FIELDS} }`,
+    );
+    const rows = (d?.swaps ?? []) as SwapRow[];
+    for (const r of rows) if (num(r.timestamp) >= cutoff) out.push(r);
+    if (rows.length < 1000) break;
+    const last = num(rows[rows.length - 1].timestamp);
+    if (last < cutoff) break;
+    before = last;
+  }
+  return out;
+}

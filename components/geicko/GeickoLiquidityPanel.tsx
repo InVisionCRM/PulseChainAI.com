@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
+import { txUrl, addressUrl } from '@/lib/pulsechain/explorer';
 
 // "Liquidity Flow" section for the Geicko token view: liquidity adds (mints) vs
 // removes (burns) across a token's PulseX pairs — a daily net-flow chart plus a
@@ -145,11 +147,8 @@ export default function GeickoLiquidityPanel({
               <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">Recent events</div>
               <div className="max-h-44 space-y-0.5 overflow-y-auto pr-1">
                 {data.events.map((e, i) => (
-                  <a
+                  <div
                     key={`${e.tx}-${i}`}
-                    href={`https://scan.pulsechain.com/tx/${e.tx}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="flex items-center gap-2 rounded px-1 py-0.5 text-[11px] hover:bg-white/5"
                   >
                     <span className={`w-4 shrink-0 text-center font-bold ${e.type === 'add' ? 'text-[var(--up)]' : 'text-red-400'}`}>
@@ -158,10 +157,36 @@ export default function GeickoLiquidityPanel({
                     <span className={`w-16 shrink-0 tabular-nums font-semibold ${e.type === 'add' ? 'text-[var(--up)]' : 'text-red-400'}`}>
                       {fmtUsd(e.type === 'add' ? e.usd : -e.usd)}
                     </span>
-                    <span className="shrink-0 truncate text-[var(--text-muted)]" style={{ maxWidth: '7rem' }}>{e.pair}</span>
-                    <span className="hidden shrink-0 font-mono text-[var(--text-faint)] sm:inline">{shortAddr(e.wallet)}</span>
-                    <span className="ml-auto shrink-0 tabular-nums text-[var(--text-faint)]">{ago(e.ts)}</span>
-                  </a>
+                    <span className="shrink-0 truncate text-[var(--text-muted)]" style={{ maxWidth: '6rem' }}>{e.pair}</span>
+                    {e.wallet && (
+                      <span className="hidden shrink-0 items-center gap-1 sm:flex">
+                        <a
+                          href={addressUrl(e.wallet)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-[var(--text-faint)] hover:text-[var(--text)]"
+                        >
+                          {shortAddr(e.wallet)}
+                        </a>
+                        <AddToGroupButton
+                          address={e.wallet}
+                          source="lp"
+                          chain="pulsechain"
+                          size={12}
+                          className="text-[var(--text-muted)] hover:text-orange-300 transition-colors"
+                        />
+                      </span>
+                    )}
+                    <a
+                      href={txUrl(e.tx)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-auto shrink-0 tabular-nums text-[var(--text-faint)] hover:text-[var(--text)]"
+                      title="View transaction"
+                    >
+                      {ago(e.ts)}
+                    </a>
+                  </div>
                 ))}
               </div>
             </div>
