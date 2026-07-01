@@ -39,6 +39,7 @@ import {
   GeickoMetricsGrid,
   GeickoMarketStatsPanel,
   GeickoPerformancePanel,
+  GeickoLiquidityPanel,
   GeickoToast,
   type OwnershipData,
 } from '@/components/geicko';
@@ -2010,7 +2011,7 @@ function GeickoPageContent() {
           </div>
 
 
-          {/* Price Performance — sits above the tabbed container, not inside it */}
+          {/* Price Performance + Liquidity Flow — above the tabbed container, not inside it */}
           {apiTokenAddress && (
             <div className="px-2 md:px-3">
               <GeickoPerformancePanel
@@ -2018,6 +2019,10 @@ function GeickoPageContent() {
                 token={apiTokenAddress}
                 pool={displayPair?.pairAddress}
                 price={priceUsd}
+              />
+              <GeickoLiquidityPanel
+                network={displayPair?.chainId}
+                token={apiTokenAddress}
               />
             </div>
           )}

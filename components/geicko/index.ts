@@ -25,6 +25,7 @@ export { default as GeickoOwnershipPanel } from './GeickoOwnershipPanel';
 export { default as GeickoMetricsGrid } from './GeickoMetricsGrid';
 export { default as GeickoMarketStatsPanel } from './GeickoMarketStatsPanel';
 export { default as GeickoPerformancePanel } from './GeickoPerformancePanel';
+export { default as GeickoLiquidityPanel } from './GeickoLiquidityPanel';
 
 // Export components - Phase 6 (Tab Content)
 export { default as GeickoHoldersTab } from './GeickoHoldersTab';
