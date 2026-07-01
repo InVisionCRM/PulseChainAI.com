@@ -357,7 +357,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
         <div className="text-center">
           <div className="text-md mb-1.5">💧</div>
           <h3 className="text-sm font-medium text-[var(--text)] mb-1">No Liquidity Pairs Found</h3>
-          <p className="text-sm text-[var(--text-faint)]">This token doesn't have any active liquidity pairs on DEXScreener.</p>
+          <p className="text-sm text-[var(--text-faint)]">This token doesn't have any active liquidity pairs on GeckoTerminal.</p>
         </div>
       </div>
     );
@@ -724,7 +724,7 @@ const LiquidityTab: React.FC<LiquidityTabProps> = ({ dexScreenerData, isLoading 
                     rel="noopener noreferrer"
                     className="flex-1 text-center bg-[var(--surface-2)] border border-[var(--line)] text-[var(--text)] px-2 py-1.5 text-xs font-semibold rounded-md hover:bg-[var(--surface-3)] hover:border-[var(--line-strong)] transition-colors"
                   >
-                    DexScreener
+                    GeckoTerminal
                   </a>
 
                   <a

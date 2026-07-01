@@ -224,6 +224,9 @@ function GeickoPageContent() {
   const [contractData, setContractData] = useState<ContractData | null>(null);
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [dexScreenerData, setDexScreenerData] = useState<DexScreenerData | null>(null);
+  // Liquidity pairs for the Liquidity tab, sourced from GeckoTerminal (cleaner
+  // than DexScreener) via /api/geicko/pools.
+  const [geckoPools, setGeckoPools] = useState<DexScreenerData | null>(null);
   const [selectedPairAddress, setSelectedPairAddress] = useState<string | null>(null);
   const [profileData, setProfileData] = useState<any>(null);
   const [topTokens, setTopTokens] = useState<Array<{symbol: string; priceChange: number}>>([]);
@@ -1190,6 +1193,22 @@ function GeickoPageContent() {
     if (!currentInList) setSelectedPairAddress(primaryPair.pairAddress);
   }, [apiTokenAddress, primaryPair?.pairAddress, dexScreenerData?.pairs, selectedPairAddress]);
 
+  // Load liquidity pairs from GeckoTerminal for the Liquidity tab (cleaner and
+  // more complete than DexScreener's pair list).
+  useEffect(() => {
+    if (!apiTokenAddress) { setGeckoPools(null); return; }
+    let alive = true;
+    const net = displayPair?.chainId || 'pulsechain';
+    fetch(`/api/geicko/pools?network=${net}&token=${apiTokenAddress}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!alive || !d || !Array.isArray(d.pairs)) return;
+        setGeckoPools({ pairs: d.pairs, totalPairs: d.totalPairs, wplsPairs: d.wplsPairs });
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [apiTokenAddress, displayPair?.chainId]);
+
   // Use primaryPair when displayPair not yet set (e.g. before effect runs) so mobile/header always show content when we have pair data
   const effectivePair = displayPair ?? primaryPair;
 
@@ -2011,7 +2030,7 @@ function GeickoPageContent() {
           </div>
 
 
-          {/* Price Performance + Liquidity Flow — above the tabbed container, not inside it */}
+          {/* Price Performance — above the tabbed container, not inside it */}
           {apiTokenAddress && (
             <div className="px-2 md:px-3">
               <GeickoPerformancePanel
@@ -2019,10 +2038,6 @@ function GeickoPageContent() {
                 token={apiTokenAddress}
                 pool={displayPair?.pairAddress}
                 price={priceUsd}
-              />
-              <GeickoLiquidityPanel
-                network={displayPair?.chainId}
-                token={apiTokenAddress}
               />
             </div>
           )}
@@ -2193,9 +2208,17 @@ function GeickoPageContent() {
                 </div>
               )}
 
-              {/* Liquidity Tab */}
+              {/* Liquidity Tab — all liquidity UI lives here. Pairs from GeckoTerminal. */}
               {activeTab === 'liquidity' && (
-                <LiquidityTab dexScreenerData={dexScreenerData} isLoading={isLoadingData} />
+                <div className="p-2 md:p-3">
+                  {apiTokenAddress && (
+                    <GeickoLiquidityPanel
+                      network={displayPair?.chainId}
+                      token={apiTokenAddress}
+                    />
+                  )}
+                  <LiquidityTab dexScreenerData={geckoPools ?? dexScreenerData} isLoading={isLoadingData} />
+                </div>
               )}
 
               {/* Contract Tab */}
