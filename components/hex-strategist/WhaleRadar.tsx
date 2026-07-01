@@ -8,7 +8,8 @@
 import { useEffect, useState } from 'react';
 import { IconRadar2, IconRefresh, IconChevronDown, IconArrowsExchange, IconCashBanknote, IconQuestionMark, IconShieldCheck, IconExternalLink, IconArrowRight } from '@tabler/icons-react';
 import { type Network, type Rates, loadRates } from '@/lib/hex/strategistData';
-import type { WhaleRadarData, WhaleStake, WhaleBias, RestakeEvent } from '@/lib/hex/whaleRadar';
+import type { WhaleRadarData, WhaleStake, WhaleBias } from '@/lib/hex/whaleRadar';
+import type { EndBehavior, BehaviorSummary } from '@/lib/hex/whaleBehavior';
 import { WHALE_MIN_HEX } from '@/lib/hex/whaleRadar';
 import { fmtHex, fmtTShares, fmtUsdShort, fmtDuration, HEX_ADDRESS } from '@/lib/hex/hexDay';
 import { HexAmount, HexUnit } from '@/components/hex/HexAmount';
@@ -126,10 +127,12 @@ export default function WhaleRadar({ net }: { net: Network }) {
       </div>
 
       <p className="px-1 text-[10px] leading-relaxed text-[var(--text-faint)]">
-        Sell-vs-re-stake is a <span className="text-[var(--text-muted)]">behavioral probability</span> from each wallet’s own
-        history — how often it started a new stake within ~14 days of a past stake-end. “No history” wallets are weighted at
-        50% in the aggregate. A whale can always surprise you. Tap any whale → <span className="text-[var(--text-muted)]">“Why this rating”</span> to
-        see the exact stake-ends and re-stakes (with transactions) behind its rating.
+        The badge on each whale is a <span className="text-[var(--text-muted)]">quick heuristic</span> from re-stake history (how
+        often it started a new stake within ~14 days of a past end). For the real picture, tap any whale →{' '}
+        <span className="text-[var(--text-muted)]">“Why this rating”</span>: it reads on-chain activity and classifies each past
+        stake-end as <span className="text-[#22c55e]">re-staked</span>, <span className="text-[#ef4444]">sold</span> (with the amount
+        actually swapped out), or <span className="text-[var(--text-muted)]">held</span> — not assuming a sale just because they
+        didn’t re-stake. A whale can always surprise you.
       </p>
     </div>
   );
@@ -175,67 +178,125 @@ function WhaleRow({ s, net, usd, hasPrice, hexUsd, payoutPerTShare }: { s: Whale
   );
 }
 
-// The evidence behind a whale's sell/re-stake rating: a plain-language summary
-// plus every past stake-end and whether the wallet re-staked within 14 days,
-// with links to the actual on-chain transactions.
-function RatingEvidence({ s, net }: { s: WhaleStake; net: Network }) {
-  const b = BIAS[s.bias];
-  const restaked = s.evidence.filter((e) => e.restaked).length;
-  const total = s.evidence.length;
+interface BehaviorResponse {
+  address: string;
+  network: string;
+  oldestActivityTs: number | null;
+  behavior: EndBehavior[];
+  summary: BehaviorSummary;
+}
 
+// The evidence behind a whale's rating, from REAL on-chain activity: for each
+// past stake-end we check the staking subgraph for a re-stake and the wallet's
+// HEX swaps for a sale, and classify each as re-staked / sold / held / unknown —
+// no longer assuming "didn't re-stake" means "sold". Fetched on demand.
+function RatingEvidence({ s, net }: { s: WhaleStake; net: Network }) {
+  const [data, setData] = useState<BehaviorResponse | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setStatus('loading');
+    setErr(null);
+    fetch(`/api/hex/whale-behavior?network=${net}&address=${s.stakerAddr}`)
+      .then(async (r) => {
+        if (r.ok) return r.json();
+        throw new Error((await r.json().catch(() => null))?.error || `HTTP ${r.status}`);
+      })
+      .then((d: BehaviorResponse) => {
+        if (!alive) return;
+        setData(d);
+        setStatus('ready');
+      })
+      .catch((e) => {
+        if (!alive) return;
+        setErr(e instanceof Error ? e.message : null);
+        setStatus('error');
+      });
+    return () => {
+      alive = false;
+    };
+  }, [s.stakerAddr, net]);
+
+  if (status === 'loading') {
+    return (
+      <div className="py-6 text-center text-xs text-[var(--text-muted)]">
+        <IconRefresh className="mr-1 inline h-3.5 w-3.5 animate-spin" /> Reading on-chain re-stake &amp; sale activity…
+      </div>
+    );
+  }
+  if (status === 'error' || !data) {
+    return <div className="py-6 text-center text-xs text-red-300">Couldn’t load activity{err ? `: ${err}` : ''}.</div>;
+  }
+
+  const sum = data.summary;
   return (
     <div className="space-y-3">
-      <div className="rounded-lg border px-3 py-2.5 text-xs" style={{ borderColor: `${b.color}55`, background: `${b.color}14` }}>
-        <div className="flex items-center gap-1.5 font-semibold" style={{ color: b.color }}>
-          {b.icon}{b.label}
-        </div>
-        <p className="mt-1 leading-relaxed text-[var(--text-muted)]">
-          {total === 0 ? (
-            'No prior stake-ends on record for this wallet, so there’s no behaviour to learn from — rated “No history” and weighted at 50% in the aggregate.'
-          ) : (
-            <>
-              This wallet re-staked within 14 days after{' '}
-              <span className="font-semibold text-[var(--text)]">{restaked}</span> of its{' '}
-              <span className="font-semibold text-[var(--text)]">{total}</span> past stake-end{total === 1 ? '' : 's'}
-              {s.restakeRate != null ? ` (${(s.restakeRate * 100).toFixed(0)}%)` : ''}. ≥66% → likely re-stake, ≤34% → likely sell, in between → mixed.
-            </>
-          )}
-        </p>
+      <div className="rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2.5 text-xs leading-relaxed text-[var(--text-muted)]">
+        {sum.total === 0 ? (
+          'No past stake-ends on record for this wallet yet — nothing to judge behaviour from.'
+        ) : (
+          <>
+            Across this wallet’s last <span className="font-semibold text-[var(--text)]">{sum.total}</span> stake-end{sum.total === 1 ? '' : 's'}:{' '}
+            <span className="font-semibold text-[#22c55e]">{sum.restaked} re-staked</span>,{' '}
+            <span className="font-semibold text-[#ef4444]">{sum.sold} sold</span>
+            {sum.soldHex > 0 ? <> (~{fmtHex(sum.soldHex)} HEX{sum.soldUsd > 0 ? ` · ${fmtUsdShort(sum.soldUsd)}` : ''})</> : null},{' '}
+            <span className="font-semibold text-[var(--text)]">{sum.held} held</span>
+            {sum.unknown > 0 ? <>, <span className="text-[var(--text-faint)]">{sum.unknown} unknown</span></> : null}. Sale = HEX
+            swapped out within 30 days of the end; re-stake = new stake within 14 days; “held” = did neither; “unknown” = no swap
+            data that far back.
+          </>
+        )}
       </div>
 
-      {total > 0 && (
+      {data.behavior.length > 0 && (
         <div className="space-y-1.5">
           <div className="px-1 text-[10px] uppercase tracking-wider text-[var(--text-faint)]">Past stake-ends · newest first</div>
-          {s.evidence.map((e) => <EvidenceRow key={e.endStakeId} e={e} net={net} />)}
+          {data.behavior.map((e) => <BehaviorRow key={e.endStakeId} e={e} net={net} />)}
         </div>
       )}
     </div>
   );
 }
 
-function EvidenceRow({ e, net }: { e: RestakeEvent; net: Network }) {
+function TxLink({ net, tx, label }: { net: Network; tx: string; label: string }) {
+  return (
+    <a href={txUrl(net, tx)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-normal text-[var(--text-faint)] hover:text-orange-300" title={`${label} transaction`}>
+      {label}<IconExternalLink className="h-2.5 w-2.5" />
+    </a>
+  );
+}
+
+function BehaviorRow({ e, net }: { e: EndBehavior; net: Network }) {
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px]">
       <span className="inline-flex items-center gap-1 text-[var(--text-muted)] tabular-nums">
         Ended {fmtDateY(e.endTimestamp * 1000)} · <HexAmount hex={e.endHex} />
       </span>
-      {e.endTx && (
-        <a href={txUrl(net, e.endTx)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[var(--text-faint)] hover:text-orange-300" title="End transaction">
-          end tx<IconExternalLink className="h-2.5 w-2.5" />
-        </a>
-      )}
+      {e.endTx && <TxLink net={net} tx={e.endTx} label="end tx" />}
       <IconArrowRight className="h-3 w-3 shrink-0 text-[var(--text-faint)]" />
-      {e.restaked ? (
+
+      {e.outcome === 'restaked' ? (
         <span className="inline-flex flex-wrap items-center gap-1.5 font-semibold text-[#22c55e]">
           <span className="inline-flex items-center gap-1">re-staked {e.daysAfter}d later{e.restakeHex != null ? <> · <HexAmount hex={e.restakeHex} /></> : null}</span>
-          {e.restakeTx && (
-            <a href={txUrl(net, e.restakeTx)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-normal text-[var(--text-faint)] hover:text-orange-300" title="Re-stake transaction">
-              tx<IconExternalLink className="h-2.5 w-2.5" />
-            </a>
+          {e.restakeTx && <TxLink net={net} tx={e.restakeTx} label="tx" />}
+          {e.soldHex > 0 && (
+            <span className="inline-flex items-center gap-1 font-normal text-[#ef4444]">· also sold <HexAmount hex={e.soldHex} /></span>
           )}
         </span>
+      ) : e.outcome === 'sold' ? (
+        <span className="inline-flex flex-wrap items-center gap-1.5 font-semibold text-[#ef4444]">
+          <span className="inline-flex items-center gap-1">
+            sold <HexAmount hex={e.soldHex} />{e.soldUsd > 0 ? ` · ${fmtUsdShort(e.soldUsd)}` : ''}
+            {e.sellCount > 1 ? ` · ${e.sellCount} swaps` : ''}{e.daysToSell != null ? ` · ${e.daysToSell}d later` : ''}
+          </span>
+          {e.firstSellTx && <TxLink net={net} tx={e.firstSellTx} label="tx" />}
+        </span>
+      ) : e.outcome === 'held' ? (
+        <span className="font-semibold text-[var(--text-muted)]">held — no re-stake or HEX sale within the window</span>
       ) : (
-        <span className="font-semibold text-[#ef4444]">no re-stake within 14d → likely sold</span>
+        <span className="text-[var(--text-faint)]">no re-stake · sale activity not available this far back</span>
       )}
     </div>
   );
