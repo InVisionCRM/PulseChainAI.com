@@ -129,10 +129,11 @@ export default function WhaleRadar({ net }: { net: Network }) {
       <p className="px-1 text-[10px] leading-relaxed text-[var(--text-faint)]">
         The badge on each whale is a <span className="text-[var(--text-muted)]">quick heuristic</span> from re-stake history (how
         often it started a new stake within ~14 days of a past end). For the real picture, tap any whale →{' '}
-        <span className="text-[var(--text-muted)]">“Why this rating”</span>: it reads on-chain activity and classifies each past
-        stake-end as <span className="text-[#22c55e]">re-staked</span>, <span className="text-[#ef4444]">sold</span> (with the amount
-        actually swapped out), or <span className="text-[var(--text-muted)]">held</span> — not assuming a sale just because they
-        didn’t re-stake. A whale can always surprise you.
+        <span className="text-[var(--text-muted)]">“Why this rating”</span>: it reads native on-chain activity (HEX transfers +
+        DEX pairs) and classifies each past stake-end as <span className="text-[#22c55e]">re-staked</span>,{' '}
+        <span className="text-[#ef4444]">sold</span> (HEX actually swapped out on a DEX, with the amount),{' '}
+        <span className="text-amber-300">moved out</span> (transferred, not a sale), or <span className="text-[var(--text-muted)]">held</span> —
+        not assuming a sale just because they didn’t re-stake. A whale can always surprise you.
       </p>
     </div>
   );
@@ -168,7 +169,7 @@ function WhaleRow({ s, net, usd, hasPrice, hexUsd, payoutPerTShare }: { s: Whale
             <button onClick={() => setTab('activity')} className={`rounded-md px-3 py-1 text-xs font-semibold ${tab === 'activity' ? 'bg-[var(--surface)] text-orange-300' : 'text-[var(--text-muted)]'}`}>HEX activity</button>
           </div>
           {tab === 'why'
-            ? <RatingEvidence s={s} net={net} />
+            ? <RatingEvidence s={s} net={net} hexUsd={hexUsd} />
             : tab === 'stakes'
               ? <HexStakes address={s.stakerAddr} hexUsd={hexUsd} payoutPerTShare={payoutPerTShare} />
               : <ActivityFeed walletAddress={s.stakerAddr} chains={[net]} tokenAddress={HEX_ADDRESS} />}
@@ -190,7 +191,7 @@ interface BehaviorResponse {
 // past stake-end we check the staking subgraph for a re-stake and the wallet's
 // HEX swaps for a sale, and classify each as re-staked / sold / held / unknown —
 // no longer assuming "didn't re-stake" means "sold". Fetched on demand.
-function RatingEvidence({ s, net }: { s: WhaleStake; net: Network }) {
+function RatingEvidence({ s, net, hexUsd }: { s: WhaleStake; net: Network; hexUsd: number | null }) {
   const [data, setData] = useState<BehaviorResponse | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [err, setErr] = useState<string | null>(null);
@@ -231,6 +232,7 @@ function RatingEvidence({ s, net }: { s: WhaleStake; net: Network }) {
   }
 
   const sum = data.summary;
+  const soldUsd = hexUsd ? sum.soldHex * hexUsd : 0;
   return (
     <div className="space-y-3">
       <div className="rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2.5 text-xs leading-relaxed text-[var(--text-muted)]">
@@ -241,11 +243,12 @@ function RatingEvidence({ s, net }: { s: WhaleStake; net: Network }) {
             Across this wallet’s last <span className="font-semibold text-[var(--text)]">{sum.total}</span> stake-end{sum.total === 1 ? '' : 's'}:{' '}
             <span className="font-semibold text-[#22c55e]">{sum.restaked} re-staked</span>,{' '}
             <span className="font-semibold text-[#ef4444]">{sum.sold} sold</span>
-            {sum.soldHex > 0 ? <> (~{fmtHex(sum.soldHex)} HEX{sum.soldUsd > 0 ? ` · ${fmtUsdShort(sum.soldUsd)}` : ''})</> : null},{' '}
+            {sum.soldHex > 0 ? <> (~{fmtHex(sum.soldHex)} HEX{soldUsd > 0 ? ` · ${fmtUsdShort(soldUsd)}` : ''})</> : null},{' '}
+            {sum.moved > 0 ? <><span className="font-semibold text-amber-300">{sum.moved} moved out</span>{sum.movedHex > 0 ? ` (~${fmtHex(sum.movedHex)} HEX)` : ''}, </> : null}
             <span className="font-semibold text-[var(--text)]">{sum.held} held</span>
-            {sum.unknown > 0 ? <>, <span className="text-[var(--text-faint)]">{sum.unknown} unknown</span></> : null}. Sale = HEX
-            swapped out within 30 days of the end; re-stake = new stake within 14 days; “held” = did neither; “unknown” = no swap
-            data that far back.
+            {sum.unknown > 0 ? <>, <span className="text-[var(--text-faint)]">{sum.unknown} unknown</span></> : null}. Sold = HEX
+            swapped out on a DEX within 30 days; re-staked = new stake within 14 days; “moved out” = HEX transferred elsewhere (not
+            a DEX sale); “held” = did none of these; “unknown” = no transfer data that far back.
           </>
         )}
       </div>
@@ -253,7 +256,7 @@ function RatingEvidence({ s, net }: { s: WhaleStake; net: Network }) {
       {data.behavior.length > 0 && (
         <div className="space-y-1.5">
           <div className="px-1 text-[10px] uppercase tracking-wider text-[var(--text-faint)]">Past stake-ends · newest first</div>
-          {data.behavior.map((e) => <BehaviorRow key={e.endStakeId} e={e} net={net} />)}
+          {data.behavior.map((e) => <BehaviorRow key={e.endStakeId} e={e} net={net} hexUsd={hexUsd} />)}
         </div>
       )}
     </div>
@@ -268,7 +271,8 @@ function TxLink({ net, tx, label }: { net: Network; tx: string; label: string })
   );
 }
 
-function BehaviorRow({ e, net }: { e: EndBehavior; net: Network }) {
+function BehaviorRow({ e, net, hexUsd }: { e: EndBehavior; net: Network; hexUsd: number | null }) {
+  const soldUsd = hexUsd ? e.soldHex * hexUsd : 0;
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[11px]">
       <span className="inline-flex items-center gap-1 text-[var(--text-muted)] tabular-nums">
@@ -288,15 +292,22 @@ function BehaviorRow({ e, net }: { e: EndBehavior; net: Network }) {
       ) : e.outcome === 'sold' ? (
         <span className="inline-flex flex-wrap items-center gap-1.5 font-semibold text-[#ef4444]">
           <span className="inline-flex items-center gap-1">
-            sold <HexAmount hex={e.soldHex} />{e.soldUsd > 0 ? ` · ${fmtUsdShort(e.soldUsd)}` : ''}
+            sold <HexAmount hex={e.soldHex} />{soldUsd > 0 ? ` · ~${fmtUsdShort(soldUsd)}` : ''}
             {e.sellCount > 1 ? ` · ${e.sellCount} swaps` : ''}{e.daysToSell != null ? ` · ${e.daysToSell}d later` : ''}
           </span>
           {e.firstSellTx && <TxLink net={net} tx={e.firstSellTx} label="tx" />}
         </span>
+      ) : e.outcome === 'moved' ? (
+        <span className="inline-flex flex-wrap items-center gap-1.5 font-semibold text-amber-300">
+          <span className="inline-flex items-center gap-1">
+            moved out <HexAmount hex={e.movedHex} />{e.daysToMove != null ? ` · ${e.daysToMove}d later` : ''} <span className="font-normal text-[var(--text-faint)]">(transfer, not a DEX sale)</span>
+          </span>
+          {e.firstMoveTx && <TxLink net={net} tx={e.firstMoveTx} label="tx" />}
+        </span>
       ) : e.outcome === 'held' ? (
-        <span className="font-semibold text-[var(--text-muted)]">held — no re-stake or HEX sale within the window</span>
+        <span className="font-semibold text-[var(--text-muted)]">held — no re-stake, sale, or transfer within the window</span>
       ) : (
-        <span className="text-[var(--text-faint)]">no re-stake · sale activity not available this far back</span>
+        <span className="text-[var(--text-faint)]">no re-stake · transfer activity not available this far back</span>
       )}
     </div>
   );
