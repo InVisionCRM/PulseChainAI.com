@@ -212,6 +212,10 @@ export class HexStakingService {
       }
     }
     
+    // On-chain globals from the HEX contract — reliable even when the subgraph
+    // is unavailable. Gives us total staked HEX, T-shares, share rate, day.
+    const onChainGlobal = await this.getGlobalInfoOnChain();
+
     console.log('📡 Fetching Ethereum metrics from GraphQL API...');
     try {
       // Get global info first
@@ -235,7 +239,7 @@ export class HexStakingService {
         globalInfos: HexGlobalInfo[];
       }>(globalInfoQuery);
 
-      const globalInfo = globalData.globalInfos[0] || null;
+      const globalInfo = globalData.globalInfos[0] || onChainGlobal;
       console.log('✅ Global info fetched');
 
       // Get all active stakes using the existing comprehensive method
@@ -317,14 +321,18 @@ export class HexStakingService {
       recentStakeStarts,
     };
   } catch (error) {
-    console.error('❌ Failed to fetch staking metrics:', error);
-    
-    // Provide graceful fallback when The Graph is completely unavailable
+    console.error('❌ Failed to fetch staking metrics from subgraph, using on-chain globals:', error);
+
+    // Subgraph unavailable (the Ethereum HEX subgraph is unserved). Still return
+    // the real global totals from the contract — total staked HEX and T-shares
+    // come from globalInfo.lockedHeartsTotal / stakeSharesTotal. Per-stake
+    // enumeration (active count, avg length, top-50 list) needs an indexer and
+    // is left empty until one is wired up.
     return {
       totalActiveStakes: 0,
-      totalStakedHearts: '0',
+      totalStakedHearts: onChainGlobal?.lockedHeartsTotal ?? '0',
       averageStakeLength: 0,
-      globalInfo: null,
+      globalInfo: onChainGlobal,
       topStakes: [],
       recentStakeStarts: [],
     };
@@ -973,28 +981,90 @@ export class HexStakingService {
     return allEnds;
   }
 
-  async getCurrentGlobalInfo(): Promise<HexGlobalInfo | null> {
-    const query = `
-      query GetCurrentGlobalInfo {
-        globalInfos(first: 1, orderBy: timestamp, orderDirection: desc) {
-          id
-          hexDay
-          stakeSharesTotal
-          stakePenaltyTotal
-          latestStakeId
-          shareRate
-          totalSupply
-          lockedHeartsTotal
-          timestamp
-        }
+  // Free public Ethereum RPCs (no key) for reading the HEX contract directly —
+  // used because the Ethereum HEX staking subgraph is no longer served ("no
+  // allocations" on The Graph gateway). Tried in order with failover.
+  private ethRpcUrls = [
+    process.env.ETHEREUM_RPC_URL,
+    'https://ethereum-rpc.publicnode.com',
+    'https://eth.drpc.org',
+    'https://eth.llamarpc.com',
+  ].filter(Boolean) as string[];
+  private static HEX_CONTRACT = '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
+  private static HEX_LAUNCH_TS = 1575331200;
+
+  private async ethCall(data: string): Promise<string | null> {
+    for (const url of this.ethRpcUrls) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to: HexStakingService.HEX_CONTRACT, data }, 'latest'] }),
+        });
+        if (!res.ok) continue;
+        const j = await res.json();
+        if (typeof j.result === 'string' && j.result.length > 2) return j.result;
+      } catch {
+        /* try next RPC */
       }
-    `;
+    }
+    return null;
+  }
 
-    const data = await this.executeQuery<{
-      globalInfos: HexGlobalInfo[];
-    }>(query);
+  /**
+   * Read HEX `globalInfo()` straight from the contract over RPC — the source of
+   * truth for global staking totals (total staked HEX, T-shares, share rate,
+   * current day), and reliable even when the subgraph is down. Returns the
+   * contract's uint256[13] mapped to HexGlobalInfo.
+   */
+  async getGlobalInfoOnChain(): Promise<HexGlobalInfo | null> {
+    const r = await this.ethCall('0xf04b5fa0'); // globalInfo()
+    if (!r || r.length < 2 + 13 * 64) return null;
+    const h = r.slice(2);
+    const w = (i: number) => BigInt('0x' + h.slice(i * 64, i * 64 + 64));
+    const timestamp = Number(w(10));
+    const hexDay = Math.floor((timestamp - HexStakingService.HEX_LAUNCH_TS) / 86400);
+    // globalInfo() layout: 0 lockedHeartsTotal, 2 shareRate, 3 stakePenaltyTotal,
+    // 5 stakeSharesTotal, 6 latestStakeId, 10 block.timestamp, 11 totalSupply.
+    return {
+      id: 'onchain',
+      hexDay: String(hexDay),
+      stakeSharesTotal: w(5).toString(),
+      stakePenaltyTotal: w(3).toString(),
+      latestStakeId: w(6).toString(),
+      shareRate: w(2).toString(),
+      totalSupply: w(11).toString(),
+      lockedHeartsTotal: w(0).toString(),
+      timestamp: String(timestamp),
+    };
+  }
 
-    return data.globalInfos[0] || null;
+  async getCurrentGlobalInfo(): Promise<HexGlobalInfo | null> {
+    // On-chain first — the subgraph is no longer served on Ethereum.
+    const onchain = await this.getGlobalInfoOnChain();
+    if (onchain) return onchain;
+
+    try {
+      const query = `
+        query GetCurrentGlobalInfo {
+          globalInfos(first: 1, orderBy: timestamp, orderDirection: desc) {
+            id
+            hexDay
+            stakeSharesTotal
+            stakePenaltyTotal
+            latestStakeId
+            shareRate
+            totalSupply
+            lockedHeartsTotal
+            timestamp
+          }
+        }
+      `;
+      const data = await this.executeQuery<{ globalInfos: HexGlobalInfo[] }>(query);
+      return data.globalInfos[0] || null;
+    } catch {
+      return null;
+    }
   }
 }
 
