@@ -110,9 +110,14 @@ export async function buildHolderGraph(
   chain: ChainId,
   token: string,
   holders: HolderNode[],
+  opts?: { budgetMs?: number; concurrency?: number },
 ): Promise<HolderGraph> {
   const base = BLOCKSCOUT_BASE[chain];
   const tok = token.toLowerCase();
+  // Callers that cache aggressively (e.g. the HEX stake map, always the slow
+  // mega-token) can raise the budget/concurrency for fuller coverage.
+  const budgetMs = opts?.budgetMs ?? BUDGET_MS;
+  const concurrency = opts?.concurrency ?? CONCURRENCY;
 
   // Addresses we draw edges among. Exclude (a) labelled infra and (b) ALL
   // contracts: transfers to/from the LP pair, routers, CEX or any contract are
@@ -138,10 +143,10 @@ export async function buildHolderGraph(
   let completed = 0;
   let budgetHit = false;
 
-  await mapLimit(eligible, CONCURRENCY, async (h) => {
+  await mapLimit(eligible, concurrency, async (h) => {
     // Once the budget is spent, remaining holders return immediately (cheap
     // no-op) so the scan drains fast and we respond with partial results.
-    if (Date.now() - start > BUDGET_MS) { budgetHit = true; return; }
+    if (Date.now() - start > budgetMs) { budgetHit = true; return; }
     let url = `${base}/addresses/${h.address}/token-transfers?token=${tok}&type=ERC-20`;
     for (let p = 0; p < PAGES_PER_HOLDER; p++) {
       const data = await fetchJson(url);

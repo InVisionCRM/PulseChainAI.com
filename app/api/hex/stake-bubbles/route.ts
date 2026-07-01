@@ -9,9 +9,12 @@ export const revalidate = 0;
 export const maxDuration = 60;
 
 const FIELDS = 'stakeId stakerAddr stakedHearts stakeShares stakedDays startDay endDay';
-// How many staker addresses we cluster (transfer scan each) — bounded like the
-// holder bubble map so first-load stays roughly constant.
-const CLUSTER_LIMIT = 120;
+// How many staker addresses we cluster (one HEX-transfer scan each). HEX is the
+// slowest token to scan, so we cluster fewer stakers but give the scan a bigger
+// budget below — enough to actually FINISH within the 60s route limit and
+// surface clusters, instead of timing out at ~48 and finding nothing. The full
+// bubble set still renders; only clustering is capped here.
+const CLUSTER_LIMIT = 80;
 const LIMITS = new Set([50, 250, 500, 1000]);
 
 interface RawStart {
@@ -115,9 +118,9 @@ export async function GET(req: NextRequest) {
     const bubbles = [...byAddr.values()].sort((a, b) => b.totalHex - a.totalHex);
     bubbles.forEach((b) => b.stakes.sort((a, c) => c.principalHex - a.principalHex));
 
-    // Clusters: linked staker wallets, found from direct HEX transfers between
-    // them — the same signal as the holder bubble map. Bounded to the top
-    // CLUSTER_LIMIT addresses.
+    // Clusters: staker wallets that are likely the same person — linked either by
+    // direct HEX transfers between them or by a shared HEX funding source (same
+    // signal as the holder bubble map). Bounded to the top CLUSTER_LIMIT stakers.
     const maxHex = Math.max(1, ...bubbles.map((b) => b.totalHex));
     const clusterNodes: HolderNode[] = bubbles.slice(0, CLUSTER_LIMIT).map((b) => ({
       address: b.address,
@@ -131,7 +134,12 @@ export async function GET(req: NextRequest) {
     let edges: { from: string; to: string; count: number }[] = [];
     let clusters: string[][] = [];
     try {
-      const g = await buildHolderGraph(net as ChainId, HEX_ADDRESS, clusterNodes);
+      // Bigger budget + concurrency than the default: this route caches for 10
+      // min, so a slower-but-complete scan is worth it to actually find clusters.
+      const g = await buildHolderGraph(net as ChainId, HEX_ADDRESS, clusterNodes, {
+        budgetMs: 45_000,
+        concurrency: 16,
+      });
       edges = g.edges ?? [];
       clusters = g.clusters ?? [];
     } catch {

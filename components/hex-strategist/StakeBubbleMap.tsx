@@ -346,7 +346,7 @@ export default function StakeBubbleMap({ net }: { net: Network }) {
             ))}
           </div>
           <p className="mt-2 text-[11px] text-[var(--text-muted)]">
-            Bubble size = total active staked HEX (all of an address’s stakes bundled) · inner ring = more than one stake · lines = direct HEX transfers between stakers · clusters = likely-linked wallets. Click a bubble for stake details · drag to pin.
+            Bubble size = total active staked HEX (all of an address’s stakes bundled) · inner ring = more than one stake · lines link stakers that transfer HEX directly or share a funding source · clusters = wallets likely controlled by the same person. Click a bubble for stake details · drag to pin.
           </p>
         </>
       )}
