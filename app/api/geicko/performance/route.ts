@@ -13,6 +13,8 @@ export const revalidate = 0;
 export const maxDuration = 60;
 
 const DAY = 86_400;
+// WPLS (wrapped PLS) on PulseChain — the denominator for the "vs WPLS" view.
+const WPLS = '0xa1077a294dde1b09bb078844df40758a5d0f9a27';
 
 const PULSEX_SUBGRAPHS = [
   'https://graph.pulsechain.com/subgraphs/name/pulsechain/pulsex',
@@ -114,6 +116,44 @@ function sparkline(series: Point[], n = 72): number[] {
   return Array.from({ length: n }, (_, i) => v[Math.min(v.length - 1, Math.floor(i * step))]);
 }
 
+/** Compute one performance "view" (USD or a ratio series) from a daily series. */
+function computeView(raw: Point[], coverage: 'full' | 'partial', live: number) {
+  // Subgraph/DEX derived prices can spike to near-zero (or huge) on illiquid
+  // days — a $31-volume day priced 8 orders of magnitude off wrecks ATL/ATH.
+  // Drop points more than 1000× from the median (keeps all real volatility).
+  const prices = raw.map((s) => s.p).sort((a, b) => a - b);
+  const med = prices[Math.floor(prices.length / 2)] || 0;
+  const series = med > 0 ? raw.filter((s) => s.p >= med / 1000 && s.p <= med * 1000) : raw;
+  if (series.length < 2) return null;
+
+  const nowTs = Math.floor(Date.now() / 1000);
+  const first = series[0];
+  const current = live > 0 ? live : series[series.length - 1].p;
+
+  let ath = first.p, athTs = first.t, atl = first.p, atlTs = first.t;
+  for (const c of series) {
+    if (c.p > ath) { ath = c.p; athTs = c.t; }
+    if (c.p < atl) { atl = c.p; atlTs = c.t; }
+  }
+  if (current > ath) { ath = current; athTs = nowTs; }
+  if (current < atl) { atl = current; atlTs = nowTs; }
+
+  return {
+    coverage,
+    current,
+    changes: {
+      d7: changeOver(series, nowTs, 7, current),
+      d30: changeOver(series, nowTs, 30, current),
+      d365: changeOver(series, nowTs, 365, current),
+    },
+    ath: { price: ath, date: athTs, fromPct: ath > 0 ? (current / ath - 1) * 100 : null },
+    atl: { price: atl, date: atlTs, fromPct: atl > 0 ? (current / atl - 1) * 100 : null },
+    launch: { price: first.p, date: first.t, pct: first.p > 0 ? (current / first.p - 1) * 100 : null },
+    spark: sparkline(series),
+    dataDays: Math.round((series[series.length - 1].t - first.t) / DAY),
+  };
+}
+
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const chain = (sp.get('network') || 'pulsechain').toLowerCase();
@@ -125,49 +165,29 @@ export async function GET(req: NextRequest) {
 
   try {
     const isPls = chain === 'pulsechain';
-    const raw = isPls && token
+    // "full" = launch-to-now (PulseX subgraph); "partial" = ~6mo (GeckoTerminal).
+    const coverage: 'full' | 'partial' = isPls ? 'full' : 'partial';
+    const usdSeries = isPls && token
       ? await pulsexDaily(token)
       : await geckoDaily(GT_NET[chain] || chain, token, pool);
 
-    if (raw.length < 2) return NextResponse.json({ error: 'no price history' }, { status: 404 });
+    const usd = computeView(usdSeries, coverage, livePrice);
+    if (!usd) return NextResponse.json({ error: 'no price history' }, { status: 404 });
 
-    // Subgraph/DEX derived prices can spike to near-zero (or huge) on illiquid
-    // days — a $31-volume day priced 8 orders of magnitude off wrecks ATL/ATH.
-    // Drop points more than 1000× from the median (keeps all real volatility).
-    const prices = raw.map((s) => s.p).sort((a, b) => a - b);
-    const med = prices[Math.floor(prices.length / 2)] || 0;
-    const series = med > 0 ? raw.filter((s) => s.p >= med / 1000 && s.p <= med * 1000) : raw;
-    if (series.length < 2) return NextResponse.json({ error: 'no price history' }, { status: 404 });
-
-    const nowTs = Math.floor(Date.now() / 1000);
-    const first = series[0];
-    const current = livePrice > 0 ? livePrice : series[series.length - 1].p;
-
-    let ath = first.p, athTs = first.t, atl = first.p, atlTs = first.t;
-    for (const c of series) {
-      if (c.p > ath) { ath = c.p; athTs = c.t; }
-      if (c.p < atl) { atl = c.p; atlTs = c.t; }
+    // "vs WPLS": the token priced in WPLS (token USD ÷ WPLS USD), aligned by day.
+    // Only meaningful on PulseChain, and not for WPLS itself.
+    let wpls: ReturnType<typeof computeView> = null;
+    if (isPls && token && token !== WPLS) {
+      const wplsSeries = await pulsexDaily(WPLS);
+      const wmap = new Map(wplsSeries.map((s) => [s.t, s.p]));
+      const ratio = usdSeries
+        .filter((s) => (wmap.get(s.t) ?? 0) > 0)
+        .map((s) => ({ t: s.t, p: s.p / (wmap.get(s.t) as number) }));
+      wpls = ratio.length >= 2 ? computeView(ratio, coverage, 0) : null;
     }
-    if (current > ath) { ath = current; athTs = nowTs; }
-    if (current < atl) { atl = current; atlTs = nowTs; }
 
     return NextResponse.json(
-      {
-        chain,
-        // "full" = launch-to-now (PulseX subgraph); "partial" = ~6mo (GeckoTerminal).
-        coverage: isPls ? 'full' : 'partial',
-        current,
-        changes: {
-          d7: changeOver(series, nowTs, 7, current),
-          d30: changeOver(series, nowTs, 30, current),
-          d365: changeOver(series, nowTs, 365, current),
-        },
-        ath: { price: ath, date: athTs, fromPct: ath > 0 ? (current / ath - 1) * 100 : null },
-        atl: { price: atl, date: atlTs, fromPct: atl > 0 ? (current / atl - 1) * 100 : null },
-        launch: { price: first.p, date: first.t, pct: first.p > 0 ? (current / first.p - 1) * 100 : null },
-        spark: sparkline(series),
-        dataDays: Math.round((series[series.length - 1].t - first.t) / DAY),
-      },
+      { chain, views: { usd, wpls } },
       { headers: { 'Cache-Control': 'public, max-age=900, stale-while-revalidate=3600' } },
     );
   } catch (err) {
