@@ -41,6 +41,7 @@ import {
   GeickoPerformancePanel,
   GeickoLiquidityPanel,
   GeickoPressurePanel,
+  GeickoTradesTab,
   GeickoToast,
   type OwnershipData,
 } from '@/components/geicko';
@@ -123,7 +124,7 @@ function GeickoPageContent() {
   const { showToast, updateToast, dismissToast } = useToast();
   const addressFromQuery = searchParams.get('address');
   const tabFromQuery = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'holders' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
+  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'trades' | 'holders' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
   const tokenInfoTab: 'token' = 'token';
   const [apiTokenAddress, setApiTokenAddress] = useState<string>('');
   const [goldBadgeAddresses, setGoldBadgeAddresses] = useState<string[]>([]);
@@ -1072,7 +1073,7 @@ function GeickoPageContent() {
       setApiTokenAddress(addressFromQuery);
     }
     if (tabFromQuery) {
-      const validTabs = ['gold', 'chart', 'holders', 'liquidity', 'contract', 'switch', 'stats', 'website', 'audit'];
+      const validTabs = ['gold', 'chart', 'trades', 'holders', 'liquidity', 'contract', 'switch', 'stats', 'website', 'audit'];
       if (validTabs.includes(tabFromQuery)) {
         setActiveTab(tabFromQuery as typeof activeTab);
       }
@@ -1428,6 +1429,7 @@ function GeickoPageContent() {
   const tabOptions: Array<{ id: typeof activeTab; label: string }> = [
     ...(isGoldToken ? [{ id: 'gold' as const, label: 'GOLD' }] : []),
     { id: 'chart', label: 'Chart' },
+    { id: 'trades', label: 'Trades' },
     { id: 'holders', label: 'Holders' },
     { id: 'liquidity', label: 'Liquidity' },
     { id: 'contract', label: 'Code' },
@@ -2150,6 +2152,15 @@ function GeickoPageContent() {
                     )}
                   </div>
                 </div>
+              )}
+
+              {/* Trades Tab — recent buys/sells + top traders */}
+              {activeTab === 'trades' && apiTokenAddress && (
+                <GeickoTradesTab
+                  network={displayPair?.chainId}
+                  token={apiTokenAddress}
+                  symbol={baseSymbol}
+                />
               )}
 
               {/* Swap Tab */}
