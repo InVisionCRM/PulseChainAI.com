@@ -125,10 +125,18 @@ export async function GET(req: NextRequest) {
 
   try {
     const isPls = chain === 'pulsechain';
-    const series = isPls && token
+    const raw = isPls && token
       ? await pulsexDaily(token)
       : await geckoDaily(GT_NET[chain] || chain, token, pool);
 
+    if (raw.length < 2) return NextResponse.json({ error: 'no price history' }, { status: 404 });
+
+    // Subgraph/DEX derived prices can spike to near-zero (or huge) on illiquid
+    // days — a $31-volume day priced 8 orders of magnitude off wrecks ATL/ATH.
+    // Drop points more than 1000× from the median (keeps all real volatility).
+    const prices = raw.map((s) => s.p).sort((a, b) => a - b);
+    const med = prices[Math.floor(prices.length / 2)] || 0;
+    const series = med > 0 ? raw.filter((s) => s.p >= med / 1000 && s.p <= med * 1000) : raw;
     if (series.length < 2) return NextResponse.json({ error: 'no price history' }, { status: 404 });
 
     const nowTs = Math.floor(Date.now() / 1000);
