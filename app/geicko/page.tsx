@@ -2040,10 +2040,6 @@ function GeickoPageContent() {
                 pool={displayPair?.pairAddress}
                 price={priceUsd}
               />
-              <GeickoPressurePanel
-                network={displayPair?.chainId}
-                token={apiTokenAddress}
-              />
             </div>
           )}
 
@@ -2128,23 +2124,31 @@ function GeickoPageContent() {
 
               {/* Chart Tab */}
               {activeTab === 'chart' && (
-                <div className="h-full min-h-[420px] flex flex-col">
-                  {isLoadingData ? (
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="text-center">
-                        <LoaderThree />
-                        <p className="text-[var(--text-muted)] text-xs mt-2">Loading chart...</p>
-                      </div>
-                    </div>
-                  ) : displayPair?.pairAddress ? (
-                    <div className="w-full h-full flex-1 min-h-[360px]">
-                      <DexScreenerChart pairAddress={displayPair.pairAddress} />
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center text-center text-[var(--text-muted)]">
-                      <div className="text-xs">No chart data available</div>
-                    </div>
+                <div className="h-full min-h-[520px] flex flex-col gap-2 p-2 md:p-3">
+                  {apiTokenAddress && (
+                    <GeickoPressurePanel
+                      network={displayPair?.chainId}
+                      token={apiTokenAddress}
+                    />
                   )}
+                  <div className="flex-1 min-h-[420px] flex flex-col">
+                    {isLoadingData ? (
+                      <div className="flex-1 flex items-center justify-center min-h-[360px]">
+                        <div className="text-center">
+                          <LoaderThree />
+                          <p className="text-[var(--text-muted)] text-xs mt-2">Loading chart...</p>
+                        </div>
+                      </div>
+                    ) : displayPair?.pairAddress ? (
+                      <div className="w-full flex-1 min-h-[420px]">
+                        <DexScreenerChart pairAddress={displayPair.pairAddress} />
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center text-center text-[var(--text-muted)] min-h-[360px]">
+                        <div className="text-xs">No chart data available</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
