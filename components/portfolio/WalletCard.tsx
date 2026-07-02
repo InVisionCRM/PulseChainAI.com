@@ -81,7 +81,7 @@ export function WalletCard({ wallet }: Props) {
   const removeWallet = usePortfolioStore((s) => s.removeWallet);
   const setWalletLabel = usePortfolioStore((s) => s.setWalletLabel);
 
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(wallet.label ?? '');
   const [view, setView] = useState<'tokens' | 'activity' | 'defi' | 'staking' | 'connections' | 'funding'>('tokens');
@@ -103,7 +103,7 @@ export function WalletCard({ wallet }: Props) {
     hidden: [],
     forced: [],
     hideDust: true,
-    dustThresholdUsd: 1,
+    dustThresholdUsd: 25,
     seenInitialReview: false,
   };
 

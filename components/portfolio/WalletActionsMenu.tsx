@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { IconDotsVertical, IconCheck } from '@tabler/icons-react';
-import { useOutsideClick } from '@/hooks/use-outside-click';
 import {
   useGroupsStore,
   resolveGroupId,
@@ -40,8 +40,46 @@ export function WalletActionsMenu({
   const createGroup = useGroupsStore((s) => s.createGroup);
 
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useOutsideClick(ref, () => setOpen(false));
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Position the menu in a portal on document.body — the wallet card clips
+  // overflow and uses backdrop-blur (a containing block), so an in-card dropdown
+  // is both hidden when the card is collapsed and stacked below content. A
+  // fixed-position portal escapes both.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (r) setCoords({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
+    };
+    place();
+    window.addEventListener('resize', place);
+    // A fixed menu detaches from the trigger on scroll, so close it instead.
+    const onScroll = () => setOpen(false);
+    window.addEventListener('scroll', onScroll, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', onScroll, true);
+    };
+  }, [open]);
+
+  // Close on a click outside BOTH the trigger and the portalled menu.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      const t = e.target as Node;
+      if (triggerRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+    };
+  }, [open]);
 
   const currentId = resolveGroupId(groups, assignments, address);
   const ordered = [
@@ -53,25 +91,14 @@ export function WalletActionsMenu({
   const itemClass =
     'w-full flex items-center justify-between gap-3 px-3 py-2 text-sm text-left text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors';
 
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center justify-center h-7 w-7 rounded-md text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors"
-        title="Wallet actions"
-        aria-label="Wallet actions"
-        aria-haspopup="menu"
-        aria-expanded={open}
+  const menu = open && coords && typeof document !== 'undefined' ? createPortal(
+    (
+      <div
+        ref={menuRef}
+        role="menu"
+        style={{ position: 'fixed', top: coords.top, right: coords.right, zIndex: 100 }}
+        className="w-56 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] py-1 shadow-2xl"
       >
-        <IconDotsVertical className="h-5 w-5" />
-      </button>
-
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-full mt-1.5 z-30 w-56 overflow-hidden rounded-xl border border-white/10 bg-[var(--surface-2)] py-1 shadow-2xl backdrop-blur-xl"
-        >
           <button type="button" role="menuitem" className={itemClass} onClick={() => { onRename(); close(); }}>
             Edit name
           </button>
@@ -149,8 +176,26 @@ export function WalletActionsMenu({
           >
             Remove wallet
           </button>
-        </div>
-      )}
-    </div>
+      </div>
+    ),
+    document.body,
+  ) : null;
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center justify-center h-7 w-7 rounded-md text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors"
+        title="Wallet actions"
+        aria-label="Wallet actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <IconDotsVertical className="h-5 w-5" />
+      </button>
+      {menu}
+    </>
   );
 }

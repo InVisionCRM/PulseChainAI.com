@@ -52,7 +52,7 @@ export function ManageTokensModal() {
       hidden: [],
       forced: [],
       hideDust: true,
-      dustThresholdUsd: 1,
+      dustThresholdUsd: 25,
       seenInitialReview: false,
     };
 
