@@ -17,6 +17,7 @@ interface Deployment { address: string; name: string | null; ts: string | null }
 interface Insider { address: string; tokens: number; ts: string | null; currentTokens: number | null; isFirstBuyer: boolean }
 interface Creator {
   address: string; creationTx: string | null;
+  via: { address: string; method: string | null } | null;
   fundedBy: Funding | null; fundedByPartial: boolean;
   deployments: Deployment[]; deploymentCount: number;
   tokenBalance: number; pctSupply: number | null;
@@ -49,6 +50,7 @@ const fmtAmt = (v: number) => {
   return v.toFixed(v >= 1 ? 2 : 4);
 };
 const shortAddr = (a: string) => (a && a.length > 10 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a || '—');
+const PUMP_TIRES_FACTORY = '0x6538a83a81d855b965983161af6a83e616d16fd5';
 const fmtDate = (ts: number | string | null) => {
   if (!ts) return '';
   const d = typeof ts === 'number' ? new Date(ts * 1000) : new Date(ts);
@@ -146,6 +148,11 @@ export default function GeickoForensicsTab({
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Creator</h3>
             <Wallet address={c.address} symbol={symbol} />
+            {c.via && (
+              <a href={addressUrl(c.via.address)} target="_blank" rel="noopener noreferrer" title={`Deployed via ${c.via.address}${c.via.method ? ` · ${c.via.method}()` : ''}`}>
+                <Badge tone="good">via {c.via.address.toLowerCase() === PUMP_TIRES_FACTORY ? 'pump.tires' : 'factory'}</Badge>
+              </a>
+            )}
             {creatorExited && <Badge tone="bad">Exited</Badge>}
             {serialDeployer && <Badge tone="warn">Serial deployer · {c.deploymentCount}</Badge>}
             {c.creationTx && (
