@@ -102,13 +102,29 @@ export async function GET(req: NextRequest) {
       bs(`/tokens/${token}`),
       earliestPair(token),
     ]);
-    const creator = (addrInfo?.creator_address_hash ?? '').toLowerCase() || null;
+    let creator = (addrInfo?.creator_address_hash ?? '').toLowerCase() || null;
     const creationTx = addrInfo?.creation_tx_hash ?? null;
     const decimals = num(tokenInfo?.decimals) || 18;
     const totalSupply = num(tokenInfo?.total_supply) / 10 ** decimals;
     const symbol = tokenInfo?.symbol ?? '';
     const toTokens = (raw: unknown) => num(raw) / 10 ** decimals;
     const pairAddresses = new Set<string>(pair ? [pair.id.toLowerCase()] : []);
+
+    // Factory-deployed tokens (pump.tires and other pump.fun clones) report the
+    // FACTORY as the creator, not the user. When the token was created by a call
+    // TO a contract (creation-tx `to` === recorded creator), the real creator is
+    // the EOA that sent that transaction. Direct deploys have a null `to`, so
+    // this only rewrites the factory case.
+    let viaFactory: { address: string; method: string | null } | null = null;
+    if (creationTx) {
+      const ctx = await bs(`/transactions/${creationTx}`);
+      const txFrom = (ctx?.from?.hash ?? '').toLowerCase();
+      const txTo = (ctx?.to?.hash ?? '').toLowerCase();
+      if (txFrom && txTo && creator && txTo === creator && txFrom !== creator) {
+        viaFactory = { address: creator, method: ctx?.method ?? null };
+        creator = txFrom;
+      }
+    }
 
     // The two heavy halves — first-buyers (subgraph) and creator behavior
     // (Blockscout) — are independent, so run them concurrently.
@@ -231,6 +247,7 @@ export async function GET(req: NextRequest) {
       return {
         address: creator,
         creationTx,
+        via: viaFactory,
         fundedBy: earliestIncoming,
         fundedByPartial: txPagesPartial,
         deployments: deployments.slice(0, 20),
