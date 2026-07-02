@@ -48,7 +48,7 @@ const DEFAULT_TOKEN_SETTINGS: WalletTokenSettings = {
   hidden: [],
   forced: [],
   hideDust: true,
-  dustThresholdUsd: 1,
+  dustThresholdUsd: 25,
   seenInitialReview: false,
 };
 
