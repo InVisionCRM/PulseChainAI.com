@@ -2653,11 +2653,14 @@ export default function AdminStatsPanel({
               </div>
 
               <div className="focus-visible:outline-none focus-visible:ring-0">
-                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl">
+                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl overflow-hidden">
                   {statCategories
                     .find(category => category.title === resolvedCategoryTitle)
                     ?.stats.length ? (
-                      <div className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-3">
+                      // Seamless mosaic: no gaps between cards — cells share 1px
+                      // hairline dividers; the outermost ones tuck under the
+                      // container border via the negative margins.
+                      <div className="grid sm:grid-cols-2 xl:grid-cols-3 -mr-px -mb-px">
                         {statCategories
                           .find(category => category.title === resolvedCategoryTitle)
                           ?.stats.map(stat => {
@@ -2667,10 +2670,10 @@ export default function AdminStatsPanel({
                                 key={stat.id}
                                 type="button"
                                 onClick={() => setSelectedStat(stat.id)}
-                                className={`text-left rounded-lg border px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black/50 ${
+                                className={`text-left px-3 py-2.5 border-r border-b border-[var(--line)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-orange/60 ${
                                   isActive
-                                    ? 'border-brand-orange/40 bg-brand-orange/10 text-[var(--text)] shadow-[inset_0_0_0_1px_rgba(250,70,22,0.15)]'
-                                    : 'border-[var(--line)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)] hover:text-[var(--text)]'
+                                    ? 'bg-brand-orange/15 text-[var(--text)] shadow-[inset_0_0_0_1px_rgba(250,70,22,0.35)]'
+                                    : 'bg-[var(--panel)] text-[var(--text)] hover:bg-[var(--surface-2)]'
                                 }`}
                               >
                                 <p className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>
@@ -2745,7 +2748,8 @@ export default function AdminStatsPanel({
                       <div className="bg-[var(--surface)] border border-[var(--line)] text-[var(--text)] font-semibold px-3 py-2 rounded-t-lg text-xs uppercase tracking-wider">
                         {category.title}
                       </div>
-                      <div className="bg-[var(--surface)] border-x border-b border-[var(--line)] rounded-b-lg">
+                      {/* Seamless 2-col card grid (was a stacked list) — cells share hairline dividers, no gaps. */}
+                      <div className="grid grid-cols-2 border-x border-b border-[var(--line)] rounded-b-lg overflow-hidden">
                         {category.stats.map(stat => (
                           <button
                             key={stat.id}
@@ -2753,13 +2757,13 @@ export default function AdminStatsPanel({
                               setSelectedStat(stat.id);
                               setDrawerOpen(false);
                             }}
-                            className={`w-full text-left px-3 py-2 border-b border-[var(--line-soft)] last:border-b-0 hover:bg-[var(--surface)] transition-colors ${
-                              selectedStat === stat.id ? 'bg-brand-orange/10 text-[var(--text)]' : 'text-[var(--text-muted)]'
+                            className={`text-left px-3 py-2.5 border-r border-b border-[var(--line)] -mr-px -mb-px transition-colors ${
+                              selectedStat === stat.id ? 'bg-brand-orange/15 text-[var(--text)]' : 'bg-[var(--panel)] text-[var(--text-muted)] hover:bg-[var(--surface-2)]'
                             }`}
                           >
-                            <div>{stat.label}</div>
+                            <div className="text-sm font-semibold">{stat.label}</div>
                             {stat.description && (
-                              <div className="text-xs text-[var(--text-muted)] mt-0.5">{stat.description}</div>
+                              <div className="text-[11px] text-[var(--text-muted)] mt-0.5 line-clamp-2">{stat.description}</div>
                             )}
                           </button>
                         ))}
