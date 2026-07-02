@@ -17,21 +17,30 @@ const BS = 'https://api.scan.pulsechain.com/api/v2';
 const ZERO = '0x0000000000000000000000000000000000000000';
 const DEAD_SUFFIX = /dead$/i;
 
-const TX_PAGES = 3;          // creator tx pages to scan (deployments + funding)
+const TX_PAGES = 2;          // creator tx pages to scan (deployments + funding)
 const BUY_WINDOW_S = 72 * 3600; // how long after pair creation counts as "first buyers"
 const SWAP_PAGES = 3;        // ascending swap pages (1000 each) within the window
 const MAX_BUYERS = 30;       // unique first buyers reported
 const BALANCE_CHECKS = 30;   // wallets we check current balances for
 const CACHE_TTL_MS = 30 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 9_000;
+// Overall soft budget. Busy tokens (PLSX etc.) otherwise blew past the 60s route
+// limit and 504'd — which the UI showed as "not available". Past this we return
+// whatever we have (e.g. buyers without current-balance checks) rather than die.
+const DEADLINE_MS = 48_000;
 
 const cache = new Map<string, { at: number; value: unknown }>();
 
 async function bs(path: string): Promise<any | null> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
   try {
-    const r = await fetch(`${BS}${path}`, { headers: { accept: 'application/json' } });
+    const r = await fetch(`${BS}${path}`, { headers: { accept: 'application/json' }, signal: ctrl.signal });
     return r.ok ? await r.json() : null;
   } catch {
     return null;
+  } finally {
+    clearTimeout(t);
   }
 }
 
@@ -83,22 +92,28 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(hit.value, { headers: { 'Cache-Control': 'public, max-age=300' } });
   }
 
+  const startedAt = Date.now();
+  const timeLeft = () => DEADLINE_MS - (Date.now() - startedAt);
+
   try {
-    // ── Token + creator identity ────────────────────────────────────────────
-    const [addrInfo, tokenInfo] = await Promise.all([bs(`/addresses/${token}`), bs(`/tokens/${token}`)]);
+    // ── Token + creator identity + launch pair (all independent) ────────────
+    const [addrInfo, tokenInfo, pair] = await Promise.all([
+      bs(`/addresses/${token}`),
+      bs(`/tokens/${token}`),
+      earliestPair(token),
+    ]);
     const creator = (addrInfo?.creator_address_hash ?? '').toLowerCase() || null;
     const creationTx = addrInfo?.creation_tx_hash ?? null;
     const decimals = num(tokenInfo?.decimals) || 18;
     const totalSupply = num(tokenInfo?.total_supply) / 10 ** decimals;
     const symbol = tokenInfo?.symbol ?? '';
     const toTokens = (raw: unknown) => num(raw) / 10 ** decimals;
+    const pairAddresses = new Set<string>(pair ? [pair.id.toLowerCase()] : []);
 
-    // ── Subgraph: earliest pair + first mint + earliest swaps ───────────────
-    const pair = await earliestPair(token);
-    let firstBuyers: any = null;
-    const pairAddresses = new Set<string>();
-    if (pair) {
-      pairAddresses.add(pair.id.toLowerCase());
+    // The two heavy halves — first-buyers (subgraph) and creator behavior
+    // (Blockscout) — are independent, so run them concurrently.
+    const computeFirstBuyers = async (): Promise<any> => {
+      if (!pair) return null;
       const t0 = pair.ts;
       const t1 = t0 + BUY_WINDOW_S;
       const md = await gql(
@@ -151,7 +166,7 @@ export async function GET(req: NextRequest) {
       }
 
       const buyers = [...buyersMap.values()].sort((a, b) => a.ts - b.ts || a.block - b.block).slice(0, MAX_BUYERS);
-      firstBuyers = {
+      return {
         pair: pair.id,
         pairedWith: pair.otherSymbol,
         pairCreatedAt: t0,
@@ -161,11 +176,11 @@ export async function GET(req: NextRequest) {
         swapsScanned: scanned,
         buyers,
       };
-    }
+    };
 
     // ── Blockscout: creator behavior ────────────────────────────────────────
-    let creatorReport: any = null;
-    if (creator) {
+    const computeCreator = async (): Promise<any> => {
+      if (!creator) return null;
       // One bounded pass over the creator's transactions powers three things:
       // other deployments, earliest-seen incoming native funding, and activity size.
       const deployments: { address: string; name: string | null; ts: string | null }[] = [];
@@ -213,7 +228,7 @@ export async function GET(req: NextRequest) {
       const own = (Array.isArray(balances) ? balances : []).find((b: any) => b?.token?.address?.toLowerCase() === token);
       const creatorTokens = own ? toTokens(own.value) : 0;
 
-      creatorReport = {
+      return {
         address: creator,
         creationTx,
         fundedBy: earliestIncoming,
@@ -226,26 +241,33 @@ export async function GET(req: NextRequest) {
         outTransfers: outCount,
         insiders: [...insiders.values()].sort((a, b) => b.tokens - a.tokens).slice(0, 15),
       };
-    }
+    };
+
+    const [firstBuyers, creatorReport] = await Promise.all([computeFirstBuyers(), computeCreator()]);
 
     // ── Current balances for first buyers + insiders (who still holds) ──────
+    // Only if we still have budget — otherwise return the trace without them
+    // (buyers show "?") instead of risking a 504.
     const toCheck = new Set<string>();
     for (const b of firstBuyers?.buyers ?? []) toCheck.add(b.wallet);
     for (const i of creatorReport?.insiders ?? []) toCheck.add(i.address);
     const checkList = [...toCheck].slice(0, BALANCE_CHECKS);
     const balanceOf = new Map<string, number>();
-    await mapLimit(checkList, 8, async (w) => {
-      const b = await bs(`/addresses/${w}/token-balances`);
-      const own = (Array.isArray(b) ? b : []).find((x: any) => x?.token?.address?.toLowerCase() === token);
-      balanceOf.set(w, own ? toTokens(own.value) : 0);
-    });
+    if (checkList.length && timeLeft() > 6_000) {
+      await mapLimit(checkList, 12, async (w) => {
+        if (timeLeft() < 2_000) return; // stop starting new checks near the deadline
+        const b = await bs(`/addresses/${w}/token-balances`);
+        const own = (Array.isArray(b) ? b : []).find((x: any) => x?.token?.address?.toLowerCase() === token);
+        balanceOf.set(w, own ? toTokens(own.value) : 0);
+      });
+    }
     for (const b of firstBuyers?.buyers ?? []) {
-      b.currentTokens = balanceOf.get(b.wallet) ?? null;
+      b.currentTokens = balanceOf.has(b.wallet) ? balanceOf.get(b.wallet) : null;
       b.stillHolds = b.currentTokens == null ? null : b.currentTokens > b.tokenAmount * 0.01;
     }
     const firstBuyerSet = new Set((firstBuyers?.buyers ?? []).map((b: any) => b.wallet));
     for (const i of creatorReport?.insiders ?? []) {
-      i.currentTokens = balanceOf.get(i.address) ?? null;
+      i.currentTokens = balanceOf.has(i.address) ? balanceOf.get(i.address) : null;
       i.isFirstBuyer = firstBuyerSet.has(i.address);
     }
 
