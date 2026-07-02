@@ -1157,7 +1157,9 @@ function GeickoPageContent() {
   // Prefer WPLS pair so price/liquidity reflect Token/WPLS, not another quote (e.g. USDC)
   const WPLS_ADDRESS = '0xA1077a294dDE1B09bB078844df40758a5D0f9a27';
   const primaryPair = useMemo(() => {
-    const pairs = dexScreenerData?.pairs ?? [];
+    // DexScreener first (it carries tokenInfo/logo extras), GeckoTerminal as the
+    // fallback so the header still renders when DexScreener fails or lags.
+    const pairs = (dexScreenerData?.pairs?.length ? dexScreenerData.pairs : geckoPools?.pairs) ?? [];
     if (pairs.length === 0) return null;
     const wpls = WPLS_ADDRESS.toLowerCase();
     const wplsPairs = pairs.filter((p: { baseToken?: { address?: string }; quoteToken?: { address?: string } }) => {
@@ -1170,17 +1172,26 @@ function GeickoPageContent() {
       return byLiquidity[0] ?? null;
     }
     return pairs[0] ?? null;
-  }, [dexScreenerData?.pairs]);
+  }, [dexScreenerData?.pairs, geckoPools]);
+
+  // Pair list for the pair picker. GeckoTerminal (via /api/geicko/pools) covers
+  // every PulseChain DEX and finds pools DexScreener misses, so prefer it once
+  // loaded; DexScreener's list is only the fallback while it loads.
+  const selectorPairs = useMemo(() => {
+    const gt = geckoPools?.pairs ?? [];
+    return gt.length ? gt : (dexScreenerData?.pairs ?? []);
+  }, [geckoPools, dexScreenerData?.pairs]);
 
   // Display pair: user-selected or primary (WPLS preferred). Used for price, chart, liquidity display.
+  // A selection can come from the GeckoTerminal list, so resolve against both sources.
   const displayPair = useMemo(() => {
-    const pairs = dexScreenerData?.pairs ?? [];
-    if (!selectedPairAddress || pairs.length === 0) return primaryPair;
+    if (!selectedPairAddress) return primaryPair;
+    const pairs = [...(geckoPools?.pairs ?? []), ...(dexScreenerData?.pairs ?? [])];
     const found = pairs.find(
       (p: { pairAddress?: string }) => (p.pairAddress || '').toLowerCase() === selectedPairAddress.toLowerCase(),
     );
     return found ?? primaryPair;
-  }, [selectedPairAddress, primaryPair, dexScreenerData?.pairs]);
+  }, [selectedPairAddress, primaryPair, geckoPools, dexScreenerData?.pairs]);
 
   // Reset selected pair when token changes or when primary pair loads (so default is primary)
   useEffect(() => {
@@ -1189,12 +1200,12 @@ function GeickoPageContent() {
       return;
     }
     if (!primaryPair?.pairAddress) return;
-    const pairs = dexScreenerData?.pairs ?? [];
+    const pairs = [...(geckoPools?.pairs ?? []), ...(dexScreenerData?.pairs ?? [])];
     const currentInList = selectedPairAddress && pairs.some(
       (p: { pairAddress?: string }) => (p.pairAddress || '').toLowerCase() === selectedPairAddress.toLowerCase(),
     );
     if (!currentInList) setSelectedPairAddress(primaryPair.pairAddress);
-  }, [apiTokenAddress, primaryPair?.pairAddress, dexScreenerData?.pairs, selectedPairAddress]);
+  }, [apiTokenAddress, primaryPair?.pairAddress, geckoPools, dexScreenerData?.pairs, selectedPairAddress]);
 
   // Load liquidity pairs from GeckoTerminal for the Liquidity tab (cleaner and
   // more complete than DexScreener's pair list).
@@ -1495,7 +1506,7 @@ function GeickoPageContent() {
                 <div className="absolute top-1 left-1 right-1 p-0">
                   <div className="flex justify-between gap-0">
                     <div>
-                      {(dexScreenerData?.pairs?.length ?? 0) > 1 ? (
+                      {selectorPairs.length > 1 ? (
                         <select
                           aria-label="Select trading pair"
                           value={displayPair?.pairAddress ?? ''}
@@ -1503,11 +1514,13 @@ function GeickoPageContent() {
                           className="w-auto max-w-[160px] text-xl font-bold text-[var(--text)] rounded-tl-lg bg-[var(--surface-2)] border border-[var(--line-strong)] backdrop-blur-md tracking-tight cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-400/50 pr-6 appearance-none bg-no-repeat bg-[length:10px] bg-[position:right_0.25rem_center]"
                           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%238a93a0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}
                         >
-                          {(dexScreenerData?.pairs ?? [])
+                          {[...selectorPairs]
                             .sort((a: { liquidity?: { usd?: number } }, b: { liquidity?: { usd?: number } }) => Number(b?.liquidity?.usd ?? 0) - Number(a?.liquidity?.usd ?? 0))
-                            .map((p: { pairAddress?: string; baseToken?: { symbol?: string }; quoteToken?: { symbol?: string }; liquidity?: { usd?: number }; volume?: { h24?: number }; priceChange?: { h24?: number } }) => (
+                            .map((p: { pairAddress?: string; dexId?: string; baseToken?: { symbol?: string }; quoteToken?: { symbol?: string }; liquidity?: { usd?: number }; volume?: { h24?: number }; priceChange?: { h24?: number } }) => (
                               <option key={p.pairAddress} value={p.pairAddress ?? ''} className="bg-[var(--panel)] text-[var(--text)] text-sm">
                                 {[p.baseToken?.symbol, p.quoteToken?.symbol].filter(Boolean).join(' / ') || 'Pair'}
+                                {p.dexId ? ` · ${p.dexId}` : ''}
+                                {Number(p.liquidity?.usd ?? 0) > 0 ? ` · ${formatCurrencyCompact(Number(p.liquidity!.usd))}` : ''}
                               </option>
                             ))}
                         </select>
@@ -2482,7 +2495,7 @@ function GeickoPageContent() {
                   <div className="px-4 pt-2 pb-3 border-b border-[var(--line)]">
                     <div className="mt-0 flex items-end justify-between gap-4">
                       <div>
-                        {(dexScreenerData?.pairs?.length ?? 0) > 1 ? (
+                        {selectorPairs.length > 1 ? (
                           <select
                             aria-label="Select trading pair"
                             value={displayPair?.pairAddress ?? ''}
@@ -2490,11 +2503,13 @@ function GeickoPageContent() {
                             className="w-auto max-w-[220px] text-2xl font-bold text-[var(--text)] tracking-tight bg-[var(--panel)] border border-[var(--line)] rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-500/50 pr-8 appearance-none bg-no-repeat bg-[length:12px] bg-[position:right_0.5rem_center]"
                             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a93a0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}
                           >
-                            {(dexScreenerData?.pairs ?? [])
+                            {[...selectorPairs]
                               .sort((a: { liquidity?: { usd?: number } }, b: { liquidity?: { usd?: number } }) => Number(b?.liquidity?.usd ?? 0) - Number(a?.liquidity?.usd ?? 0))
-                              .map((p: { pairAddress?: string; baseToken?: { symbol?: string }; quoteToken?: { symbol?: string }; liquidity?: { usd?: number }; volume?: { h24?: number }; priceChange?: { h24?: number } }) => (
+                              .map((p: { pairAddress?: string; dexId?: string; baseToken?: { symbol?: string }; quoteToken?: { symbol?: string }; liquidity?: { usd?: number }; volume?: { h24?: number }; priceChange?: { h24?: number } }) => (
                                 <option key={p.pairAddress} value={p.pairAddress ?? ''} className="bg-[var(--panel)] text-[var(--text)] text-sm">
                                   {[p.baseToken?.symbol, p.quoteToken?.symbol].filter(Boolean).join(' / ') || 'Pair'}
+                                  {p.dexId ? ` · ${p.dexId}` : ''}
+                                  {Number(p.liquidity?.usd ?? 0) > 0 ? ` · ${formatCurrencyCompact(Number(p.liquidity!.usd))}` : ''}
                                 </option>
                               ))}
                           </select>
