@@ -42,6 +42,7 @@ import {
   GeickoLiquidityPanel,
   GeickoPressurePanel,
   GeickoTradesTab,
+  GeickoForensicsTab,
   GeickoToast,
   type OwnershipData,
 } from '@/components/geicko';
@@ -124,7 +125,7 @@ function GeickoPageContent() {
   const { showToast, updateToast, dismissToast } = useToast();
   const addressFromQuery = searchParams.get('address');
   const tabFromQuery = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'trades' | 'holders' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
+  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'trades' | 'forensics' | 'holders' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
   const tokenInfoTab: 'token' = 'token';
   const [apiTokenAddress, setApiTokenAddress] = useState<string>('');
   const [goldBadgeAddresses, setGoldBadgeAddresses] = useState<string[]>([]);
@@ -1073,7 +1074,7 @@ function GeickoPageContent() {
       setApiTokenAddress(addressFromQuery);
     }
     if (tabFromQuery) {
-      const validTabs = ['gold', 'chart', 'trades', 'holders', 'liquidity', 'contract', 'switch', 'stats', 'website', 'audit'];
+      const validTabs = ['gold', 'chart', 'trades', 'forensics', 'holders', 'liquidity', 'contract', 'switch', 'stats', 'website', 'audit'];
       if (validTabs.includes(tabFromQuery)) {
         setActiveTab(tabFromQuery as typeof activeTab);
       }
@@ -1430,6 +1431,7 @@ function GeickoPageContent() {
     ...(isGoldToken ? [{ id: 'gold' as const, label: 'GOLD' }] : []),
     { id: 'chart', label: 'Chart' },
     { id: 'trades', label: 'Trades' },
+    { id: 'forensics', label: 'Forensics' },
     { id: 'holders', label: 'Holders' },
     { id: 'liquidity', label: 'Liquidity' },
     { id: 'contract', label: 'Code' },
@@ -2157,6 +2159,15 @@ function GeickoPageContent() {
               {/* Trades Tab — recent buys/sells + top traders */}
               {activeTab === 'trades' && apiTokenAddress && (
                 <GeickoTradesTab
+                  network={displayPair?.chainId}
+                  token={apiTokenAddress}
+                  symbol={baseSymbol}
+                />
+              )}
+
+              {/* Forensics Tab — creator trace + first buyers/snipers */}
+              {activeTab === 'forensics' && apiTokenAddress && (
+                <GeickoForensicsTab
                   network={displayPair?.chainId}
                   token={apiTokenAddress}
                   symbol={baseSymbol}
