@@ -104,10 +104,11 @@ export interface SwapRow {
   amount1In: string;
   amount0Out: string;
   amount1Out: string;
+  to: string; // swap recipient — the closest thing to the trader (sender is usually a router)
   pair: { token0: { id: string }; token1: { id: string } };
 }
 
-const SWAP_FIELDS = `{ timestamp amountUSD amount0In amount1In amount0Out amount1Out pair{ token0{ id } token1{ id } } }`;
+const SWAP_FIELDS = `{ timestamp amountUSD amount0In amount1In amount0Out amount1Out to pair{ token0{ id } token1{ id } } }`;
 
 /** Page `swaps` for a set of pairs newest-first back to `cutoff`. */
 export async function pageSwaps(

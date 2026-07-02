@@ -41,6 +41,7 @@ import {
   GeickoPerformancePanel,
   GeickoLiquidityPanel,
   GeickoPressurePanel,
+  GeickoTradesTab,
   GeickoToast,
   type OwnershipData,
 } from '@/components/geicko';
@@ -123,7 +124,7 @@ function GeickoPageContent() {
   const { showToast, updateToast, dismissToast } = useToast();
   const addressFromQuery = searchParams.get('address');
   const tabFromQuery = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'holders' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
+  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'trades' | 'holders' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
   const tokenInfoTab: 'token' = 'token';
   const [apiTokenAddress, setApiTokenAddress] = useState<string>('');
   const [goldBadgeAddresses, setGoldBadgeAddresses] = useState<string[]>([]);
@@ -1072,7 +1073,7 @@ function GeickoPageContent() {
       setApiTokenAddress(addressFromQuery);
     }
     if (tabFromQuery) {
-      const validTabs = ['gold', 'chart', 'holders', 'liquidity', 'contract', 'switch', 'stats', 'website', 'audit'];
+      const validTabs = ['gold', 'chart', 'trades', 'holders', 'liquidity', 'contract', 'switch', 'stats', 'website', 'audit'];
       if (validTabs.includes(tabFromQuery)) {
         setActiveTab(tabFromQuery as typeof activeTab);
       }
@@ -1428,6 +1429,7 @@ function GeickoPageContent() {
   const tabOptions: Array<{ id: typeof activeTab; label: string }> = [
     ...(isGoldToken ? [{ id: 'gold' as const, label: 'GOLD' }] : []),
     { id: 'chart', label: 'Chart' },
+    { id: 'trades', label: 'Trades' },
     { id: 'holders', label: 'Holders' },
     { id: 'liquidity', label: 'Liquidity' },
     { id: 'contract', label: 'Code' },
@@ -2040,10 +2042,6 @@ function GeickoPageContent() {
                 pool={displayPair?.pairAddress}
                 price={priceUsd}
               />
-              <GeickoPressurePanel
-                network={displayPair?.chainId}
-                token={apiTokenAddress}
-              />
             </div>
           )}
 
@@ -2128,24 +2126,41 @@ function GeickoPageContent() {
 
               {/* Chart Tab */}
               {activeTab === 'chart' && (
-                <div className="h-full min-h-[420px] flex flex-col">
-                  {isLoadingData ? (
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="text-center">
-                        <LoaderThree />
-                        <p className="text-[var(--text-muted)] text-xs mt-2">Loading chart...</p>
-                      </div>
-                    </div>
-                  ) : displayPair?.pairAddress ? (
-                    <div className="w-full h-full flex-1 min-h-[360px]">
-                      <DexScreenerChart pairAddress={displayPair.pairAddress} />
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center text-center text-[var(--text-muted)]">
-                      <div className="text-xs">No chart data available</div>
-                    </div>
+                <div className="h-full min-h-[520px] flex flex-col gap-2 p-2 md:p-3">
+                  {apiTokenAddress && (
+                    <GeickoPressurePanel
+                      network={displayPair?.chainId}
+                      token={apiTokenAddress}
+                    />
                   )}
+                  <div className="flex-1 min-h-[420px] flex flex-col">
+                    {isLoadingData ? (
+                      <div className="flex-1 flex items-center justify-center min-h-[360px]">
+                        <div className="text-center">
+                          <LoaderThree />
+                          <p className="text-[var(--text-muted)] text-xs mt-2">Loading chart...</p>
+                        </div>
+                      </div>
+                    ) : displayPair?.pairAddress ? (
+                      <div className="w-full flex-1 min-h-[420px]">
+                        <DexScreenerChart pairAddress={displayPair.pairAddress} />
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center text-center text-[var(--text-muted)] min-h-[360px]">
+                        <div className="text-xs">No chart data available</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
+              )}
+
+              {/* Trades Tab — recent buys/sells + top traders */}
+              {activeTab === 'trades' && apiTokenAddress && (
+                <GeickoTradesTab
+                  network={displayPair?.chainId}
+                  token={apiTokenAddress}
+                  symbol={baseSymbol}
+                />
               )}
 
               {/* Swap Tab */}
