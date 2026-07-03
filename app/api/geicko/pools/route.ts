@@ -41,18 +41,18 @@ export async function GET(req: NextRequest) {
   const net = chain === 'pulsechain' ? 'pulsechain' : (GT_NET[chain] || chain);
 
   try {
-    // Memoize for 2 minutes (matching Cache-Control): the page fetches this from
+    // Memoize for 10 minutes (matching Cache-Control): the page fetches this from
     // more than one component, and GeckoTerminal rate-limits aggressively enough
     // that duplicate bursts can come back empty. Empty results aren't cached —
     // they usually mean a rate-limit, not a token without pools.
     const payload = await cached(
       `pools:${net}:${token}`,
-      120_000,
+      600_000,
       () => build(chain, net, token),
       (v) => v.pairs.length > 0,
     );
     return NextResponse.json(payload, {
-      headers: { 'Cache-Control': 'public, max-age=120, s-maxage=120, stale-while-revalidate=600' },
+      headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=7200' },
     });
   } catch (err) {
     return NextResponse.json(

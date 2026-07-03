@@ -78,11 +78,11 @@ export async function GET(req: NextRequest) {
 
   try {
     // The v1+v2 swap scan takes many seconds, and a single page load can request
-    // it several times concurrently. Memoize the whole payload for 2 minutes
+    // it several times concurrently. Memoize the whole payload for 10 minutes
     // (matching the Cache-Control below) so only the first caller pays.
-    const payload = await cached(`pressure:${token}`, 120_000, () => build(chain, token));
+    const payload = await cached(`pressure:${token}`, 600_000, () => build(chain, token));
     return NextResponse.json(payload, {
-      headers: { 'Cache-Control': 'public, max-age=120, s-maxage=120, stale-while-revalidate=600' },
+      headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=7200' },
     });
   } catch (err) {
     return NextResponse.json(

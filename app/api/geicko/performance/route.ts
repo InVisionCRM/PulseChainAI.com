@@ -206,14 +206,14 @@ export async function GET(req: NextRequest) {
     const nonEmpty = (s: Point[]) => s.length >= 2;
     let usdSeries: Point[] =
       isPls && token
-        ? await cached(`perf-pulsex:${token}`, 900_000, () => pulsexDaily(token), nonEmpty)
+        ? await cached(`perf-pulsex:${token}`, 3_600_000, () => pulsexDaily(token), nonEmpty)
         : [];
     let coverage: 'full' | 'partial' = usdSeries.length >= 2 ? 'full' : 'partial';
     if (usdSeries.length < 2) {
       // GT_NET has no 'pulsechain' entry, so `|| chain` resolves it to 'pulsechain'.
       usdSeries = await cached(
         `perf-gecko:${chain}:${token}:${pool}`,
-        900_000,
+        3_600_000,
         () => geckoDaily(GT_NET[chain] || chain, token, pool),
         nonEmpty,
       );
@@ -228,14 +228,14 @@ export async function GET(req: NextRequest) {
     // series is token-independent, so it's cached once for the whole process.
     let wpls: ReturnType<typeof computeView> = null;
     if (isPls && token && token !== WPLS) {
-      const wplsSeries = await cached(`perf-pulsex:${WPLS}`, 900_000, () => pulsexDaily(WPLS), nonEmpty);
+      const wplsSeries = await cached(`perf-pulsex:${WPLS}`, 3_600_000, () => pulsexDaily(WPLS), nonEmpty);
       const ratio = ratioSeries(usdSeries, wplsSeries);
       wpls = ratio.length >= 2 ? computeView(ratio, coverage, 0) : null;
     }
 
     return NextResponse.json(
       { chain, views: { usd, wpls } },
-      { headers: { 'Cache-Control': 'public, max-age=900, s-maxage=900, stale-while-revalidate=3600' } },
+      { headers: { 'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400' } },
     );
   } catch (err) {
     return NextResponse.json(
