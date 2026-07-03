@@ -734,80 +734,6 @@ export default function AdminStatsPanel({
   const statCategories = useMemo(() => {
     return [
       {
-        title: 'Token Supply',
-        stats: [
-          { id: 'totalSupply', label: 'Total Supply', description: 'Total number of tokens in circulation', run: async () => {
-        const { tokenInfo } = await ensureCoreCaches();
-        const raw = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
-        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
-        return {
-          raw,
-          formatted: formatTokenAmount2(raw, decimals),
-          decimals
-        };
-      } },
-          { id: 'holders', label: 'Total Holders', description: 'Number of unique wallet addresses holding this token', run: async () => {
-        const { tokenCounters, tokenInfo } = await ensureCoreCaches();
-        const count = Number((tokenCounters as { token_holders_count?: number })?.token_holders_count ?? (tokenInfo as { holders?: number })?.holders ?? 0);
-        return {
-          raw: count,
-          formatted: formatNumber2(count)
-        };
-      } },
-          { id: 'burnedTotal', label: 'Total Burned', description: 'Total tokens sent to burn address (dead wallet)', run: async () => {
-        const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
-        const holders = await ensureHolders();
-        const dead = holders.find(h => h.hash.toLowerCase() === DEAD_ADDRESS)?.value || '0';
-        const rawNum = Number(dead);
-        const totalSupply = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
-        const pct = totalSupply ? (rawNum / totalSupply) * 100 : 0;
-        return {
-          raw: rawNum,
-          formatted: formatTokenAmount2(rawNum, decimals),
-          percent: pct,
-          percentFormatted: formatPct2(pct),
-        };
-      } },
-      { id: 'burned24h', label: 'Burned (24h)', description: 'Tokens burned in the last 24 hours', run: async () => {
-        const { tokenInfo } = await ensureCoreCaches();
-        const totalSupply = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
-        const sum = (await ensureTransfers24h())
-          .filter(t => (t.to?.hash || '').toLowerCase() === DEAD_ADDRESS)
-          .reduce((s, t) => s + Number(t.total?.value || 0), 0);
-        const pct = totalSupply ? (sum / totalSupply) * 100 : 0;
-        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
-        return { raw: sum, formatted: formatTokenAmount2(sum, decimals), percent: pct, percentFormatted: formatPct2(pct) };
-      } },
-      { id: 'minted24h', label: 'Minted (24h)', description: 'New tokens created in the last 24 hours', run: async () => {
-        const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
-        const sum = (await ensureTransfers24h())
-          .filter(t => (t.from?.hash || '').toLowerCase() === tokenAddress.toLowerCase())
-          .reduce((s, t) => s + Number(t.total?.value || 0), 0);
-        return {
-          raw: sum,
-          formatted: formatTokenAmount2(sum, decimals)
-        };
-      } },
-      { id: 'circulatingExBurn', label: 'Circulating Supply (ex-burn)', description: 'Total supply minus balances held by burn addresses', run: async () => {
-        const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
-        const holders = await ensureHolders();
-        const burnBalance = holders
-          .filter(h => BURN_ADDRESSES.has(h.hash?.toLowerCase?.()))
-          .reduce((s, h) => s + Number(h.value || 0), 0);
-        const supply = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
-        const circulating = supply - burnBalance;
-        return {
-          raw: circulating,
-          formatted: formatTokenAmount2(circulating, decimals),
-          burnFormatted: formatTokenAmount2(burnBalance, decimals),
-        };
-      } },
-        ]
-      },
-      {
         title: 'Holder Distribution',
         stats: [
           { id: 'top1Pct', label: 'Top 1% Holdings', description: 'Percentage of supply held by top holder', run: async () => {
@@ -823,114 +749,6 @@ export default function AdminStatsPanel({
           total
         };
       } },
-      { id: 'top10Pct', label: 'Top 10 Holdings', description: 'Percentage of supply held by top 10 holders', run: async () => {
-        const { tokenInfo } = await ensureCoreCaches();
-        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
-        const holders = await ensureHolders();
-        const sum = holders.sort((a,b)=>Number(b.value)-Number(a.value)).slice(0,10).reduce((s,x)=>s+Number(x.value),0);
-        const pct = total ? (sum/total)*100 : 0;
-        return {
-          raw: pct,
-          formatted: formatPct2(pct),
-          sum,
-          total
-        };
-      } },
-      { id: 'top20Pct', label: 'Top 20 Holdings', description: 'Percentage of supply held by top 20 holders', run: async () => {
-        const { tokenInfo } = await ensureCoreCaches();
-        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
-        const holders = await ensureHolders();
-        const sum = holders.sort((a,b)=>Number(b.value)-Number(a.value)).slice(0,20).reduce((s,x)=>s+Number(x.value),0);
-        const pct = total ? (sum/total)*100 : 0;
-        return {
-          raw: pct,
-          formatted: formatPct2(pct),
-          sum,
-          total
-        };
-      } },
-      { id: 'top50Pct', label: 'Top 50 Holdings', description: 'Percentage of supply held by top 50 holders', run: async () => {
-        const { tokenInfo } = await ensureCoreCaches();
-        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
-        const holders = await ensureHolders();
-        const sum = holders.sort((a,b)=>Number(b.value)-Number(a.value)).slice(0,50).reduce((s,x)=>s+Number(x.value),0);
-        const pct = total ? (sum/total)*100 : 0;
-        return {
-          raw: pct,
-          formatted: formatPct2(pct),
-          sum,
-          total
-        };
-      } },
-      { id: 'whaleCount1Pct', label: 'Whale Count (>1%)', description: 'Number of wallets holding more than 1% of supply', run: async () => {
-        const { tokenInfo } = await ensureCoreCaches();
-        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
-        const threshold = total * 0.01;
-        const holders = await ensureHolders();
-        const count = holders.filter(h => Number(h.value) >= threshold).length;
-        return {
-          raw: count,
-          formatted: formatNumber2(count),
-          threshold: formatTokenAmount2(threshold, Number((tokenInfo as { decimals?: number })?.decimals ?? 18))
-        };
-      } },
-      { id: 'top50Holders', label: 'Top 50 Holders', description: 'Detailed list of top 50 token holders with balances', run: async () => {
-        const { tokenInfo } = await ensureCoreCaches();
-        const totalSupply = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
-        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
-        const holders = await ensureHolders();
-
-        const sortedHolders = [...holders].sort((a, b) => Number(b.value) - Number(a.value));
-        const top50 = sortedHolders.slice(0, 50);
-
-        return top50.map((holder, index) => {
-          const balance = Number(holder.value);
-          const percentage = totalSupply > 0 ? (balance / totalSupply) * 100 : 0;
-          return {
-            rank: index + 1,
-            address: holder.hash,
-            balanceRaw: holder.value,
-            balanceFormatted: formatTokenAmount2(balance, decimals),
-            percentage: `${percentage.toFixed(4)}%`,
-          };
-        });
-      }},
-      { id: 'newVsLostHolders7d', label: 'New vs Lost Holders (7d)', description: 'Holder growth/decline over the last 7 days', run: async () => {
-        const transfers = await getTransfersLastNDays(tokenAddress, 7);
-        if (transfers.length === 0) {
-          return { newHolders: 0, lostHolders: 0, netChange: 0 };
-        }
-
-        const involvedAddresses = new Set<string>();
-        transfers.forEach(t => {
-          if (t.from?.hash) involvedAddresses.add(t.from.hash.toLowerCase());
-          if (t.to?.hash) involvedAddresses.add(t.to.hash.toLowerCase());
-        });
-
-        // This is a simplified approach. A full implementation would require fetching historical balances.
-        // For this test, we will identify new holders as those who only received tokens and lost holders as those who only sent.
-
-        const receivedOnly = new Set<string>();
-        const sentOnly = new Set<string>();
-
-        involvedAddresses.forEach(addr => {
-          const sentTx = transfers.some(t => t.from?.hash?.toLowerCase() === addr);
-          const receivedTx = transfers.some(t => t.to?.hash?.toLowerCase() === addr);
-
-          if (receivedTx && !sentTx) {
-            receivedOnly.add(addr);
-          }
-          if (sentTx && !receivedTx) {
-            sentOnly.add(addr);
-          }
-        });
-
-        return {
-          newHolders: receivedOnly.size,
-          lostHolders: sentOnly.size,
-          netChange: receivedOnly.size - sentOnly.size,
-        };
-      }},
       { id: 'giniCoefficient', label: 'Gini Coefficient', description: 'Measures wealth inequality among holders (0=equal, 1=unequal)', run: async () => {
         const holders = await ensureHolders();
         if (holders.length < 2) return 0;
@@ -945,18 +763,6 @@ export default function AdminStatsPanel({
         if (totalValue === 0) return 0;
 
         return sumOfDifferences / (n * totalValue);
-      }},
-      { id: 'avgHolderBalance', label: 'Average Holder Balance', description: 'Average token balance per holder wallet', run: async () => {
-        const { tokenInfo, tokenCounters } = await ensureCoreCaches();
-        const holders = await ensureHolders();
-        const dead = holders.find(h => h.hash.toLowerCase() === DEAD_ADDRESS)?.value || '0';
-        const circulatingSupply = Number((tokenInfo as { total_supply?: string | number }).total_supply) - Number(dead);
-        const holderCount = Number((tokenCounters as { token_holders_count?: number })?.token_holders_count ?? 0);
-
-        if (holderCount === 0) return 0;
-
-        const avgBalance = circulatingSupply / holderCount;
-        return formatTokenAmount2(avgBalance, Number((tokenInfo as { decimals?: number }).decimals));
       }},
       { id: 'medianHolderBalance', label: 'Median Holder Balance (Top 200)', description: 'Median balance among the top 200 holders', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
@@ -988,30 +794,6 @@ export default function AdminStatsPanel({
           pointZeroOnePct: holders.filter(h => Number(h.value) >= thresholds.pointZeroOnePct).length,
         };
         return counts;
-      }},
-      { id: 'smartContractHolderShare', label: 'Smart-Contract Holder Share', description: 'Percent of top 20 holders that are smart contracts', run: async () => {
-        const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
-        const holders = await ensureHolders();
-        const top20 = holders.sort((a, b) => Number(b.value) - Number(a.value)).slice(0, 20);
-        const results = await Promise.allSettled(
-          top20.map(h => pulsechainApi.getAddressInfo(h.hash).catch(() => null))
-        );
-        let contractCount = 0;
-        let contractBalance = 0;
-        results.forEach((res, idx) => {
-          if (res.status === 'fulfilled' && res.value?.data?.is_contract) {
-            contractCount += 1;
-            contractBalance += Number(top20[idx].value || 0);
-          }
-        });
-        const total = Number((tokenInfo as { total_supply?: string | number })?.total_supply ?? 0);
-        const pct = total ? (contractBalance / total) * 100 : 0;
-        return {
-          contracts: contractCount,
-          percentSupply: formatPct2(pct),
-          balanceFormatted: formatTokenAmount2(contractBalance, decimals),
-        };
       }},
       { id: 'routerHolderShare', label: 'Router/DEX Holder Share', description: 'Percent of supply held by known router or pair addresses', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
@@ -1104,44 +886,8 @@ export default function AdminStatsPanel({
           top100Safe: top100.filter(h => !senders.has(h.hash?.toLowerCase?.())).length,
         };
       }},
-      { id: 'newVsLostHolders1d', label: 'New vs Lost Holders (1d)', description: 'Holder growth/decline in the last 24 hours', run: async () => {
-        const transfers = await getTransfersLastNDays(tokenAddress, 1);
-        if (transfers.length === 0) return { newHolders: 0, lostHolders: 0, netChange: 0 };
-        const involvedAddresses = new Set<string>();
-        transfers.forEach(t => {
-          if (t.from?.hash) involvedAddresses.add(t.from.hash.toLowerCase());
-          if (t.to?.hash) involvedAddresses.add(t.to.hash.toLowerCase());
-        });
-        const receivedOnly = new Set<string>();
-        const sentOnly = new Set<string>();
-        involvedAddresses.forEach(addr => {
-          const sentTx = transfers.some(t => t.from?.hash?.toLowerCase() === addr);
-          const receivedTx = transfers.some(t => t.to?.hash?.toLowerCase() === addr);
-          if (receivedTx && !sentTx) receivedOnly.add(addr);
-          if (sentTx && !receivedTx) sentOnly.add(addr);
-        });
-        return { newHolders: receivedOnly.size, lostHolders: sentOnly.size, netChange: receivedOnly.size - sentOnly.size };
-      }},
       { id: 'newVsLostHolders30d', label: 'New vs Lost Holders (30d)', description: 'Holder growth/decline over the last 30 days', run: async () => {
         const transfers = await getTransfersLastNDays(tokenAddress, 30);
-        if (transfers.length === 0) return { newHolders: 0, lostHolders: 0, netChange: 0 };
-        const involvedAddresses = new Set<string>();
-        transfers.forEach(t => {
-          if (t.from?.hash) involvedAddresses.add(t.from.hash.toLowerCase());
-          if (t.to?.hash) involvedAddresses.add(t.to.hash.toLowerCase());
-        });
-        const receivedOnly = new Set<string>();
-        const sentOnly = new Set<string>();
-        involvedAddresses.forEach(addr => {
-          const sentTx = transfers.some(t => t.from?.hash?.toLowerCase() === addr);
-          const receivedTx = transfers.some(t => t.to?.hash?.toLowerCase() === addr);
-          if (receivedTx && !sentTx) receivedOnly.add(addr);
-          if (sentTx && !receivedTx) sentOnly.add(addr);
-        });
-        return { newHolders: receivedOnly.size, lostHolders: sentOnly.size, netChange: receivedOnly.size - sentOnly.size };
-      }},
-      { id: 'newVsLostHolders90d', label: 'New vs Lost Holders (90d)', description: 'Holder growth/decline over the last 90 days', run: async () => {
-        const transfers = await getTransfersLastNDays(tokenAddress, 90);
         if (transfers.length === 0) return { newHolders: 0, lostHolders: 0, netChange: 0 };
         const involvedAddresses = new Set<string>();
         transfers.forEach(t => {
@@ -1279,21 +1025,6 @@ export default function AdminStatsPanel({
           avgSellUSD: formatNumber2(avgSell),
         };
       }},
-      { id: 'contractAgeInDays', label: 'Contract Age (Days)', description: 'Days since the contract creation transaction was mined', run: async () => {
-        const { addressInfo } = await ensureCoreCaches();
-        const txHash = (addressInfo as { creation_tx_hash?: string })?.creation_tx_hash;
-        if (!txHash) return 'N/A';
-
-        const txDetails = await fetchJson(`https://api.scan.pulsechain.com/api/v2/transactions/${txHash}`);
-        const timestamp = (txDetails as { timestamp?: number })?.timestamp;
-        if (!timestamp) return 'Not found';
-
-        const creationDate = new Date(timestamp);
-        const today = new Date();
-        const diffTime = Math.abs(today.getTime() - creationDate.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays;
-      }},
       { id: 'liquidityConcentration', label: 'Liquidity Concentration', description: 'Share of total liquidity held by the largest pool versus all pools combined', run: async () => {
         const dex = await ensureDex();
         const pairs = dex?.pairs || [];
@@ -1311,15 +1042,6 @@ export default function AdminStatsPanel({
           totalLiquidity: formatNumber2(totalLiquidity),
         };
       }},
-      { id: 'dexDiversityScore', label: 'DEX Diversity Score', description: 'How widely liquidity is distributed across different DEXes for this token', run: async () => {
-        const dex = await ensureDex();
-        const pairs = dex?.pairs || [];
-        const dexIds = new Set(pairs.map((p: unknown) => (p as { dexId: string }).dexId));
-        return {
-          score: dexIds.size,
-          dexs: Array.from(dexIds),
-        };
-      }},
       { id: 'holderToLiquidityRatio', label: 'Holder-to-Liquidity Ratio', description: 'Compares holder count to total liquidity to gauge depth per wallet', run: async () => {
         const { tokenCounters } = await ensureCoreCaches();
         const holders = Number((tokenCounters as { token_holders_count?: number })?.token_holders_count ?? 0);
@@ -1335,93 +1057,6 @@ export default function AdminStatsPanel({
           holders,
           totalLiquidityUSD: formatNumber2(totalLiquidity),
         };
-      }},
-      { id: 'definitiveTotalLiquidity', label: 'Definitive Total Liquidity', description: 'Consolidated USD and token liquidity across all known pools', run: async () => {
-        // Step 1: Fetch logs from PulseChain Scan API to find all pair creation events.
-        const logs = await fetchJson(`https://api.scan.pulsechain.com/api?module=logs&action=getLogs&fromBlock=0&toBlock=latest&address=${tokenAddress}`);
-        const pairAddresses = ((logs as { result?: unknown[] })?.result || []).map((log: unknown) => (log as { address: string })?.address).filter((addr): addr is string => Boolean(addr));
-
-        if (pairAddresses.length === 0) {
-          return { totalLiquidity: 0, pairCount: 0, failedPairs: 0 };
-        }
-
-        // Step 2: Fetch stats for each pair from DexScreener
-        const pairPromises = pairAddresses.map((pairAddr: string) => 
-          fetchJson(`https://api.dexscreener.com/latest/dex/pairs/${pairAddr}`)
-        );
-
-        const results = await Promise.allSettled(pairPromises);
-
-        let totalLiquidity = 0;
-        let failedPairs = 0;
-        results.forEach((result: unknown) => {
-          if ((result as { status: string; value?: { pairs?: unknown[] } }).status === 'fulfilled' && (result as { status: string; value?: { pairs?: unknown[] } }).value?.pairs) {
-            totalLiquidity += Number(((result as { status: string; value?: { pairs?: unknown[] } }).value?.pairs?.[0] as { liquidity?: { usd?: string | number } })?.liquidity?.usd || 0);
-          } else {
-            failedPairs++;
-          }
-        });
-
-        return {
-          totalLiquidity: formatNumber2(totalLiquidity),
-          pairCount: pairAddresses.length,
-          successfulPairs: pairAddresses.length - failedPairs,
-          failedPairs,
-        };
-      }},
-      { id: 'liquidityDepth', label: 'Liquidity Depth & Slippage', description: 'Estimates slippage for preset trade sizes using pool reserves', run: async () => {
-        const dex = await ensureDex();
-        const pairs = dex?.pairs || [];
-
-        if (pairs.length === 0) return { error: 'No liquidity pools found.' };
-
-        const calculateSlippage = (reservesA: number, reservesB: number, tradeSizeUSD: number, priceA: number) => {
-          if (priceA === 0) return Infinity;
-          const tradeSizeA = tradeSizeUSD / priceA;
-          const k = reservesA * reservesB;
-          if (k === 0) return Infinity;
-          const newReservesA = reservesA + tradeSizeA;
-          const newReservesB = k / newReservesA;
-          const amountOutB = reservesB - newReservesB;
-          const newPriceB = (newReservesA / newReservesB) * priceA;
-          const oldPriceB = (reservesA / reservesB) * priceA;
-          const slippage = ((newPriceB - oldPriceB) / oldPriceB) * 100;
-          return slippage;
-        };
-
-        const dexGroups = pairs.reduce((acc: Record<string, { totalLiquidity: number; pairs: unknown[] }>, pair: unknown) => {
-          const pairTyped = pair as { dexId: string; liquidity?: { usd?: number | string } };
-          const dexId = pairTyped.dexId;
-          if (!acc[dexId]) {
-            acc[dexId] = { totalLiquidity: 0, pairs: [] };
-          }
-          acc[dexId].totalLiquidity += Number(pairTyped.liquidity?.usd || 0);
-          acc[dexId].pairs.push(pair);
-          return acc;
-        }, {});
-
-        const sortedDexes = Object.entries(dexGroups).sort(([, a], [, b]) => (b as { totalLiquidity: number }).totalLiquidity - (a as { totalLiquidity: number }).totalLiquidity);
-
-        return sortedDexes.map(([dexId, dexData]) => {
-          const virtualReserves = (dexData as { pairs: unknown[] }).pairs.reduce((acc: { base: number; quote: number }, p: unknown) => {
-            acc.base += Number((p as { liquidity?: { base?: string | number } })?.liquidity?.base || 0);
-            acc.quote += Number((p as { liquidity?: { quote?: string | number } })?.liquidity?.quote || 0);
-            return acc;
-          }, { base: 0, quote: 0 });
-
-          const price = (dexData as { pairs: unknown[] }).pairs[0] ? Number(((dexData as { pairs: unknown[] }).pairs[0] as { priceUsd?: string | number })?.priceUsd) : 0;
-
-          return {
-            dex: dexId,
-            totalLiquidity: formatNumber2((dexData as { totalLiquidity: number }).totalLiquidity),
-            pairCount: (dexData as { pairs: unknown[] }).pairs.length,
-            slippage_50: formatPct2(calculateSlippage(virtualReserves.base, virtualReserves.quote, 50, price)),
-            slippage_500: formatPct2(calculateSlippage(virtualReserves.base, virtualReserves.quote, 500, price)),
-            slippage_1k: formatPct2(calculateSlippage(virtualReserves.base, virtualReserves.quote, 1000, price)),
-            slippage_10k: formatPct2(calculateSlippage(virtualReserves.base, virtualReserves.quote, 10000, price)),
-            slippage_50k: formatPct2(calculateSlippage(virtualReserves.base, virtualReserves.quote, 50000, price)),
-          };
-        });
       }},
       { id: 'lp_holder_analysis', label: 'LP Holder Analysis', description: 'Lists the largest LP token holders with their supply share and mint details', run: async () => {
         const BURN_ADDRESSES = new Set([
@@ -1475,54 +1110,6 @@ export default function AdminStatsPanel({
         const spread = ((best - worst) / worst) * 100;
         return { spreadPct: formatPct2(spread), best, worst };
       }},
-      { id: 'stablecoinLiquidityShare', label: 'Stablecoin Liquidity Share', description: 'Liquidity paired with USDC/DAI as a percent of total', run: async () => {
-        const dex = await ensureDex();
-        const pairs = dex?.pairs || [];
-        const stableAddrs = new Set([
-          '0x15d38573d2feeb82e7ad5187ab8c1d52810b1f07',
-          '0xefd766ccb38eaf1dfd701853bfce31359239f305',
-        ]);
-        const total = pairs.reduce((s: number, p: any) => s + Number(p?.liquidity?.usd || 0), 0);
-        const stable = pairs
-          .filter((p: any) => stableAddrs.has(p?.quoteToken?.address?.toLowerCase?.()))
-          .reduce((s: number, p: any) => s + Number(p?.liquidity?.usd || 0), 0);
-        const pct = total ? (stable / total) * 100 : 0;
-        return { percent: formatPct2(pct), total: formatNumber2(total), stable: formatNumber2(stable) };
-      }},
-      { id: 'intradayVolumeSkew', label: 'Intra-day Volume Skew', description: 'volume.h6 divided by volume.h24 for the main pair', run: async () => {
-        const pair = await getMainPair();
-        const h6 = Number(pair?.volume?.h6 || 0);
-        const h24 = Number(pair?.volume?.h24 || 0);
-        const skew = h24 ? h6 / h24 : 0;
-        return { skew: formatNumber2(skew), h6, h24 };
-      }},
-      { id: 'avgTradeSize5m', label: 'Avg Trade Size (5m)', description: 'Average trade size in the last 5 minutes on the main pair', run: async () => {
-        const pair = await getMainPair();
-        const volume = Number(pair?.volume?.m5 || 0);
-        const buys = Number(pair?.txns?.m5?.buys || 0);
-        const sells = Number(pair?.txns?.m5?.sells || 0);
-        const trades = buys + sells;
-        const avg = trades ? volume / trades : 0;
-        return { avgUSD: formatNumber2(avg), trades };
-      }},
-      { id: 'perDexSlippage500', label: 'Per-DEX Slippage @ $500', description: 'Estimated slippage for a $500 buy across each DEX grouping', run: async () => {
-        const dex = await ensureDex();
-        const pairs = dex?.pairs || [];
-        const groups = pairs.reduce((acc: Record<string, any>, p: any) => {
-          const id = p.dexId;
-          if (!acc[id]) acc[id] = { base: 0, quote: 0, samplePrice: Number(p.priceUsd || 0) };
-          acc[id].base += Number(p.liquidity?.base || 0);
-          acc[id].quote += Number(p.liquidity?.quote || 0);
-          if (!acc[id].samplePrice) acc[id].samplePrice = Number(p.priceUsd || 0);
-          return acc;
-        }, {});
-        return Object.entries(groups).map(([dexId, data]) => {
-          const price = (data as { samplePrice?: number }).samplePrice || 0;
-          const tradeIn = price ? 500 / price : 0;
-          const slippage = calcSlippagePct((data as { base: number; quote: number }).base, (data as { base: number; quote: number }).quote, tradeIn);
-          return { dex: dexId, slippage: formatPct2(slippage) };
-        });
-      }},
       { id: 'priceImpactLadderPerPool', label: 'Price Impact Ladder per Pool', description: 'Slippage estimates at $1k/$5k/$10k per pool', run: async () => {
         const dex = await ensureDex();
         const pairs = dex?.pairs || [];
@@ -1552,28 +1139,6 @@ export default function AdminStatsPanel({
         const tradeIn = holderTokens * 0.5;
         const slippage = calcSlippagePct(baseRes, quoteRes, tradeIn);
         return { holder: top.hash, tradeTokens: tradeIn, slippage: formatPct2(slippage) };
-      }},
-      { id: 'lpTop3Concentration', label: 'LP Top3 Concentration', description: 'Percent of LP token supply owned by the top 3 holders of the main pool', run: async () => {
-        const pair = await getMainPair();
-        if (!pair) return { error: 'No main pool' };
-        const lpAddress = pair.pairAddress;
-        const lpInfo = await getTokenInfoByAddress(lpAddress);
-        const totalSupply = Number(lpInfo?.total_supply || 0);
-        const decimals = Number(lpInfo?.decimals ?? 18);
-        const holders = await getHoldersPaged(lpAddress, 10);
-        const top3 = holders.sort((a, b) => Number(b.value) - Number(a.value)).slice(0, 3);
-        const sum = top3.reduce((s, h) => s + Number(h.value || 0), 0);
-        const pct = totalSupply ? (sum / totalSupply) * 100 : 0;
-        return { percent: formatPct2(pct), balanceFormatted: formatTokenAmount2(sum, decimals) };
-      }},
-      { id: 'lpLockDurationHint', label: 'LP Lock Duration Hint', description: 'Hours since last LP transfer to a burn address', run: async () => {
-        const pair = await getMainPair();
-        if (!pair) return { error: 'No main pool' };
-        const lpAddress = pair.pairAddress;
-        const transfers = await getTransfersLastNDays(lpAddress, 365, 20);
-        const burnTransfer = transfers.find(t => BURN_ADDRESSES.has(t.to?.hash?.toLowerCase?.() || ''));
-        const hrs = burnTransfer?.timestamp ? hoursSince(burnTransfer.timestamp) : null;
-        return { hoursSinceBurn: hrs ? Number(hrs.toFixed(1)) : null };
       }},
       { id: 'lpUnlockRiskScore', label: 'LP Unlock Risk Score', description: 'Heuristic risk score based on LP concentration and recent non-burn movements', run: async () => {
         const pair = await getMainPair();
@@ -1655,41 +1220,6 @@ export default function AdminStatsPanel({
               percentageOfTotal: formatPct2(percentage),
             };
           }},
-          { id: 'creatorFirst5Outbound', label: "Creator's First 5 Outbound Txs", run: async () => {
-            const { addressInfo } = await ensureCoreCaches();
-            const creatorAddress = (addressInfo as { creator_address_hash?: string })?.creator_address_hash;
-            if (!creatorAddress) return { error: 'No creator address found' };
-
-            const txs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${creatorAddress}/transactions`);
-            const outboundTxs = ((txs as { items?: unknown[] })?.items || []).filter((tx: unknown) => (tx as { from: { hash: string } }).from.hash.toLowerCase() === creatorAddress.toLowerCase());
-            
-            return outboundTxs.slice(0, 5).map((tx: unknown) => {
-              const txTyped = tx as {
-                hash: string;
-                to?: { hash: string };
-                value: string | number;
-                method?: string;
-              };
-              return {
-                hash: txTyped.hash,
-                to: txTyped.to?.hash,
-                value: formatTokenAmount2(Number(txTyped.value), 18) + ' PLS',
-                method: txTyped.method,
-              };
-            });
-          }},
-          { id: 'creatorCurrentBalance', label: "Creator's Current Balance", run: async () => {
-            const { addressInfo, tokenInfo } = await ensureCoreCaches();
-            const creatorAddress = (addressInfo as { creator_address_hash?: string })?.creator_address_hash;
-            if (!creatorAddress) return { error: 'No creator address found' };
-
-            const balanceData = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${creatorAddress}/token-balances?token=${tokenAddress}`);
-            const tokenBalance = ((balanceData as unknown[]) || []).find((b: unknown) => (b as { token: { address: string } }).token.address.toLowerCase() === tokenAddress.toLowerCase());
-
-            return {
-              balance: tokenBalance ? formatTokenAmount2(Number((tokenBalance as { value: string | number }).value), Number((tokenInfo as { decimals?: number }).decimals)) : '0',
-            };
-          }},
           { id: 'creatorNetflow30d', label: 'Creator Netflow (30d)', description: 'Inbound vs outbound token totals for creator over 30 days', run: async () => {
             const { addressInfo, tokenInfo } = await ensureCoreCaches();
             const creatorAddress = (addressInfo as { creator_address_hash?: string })?.creator_address_hash;
@@ -1730,56 +1260,6 @@ export default function AdminStatsPanel({
               balanceFormatted: formatTokenAmount2(teamBalance, decimals),
               members: Array.from(teamSet),
             };
-          }},
-          { id: 'ownershipStatus', label: 'Ownership Status', description: 'Summarizes whether ownership is renounced plus owner metadata', run: async () => {
-            const { addressInfo } = await ensureCoreCaches();
-            const creatorAddress = (addressInfo as { creator_address_hash?: string })?.creator_address_hash;
-            if (!creatorAddress) return { error: 'No creator address found' };
-
-            const txs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${creatorAddress}/transactions`);
-            const renouncedTx = ((txs as { items?: unknown[] })?.items || []).find((tx: unknown) => (tx as { method?: string }).method?.toLowerCase() === 'renounceownership');
-
-            if (renouncedTx) {
-              return { status: 'Renounced', transaction: (renouncedTx as { hash: string }).hash };
-            }
-            return { status: 'Not Renounced' };
-          }},
-          { id: 'ownershipTransferHistoryCount', label: 'Ownership Transfer History Count', description: 'Number of ownership transfer style calls on the contract', run: async () => {
-            const txs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${tokenAddress}/transactions`);
-            const count = ((txs as { items?: unknown[] })?.items || []).filter((tx: unknown) => ((tx as { method?: string }).method || '').toLowerCase().includes('ownership')).length;
-            return count;
-          }},
-          { id: 'creatorTokenHistory', label: "Creator's Full Token History", run: async () => {
-            const { addressInfo, tokenInfo } = await ensureCoreCaches();
-            const creatorAddress = (addressInfo as { creator_address_hash?: string })?.creator_address_hash;
-            if (!creatorAddress) return { error: 'No creator address found' };
-
-            const allCreatorTransfers = await getWalletTokenTransfers(creatorAddress);
-            const relevantTransfers = allCreatorTransfers.filter((t: unknown) => (t as { token?: { address?: string } }).token?.address?.toLowerCase() === tokenAddress.toLowerCase());
-
-            return relevantTransfers.map((t: unknown) => ({
-              timestamp: (t as { timestamp: number }).timestamp,
-              direction: (t as { from: { hash: string } }).from.hash.toLowerCase() === creatorAddress.toLowerCase() ? 'OUT' : 'IN',
-              counterparty: (t as { from: { hash: string }; to: { hash: string } }).from.hash.toLowerCase() === creatorAddress.toLowerCase() ? (t as { to: { hash: string } }).to.hash : (t as { from: { hash: string } }).from.hash,
-              value: formatTokenAmount2(Number((t as { total: { value: string | number } }).total.value), Number((tokenInfo as { decimals?: number }).decimals)),
-            }));
-          }},
-          { id: 'creatorCrossTokenFootprint', label: 'Creator Cross-Token Footprint', description: 'Number of other tokens the creator has deployed or interacted with', run: async () => {
-            const { addressInfo } = await ensureCoreCaches();
-            const creatorAddress = (addressInfo as { creator_address_hash?: string })?.creator_address_hash;
-            if (!creatorAddress) return { error: 'No creator address found' };
-            const txs = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${creatorAddress}/transactions`);
-            const items: unknown[] = Array.isArray((txs as { items?: unknown[] })?.items) ? (txs as { items?: unknown[] }).items! : [];
-            const touchedTokens = new Set<string>();
-            let creations = 0;
-            items.forEach((tx: unknown) => {
-              if (((tx as { method?: string }).method || '').toLowerCase().includes('create')) creations += 1;
-              ((tx as { token_transfers?: unknown[] }).token_transfers || []).forEach((tr: unknown) => {
-                const addr = (tr as { token?: { address?: string } }).token?.address?.toLowerCase?.();
-                if (addr && addr !== tokenAddress.toLowerCase()) touchedTokens.add(addr);
-              });
-            });
-            return { otherTokens: touchedTokens.size, creations };
           }},
         ]
       },
@@ -1889,30 +1369,6 @@ export default function AdminStatsPanel({
           formatted: formatNumber2(count)
         };
       } },
-      { id: 'uniqueSenders24h', label: 'uniqueSenders24h', description: 'Distinct addresses that sent tokens in the last 24 hours', run: async () => {
-        const count = new Set((await ensureTransfers24h()).map(t => (t.from?.hash || '').toLowerCase())).size;
-        return {
-          raw: count,
-          formatted: formatNumber2(count)
-        };
-      } },
-      { id: 'uniqueReceivers24h', label: 'uniqueReceivers24h', description: 'Distinct addresses that received tokens in the last 24 hours', run: async () => {
-        const count = new Set((await ensureTransfers24h()).map(t => (t.to?.hash || '').toLowerCase())).size;
-        return {
-          raw: count,
-          formatted: formatNumber2(count)
-        };
-      } },
-      { id: 'avgTransferValue24h', label: 'avgTransferValue24h', description: 'Average transfer amount (raw token units) over the last 24 hours', run: async () => {
-        const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
-        const vals = (await ensureTransfers24h()).map(t => Number(t.total?.value || 0));
-        const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
-        return {
-          raw: avg,
-          formatted: formatTokenAmount2(avg, decimals)
-        };
-      } },
       { id: 'medianTransferValue24h', label: 'medianTransferValue24h', description: 'Median transfer amount over the last 24 hours', run: async () => {
         const { tokenInfo } = await ensureCoreCaches();
         const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
@@ -1931,13 +1387,6 @@ export default function AdminStatsPanel({
           if (t.to?.hash) active.add(t.to.hash.toLowerCase());
         });
         return { count: active.size };
-      }},
-      { id: 'transferVolume24hTokens', label: 'Transfer Volume 24h (tokens)', description: 'Total token units moved in last 24h', run: async () => {
-        const transfers = await ensureTransfers24h();
-        const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
-        const total = transfers.reduce((s, t) => s + Number(t.total?.value || 0), 0);
-        return { raw: total, formatted: formatTokenAmount2(total, decimals) };
       }},
       { id: 'transferVolume24hUsd', label: 'Transfer Volume 24h (USD)', description: 'Token transfer volume converted using current price', run: async () => {
         const transfers = await ensureTransfers24h();
@@ -2041,189 +1490,12 @@ export default function AdminStatsPanel({
         const pct = total ? (sells / total) * 100 : 0;
         return { percent: formatPct2(pct), buys, sells };
       }},
-      { id: 'gasSpent100tx', label: 'Gas Spent (last 100 tx)', description: 'Sum of gas_used * gas_price over the first page of transactions', run: async () => {
-        const data = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${tokenAddress}/transactions`);
-        const items: any[] = Array.isArray((data as any)?.items) ? (data as any).items.slice(0, 100) : [];
-        const total = items.reduce((s, tx) => s + Number(tx.gas_used || 0) * Number(tx.gas_price || 0), 0);
-        return { raw: total, formatted: total.toLocaleString() };
-      }},
 
       // Price/market (DEXScreener)
-      { id: 'priceUsd', label: 'priceUsd', description: 'Latest USD price reported by the leading Dex pair', run: async () => (await ensureDex()).pairs?.[0]?.priceUsd },
-      { id: 'priceNative', label: 'priceNative', description: 'Price denominated in native PLS from the main pair', run: async () => (await ensureDex()).pairs?.[0]?.priceNative },
-      { id: 'priceChange6h', label: 'priceChange6h', description: 'Percent price change during the last 6 hours', run: async () => (await ensureDex()).pairs?.[0]?.priceChange?.h6 },
-      { id: 'priceChange24h', label: 'priceChange24h', description: 'Percent price change during the last 24 hours', run: async () => (await ensureDex()).pairs?.[0]?.priceChange?.h24 },
-      { id: 'volume1h', label: 'volume1h', description: 'Trading volume generated in the past 1 hour', run: async () => (await ensureDex()).pairs?.[0]?.volume?.h1 },
-      { id: 'volume6h', label: 'volume6h', description: 'Trading volume generated in the past 6 hours', run: async () => (await ensureDex()).pairs?.[0]?.volume?.h6 },
-      { id: 'volume24h', label: 'volume24h', description: 'Trading volume generated in the past 24 hours', run: async () => (await ensureDex()).pairs?.[0]?.volume?.h24 },
-      { id: 'liquidityUsd', label: 'liquidityUsd', description: 'Current USD liquidity for the primary Dex pair', run: async () => {
-        const dex = await ensureDex();
-        const p = dex?.pairs?.[0];
-        const usd = Number(p?.liquidity?.usd || 0);
-        const pair = p ? `${p.baseToken?.symbol}/${p.quoteToken?.symbol}` : null;
-        return { usd, usdFormatted: formatNumber2(usd), pair };
-      } },
-      { id: 'totalLiquidityUsd', label: 'Total Liquidity (USD)', description: 'Sum of USD liquidity across every discovered pair', run: async () => {
-        const dex = await ensureDex();
-        const pairs = dex?.pairs || [];
-        const totalUsd = pairs.reduce((s: number, x: unknown) => s + Number((x as { liquidity?: { usd?: string | number } })?.liquidity?.usd || 0), 0);
-        
-        // Calculate breakdown of both sides
-        const pairDetails = pairs.map((p: unknown) => {
-          const pTyped = p as {
-            liquidity?: { usd?: string | number; base?: string | number; quote?: string | number };
-            priceUsd?: string | number;
-            baseToken?: { symbol?: string };
-            quoteToken?: { symbol?: string };
-          };
-          const baseUsd = Number(pTyped?.liquidity?.base || 0) * Number(pTyped?.priceUsd || 0);
-          const quoteUsd = Number(pTyped?.liquidity?.usd || 0) - baseUsd; // Remaining is quote token USD
-          
-          return {
-            pair: `${pTyped.baseToken?.symbol}/${pTyped.quoteToken?.symbol}`,
-            totalUsd: Number(pTyped?.liquidity?.usd || 0),
-            totalUsdFormatted: formatNumber2(Number(pTyped?.liquidity?.usd || 0)),
-            baseUsd: baseUsd,
-            baseUsdFormatted: formatNumber2(baseUsd),
-            quoteUsd: quoteUsd,
-            quoteUsdFormatted: formatNumber2(quoteUsd),
-            baseAmount: Number(pTyped?.liquidity?.base || 0),
-            quoteAmount: Number(pTyped?.liquidity?.quote || 0)
-          };
-        });
-        
-        return { 
-          totalUsd, 
-          totalUsdFormatted: formatNumber2(totalUsd),
-          pairDetails,
-          pairCount: pairs.length
-        };
-      } },
-      { id: 'totalTokensInLiquidity', label: 'Total Tokens in Liquidity', description: 'Breakdown of base and quote token balances locked in liquidity', run: async () => {
-        const dex = await ensureDex();
-        const { tokenInfo } = await ensureCoreCaches();
-        const decimals = Number((tokenInfo as { decimals?: number })?.decimals ?? 18);
-        const pairs = dex?.pairs || [];
-        const totalBase = pairs.reduce((s: number, x: unknown) => s + Number((x as { liquidity?: { base?: string | number } })?.liquidity?.base || 0), 0);
-        const totalQuote = pairs.reduce((s: number, x: unknown) => s + Number((x as { liquidity?: { quote?: string | number } })?.liquidity?.quote || 0), 0);
-        const pairDetails = pairs.map((p: unknown) => {
-          const pTyped = p as {
-            liquidity?: { base?: string | number; quote?: string | number };
-            baseToken?: { symbol?: string };
-            quoteToken?: { symbol?: string };
-          };
-          return {
-            pair: `${pTyped.baseToken?.symbol}/${pTyped.quoteToken?.symbol}`,
-            base: Number(pTyped?.liquidity?.base || 0),
-            baseFormatted: formatTokenAmount2(Number(pTyped?.liquidity?.base || 0), decimals),
-            quote: Number(pTyped?.liquidity?.quote || 0),
-            quoteFormatted: formatNumber2(Number(pTyped?.liquidity?.quote || 0))
-          };
-        });
-        return { 
-          totalBase, 
-          totalBaseFormatted: formatTokenAmount2(totalBase, decimals),
-          totalQuote,
-          totalQuoteFormatted: formatNumber2(totalQuote),
-          pairDetails,
-          pairCount: pairs.length
-        };
-      } },
-      { id: 'fdv', label: 'fdv', description: 'Fully diluted valuation derived from Dex data', run: async () => (await ensureDex()).pairs?.[0]?.fdv },
-      { id: 'marketCap', label: 'marketCap', description: 'Reported market capitalization from DexScreener', run: async () => (await ensureDex()).pairs?.[0]?.marketCap },
-      { id: 'trades24hBuys', label: 'trades24hBuys', description: 'Number of buy-side transactions over the last 24 hours', run: async () => (await ensureDex()).pairs?.[0]?.txns?.h24?.buys },
-      { id: 'trades24hSells', label: 'trades24hSells', description: 'Number of sell-side transactions over the last 24 hours', run: async () => (await ensureDex()).pairs?.[0]?.txns?.h24?.sells },
-      { id: 'buySellRatio24h', label: 'buySellRatio24h', description: 'Buy versus sell ratio computed from 24h trade counts', run: async () => {
-        const p = (await ensureDex()).pairs?.[0];
-        const b = Number(p?.txns?.h24?.buys || 0);
-        const s = Number(p?.txns?.h24?.sells || 0);
-        const ratio = s === 0 ? (b > 0 ? Infinity : 0) : b / s;
-        return {
-          raw: ratio,
-          formatted: ratio === Infinity ? '∞' : formatNumber2(ratio),
-          buys: b,
-          sells: s
-        };
-      } },
-      { id: 'pairCount', label: 'pairCount', description: 'How many Dex pairs were returned for this token', run: async () => ((await ensureDex()).pairs || []).length },
-      { id: 'mainPairDex', label: 'mainPairDex', description: 'Name of the DEX hosting the primary liquidity pair', run: async () => (await ensureDex()).pairs?.[0]?.dexId },
-      { id: 'mainPairAddress', label: 'mainPairAddress', description: 'Contract address of the leading liquidity pair', run: async () => (await ensureDex()).pairs?.[0]?.pairAddress },
 
       // All Liquidity Pools
-      { id: 'allPools', label: 'All Liquidity Pools', description: 'Detailed table of all pools with liquidity and volume stats', run: async () => {
-        const dex = await ensureDex();
-        const pairs = dex?.pairs || [];
-        // Sort by liquidity
-        const sorted = [...pairs].sort((a, b) => Number(b.liquidity?.usd || 0) - Number(a.liquidity?.usd || 0));
-        return sorted;
-      }},
 
       // Contract/address
-      { id: 'contractVerified', label: 'contractVerified', description: 'Indicates whether the contract is verified on PulseScan', run: async () => !!((await ensureCoreCaches()).addressInfo as { is_verified?: boolean })?.is_verified },
-      { id: 'creatorAddress', label: 'creatorAddress', description: 'Address that deployed the contract per PulseScan', run: async () => ((await ensureCoreCaches()).addressInfo as { creator_address_hash?: string })?.creator_address_hash },
-      { id: 'creationTxHash', label: 'creationTxHash', description: 'Hash of the deployment transaction', run: async () => ((await ensureCoreCaches()).addressInfo as { creation_tx_hash?: string })?.creation_tx_hash },
-      { id: 'creationDate', label: 'Creation Date', description: 'UTC date the contract was deployed', run: async () => {
-        const { addressInfo } = await ensureCoreCaches();
-        const txHash = (addressInfo as { creation_tx_hash?: string })?.creation_tx_hash;
-        if (!txHash) return 'N/A';
-
-        const txDetails = await fetchJson(`https://api.scan.pulsechain.com/api/v2/transactions/${txHash}`);
-        const timestamp = (txDetails as { timestamp?: number })?.timestamp;
-
-        if (!timestamp) return 'Not found';
-
-        const date = new Date(timestamp);
-        const year = date.getFullYear();
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-
-        return `${year}-${month}-${day}`;
-      }},
-      { id: 'transactionsCount', label: 'transactionsCount', description: 'Total on-chain transactions associated with this address', run: async () => Number(((await ensureCoreCaches()).addressCounters as { transactions_count?: number })?.transactions_count || 0) },
-      { id: 'tokenTransfersCount', label: 'tokenTransfersCount', description: 'Total token transfer entries counted on PulseScan', run: async () => Number(((await ensureCoreCaches()).addressCounters as { token_transfers_count?: number })?.token_transfers_count || 0) },
-      { id: 'gasUsageCount', label: 'gasUsageCount', description: 'Number of gas usage records tied to the address', run: async () => Number(((await ensureCoreCaches()).addressCounters as { gas_usage_count?: number })?.gas_usage_count || 0) },
-      { id: 'validationsCount', label: 'Validations Count', description: 'Validator/validation count attributed to the address', run: async () => Number(((await ensureCoreCaches()).addressCounters as { validations_count?: number })?.validations_count || 0) },
-          { id: 'firstPageTxs', label: '1st Page Transactions', description: 'Raw payload of the first page of transactions from the API', run: async () => {
-            const data = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${tokenAddress}/transactions`);
-            return (data as { items?: unknown[] })?.items || [];
-          }},
-          { id: 'firstPageTransfers', label: '1st Page Transfers', description: 'Raw payload of the first page of token transfers', run: async () => {
-            const data = await fetchJson(`https://api.scan.pulsechain.com/api/v2/tokens/${tokenAddress}/transfers`);
-            return (data as { items?: unknown[] })?.items || [];
-          }},
-          { id: 'firstPageInternalTxs', label: '1st Page Internal Txs', description: 'Raw payload of the first page of internal transactions', run: async () => {
-            const data = await fetchJson(`https://api.scan.pulsechain.com/api/v2/addresses/${tokenAddress}/internal-transactions`);
-            return (data as { items?: unknown[] })?.items || [];
-          }},
-          { id: 'transactionVelocity', label: 'Transaction Velocity (24h)', description: 'Velocity metric measuring transfer volume vs circulating supply over 24h', run: async () => {
-            const transfers = await ensureTransfers24h();
-            const { tokenInfo } = await ensureCoreCaches();
-            const holders = await ensureHolders();
-            if (!tokenInfo) return 0;
-            const dead = holders.find(h => h.hash.toLowerCase() === DEAD_ADDRESS)?.value || '0';
-            const circulatingSupply = Number((tokenInfo as TokenInfoDetailed & { total_supply?: string | number }).total_supply || 0) - Number(dead);
-
-            if (circulatingSupply === 0) return 0;
-
-            const transferVolume = transfers.reduce((sum, t) => sum + Number((t as { total?: { value?: string | number } }).total?.value || 0), 0);
-            const velocity = transferVolume / circulatingSupply;
-            return formatPct2(velocity * 100);
-          }},
-        ]
-      },
-      {
-        title: 'Contract Metadata',
-        stats: [
-          { id: 'address', label: 'Token Address', description: 'Currently selected token address for the panel', run: async () => tokenAddress },
-      { id: 'symbol', label: 'symbol', description: 'Token symbol fetched from token metadata', run: async () => ((await ensureCoreCaches()).tokenInfo as { symbol?: string })?.symbol },
-      { id: 'name', label: 'name', description: 'Token name fetched from token metadata', run: async () => ((await ensureCoreCaches()).tokenInfo as { name?: string })?.name },
-      { id: 'iconUrl', label: 'Icon URL', description: 'Primary icon/logo URL when available', run: async () => ((await ensureDex()).pairs?.[0] as { info?: { imageUrl?: string } })?.info?.imageUrl || ((await ensureCoreCaches()).tokenInfo as { icon_url?: string })?.icon_url },
-          { id: 'abiComplexity', label: 'ABI Complexity Score', description: 'Count of ABI functions as a quick complexity proxy', run: async () => {
-            const { addressInfo } = await ensureCoreCaches();
-            const contract = await fetchJson(`https://api.scan.pulsechain.com/api/v2/smart-contracts/${(addressInfo as { creator_address_hash?: string }).creator_address_hash}`);
-            const abi = (contract as { abi?: unknown[] })?.abi || [];
-            return abi.filter((item: unknown) => (item as { type: string }).type === 'function').length;
-          }},
         ]
       }
     ];
@@ -2653,11 +1925,14 @@ export default function AdminStatsPanel({
               </div>
 
               <div className="focus-visible:outline-none focus-visible:ring-0">
-                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl">
+                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl overflow-hidden">
                   {statCategories
                     .find(category => category.title === resolvedCategoryTitle)
                     ?.stats.length ? (
-                      <div className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-3">
+                      // Seamless mosaic: no gaps between cards — cells share 1px
+                      // hairline dividers; the outermost ones tuck under the
+                      // container border via the negative margins.
+                      <div className="grid sm:grid-cols-2 xl:grid-cols-3 -mr-px -mb-px">
                         {statCategories
                           .find(category => category.title === resolvedCategoryTitle)
                           ?.stats.map(stat => {
@@ -2667,10 +1942,10 @@ export default function AdminStatsPanel({
                                 key={stat.id}
                                 type="button"
                                 onClick={() => setSelectedStat(stat.id)}
-                                className={`text-left rounded-lg border px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black/50 ${
+                                className={`text-left px-3 py-2.5 border-r border-b border-[var(--line)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-orange/60 ${
                                   isActive
-                                    ? 'border-brand-orange/40 bg-brand-orange/10 text-[var(--text)] shadow-[inset_0_0_0_1px_rgba(250,70,22,0.15)]'
-                                    : 'border-[var(--line)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)] hover:text-[var(--text)]'
+                                    ? 'bg-brand-orange/15 text-[var(--text)] shadow-[inset_0_0_0_1px_rgba(250,70,22,0.35)]'
+                                    : 'bg-[var(--panel)] text-[var(--text)] hover:bg-[var(--surface-2)]'
                                 }`}
                               >
                                 <p className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>
@@ -2745,7 +2020,8 @@ export default function AdminStatsPanel({
                       <div className="bg-[var(--surface)] border border-[var(--line)] text-[var(--text)] font-semibold px-3 py-2 rounded-t-lg text-xs uppercase tracking-wider">
                         {category.title}
                       </div>
-                      <div className="bg-[var(--surface)] border-x border-b border-[var(--line)] rounded-b-lg">
+                      {/* Seamless 2-col card grid (was a stacked list) — cells share hairline dividers, no gaps. */}
+                      <div className="grid grid-cols-2 border-x border-b border-[var(--line)] rounded-b-lg overflow-hidden">
                         {category.stats.map(stat => (
                           <button
                             key={stat.id}
@@ -2753,13 +2029,13 @@ export default function AdminStatsPanel({
                               setSelectedStat(stat.id);
                               setDrawerOpen(false);
                             }}
-                            className={`w-full text-left px-3 py-2 border-b border-[var(--line-soft)] last:border-b-0 hover:bg-[var(--surface)] transition-colors ${
-                              selectedStat === stat.id ? 'bg-brand-orange/10 text-[var(--text)]' : 'text-[var(--text-muted)]'
+                            className={`text-left px-3 py-2.5 border-r border-b border-[var(--line)] -mr-px -mb-px transition-colors ${
+                              selectedStat === stat.id ? 'bg-brand-orange/15 text-[var(--text)]' : 'bg-[var(--panel)] text-[var(--text-muted)] hover:bg-[var(--surface-2)]'
                             }`}
                           >
-                            <div>{stat.label}</div>
+                            <div className="text-sm font-semibold">{stat.label}</div>
                             {stat.description && (
-                              <div className="text-xs text-[var(--text-muted)] mt-0.5">{stat.description}</div>
+                              <div className="text-[11px] text-[var(--text-muted)] mt-0.5 line-clamp-2">{stat.description}</div>
                             )}
                           </button>
                         ))}
