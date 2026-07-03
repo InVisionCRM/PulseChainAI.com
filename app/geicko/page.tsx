@@ -474,46 +474,64 @@ function GeickoPageContent() {
     }
 
     setIsLoadingMetrics(true);
+    setOwnershipData(prev => ({ ...prev, isLoading: true }));
 
-    try {
-      const response = await fetch(`/api/token-metrics/${address}`);
-      if (!response.ok) throw new Error('Failed to fetch token metrics');
+    // Fetch the fast "core" fields (Holders, supply, supply-held, burned) and
+    // the slow "ownership" branch (on-chain owner() RPC walk) as two separate
+    // requests in parallel. Core renders as soon as it lands instead of
+    // waiting on the flaky RPC pool, so Holders is snappy again.
+    const coreRequest = (async () => {
+      try {
+        const response = await fetch(`/api/token-metrics/${address}?scope=core`);
+        if (!response.ok) throw new Error('Failed to fetch token metrics');
 
-      const metrics = await response.json();
+        const metrics = await response.json();
 
-      // Update all metrics state at once
-      if (metrics.burnedTokens) {
-        setBurnedTokens(metrics.burnedTokens);
+        if (metrics.burnedTokens) {
+          setBurnedTokens(metrics.burnedTokens);
+        }
+        if (metrics.holdersCount !== null && metrics.holdersCount !== undefined) {
+          setHoldersCount(metrics.holdersCount);
+        }
+        if (metrics.creationDate) {
+          setCreationDate(metrics.creationDate);
+        }
+        if (metrics.supplyHeld) {
+          setSupplyHeld({ ...metrics.supplyHeld, isLoading: false });
+        }
+        if (metrics.smartContractHolderShare) {
+          setSmartContractHolderShare({ ...metrics.smartContractHolderShare, isLoading: false });
+        }
+        if (metrics.totalSupply) {
+          setTotalSupply(metrics.totalSupply);
+        }
+      } catch (error) {
+        console.error('Failed to load core token metrics:', error);
+        setSupplyHeld(prev => ({ ...prev, isLoading: false }));
+        setSmartContractHolderShare(prev => ({ ...prev, isLoading: false }));
+      } finally {
+        setIsLoadingMetrics(false);
       }
-      if (metrics.holdersCount !== null) {
-        setHoldersCount(metrics.holdersCount);
-      }
-      if (metrics.creationDate) {
-        setCreationDate(metrics.creationDate);
-      }
-      if (metrics.supplyHeld) {
-        setSupplyHeld({ ...metrics.supplyHeld, isLoading: false });
-      }
-      if (metrics.smartContractHolderShare) {
-        setSmartContractHolderShare({ ...metrics.smartContractHolderShare, isLoading: false });
-      }
-      if (metrics.ownershipData) {
-        setOwnershipData({ ...metrics.ownershipData, isLoading: false });
-      }
-      if (metrics.totalSupply) {
-        setTotalSupply(metrics.totalSupply);
-      }
+    })();
 
-      console.log('✅ Token metrics loaded from server in single request');
-    } catch (error) {
-      console.error('Failed to load token metrics:', error);
-      // Set loading states to false on error
-      setSupplyHeld(prev => ({ ...prev, isLoading: false }));
-      setSmartContractHolderShare(prev => ({ ...prev, isLoading: false }));
-      setOwnershipData(prev => ({ ...prev, isLoading: false }));
-    } finally {
-      setIsLoadingMetrics(false);
-    }
+    const ownershipRequest = (async () => {
+      try {
+        const response = await fetch(`/api/token-metrics/${address}?scope=ownership`);
+        if (!response.ok) throw new Error('Failed to fetch ownership data');
+
+        const { ownershipData } = await response.json();
+        if (ownershipData) {
+          setOwnershipData({ ...ownershipData, isLoading: false });
+        } else {
+          setOwnershipData(prev => ({ ...prev, isLoading: false }));
+        }
+      } catch (error) {
+        console.error('Failed to load ownership data:', error);
+        setOwnershipData(prev => ({ ...prev, isLoading: false }));
+      }
+    })();
+
+    await Promise.all([coreRequest, ownershipRequest]);
   }, []);
 
   // Run audit analysis when contract data and ownership data are available
