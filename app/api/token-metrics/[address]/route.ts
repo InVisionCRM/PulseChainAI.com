@@ -254,13 +254,21 @@ async function callOwnerRpc(
 }
 
 /**
- * Calls owner() on the contract via eth_call, walking the curated RPC
- * pool until one responds. Returns the owner address, or null if the
- * contract has no owner() function or returns the zero address.
+ * Calls owner() on the contract via eth_call. Queries the whole curated
+ * RPC pool in parallel and takes the first usable answer, so one slow or
+ * timing-out endpoint no longer stalls the response for RPC_TIMEOUT_MS ×
+ * pool-size (previously up to 16s of sequential walking — the single
+ * biggest contributor to the "everything spins forever" sidebar).
+ * Returns the owner address, or null if the contract has no owner()
+ * function or returns the zero address.
  */
 async function getOnChainOwner(contractAddress: string): Promise<string | null> {
-  for (const url of PLC_RPC_URLS) {
-    const raw = await callOwnerRpc(url, contractAddress);
+  const results = await Promise.allSettled(
+    PLC_RPC_URLS.map((url) => callOwnerRpc(url, contractAddress)),
+  );
+  for (const result of results) {
+    if (result.status !== 'fulfilled') continue;
+    const raw = result.value;
     if (!raw || raw === '0x') continue;
     // 32-byte padded address — extract the last 20 bytes
     const addr = '0x' + raw.slice(-40);
@@ -372,6 +380,57 @@ async function getCreationDate(address: string) {
   }
 }
 
+/**
+ * The "fast" half of the metrics: everything derivable from PulseScan's
+ * token info + the top-50 holders (+ DexScreener pairs for LP labelling).
+ * None of this touches the flaky on-chain owner() RPC pool, so the Holders
+ * count, supply, and supply-held figures can render without waiting on the
+ * ownership branch — which is the whole reason the sidebar felt slow.
+ */
+async function getCoreMetrics(
+  address: string,
+): Promise<Omit<TokenMetrics, 'ownershipData'>> {
+  // Token info first — it already carries the holders count and total supply.
+  const tokenInfo = await fetchJson(`${BASE_URL}/tokens/${address}`);
+  const decimals = Number(tokenInfo?.decimals || 18);
+  const totalSupply = Number(tokenInfo?.total_supply || 0);
+  const totalHoldersCount = Number(tokenInfo?.holders || 0);
+
+  // The top-50 holders (shared across burned/supply-held/contract-share),
+  // the DexScreener pairs (for LP detection), and the creation date all run
+  // in parallel. fetchTokenPairAddresses used to block this batch by running
+  // sequentially before it.
+  const [holders, pairAddresses, creationDate] = await Promise.all([
+    fetchTopHolders(address),
+    fetchTokenPairAddresses(address),
+    getCreationDate(address),
+  ]);
+
+  const burnedTokens = calculateBurnedFromHolders(holders, decimals, totalSupply);
+  const supplyHeld = calculateSupplyHeldFromHolders(holders, totalSupply);
+  const smartContractShare = calculateSmartContractShareFromHolders(
+    holders,
+    totalSupply,
+    pairAddresses,
+  );
+
+  return {
+    burnedTokens,
+    holdersCount: totalHoldersCount,
+    creationDate,
+    supplyHeld,
+    smartContractHolderShare: smartContractShare,
+    totalSupply: {
+      supply: tokenInfo?.total_supply || '0',
+      decimals,
+    },
+  };
+}
+
+const CACHE_HEADERS = {
+  'Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${CACHE_DURATION * 2}`,
+};
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ address: string }> }
@@ -386,52 +445,30 @@ export async function GET(
       );
     }
 
-    // Fetch token info first (needed for calculations)
-    const tokenInfo = await fetchJson(`${BASE_URL}/tokens/${address}`);
-    const decimals = Number(tokenInfo?.decimals || 18);
-    const totalSupply = Number(tokenInfo?.total_supply || 0);
-    const totalHoldersCount = Number(tokenInfo?.holders || 0);
+    // Callers can request just the fast core fields or just the slow
+    // ownership branch, so the two render independently on the client and
+    // Holders never waits on the on-chain owner() lookup. Omitting ?scope
+    // returns the full payload (backwards compatible).
+    const scope = request.nextUrl.searchParams.get('scope');
 
-    // Fetch pair addresses for LP detection (used in smart contract share)
-    const pairAddresses = await fetchTokenPairAddresses(address);
+    if (scope === 'ownership') {
+      const ownershipData = await getOwnershipData(address);
+      return NextResponse.json({ ownershipData }, { headers: CACHE_HEADERS });
+    }
 
-    // Fetch the top-50 holders once and share it across the three branches
-    // that need them. Previously each branch made its own PulseScan call
-    // (3× duplicate work), and the burned-tokens branch paginated up to
-    // 10 pages sequentially. One holders fetch + three sync derivations
-    // is enough — burn addresses always sit in the top 50.
-    const [holders, ownershipData, creationDate] = await Promise.all([
-      fetchTopHolders(address),
+    if (scope === 'core') {
+      const core = await getCoreMetrics(address);
+      return NextResponse.json(core, { headers: CACHE_HEADERS });
+    }
+
+    const [core, ownershipData] = await Promise.all([
+      getCoreMetrics(address),
       getOwnershipData(address),
-      getCreationDate(address),
     ]);
 
-    const burnedTokens = calculateBurnedFromHolders(holders, decimals, totalSupply);
-    const supplyHeld = calculateSupplyHeldFromHolders(holders, totalSupply);
-    const smartContractShare = calculateSmartContractShareFromHolders(
-      holders,
-      totalSupply,
-      pairAddresses,
-    );
+    const metrics: TokenMetrics = { ...core, ownershipData };
 
-    const metrics: TokenMetrics = {
-      burnedTokens,
-      holdersCount: totalHoldersCount,
-      creationDate,
-      supplyHeld,
-      smartContractHolderShare: smartContractShare,
-      ownershipData,
-      totalSupply: {
-        supply: tokenInfo?.total_supply || '0',
-        decimals
-      }
-    };
-
-    return NextResponse.json(metrics, {
-      headers: {
-        'Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${CACHE_DURATION * 2}`
-      }
-    });
+    return NextResponse.json(metrics, { headers: CACHE_HEADERS });
 
   } catch (error) {
     console.error('Failed to fetch token metrics:', error);
