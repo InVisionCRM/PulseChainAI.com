@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       { pair, events },
-      { headers: { 'Cache-Control': 'public, max-age=120, stale-while-revalidate=600' } },
+      { headers: { 'Cache-Control': 'public, max-age=120, s-maxage=120, stale-while-revalidate=600' } },
     );
   } catch (err) {
     return NextResponse.json(

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 // "Price Performance" section for the Geicko token view: 7d/30d/1y change,
 // all-time high/low, and since-launch — in USD or priced vs WPLS. Sourced from
@@ -73,15 +73,29 @@ export default function GeickoPerformancePanel({
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [denom, setDenom] = useState<Denom>('usd');
 
+  // The live price only anchors the latest point server-side — it must not be a
+  // fetch dependency, or every small price tick (and the DexScreener→Gecko pair
+  // source switch, whose prices differ slightly) refires this heavy request.
+  const priceRef = useRef(price);
+  priceRef.current = price;
+
+  // `network`/`pool` start undefined and resolve once pair data loads; keep the
+  // fetch key stable so prop resolution alone doesn't refetch.
+  const net = (network || 'pulsechain').toLowerCase();
+  const poolKey = (pool || '').toLowerCase();
+
   useEffect(() => {
-    if (!token && !pool) { setStatus('idle'); return; }
+    if (!token && !poolKey) { setStatus('idle'); return; }
     let alive = true;
     setStatus('loading');
     const qs = new URLSearchParams();
-    if (network) qs.set('network', network);
+    qs.set('network', net);
     if (token) qs.set('token', token);
-    if (pool) qs.set('pool', pool);
-    if (price && price > 0) qs.set('price', String(price));
+    if (poolKey) qs.set('pool', poolKey);
+    // 4 significant digits — matches display precision and keeps the URL stable
+    // across ticks so shared (browser/CDN) caches actually get hits.
+    const p = priceRef.current;
+    if (p && p > 0) qs.set('price', p.toPrecision(4));
     fetch(`/api/geicko/performance?${qs.toString()}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((d: PerfResp & { error?: string }) => {
@@ -93,7 +107,7 @@ export default function GeickoPerformancePanel({
       })
       .catch(() => alive && setStatus('error'));
     return () => { alive = false; };
-  }, [network, token, pool, price]);
+  }, [net, token, poolKey]);
 
   if (status === 'idle') return null;
 

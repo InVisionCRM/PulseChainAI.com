@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cached } from '@/lib/geicko/serverCache';
 
 // Long-horizon price performance for a token. DexScreener only exposes 5m–24h
 // changes, so for 7d/30d/1y, all-time high/low, and "since launch" we build a
@@ -189,15 +190,33 @@ export async function GET(req: NextRequest) {
 
   try {
     const isPls = chain === 'pulsechain';
+    // Building the daily series is the expensive part (multi-page subgraph or
+    // GeckoTerminal fetches) and it doesn't depend on the live price — so cache
+    // the SERIES for 15 minutes and derive the (cheap) view per request. This
+    // keeps live-price anchoring fresh while a burst of requests with slightly
+    // different `price` params all reuse one scan.
     // Preferred source for PulseChain is the PulseX subgraph (launch-to-now, "full"
     // coverage). But it only indexes tokens with a PulseX pair — tokens that trade
     // on 9mm/9inch/other DEXes, or very new tokens, aren't in it. In that case fall
     // back to GeckoTerminal, which aggregates every PulseChain DEX (~6mo, "partial").
-    let usdSeries: Point[] = isPls && token ? await pulsexDaily(token) : [];
+    // Each source is cached by ITS OWN inputs (the subgraph scan doesn't depend on
+    // `pool`), so requests that arrive before/after the pool resolves share work.
+    // Empty series aren't cached: recomputing them is cheap, and an empty result
+    // can be a transient upstream failure rather than a token with no history.
+    const nonEmpty = (s: Point[]) => s.length >= 2;
+    let usdSeries: Point[] =
+      isPls && token
+        ? await cached(`perf-pulsex:${token}`, 900_000, () => pulsexDaily(token), nonEmpty)
+        : [];
     let coverage: 'full' | 'partial' = usdSeries.length >= 2 ? 'full' : 'partial';
     if (usdSeries.length < 2) {
       // GT_NET has no 'pulsechain' entry, so `|| chain` resolves it to 'pulsechain'.
-      usdSeries = await geckoDaily(GT_NET[chain] || chain, token, pool);
+      usdSeries = await cached(
+        `perf-gecko:${chain}:${token}:${pool}`,
+        900_000,
+        () => geckoDaily(GT_NET[chain] || chain, token, pool),
+        nonEmpty,
+      );
       coverage = 'partial';
     }
 
@@ -205,17 +224,18 @@ export async function GET(req: NextRequest) {
     if (!usd) return NextResponse.json({ error: 'no price history' }, { status: 404 });
 
     // "vs WPLS": the token priced in WPLS (token USD ÷ WPLS USD), aligned by day.
-    // Only meaningful on PulseChain, and not for WPLS itself.
+    // Only meaningful on PulseChain, and not for WPLS itself. The WPLS daily
+    // series is token-independent, so it's cached once for the whole process.
     let wpls: ReturnType<typeof computeView> = null;
     if (isPls && token && token !== WPLS) {
-      const wplsSeries = await pulsexDaily(WPLS);
+      const wplsSeries = await cached(`perf-pulsex:${WPLS}`, 900_000, () => pulsexDaily(WPLS), nonEmpty);
       const ratio = ratioSeries(usdSeries, wplsSeries);
       wpls = ratio.length >= 2 ? computeView(ratio, coverage, 0) : null;
     }
 
     return NextResponse.json(
       { chain, views: { usd, wpls } },
-      { headers: { 'Cache-Control': 'public, max-age=900, stale-while-revalidate=3600' } },
+      { headers: { 'Cache-Control': 'public, max-age=900, s-maxage=900, stale-while-revalidate=3600' } },
     );
   } catch (err) {
     return NextResponse.json(

@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       { chain, supported: true, pairCount: pairSet.size, windowHours: 24, recent, topTraders },
-      { headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' } },
+      { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=60, stale-while-revalidate=300' } },
     );
   } catch (err) {
     return NextResponse.json(

@@ -61,12 +61,17 @@ export default function GeickoPressurePanel({
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'empty' | 'error'>('idle');
   const [win, setWin] = useState<WinKey>('h24');
 
+  // `network` starts undefined and resolves to 'pulsechain' once pair data
+  // loads; defaulting it here keeps the fetch key stable so that prop
+  // resolution doesn't refire this heavy request.
+  const netKey = (network || 'pulsechain').toLowerCase();
+
   useEffect(() => {
     if (!token) { setStatus('idle'); return; }
     let alive = true;
     setStatus('loading');
     const qs = new URLSearchParams();
-    if (network) qs.set('network', network);
+    qs.set('network', netKey);
     qs.set('token', token);
     fetch(`/api/geicko/pressure?${qs.toString()}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
@@ -79,7 +84,7 @@ export default function GeickoPressurePanel({
       })
       .catch(() => alive && setStatus('error'));
     return () => { alive = false; };
-  }, [network, token]);
+  }, [netKey, token]);
 
   const w = data?.windows?.[win];
   const chartData = useMemo(

@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
           daily,
           events,
         },
-        { headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=1800' } },
+        { headers: { 'Cache-Control': 'public, max-age=300, s-maxage=300, stale-while-revalidate=1800' } },
       );
     }
   } catch (err) {
