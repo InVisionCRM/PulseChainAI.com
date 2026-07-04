@@ -95,6 +95,31 @@ export async function getLatestBlock(): Promise<number> {
   return Number(await rpcFailover('eth_blockNumber', []));
 }
 
+/** Unix timestamp (seconds) of a block, or null. */
+export async function getBlockTimestamp(block: number): Promise<number | null> {
+  const b = await rpcFailover('eth_getBlockByNumber', [toHexBlock(block), false]);
+  return b?.timestamp ? Number(BigInt(b.timestamp)) : null;
+}
+
+/**
+ * Contract creation date (UTC `YYYY-MM-DD`) from on-chain data — the block the
+ * code first appears at, then that block's timestamp. Used to restore the "Age"
+ * field when PulseScan (its usual source) is down. Returns null on failure.
+ */
+export async function getCreationDateViaRpc(token: string): Promise<string | null> {
+  try {
+    const latest = await getLatestBlock();
+    const dep = await findDeploymentBlock(token, latest);
+    const ts = await getBlockTimestamp(dep);
+    if (!ts) return null;
+    const d = new Date(ts * 1000);
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Binary-search the token's deployment block via `eth_getCode` (archive). Walk
  * start; starting a few blocks early only wastes cheap empty chunks, so we bias

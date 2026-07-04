@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCreationDateViaRpc } from '@/lib/geicko/rpcHolders';
 
 const CACHE_DURATION = 120; // 2 minutes cache
 const BASE_URL = 'https://api.scan.pulsechain.com/api/v2';
@@ -541,12 +542,18 @@ async function getCoreMetrics(
   }
   const { totalSupplyRaw, totalSupply, decimals } = facts;
 
-  const burnedTokens = await getBurnedViaRpc(address, decimals, totalSupply);
+  // Burned (burn-sink balances) and the creation date (deployment block →
+  // timestamp) both come off-chain and run in parallel — neither needs the
+  // indexer, so "Age" renders during an outage instead of showing a dash.
+  const [burnedTokens, creationDate] = await Promise.all([
+    getBurnedViaRpc(address, decimals, totalSupply),
+    getCreationDateViaRpc(address),
+  ]);
 
   return {
     burnedTokens,
     holdersCount: null,
-    creationDate: null,
+    creationDate,
     supplyHeld: { top10: 0, top20: 0, top50: 0 },
     smartContractHolderShare: {
       percent: 0,
