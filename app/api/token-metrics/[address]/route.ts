@@ -278,6 +278,106 @@ async function getOnChainOwner(contractAddress: string): Promise<string | null> 
   return null;
 }
 
+// ---- On-chain RPC fallback for the token facts -------------------------
+// PulseScan's v2 REST API has recurring outages (HTTP 500 across every
+// endpoint). When it's down we read what we can straight off-chain via the
+// same RPC pool used for owner() above, so total supply / decimals / burned
+// still render instead of the whole sidebar failing. Holder-derived figures
+// (holders count, supply-held %, contract share) need an indexer we don't
+// have without PulseScan, so those degrade rather than fabricate numbers.
+
+// keccak256 selectors
+const TOTAL_SUPPLY_SELECTOR = '0x18160ddd'; // totalSupply()
+const DECIMALS_SELECTOR = '0x313ce567'; // decimals()
+const BALANCE_OF_SELECTOR = '0x70a08231'; // balanceOf(address)
+
+// Well-known burn sinks on PulseChain. Their suffixes match isBurnAddress()
+// (…0000 / …dead / …0369) so RPC-derived burned totals line up with the
+// PulseScan-derived ones.
+const BURN_ADDRESSES = [
+  '0x0000000000000000000000000000000000000000',
+  '0x000000000000000000000000000000000000dEaD',
+  '0x0000000000000000000000000000000000000369',
+];
+
+const hexToNumber = (hex: string | null): number => {
+  if (!hex || hex === '0x') return 0;
+  try {
+    return Number(BigInt(hex));
+  } catch {
+    return 0;
+  }
+};
+
+// Generic eth_call across the whole RPC pool; first usable answer wins. One
+// slow/timing-out endpoint can't stall the response since every call carries
+// its own timeout and they run in parallel.
+async function callRpc(to: string, data: string): Promise<string | null> {
+  const results = await Promise.allSettled(
+    PLC_RPC_URLS.map((url) =>
+      (async () => {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_call',
+            params: [{ to, data }, 'latest'],
+            id: 1,
+          }),
+          signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        if (json?.error || !json?.result || json.result === '0x') return null;
+        return json.result as string;
+      })().catch(() => null),
+    ),
+  );
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value) return r.value;
+  }
+  return null;
+}
+
+async function getTokenFactsViaRpc(
+  address: string,
+): Promise<{ totalSupplyRaw: string; totalSupply: number; decimals: number } | null> {
+  const [supplyHex, decimalsHex] = await Promise.all([
+    callRpc(address, TOTAL_SUPPLY_SELECTOR),
+    callRpc(address, DECIMALS_SELECTOR),
+  ]);
+  if (supplyHex == null) return null;
+  let totalSupplyRaw: string;
+  try {
+    totalSupplyRaw = BigInt(supplyHex).toString();
+  } catch {
+    return null;
+  }
+  const decimals = (decimalsHex ? hexToNumber(decimalsHex) : 0) || 18;
+  return { totalSupplyRaw, totalSupply: Number(totalSupplyRaw), decimals };
+}
+
+async function getBurnedViaRpc(
+  address: string,
+  decimals: number,
+  totalSupply: number,
+): Promise<{ amount: number; percent: number } | null> {
+  const balances = await Promise.all(
+    BURN_ADDRESSES.map((burn) =>
+      callRpc(
+        address,
+        BALANCE_OF_SELECTOR + burn.slice(2).toLowerCase().padStart(64, '0'),
+      ),
+    ),
+  );
+  if (balances.every((b) => b == null)) return null;
+  const raw = balances.reduce((sum, b) => sum + hexToNumber(b), 0);
+  const amount = decimals ? raw / Math.pow(10, decimals) : raw;
+  const percent = totalSupply > 0 ? (raw / totalSupply) * 100 : 0;
+  return { amount, percent };
+}
+
 async function getOwnershipData(address: string) {
   try {
     let creatorAddress: string | null = null;
@@ -391,37 +491,71 @@ async function getCoreMetrics(
   address: string,
 ): Promise<Omit<TokenMetrics, 'ownershipData'>> {
   // Token info first — it already carries the holders count and total supply.
-  const tokenInfo = await fetchJson(`${BASE_URL}/tokens/${address}`);
-  const decimals = Number(tokenInfo?.decimals || 18);
-  const totalSupply = Number(tokenInfo?.total_supply || 0);
-  const totalHoldersCount = Number(tokenInfo?.holders || 0);
-
-  // The top-50 holders (shared across burned/supply-held/contract-share),
-  // the DexScreener pairs (for LP detection), and the creation date all run
-  // in parallel. fetchTokenPairAddresses used to block this batch by running
-  // sequentially before it.
-  const [holders, pairAddresses, creationDate] = await Promise.all([
-    fetchTopHolders(address),
-    fetchTokenPairAddresses(address),
-    getCreationDate(address),
-  ]);
-
-  const burnedTokens = calculateBurnedFromHolders(holders, decimals, totalSupply);
-  const supplyHeld = calculateSupplyHeldFromHolders(holders, totalSupply);
-  const smartContractShare = calculateSmartContractShareFromHolders(
-    holders,
-    totalSupply,
-    pairAddresses,
+  // PulseScan v2 goes down for stretches (HTTP 500 everywhere); catch that
+  // instead of throwing so we can fall back to on-chain reads below.
+  const tokenInfo = await fetchJson(`${BASE_URL}/tokens/${address}`).catch(
+    () => null,
   );
+
+  if (tokenInfo) {
+    // The top-50 holders (shared across burned/supply-held/contract-share),
+    // the DexScreener pairs (for LP detection), and the creation date all run
+    // in parallel. fetchTokenPairAddresses used to block this batch by running
+    // sequentially before it.
+    const [holders, pairAddresses, creationDate] = await Promise.all([
+      fetchTopHolders(address),
+      fetchTokenPairAddresses(address),
+      getCreationDate(address),
+    ]);
+
+    const decimals = Number(tokenInfo?.decimals || 18);
+    const totalSupply = Number(tokenInfo?.total_supply || 0);
+    const totalHoldersCount = Number(tokenInfo?.holders || 0);
+
+    return {
+      burnedTokens: calculateBurnedFromHolders(holders, decimals, totalSupply),
+      holdersCount: totalHoldersCount,
+      creationDate,
+      supplyHeld: calculateSupplyHeldFromHolders(holders, totalSupply),
+      smartContractHolderShare: calculateSmartContractShareFromHolders(
+        holders,
+        totalSupply,
+        pairAddresses,
+      ),
+      totalSupply: {
+        supply: tokenInfo?.total_supply || '0',
+        decimals,
+      },
+    };
+  }
+
+  // PulseScan unavailable — read the token facts straight off-chain. Total
+  // supply, decimals and burned still render; holder-derived figures (holders
+  // count, supply-held %, contract share) need an indexer we don't have without
+  // PulseScan, so they degrade to null/empty instead of failing the request.
+  // The explorer-only lookups (holders, creation date) are skipped entirely
+  // here since a null tokenInfo means they'd only time out too.
+  const facts = await getTokenFactsViaRpc(address);
+  if (!facts) {
+    throw new Error('token metrics unavailable (PulseScan and RPC both failed)');
+  }
+  const { totalSupplyRaw, totalSupply, decimals } = facts;
+
+  const burnedTokens = await getBurnedViaRpc(address, decimals, totalSupply);
 
   return {
     burnedTokens,
-    holdersCount: totalHoldersCount,
-    creationDate,
-    supplyHeld,
-    smartContractHolderShare: smartContractShare,
+    holdersCount: null,
+    creationDate: null,
+    supplyHeld: { top10: 0, top20: 0, top50: 0 },
+    smartContractHolderShare: {
+      percent: 0,
+      contractCount: 0,
+      contractAddresses: [],
+      contractHolders: [],
+    },
     totalSupply: {
-      supply: tokenInfo?.total_supply || '0',
+      supply: totalSupplyRaw,
       decimals,
     },
   };
