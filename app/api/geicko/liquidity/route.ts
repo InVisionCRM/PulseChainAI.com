@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PULSEX_SUBGRAPHS, gql, getTokenPairIds, pageEvents, cleanUsd, num, type LiqEvent } from '@/lib/geicko/pulsex';
+import { cached } from '@/lib/geicko/serverCache';
 
 // Liquidity add/remove activity for a token, from the PulseX subgraph. Each add
 // is a `mint` and each remove is a `burn`, both carrying an `amountUSD`. A token
@@ -19,19 +20,11 @@ const DAY = 86_400;
 const DEFAULT_DAYS = 90;
 const FEED_SIZE = 40;
 
-export async function GET(req: NextRequest) {
-  const sp = req.nextUrl.searchParams;
-  const chain = (sp.get('network') || 'pulsechain').toLowerCase();
-  const token = (sp.get('token') || '').toLowerCase();
-  const days = Math.min(365, Math.max(7, num(sp.get('days')) || DEFAULT_DAYS));
-
-  if (chain !== 'pulsechain') return NextResponse.json({ chain, supported: false });
-  if (!token) return NextResponse.json({ error: 'token required' }, { status: 400 });
-
+async function build(chain: string, token: string, days: number) {
   const nowTs = Math.floor(Date.now() / 1000);
   const cutoff = nowTs - days * DAY;
 
-  try {
+  {
     // Query every PulseX subgraph (v1 + v2) and merge — a token's liquidity is
     // split across both versions.
     const perGraph = await Promise.all(
@@ -50,7 +43,7 @@ export async function GET(req: NextRequest) {
       const mints = perGraph.flatMap((g) => g.mints);
       const burns = perGraph.flatMap((g) => g.burns);
       const pairCount = perGraph.reduce((s, g) => s + g.pairCount, 0);
-      if (!pairCount) return NextResponse.json({ chain, supported: true, empty: true, days });
+      if (!pairCount) return { chain, supported: true, empty: true, days };
 
       // Daily aggregation (net = adds - removes) + running totals.
       const byDay = new Map<number, { added: number; removed: number }>();
@@ -74,7 +67,7 @@ export async function GET(req: NextRequest) {
         .map(([t, v]) => ({ t, added: v.added, removed: v.removed, net: v.added - v.removed }))
         .sort((a, b) => a.t - b.t);
 
-      if (!daily.length) return NextResponse.json({ chain, supported: true, empty: true, days });
+      if (!daily.length) return { chain, supported: true, empty: true, days };
 
       const label = (e: LiqEvent) => `${e.pair?.token0?.symbol ?? '?'}/${e.pair?.token1?.symbol ?? '?'}`;
       const toEvt = (e: LiqEvent, type: 'add' | 'remove') => ({
@@ -89,19 +82,35 @@ export async function GET(req: NextRequest) {
         .sort((a, b) => b.ts - a.ts)
         .slice(0, FEED_SIZE);
 
-      return NextResponse.json(
-        {
-          chain,
-          supported: true,
-          days,
-          pairCount,
-          totals: { added, removed, net: added - removed, addCount, removeCount },
-          daily,
-          events,
-        },
-        { headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=1800' } },
-      );
+      return {
+        chain,
+        supported: true,
+        days,
+        pairCount,
+        totals: { added, removed, net: added - removed, addCount, removeCount },
+        daily,
+        events,
+      };
     }
+  }
+}
+
+export async function GET(req: NextRequest) {
+  const sp = req.nextUrl.searchParams;
+  const chain = (sp.get('network') || 'pulsechain').toLowerCase();
+  const token = (sp.get('token') || '').toLowerCase();
+  const days = Math.min(365, Math.max(7, num(sp.get('days')) || DEFAULT_DAYS));
+
+  if (chain !== 'pulsechain') return NextResponse.json({ chain, supported: false });
+  if (!token) return NextResponse.json({ error: 'token required' }, { status: 400 });
+
+  try {
+    // The mint/burn paging over v1+v2 is the slow part; the 90d daily series
+    // barely changes hour to hour, so 15 minutes of memoization is invisible.
+    const payload = await cached(`liquidity:${token}:${days}`, 900_000, () => build(chain, token, days));
+    return NextResponse.json(payload, {
+      headers: { 'Cache-Control': 'public, max-age=900, s-maxage=900, stale-while-revalidate=86400' },
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to load liquidity' },

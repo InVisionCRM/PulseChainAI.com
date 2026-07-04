@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PULSEX_SUBGRAPHS, gql, getTokenPairIds, pageSwaps, cleanUsd, num, type SwapRow } from '@/lib/geicko/pulsex';
+import { cached } from '@/lib/geicko/serverCache';
 
 // Recent buys/sells + top traders for a token, from PulseX swaps (v1 + v2) —
 // the DexScreener-style transactions view, computed from the subgraph so it's
@@ -36,6 +37,76 @@ function classify(s: { amount0In: string; amount1In: string; amount0Out: string;
   return { isBuy: out >= inn, tokenAmount: out >= inn ? out : inn };
 }
 
+async function build(chain: string, token: string) {
+  const nowTs = Math.floor(Date.now() / 1000);
+  const cutoff = nowTs - 24 * HOUR;
+
+  const perGraph = await Promise.all(
+    PULSEX_SUBGRAPHS.map(async (url) => {
+      const pairIds = await getTokenPairIds(url, token);
+      if (!pairIds || !pairIds.length) return { pairIds: [] as string[], swaps: [] as SwapRow[], recent: [] as any[] };
+      const inList = pairIds.map((id) => `"${id}"`).join(',');
+      const [swaps, recentData] = await Promise.all([
+        pageSwaps(url, pairIds, cutoff), // 24h window for top-traders aggregation
+        gql(url, `{ swaps(first:${RECENT}, orderBy:timestamp, orderDirection:desc, where:{pair_in:[${inList}], timestamp_lt:${nowTs + HOUR}}) ${RECENT_FIELDS} }`),
+      ]);
+      return { pairIds, swaps, recent: (recentData?.swaps ?? []) as any[] };
+    }),
+  );
+
+  const pairSet = new Set<string>();
+  for (const g of perGraph) for (const id of g.pairIds) pairSet.add(id);
+  if (!pairSet.size) return { chain, supported: true, empty: true };
+
+  const isInfra = (addr: string) => !addr || addr === ZERO || ROUTERS.has(addr) || pairSet.has(addr);
+
+  // Top traders (24h) — aggregate realized flow per wallet.
+  const traders = new Map<string, { boughtUsd: number; soldUsd: number; buys: number; sells: number }>();
+  for (const g of perGraph) {
+    for (const s of g.swaps) {
+      const usd = cleanUsd(s.amountUSD);
+      if (usd <= 0) continue;
+      const wallet = (s.to || '').toLowerCase();
+      if (isInfra(wallet)) continue;
+      const { isBuy } = classify(s, token);
+      const t = traders.get(wallet) ?? { boughtUsd: 0, soldUsd: 0, buys: 0, sells: 0 };
+      if (isBuy) { t.boughtUsd += usd; t.buys++; } else { t.soldUsd += usd; t.sells++; }
+      traders.set(wallet, t);
+    }
+  }
+  const topTraders = [...traders.entries()]
+    .map(([wallet, t]) => ({
+      wallet,
+      boughtUsd: t.boughtUsd, soldUsd: t.soldUsd,
+      volumeUsd: t.boughtUsd + t.soldUsd, netUsd: t.boughtUsd - t.soldUsd,
+      buys: t.buys, sells: t.sells,
+    }))
+    .sort((a, b) => b.volumeUsd - a.volumeUsd)
+    .slice(0, TOP_N);
+
+  // Recent trades feed (merged, newest first).
+  const recent = perGraph
+    .flatMap((g) => g.recent)
+    .map((s) => {
+      const usd = cleanUsd(s.amountUSD);
+      const { isBuy, tokenAmount } = classify(s, token);
+      return {
+        type: isBuy ? 'buy' : 'sell',
+        ts: num(s.timestamp),
+        usd,
+        tokenAmount,
+        price: tokenAmount > 0 ? usd / tokenAmount : 0,
+        wallet: (s.to || '').toLowerCase(),
+        tx: s.transaction?.id ?? '',
+      };
+    })
+    .filter((t) => t.usd > 0)
+    .sort((a, b) => b.ts - a.ts)
+    .slice(0, RECENT);
+
+  return { chain, supported: true, pairCount: pairSet.size, windowHours: 24, recent, topTraders };
+}
+
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const chain = (sp.get('network') || 'pulsechain').toLowerCase();
@@ -43,77 +114,13 @@ export async function GET(req: NextRequest) {
   if (chain !== 'pulsechain') return NextResponse.json({ chain, supported: false });
   if (!token) return NextResponse.json({ error: 'token required' }, { status: 400 });
 
-  const nowTs = Math.floor(Date.now() / 1000);
-  const cutoff = nowTs - 24 * HOUR;
-
   try {
-    const perGraph = await Promise.all(
-      PULSEX_SUBGRAPHS.map(async (url) => {
-        const pairIds = await getTokenPairIds(url, token);
-        if (!pairIds || !pairIds.length) return { pairIds: [] as string[], swaps: [] as SwapRow[], recent: [] as any[] };
-        const inList = pairIds.map((id) => `"${id}"`).join(',');
-        const [swaps, recentData] = await Promise.all([
-          pageSwaps(url, pairIds, cutoff), // 24h window for top-traders aggregation
-          gql(url, `{ swaps(first:${RECENT}, orderBy:timestamp, orderDirection:desc, where:{pair_in:[${inList}], timestamp_lt:${nowTs + HOUR}}) ${RECENT_FIELDS} }`),
-        ]);
-        return { pairIds, swaps, recent: (recentData?.swaps ?? []) as any[] };
-      }),
-    );
-
-    const pairSet = new Set<string>();
-    for (const g of perGraph) for (const id of g.pairIds) pairSet.add(id);
-    if (!pairSet.size) return NextResponse.json({ chain, supported: true, empty: true });
-
-    const isInfra = (addr: string) => !addr || addr === ZERO || ROUTERS.has(addr) || pairSet.has(addr);
-
-    // Top traders (24h) — aggregate realized flow per wallet.
-    const traders = new Map<string, { boughtUsd: number; soldUsd: number; buys: number; sells: number }>();
-    for (const g of perGraph) {
-      for (const s of g.swaps) {
-        const usd = cleanUsd(s.amountUSD);
-        if (usd <= 0) continue;
-        const wallet = (s.to || '').toLowerCase();
-        if (isInfra(wallet)) continue;
-        const { isBuy } = classify(s, token);
-        const t = traders.get(wallet) ?? { boughtUsd: 0, soldUsd: 0, buys: 0, sells: 0 };
-        if (isBuy) { t.boughtUsd += usd; t.buys++; } else { t.soldUsd += usd; t.sells++; }
-        traders.set(wallet, t);
-      }
-    }
-    const topTraders = [...traders.entries()]
-      .map(([wallet, t]) => ({
-        wallet,
-        boughtUsd: t.boughtUsd, soldUsd: t.soldUsd,
-        volumeUsd: t.boughtUsd + t.soldUsd, netUsd: t.boughtUsd - t.soldUsd,
-        buys: t.buys, sells: t.sells,
-      }))
-      .sort((a, b) => b.volumeUsd - a.volumeUsd)
-      .slice(0, TOP_N);
-
-    // Recent trades feed (merged, newest first).
-    const recent = perGraph
-      .flatMap((g) => g.recent)
-      .map((s) => {
-        const usd = cleanUsd(s.amountUSD);
-        const { isBuy, tokenAmount } = classify(s, token);
-        return {
-          type: isBuy ? 'buy' : 'sell',
-          ts: num(s.timestamp),
-          usd,
-          tokenAmount,
-          price: tokenAmount > 0 ? usd / tokenAmount : 0,
-          wallet: (s.to || '').toLowerCase(),
-          tx: s.transaction?.id ?? '',
-        };
-      })
-      .filter((t) => t.usd > 0)
-      .sort((a, b) => b.ts - a.ts)
-      .slice(0, RECENT);
-
-    return NextResponse.json(
-      { chain, supported: true, pairCount: pairSet.size, windowHours: 24, recent, topTraders },
-      { headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' } },
-    );
+    // Freshest of the geicko caches — this is the "live" trades feed — but a few
+    // minutes of staleness still beats re-scanning 24h of swaps per visitor.
+    const payload = await cached(`trades:${token}`, 180_000, () => build(chain, token));
+    return NextResponse.json(payload, {
+      headers: { 'Cache-Control': 'public, max-age=180, s-maxage=180, stale-while-revalidate=3600' },
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to load trades' },

@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
 
   const hit = cache.get(token);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
-    return NextResponse.json(hit.value, { headers: { 'Cache-Control': 'public, max-age=300' } });
+    return NextResponse.json(hit.value, { headers: { 'Cache-Control': 'public, max-age=900, s-maxage=900, stale-while-revalidate=86400' } });
   }
 
   const startedAt = Date.now();
@@ -290,7 +290,7 @@ export async function GET(req: NextRequest) {
 
     const payload = { chain, supported: true, token, symbol, totalSupply, creator: creatorReport, firstBuyers };
     cache.set(token, { at: Date.now(), value: payload });
-    return NextResponse.json(payload, { headers: { 'Cache-Control': 'public, max-age=300' } });
+    return NextResponse.json(payload, { headers: { 'Cache-Control': 'public, max-age=900, s-maxage=900, stale-while-revalidate=86400' } });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to build forensics' },
