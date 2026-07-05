@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCreationDateViaRpc } from '@/lib/geicko/rpcHolders';
+import { blockscoutJson } from '@/lib/blockscout';
 
 const CACHE_DURATION = 120; // 2 minutes cache
-const BASE_URL = 'https://api.scan.pulsechain.com/api/v2';
 
 interface TokenMetrics {
   burnedTokens: {
@@ -57,13 +57,13 @@ const isBurnAddress = (addr: string): boolean => {
   );
 };
 
-async function fetchJson(url: string) {
-  const res = await fetch(url, {
-    headers: { Accept: 'application/json' },
-    next: { revalidate: CACHE_DURATION }
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+// GET a Blockscout v2 path (starting with `/`) with automatic failover from the
+// canonical explorer to the scan.pulsechain.box mirror. Throws when every base
+// fails, so callers' `.catch()` handlers still trip through to the RPC fallback.
+async function fetchJson(path: string) {
+  const data = await blockscoutJson(path, { revalidateSeconds: CACHE_DURATION });
+  if (data == null) throw new Error('blockscout unavailable');
+  return data;
 }
 
 // Fetch the top-N holders once per request and share the response between
@@ -81,7 +81,7 @@ type HoldersItem = {
 async function fetchTopHolders(address: string): Promise<HoldersItem[]> {
   try {
     const data = await fetchJson(
-      `${BASE_URL}/tokens/${address}/holders?limit=50`,
+      `/tokens/${address}/holders`,
     );
     return Array.isArray(data?.items) ? data.items : [];
   } catch {
@@ -388,8 +388,8 @@ async function getOwnershipData(address: string) {
 
     // Fetch address info and token info in parallel
     const [addressInfo] = await Promise.all([
-      fetchJson(`${BASE_URL}/addresses/${address}`).catch(() => null),
-      fetchJson(`${BASE_URL}/tokens/${address}`).catch(() => null)
+      fetchJson(`/addresses/${address}`).catch(() => null),
+      fetchJson(`/tokens/${address}`).catch(() => null)
     ]);
 
     creatorAddress = addressInfo?.creator_address_hash || null;
@@ -399,7 +399,7 @@ async function getOwnershipData(address: string) {
     const isHexToken = address?.toLowerCase() === '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
 
     if (creationTxHash) {
-      const creationTx = await fetchJson(`${BASE_URL}/transactions/${creationTxHash}`).catch(() => null);
+      const creationTx = await fetchJson(`/transactions/${creationTxHash}`).catch(() => null);
       creationTxTo = creationTx?.to?.hash || creationTx?.to || null;
     }
 
@@ -417,7 +417,7 @@ async function getOwnershipData(address: string) {
     if (!isRenounced && creatorAddress) {
       try {
         const creatorTxs = await fetchJson(
-          `${BASE_URL}/addresses/${creatorAddress}/transactions?limit=100`
+          `/addresses/${creatorAddress}/transactions`
         );
 
         const renounceTx = (creatorTxs?.items || []).find((tx: any) =>
@@ -462,11 +462,11 @@ async function getOwnershipData(address: string) {
 
 async function getCreationDate(address: string) {
   try {
-    const addressInfo = await fetchJson(`${BASE_URL}/addresses/${address}`);
+    const addressInfo = await fetchJson(`/addresses/${address}`);
     const creationTxHash = addressInfo?.creation_tx_hash;
 
     if (creationTxHash) {
-      const creationTx = await fetchJson(`${BASE_URL}/transactions/${creationTxHash}`);
+      const creationTx = await fetchJson(`/transactions/${creationTxHash}`);
       const timestamp = creationTx?.timestamp || creationTx?.block_timestamp;
 
       if (timestamp) {
@@ -474,11 +474,13 @@ async function getCreationDate(address: string) {
         return `${creationDate.getUTCFullYear()}-${String(creationDate.getUTCMonth() + 1).padStart(2, '0')}-${String(creationDate.getUTCDate()).padStart(2, '0')}`;
       }
     }
-    return null;
   } catch (error) {
     console.error('Failed to get creation date:', error);
-    return null;
   }
+  // Blockscout didn't yield a creation tx (the .box mirror doesn't expose one,
+  // and the primary may be down) — derive the date on-chain from the
+  // deployment block instead.
+  return getCreationDateViaRpc(address);
 }
 
 /**
@@ -494,7 +496,7 @@ async function getCoreMetrics(
   // Token info first — it already carries the holders count and total supply.
   // PulseScan v2 goes down for stretches (HTTP 500 everywhere); catch that
   // instead of throwing so we can fall back to on-chain reads below.
-  const tokenInfo = await fetchJson(`${BASE_URL}/tokens/${address}`).catch(
+  const tokenInfo = await fetchJson(`/tokens/${address}`).catch(
     () => null,
   );
 
@@ -503,18 +505,34 @@ async function getCoreMetrics(
     // the DexScreener pairs (for LP detection), and the creation date all run
     // in parallel. fetchTokenPairAddresses used to block this batch by running
     // sequentially before it.
-    const [holders, pairAddresses, creationDate] = await Promise.all([
+    const decimals = Number(tokenInfo?.decimals || 18);
+    const totalSupply = Number(tokenInfo?.total_supply || 0);
+
+    const [holders, pairAddresses, creationDate, rpcBurned] = await Promise.all([
       fetchTopHolders(address),
       fetchTokenPairAddresses(address),
       getCreationDate(address),
+      getBurnedViaRpc(address, decimals, totalSupply),
     ]);
 
-    const decimals = Number(tokenInfo?.decimals || 18);
-    const totalSupply = Number(tokenInfo?.total_supply || 0);
-    const totalHoldersCount = Number(tokenInfo?.holders || 0);
+    // The canonical explorer calls it `holders`; the .box mirror uses
+    // `holders_count`. Accept either so the count renders from whichever
+    // instance answered.
+    const totalHoldersCount = Number(
+      tokenInfo?.holders ?? tokenInfo?.holders_count ?? 0,
+    );
+
+    // Burned from the top-50 holders misses tokens whose burn sink isn't in the
+    // top page (small burns often aren't). The on-chain burn-sink balances are
+    // exact, so prefer whichever is larger.
+    const holdersBurned = calculateBurnedFromHolders(holders, decimals, totalSupply);
+    const burnedTokens =
+      rpcBurned && rpcBurned.amount > holdersBurned.amount
+        ? rpcBurned
+        : holdersBurned;
 
     return {
-      burnedTokens: calculateBurnedFromHolders(holders, decimals, totalSupply),
+      burnedTokens,
       holdersCount: totalHoldersCount,
       creationDate,
       supplyHeld: calculateSupplyHeldFromHolders(holders, totalSupply),

@@ -7,6 +7,7 @@ import { LoaderOne, LoaderThree } from "@/components/ui/loader";
 import { Copy, Download, Info } from 'lucide-react';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem, ContractAuditResult } from '../../types';
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '@/services';
+import { fetchBlockscoutHolders } from '@/lib/blockscout';
 import { analyzeContractAudit } from '../../services/contractAuditService';
 import {
   normalizeLabel,
@@ -436,27 +437,18 @@ function GeickoPageContent() {
     setIsLoadingHolders(true);
 
     try {
-      // Use the same fetchJson approach that works in burned tokens calculation
-      const base = 'https://api.scan.pulsechain.com/api/v2';
+      // Top 100 holders from Blockscout, with automatic failover from the
+      // canonical explorer to the scan.pulsechain.box mirror when the primary's
+      // indexer is down (recurring 500s).
+      const result = await fetchBlockscoutHolders(address, 100);
+      const items = result?.items ?? [];
 
-      const fetchJson = async (url: string) => {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      };
-
-      // Fetch top 100 holders from PulseScan API
-      const qs = new URLSearchParams({ limit: '100' });
-      const data = await fetchJson(`${base}/tokens/${address}/holders?${qs.toString()}`);
-      const items: Array<{ address?: { hash?: string }; value?: string }> = Array.isArray(data?.items) ? data.items : [];
-
-      // Process holders data (same logic as burned tokens calculation)
       const processedHolders = items
-        .map((h: any) => ({
+        .map((h) => ({
           address: h.address?.hash || '',
-          value: h.value || '0'
+          value: h.value || '0',
         }))
-        .filter((item: any) => item.address && item.value);
+        .filter((item) => item.address && item.value);
 
       setHolders(processedHolders);
     } catch (error) {
