@@ -45,47 +45,48 @@ export class PulsechainApiClient {
     useProxy: boolean = false, 
     params?: Record<string, any>
   ): Promise<T> {
-    const url = useProxy ? this.proxyUrl : this.baseUrl;
-    
+    // Direct calls hit Blockscout; try the canonical explorer first and fail
+    // over to the scan.pulsechain.box mirror when the primary's indexer is down
+    // (recurring 500s). Proxied calls keep their single URL.
+    const bases = useProxy
+      ? [this.proxyUrl]
+      : [this.baseUrl, 'https://scan.pulsechain.box/api/v2/'];
+
     return withRetry(async () => {
-      try {
-        const searchParams = new URLSearchParams();
-        
-        if (useProxy) {
-          searchParams.append('endpoint', endpoint);
-          if (params) {
-            Object.entries(params).forEach(([key, value]) => {
-              if (value !== undefined && value !== null) {
-                searchParams.append(key, value.toString());
-              }
-            });
-          }
-        } else {
-          if (params) {
-            Object.entries(params).forEach(([key, value]) => {
-              if (value !== undefined && value !== null) {
-                searchParams.append(key, value.toString());
-              }
-            });
-          }
-        }
+      const searchParams = new URLSearchParams();
 
-        const fullUrl = useProxy 
-          ? `${url}?${searchParams.toString()}`
-          : `${url}${endpoint}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
-
-        const response = await fetchWithTimeout(fullUrl, {
-          headers: SERVICE_CONFIG.pulsechain.headers,
-        }, SERVICE_CONFIG.pulsechain.timeout);
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        return await response.json();
-      } catch (error) {
-        handleApiError(error, 'pulsechain');
+      if (useProxy) {
+        searchParams.append('endpoint', endpoint);
       }
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            searchParams.append(key, value.toString());
+          }
+        });
+      }
+
+      let lastError: unknown;
+      for (const base of bases) {
+        const fullUrl = useProxy
+          ? `${base}?${searchParams.toString()}`
+          : `${base}${endpoint}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+        try {
+          const response = await fetchWithTimeout(fullUrl, {
+            headers: SERVICE_CONFIG.pulsechain.headers,
+          }, SERVICE_CONFIG.pulsechain.timeout);
+
+          if (!response.ok) {
+            lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
+            continue; // try the next base
+          }
+
+          return await response.json();
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      handleApiError(lastError, 'pulsechain');
     }, SERVICE_CONFIG.pulsechain.retries, 1000, 'pulsechain');
   }
 

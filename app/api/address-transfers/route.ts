@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { blockscoutJson } from '@/lib/blockscout';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,43 +15,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Address parameter is required' }, { status: 400 });
     }
 
-    // Build query parameters for token transfers
+    // Build query parameters for token transfers. Kept to the common
+    // denominator both Blockscout instances accept: the .box mirror rejects
+    // `filter=to | from` (single-value enum only) and the `page` param
+    // (cursor-based). Omitting `filter` already returns both directions, and
+    // page 1 is the default, so this works on either instance.
     const params = new URLSearchParams({
       type: 'ERC-20,ERC-721,ERC-1155',
-      filter: 'to | from',
-      page: page.toString(),
     });
 
     // Add token filter if provided
     if (tokenAddress) {
       params.append('token', tokenAddress);
     }
+    // Only the primary supports numbered pages; request it just past page 1.
+    if (page > 1) {
+      params.append('page', page.toString());
+    }
 
-    // Fetch token transfers directly from PulseScan API
-    const apiUrl = `https://api.scan.pulsechain.com/api/v2/addresses/${address}/token-transfers?${params.toString()}`;
-    console.log('[address-transfers] Fetching from:', apiUrl);
-    
-    const response = await fetch(apiUrl, {
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
+    // Fetch token transfers from Blockscout, failing over from the canonical
+    // explorer to the scan.pulsechain.box mirror when the primary is down.
+    const path = `/addresses/${address}/token-transfers?${params.toString()}`;
+    const data = await blockscoutJson(path);
 
-    console.log('[address-transfers] PulseScan response status:', response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[address-transfers] PulseScan API error:`, response.status, response.statusText, errorText);
+    if (!data) {
       return NextResponse.json(
-        { error: `Failed to fetch transfers: ${response.statusText}` },
-        { status: response.status }
+        { error: 'Failed to fetch transfers: explorer unavailable' },
+        { status: 502 }
       );
     }
 
-    const data = await response.json();
-    console.log('[address-transfers] Data received, items count:', data.items?.length || 0);
-
-    console.log('[address-transfers] Returning:', data.items?.length || 0, 'transfers');
     return NextResponse.json({
       success: true,
       items: data.items || [],

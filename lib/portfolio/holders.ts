@@ -11,6 +11,7 @@
 // this is the cheap half of the bubble-map pipeline.
 
 import { getKnownAddress, type AddressCategory } from '@/lib/gumshoe/address-labels';
+import { fetchBlockscoutHolders } from '@/lib/blockscout';
 
 export type ChainId = 'ethereum' | 'pulsechain';
 
@@ -75,31 +76,48 @@ export async function fetchTopHolders(
   const hit = cache.get(key);
   if (hit && Date.now() - hit.fetchedAt < CACHE_TTL_MS) return hit;
 
-  const base = BLOCKSCOUT_BASE[chain];
   const items: any[] = [];
-  let url = `${base}/tokens/${tok}/holders`;
-  const maxPages = Math.ceil(limit / 50);
-  for (let page = 0; page < maxPages && items.length < limit; page++) {
-    const data = await fetchJson(url);
-    const pageItems: any[] = data?.items ?? [];
-    if (pageItems.length === 0) break;
-    items.push(...pageItems);
-    const np = data?.next_page_params;
-    if (!np) break;
-    const qs = new URLSearchParams(
-      Object.entries(np).map(([k, v]) => [k, String(v)]),
-    ).toString();
-    url = `${base}/tokens/${tok}/holders?${qs}`;
+  let totalSupplyRaw: string | null = null;
+  let decimals = 18;
+  let symbol: string | null = null;
+  let holdersCount: number | null = null;
+
+  if (chain === 'pulsechain') {
+    // Failover across the canonical explorer and the scan.pulsechain.box mirror
+    // (via the shared helper), which also fetches token meta separately — the
+    // mirror's holder items don't embed a `token` object like the primary's do.
+    const res = await fetchBlockscoutHolders(tok, limit);
+    if (!res || res.items.length === 0) return null;
+    items.push(...res.items);
+    totalSupplyRaw = res.totalSupplyRaw;
+    decimals = res.decimals;
+    symbol = res.symbol;
+    holdersCount = res.holdersCount;
+  } else {
+    const base = BLOCKSCOUT_BASE[chain];
+    let url = `${base}/tokens/${tok}/holders`;
+    const maxPages = Math.ceil(limit / 50);
+    for (let page = 0; page < maxPages && items.length < limit; page++) {
+      const data = await fetchJson(url);
+      const pageItems: any[] = data?.items ?? [];
+      if (pageItems.length === 0) break;
+      items.push(...pageItems);
+      const np = data?.next_page_params;
+      if (!np) break;
+      const qs = new URLSearchParams(
+        Object.entries(np).map(([k, v]) => [k, String(v)]),
+      ).toString();
+      url = `${base}/tokens/${tok}/holders?${qs}`;
+    }
+
+    if (items.length === 0) return null;
+
+    const tokenMeta = items[0]?.token ?? {};
+    totalSupplyRaw = tokenMeta.total_supply ?? null;
+    decimals = Number(tokenMeta.decimals ?? 18) || 18;
+    symbol = tokenMeta.symbol ?? null;
+    holdersCount = tokenMeta.holders != null ? Number(tokenMeta.holders) : null;
   }
-
-  if (items.length === 0) return null;
-
-  const tokenMeta = items[0]?.token ?? {};
-  const totalSupplyRaw: string | null = tokenMeta.total_supply ?? null;
-  const decimals = Number(tokenMeta.decimals ?? 18) || 18;
-  const symbol: string | null = tokenMeta.symbol ?? null;
-  const holdersCount =
-    tokenMeta.holders != null ? Number(tokenMeta.holders) : null;
   // Float is fine here — we only need ~15 sig-figs for a percentage, not the
   // exact wei. (Both numerator and denominator are wei-scale BigInts.)
   const totalSupply = totalSupplyRaw ? Number(totalSupplyRaw) : 0;

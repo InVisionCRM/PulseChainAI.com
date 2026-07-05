@@ -31,17 +31,24 @@ const DEADLINE_MS = 48_000;
 
 const cache = new Map<string, { at: number; value: unknown }>();
 
+// Canonical explorer first, then the scan.pulsechain.box mirror when the
+// primary's indexer is down. Best-effort: forensics degrades gracefully on null.
+const BS_BASES = [BS, 'https://scan.pulsechain.box/api/v2'];
+
 async function bs(path: string): Promise<any | null> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const r = await fetch(`${BS}${path}`, { headers: { accept: 'application/json' }, signal: ctrl.signal });
-    return r.ok ? await r.json() : null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(t);
+  for (const base of BS_BASES) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const r = await fetch(`${base}${path}`, { headers: { accept: 'application/json' }, signal: ctrl.signal });
+      if (r.ok) return await r.json();
+    } catch {
+      // try next base
+    } finally {
+      clearTimeout(t);
+    }
   }
+  return null;
 }
 
 async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
