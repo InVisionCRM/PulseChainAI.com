@@ -7,15 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { blockscoutJson } from '@/lib/blockscout';
-
-// PulseChain omnibridge (Omnibridge Proxy / PulseRamp). Same address the
-// canonical bridge UI uses; extendable if more mediators need tracking.
-const BRIDGES: Array<{ address: string; label: string }> = [
-  { address: '0x1715a3e4a142d8b698131108995174f37aeba10d', label: 'PulseChain Bridge' },
-];
-const BRIDGE_SET = new Set(BRIDGES.map((b) => b.address.toLowerCase()));
-const bridgeLabel = (addr: string) =>
-  BRIDGES.find((b) => b.address.toLowerCase() === addr.toLowerCase())?.label ?? 'Bridge';
+import { BRIDGES, BRIDGE_SET, bridgeLabel } from '@/lib/pulsechain/bridges';
 
 const ADDRESS_RX = /^0x[a-fA-F0-9]{40}$/;
 const MAX_PAGES = 10; // ~500 transfers scanned per bridge
