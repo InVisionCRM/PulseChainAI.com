@@ -11,7 +11,6 @@ import { WatchlistPanel } from '@/components/portfolio/WatchlistPanel';
 import { TokenInsightsCard } from '@/components/portfolio/TokenInsightsCard';
 import { ManageTokensModal } from '@/components/portfolio/ManageTokensModal';
 import { ConnectWalletButton } from '@/components/portfolio/ConnectWalletButton';
-import { PortfolioBridgeFlows } from '@/components/portfolio/PortfolioBridgeFlows';
 import { fmtUsd } from '@/lib/format';
 
 export default function PortfolioPage() {
@@ -111,9 +110,6 @@ export default function PortfolioPage() {
               <EmptyState />
             ) : (
               <PortfolioGroups />
-            )}
-            {wallets.length > 0 && (
-              <PortfolioBridgeFlows wallets={wallets.map((w) => w.address)} />
             )}
           </div>
           <WatchlistPanel />

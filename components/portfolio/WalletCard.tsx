@@ -21,6 +21,7 @@ import { WalletConnections } from '@/components/portfolio/WalletConnections';
 import { WalletRelated } from '@/components/portfolio/WalletRelated';
 import { WalletGraph } from '@/components/portfolio/WalletGraph';
 import { WalletFundingTrace } from '@/components/portfolio/WalletFundingTrace';
+import { PortfolioBridgeFlows } from '@/components/portfolio/PortfolioBridgeFlows';
 import { isHexAddress } from '@/lib/hex/hexDay';
 import {
   applyTokenVisibility,
@@ -84,7 +85,7 @@ export function WalletCard({ wallet }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(wallet.label ?? '');
-  const [view, setView] = useState<'tokens' | 'activity' | 'defi' | 'staking' | 'connections' | 'funding'>('tokens');
+  const [view, setView] = useState<'tokens' | 'activity' | 'defi' | 'staking' | 'connections' | 'funding' | 'bridge'>('tokens');
   const [connView, setConnView] = useState<'list' | 'graph'>('list');
   const [sortKey, setSortKey] = useState<SortKey>('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -412,6 +413,15 @@ export function WalletCard({ wallet }: Props) {
             >
               Funding
             </button>
+            <button
+              type="button"
+              onClick={() => setView('bridge')}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                view === 'bridge' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              Bridge
+            </button>
           </div>
 
           {view === 'activity' ? (
@@ -456,6 +466,8 @@ export function WalletCard({ wallet }: Props) {
               address={wallet.address}
               chain={wallet.chains.includes('pulsechain') ? 'pulsechain' : wallet.chains[0]}
             />
+          ) : view === 'bridge' ? (
+            <PortfolioBridgeFlows wallets={[wallet.address]} embedded />
           ) : (
             <>
               {/* First-load: tell the user we auto-hid some tokens, give them a

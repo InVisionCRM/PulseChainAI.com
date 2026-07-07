@@ -15,6 +15,21 @@ export const BLOCKSCOUT_V2_BASES = [
   'https://scan.pulsechain.box/api/v2',
 ];
 
+// Circuit breaker: during the canonical explorer's outages, trying it first on
+// every request wastes seconds per call failing over. Once a base fails, skip it
+// for a cooldown so subsequent calls go straight to the healthy mirror. If every
+// base is cooling down we still try them all (best effort) rather than give up.
+const COOLDOWN_MS = 30_000;
+const baseFailUntil = new Map<string, number>();
+
+function orderedBases(): string[] {
+  const now = Date.now();
+  const live = BLOCKSCOUT_V2_BASES.filter((b) => (baseFailUntil.get(b) ?? 0) <= now);
+  return live.length ? live : [...BLOCKSCOUT_V2_BASES];
+}
+const markBaseDown = (base: string) => baseFailUntil.set(base, Date.now() + COOLDOWN_MS);
+const markBaseUp = (base: string) => baseFailUntil.delete(base);
+
 /**
  * GET a Blockscout v2 path (starting with `/`) with base failover. Tries each
  * base in order and returns the first OK JSON body, or null if all fail. Do NOT
@@ -25,7 +40,7 @@ export async function blockscoutJson(
   opts?: { revalidateSeconds?: number; timeoutMs?: number },
 ): Promise<any | null> {
   const timeoutMs = opts?.timeoutMs ?? 12_000;
-  for (const base of BLOCKSCOUT_V2_BASES) {
+  for (const base of orderedBases()) {
     try {
       const res = await fetch(base + path, {
         headers: { Accept: 'application/json' },
@@ -34,9 +49,13 @@ export async function blockscoutJson(
           : {}),
         signal: AbortSignal.timeout(timeoutMs),
       });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        markBaseUp(base);
+        return await res.json();
+      }
+      markBaseDown(base);
     } catch {
-      // Fall through to the next base.
+      markBaseDown(base);
     }
   }
   return null;
@@ -71,7 +90,7 @@ export async function fetchBlockscoutHolders(
   const tok = token.toLowerCase();
   const meta = await blockscoutJson(`/tokens/${tok}`);
 
-  for (const base of BLOCKSCOUT_V2_BASES) {
+  for (const base of orderedBases()) {
     try {
       const items: BlockscoutHolderItem[] = [];
       let path = `/tokens/${tok}/holders`;
@@ -81,7 +100,11 @@ export async function fetchBlockscoutHolders(
           headers: { Accept: 'application/json' },
           signal: AbortSignal.timeout(12_000),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          markBaseDown(base);
+          throw new Error(`HTTP ${res.status}`);
+        }
+        markBaseUp(base);
         const data = await res.json();
         const pageItems: BlockscoutHolderItem[] = Array.isArray(data?.items)
           ? data.items
@@ -110,6 +133,7 @@ export async function fetchBlockscoutHolders(
               : null,
       };
     } catch {
+      markBaseDown(base);
       // Try the next base.
     }
   }
