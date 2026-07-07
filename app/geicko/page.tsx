@@ -44,6 +44,9 @@ import {
   GeickoPressurePanel,
   GeickoTradesTab,
   GeickoForensicsTab,
+  GeickoTokenLeaguesPanel,
+  GeickoHolderGrowthPanel,
+  GeickoBridgeFlowsTab,
   GeickoToast,
   type OwnershipData,
 } from '@/components/geicko';
@@ -126,7 +129,7 @@ function GeickoPageContent() {
   const { showToast, updateToast, dismissToast } = useToast();
   const addressFromQuery = searchParams.get('address');
   const tabFromQuery = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'trades' | 'forensics' | 'holders' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
+  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'trades' | 'forensics' | 'holders' | 'bridge' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
   const tokenInfoTab: 'token' = 'token';
   const [apiTokenAddress, setApiTokenAddress] = useState<string>('');
   const [goldBadgeAddresses, setGoldBadgeAddresses] = useState<string[]>([]);
@@ -1084,7 +1087,7 @@ function GeickoPageContent() {
       setApiTokenAddress(addressFromQuery);
     }
     if (tabFromQuery) {
-      const validTabs = ['gold', 'chart', 'trades', 'forensics', 'holders', 'liquidity', 'contract', 'switch', 'stats', 'website', 'audit'];
+      const validTabs = ['gold', 'chart', 'trades', 'forensics', 'holders', 'bridge', 'liquidity', 'contract', 'switch', 'stats', 'website', 'audit'];
       if (validTabs.includes(tabFromQuery)) {
         setActiveTab(tabFromQuery as typeof activeTab);
       }
@@ -1454,6 +1457,7 @@ function GeickoPageContent() {
     { id: 'trades', label: 'Trades' },
     { id: 'forensics', label: 'Forensics' },
     { id: 'holders', label: 'Holders' },
+    { id: 'bridge', label: 'Bridge' },
     { id: 'liquidity', label: 'Liquidity' },
     { id: 'contract', label: 'Code' },
     { id: 'switch', label: 'Swap' },
@@ -2238,9 +2242,22 @@ function GeickoPageContent() {
                 </div>
               )}
 
+              {/* Bridge Inflows & Outflows Tab */}
+              {activeTab === 'bridge' && apiTokenAddress && (
+                <div className="w-full p-2 md:p-3">
+                  <GeickoBridgeFlowsTab token={apiTokenAddress} priceUsd={priceUsd} />
+                </div>
+              )}
+
               {/* Holders Tab */}
               {activeTab === 'holders' && (
                 <div className="space-y-3">
+                  {apiTokenAddress && (
+                    <GeickoHolderGrowthPanel token={apiTokenAddress} />
+                  )}
+                  {apiTokenAddress && (
+                    <GeickoTokenLeaguesPanel totalSupply={totalSupply} priceUsd={priceUsd} />
+                  )}
                   {apiTokenAddress && (
                     <BubbleMap
                       token={apiTokenAddress}

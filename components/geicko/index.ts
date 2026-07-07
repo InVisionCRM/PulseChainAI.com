@@ -29,6 +29,9 @@ export { default as GeickoLiquidityPanel } from './GeickoLiquidityPanel';
 export { default as GeickoPressurePanel } from './GeickoPressurePanel';
 export { default as GeickoTradesTab } from './GeickoTradesTab';
 export { default as GeickoForensicsTab } from './GeickoForensicsTab';
+export { default as GeickoTokenLeaguesPanel } from './GeickoTokenLeaguesPanel';
+export { default as GeickoHolderGrowthPanel } from './GeickoHolderGrowthPanel';
+export { default as GeickoBridgeFlowsTab } from './GeickoBridgeFlowsTab';
 
 // Export components - Phase 6 (Tab Content)
 export { default as GeickoHoldersTab } from './GeickoHoldersTab';
