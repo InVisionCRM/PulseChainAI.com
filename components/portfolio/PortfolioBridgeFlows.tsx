@@ -5,6 +5,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 export interface PortfolioBridgeFlowsProps {
   /** Wallet addresses to aggregate bridge flows across. */
   wallets: string[];
+  /** When true, render bare (no outer card/title) for use inside a wallet tab. */
+  embedded?: boolean;
 }
 
 interface Flow {
@@ -39,7 +41,7 @@ const fmtDate = (iso: string) => {
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
 };
 
-export function PortfolioBridgeFlows({ wallets }: PortfolioBridgeFlowsProps) {
+export function PortfolioBridgeFlows({ wallets, embedded }: PortfolioBridgeFlowsProps) {
   const [data, setData] = useState<WalletBridge | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'in' | 'out'>('all');
@@ -101,14 +103,22 @@ export function PortfolioBridgeFlows({ wallets }: PortfolioBridgeFlowsProps) {
   const empty = !t || (t.inflowCount === 0 && t.outflowCount === 0);
 
   return (
-    <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl p-5 space-y-4">
-      <h2 className="text-lg font-semibold text-[var(--text)]">Bridge Inflows &amp; Outflows</h2>
+    <div
+      className={
+        embedded
+          ? 'space-y-4'
+          : 'rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl p-5 space-y-4'
+      }
+    >
+      {!embedded && (
+        <h2 className="text-lg font-semibold text-[var(--text)]">Bridge Inflows &amp; Outflows</h2>
+      )}
 
       {loading && !data ? (
         <div className="grid h-32 place-items-center text-sm text-[var(--text-faint)]">Loading…</div>
       ) : empty ? (
         <div className="grid h-28 place-items-center text-center text-sm text-[var(--text-faint)]">
-          No bridge activity found for your tracked wallets.
+          No bridge activity found for this wallet.
         </div>
       ) : (
         <>
