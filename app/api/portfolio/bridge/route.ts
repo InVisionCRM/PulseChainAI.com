@@ -56,9 +56,21 @@ export async function GET(req: NextRequest) {
       new URLSearchParams(Object.entries(np).map(([k, v]) => [k, String(v)])).toString();
   }
 
-  // 2) Price every token that appeared.
+  // 2) Price every token that appeared. Prefer a PulseChain DEX price; fall back
+  // to the explorer's own exchange_rate (chain-native, so it's correct for
+  // forked tokens whose address is a high-value asset on Ethereum, e.g. WETH).
   const tokenAddrs = [...new Set(matches.map((m) => tokenAddrOf(m.it)).filter(Boolean))];
-  const prices = tokenAddrs.length ? await fetchUsdPrices(tokenAddrs) : new Map<string, number>();
+  const prices = tokenAddrs.length
+    ? await fetchUsdPrices(tokenAddrs, 'pulsechain')
+    : new Map<string, number>();
+  const explorerRate = new Map<string, number>();
+  for (const { it } of matches) {
+    const addr = tokenAddrOf(it);
+    const rate = Number(it?.token?.exchange_rate);
+    if (addr && Number.isFinite(rate) && rate > 0 && !explorerRate.has(addr)) {
+      explorerRate.set(addr, rate);
+    }
+  }
 
   // 3) Build flows, dropping priced dust.
   const flows: Flow[] = [];
@@ -66,7 +78,7 @@ export async function GET(req: NextRequest) {
     const tokenAddress = tokenAddrOf(it);
     const decimals = Number(it?.total?.decimals ?? 18) || 18;
     const amount = Number(it?.total?.value ?? 0) / Math.pow(10, decimals);
-    const price = prices.get(tokenAddress) ?? 0;
+    const price = prices.get(tokenAddress) ?? explorerRate.get(tokenAddress) ?? 0;
     const usd = amount * price;
     if (price > 0 && usd < MIN_USD) continue;
     flows.push({
