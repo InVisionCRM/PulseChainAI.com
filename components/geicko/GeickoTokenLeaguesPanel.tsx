@@ -10,27 +10,25 @@ export interface GeickoTokenLeaguesPanelProps {
   symbol?: string | null;
 }
 
-// Ownership tiers, largest share first. Our own rank ladder — a mythic-beast
-// hierarchy with rarity-style names and per-tier colours — rather than the
-// generic sea-creature set. Class strings are spelled out statically so Tailwind
-// keeps them.
+// Ownership tiers, largest share first — the original sea-creature ranks, kept
+// as-is. Only the visual treatment (per-tier colours) is new. Class strings are
+// spelled out statically so Tailwind keeps them.
 interface League {
   pct: number;
   label: string;
   beast: string;
-  rank: string;
-  text: string; // rank name colour
+  text: string; // percentage colour
   ring: string; // badge ring colour
   glow: string; // row gradient tint (from-…)
 }
 const LEAGUES: League[] = [
-  { pct: 0.1,       label: '10%',      beast: '🐉', rank: 'Sovereign', text: 'text-amber-300',   ring: 'ring-amber-400/50',   glow: 'from-amber-500/[0.10]' },
-  { pct: 0.01,      label: '1%',       beast: '🦅', rank: 'Mythic',    text: 'text-rose-300',    ring: 'ring-rose-400/50',    glow: 'from-rose-500/[0.10]' },
-  { pct: 0.001,     label: '0.1%',     beast: '🦁', rank: 'Legendary', text: 'text-violet-300',  ring: 'ring-violet-400/50',  glow: 'from-violet-500/[0.10]' },
-  { pct: 0.0001,    label: '0.01%',    beast: '🐺', rank: 'Epic',      text: 'text-indigo-300',  ring: 'ring-indigo-400/50',  glow: 'from-indigo-500/[0.10]' },
-  { pct: 0.00001,   label: '0.001%',   beast: '🦊', rank: 'Rare',      text: 'text-cyan-300',    ring: 'ring-cyan-400/50',    glow: 'from-cyan-500/[0.10]' },
-  { pct: 0.000001,  label: '0.0001%',  beast: '🦉', rank: 'Uncommon',  text: 'text-emerald-300', ring: 'ring-emerald-400/50', glow: 'from-emerald-500/[0.10]' },
-  { pct: 0.0000001, label: '0.00001%', beast: '🐭', rank: 'Common',    text: 'text-slate-300',   ring: 'ring-slate-400/40',   glow: 'from-slate-500/[0.08]' },
+  { pct: 0.1,       label: '10%',      beast: '🌊', text: 'text-amber-300',   ring: 'ring-amber-400/50',   glow: 'from-amber-500/[0.10]' },
+  { pct: 0.01,      label: '1%',       beast: '🐋', text: 'text-rose-300',    ring: 'ring-rose-400/50',    glow: 'from-rose-500/[0.10]' },
+  { pct: 0.001,     label: '0.1%',     beast: '🦈', text: 'text-violet-300',  ring: 'ring-violet-400/50',  glow: 'from-violet-500/[0.10]' },
+  { pct: 0.0001,    label: '0.01%',    beast: '🐬', text: 'text-indigo-300',  ring: 'ring-indigo-400/50',  glow: 'from-indigo-500/[0.10]' },
+  { pct: 0.00001,   label: '0.001%',   beast: '🦑', text: 'text-cyan-300',    ring: 'ring-cyan-400/50',    glow: 'from-cyan-500/[0.10]' },
+  { pct: 0.000001,  label: '0.0001%',  beast: '🐢', text: 'text-emerald-300', ring: 'ring-emerald-400/50', glow: 'from-emerald-500/[0.10]' },
+  { pct: 0.0000001, label: '0.00001%', beast: '🦀', text: 'text-slate-300',   ring: 'ring-slate-400/40',   glow: 'from-slate-500/[0.08]' },
 ];
 
 const formatUsd = (v: number): string =>
@@ -74,7 +72,7 @@ export default function GeickoTokenLeaguesPanel({
         </div>
       </div>
 
-      {/* Rank ladder */}
+      {/* Tier ladder */}
       <ul className="p-2 space-y-1.5">
         {rows.map((r) => (
           <li
@@ -88,9 +86,9 @@ export default function GeickoTokenLeaguesPanel({
               {r.beast}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2">
-                <span className={`text-sm font-bold ${r.text}`}>{r.rank}</span>
-                <span className="text-[11px] font-medium text-[var(--text-faint)]">≥ {r.label}</span>
+              <div className="flex items-baseline gap-1.5">
+                <span className={`text-sm font-bold ${r.text}`}>{r.label}</span>
+                <span className="text-[11px] font-medium text-[var(--text-faint)]">of supply</span>
               </div>
               <div className="font-mono text-[11px] text-[var(--text-muted)]">
                 {formatAbbrev(r.tokens)}
