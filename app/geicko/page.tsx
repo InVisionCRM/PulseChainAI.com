@@ -2256,7 +2256,7 @@ function GeickoPageContent() {
                     <GeickoHolderGrowthPanel token={apiTokenAddress} />
                   )}
                   {apiTokenAddress && (
-                    <GeickoTokenLeaguesPanel totalSupply={totalSupply} priceUsd={priceUsd} />
+                    <GeickoTokenLeaguesPanel totalSupply={totalSupply} priceUsd={priceUsd} symbol={baseSymbol} />
                   )}
                   {apiTokenAddress && (
                     <BubbleMap
