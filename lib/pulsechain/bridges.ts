@@ -8,7 +8,12 @@ export interface BridgeInfo {
 }
 
 export const BRIDGES: BridgeInfo[] = [
-  { address: '0x1715a3e4a142d8b698131108995174f37aeba10d', label: 'PulseChain Bridge' },
+  // PulseChain-side omnibridge mediator — where tokens are sent to bridge OUT to
+  // Ethereum (and released FROM when bridging in). This is the contract real
+  // bridge flows go through on PulseChain; verified against known bridge-out
+  // transactions. NOTE: 0x1715a3e4…aeba10d is the *Ethereum-side* omnibridge
+  // and only receives dust on PulseChain, so it is intentionally not used here.
+  { address: '0x4fd0aaa7506f3d9cb8274bdb946ec42a1b8751ef', label: 'PulseChain Bridge' },
 ];
 
 export const BRIDGE_SET = new Set(BRIDGES.map((b) => b.address.toLowerCase()));
