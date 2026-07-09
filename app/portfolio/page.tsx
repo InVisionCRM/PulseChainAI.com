@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { IconWallet, IconRefresh, IconStar } from '@tabler/icons-react';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { useGroupsStore } from '@/lib/stores/groupsStore';
 import { AddWalletForm } from '@/components/portfolio/AddWalletForm';
 import { PortfolioGroups } from '@/components/portfolio/PortfolioGroups';
-import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
 import { WatchlistPanel } from '@/components/portfolio/WatchlistPanel';
 import { TokenInsightsCard } from '@/components/portfolio/TokenInsightsCard';
 import { ManageTokensModal } from '@/components/portfolio/ManageTokensModal';
@@ -17,7 +16,6 @@ export default function PortfolioPage() {
   const wallets = usePortfolioStore((s) => s.wallets);
   const snapshotsByAddress = usePortfolioStore((s) => s.snapshotsByAddress);
   const refreshAll = usePortfolioStore((s) => s.refreshAll);
-  const recordHistory = usePortfolioStore((s) => s.recordHistory);
   const hasSavedMembers = useGroupsStore((s) => s.members.length > 0);
 
   const aggregateUsd = useMemo(
@@ -32,17 +30,6 @@ export default function PortfolioPage() {
   const anyLoading = wallets.some(
     (w) => snapshotsByAddress[w.address]?.isLoading,
   );
-
-  // Build the value-over-time history during normal use: record once the
-  // aggregate settles (seeds the first point on first load), again whenever it
-  // changes, and on a 5-min tick so the chart accrues points even while idle.
-  // recordHistory throttles itself (replace within the bucket, append across).
-  useEffect(() => {
-    if (wallets.length === 0) return;
-    if (!anyLoading) recordHistory();
-    const id = setInterval(recordHistory, 5 * 60 * 1000);
-    return () => clearInterval(id);
-  }, [wallets.length, aggregateUsd, anyLoading, recordHistory]);
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)]">
@@ -105,7 +92,6 @@ export default function PortfolioPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
           <div className="space-y-6 min-w-0">
             <AddWalletForm />
-            {wallets.length > 0 && <PortfolioChart />}
             {wallets.length === 0 && !hasSavedMembers ? (
               <EmptyState />
             ) : (
