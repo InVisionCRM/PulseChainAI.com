@@ -18,6 +18,7 @@ import PairsTable from './PairsTable';
 import MarketBubbles from './MarketBubbles';
 import SearchModal from './SearchModal';
 import { useScreenerWatchlist } from './watchlist';
+import { fetchPinnedRows, isPinnedAddress } from '@/lib/screener/pinned';
 import { usePollingEffect } from '@/hooks/usePollingEffect';
 
 const REFRESH_MS = 60000;
@@ -46,6 +47,7 @@ export default function Screener() {
   const [filters, setFilters] = useState<ScreenerFilters>(EMPTY_FILTERS);
   const [page, setPage] = useState(0);
   const [rows, setRows] = useState<ScreenerRow[]>([]);
+  const [pinnedRows, setPinnedRows] = useState<ScreenerRow[]>([]);
   const [stats, setStats] = useState<ScreenerStats | null>(null);
   const [dexes, setDexes] = useState<DexInfo[]>([]);
   const [fetchedAt, setFetchedAt] = useState<number | null>(null);
@@ -115,6 +117,21 @@ export default function Screener() {
     load(0, false);
   }, [load]);
 
+  // Pinned tokens (e.g. Morbius) are always shown at the top of the list,
+  // resolved live and independently of the current tab/sort/filters. Refreshed
+  // on the same cadence as the table.
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetchPinnedRows(ctrl.signal).then(setPinnedRows).catch(() => {});
+    const id = setInterval(() => {
+      fetchPinnedRows().then(setPinnedRows).catch(() => {});
+    }, REFRESH_MS);
+    return () => {
+      ctrl.abort();
+      clearInterval(id);
+    };
+  }, []);
+
   // Live refresh only on the first page; paused while a background tab and
   // while paginated away. Becoming visible again refreshes immediately.
   usePollingEffect(() => load(0, false), REFRESH_MS, { enabled: page === 0 });
@@ -152,10 +169,18 @@ export default function Screener() {
   };
 
   // Watchlist rows sort client-side; server tabs are sorted by the API.
-  const displayRows =
+  const sortedRows =
     tab === 'watchlist' && sort
       ? [...rows].sort((a, b) => (sortValue(a, sort, window_) - sortValue(b, sort, window_)) * (dir === 'asc' ? 1 : -1))
       : rows;
+
+  // Pin the pinned tokens to the very top on the main (non-watchlist) tabs,
+  // dropping any copy already present so they never appear twice. The watchlist
+  // tab stays user-curated.
+  const displayRows =
+    tab === 'watchlist' || pinnedRows.length === 0
+      ? sortedRows
+      : [...pinnedRows, ...sortedRows.filter((r) => !isPinnedAddress(r.baseAddress))];
 
   return (
     <div className="w-full min-w-0 space-y-2">
