@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { IconRefresh, IconMaximize, IconMinimize } from '@tabler/icons-react';
 import type { ScreenerRow, ScreenerUiTab, ScreenerFilters } from '@/lib/screener/types';
+import { fetchPinnedRows } from '@/lib/screener/pinned';
 import { fmtUsd } from '@/lib/format';
 
 // Counts above 100 look cramped on a phone, so mobile gets a lighter set.
@@ -302,6 +303,11 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
     const finalize = (): ScreenerRow[] =>
       [...byToken.values()].slice(0, count).map((e) => ({ ...e.rep, liquidityUsd: e.mainLiq }));
 
+    // Pinned tokens (e.g. Morbius) go in first so they always get a bubble and
+    // survive the `count` slice, on every tab.
+    const pinned = await fetchPinnedRows();
+    pinned.forEach(addPair);
+
     if (tab === 'watchlist') {
       if (!watchlistParam) return [];
       const res = await fetch(`/api/watchlist?tokens=${encodeURIComponent(watchlistParam)}`);
@@ -319,12 +325,19 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       if (filters.minVol24 !== null) qs.set('minVol', String(filters.minVol24));
       if (filters.minAgeH !== null) qs.set('minAgeH', String(filters.minAgeH));
       if (filters.maxAgeH !== null) qs.set('maxAgeH', String(filters.maxAgeH));
-      const res = await fetch(`/api/screener?${qs}`);
-      if (!res.ok) throw new Error(`screener ${res.status}`);
-      const json = await res.json();
-      const rows: ScreenerRow[] = json.rows ?? [];
-      rows.forEach(addPair);
-      if (rows.length < PAGE_SIZE) break;
+      try {
+        const res = await fetch(`/api/screener?${qs}`);
+        if (!res.ok) throw new Error(`screener ${res.status}`);
+        const json = await res.json();
+        const rows: ScreenerRow[] = json.rows ?? [];
+        rows.forEach(addPair);
+        if (rows.length < PAGE_SIZE) break;
+      } catch (err) {
+        // If the screener feed fails we still want the pinned tokens to show, so
+        // only surface the error when there's genuinely nothing to render.
+        if (byToken.size === 0) throw err;
+        break;
+      }
     }
     return finalize();
   }, [tab, dexId, filters, watchlistParam, count]);
