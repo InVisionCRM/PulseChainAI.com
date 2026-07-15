@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   if (!ADDRESS_RX.test(address)) {
     return NextResponse.json({ error: 'Invalid address' }, { status: 400 });
   }
-  const chain: ChainId = body.chain === 'ethereum' ? 'ethereum' : 'pulsechain';
+  const chain: ChainId = body.chain === 'ethereum' ? 'ethereum' : body.chain === 'robinhood' ? 'robinhood' : 'pulsechain';
   // Up to 1000 bubbles — paginated holder fetch is cheap (50/page) and the
   // renderer uses Barnes-Hut, so node count is not the bottleneck. Clusters are
   // capped separately in /holder-graph.

@@ -49,27 +49,33 @@ type Cursor = WalletHistoryResponse['nextCursor'];
 const CHAIN_LOGO: Record<ChainId, string> = {
   ethereum: '/ethlogo.svg',
   pulsechain: '/LogoVector.svg',
+  robinhood: '/robinhood-logo.svg',
 };
 const CHAIN_NAME: Record<ChainId, string> = {
   ethereum: 'Ethereum',
   pulsechain: 'PulseChain',
+  robinhood: 'Robinhood',
 };
 const NATIVE_SYMBOL: Record<ChainId, string> = {
   ethereum: 'ETH',
   pulsechain: 'PLS',
+  robinhood: 'ETH',
 };
 // PulseChain → Otterscan-on-IPFS (see lib/pulsechainExplorer); Ethereum → Etherscan.
 const EXPLORER_TX: Record<ChainId, (h: string) => string> = {
   pulsechain: pulsechainTxUrl,
   ethereum: (h) => `https://etherscan.io/tx/${h}`,
+  robinhood: (h) => `https://robinhoodchain.blockscout.com/tx/${h}`,
 };
 const EXPLORER_NAME: Record<ChainId, string> = {
   pulsechain: PULSECHAIN_EXPLORER_NAME,
   ethereum: 'Etherscan',
+  robinhood: 'Blockscout',
 };
 const EXPLORER_ADDR: Record<ChainId, (a: string) => string> = {
   pulsechain: pulsechainAddressUrl,
   ethereum: (a) => `https://etherscan.io/address/${a}`,
+  robinhood: (a) => `https://robinhoodchain.blockscout.com/address/${a}`,
 };
 
 // DexScreener slug per chain — used for its token-image CDN, which covers
@@ -77,6 +83,7 @@ const EXPLORER_ADDR: Record<ChainId, (a: string) => string> = {
 const DS_CHAIN: Record<ChainId, string> = {
   pulsechain: 'pulsechain',
   ethereum: 'ethereum',
+  robinhood: 'robinhood',
 };
 
 // Ordered list of logo URLs to try for a flow's token, best hint first. The

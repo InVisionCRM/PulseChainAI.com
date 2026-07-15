@@ -7,11 +7,12 @@ import { NextRequest, NextResponse } from 'next/server';
 // from Blockscout's tokens endpoint. Revoking is delegated to revoke.cash
 // via per-row deeplinks — we don't write transactions from the app.
 
-type ChainId = 'ethereum' | 'pulsechain';
+type ChainId = 'ethereum' | 'pulsechain' | 'robinhood';
 
 const BLOCKSCOUT_BASE: Record<ChainId, string> = {
   pulsechain: 'https://api.scan.pulsechain.com/api/v2',
   ethereum: 'https://eth.blockscout.com/api/v2',
+  robinhood: 'https://robinhoodchain.blockscout.com/api/v2',
 };
 
 // Anything above this is functionally "unlimited" (real ERC-20 supplies
@@ -176,7 +177,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 });
   }
 
-  const chain: ChainId = body?.chain === 'ethereum' ? 'ethereum' : 'pulsechain';
+  const chain: ChainId = body?.chain === 'ethereum' ? 'ethereum' : body?.chain === 'robinhood' ? 'robinhood' : 'pulsechain';
   const address = String(body?.address || '').trim().toLowerCase();
   if (!ADDRESS_RX.test(address)) {
     return NextResponse.json({ error: 'invalid address' }, { status: 400 });

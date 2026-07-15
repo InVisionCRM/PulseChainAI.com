@@ -41,6 +41,7 @@ const ADDRESS_RX = /^0x[a-fA-F0-9]{40}$/;
 const BLOCKSCOUT_BASE: Record<ChainId, string> = {
   pulsechain: 'https://api.scan.pulsechain.com/api/v2',
   ethereum: 'https://eth.blockscout.com/api/v2',
+  robinhood: 'https://robinhoodchain.blockscout.com/api/v2',
 };
 
 // Real chain marks overlaid as a small badge on the token icon (DeBank /
@@ -48,11 +49,13 @@ const BLOCKSCOUT_BASE: Record<ChainId, string> = {
 const CHAIN_LOGO: Record<ChainId, string> = {
   ethereum: '/ethlogo.svg',
   pulsechain: '/LogoVector.svg',
+  robinhood: '/robinhood-logo.svg',
 };
 
 const CHAIN_NAME: Record<ChainId, string> = {
   ethereum: 'Ethereum',
   pulsechain: 'PulseChain',
+  robinhood: 'Robinhood',
 };
 
 interface SearchHit {

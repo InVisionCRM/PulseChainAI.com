@@ -13,6 +13,7 @@ const ALL_CHAINS: { id: ChainId; label: string }[] = [
 const CHAIN_LOGO: Record<ChainId, string> = {
   ethereum: '/ethlogo.svg',
   pulsechain: '/LogoVector.svg',
+  robinhood: '/robinhood-logo.svg',
 };
 
 export function AddWalletForm() {

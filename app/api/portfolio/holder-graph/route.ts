@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   if (!ADDRESS_RX.test(address)) {
     return NextResponse.json({ error: 'Invalid address' }, { status: 400 });
   }
-  const chain: ChainId = body.chain === 'ethereum' ? 'ethereum' : 'pulsechain';
+  const chain: ChainId = body.chain === 'ethereum' ? 'ethereum' : body.chain === 'robinhood' ? 'robinhood' : 'pulsechain';
   // Hard ceiling on clustered holders — beyond ~200 the per-holder transfer
   // scan gets slow and abusive to Blockscout. 150 is the sweet spot.
   const edgeLimit = Math.min(Math.max(body.edgeLimit ?? 150, 10), 200);

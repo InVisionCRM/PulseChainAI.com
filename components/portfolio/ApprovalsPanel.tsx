@@ -15,6 +15,7 @@ import { fmtNum } from '@/lib/format';
 const CHAIN_ID_NUM: Record<ChainId, number> = {
   ethereum: 1,
   pulsechain: 369,
+  robinhood: 4663,
 };
 
 const CHAIN_PILL: Record<ChainId, CSSProperties> = {
@@ -28,11 +29,17 @@ const CHAIN_PILL: Record<ChainId, CSSProperties> = {
     borderColor: 'rgba(217, 70, 239, 0.5)',
     color: '#f5d0fe',
   },
+  robinhood: {
+    backgroundColor: 'rgba(0, 200, 5, 0.15)',
+    borderColor: 'rgba(0, 200, 5, 0.5)',
+    color: '#bbf7d0',
+  },
 };
 
 const CHAIN_LABEL: Record<ChainId, string> = {
   ethereum: 'ETH',
   pulsechain: 'PLS',
+  robinhood: 'RH',
 };
 
 interface Approval {

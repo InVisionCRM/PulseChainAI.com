@@ -28,6 +28,7 @@ import type { AddressCategory } from '@/lib/gumshoe/address-labels';
 const BLOCKSCOUT_BASE: Record<ChainId, string> = {
   pulsechain: 'https://api.scan.pulsechain.com/api/v2',
   ethereum: 'https://eth.blockscout.com/api/v2',
+  robinhood: 'https://robinhoodchain.blockscout.com/api/v2',
 };
 
 // Categories that interact with too many wallets to imply any relationship.

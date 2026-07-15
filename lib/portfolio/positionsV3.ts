@@ -23,6 +23,7 @@ const PM = {
 const BLOCKSCOUT: Record<ChainId, string> = {
   pulsechain: 'https://api.scan.pulsechain.com/api/v2',
   ethereum: 'https://eth.blockscout.com/api/v2',
+  robinhood: 'https://robinhoodchain.blockscout.com/api/v2',
 };
 
 const MAX_NFTS = 40; // bound RPC fan-out

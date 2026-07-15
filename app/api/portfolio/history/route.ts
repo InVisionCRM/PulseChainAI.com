@@ -34,6 +34,7 @@ import { fetchUsdPrices } from '@/lib/portfolio/dexPrices';
 const BLOCKSCOUT_BASE: Record<ChainId, string> = {
   pulsechain: 'https://api.scan.pulsechain.com/api/v2',
   ethereum: 'https://eth.blockscout.com/api/v2',
+  robinhood: 'https://robinhoodchain.blockscout.com/api/v2',
 };
 
 const FETCH_TIMEOUT_MS = 10_000;
@@ -817,7 +818,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 });
   }
 
-  const chain: ChainId = body?.chain === 'ethereum' ? 'ethereum' : 'pulsechain';
+  const chain: ChainId = body?.chain === 'ethereum' ? 'ethereum' : body?.chain === 'robinhood' ? 'robinhood' : 'pulsechain';
   const wallet = String(body?.address || '').trim().toLowerCase();
   if (!ADDRESS_RX.test(wallet)) {
     return NextResponse.json({ error: 'invalid address' }, { status: 400 });

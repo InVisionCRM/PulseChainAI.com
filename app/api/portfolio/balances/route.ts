@@ -13,11 +13,12 @@ import { NextRequest, NextResponse } from 'next/server';
 // logos still go through DexScreener downstream; this route is strictly
 // the chain-side "what does this wallet hold" layer.
 
-type ChainId = 'ethereum' | 'pulsechain';
+type ChainId = 'ethereum' | 'pulsechain' | 'robinhood';
 
 const BLOCKSCOUT_BASE: Record<ChainId, string> = {
   pulsechain: 'https://api.scan.pulsechain.com/api/v2',
   ethereum: 'https://eth.blockscout.com/api/v2',
+  robinhood: 'https://robinhoodchain.blockscout.com/api/v2',
 };
 
 const FETCH_TIMEOUT_MS = 12_000;
@@ -37,6 +38,7 @@ const RPC_URLS: Record<ChainId, string[]> = {
     'https://ethereum-rpc.publicnode.com',
     'https://rpc.ankr.com/eth',
   ],
+  robinhood: ['https://rpc.mainnet.chain.robinhood.com'],
 };
 const RPC_TIMEOUT_MS = 8_000;
 const BATCH_CHUNK = 80;
@@ -83,6 +85,13 @@ const FALLBACK_TOKENS: Record<ChainId, string[]> = {
     '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9', // AAVE
     '0x6982508145454ce325ddbe47a25d4ec3d2311933', // PEPE
     '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39', // HEX
+  ],
+  robinhood: [
+    '0x0bd7d308f8e1639fab988df18a8011f41eacad73', // WETH (aeWETH)
+    '0x5fc5360d0400a0fd4f2af552add042d716f1d168', // USDG
+    '0xaf3d76f1834a1d425780943c99ea8a608f8a93f9', // AAPL
+    '0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec', // NVDA
+    '0x322f0929c4625ed5bad873c95208d54e1c003b2d', // TSLA
   ],
 };
 
@@ -340,7 +349,7 @@ export async function POST(req: NextRequest) {
 
   const address = body?.address;
   const chain: ChainId =
-    body?.chain === 'ethereum' ? 'ethereum' : 'pulsechain';
+    body?.chain === 'ethereum' ? 'ethereum' : body?.chain === 'robinhood' ? 'robinhood' : 'pulsechain';
 
   if (!isValidAddress(address)) {
     return NextResponse.json({ error: 'invalid address' }, { status: 400 });

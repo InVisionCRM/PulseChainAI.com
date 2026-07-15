@@ -12,12 +12,16 @@ import { NextRequest, NextResponse } from 'next/server';
 // On any miss we return { candles: [] } so the client can swap in the
 // DexScreener embed fallback.
 
-type ChainId = 'ethereum' | 'pulsechain';
+type ChainId = 'ethereum' | 'pulsechain' | 'robinhood';
 
 // GeckoTerminal network slugs differ from our ChainId.
 const GT_NETWORK: Record<ChainId, string> = {
   ethereum: 'eth',
   pulsechain: 'pulsechain',
+  // GeckoTerminal does not list Robinhood Chain yet; an empty slug makes the
+  // route skip cleanly (see the `!GT_NETWORK[chain]` guard). Fill in when GT
+  // adds the network.
+  robinhood: '',
 };
 
 const GT_BASE = 'https://api.geckoterminal.com/api/v2';
@@ -38,6 +42,7 @@ const ADDRESS_RX = /^0x[a-f0-9]{40}$/i;
 const WRAPPED_NATIVE: Record<ChainId, string> = {
   ethereum: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
   pulsechain: '0xa1077a294dde1b09bb078844df40758a5d0f9a27', // WPLS
+  robinhood: '0x0bd7d308f8e1639fab988df18a8011f41eacad73', // aeWETH
 };
 const NATIVE_SENTINELS = new Set([
   '0x0000000000000000000000000000000000000000',

@@ -339,16 +339,21 @@ export interface NFTInstance {
 }
 
 // Portfolio tracker types
-export type ChainId = 'ethereum' | 'pulsechain';
+export type ChainId = 'ethereum' | 'pulsechain' | 'robinhood';
 
 export const CHAIN_NATIVE_SYMBOL: Record<ChainId, string> = {
   ethereum: 'ETH',
   pulsechain: 'PLS',
+  robinhood: 'ETH', // Robinhood Chain is an L2 with ETH gas
 };
 
 export const CHAIN_MORALIS_ID: Record<ChainId, string> = {
   ethereum: '0x1',
   pulsechain: '0x171',
+  // Moralis does not index Robinhood Chain (4663) yet; this value is unused —
+  // Robinhood balances are sourced from Blockscout instead (see the balances
+  // route). Kept populated only to satisfy the Record<ChainId> shape.
+  robinhood: '0x1237',
 };
 
 // Native gas tokens can't be priced directly via DexScreener — instead we
@@ -357,6 +362,7 @@ export const CHAIN_MORALIS_ID: Record<ChainId, string> = {
 export const WRAPPED_NATIVE: Record<ChainId, string> = {
   ethereum: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
   pulsechain: '0xa1077a294dde1b09bb078844df40758a5d0f9a27', // WPLS
+  robinhood: '0x0bd7d308f8e1639fab988df18a8011f41eacad73', // aeWETH
 };
 
 // Marker address for native gas-token rows. EVM convention is the zero
