@@ -73,7 +73,7 @@ async function searchCrossChain(query: string): Promise<SearchHit[]> {
   // Address paste → look the token up on every chain.
   if (ADDRESS_RX.test(q)) {
     const results = await Promise.all(
-      (['pulsechain', 'ethereum'] as ChainId[]).map(async (chain) => {
+      (['pulsechain', 'ethereum', 'robinhood'] as ChainId[]).map(async (chain) => {
         try {
           const r = await fetch(`${BLOCKSCOUT_BASE[chain]}/tokens/${q}`);
           if (!r.ok) return null;
@@ -96,7 +96,7 @@ async function searchCrossChain(query: string): Promise<SearchHit[]> {
 
   // Name / symbol search on each chain.
   const lists = await Promise.all(
-    (['pulsechain', 'ethereum'] as ChainId[]).map(async (chain) => {
+    (['pulsechain', 'ethereum', 'robinhood'] as ChainId[]).map(async (chain) => {
       try {
         const r = await fetch(
           `${BLOCKSCOUT_BASE[chain]}/search?q=${encodeURIComponent(q)}`,

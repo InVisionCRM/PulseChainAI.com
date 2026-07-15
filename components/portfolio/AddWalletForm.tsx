@@ -9,6 +9,7 @@ const ADDRESS_RX = /^0x[a-fA-F0-9]{40}$/;
 const ALL_CHAINS: { id: ChainId; label: string }[] = [
   { id: 'ethereum', label: 'Ethereum' },
   { id: 'pulsechain', label: 'PulseChain' },
+  { id: 'robinhood', label: 'Robinhood' },
 ];
 const CHAIN_LOGO: Record<ChainId, string> = {
   ethereum: '/ethlogo.svg',
@@ -22,7 +23,11 @@ export function AddWalletForm() {
 
   const [address, setAddress] = useState('');
   const [label, setLabel] = useState('');
-  const [chains, setChains] = useState<ChainId[]>(['ethereum', 'pulsechain']);
+  const [chains, setChains] = useState<ChainId[]>([
+    'ethereum',
+    'pulsechain',
+    'robinhood',
+  ]);
   const [error, setError] = useState<string | null>(null);
 
   const toggleChain = (id: ChainId) =>
