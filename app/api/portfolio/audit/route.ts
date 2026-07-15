@@ -13,7 +13,7 @@ import type { ContractAuditResult } from '@/types';
 // Ethereum audits would need an eth.blockscout-shaped contract fetcher,
 // which is a follow-up.
 
-type ChainId = 'ethereum' | 'pulsechain';
+type ChainId = 'ethereum' | 'pulsechain' | 'robinhood';
 
 interface AuditSummary {
   supported: boolean;
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 
   const address = body?.address;
   const chain: ChainId =
-    body?.chain === 'ethereum' ? 'ethereum' : 'pulsechain';
+    body?.chain === 'ethereum' ? 'ethereum' : body?.chain === 'robinhood' ? 'robinhood' : 'pulsechain';
 
   if (!isValidAddress(address)) {
     return NextResponse.json({ error: 'invalid address' }, { status: 400 });

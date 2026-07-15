@@ -9,11 +9,13 @@ import type { ChainId } from '@/services';
 const CHAIN_LOGO_SRC: Record<ChainId, string> = {
   ethereum: '/ethlogo.svg',
   pulsechain: '/LogoVector.svg',
+  robinhood: '/robinhood-logo.svg',
 };
 
 export const CHAIN_NAMES: Record<ChainId, string> = {
   ethereum: 'Ethereum',
   pulsechain: 'PulseChain',
+  robinhood: 'Robinhood',
 };
 
 export function ChainLogo({

@@ -13,11 +13,12 @@
 import { getKnownAddress, type AddressCategory } from '@/lib/gumshoe/address-labels';
 import { fetchBlockscoutHolders } from '@/lib/blockscout';
 
-export type ChainId = 'ethereum' | 'pulsechain';
+export type ChainId = 'ethereum' | 'pulsechain' | 'robinhood';
 
 const BLOCKSCOUT_BASE: Record<ChainId, string> = {
   pulsechain: 'https://api.scan.pulsechain.com/api/v2',
   ethereum: 'https://eth.blockscout.com/api/v2',
+  robinhood: 'https://robinhoodchain.blockscout.com/api/v2',
 };
 
 export interface HolderNode {

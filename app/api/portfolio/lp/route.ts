@@ -24,12 +24,14 @@ const RPC_URLS: Record<string, string[]> = {
     'https://ethereum-rpc.publicnode.com',
     'https://rpc.ankr.com/eth',
   ],
+  robinhood: ['https://rpc.mainnet.chain.robinhood.com'],
 };
 
 // Blockscout token endpoint — fallback when every RPC is down.
 const BLOCKSCOUT_TOKEN_URL: Record<string, string> = {
   pulsechain: 'https://api.scan.pulsechain.com/api/v2/tokens',
   ethereum: 'https://eth.blockscout.com/api/v2/tokens',
+  robinhood: 'https://robinhoodchain.blockscout.com/api/v2/tokens',
 };
 
 // keccak256 selectors for V2 pair / ERC-20 reads we care about
@@ -55,9 +57,10 @@ const DEX_HEADERS = {
 const DEX_CHAIN: Record<string, string> = {
   ethereum: 'ethereum',
   pulsechain: 'pulsechain',
+  robinhood: 'robinhood',
 };
 
-type ChainId = 'ethereum' | 'pulsechain';
+type ChainId = 'ethereum' | 'pulsechain' | 'robinhood';
 
 interface LpSide {
   address: string;
@@ -485,7 +488,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 });
   }
 
-  const chainId: ChainId = body?.chain === 'ethereum' ? 'ethereum' : 'pulsechain';
+  const chainId: ChainId = body?.chain === 'ethereum' ? 'ethereum' : body?.chain === 'robinhood' ? 'robinhood' : 'pulsechain';
   const addresses = parseAddresses(body?.addresses);
   if (addresses.length === 0) {
     return NextResponse.json({ lps: {} });

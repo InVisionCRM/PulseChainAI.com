@@ -14,6 +14,7 @@ const ADDRESS_RX = /^0x[a-fA-F0-9]{40}$/;
 const BLOCKSCOUT: Record<ChainId, string> = {
   pulsechain: 'https://api.scan.pulsechain.com/api/v2',
   ethereum: 'https://eth.blockscout.com/api/v2',
+  robinhood: 'https://robinhoodchain.blockscout.com/api/v2',
 };
 const DEX_HEADERS = {
   Accept: 'application/json',
@@ -125,7 +126,7 @@ export async function POST(req: NextRequest) {
   }
   const address = String(body?.address ?? '').toLowerCase();
   if (!ADDRESS_RX.test(address)) return NextResponse.json({ error: 'invalid address' }, { status: 400 });
-  const chain: ChainId = body?.chain === 'ethereum' ? 'ethereum' : 'pulsechain';
+  const chain: ChainId = body?.chain === 'ethereum' ? 'ethereum' : body?.chain === 'robinhood' ? 'robinhood' : 'pulsechain';
 
   try {
     // Held tokens from Blockscout (same source as the balances route).

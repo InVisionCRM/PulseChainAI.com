@@ -30,6 +30,7 @@ import { fmtUsd } from '@/lib/format';
 const EXPLORER_ADDRESS: Record<ChainId, string> = {
   ethereum: 'https://etherscan.io/address/',
   pulsechain: 'https://scan.pulsechain.com/address/',
+  robinhood: 'https://robinhoodchain.blockscout.com/address/',
 };
 
 

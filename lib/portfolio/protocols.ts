@@ -40,6 +40,22 @@ const PROTOCOLS: Record<ChainId, Record<string, ProtocolInfo>> = {
     '0x3fc91a3afd70395cd496c647d5a6cc9d4b2b7fad': { name: 'Uniswap', kind: 'dex' },
     '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2': { name: 'Wrapped Ether', kind: 'token' },
   },
+  robinhood: {
+    // Launchpads (factories + lockers) — labels a token's creator/router as
+    // "launched via <pad>". See lib/launchpads/robinhood.ts.
+    '0xc70e510e14710ea535cab7b2414860af63feab79': { name: 'bow.fun', kind: 'dex' },
+    '0x904dccb96d877e6db365282251fa3dd156476660': { name: 'bow.fun Locker', kind: 'dex' },
+    '0x62b33a039d289cbda50ebeb72fe4261449e61bcf': { name: 'LaunchHood', kind: 'dex' },
+    '0x99b79154ff4fc0e313549b809254b02722631ee0': { name: 'LaunchHood Locker', kind: 'dex' },
+    '0xd9ec2db5f3d1b236843925949fe5bd8a3836fccb': { name: 'NOXA', kind: 'dex' },
+    '0x7f03effbd7ceb22a3f80dd468f67ef27826acd85': { name: 'NOXA Locker', kind: 'dex' },
+    // Shared Uniswap V3 infra used by the pads above.
+    '0xcaf681a66d020601342297493863e78c959e5cb2': { name: 'Uniswap V3 Router', kind: 'dex' },
+    '0x1f7d7550b1b028f7571e69a784071f0205fd2efa': { name: 'Uniswap V3 Factory', kind: 'dex' },
+    // Key tokens.
+    '0x0bd7d308f8e1639fab988df18a8011f41eacad73': { name: 'Wrapped Ether', kind: 'token' },
+    '0x5fc5360d0400a0fd4f2af552add042d716f1d168': { name: 'USDG', kind: 'token' },
+  },
 };
 
 export function protocolFor(

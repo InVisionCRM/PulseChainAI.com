@@ -17,6 +17,10 @@ export const RPC_URLS: Record<ChainId, string[]> = {
     'https://ethereum-rpc.publicnode.com',
     'https://rpc.ankr.com/eth',
   ],
+  robinhood: [
+    // Public, rate-limited sequencer RPC for Robinhood Chain (id 4663).
+    'https://rpc.mainnet.chain.robinhood.com',
+  ],
 };
 
 const RPC_TIMEOUT_MS = 4_000;

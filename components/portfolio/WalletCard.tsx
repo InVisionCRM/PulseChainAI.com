@@ -36,11 +36,13 @@ import { fmtUsd, fmtAmount, fmtPrice, fmtPct, pctClass } from '@/lib/format';
 const CHAIN_LOGO: Record<ChainId, string> = {
   ethereum: '/ethlogo.svg',
   pulsechain: '/LogoVector.svg',
+  robinhood: '/robinhood-logo.svg',
 };
 
 const CHAIN_NAME: Record<ChainId, string> = {
   ethereum: 'Ethereum',
   pulsechain: 'PulseChain',
+  robinhood: 'Robinhood',
 };
 
 // Token names are clamped to 15 characters (then ellipsised) so a long name

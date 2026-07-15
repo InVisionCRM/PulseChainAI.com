@@ -7,12 +7,13 @@ import { NextRequest, NextResponse } from 'next/server';
 // user to the full /geicko page. The geicko page stays the link target for
 // the deep-dive (full audit + holders + AI chat).
 
-type ChainId = 'ethereum' | 'pulsechain';
+type ChainId = 'ethereum' | 'pulsechain' | 'robinhood';
 
 const DEX_TOKENS_URL = 'https://api.dexscreener.com/latest/dex/tokens';
 const BLOCKSCOUT_BASE: Record<ChainId, string> = {
   pulsechain: 'https://api.scan.pulsechain.com/api/v2',
   ethereum: 'https://eth.blockscout.com/api/v2',
+  robinhood: 'https://robinhoodchain.blockscout.com/api/v2',
 };
 
 // Known pump.tires factory address — tokens created via this contract
@@ -346,7 +347,7 @@ export async function POST(req: NextRequest) {
   }
 
   const address = body?.address;
-  const chain: ChainId = body?.chain === 'ethereum' ? 'ethereum' : 'pulsechain';
+  const chain: ChainId = body?.chain === 'ethereum' ? 'ethereum' : body?.chain === 'robinhood' ? 'robinhood' : 'pulsechain';
   if (!isValidAddress(address)) {
     return NextResponse.json({ error: 'invalid address' }, { status: 400 });
   }

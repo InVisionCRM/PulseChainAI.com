@@ -49,10 +49,12 @@ const SELF_COLOR = '#d9942f';
 const EXPLORER_ADDRESS: Record<ChainId, string> = {
   ethereum: 'https://etherscan.io/address/',
   pulsechain: 'https://scan.pulsechain.com/address/',
+  robinhood: 'https://robinhoodchain.blockscout.com/address/',
 };
 const EXPLORER_TX: Record<ChainId, string> = {
   ethereum: 'https://etherscan.io/tx/',
   pulsechain: 'https://scan.pulsechain.com/tx/',
+  robinhood: 'https://robinhoodchain.blockscout.com/tx/',
 };
 
 const truncate = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
