@@ -21,6 +21,9 @@ const BLOCKSCOUT_BASE: Record<ChainId, string> = {
   robinhood: 'https://robinhoodchain.blockscout.com/api/v2',
 };
 
+// Keep generous: the PulseChain explorer can be slow, and the RPC fallback
+// below only returns a curated token subset — so timing out early shows a
+// PARTIAL wallet. Wait for the explorer to return the full holdings.
 const FETCH_TIMEOUT_MS = 12_000;
 const CACHE_TTL_MS = 30_000;
 
@@ -28,10 +31,12 @@ const CACHE_TTL_MS = 30_000;
 // the portfolio still shows something instead of an empty wallet.
 const RPC_URLS: Record<ChainId, string[]> = {
   pulsechain: [
+    'https://rpc.pulsechainstats.com',
     'https://rpc.pulsechainrpc.com',
     'https://pulsechain-rpc.publicnode.com',
     'https://rpc.gigatheminter.com',
     'https://rpc-pulsechain.g4mm4.io',
+    'https://rpc.degenprotocol.io',
   ],
   ethereum: [
     'https://ethereum-rpc.publicnode.com',

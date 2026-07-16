@@ -10,17 +10,27 @@ below before touching anything.
 
 ## 🔟 THE RULES (in priority order)
 
-### 1. DO NOT EVER GUESS
+### 1. DO NOT EVER GUESS — but DO research and verify
 Never invent an endpoint, address, RPC, subgraph, file path, type, config value,
-or "the way this project does X."
-- **First:** search the repo — `git grep`, read the real source, find the
-  existing constant/helper/registry that already holds the answer.
-- **If it isn't in the repo:** ASK the owner directly, in one line. A question
-  is always cheaper than a wrong guess that ships.
-- This includes diagnostics: only test endpoints that exist in the code or that
-  the owner named. Never probe made-up hostnames.
+or "the way this project does X." Work through this order, and don't stop early:
+1. **Search the repo** — `git grep`, read the real source, find the existing
+   constant/helper/registry that already holds the answer.
+2. **Search online, then VERIFY it yourself.** You have web search + fetch —
+   use them. Find the official value (RPC URL, explorer API base, contract
+   address, chain id) in docs/official sources, then **prove it works before
+   using it**: `curl` the endpoint, `eth_getCode` the address, hit the API and
+   check the JSON shape. A value you researched AND verified is NOT a guess;
+   an unverified copy-paste IS. Do this yourself — don't make the owner look
+   things up you can find.
+3. **Only ask the owner** when you genuinely can't find or verify it, it's
+   down/ambiguous, or it's truly their call (which paid provider to use,
+   subjective preference). Then ask in one line. Don't ask for things you can
+   research.
+- Diagnostics: only test endpoints that exist in the code, that the owner named,
+  or that you found in an authoritative source and are verifying. Never probe
+  fully made-up hostnames.
 - Guessed values (RPCs, explorer domains, addresses) have shipped here before
-  and had to be ripped out. Do not add to that.
+  and had to be ripped out. Research + verify instead.
 
 ### 2. REUSE — do not blindly create new files, endpoints, or types
 Before writing a new file / API route / type / helper / constant, **search for
@@ -84,8 +94,19 @@ unsure. The owner cannot double-check you — accuracy is the whole job.
 ## Infrastructure we actually use (do not substitute without asking)
 
 ### RPC endpoints (JSON-RPC nodes — return raw chain data, NOT decoded history)
-- **PulseChain (369):** `rpc.pulsechainrpc.com`, `pulsechain-rpc.publicnode.com`,
-  `rpc.gigatheminter.com`, `rpc-pulsechain.g4mm4.io` ("gamma").
+- **PulseChain (369)** — canonical list from chainlist.org. These are healthy
+  public nodes; use them, don't invent others. HTTPS:
+  `rpc.pulsechainstats.com` ("pulsechain stats"), `pulsechain-rpc.publicnode.com`,
+  `rpc.degenprotocol.io`, `rpc.gigatheminter.com`, `rpc-pulsechain.g4mm4.io`
+  ("gamma"), `rpc.pulsechainrpc.com`, `rpc.swiftnodes.io/rpc/pulsechain`,
+  `rpc.hairylabs.io`, `evex.cloud/pulserpc`,
+  `rpc.owlracle.info/pulse/<key>` (key-gated).
+  WebSocket (WSS): `pulsechain-rpc.publicnode.com`, `rpc.hairylabs.io/ws`,
+  `ws.pulsechainrpc.com`, `evex.cloud/pulsews`.
+  In-app server pool (`lib/portfolio/evmRpc.ts` + portfolio routes):
+  `rpc.pulsechainstats.com`, `rpc.pulsechainrpc.com`,
+  `pulsechain-rpc.publicnode.com`, `rpc.gigatheminter.com`,
+  `rpc-pulsechain.g4mm4.io`, `rpc.degenprotocol.io`.
   Override: `PULSECHAIN_RPC_URL` / `NEXT_PUBLIC_PULSECHAIN_RPC_URL`.
 - **Ethereum (1):** `ethereum-rpc.publicnode.com`, `rpc.ankr.com/eth`,
   `eth.drpc.org`. Override: `ETHEREUM_RPC_URL`.
@@ -98,11 +119,15 @@ token-transfers, balances, token metadata; an RPC CANNOT replace these)
 - **Robinhood:** `robinhoodchain.blockscout.com/api/v2`
 
 ### Other data APIs
-- **DexScreener:** `api.dexscreener.com/latest/dex` (prices, pairs, token search).
+- **DexScreener:** `api.dexscreener.com/latest/dex` — token **logos/images**,
+  pair discovery, and the prices it already powers. **NEVER a source of
+  transaction / transfer history**, and never reach for it as a fallback for
+  transactions. It is not a general blockchain-data API.
 - **GeckoTerminal:** `api.geckoterminal.com/api/v2` (OHLCV candles).
-- **Moralis:** `deep-index.moralis.io/api/v2.2` — OPTIONAL, key-gated
-  (`MORALIS_API_KEY`), currently PulseChain-hardcoded; skipped without a key.
 - **CoinGecko:** key `COINGECKO_API_KEY`.
+- **Moralis** — ⛔ **DO NOT USE.** It is a paid/metered service; the owner is on
+  the free tier only, so any real use just fails or bills them. Never add or
+  rely on Moralis (or any paid API) as a source or fallback.
 
 ### Subgraphs / GraphQL
 - **PulseChain HEX:** `graph.pulsechain.com/subgraphs/name/Codeakk/Hex`
@@ -114,9 +139,30 @@ token-transfers, balances, token metadata; an RPC CANNOT replace these)
   `app/api/pulsechain-graphql-proxy`.
 
 ### ⛔ Banned / never use
+- **Any paid / metered API** (Moralis, paid RPC tiers, paid data providers).
+  Cost is never an acceptable default for an API here — the owner runs on free
+  tiers. If the only solution costs money, STOP and say so; don't ship it.
+- **DexScreener for transaction/transfer history** — it's logos/prices/pairs
+  only, never a data or transaction fallback.
 - **`midgard.wtf`** as an explorer — use `lib/pulsechainExplorer.ts` (Otterscan).
 - **Any testnet RPC or explorer** in production/mainnet code.
-- Any RPC/explorer/subgraph host not already in this repo — ask first.
+- Any RPC/explorer/subgraph host not already in this repo — research + verify,
+  don't guess.
+
+### Resilience / fallbacks (free sources only)
+- **Only PulseChain needs an explorer fallback.** Its Blockscout
+  (`api.scan.pulsechain.com`) is the flaky one. Ethereum's `eth.blockscout.com`
+  and Robinhood's Blockscout are reliable — don't build fallbacks for them.
+- **Free fallbacks for PulseChain data, in order of preference:**
+  1. **The RPC pool** (`lib/portfolio/evmRpc.ts` — many healthy free nodes).
+     RPCs almost never go down when the explorer does. Use `eth_getLogs` /
+     `eth_call` to reconstruct what's needed (transfers from `Transfer` logs,
+     balances from `balanceOf`). This is the primary resilience layer.
+  2. **Another PulseChain Blockscout instance** (drop-in, same `/api/v2` shape),
+     only if it's a verified, free, reliable mirror.
+- Label degraded/partial responses (e.g. `source: 'rpc-fallback'`) so the UI can
+  badge a limited view. Never show data that could be **wrong** — for financial
+  data, an accurate blank beats a misleading number.
 
 ---
 

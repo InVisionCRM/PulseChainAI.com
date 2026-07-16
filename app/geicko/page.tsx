@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo } fr
 import { useSearchParams, useRouter } from 'next/navigation';
 import DexScreenerChart from '@/components/DexScreenerChart';
 import { LoaderOne, LoaderThree } from "@/components/ui/loader";
-import { Copy, Download, Info } from 'lucide-react';
+import { Copy, Download, Info, ChevronDown } from 'lucide-react';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem, ContractAuditResult } from '../../types';
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '@/services';
 import { fetchBlockscoutHolders } from '@/lib/blockscout';
@@ -51,6 +51,7 @@ import {
   type OwnershipData,
 } from '@/components/geicko';
 import { DesktopSearchBar } from '@/components/DesktopSearchBar';
+import GeickoPairModal from '@/components/geicko/GeickoPairModal';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import dynamic from 'next/dynamic';
 
@@ -235,6 +236,7 @@ function GeickoPageContent() {
   // than DexScreener) via /api/geicko/pools.
   const [geckoPools, setGeckoPools] = useState<DexScreenerData | null>(null);
   const [selectedPairAddress, setSelectedPairAddress] = useState<string | null>(null);
+  const [pairModalOpen, setPairModalOpen] = useState(false);
   const [profileData, setProfileData] = useState<any>(null);
   const [topTokens, setTopTokens] = useState<Array<{symbol: string; priceChange: number}>>([]);
   const [transactions, setTransactions] = useState<Array<{
@@ -1521,23 +1523,19 @@ function GeickoPageContent() {
                   <div className="flex justify-between gap-0">
                     <div>
                       {selectorPairs.length > 1 ? (
-                        <select
+                        <button
+                          type="button"
                           aria-label="Select trading pair"
-                          value={displayPair?.pairAddress ?? ''}
-                          onChange={(e) => setSelectedPairAddress(e.target.value || null)}
-                          className="w-auto max-w-[160px] text-xl font-bold text-[var(--text)] rounded-tl-lg bg-[var(--surface-2)] border border-[var(--line-strong)] backdrop-blur-md tracking-tight cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-400/50 pr-6 appearance-none bg-no-repeat bg-[length:10px] bg-[position:right_0.25rem_center]"
-                          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%238a93a0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}
+                          onClick={() => setPairModalOpen(true)}
+                          className="inline-flex max-w-[190px] items-center gap-1 rounded-tl-lg border border-[var(--line-strong)] bg-[var(--surface-2)] px-2 py-0.5 text-xl font-bold tracking-tight text-[var(--text)] backdrop-blur-md transition-colors hover:bg-[var(--surface-3)] focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
                         >
-                          {[...selectorPairs]
-                            .sort((a: { liquidity?: { usd?: number } }, b: { liquidity?: { usd?: number } }) => Number(b?.liquidity?.usd ?? 0) - Number(a?.liquidity?.usd ?? 0))
-                            .map((p: { pairAddress?: string; dexId?: string; baseToken?: { symbol?: string }; quoteToken?: { symbol?: string }; liquidity?: { usd?: number }; volume?: { h24?: number }; priceChange?: { h24?: number } }) => (
-                              <option key={p.pairAddress} value={p.pairAddress ?? ''} className="bg-[var(--panel)] text-[var(--text)] text-sm">
-                                {[p.baseToken?.symbol, p.quoteToken?.symbol].filter(Boolean).join(' / ') || 'Pair'}
-                                {p.dexId ? ` · ${p.dexId}` : ''}
-                                {Number(p.liquidity?.usd ?? 0) > 0 ? ` · ${formatCurrencyCompact(Number(p.liquidity!.usd))}` : ''}
-                              </option>
-                            ))}
-                        </select>
+                          <span className="truncate">
+                            {(displayPair?.baseToken?.symbol ?? baseSymbol)}{' '}
+                            <span className="text-[var(--text-faint)]">/</span>{' '}
+                            {(displayPair?.quoteToken?.symbol ?? quoteSymbol)}
+                          </span>
+                          <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                        </button>
                       ) : (
                         <div className="text-lg p-1 font-bold text-[var(--text)] rounded-tl-lg bg-transparent backdrop-blur-md tracking-tight">
                           {(effectivePair?.baseToken?.symbol ?? baseSymbol)} <span className="text-[var(--text)] pb-1 bg-transparent">/</span> {(effectivePair?.quoteToken?.symbol ?? quoteSymbol)}
@@ -2523,23 +2521,19 @@ function GeickoPageContent() {
                     <div className="mt-0 flex items-end justify-between gap-4">
                       <div>
                         {selectorPairs.length > 1 ? (
-                          <select
+                          <button
+                            type="button"
                             aria-label="Select trading pair"
-                            value={displayPair?.pairAddress ?? ''}
-                            onChange={(e) => setSelectedPairAddress(e.target.value || null)}
-                            className="w-auto max-w-[220px] text-2xl font-bold text-[var(--text)] tracking-tight bg-[var(--panel)] border border-[var(--line)] rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-cyan-500/50 pr-8 appearance-none bg-no-repeat bg-[length:12px] bg-[position:right_0.5rem_center]"
-                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a93a0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}
+                            onClick={() => setPairModalOpen(true)}
+                            className="inline-flex max-w-[240px] items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--panel)] px-2 py-1 text-2xl font-bold tracking-tight text-[var(--text)] transition-colors hover:bg-[var(--surface-2)] focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                           >
-                            {[...selectorPairs]
-                              .sort((a: { liquidity?: { usd?: number } }, b: { liquidity?: { usd?: number } }) => Number(b?.liquidity?.usd ?? 0) - Number(a?.liquidity?.usd ?? 0))
-                              .map((p: { pairAddress?: string; dexId?: string; baseToken?: { symbol?: string }; quoteToken?: { symbol?: string }; liquidity?: { usd?: number }; volume?: { h24?: number }; priceChange?: { h24?: number } }) => (
-                                <option key={p.pairAddress} value={p.pairAddress ?? ''} className="bg-[var(--panel)] text-[var(--text)] text-sm">
-                                  {[p.baseToken?.symbol, p.quoteToken?.symbol].filter(Boolean).join(' / ') || 'Pair'}
-                                  {p.dexId ? ` · ${p.dexId}` : ''}
-                                  {Number(p.liquidity?.usd ?? 0) > 0 ? ` · ${formatCurrencyCompact(Number(p.liquidity!.usd))}` : ''}
-                                </option>
-                              ))}
-                          </select>
+                            <span className="truncate">
+                              {(displayPair?.baseToken?.symbol ?? baseSymbol)}{' '}
+                              <span className="text-[var(--text-muted)]">/</span>{' '}
+                              {(displayPair?.quoteToken?.symbol ?? quoteSymbol)}
+                            </span>
+                            <ChevronDown className="h-5 w-5 shrink-0 text-[var(--text-muted)]" />
+                          </button>
                         ) : (
                           <div className="text-2xl font-bold text-[var(--text)] tracking-tight">
                             {(effectivePair?.baseToken?.symbol ?? baseSymbol)} <span className="text-[var(--text-muted)]">/</span> {(effectivePair?.quoteToken?.symbol ?? quoteSymbol)}
@@ -3261,6 +3255,14 @@ function GeickoPageContent() {
         tokenAddress={apiTokenAddress}
         tokenPriceUsd={priceUsd || null}
         onClose={handleCloseHolderTransfers}
+      />
+
+      <GeickoPairModal
+        isOpen={pairModalOpen}
+        pairs={selectorPairs}
+        selectedPairAddress={displayPair?.pairAddress ?? selectedPairAddress}
+        onSelect={(addr) => setSelectedPairAddress(addr)}
+        onClose={() => setPairModalOpen(false)}
       />
 
       {/* Stats Modal */}
