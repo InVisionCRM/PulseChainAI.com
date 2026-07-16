@@ -7,7 +7,6 @@ import { LoaderOne, LoaderThree } from "@/components/ui/loader";
 import { Copy, Download, Info, ChevronDown } from 'lucide-react';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem, ContractAuditResult } from '../../types';
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '@/services';
-import { fetchBlockscoutHolders } from '@/lib/blockscout';
 import { analyzeContractAudit } from '../../services/contractAuditService';
 import {
   normalizeLabel,
@@ -52,6 +51,7 @@ import {
 } from '@/components/geicko';
 import { DesktopSearchBar } from '@/components/DesktopSearchBar';
 import GeickoPairModal from '@/components/geicko/GeickoPairModal';
+import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import dynamic from 'next/dynamic';
 
@@ -80,6 +80,27 @@ const TokenAIChat = dynamic(() => import('@/components/TokenAIChat'), { ssr: fal
 const TokenContractView = dynamic(() => import('@/components/TokenContractView'), { ssr: false, loading: TabLoading });
 const LiquidityTab = dynamic(() => import('@/components/LiquidityTab'), { loading: TabLoading });
 const ContractAuditPanel = dynamic(() => import('@/components/ContractAuditPanel'), { ssr: false, loading: TabLoading });
+
+// "pulsex-v2" → "PulseX V2", "9mm" → "9mm", "9inch" → "9inch", etc.
+const prettyDex = (dexId?: string | null): string => {
+  if (!dexId) return '';
+  const known: Record<string, string> = {
+    pulsex: 'PulseX',
+    'pulsex-v1': 'PulseX V1',
+    'pulsex-v2': 'PulseX V2',
+    '9mm': '9mm',
+    '9inch': '9inch',
+    uniswap: 'Uniswap',
+    'uniswap-v2': 'Uniswap V2',
+    'uniswap-v3': 'Uniswap V3',
+  };
+  const key = dexId.toLowerCase();
+  if (known[key]) return known[key];
+  return key
+    .replace(/-/g, ' ')
+    .replace(/\bv(\d)/gi, 'V$1')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+};
 
 function ContractHolderTooltipRow({
   holder,
@@ -442,18 +463,25 @@ function GeickoPageContent() {
     setIsLoadingHolders(true);
 
     try {
-      // Top 100 holders from Blockscout, with automatic failover from the
-      // canonical explorer to the scan.pulsechain.box mirror when the primary's
-      // indexer is down (recurring 500s).
-      const result = await fetchBlockscoutHolders(address, 100);
-      const items = result?.items ?? [];
+      // Route through our server endpoint, NOT a browser-direct Blockscout call:
+      // (1) server-to-server avoids the CORS failure that made this tab empty in
+      // production, and (2) the endpoint falls back to on-chain Transfer-log
+      // reconstruction via the RPC pool when the flaky PulseChain explorer is
+      // down — so holders still load instead of showing "no holders".
+      const res = await fetch(
+        `/api/geicko/holders?token=${address}&network=pulsechain`,
+      );
+      const data = res.ok ? await res.json() : null;
+      const items: Array<{ address?: string; value?: string; isContract?: boolean }> =
+        Array.isArray(data?.holders) ? data.holders : [];
 
       const processedHolders = items
         .map((h) => ({
-          address: h.address?.hash || '',
+          address: (h.address || '').toLowerCase(),
           value: h.value || '0',
+          isContract: !!h.isContract,
         }))
-        .filter((item) => item.address && item.value);
+        .filter((item) => item.address && item.value !== '0');
 
       setHolders(processedHolders);
     } catch (error) {
@@ -3011,13 +3039,13 @@ function GeickoPageContent() {
                         </div>
                       </div>
 
-                      {/* Liquidity */}
+                      {/* Liquidity (for the selected pair) */}
                       <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] py-0 px-3 min-h-[60px] flex items-center justify-center">
                         <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Liquidity</div>
-                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
+                        <div className="absolute bottom-1.5 right-1/2 translate-x-1/2 flex flex-col items-center leading-tight">
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span>
+                              <span className="text-base text-[var(--text)] font-semibold">
                                 {(() => {
                                   const usdLiquidity = Number(displayPair.liquidity?.usd || 0);
                                   return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
@@ -3033,6 +3061,17 @@ function GeickoPageContent() {
                               ) : null;
                             })()}
                           </Tooltip>
+                          {displayPair.dexId && (
+                            <a
+                              href={pulsechainAddressUrl(displayPair.pairAddress || '')}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="View this LP on the explorer"
+                              className="max-w-[110px] truncate text-[9px] font-medium uppercase tracking-wide text-[var(--text-faint)] hover:text-[var(--text)]"
+                            >
+                              {prettyDex(displayPair.dexId)}
+                            </a>
+                          )}
                         </div>
                       </div>
 
