@@ -15,6 +15,7 @@ import { fmtHex, fmtTShares, fmtUsdShort, fmtDuration, HEX_ADDRESS } from '@/lib
 import { HexAmount, HexUnit } from '@/components/hex/HexAmount';
 import { HexStakes } from '@/components/portfolio/HexStakes';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
+import { pulsechainTxUrl } from '@/lib/pulsechainExplorer';
 
 const BIAS: Record<WhaleBias, { color: string; label: string; icon: React.ReactNode }> = {
   restake: { color: '#22c55e', label: 'Likely re-stake', icon: <IconArrowsExchange className="h-3.5 w-3.5" /> },
@@ -27,7 +28,7 @@ const fmtDate = (ms: number) => new Date(ms).toLocaleDateString(undefined, { mon
 const fmtDateY = (ms: number) => new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 const shortAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const txUrl = (net: Network, tx: string) =>
-  net === 'ethereum' ? `https://etherscan.io/tx/${tx}` : `https://midgard.wtf/tx/${tx}`;
+  net === 'ethereum' ? `https://etherscan.io/tx/${tx}` : pulsechainTxUrl(tx);
 
 export default function WhaleRadar({ net }: { net: Network }) {
   const [data, setData] = useState<WhaleRadarData | null>(null);

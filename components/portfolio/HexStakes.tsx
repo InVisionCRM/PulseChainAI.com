@@ -23,14 +23,11 @@ import {
   HEX_LAUNCH_TS,
 } from '@/lib/hex/hexDay';
 import { HexAmount, HexUnit } from '@/components/hex/HexAmount';
-
-const PLS_EXPLORER_TX = 'https://midgard.wtf/tx/';
+import { pulsechainTxUrl, pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
 
 // HEX brand gradient — used ONLY on the locked-stake progress bar now; amounts
 // use the portfolio's standard text tokens for a calmer, consistent look.
 const HEX_GRADIENT = 'linear-gradient(135deg, #ff9e00 0%, #ff2e7e 52%, #ff00d4 100%)';
-
-const PLS_EXPLORER_ADDR = 'https://midgard.wtf/address/';
 
 /** Whole HEX day for a unix-seconds timestamp (matches the contract's epoch). */
 const tsToHexDay = (ts: string | number) => Math.floor((Number(ts) - HEX_LAUNCH_TS) / 86400);
@@ -415,7 +412,7 @@ function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare, ga }: { s
 
       <div className="mt-3 flex items-center justify-between text-[11px] text-[var(--text-muted)] tabular-nums">
         <span>{fmtHexDate(startDay)} → {fmtHexDate(endDay)}</span>
-        <ExplorerLink href={`${PLS_EXPLORER_TX}${stake.transactionHash}`}>tx</ExplorerLink>
+        <ExplorerLink href={pulsechainTxUrl(stake.transactionHash)}>tx</ExplorerLink>
       </div>
 
       <DetailsToggle open={open} onClick={() => setOpen((o) => !o)} />
@@ -454,8 +451,8 @@ function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare, ga }: { s
             </>
           )}
           <DetailRow label="Auto-stake" value={stake.isAutoStake ? 'Yes' : 'No'} />
-          <DetailRow label="Staker" value={<ExplorerLink href={`${PLS_EXPLORER_ADDR}${stake.stakerAddr}`}>{shortHash(stake.stakerAddr)}</ExplorerLink>} mono />
-          <DetailRow label="Tx hash" value={<ExplorerLink href={`${PLS_EXPLORER_TX}${stake.transactionHash}`}>{shortHash(stake.transactionHash)}</ExplorerLink>} mono />
+          <DetailRow label="Staker" value={<ExplorerLink href={pulsechainAddressUrl(stake.stakerAddr)}>{shortHash(stake.stakerAddr)}</ExplorerLink>} mono />
+          <DetailRow label="Tx hash" value={<ExplorerLink href={pulsechainTxUrl(stake.transactionHash)}>{shortHash(stake.transactionHash)}</ExplorerLink>} mono />
           <DetailRow label="Block" value={stake.blockNumber} />
           <DetailRow label="Network" value={stake.network} />
         </dl>
@@ -557,8 +554,8 @@ function EndedStakeRow({ end, start, hexUsd }: { end: PulseChainHexStakeEnd; sta
           <DetailRow label="Start HEX day" value={startDay != null ? startDay.toLocaleString() : '—'} />
           <DetailRow label="Start date" value={startDay != null ? fmtHexDate(startDay) : '—'} />
           <DetailRow label="Ended on" value={fmtDateTime(end.timestamp)} />
-          <DetailRow label="Staker" value={<ExplorerLink href={`${PLS_EXPLORER_ADDR}${end.stakerAddr}`}>{shortHash(end.stakerAddr)}</ExplorerLink>} mono />
-          <DetailRow label="Tx hash" value={<ExplorerLink href={`${PLS_EXPLORER_TX}${end.transactionHash}`}>{shortHash(end.transactionHash)}</ExplorerLink>} mono />
+          <DetailRow label="Staker" value={<ExplorerLink href={pulsechainAddressUrl(end.stakerAddr)}>{shortHash(end.stakerAddr)}</ExplorerLink>} mono />
+          <DetailRow label="Tx hash" value={<ExplorerLink href={pulsechainTxUrl(end.transactionHash)}>{shortHash(end.transactionHash)}</ExplorerLink>} mono />
           <DetailRow label="Block" value={end.blockNumber} />
           <DetailRow label="Network" value={end.network} />
         </dl>
