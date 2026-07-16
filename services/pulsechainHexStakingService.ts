@@ -1,5 +1,6 @@
 import { HexStake, HexStakeEnd, HexGlobalInfo, StakerHistoryMetrics } from './hexStakingService';
 import type { DbStakeStart } from '../lib/db/hexStakingDb';
+import { pulsechainTxUrl } from '@/lib/pulsechainExplorer';
 
 export interface PulseChainHexStake extends HexStake {
   network: 'pulsechain';
@@ -697,23 +698,17 @@ export class PulseChainHexStakingService {
     return {
       name: 'PulseChain',
       explorers: [
-        'https://midgard.wtf',
         'https://scan.pulsechain.com',
         'https://otter.pulsechain.com'
       ]
     };
   }
 
-  getTransactionUrl(transactionHash: string, explorer = 'midgard'): string {
-    // Use Midgard.wtf as the primary explorer for better reliability
-    if (explorer === 'midgard') {
-      return `https://midgard.wtf/tx/${transactionHash}`;
-    }
-    
-    // Fallback to other explorers if specified
-    const chainInfo = this.getChainInfo();
-    const baseUrl = explorer === 'otter' ? chainInfo.explorers[1] : chainInfo.explorers[0];
-    return `${baseUrl}/tx/${transactionHash}`;
+  getTransactionUrl(transactionHash: string, _explorer?: string): string {
+    // Canonical PulseChain explorer (Otterscan) — see lib/pulsechainExplorer.ts.
+    // `_explorer` is accepted for call-site compatibility but ignored: there is
+    // one canonical explorer.
+    return pulsechainTxUrl(transactionHash);
   }
 
   // Fixed method signatures to match the Ethereum service

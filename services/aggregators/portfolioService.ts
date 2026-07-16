@@ -181,7 +181,7 @@ async function fetchBlockscoutTokens(
       error: {
         chain,
         stage: 'balances',
-        message: `${chain === 'pulsechain' ? 'PulseChain' : 'Ethereum'} balances unavailable`,
+        message: `${chain === 'pulsechain' ? 'PulseChain' : chain === 'robinhood' ? 'Robinhood' : 'Ethereum'} balances unavailable`,
       },
     };
   }
@@ -483,7 +483,7 @@ async function resolveMissingIcons(tokens: PortfolioToken[]): Promise<PortfolioT
 class PortfolioService {
   async getPortfolio(
     walletAddress: string,
-    chains: ChainId[] = ['ethereum', 'pulsechain'],
+    chains: ChainId[] = ['ethereum', 'pulsechain', 'robinhood'],
   ): Promise<ApiResponse<PortfolioSnapshot>> {
     try {
       validateAddress(walletAddress);
@@ -494,6 +494,7 @@ class PortfolioService {
     const fetchers: Promise<{ tokens: PortfolioToken[]; error: PortfolioFetchError | null }>[] = [];
     if (chains.includes('pulsechain')) fetchers.push(fetchBlockscoutTokens('pulsechain', walletAddress));
     if (chains.includes('ethereum')) fetchers.push(fetchBlockscoutTokens('ethereum', walletAddress));
+    if (chains.includes('robinhood')) fetchers.push(fetchBlockscoutTokens('robinhood', walletAddress));
 
     const results = await Promise.allSettled(fetchers);
     const tokens: PortfolioToken[] = [];

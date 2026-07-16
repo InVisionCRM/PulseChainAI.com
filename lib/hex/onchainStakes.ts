@@ -17,7 +17,7 @@ import type { HexNet } from './subgraph';
 
 const RPC_URL: Record<HexNet, string> = {
   pulsechain: process.env.PULSECHAIN_RPC_URL || 'https://rpc.pulsechain.com',
-  ethereum: process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com',
+  ethereum: process.env.ETHEREUM_RPC_URL || 'https://ethereum-rpc.publicnode.com',
 };
 
 const SEL_STAKE_COUNT = '0x33060d90';
