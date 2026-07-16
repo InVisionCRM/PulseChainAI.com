@@ -23,6 +23,16 @@ import { usePollingEffect } from '@/hooks/usePollingEffect';
 
 const REFRESH_MS = 60000;
 
+// Chains selectable in the screener. PulseChain is served by the self-indexed
+// universe (/api/screener); every other chain is served live from GeckoTerminal
+// (/api/screener/live). Add a new EVM here + give it a geckoterminalSlug in the
+// chain registry and it lights up — no other wiring.
+type ScreenerChain = { key: 'pulsechain' | 'robinhood'; name: string; source: 'indexed' | 'live' };
+const SCREENER_CHAINS: ScreenerChain[] = [
+  { key: 'pulsechain', name: 'PulseChain', source: 'indexed' },
+  { key: 'robinhood', name: 'Robinhood', source: 'live' },
+];
+
 function sortValue(row: ScreenerRow, key: SortKey, w: ScreenerWindow): number {
   switch (key) {
     case 'mcap': return row.marketCap ?? -Infinity;
@@ -39,6 +49,7 @@ function sortValue(row: ScreenerRow, key: SortKey, w: ScreenerWindow): number {
 }
 
 export default function Screener() {
+  const [chain, setChain] = useState<ScreenerChain>(SCREENER_CHAINS[0]);
   const [tab, setTab] = useState<ScreenerUiTab>('trending');
   const [window_, setWindow] = useState<ScreenerWindow>('h6');
   const [dexId, setDexId] = useState<string | null>(null);
@@ -93,7 +104,11 @@ export default function Screener() {
         if (filters.minVol24 !== null) qs.set('minVol', String(filters.minVol24));
         if (filters.minAgeH !== null) qs.set('minAgeH', String(filters.minAgeH));
         if (filters.maxAgeH !== null) qs.set('maxAgeH', String(filters.maxAgeH));
-        const res = await fetch(`/api/screener?${qs}`, { signal: ctrl.signal });
+        // PulseChain uses the indexed universe; other chains stream live from
+        // GeckoTerminal via /api/screener/live (same response shape).
+        const endpoint =
+          chain.source === 'indexed' ? `/api/screener?${qs}` : `/api/screener/live?chain=${chain.key}&${qs}`;
+        const res = await fetch(endpoint, { signal: ctrl.signal });
         if (!res.ok) throw new Error(`screener ${res.status}`);
         const json: ScreenerResponse = await res.json();
         setRows((prev) => (append ? [...prev, ...json.rows] : json.rows));
@@ -109,7 +124,7 @@ export default function Screener() {
         }
       }
     },
-    [tab, window_, dexId, sort, dir, filters, watchlistParam],
+    [chain, tab, window_, dexId, sort, dir, filters, watchlistParam],
   );
 
   useEffect(() => {
@@ -168,6 +183,17 @@ export default function Screener() {
     setDir('desc');
   };
 
+  // Switching chains resets the dex facet (dexes differ per chain), sort, and
+  // any active watchlist view back to a chain-appropriate default.
+  const onChain = (c: ScreenerChain) => {
+    if (c.key === chain.key) return;
+    setChain(c);
+    setDexId(null);
+    setSort(null);
+    setDir('desc');
+    if (tab === 'watchlist') setTab('trending');
+  };
+
   // Watchlist rows sort client-side; server tabs are sorted by the API.
   const sortedRows =
     tab === 'watchlist' && sort
@@ -175,15 +201,37 @@ export default function Screener() {
       : rows;
 
   // Pin the pinned tokens to the very top on the main (non-watchlist) tabs,
-  // dropping any copy already present so they never appear twice. The watchlist
-  // tab stays user-curated.
+  // dropping any copy already present so they never appear twice. Pinned tokens
+  // are PulseChain-specific, so they only apply on that chain. The watchlist tab
+  // stays user-curated.
   const displayRows =
-    tab === 'watchlist' || pinnedRows.length === 0
+    chain.key !== 'pulsechain' || tab === 'watchlist' || pinnedRows.length === 0
       ? sortedRows
       : [...pinnedRows, ...sortedRows.filter((r) => !isPinnedAddress(r.baseAddress))];
 
   return (
     <div className="w-full min-w-0 space-y-2">
+      {/* Chain selector — indexed PulseChain + live GeckoTerminal chains. */}
+      <div className="flex items-center gap-1 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-1 w-fit">
+        {SCREENER_CHAINS.map((c) => {
+          const active = c.key === chain.key;
+          return (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => onChain(c)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                active
+                  ? 'bg-[var(--surface-3)] text-[var(--text)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              {c.name}
+            </button>
+          );
+        })}
+      </div>
+
       <StatsBar stats={stats} fetchedAt={fetchedAt} />
       <FilterBar
         dexes={dexes}
@@ -214,7 +262,9 @@ export default function Screener() {
             emptyHint={
               tab === 'watchlist'
                 ? 'Your watchlist is empty — star any pair to add it.'
-                : 'No pairs found. Run the backfill (npm run screener:backfill) to populate the universe, or relax the filters.'
+                : chain.key === 'pulsechain'
+                  ? 'No pairs found. Run the backfill (npm run screener:backfill) to populate the universe, or relax the filters.'
+                  : `No ${chain.name} pairs match — try a different tab or relax the filters.`
             }
           />
           {hasMore && tab !== 'watchlist' ? (
