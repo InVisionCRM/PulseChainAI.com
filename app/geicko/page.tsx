@@ -51,7 +51,9 @@ import {
 } from '@/components/geicko';
 import { DesktopSearchBar } from '@/components/DesktopSearchBar';
 import GeickoPairModal from '@/components/geicko/GeickoPairModal';
-import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
+import { explorerAddressUrl } from '@/lib/explorer';
+import { isChainKey, getChain } from '@/lib/chains/registry';
+import type { ChainKey } from '@/lib/chains/types';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import dynamic from 'next/dynamic';
 
@@ -151,6 +153,14 @@ function GeickoPageContent() {
   const { showToast, updateToast, dismissToast } = useToast();
   const addressFromQuery = searchParams.get('address');
   const tabFromQuery = searchParams.get('tab');
+  const networkFromQuery = searchParams.get('network');
+  // Which chain this token lives on. Seeded from the ?network= param (the
+  // screener passes it), then auto-corrected from the resolved pair's chainId
+  // for tokens opened without the param. Everything chain-dependent — contract
+  // source, holders, token metadata, explorer links, tab visibility — reads it.
+  const [network, setNetwork] = useState<ChainKey>(
+    networkFromQuery && isChainKey(networkFromQuery) ? networkFromQuery : 'pulsechain',
+  );
   const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'trades' | 'forensics' | 'holders' | 'bridge' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
   const tokenInfoTab: 'token' = 'token';
   const [apiTokenAddress, setApiTokenAddress] = useState<string>('');
@@ -312,8 +322,8 @@ function GeickoPageContent() {
       // Always fetch contract data first (works for both tokens and non-token contracts)
       // Token-specific data is optional and failures are handled gracefully
       const [contractResult, tokenResult, dexResult, profileResult] = await Promise.allSettled([
-        withTimeout(fetchContract(address)),
-        withTimeout(fetchTokenInfo(address)).catch(() => ({ data: null, raw: null })), // Gracefully handle non-token contracts
+        withTimeout(fetchContract(address, network)),
+        withTimeout(fetchTokenInfo(address, network)).catch(() => ({ data: null, raw: null })), // Gracefully handle non-token contracts
         withTimeout(fetchDexScreenerData(address)).catch(() => ({ data: null, raw: null })), // Gracefully handle non-token contracts
         withTimeout(dexscreenerApi.getTokenProfile(address)).catch(() => ({ success: false, data: null })) // Gracefully handle non-token contracts
       ]);
@@ -367,7 +377,7 @@ function GeickoPageContent() {
     } finally {
       setIsLoadingData(false);
     }
-  }, []);
+  }, [network]);
 
   // Load transactions function using PulseChain API
   // Get recent token transfers for trading activity
@@ -389,7 +399,7 @@ function GeickoPageContent() {
 
       // Get recent token transfers for this token
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-      const transfersUrl = `${baseUrl}/api/address-transfers?address=${address}&limit=50`;
+      const transfersUrl = `${baseUrl}/api/address-transfers?address=${address}&limit=50&network=${network}`;
       const transfersResponse = await fetch(transfersUrl).then(res => res.json());
 
       if (!transfersResponse || !transfersResponse.items || transfersResponse.items.length === 0) {
@@ -401,9 +411,11 @@ function GeickoPageContent() {
 
       console.log(`Loaded ${transfersResponse.items.length} token transfers from PulseChain API`);
 
-      // Get token decimals from PulseScan (no pricing needed for transactions)
-      const tokenInfo = await pulsechainApiService.getTokenInfo(address).catch(() => null);
-      const decimals = tokenInfo?.decimals ? parseInt(tokenInfo.decimals) : 18;
+      // Get token decimals from the chain's explorer (no pricing needed here).
+      const tokenInfoRes = network === 'pulsechain'
+        ? await pulsechainApiService.getTokenInfo(address).catch(() => null)
+        : (await fetchTokenInfo(address, network).catch(() => null))?.data ?? null;
+      const decimals = tokenInfoRes?.decimals ? parseInt(String(tokenInfoRes.decimals)) : 18;
 
       console.log(`Using ${decimals} decimals for token transfers`);
 
@@ -452,7 +464,7 @@ function GeickoPageContent() {
     } finally {
       setIsLoadingTransactions(false);
     }
-  }, []);
+  }, [network]);
 
   // Load holders function
   const loadHolders = useCallback(async (address: string) => {
@@ -469,7 +481,7 @@ function GeickoPageContent() {
       // reconstruction via the RPC pool when the flaky PulseChain explorer is
       // down — so holders still load instead of showing "no holders".
       const res = await fetch(
-        `/api/geicko/holders?token=${address}&network=pulsechain`,
+        `/api/geicko/holders?token=${address}&network=${network}`,
       );
       const data = res.ok ? await res.json() : null;
       const items: Array<{ address?: string; value?: string; isContract?: boolean }> =
@@ -490,7 +502,7 @@ function GeickoPageContent() {
     } finally {
       setIsLoadingHolders(false);
     }
-  }, []);
+  }, [network]);
 
   // Load token metrics from server-side API
   const loadTokenMetrics = useCallback(async (address: string) => {
@@ -507,7 +519,7 @@ function GeickoPageContent() {
     // waiting on the flaky RPC pool, so Holders is snappy again.
     const coreRequest = (async () => {
       try {
-        const response = await fetch(`/api/token-metrics/${address}?scope=core`);
+        const response = await fetch(`/api/token-metrics/${address}?scope=core&network=${network}`);
         if (!response.ok) throw new Error('Failed to fetch token metrics');
 
         const metrics = await response.json();
@@ -541,7 +553,7 @@ function GeickoPageContent() {
 
     const ownershipRequest = (async () => {
       try {
-        const response = await fetch(`/api/token-metrics/${address}?scope=ownership`);
+        const response = await fetch(`/api/token-metrics/${address}?scope=ownership&network=${network}`);
         if (!response.ok) throw new Error('Failed to fetch ownership data');
 
         const { ownershipData } = await response.json();
@@ -557,7 +569,7 @@ function GeickoPageContent() {
     })();
 
     await Promise.all([coreRequest, ownershipRequest]);
-  }, []);
+  }, [network]);
 
   // Run audit analysis when contract data and ownership data are available
   useEffect(() => {
@@ -1236,6 +1248,24 @@ function GeickoPageContent() {
     return found ?? primaryPair;
   }, [selectedPairAddress, primaryPair, geckoPools, dexScreenerData?.pairs]);
 
+  // Auto-detect the chain from the resolved pair for tokens opened WITHOUT an
+  // explicit ?network= param (e.g. a pasted address). An explicit param always
+  // wins. This re-points the contract/holders/metrics fetches to the right
+  // chain via the `network`-dependent callbacks above.
+  useEffect(() => {
+    if (networkFromQuery && isChainKey(networkFromQuery)) return; // param is authoritative
+    const c = displayPair?.chainId;
+    if (c && isChainKey(c) && c !== network) setNetwork(c);
+  }, [displayPair?.chainId, networkFromQuery, network]);
+
+  // If the active tab is PulseChain-only and we're now on another chain, fall
+  // back to Chart so the user never lands on a hidden/empty tab.
+  useEffect(() => {
+    if (network !== 'pulsechain' && ['forensics', 'bridge', 'switch', 'gold'].includes(activeTab)) {
+      setActiveTab('chart');
+    }
+  }, [network, activeTab]);
+
   // Reset selected pair when token changes or when primary pair loads (so default is primary)
   useEffect(() => {
     if (!apiTokenAddress) {
@@ -1255,8 +1285,10 @@ function GeickoPageContent() {
   useEffect(() => {
     if (!apiTokenAddress) { setGeckoPools(null); return; }
     let alive = true;
-    const net = displayPair?.chainId || 'pulsechain';
-    fetch(`/api/geicko/pools?network=${net}&token=${apiTokenAddress}`)
+    // Use the authoritative `network` (URL param / detected chain) rather than
+    // displayPair.chainId, which is undefined until DexScreener resolves — so
+    // the GeckoTerminal pools load on the right chain from the first render.
+    fetch(`/api/geicko/pools?network=${network}&token=${apiTokenAddress}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!alive || !d || !Array.isArray(d.pairs)) return;
@@ -1264,7 +1296,7 @@ function GeickoPageContent() {
       })
       .catch(() => {});
     return () => { alive = false; };
-  }, [apiTokenAddress, displayPair?.chainId]);
+  }, [apiTokenAddress, network]);
 
   // Use primaryPair when displayPair not yet set (e.g. before effect runs) so mobile/header always show content when we have pair data
   const effectivePair = displayPair ?? primaryPair;
@@ -1481,6 +1513,9 @@ function GeickoPageContent() {
   }, [router]);
 
   const isGoldToken = Boolean(apiTokenAddress && goldBadgeAddresses.some((a) => a.toLowerCase() === apiTokenAddress.toLowerCase()));
+  // Tabs backed by PulseChain-only sources (PulseX subgraph, PulseChain bridges,
+  // PulseX swap widget, gold badges). Hidden on other chains — see plan.
+  const PULSECHAIN_ONLY_TABS = new Set<typeof activeTab>(['forensics', 'bridge', 'switch', 'gold']);
   const tabOptions: Array<{ id: typeof activeTab; label: string }> = [
     ...(isGoldToken ? [{ id: 'gold' as const, label: 'GOLD' }] : []),
     { id: 'chart', label: 'Chart' },
@@ -1494,7 +1529,7 @@ function GeickoPageContent() {
     { id: 'website', label: 'Website' },
     { id: 'stats', label: 'Stats' },
     { id: 'audit', label: 'Audit' },
-  ];
+  ].filter((t) => network === 'pulsechain' || !PULSECHAIN_ONLY_TABS.has(t.id));
 
 
   return (
@@ -2323,11 +2358,11 @@ function GeickoPageContent() {
                 <div className="flex flex-col h-[calc(160vh-300px)] min-h-[900px]">
                   <div className="flex-shrink-0 border-b border-[var(--line)]">
                     <div className="h-[400px]">
-                      <TokenAIChat contractAddress={apiTokenAddress} compact={true} />
+                      <TokenAIChat contractAddress={apiTokenAddress} compact={true} network={network} />
                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto pt-4">
-                    <TokenContractView contractAddress={apiTokenAddress} compact={true} />
+                    <TokenContractView contractAddress={apiTokenAddress} compact={true} network={network} />
                   </div>
                 </div>
               )}
@@ -3063,7 +3098,7 @@ function GeickoPageContent() {
                           </Tooltip>
                           {displayPair.dexId && (
                             <a
-                              href={pulsechainAddressUrl(displayPair.pairAddress || '')}
+                              href={explorerAddressUrl(network, displayPair.pairAddress || '')}
                               target="_blank"
                               rel="noopener noreferrer"
                               title="View this LP on the explorer"

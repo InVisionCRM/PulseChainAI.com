@@ -14,17 +14,23 @@ import {
   findDeploymentBlock,
   reconstructHolders,
 } from '@/lib/geicko/rpcHolders';
+import { getChain, isChainKey } from '@/lib/chains/registry';
 
-const BLOCKSCOUT = 'https://api.scan.pulsechain.com/api/v2';
 const ADDRESS_RX = /^0x[a-fA-F0-9]{40}$/;
 const LIMIT = 100;
 
-async function fromBlockscout(token: string): Promise<{
+async function fromBlockscout(base: string, token: string, sendLimit: boolean): Promise<{
   holders: Array<{ address: string; value: string; isContract: boolean }>;
   totalSupply: string | null;
   holdersCount: number | null;
 } | null> {
-  const res = await fetch(`${BLOCKSCOUT}/tokens/${token}/holders?limit=${LIMIT}`, {
+  // Only the PulseChain primary accepts the non-standard ?limit= param; other
+  // Blockscout instances (e.g. Robinhood) reject it with HTTP 422 and paginate
+  // via next_page_params instead. Default page (50) is plenty for the tab.
+  const url = sendLimit
+    ? `${base}/tokens/${token}/holders?limit=${LIMIT}`
+    : `${base}/tokens/${token}/holders`;
+  const res = await fetch(url, {
     headers: { Accept: 'application/json' },
     next: { revalidate: 120 },
   }).catch(() => null);
@@ -49,9 +55,15 @@ export async function GET(req: NextRequest) {
   if (!ADDRESS_RX.test(token)) {
     return NextResponse.json({ error: 'token required' }, { status: 400 });
   }
+  const network = (req.nextUrl.searchParams.get('network') || 'pulsechain').toLowerCase();
+  const chain = isChainKey(network) ? network : 'pulsechain';
+  const base = getChain(chain).blockscoutApiBase;
+  if (!base) {
+    return NextResponse.json({ error: 'chain has no explorer' }, { status: 400 });
+  }
 
   // Prefer the indexer when it's healthy.
-  const bs = await fromBlockscout(token);
+  const bs = await fromBlockscout(base, token, chain === 'pulsechain');
   if (bs) {
     return NextResponse.json(
       { source: 'blockscout', complete: true, ...bs },
@@ -59,7 +71,18 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Indexer down — reconstruct from Transfer logs.
+  // Indexer down. The Transfer-log reconstruction below runs on PulseChain
+  // archive nodes; for other chains we can't reconstruct correctly, so report
+  // unavailable rather than return wrong balances.
+  if (chain !== 'pulsechain') {
+    return NextResponse.json(
+      { source: 'unavailable', complete: false, holders: [], holdersCount: null,
+        reason: 'explorer indexer is down for this chain' },
+      { headers: { 'Cache-Control': 'public, s-maxage=30' } },
+    );
+  }
+
+  // PulseChain: reconstruct from Transfer logs.
   try {
     const latest = await getLatestBlock();
     const fromBlock = await findDeploymentBlock(token, latest);

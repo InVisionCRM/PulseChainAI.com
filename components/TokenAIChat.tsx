@@ -5,11 +5,14 @@ import { LoaderThree } from "@/components/ui/loader";
 import type { Message, ContractData, TokenInfo, DexScreenerData } from '../types';
 import SendIcon from '@/components/icons/SendIcon';
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData } from '@/services';
+import type { ChainKey } from '@/lib/chains/types';
 
 interface TokenAIChatProps {
   contractAddress?: string;
   compact?: boolean;
   className?: string;
+  /** Which chain the token lives on (defaults to PulseChain). */
+  network?: ChainKey;
 }
 
 // Parse follow-up questions from AI response
@@ -85,7 +88,7 @@ const removeFollowUpMarkup = (text: string): string => {
   return text.replace(/\[FOLLOWUP\][\s\S]*?\[\/FOLLOWUP\]/g, '').trim();
 };
 
-export default function TokenAIChat({ contractAddress, compact = false, className }: TokenAIChatProps): JSX.Element {
+export default function TokenAIChat({ contractAddress, compact = false, className, network = 'pulsechain' }: TokenAIChatProps): JSX.Element {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingChat, setIsLoadingChat] = useState<boolean>(false);
   const [isLoadingMetadata, setIsLoadingMetadata] = useState<boolean>(false);
@@ -121,8 +124,8 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
 
       try {
         const [contractRes, tokenRes, dexRes] = await Promise.all([
-          fetchContract(contractAddress).catch(() => null),
-          fetchTokenInfo(contractAddress).catch(() => null),
+          fetchContract(contractAddress, network).catch(() => null),
+          fetchTokenInfo(contractAddress, network).catch(() => null),
           fetchDexScreenerData(contractAddress).catch(() => null),
         ]);
 
@@ -149,7 +152,7 @@ export default function TokenAIChat({ contractAddress, compact = false, classNam
     return () => {
       cancelled = true;
     };
-  }, [contractAddress]);
+  }, [contractAddress, network]);
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim()) return;

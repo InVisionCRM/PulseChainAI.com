@@ -8,18 +8,18 @@ import type { SortKey } from '@/lib/screener/db';
 import { dexLogo, fmtAge, fmtNum, fmtPct, fmtPrice, fmtUsd, pctClass } from './format';
 import type { ScreenerWatchlist } from './watchlist';
 import { ChainLogo } from '@/components/ui/ChainLogo';
-import { getChain, isChainKey } from '@/lib/chains/registry';
+import { isChainKey } from '@/lib/chains/registry';
 
-// Where a row click goes. PulseChain rows open the in-app geicko analyzer
-// (which is PulseChain-only); rows on other chains open that chain's explorer
-// token page (a working destination until geicko is multi-chain).
+// Where a row click goes. Every row opens the in-app geicko analyzer, which is
+// now multi-chain — the chain travels along as ?network= so the analyzer loads
+// the right explorer / RPC / sources.
 function openRow(router: ReturnType<typeof useRouter>, row: ScreenerRow) {
   if (!row.baseAddress) return;
   const chain = row.chainId;
   if (!chain || chain === 'pulsechain') {
     router.push(`/geicko?address=${row.baseAddress}`);
   } else if (isChainKey(chain)) {
-    window.open(`${getChain(chain).explorerUrl}/token/${row.baseAddress}`, '_blank', 'noopener,noreferrer');
+    router.push(`/geicko?address=${row.baseAddress}&network=${chain}`);
   }
 }
 

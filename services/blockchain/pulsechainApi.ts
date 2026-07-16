@@ -30,6 +30,8 @@ import type {
 import { SERVICE_CONFIG, API_ENDPOINTS, DEFAULT_PAGINATION_LIMIT } from '../core/config';
 import { validateAddress, handleApiError, withRetry } from '../core/errors';
 import { fetchWithTimeout } from '../core/fetchWithTimeout';
+import { getChain } from '@/lib/chains/registry';
+import type { ChainKey } from '@/lib/chains/types';
 
 export class PulsechainApiClient {
   private baseUrl: string;
@@ -96,10 +98,11 @@ export class PulsechainApiClient {
     }, SERVICE_CONFIG.pulsechain.retries, 1000, 'pulsechain');
   }
 
-  // Contract operations
-  async getContract(address: string): Promise<ApiResponse<ContractData>> {
+  // Contract operations. `chain` selects which chain's Blockscout + Sourcify to
+  // read (defaults to PulseChain for every legacy caller).
+  async getContract(address: string, chain: ChainKey = 'pulsechain'): Promise<ApiResponse<ContractData>> {
     validateAddress(address);
-    const key = address.toLowerCase();
+    const key = `${chain}:${address.toLowerCase()}`;
 
     const cached = this.contractCache.get(key);
     if (cached && Date.now() - cached.at < PulsechainApiClient.CONTRACT_TTL) {
@@ -108,7 +111,7 @@ export class PulsechainApiClient {
     const inflight = this.contractInflight.get(key);
     if (inflight) return inflight;
 
-    const p = this.resolveContract(address)
+    const p = this.resolveContract(address, chain)
       .then((value) => {
         // Only cache a value that actually carries source, so a transient miss
         // isn't remembered for 5 minutes.
@@ -123,14 +126,14 @@ export class PulsechainApiClient {
     return p;
   }
 
-  private async resolveContract(address: string): Promise<ApiResponse<ContractData>> {
+  private async resolveContract(address: string, chain: ChainKey): Promise<ApiResponse<ContractData>> {
     // Race two free sources and return the first that yields source: Blockscout
     // (richer, but intermittently 500-flaky/slow) and Sourcify (fast, reliable,
-    // covers chain 369). Whichever produces verified source first wins — so a
-    // healthy Blockscout is preferred, but a hung/500 one can't stall the
-    // reader because Sourcify resolves in parallel.
-    const blockscoutPromise = this.getBlockscoutContract(address);
-    const sourcifyPromise = this.getContractFromSourcify(address);
+    // covers PulseChain 369 and Robinhood 4663). Whichever produces verified
+    // source first wins — so a healthy Blockscout is preferred, but a hung/500
+    // one can't stall the reader because Sourcify resolves in parallel.
+    const blockscoutPromise = this.getBlockscoutContract(address, chain);
+    const sourcifyPromise = this.getContractFromSourcify(address, chain);
 
     return new Promise<ApiResponse<ContractData>>((resolve) => {
       let pending = 2;
@@ -163,8 +166,10 @@ export class PulsechainApiClient {
 
   // Bounded Blockscout contract fetch (short attempts, no 90s retry chain) so a
   // hung/500 explorer can't stall callers. Returns null on miss.
-  private async getBlockscoutContract(address: string): Promise<ContractData | null> {
-    const url = `${this.baseUrl}${API_ENDPOINTS.pulsechain.contracts}/${address}`;
+  private async getBlockscoutContract(address: string, chain: ChainKey): Promise<ContractData | null> {
+    const base = getChain(chain).blockscoutApiBase;
+    if (!base) return null;
+    const url = `${base}/${API_ENDPOINTS.pulsechain.contracts}/${address}`;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const res = await fetchWithTimeout(url, { headers: SERVICE_CONFIG.pulsechain.headers }, 12000);
@@ -191,9 +196,10 @@ export class PulsechainApiClient {
 
   // Verified source from Sourcify's v2 API. Returns null when the contract isn't
   // on Sourcify or the request fails, so callers can degrade gracefully.
-  private async getContractFromSourcify(address: string): Promise<ContractData | null> {
+  private async getContractFromSourcify(address: string, chain: ChainKey): Promise<ContractData | null> {
     try {
-      const url = `https://sourcify.dev/server/v2/contract/369/${address}?fields=sources,abi,compilation,metadata`;
+      const chainId = getChain(chain).chainId; // 369 (PulseChain) / 4663 (Robinhood)
+      const url = `https://sourcify.dev/server/v2/contract/${chainId}/${address}?fields=sources,abi,compilation,metadata`;
       const response = await fetchWithTimeout(
         url,
         { headers: { Accept: 'application/json' } },
@@ -240,11 +246,11 @@ export class PulsechainApiClient {
     }
   }
 
-  async getContractReadMethods(address: string): Promise<ApiResponse<ReadMethodWithValue[]>> {
+  async getContractReadMethods(address: string, chain: ChainKey = 'pulsechain'): Promise<ApiResponse<ReadMethodWithValue[]>> {
     validateAddress(address);
-    
+
     try {
-      const contract = await this.getContract(address);
+      const contract = await this.getContract(address, chain);
       if (!contract.success || !contract.data) {
         return { error: 'Contract not found or not verified', success: false };
       }
@@ -260,14 +266,16 @@ export class PulsechainApiClient {
     }
   }
 
-  async getContractReadMethodsWithValues(address: string): Promise<ApiResponse<ReadMethodWithValue[]>> {
+  async getContractReadMethodsWithValues(address: string, chain: ChainKey = 'pulsechain'): Promise<ApiResponse<ReadMethodWithValue[]>> {
     validateAddress(address);
-    
+
     try {
-      // First, try to get read methods with values from the API endpoint
-      const readMethodsResponse = await this.apiCall<any>(
-        `smart-contracts/${address}/methods-read`
-      );
+      // First, try to get read methods with live values from Blockscout's
+      // methods-read endpoint. This is a PulseChain-base optimization; on other
+      // chains it simply misses and we fall through to ABI-derived methods.
+      const readMethodsResponse = chain === 'pulsechain'
+        ? await this.apiCall<any>(`smart-contracts/${address}/methods-read`)
+        : null;
 
       // If the API returns methods with values, process them
       if (readMethodsResponse && Array.isArray(readMethodsResponse)) {
@@ -297,13 +305,13 @@ export class PulsechainApiClient {
       }
 
       // Fallback: get contract ABI and filter read methods
-      const contract = await this.getContract(address);
+      const contract = await this.getContract(address, chain);
       if (!contract.success || !contract.data) {
         return { error: 'Contract not found or not verified', success: false };
       }
 
-      const readMethods = contract.data.abi.filter((method: any) => 
-        method.type === 'function' && 
+      const readMethods = contract.data.abi.filter((method: any) =>
+        method.type === 'function' &&
         (method.stateMutability === 'view' || method.stateMutability === 'pure')
       );
 
@@ -314,12 +322,26 @@ export class PulsechainApiClient {
   }
 
   // Token operations
-  async getTokenInfo(address: string): Promise<ApiResponse<TokenInfoDetailed>> {
+  async getTokenInfo(address: string, chain: ChainKey = 'pulsechain'): Promise<ApiResponse<TokenInfoDetailed>> {
     validateAddress(address);
-    
+
     try {
-      const data = await this.apiCall<TokenInfoDetailed>(`${API_ENDPOINTS.pulsechain.tokens}/${address}`);
-      return { data, success: true };
+      if (chain === 'pulsechain') {
+        const data = await this.apiCall<TokenInfoDetailed>(`${API_ENDPOINTS.pulsechain.tokens}/${address}`);
+        return { data, success: true };
+      }
+      // Other chains: read the token straight from that chain's Blockscout base.
+      const base = getChain(chain).blockscoutApiBase;
+      if (!base) return { error: 'chain has no Blockscout', success: false };
+      const res = await fetchWithTimeout(
+        `${base}/${API_ENDPOINTS.pulsechain.tokens}/${address}`,
+        { headers: SERVICE_CONFIG.pulsechain.headers },
+        SERVICE_CONFIG.pulsechain.timeout,
+      );
+      if (!res.ok) return { error: `HTTP ${res.status}`, success: false };
+      const data = await res.json();
+      if (!data || typeof data !== 'object') return { error: 'bad token response', success: false };
+      return { data: data as TokenInfoDetailed, success: true };
     } catch (error) {
       return { error: (error as Error).message, success: false };
     }

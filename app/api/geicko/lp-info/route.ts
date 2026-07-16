@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethCall } from '@/lib/portfolio/evmRpc';
+import { getChain, isChainKey } from '@/lib/chains/registry';
+import type { ChainKey } from '@/lib/chains/types';
 
 // Per-LP enrichment for the geicko pair picker: what % of each LP token's
 // supply is burned (locked forever) and how many holders it has.
@@ -33,9 +35,9 @@ interface LpInfo {
   holders: number | null;
 }
 
-async function fetchHolders(lp: string): Promise<number | null> {
+async function fetchHolders(base: string, lp: string): Promise<number | null> {
   try {
-    const r = await fetch(`${BLOCKSCOUT}/tokens/${lp}`, {
+    const r = await fetch(`${base}/tokens/${lp}`, {
       signal: AbortSignal.timeout(6_000),
     });
     if (!r.ok) return null;
@@ -48,12 +50,12 @@ async function fetchHolders(lp: string): Promise<number | null> {
   }
 }
 
-async function lpInfo(lp: string): Promise<LpInfo> {
+async function lpInfo(chain: ChainKey, base: string, lp: string): Promise<LpInfo> {
   const [totalHex, deadHex, zeroHex, holders] = await Promise.all([
-    ethCall('pulsechain', lp, TOTAL_SUPPLY),
-    ethCall('pulsechain', lp, balanceOfData(DEAD)),
-    ethCall('pulsechain', lp, balanceOfData(ZERO)),
-    fetchHolders(lp),
+    ethCall(chain, lp, TOTAL_SUPPLY),
+    ethCall(chain, lp, balanceOfData(DEAD)),
+    ethCall(chain, lp, balanceOfData(ZERO)),
+    fetchHolders(base, lp),
   ]);
 
   const total = toBigInt(totalHex);
@@ -93,8 +95,12 @@ export async function POST(req: NextRequest) {
 
   if (addresses.length === 0) return NextResponse.json({ info: {} });
 
+  const netRaw = String((body as { network?: unknown })?.network ?? 'pulsechain').toLowerCase();
+  const chain = isChainKey(netRaw) ? netRaw : 'pulsechain';
+  const base = getChain(chain).blockscoutApiBase ?? BLOCKSCOUT;
+
   const results = await Promise.all(
-    addresses.map(async (lp) => [lp, await lpInfo(lp)] as const),
+    addresses.map(async (lp) => [lp, await lpInfo(chain, base, lp)] as const),
   );
 
   return NextResponse.json({ info: Object.fromEntries(results) });

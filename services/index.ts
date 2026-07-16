@@ -19,13 +19,15 @@ export { portfolioService } from './aggregators/portfolioService';
 import { tokenService } from './aggregators/tokenService';
 import { pulsechainApi } from './blockchain/pulsechainApi';
 import { dexscreenerApi } from './blockchain/dexscreenerApi';
+import type { ChainKey } from '@/lib/chains/types';
 
 // Maintain backwards compatibility with existing imports
-export const fetchTokenInfo = (address: string) => tokenService.getTokenInfo(address);
-export const fetchContract = (address: string) => pulsechainApi.getContract(address);
+export const fetchTokenInfo = (address: string, chain: ChainKey = 'pulsechain') =>
+  chain === 'pulsechain' ? tokenService.getTokenInfo(address) : pulsechainApi.getTokenInfo(address, chain);
+export const fetchContract = (address: string, chain: ChainKey = 'pulsechain') => pulsechainApi.getContract(address, chain);
 export const fetchAddressInfo = (address: string) => pulsechainApi.getAddressInfo(address);
-export const fetchReadMethods = (address: string) => pulsechainApi.getContractReadMethods(address);
-export const fetchReadMethodsWithValues = (address: string) => pulsechainApi.getContractReadMethodsWithValues(address);
+export const fetchReadMethods = (address: string, chain: ChainKey = 'pulsechain') => pulsechainApi.getContractReadMethods(address, chain);
+export const fetchReadMethodsWithValues = (address: string, chain: ChainKey = 'pulsechain') => pulsechainApi.getContractReadMethodsWithValues(address, chain);
 // search() preserves the legacy contract — returns SearchResultItem[]
 // directly. The canonical pulsechainApi.search() wraps in ApiResponse,
 // but every back-compat caller of the facade (DesktopSearchBar,

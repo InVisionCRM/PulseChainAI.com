@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { blockscoutJson } from '@/lib/blockscout';
+import { getChain, isChainKey } from '@/lib/chains/registry';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,6 +9,10 @@ export async function GET(request: NextRequest) {
     const tokenAddress = searchParams.get('tokenAddress');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
+    const netRaw = (searchParams.get('network') || 'pulsechain').toLowerCase();
+    const chain = isChainKey(netRaw) ? netRaw : 'pulsechain';
+    const bases = chain === 'pulsechain' ? undefined
+      : (getChain(chain).blockscoutApiBase ? [getChain(chain).blockscoutApiBase as string] : undefined);
 
     console.log('[address-transfers] Request:', { address, tokenAddress, page, limit });
 
@@ -36,7 +41,7 @@ export async function GET(request: NextRequest) {
     // Fetch token transfers from Blockscout, failing over from the canonical
     // explorer to the scan.pulsechain.box mirror when the primary is down.
     const path = `/addresses/${address}/token-transfers?${params.toString()}`;
-    const data = await blockscoutJson(path);
+    const data = await blockscoutJson(path, bases ? { bases } : undefined);
 
     if (!data) {
       return NextResponse.json(
