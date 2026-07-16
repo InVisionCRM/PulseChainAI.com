@@ -21,10 +21,10 @@ const BLOCKSCOUT_BASE: Record<ChainId, string> = {
   robinhood: 'https://robinhoodchain.blockscout.com/api/v2',
 };
 
-// Fail fast: if Blockscout is slow/down, give up quickly and fall through to
-// the RPC pool below instead of freezing the UI. (Was 12s — that 12s wait was
-// the visible freeze whenever the PulseChain explorer had an outage.)
-const FETCH_TIMEOUT_MS = 6_000;
+// Keep generous: the PulseChain explorer can be slow, and the RPC fallback
+// below only returns a curated token subset — so timing out early shows a
+// PARTIAL wallet. Wait for the explorer to return the full holdings.
+const FETCH_TIMEOUT_MS = 12_000;
 const CACHE_TTL_MS = 30_000;
 
 // Fallback RPC pool — used when Blockscout is 502ing or unreachable so

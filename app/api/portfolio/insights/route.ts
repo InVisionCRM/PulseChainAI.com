@@ -31,7 +31,7 @@ const DEX_HEADERS = {
     '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 };
 
-const FETCH_TIMEOUT_MS = 6_000; // fail fast on a slow/down explorer
+const FETCH_TIMEOUT_MS = 8_000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 interface Social {
