@@ -988,7 +988,6 @@ export class HexStakingService {
     process.env.ETHEREUM_RPC_URL,
     'https://ethereum-rpc.publicnode.com',
     'https://eth.drpc.org',
-    'https://eth.llamarpc.com',
   ].filter(Boolean) as string[];
   private static HEX_CONTRACT = '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
   private static HEX_LAUNCH_TS = 1575331200;

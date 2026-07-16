@@ -13,7 +13,6 @@ export const RPC_URLS: Record<ChainId, string[]> = {
     'https://rpc-pulsechain.g4mm4.io',
   ],
   ethereum: [
-    'https://eth.llamarpc.com',
     'https://ethereum-rpc.publicnode.com',
     'https://rpc.ankr.com/eth',
   ],

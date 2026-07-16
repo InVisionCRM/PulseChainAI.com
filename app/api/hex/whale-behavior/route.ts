@@ -66,7 +66,7 @@ const EXPLORER: Record<Net, string> = {
 };
 const RPC_URL: Record<Net, string> = {
   pulsechain: process.env.PULSECHAIN_RPC_URL || 'https://rpc.pulsechain.com',
-  ethereum: process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com',
+  ethereum: process.env.ETHEREUM_RPC_URL || 'https://ethereum-rpc.publicnode.com',
 };
 
 interface RawTransfer { ts: number; to: string; toIsContract: boolean; hex: number; tx: string }

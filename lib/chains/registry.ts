@@ -22,7 +22,6 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     blockscoutApiBase: 'https://eth.blockscout.com/api/v2',
     explorerUrl: 'https://etherscan.io',
     rpcUrls: [
-      'https://eth.llamarpc.com',
       'https://ethereum-rpc.publicnode.com',
       'https://rpc.ankr.com/eth',
     ],
