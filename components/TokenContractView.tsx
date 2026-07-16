@@ -68,8 +68,10 @@ export default function TokenContractView({ contractAddress, compact = false }: 
         }
       }
 
-      // Parse ABI and fetch read method values (don't block on this)
-      if (data.abi && Array.isArray(data.abi) && data.abi.length > 0) {
+      // Parse ABI and fetch read method values (don't block on this).
+      // `data` is undefined when the contract fetch fails outright — guard it so
+      // the Contract tab degrades instead of throwing.
+      if (data && data.abi && Array.isArray(data.abi) && data.abi.length > 0) {
         // Fetch read methods in background - don't let errors affect contract display
         fetchReadMethodsWithValues(contractAddress, data.abi)
           .then((readMethodsWithVals) => {

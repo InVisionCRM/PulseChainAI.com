@@ -8,6 +8,20 @@ import type { SortKey } from '@/lib/screener/db';
 import { dexLogo, fmtAge, fmtNum, fmtPct, fmtPrice, fmtUsd, pctClass } from './format';
 import type { ScreenerWatchlist } from './watchlist';
 import { ChainLogo } from '@/components/ui/ChainLogo';
+import { getChain, isChainKey } from '@/lib/chains/registry';
+
+// Where a row click goes. PulseChain rows open the in-app geicko analyzer
+// (which is PulseChain-only); rows on other chains open that chain's explorer
+// token page (a working destination until geicko is multi-chain).
+function openRow(router: ReturnType<typeof useRouter>, row: ScreenerRow) {
+  if (!row.baseAddress) return;
+  const chain = row.chainId;
+  if (!chain || chain === 'pulsechain') {
+    router.push(`/geicko?address=${row.baseAddress}`);
+  } else if (isChainKey(chain)) {
+    window.open(`${getChain(chain).explorerUrl}/token/${row.baseAddress}`, '_blank', 'noopener,noreferrer');
+  }
+}
 
 // Token names are clamped to 15 characters (then ellipsised) so a long name
 // can't push the metric columns around.
@@ -104,7 +118,7 @@ export default function PairsTable({ rows, window, loading, sort, dir, onSort, w
             return (
               <tr
                 key={`${row.chainId ?? 'pulsechain'}:${row.pairAddress}`}
-                onClick={() => row.baseAddress && router.push(`/geicko?address=${row.baseAddress}`)}
+                onClick={() => openRow(router, row)}
                 className="group cursor-pointer border-t border-[var(--line)] transition-colors hover:bg-[var(--surface)]"
               >
                 <td className="w-9 px-2 py-2">

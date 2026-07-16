@@ -22,8 +22,9 @@ export interface WindowValues {
 }
 
 export interface ScreenerRow {
-  /** Omitted for PulseChain rows; set to 'ethereum' for cross-chain watchlist rows. */
-  chainId?: 'pulsechain' | 'ethereum';
+  /** Omitted for PulseChain rows; set for cross-chain rows (watchlist, or a
+   *  non-PulseChain chain selected in the screener). */
+  chainId?: 'pulsechain' | 'ethereum' | 'robinhood';
   pairAddress: string;
   dexId: string | null;
   label: string | null; // v1 / v2 / v3

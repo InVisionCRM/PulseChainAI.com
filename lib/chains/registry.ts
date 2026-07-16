@@ -26,6 +26,7 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
       'https://rpc.ankr.com/eth',
     ],
     dexscreenerSlug: 'ethereum',
+    geckoterminalSlug: 'eth',
     moralisChainId: '0x1',
   },
   pulsechain: {
@@ -46,6 +47,7 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
       'https://rpc-pulsechain.g4mm4.io',
     ],
     dexscreenerSlug: 'pulsechain',
+    geckoterminalSlug: 'pulsechain',
     moralisChainId: '0x171',
   },
   robinhood: {
@@ -69,6 +71,10 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
       'https://rpc.mainnet.chain.robinhood.com',
     ],
     dexscreenerSlug: 'robinhood',
+    // GeckoTerminal added the Robinhood network (`/networks/robinhood`), which
+    // aggregates every Robinhood DEX (Uniswap V2/V3/V4, Pancake, RobinSwap,
+    // Hoodit, Pons.family, SwapHood, …) — the live screener source for this chain.
+    geckoterminalSlug: 'robinhood',
     // Robinhood Chain (4663) is not indexed by Moralis yet — balances for this
     // chain are sourced from Blockscout instead (see `blockscoutApiBase`).
     moralisChainId: null,

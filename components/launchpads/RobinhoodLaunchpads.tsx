@@ -10,11 +10,8 @@ import {
   IconClock,
 } from '@tabler/icons-react';
 import { getChain } from '@/lib/chains/registry';
-import {
-  launchpadsForChain,
-  ROBINHOOD_TOKENS,
-  type Launchpad,
-} from '@/lib/launchpads';
+import { launchpadsForChain, type Launchpad } from '@/lib/launchpads';
+import RobinhoodTopTokens from '@/components/robinhood/RobinhoodTopTokens';
 
 const CHAIN = getChain('robinhood');
 const EXPLORER = CHAIN.explorerUrl; // https://robinhoodchain.blockscout.com
@@ -151,7 +148,6 @@ export default function RobinhoodLaunchpads() {
   const pads = launchpadsForChain('robinhood');
   const active = pads.filter((p) => p.status === 'active');
   const pending = pads.filter((p) => p.status === 'pending');
-  const tokens = Object.entries(ROBINHOOD_TOKENS);
 
   return (
     <div className="min-h-screen bg-[var(--panel)] text-[var(--text)]">
@@ -208,24 +204,24 @@ export default function RobinhoodLaunchpads() {
           </>
         )}
 
-        {/* Key tokens */}
-        <h2 className="mb-4 mt-10 text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-          Key tokens
-        </h2>
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-          <div className="grid grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
-            {tokens.map(([symbol, address]) => (
-              <AddressRow key={address} label={symbol} address={address} />
-            ))}
-          </div>
+        {/* Popular tokens (live) */}
+        <div className="mb-4 mt-10 flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            Popular tokens
+          </h2>
+          <span className="text-[11px] text-[var(--text-faint)]">
+            Live · ranked by 24h volume
+          </span>
         </div>
+        <RobinhoodTopTokens />
 
         <p className="mt-6 text-xs leading-relaxed text-[var(--text-faint)]">
-          Per-token bonding-curve and token contracts are deployed on each
-          launch and aren&apos;t predictable in advance — resolve them from the
-          factory&apos;s launch events. Addresses shown were verified on-chain
-          (deployed bytecode) at listing time. Not financial advice; always
-          verify contracts independently before interacting.
+          Popular tokens are ranked live by 24h trading volume — roster from the
+          Robinhood Chain explorer, market data from DexScreener. Per-token
+          bonding-curve contracts are deployed on each launch and aren&apos;t
+          predictable in advance — resolve them from the factory&apos;s launch
+          events. Not financial advice; always verify contracts independently
+          before interacting.
         </p>
       </div>
     </div>

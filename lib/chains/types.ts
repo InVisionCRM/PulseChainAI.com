@@ -41,6 +41,10 @@ export interface ChainConfig {
   /** DexScreener chain slug (the `chainId` field DexScreener returns), or null
    *  if DexScreener doesn't index the chain. */
   dexscreenerSlug: string | null;
+  /** GeckoTerminal network slug (the `/networks/{slug}/…` path segment), or null
+   *  if GeckoTerminal doesn't index the chain. Powers the live multi-chain
+   *  screener and the liquidity/pools reads. */
+  geckoterminalSlug: string | null;
   /** Moralis chain id (hex), or null when Moralis doesn't index the chain.
    *  Robinhood Chain is a brand-new L2 that Moralis does not yet cover, so its
    *  balances must be sourced from Blockscout instead. */

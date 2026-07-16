@@ -34,6 +34,12 @@ import { fetchWithTimeout } from '../core/fetchWithTimeout';
 export class PulsechainApiClient {
   private baseUrl: string;
   private proxyUrl: string = '/api/pulsechain-proxy';
+  // Contract source is fetched by several components at once (contract tab,
+  // AI reader, read-methods, audit). Dedupe concurrent look-ups and briefly
+  // cache the result so a single contract isn't fetched 6× per page load.
+  private contractInflight = new Map<string, Promise<ApiResponse<ContractData>>>();
+  private contractCache = new Map<string, { at: number; value: ApiResponse<ContractData> }>();
+  private static CONTRACT_TTL = 300_000; // 5 min
 
   constructor() {
     this.baseUrl = SERVICE_CONFIG.pulsechain.baseUrl;
@@ -45,12 +51,12 @@ export class PulsechainApiClient {
     useProxy: boolean = false, 
     params?: Record<string, any>
   ): Promise<T> {
-    // Direct calls hit Blockscout; try the canonical explorer first and fail
-    // over to the scan.pulsechain.box mirror when the primary's indexer is down
-    // (recurring 500s). Proxied calls keep their single URL.
-    const bases = useProxy
-      ? [this.proxyUrl]
-      : [this.baseUrl, 'https://scan.pulsechain.box/api/v2/'];
+    // Direct calls hit the canonical PulseChain Blockscout. (The old
+    // scan.pulsechain.box mirror was removed — it is dead, returning Cloudflare
+    // 5xx, so it only wasted a retry. `withRetry` re-attempts the primary, which
+    // is intermittently 500-flaky; verified source has its own Sourcify fallback
+    // in getContract().) Proxied calls keep their single URL.
+    const bases = useProxy ? [this.proxyUrl] : [this.baseUrl];
 
     return withRetry(async () => {
       const searchParams = new URLSearchParams();
@@ -93,18 +99,144 @@ export class PulsechainApiClient {
   // Contract operations
   async getContract(address: string): Promise<ApiResponse<ContractData>> {
     validateAddress(address);
-    
-    try {
-      const data = await this.apiCall<ContractData>(`${API_ENDPOINTS.pulsechain.contracts}/${address}`);
-      
-      // Parse ABI if it's a string
-      if (typeof data.abi === 'string') {
-        data.abi = JSON.parse(data.abi);
+    const key = address.toLowerCase();
+
+    const cached = this.contractCache.get(key);
+    if (cached && Date.now() - cached.at < PulsechainApiClient.CONTRACT_TTL) {
+      return cached.value;
+    }
+    const inflight = this.contractInflight.get(key);
+    if (inflight) return inflight;
+
+    const p = this.resolveContract(address)
+      .then((value) => {
+        // Only cache a value that actually carries source, so a transient miss
+        // isn't remembered for 5 minutes.
+        if (value.success && value.data?.source_code) {
+          this.contractCache.set(key, { at: Date.now(), value });
+        }
+        return value;
+      })
+      .finally(() => this.contractInflight.delete(key));
+
+    this.contractInflight.set(key, p);
+    return p;
+  }
+
+  private async resolveContract(address: string): Promise<ApiResponse<ContractData>> {
+    // Race two free sources and return the first that yields source: Blockscout
+    // (richer, but intermittently 500-flaky/slow) and Sourcify (fast, reliable,
+    // covers chain 369). Whichever produces verified source first wins — so a
+    // healthy Blockscout is preferred, but a hung/500 one can't stall the
+    // reader because Sourcify resolves in parallel.
+    const blockscoutPromise = this.getBlockscoutContract(address);
+    const sourcifyPromise = this.getContractFromSourcify(address);
+
+    return new Promise<ApiResponse<ContractData>>((resolve) => {
+      let pending = 2;
+      let blockscoutPartial: ContractData | null = null;
+
+      const onSettle = () => {
+        if (--pending === 0) {
+          // Neither yielded source. Return a partial (e.g. unverified contract
+          // with just an ABI) so the UI can still render, else surface it.
+          resolve(
+            blockscoutPartial
+              ? { data: blockscoutPartial, success: true }
+              : { error: 'Contract source unavailable (explorer and Sourcify both failed)', success: false },
+          );
+        }
+      };
+
+      blockscoutPromise.then((data) => {
+        if (data?.source_code) return resolve({ data, success: true }); // no-op if already resolved
+        if (data) blockscoutPartial = data;
+        onSettle();
+      }, onSettle);
+
+      sourcifyPromise.then((data) => {
+        if (data) return resolve({ data, success: true });
+        onSettle();
+      }, onSettle);
+    });
+  }
+
+  // Bounded Blockscout contract fetch (short attempts, no 90s retry chain) so a
+  // hung/500 explorer can't stall callers. Returns null on miss.
+  private async getBlockscoutContract(address: string): Promise<ContractData | null> {
+    const url = `${this.baseUrl}${API_ENDPOINTS.pulsechain.contracts}/${address}`;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetchWithTimeout(url, { headers: SERVICE_CONFIG.pulsechain.headers }, 12000);
+        if (res.ok) {
+          const data = await res.json();
+          // A 200 body can occasionally be an error string ("Internal server
+          // error"); only trust an object.
+          if (data && typeof data === 'object') {
+            if (typeof data.abi === 'string') {
+              try { data.abi = JSON.parse(data.abi); } catch { data.abi = []; }
+            }
+            const contract = data as ContractData;
+            if (contract.source_code) return contract;
+            // Keep an unverified/partial result but try once more for source.
+            if (attempt === 1) return contract;
+          }
+        }
+      } catch {
+        // retry / give up
       }
-      
-      return { data, success: true };
-    } catch (error) {
-      return { error: (error as Error).message, success: false };
+    }
+    return null;
+  }
+
+  // Verified source from Sourcify's v2 API. Returns null when the contract isn't
+  // on Sourcify or the request fails, so callers can degrade gracefully.
+  private async getContractFromSourcify(address: string): Promise<ContractData | null> {
+    try {
+      const url = `https://sourcify.dev/server/v2/contract/369/${address}?fields=sources,abi,compilation,metadata`;
+      const response = await fetchWithTimeout(
+        url,
+        { headers: { Accept: 'application/json' } },
+        12000,
+      );
+      if (!response.ok) return null;
+      const d = await response.json();
+      if (!d || typeof d !== 'object') return null;
+
+      const sources = (d.sources ?? {}) as Record<string, { content?: string }>;
+      // Flatten every source file into one blob with a header per file (the AI
+      // reader and the contract viewer expect a single `source_code` string).
+      const source_code = Object.entries(sources)
+        .map(([path, file]) => {
+          const shortPath = path.replace(/^verified-sources\/0x[a-fA-F0-9]{40}\/sources\//, '');
+          return `// File: ${shortPath}\n${file?.content ?? ''}`;
+        })
+        .join('\n\n');
+      if (!source_code.trim()) return null;
+
+      const comp = (d.compilation ?? {}) as {
+        name?: string;
+        compilerVersion?: string;
+        compilerSettings?: { evmVersion?: string; optimizer?: { enabled?: boolean; runs?: number } };
+      };
+      const settings = comp.compilerSettings ?? {};
+
+      return {
+        address,
+        name: comp.name || 'Contract',
+        compiler_version: comp.compilerVersion || '',
+        optimization_enabled: !!settings.optimizer?.enabled,
+        optimization_runs: settings.optimizer?.runs ?? 0,
+        evm_version: settings.evmVersion || '',
+        verified_at: d.verifiedAt || '',
+        source_code,
+        constructor_args: '',
+        abi: Array.isArray(d.abi) ? d.abi : [],
+        is_verified: true,
+        is_partially_verified: d.runtimeMatch === 'partial' || d.creationMatch === 'partial',
+      };
+    } catch {
+      return null;
     }
   }
 
