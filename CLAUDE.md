@@ -119,11 +119,15 @@ token-transfers, balances, token metadata; an RPC CANNOT replace these)
 - **Robinhood:** `robinhoodchain.blockscout.com/api/v2`
 
 ### Other data APIs
-- **DexScreener:** `api.dexscreener.com/latest/dex` (prices, pairs, token search).
+- **DexScreener:** `api.dexscreener.com/latest/dex` — token **logos/images**,
+  pair discovery, and the prices it already powers. **NEVER a source of
+  transaction / transfer history**, and never reach for it as a fallback for
+  transactions. It is not a general blockchain-data API.
 - **GeckoTerminal:** `api.geckoterminal.com/api/v2` (OHLCV candles).
-- **Moralis:** `deep-index.moralis.io/api/v2.2` — OPTIONAL, key-gated
-  (`MORALIS_API_KEY`), currently PulseChain-hardcoded; skipped without a key.
 - **CoinGecko:** key `COINGECKO_API_KEY`.
+- **Moralis** — ⛔ **DO NOT USE.** It is a paid/metered service; the owner is on
+  the free tier only, so any real use just fails or bills them. Never add or
+  rely on Moralis (or any paid API) as a source or fallback.
 
 ### Subgraphs / GraphQL
 - **PulseChain HEX:** `graph.pulsechain.com/subgraphs/name/Codeakk/Hex`
@@ -135,9 +139,30 @@ token-transfers, balances, token metadata; an RPC CANNOT replace these)
   `app/api/pulsechain-graphql-proxy`.
 
 ### ⛔ Banned / never use
+- **Any paid / metered API** (Moralis, paid RPC tiers, paid data providers).
+  Cost is never an acceptable default for an API here — the owner runs on free
+  tiers. If the only solution costs money, STOP and say so; don't ship it.
+- **DexScreener for transaction/transfer history** — it's logos/prices/pairs
+  only, never a data or transaction fallback.
 - **`midgard.wtf`** as an explorer — use `lib/pulsechainExplorer.ts` (Otterscan).
 - **Any testnet RPC or explorer** in production/mainnet code.
-- Any RPC/explorer/subgraph host not already in this repo — ask first.
+- Any RPC/explorer/subgraph host not already in this repo — research + verify,
+  don't guess.
+
+### Resilience / fallbacks (free sources only)
+- **Only PulseChain needs an explorer fallback.** Its Blockscout
+  (`api.scan.pulsechain.com`) is the flaky one. Ethereum's `eth.blockscout.com`
+  and Robinhood's Blockscout are reliable — don't build fallbacks for them.
+- **Free fallbacks for PulseChain data, in order of preference:**
+  1. **The RPC pool** (`lib/portfolio/evmRpc.ts` — many healthy free nodes).
+     RPCs almost never go down when the explorer does. Use `eth_getLogs` /
+     `eth_call` to reconstruct what's needed (transfers from `Transfer` logs,
+     balances from `balanceOf`). This is the primary resilience layer.
+  2. **Another PulseChain Blockscout instance** (drop-in, same `/api/v2` shape),
+     only if it's a verified, free, reliable mirror.
+- Label degraded/partial responses (e.g. `source: 'rpc-fallback'`) so the UI can
+  badge a limited view. Never show data that could be **wrong** — for financial
+  data, an accurate blank beats a misleading number.
 
 ---
 
