@@ -14,10 +14,12 @@ const DEX_PAIRS_URL = 'https://api.dexscreener.com/latest/dex/pairs';
 // Order curated by the project owner; first match wins.
 const RPC_URLS: Record<string, string[]> = {
   pulsechain: [
+    'https://rpc.pulsechainstats.com',
     'https://rpc.pulsechainrpc.com',
     'https://pulsechain-rpc.publicnode.com',
     'https://rpc.gigatheminter.com',
     'https://rpc-pulsechain.g4mm4.io',
+    'https://rpc.degenprotocol.io',
   ],
   ethereum: [
     'https://ethereum-rpc.publicnode.com',

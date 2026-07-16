@@ -94,8 +94,19 @@ unsure. The owner cannot double-check you — accuracy is the whole job.
 ## Infrastructure we actually use (do not substitute without asking)
 
 ### RPC endpoints (JSON-RPC nodes — return raw chain data, NOT decoded history)
-- **PulseChain (369):** `rpc.pulsechainrpc.com`, `pulsechain-rpc.publicnode.com`,
-  `rpc.gigatheminter.com`, `rpc-pulsechain.g4mm4.io` ("gamma").
+- **PulseChain (369)** — canonical list from chainlist.org. These are healthy
+  public nodes; use them, don't invent others. HTTPS:
+  `rpc.pulsechainstats.com` ("pulsechain stats"), `pulsechain-rpc.publicnode.com`,
+  `rpc.degenprotocol.io`, `rpc.gigatheminter.com`, `rpc-pulsechain.g4mm4.io`
+  ("gamma"), `rpc.pulsechainrpc.com`, `rpc.swiftnodes.io/rpc/pulsechain`,
+  `rpc.hairylabs.io`, `evex.cloud/pulserpc`,
+  `rpc.owlracle.info/pulse/<key>` (key-gated).
+  WebSocket (WSS): `pulsechain-rpc.publicnode.com`, `rpc.hairylabs.io/ws`,
+  `ws.pulsechainrpc.com`, `evex.cloud/pulsews`.
+  In-app server pool (`lib/portfolio/evmRpc.ts` + portfolio routes):
+  `rpc.pulsechainstats.com`, `rpc.pulsechainrpc.com`,
+  `pulsechain-rpc.publicnode.com`, `rpc.gigatheminter.com`,
+  `rpc-pulsechain.g4mm4.io`, `rpc.degenprotocol.io`.
   Override: `PULSECHAIN_RPC_URL` / `NEXT_PUBLIC_PULSECHAIN_RPC_URL`.
 - **Ethereum (1):** `ethereum-rpc.publicnode.com`, `rpc.ankr.com/eth`,
   `eth.drpc.org`. Override: `ETHEREUM_RPC_URL`.

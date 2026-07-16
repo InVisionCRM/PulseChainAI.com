@@ -7,10 +7,12 @@ import type { ChainId } from '@/services';
 // Order curated by the project owner; first match wins. Mirrors the LP route.
 export const RPC_URLS: Record<ChainId, string[]> = {
   pulsechain: [
+    'https://rpc.pulsechainstats.com',
     'https://rpc.pulsechainrpc.com',
     'https://pulsechain-rpc.publicnode.com',
     'https://rpc.gigatheminter.com',
     'https://rpc-pulsechain.g4mm4.io',
+    'https://rpc.degenprotocol.io',
   ],
   ethereum: [
     'https://ethereum-rpc.publicnode.com',
