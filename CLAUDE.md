@@ -10,17 +10,27 @@ below before touching anything.
 
 ## 🔟 THE RULES (in priority order)
 
-### 1. DO NOT EVER GUESS
+### 1. DO NOT EVER GUESS — but DO research and verify
 Never invent an endpoint, address, RPC, subgraph, file path, type, config value,
-or "the way this project does X."
-- **First:** search the repo — `git grep`, read the real source, find the
-  existing constant/helper/registry that already holds the answer.
-- **If it isn't in the repo:** ASK the owner directly, in one line. A question
-  is always cheaper than a wrong guess that ships.
-- This includes diagnostics: only test endpoints that exist in the code or that
-  the owner named. Never probe made-up hostnames.
+or "the way this project does X." Work through this order, and don't stop early:
+1. **Search the repo** — `git grep`, read the real source, find the existing
+   constant/helper/registry that already holds the answer.
+2. **Search online, then VERIFY it yourself.** You have web search + fetch —
+   use them. Find the official value (RPC URL, explorer API base, contract
+   address, chain id) in docs/official sources, then **prove it works before
+   using it**: `curl` the endpoint, `eth_getCode` the address, hit the API and
+   check the JSON shape. A value you researched AND verified is NOT a guess;
+   an unverified copy-paste IS. Do this yourself — don't make the owner look
+   things up you can find.
+3. **Only ask the owner** when you genuinely can't find or verify it, it's
+   down/ambiguous, or it's truly their call (which paid provider to use,
+   subjective preference). Then ask in one line. Don't ask for things you can
+   research.
+- Diagnostics: only test endpoints that exist in the code, that the owner named,
+  or that you found in an authoritative source and are verifying. Never probe
+  fully made-up hostnames.
 - Guessed values (RPCs, explorer domains, addresses) have shipped here before
-  and had to be ripped out. Do not add to that.
+  and had to be ripped out. Research + verify instead.
 
 ### 2. REUSE — do not blindly create new files, endpoints, or types
 Before writing a new file / API route / type / helper / constant, **search for

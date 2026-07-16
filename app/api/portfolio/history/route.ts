@@ -37,7 +37,10 @@ const BLOCKSCOUT_BASE: Record<ChainId, string> = {
   robinhood: 'https://robinhoodchain.blockscout.com/api/v2',
 };
 
-const FETCH_TIMEOUT_MS = 10_000;
+// Trimmed from 10s → 8s: fail a bit faster on a slow/down explorer without
+// cutting off legitimately slow-but-successful responses (this route has no
+// RPC fallback — an RPC can't return decoded tx history).
+const FETCH_TIMEOUT_MS = 8_000;
 const MAX_TT_PAGES = 4; // transfer pages swept per transactions page
 const CACHE_TTL_MS = 20_000;
 const ADDRESS_RX = /^0x[a-f0-9]{40}$/;
