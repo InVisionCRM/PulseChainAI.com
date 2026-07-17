@@ -5,6 +5,7 @@
 
 import type { ChainKey } from '@/lib/chains/types';
 import { ROBINHOOD_LAUNCHPADS } from './robinhood';
+import { PULSECHAIN_LAUNCHPADS } from './pulsechain';
 import type { Launchpad } from './types';
 
 export * from './types';
@@ -15,9 +16,10 @@ export {
   ROBINHOOD_UNISWAP_V4,
   ROBINHOOD_MULTICALL3,
 } from './robinhood';
+export { PULSECHAIN_LAUNCHPADS, PUMP_TIRES_FACTORY } from './pulsechain';
 
 /** All launchpads across every supported chain. */
-export const LAUNCHPADS: Launchpad[] = [...ROBINHOOD_LAUNCHPADS];
+export const LAUNCHPADS: Launchpad[] = [...ROBINHOOD_LAUNCHPADS, ...PULSECHAIN_LAUNCHPADS];
 
 /** Launchpads on a given chain. */
 export function launchpadsForChain(chain: ChainKey): Launchpad[] {

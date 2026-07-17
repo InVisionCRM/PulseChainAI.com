@@ -12,6 +12,7 @@ import {
 import { getChain } from '@/lib/chains/registry';
 import { launchpadsForChain, type Launchpad } from '@/lib/launchpads';
 import RobinhoodTopTokens from '@/components/robinhood/RobinhoodTopTokens';
+import LaunchpadActivity from '@/components/launchpads/LaunchpadActivity';
 
 const CHAIN = getChain('robinhood');
 const EXPLORER = CHAIN.explorerUrl; // https://robinhoodchain.blockscout.com
@@ -180,8 +181,17 @@ export default function RobinhoodLaunchpads() {
       </div>
 
       <div className="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-12">
+        {/* Launchpad activity leaderboard (live) */}
+        <div className="mb-4 flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            Launchpad activity
+          </h2>
+          <span className="text-[11px] text-[var(--text-faint)]">Live · ranked by 24h volume</span>
+        </div>
+        <LaunchpadActivity chain="robinhood" />
+
         {/* Active pads */}
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+        <h2 className="mb-4 mt-10 text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
           Live launchpads ({active.length})
         </h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
