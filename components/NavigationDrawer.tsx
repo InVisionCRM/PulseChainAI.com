@@ -41,6 +41,11 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
       icon: <IconRocket className="h-8 w-8" />,
     },
     {
+      label: "PLS Launchpads",
+      href: "/pulsechain/launchpads",
+      icon: <IconRocket className="h-8 w-8" />,
+    },
+    {
       label: "HEX Strategist",
       href: "/hex-strategist",
       // eslint-disable-next-line @next/next/no-img-element
