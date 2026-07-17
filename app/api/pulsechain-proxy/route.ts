@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { bsFetchJson } from '@/lib/blockscout';
 
 const PULSECHAIN_API_BASE = 'https://api.scan.pulsechain.com/api/v2';
 
@@ -33,19 +34,23 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'PulseChain-AI-Dashboard/1.0'
-      }
-    });
+    // The canonical PulseChain Blockscout is intermittently 500-flaky (DB-backed
+    // endpoints like /holders fail ~1-in-3 but succeed on a retry). bsFetchJson
+    // retries transient 500s / network errors / error-string bodies so holder
+    // dropdowns and other proxied reads don't blink out on a single bad attempt.
+    const data = await bsFetchJson(
+      url.toString(),
+      { headers: { Accept: 'application/json', 'User-Agent': 'PulseChain-AI-Dashboard/1.0' } },
+      12_000,
+    );
 
-    if (!response.ok) {
-      throw new Error(`PulseChain API error: ${response.status} ${response.statusText}`);
+    if (data == null) {
+      return NextResponse.json(
+        { error: 'PulseChain API unavailable after retries' },
+        { status: 502 },
+      );
     }
 
-    const data = await response.json();
-    
     return NextResponse.json(data);
   } catch (error) {
     console.error('PulseChain proxy error:', error);

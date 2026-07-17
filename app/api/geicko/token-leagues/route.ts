@@ -74,7 +74,9 @@ async function scanBands(token: string, supplyRaw: bigint) {
   let complete = false; // scan exhausted the holders or ran off the bottom tier
   let lastFrac = 1;
 
-  const holders = await fetchBlockscoutHolders(token, MAX_HOLDERS);
+  // Bound the paging so the cold build can't blow the 60s route budget on the
+  // flaky primary — take the partial top-holders we have and report floors.
+  const holders = await fetchBlockscoutHolders(token, MAX_HOLDERS, undefined, 45_000);
   const items = holders?.items ?? [];
 
   for (const it of items) {
