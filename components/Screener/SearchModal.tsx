@@ -128,7 +128,7 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
           </button>
         </div>
 
-        <div className="overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {query.trim().length < 2 ? (
             <div className="space-y-4 p-4">
               {recent.length > 0 ? (
@@ -222,6 +222,26 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
             </div>
           )}
         </div>
+
+        {/* Sponsored — non-obtrusive banner pinned at the bottom of the modal.
+            JOLT (DEX aggregator / limit orders) works on PulseChain + Robinhood. */}
+        <a
+          href="https://app.jolt.build/swap"
+          target="_blank"
+          rel="noopener noreferrer sponsored"
+          className="group relative block shrink-0 border-t border-[var(--line)]"
+          aria-label="JOLT — DEX aggregator, limit orders, OTC, DCA (sponsored)"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/jolt-ad.jpeg"
+            alt="JOLT — DEX aggregator, limit orders, OTC, DCA"
+            className="h-20 w-full object-cover object-center transition-opacity group-hover:opacity-90"
+          />
+          <span className="pointer-events-none absolute right-2 top-2 rounded bg-black/55 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-white/70">
+            Sponsored
+          </span>
+        </a>
       </div>
     </div>
   );
