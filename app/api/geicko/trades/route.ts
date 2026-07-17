@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PULSEX_SUBGRAPHS, gql, getTokenPairIds, pageSwaps, cleanUsd, num, type SwapRow } from '@/lib/geicko/pulsex';
 import { cached } from '@/lib/geicko/serverCache';
+import { getChain, isChainKey } from '@/lib/chains/registry';
 
 // Recent buys/sells + top traders for a token, from PulseX swaps (v1 + v2) —
 // the DexScreener-style transactions view, computed from the subgraph so it's
@@ -107,12 +108,101 @@ async function build(chain: string, token: string) {
   return { chain, supported: true, pairCount: pairSet.size, windowHours: 24, recent, topTraders };
 }
 
+// ── Non-PulseChain chains: recent trades from GeckoTerminal ─────────────────
+// PulseChain uses the PulseX subgraph; other chains have no such subgraph, so
+// their trades come from GeckoTerminal's per-pool trades endpoint (the last
+// ~300 trades per pool). Free; recent-window only (no lifetime aggregation).
+const GT = 'https://api.geckoterminal.com/api/v2';
+
+async function gtJson(url: string): Promise<any | null> {
+  try {
+    const r = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(9000) });
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function buildFromGeckoTerminal(net: string, token: string) {
+  // Deepest pools for the token, then merge each pool's recent trades.
+  const poolsJson = await gtJson(`${GT}/networks/${net}/tokens/${token}/pools?page=1`);
+  const pools = ((poolsJson?.data ?? []) as any[])
+    .map((p) => String(p?.attributes?.address ?? '').toLowerCase())
+    .filter(Boolean)
+    .slice(0, 4); // cap fan-out
+  if (pools.length === 0) return { chain: net, supported: true, empty: true };
+
+  const perPool = await Promise.all(
+    pools.map((pool) => gtJson(`${GT}/networks/${net}/pools/${pool}/trades`)),
+  );
+
+  const traders = new Map<string, { boughtUsd: number; soldUsd: number; buys: number; sells: number }>();
+  const recentRaw: Array<{ type: string; ts: number; usd: number; tokenAmount: number; price: number; wallet: string; tx: string }> = [];
+
+  for (const j of perPool) {
+    for (const t of (j?.data ?? []) as any[]) {
+      const a = t?.attributes ?? {};
+      const from = String(a.from_token_address ?? '').toLowerCase();
+      const to = String(a.to_token_address ?? '').toLowerCase();
+      const isBuy = to === token; // token received → buy of token
+      const isSell = from === token;
+      if (!isBuy && !isSell) continue;
+      const usd = num(a.volume_in_usd);
+      if (usd <= 0) continue;
+      const tokenAmount = isBuy ? num(a.to_token_amount) : num(a.from_token_amount);
+      const wallet = String(a.tx_from_address ?? '').toLowerCase();
+      const ts = a.block_timestamp ? Math.floor(Date.parse(a.block_timestamp) / 1000) : 0;
+      recentRaw.push({
+        type: isBuy ? 'buy' : 'sell',
+        ts,
+        usd,
+        tokenAmount,
+        price: tokenAmount > 0 ? usd / tokenAmount : 0,
+        wallet,
+        tx: String(a.tx_hash ?? ''),
+      });
+      if (wallet) {
+        const agg = traders.get(wallet) ?? { boughtUsd: 0, soldUsd: 0, buys: 0, sells: 0 };
+        if (isBuy) { agg.boughtUsd += usd; agg.buys++; } else { agg.soldUsd += usd; agg.sells++; }
+        traders.set(wallet, agg);
+      }
+    }
+  }
+
+  const recent = recentRaw.sort((a, b) => b.ts - a.ts).slice(0, RECENT);
+  const topTraders = [...traders.entries()]
+    .map(([wallet, t]) => ({
+      wallet,
+      boughtUsd: t.boughtUsd, soldUsd: t.soldUsd,
+      volumeUsd: t.boughtUsd + t.soldUsd, netUsd: t.boughtUsd - t.soldUsd,
+      buys: t.buys, sells: t.sells,
+    }))
+    .sort((a, b) => b.volumeUsd - a.volumeUsd)
+    .slice(0, TOP_N);
+
+  // windowHours omitted: GT gives a recent-trades window, not a fixed 24h.
+  return { chain: net, supported: true, pairCount: pools.length, recent, topTraders, source: 'geckoterminal' };
+}
+
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const chain = (sp.get('network') || 'pulsechain').toLowerCase();
   const token = (sp.get('token') || '').toLowerCase();
-  if (chain !== 'pulsechain') return NextResponse.json({ chain, supported: false });
   if (!token) return NextResponse.json({ error: 'token required' }, { status: 400 });
+
+  // Non-PulseChain chains route through GeckoTerminal (if they're indexed there).
+  if (chain !== 'pulsechain') {
+    const gtSlug = isChainKey(chain) ? getChain(chain).geckoterminalSlug : null;
+    if (!gtSlug) return NextResponse.json({ chain, supported: false });
+    try {
+      const payload = await cached(`trades:${chain}:${token}`, 120_000, () => buildFromGeckoTerminal(gtSlug, token));
+      return NextResponse.json(payload, {
+        headers: { 'Cache-Control': 'public, max-age=120, s-maxage=120, stale-while-revalidate=1800' },
+      });
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to load trades' }, { status: 500 });
+    }
+  }
 
   try {
     // Freshest of the geicko caches — this is the "live" trades feed — but a few

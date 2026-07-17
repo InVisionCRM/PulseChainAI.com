@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCreationDateViaRpc } from '@/lib/geicko/rpcHolders';
 import { blockscoutJson } from '@/lib/blockscout';
+import { getChain, isChainKey } from '@/lib/chains/registry';
 
 const CACHE_DURATION = 120; // 2 minutes cache
 
@@ -60,8 +61,8 @@ const isBurnAddress = (addr: string): boolean => {
 // GET a Blockscout v2 path (starting with `/`) with automatic failover from the
 // canonical explorer to the scan.pulsechain.box mirror. Throws when every base
 // fails, so callers' `.catch()` handlers still trip through to the RPC fallback.
-async function fetchJson(path: string) {
-  const data = await blockscoutJson(path, { revalidateSeconds: CACHE_DURATION });
+async function fetchJson(path: string, bases?: string[]) {
+  const data = await blockscoutJson(path, { revalidateSeconds: CACHE_DURATION, bases });
   if (data == null) throw new Error('blockscout unavailable');
   return data;
 }
@@ -78,10 +79,11 @@ type HoldersItem = {
   value?: string;
 };
 
-async function fetchTopHolders(address: string): Promise<HoldersItem[]> {
+async function fetchTopHolders(address: string, bases?: string[]): Promise<HoldersItem[]> {
   try {
     const data = await fetchJson(
       `/tokens/${address}/holders`,
+      bases,
     );
     return Array.isArray(data?.items) ? data.items : [];
   } catch {
@@ -379,7 +381,12 @@ async function getBurnedViaRpc(
   return { amount, percent };
 }
 
-async function getOwnershipData(address: string) {
+async function getOwnershipData(address: string, bases?: string[]) {
+  // `bases` set → a non-PulseChain chain. The on-chain owner() walk uses the
+  // PulseChain RPC pool, so we only run it (and the renounce inference) on
+  // PulseChain. On other chains we surface the Blockscout-derived creator but
+  // leave ownership undetermined rather than falsely claim "renounced".
+  const isPls = !bases;
   try {
     let creatorAddress: string | null = null;
     let creationTxHash: string | null = null;
@@ -388,8 +395,8 @@ async function getOwnershipData(address: string) {
 
     // Fetch address info and token info in parallel
     const [addressInfo] = await Promise.all([
-      fetchJson(`/addresses/${address}`).catch(() => null),
-      fetchJson(`/tokens/${address}`).catch(() => null)
+      fetchJson(`/addresses/${address}`, bases).catch(() => null),
+      fetchJson(`/tokens/${address}`, bases).catch(() => null)
     ]);
 
     creatorAddress = addressInfo?.creator_address_hash || null;
@@ -399,25 +406,27 @@ async function getOwnershipData(address: string) {
     const isHexToken = address?.toLowerCase() === '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
 
     if (creationTxHash) {
-      const creationTx = await fetchJson(`/transactions/${creationTxHash}`).catch(() => null);
+      const creationTx = await fetchJson(`/transactions/${creationTxHash}`, bases).catch(() => null);
       creationTxTo = creationTx?.to?.hash || creationTx?.to || null;
     }
 
-    // Primary source of truth: call owner() on-chain.
+    // Primary source of truth: call owner() on-chain (PulseChain only).
     // null means the contract has no owner() or it returned address(0) — treat as renounced/no-owner.
-    const onChainOwner = isHexToken ? null : await getOnChainOwner(address);
+    const onChainOwner = (isHexToken || !isPls) ? null : await getOnChainOwner(address);
 
-    // ownerAddress is the live on-chain owner (null = no owner / renounced)
+    // ownerAddress is the live on-chain owner (null = no owner / renounced / undetermined off-PulseChain)
     const ownerAddress = onChainOwner;
 
-    let isRenounced = onChainOwner === null;
+    // Only infer renounce state where we actually queried the chain.
+    let isRenounced = isPls ? onChainOwner === null : false;
 
     // If on-chain still shows an owner, also check the creator's tx history for a
     // renounceOwnership call directed at this contract, as a belt-and-suspenders check.
-    if (!isRenounced && creatorAddress) {
+    if (isPls && !isRenounced && creatorAddress) {
       try {
         const creatorTxs = await fetchJson(
-          `/addresses/${creatorAddress}/transactions`
+          `/addresses/${creatorAddress}/transactions`,
+          bases,
         );
 
         const renounceTx = (creatorTxs?.items || []).find((tx: any) =>
@@ -460,13 +469,13 @@ async function getOwnershipData(address: string) {
   }
 }
 
-async function getCreationDate(address: string) {
+async function getCreationDate(address: string, bases?: string[]) {
   try {
-    const addressInfo = await fetchJson(`/addresses/${address}`);
+    const addressInfo = await fetchJson(`/addresses/${address}`, bases);
     const creationTxHash = addressInfo?.creation_tx_hash;
 
     if (creationTxHash) {
-      const creationTx = await fetchJson(`/transactions/${creationTxHash}`);
+      const creationTx = await fetchJson(`/transactions/${creationTxHash}`, bases);
       const timestamp = creationTx?.timestamp || creationTx?.block_timestamp;
 
       if (timestamp) {
@@ -477,9 +486,10 @@ async function getCreationDate(address: string) {
   } catch (error) {
     console.error('Failed to get creation date:', error);
   }
-  // Blockscout didn't yield a creation tx (the .box mirror doesn't expose one,
-  // and the primary may be down) — derive the date on-chain from the
-  // deployment block instead.
+  // Blockscout didn't yield a creation tx — derive the date on-chain from the
+  // deployment block. The RPC walk is PulseChain-only, so other chains just
+  // return null (blank "Age") rather than a wrong-chain date.
+  if (bases) return null;
   return getCreationDateViaRpc(address);
 }
 
@@ -492,11 +502,13 @@ async function getCreationDate(address: string) {
  */
 async function getCoreMetrics(
   address: string,
+  bases?: string[],
 ): Promise<Omit<TokenMetrics, 'ownershipData'>> {
+  const isPls = !bases;
   // Token info first — it already carries the holders count and total supply.
   // PulseScan v2 goes down for stretches (HTTP 500 everywhere); catch that
   // instead of throwing so we can fall back to on-chain reads below.
-  const tokenInfo = await fetchJson(`/tokens/${address}`).catch(
+  const tokenInfo = await fetchJson(`/tokens/${address}`, bases).catch(
     () => null,
   );
 
@@ -509,10 +521,12 @@ async function getCoreMetrics(
     const totalSupply = Number(tokenInfo?.total_supply || 0);
 
     const [holders, pairAddresses, creationDate, rpcBurned] = await Promise.all([
-      fetchTopHolders(address),
+      fetchTopHolders(address, bases),
       fetchTokenPairAddresses(address),
-      getCreationDate(address),
-      getBurnedViaRpc(address, decimals, totalSupply),
+      getCreationDate(address, bases),
+      // Burn-sink balanceOf via the PulseChain RPC pool — PulseChain only; on
+      // other chains the holder-derived burn (below) is the source.
+      isPls ? getBurnedViaRpc(address, decimals, totalSupply) : Promise.resolve(null),
     ]);
 
     // The canonical explorer calls it `holders`; the .box mirror uses
@@ -548,6 +562,12 @@ async function getCoreMetrics(
     };
   }
 
+  // Explorer down. The off-chain fact fallback uses the PulseChain RPC pool, so
+  // it only applies to PulseChain; other chains report unavailable rather than
+  // read the wrong chain.
+  if (!isPls) {
+    throw new Error('token metrics unavailable (explorer down for this chain)');
+  }
   // PulseScan unavailable — read the token facts straight off-chain. Total
   // supply, decimals and burned still render; holder-derived figures (holders
   // count, supply-held %, contract share) need an indexer we don't have without
@@ -610,19 +630,26 @@ export async function GET(
     // returns the full payload (backwards compatible).
     const scope = request.nextUrl.searchParams.get('scope');
 
+    // Chain selector: PulseChain uses the default failover list; other chains
+    // point the shared Blockscout helper at their own instance.
+    const netRaw = (request.nextUrl.searchParams.get('network') || 'pulsechain').toLowerCase();
+    const chain = isChainKey(netRaw) ? netRaw : 'pulsechain';
+    const bases = chain === 'pulsechain' ? undefined
+      : (getChain(chain).blockscoutApiBase ? [getChain(chain).blockscoutApiBase as string] : undefined);
+
     if (scope === 'ownership') {
-      const ownershipData = await getOwnershipData(address);
+      const ownershipData = await getOwnershipData(address, bases);
       return NextResponse.json({ ownershipData }, { headers: CACHE_HEADERS });
     }
 
     if (scope === 'core') {
-      const core = await getCoreMetrics(address);
+      const core = await getCoreMetrics(address, bases);
       return NextResponse.json(core, { headers: CACHE_HEADERS });
     }
 
     const [core, ownershipData] = await Promise.all([
-      getCoreMetrics(address),
-      getOwnershipData(address),
+      getCoreMetrics(address, bases),
+      getOwnershipData(address, bases),
     ]);
 
     const metrics: TokenMetrics = { ...core, ownershipData };

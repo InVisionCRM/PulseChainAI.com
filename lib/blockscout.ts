@@ -37,10 +37,13 @@ const markBaseUp = (base: string) => baseFailUntil.delete(base);
  */
 export async function blockscoutJson(
   path: string,
-  opts?: { revalidateSeconds?: number; timeoutMs?: number },
+  opts?: { revalidateSeconds?: number; timeoutMs?: number; bases?: string[] },
 ): Promise<any | null> {
   const timeoutMs = opts?.timeoutMs ?? 12_000;
-  for (const base of orderedBases()) {
+  // `bases` lets non-PulseChain chains reuse this helper by pointing at their own
+  // Blockscout instance (e.g. Robinhood). Default keeps the PulseChain failover.
+  const list = opts?.bases ?? orderedBases();
+  for (const base of list) {
     try {
       const res = await fetch(base + path, {
         headers: { Accept: 'application/json' },
@@ -86,11 +89,12 @@ export interface BlockscoutHolders {
 export async function fetchBlockscoutHolders(
   token: string,
   cap = 100,
+  bases?: string[],
 ): Promise<BlockscoutHolders | null> {
   const tok = token.toLowerCase();
-  const meta = await blockscoutJson(`/tokens/${tok}`);
+  const meta = await blockscoutJson(`/tokens/${tok}`, bases ? { bases } : undefined);
 
-  for (const base of orderedBases()) {
+  for (const base of bases ?? orderedBases()) {
     try {
       const items: BlockscoutHolderItem[] = [];
       let path = `/tokens/${tok}/holders`;

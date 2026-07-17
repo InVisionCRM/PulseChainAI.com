@@ -5,13 +5,16 @@ import { LoaderThree } from "@/components/ui/loader";
 import SourceCodeTab from '@/components/SourceCodeTab';
 import { fetchContract, fetchReadMethods, fetchReadMethodsWithValues } from '@/services';
 import type { ContractData, AbiItem } from '../types';
+import type { ChainKey } from '@/lib/chains/types';
 
 interface TokenContractViewProps {
   contractAddress: string;
   compact?: boolean;
+  /** Which chain the contract lives on (defaults to PulseChain). */
+  network?: ChainKey;
 }
 
-export default function TokenContractView({ contractAddress, compact = false }: TokenContractViewProps): JSX.Element {
+export default function TokenContractView({ contractAddress, compact = false, network = 'pulsechain' }: TokenContractViewProps): JSX.Element {
   const [contractData, setContractData] = useState<ContractData | null>(null);
   const [readFunctionsWithValues, setReadFunctionsWithValues] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -29,7 +32,7 @@ export default function TokenContractView({ contractAddress, compact = false }: 
 
     try {
       // Fetch contract data
-      const result = await fetchContract(contractAddress);
+      const result = await fetchContract(contractAddress, network);
       const data = result.data;
       
       // Preserve existing source code if new fetch returns empty but we have existing data
@@ -73,7 +76,7 @@ export default function TokenContractView({ contractAddress, compact = false }: 
       // the Contract tab degrades instead of throwing.
       if (data && data.abi && Array.isArray(data.abi) && data.abi.length > 0) {
         // Fetch read methods in background - don't let errors affect contract display
-        fetchReadMethodsWithValues(contractAddress, data.abi)
+        fetchReadMethodsWithValues(contractAddress, network)
           .then((readMethodsWithVals) => {
             setReadFunctionsWithValues(readMethodsWithVals);
           })
@@ -90,7 +93,7 @@ export default function TokenContractView({ contractAddress, compact = false }: 
     } finally {
       setIsLoading(false);
     }
-  }, [contractAddress]);
+  }, [contractAddress, network]);
 
   useEffect(() => {
     loadContract();
