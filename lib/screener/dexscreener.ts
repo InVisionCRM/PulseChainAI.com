@@ -181,12 +181,22 @@ export async function bestPairsForToken(
 }
 
 /** Search PulseChain pairs by symbol/name/address. */
-export async function searchPulsechain(query: string): Promise<SearchPair[]> {
+// DexScreener chainId → our supported chain keys. DexScreener uses the same
+// slugs ('pulsechain', 'robinhood') the registry does, plus 'ethereum'. Anything
+// not in this map (Solana, Base, …) is dropped — the app only browses these.
+const SEARCH_CHAINS: Record<string, SearchPair['chain']> = {
+  pulsechain: 'pulsechain',
+  robinhood: 'robinhood',
+  ethereum: 'ethereum',
+};
+
+export async function searchPairs(query: string): Promise<SearchPair[]> {
   const json = await dsGet(`/latest/dex/search?q=${encodeURIComponent(query)}`);
   return (json.pairs ?? [])
-    .filter((p) => p && p.chainId === 'pulsechain')
+    .filter((p) => p && SEARCH_CHAINS[p.chainId])
     .slice(0, 40)
     .map((p) => ({
+      chain: SEARCH_CHAINS[p.chainId],
       pairAddress: p.pairAddress,
       dexId: p.dexId ?? null,
       label: p.labels?.[0] ?? null,
