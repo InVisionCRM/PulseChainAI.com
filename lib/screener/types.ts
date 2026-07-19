@@ -66,6 +66,8 @@ export interface ScreenerResponse {
 
 /** Slim pair shape returned by /api/search (DexScreener search proxy). */
 export interface SearchPair {
+  /** Chain the pair trades on — drives the analyzer's `?network=` and the row badge. */
+  chain: 'pulsechain' | 'ethereum' | 'robinhood';
   pairAddress: string;
   dexId: string | null;
   label: string | null;

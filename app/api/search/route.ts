@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchPulsechain } from '@/lib/screener/dexscreener';
+import { searchPairs } from '@/lib/screener/dexscreener';
 
 export const dynamic = 'force-dynamic';
 
-/** Pair search across every PulseChain DEX (DexScreener proxy). */
+/** Pair search across every supported chain's DEXs (PulseChain, Robinhood,
+ *  Ethereum) via the DexScreener proxy. */
 export async function GET(request: NextRequest) {
   const q = (request.nextUrl.searchParams.get('q') ?? '').trim();
   if (q.length < 2) {
     return NextResponse.json({ error: 'q must be at least 2 characters' }, { status: 400 });
   }
   try {
-    const pairs = await searchPulsechain(q);
+    const pairs = await searchPairs(q);
     return NextResponse.json(
       { pairs },
       { headers: { 'Cache-Control': 's-maxage=10, stale-while-revalidate=30' } },

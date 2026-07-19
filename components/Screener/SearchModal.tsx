@@ -12,6 +12,12 @@ import { useWatchlistStore } from '@/lib/stores/watchlistStore';
 const RECENT_KEY = 'screener.recent';
 const MAX_RECENT = 8;
 
+// Open a token in the analyzer on its own chain. PulseChain is the analyzer's
+// default (no param); every other chain is passed through as `?network=` — the
+// same convention the Screener rows and launchpad chips use.
+const geickoHref = (address: string, chain: string) =>
+  `/geicko?address=${address}${chain === 'pulsechain' ? '' : `&network=${chain}`}`;
+
 function readRecent(): string[] {
   try {
     const raw = localStorage.getItem(RECENT_KEY);
@@ -101,7 +107,7 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
     (p: SearchPair) => {
       rememberQuery(p.baseSymbol);
       onClose();
-      router.push(`/geicko?address=${p.baseAddress}`);
+      router.push(geickoHref(p.baseAddress, p.chain));
     },
     [onClose, rememberQuery, router],
   );
@@ -157,7 +163,7 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
                         key={`${t.chain}:${t.address}`}
                         onClick={() => {
                           onClose();
-                          router.push(`/geicko?address=${t.address}`);
+                          router.push(geickoHref(t.address, t.chain));
                         }}
                         className="flex cursor-pointer items-center gap-2 rounded border border-[var(--line)] px-3 py-2 transition-colors hover:bg-[var(--surface)]"
                       >
@@ -166,8 +172,8 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
                           symbol={t.symbol}
                         />
                         <span className="text-sm font-medium text-[var(--text)]">{t.symbol}</span>
-                        {t.chain === 'ethereum' ? (
-                          <ChainLogo chain="ethereum" size={14} />
+                        {t.chain !== 'pulsechain' ? (
+                          <ChainLogo chain={t.chain} size={14} />
                         ) : null}
                         <span className="truncate text-xs text-[var(--text-faint)]">{t.name}</span>
                         <span className="ml-auto tabular-nums text-[11px] text-[var(--text-faint)]">{shortAddr(t.address)}</span>
@@ -189,7 +195,7 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
 
               {recent.length === 0 && watchlist.tokens.length === 0 ? (
                 <div className="py-10 text-center text-sm text-[var(--text-faint)]">
-                  Search any PulseChain pair — every DEX, every token.
+                  Search any PulseChain or Robinhood pair — every DEX, every token.
                 </div>
               ) : null}
             </div>
@@ -204,14 +210,15 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
               ) : null}
               {results.map((p) => (
                 <SearchRow
-                  key={p.pairAddress}
+                  key={`${p.chain}:${p.pairAddress}`}
                   pair={p}
-                  starred={watchlist.has(p.baseAddress)}
+                  starred={watchlist.has(p.baseAddress, p.chain)}
                   onOpen={openPair}
                   onStar={(pair, e) => {
                     e.stopPropagation();
                     watchlist.toggle({
                       address: pair.baseAddress,
+                      chain: pair.chain,
                       symbol: pair.baseSymbol,
                       name: pair.baseName ?? pair.baseSymbol,
                       logoURI: pair.imageUrl ?? undefined,
@@ -221,27 +228,28 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
               ))}
             </div>
           )}
-        </div>
 
-        {/* Sponsored — non-obtrusive banner pinned at the bottom of the modal.
-            JOLT (DEX aggregator / limit orders) works on PulseChain + Robinhood. */}
-        <a
-          href="https://app.jolt.build/swap"
-          target="_blank"
-          rel="noopener noreferrer sponsored"
-          className="group relative block shrink-0 border-t border-[var(--line)]"
-          aria-label="JOLT — DEX aggregator, limit orders, OTC, DCA (sponsored)"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/jolt-ad.jpeg"
-            alt="JOLT — DEX aggregator, limit orders, OTC, DCA"
-            className="h-20 w-full object-cover object-center transition-opacity group-hover:opacity-90"
-          />
-          <span className="pointer-events-none absolute right-2 top-2 rounded bg-black/55 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-white/70">
-            Sponsored
-          </span>
-        </a>
+          {/* Sponsored — sits at the end of the scroll flow so it never clips a
+              watchlist/result row. JOLT (DEX aggregator / limit orders) works on
+              PulseChain + Robinhood. */}
+          <a
+            href="https://app.jolt.build/swap"
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            className="group relative block border-t border-[var(--line)]"
+            aria-label="JOLT — DEX aggregator, limit orders, OTC, DCA (sponsored)"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/jolt-ad.jpeg"
+              alt="JOLT — DEX aggregator, limit orders, OTC, DCA"
+              className="h-20 w-full object-cover object-center transition-opacity group-hover:opacity-90"
+            />
+            <span className="pointer-events-none absolute right-2 top-2 rounded bg-black/55 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-white/70">
+              Sponsored
+            </span>
+          </a>
+        </div>
       </div>
     </div>
   );
@@ -300,7 +308,8 @@ function SearchRow({
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-1.5">
+        <div className="flex items-center gap-1.5">
+          {p.chain !== 'pulsechain' ? <ChainLogo chain={p.chain} size={14} /> : null}
           <span className="text-sm font-medium text-[var(--text)]">{p.baseSymbol}</span>
           <span className="text-xs text-[var(--text-faint)]">/{p.quoteSymbol ?? '?'}</span>
           <span className="truncate text-xs text-[var(--text-faint)]">{p.baseName}</span>
