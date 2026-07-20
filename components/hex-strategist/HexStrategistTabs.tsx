@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { IconBolt, IconRadar2, IconTrophy, IconChartBubble } from '@tabler/icons-react';
+import { IconBolt, IconRadar2, IconTrophy } from '@tabler/icons-react';
 import type { Network } from '@/lib/hex/strategistData';
 // Designer is the default tab — import it directly so it renders immediately
 // with no loading flash (lazy-loading the always-shown view buys nothing).
@@ -18,22 +18,19 @@ const TabSkeleton = () => (
 );
 const WhaleRadar = dynamic(() => import('./WhaleRadar'), { loading: TabSkeleton, ssr: false });
 const TopHundred = dynamic(() => import('./TopHundred'), { loading: TabSkeleton, ssr: false });
-const StakeBubbleMap = dynamic(() => import('./StakeBubbleMap'), { loading: TabSkeleton, ssr: false });
 
-type Mode = 'designer' | 'radar' | 'top100' | 'bubbles';
+type Mode = 'designer' | 'radar' | 'top100';
 
 const SUBTITLE: Record<Mode, string> = {
   designer: 'Design a stake — the math tells you the best length, not just the numbers.',
   radar: 'Whale radar — big stakes unlocking soon, who’s likely to sell, and how well that call backtests.',
   top100: 'Top 100 leaderboards — biggest stakes, best ROI, latest activity, and the largest holders.',
-  bubbles: 'Stake bubble map — every staker sized by their total stake, with linked-wallet clusters.',
 };
 
 const TABS: { key: Mode; label: string; icon: React.ReactNode; active: string }[] = [
   { key: 'designer', label: 'Designer', icon: <IconBolt className="h-3.5 w-3.5" />, active: 'text-orange-300' },
   { key: 'radar', label: 'Radar', icon: <IconRadar2 className="h-3.5 w-3.5" />, active: 'text-cyan-300' },
   { key: 'top100', label: 'Top 100', icon: <IconTrophy className="h-3.5 w-3.5" />, active: 'text-amber-300' },
-  { key: 'bubbles', label: 'Bubble Map', icon: <IconChartBubble className="h-3.5 w-3.5" />, active: 'text-purple-300' },
 ];
 
 // eHEX (HEX on Ethereum) is gated off until the Ethereum data source is wired
@@ -46,7 +43,7 @@ function ComingSoon() {
           <IconBolt className="h-5 w-5 text-orange-400" /> eHEX — coming soon
         </div>
         <p className="mx-auto max-w-sm text-xs text-[var(--text-muted)]">
-          HEX-on-Ethereum support is on the way. For now, switch to PulseChain to use the Designer, Radar, Top 100, and Bubble Map.
+          HEX-on-Ethereum support is on the way. For now, switch to PulseChain to use the Designer, Radar, and Top 100.
         </p>
       </div>
     </div>
@@ -103,10 +100,8 @@ export default function HexStrategistTabs() {
         <HexStrategist net={net} />
       ) : mode === 'radar' ? (
         <WhaleRadar net={net} />
-      ) : mode === 'top100' ? (
-        <TopHundred net={net} />
       ) : (
-        <StakeBubbleMap net={net} />
+        <TopHundred net={net} />
       )}
     </div>
   );
