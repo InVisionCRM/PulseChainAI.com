@@ -44,7 +44,6 @@ import {
   GeickoTradesTab,
   GeickoForensicsTab,
   GeickoTokenLeaguesPanel,
-  GeickoHolderGrowthPanel,
   GeickoBridgeFlowsTab,
   GeickoToast,
   type OwnershipData,
@@ -2313,9 +2312,6 @@ function GeickoPageContent() {
               {/* Holders Tab */}
               {activeTab === 'holders' && (
                 <div className="space-y-3">
-                  {apiTokenAddress && (
-                    <GeickoHolderGrowthPanel token={apiTokenAddress} />
-                  )}
                   {apiTokenAddress && (
                     <GeickoTokenLeaguesPanel token={apiTokenAddress} totalSupply={totalSupply} priceUsd={priceUsd} symbol={baseSymbol} />
                   )}
