@@ -44,7 +44,6 @@ import {
   GeickoTradesTab,
   GeickoForensicsTab,
   GeickoTokenLeaguesPanel,
-  GeickoHolderGrowthPanel,
   GeickoBridgeFlowsTab,
   GeickoToast,
   type OwnershipData,
@@ -56,20 +55,6 @@ import { isChainKey, getChain } from '@/lib/chains/registry';
 import type { ChainKey } from '@/lib/chains/types';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import dynamic from 'next/dynamic';
-
-// The bubble map pulls in d3-force and only renders inside the Holders tab, so
-// load it on demand instead of in the page's initial bundle.
-const BubbleMap = dynamic(
-  () => import('@/components/portfolio/BubbleMap').then((m) => m.BubbleMap),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="grid h-[460px] place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface)] text-sm text-[var(--text-faint)]">
-        Loading bubble map…
-      </div>
-    ),
-  },
-);
 
 // These tab panels are only mounted when their tab/modal is opened, and several
 // pull heavy deps (syntax highlighter, markdown, audit logic). Loading them on
@@ -2314,17 +2299,7 @@ function GeickoPageContent() {
               {activeTab === 'holders' && (
                 <div className="space-y-3">
                   {apiTokenAddress && (
-                    <GeickoHolderGrowthPanel token={apiTokenAddress} />
-                  )}
-                  {apiTokenAddress && (
                     <GeickoTokenLeaguesPanel token={apiTokenAddress} totalSupply={totalSupply} priceUsd={priceUsd} symbol={baseSymbol} />
-                  )}
-                  {apiTokenAddress && (
-                    <BubbleMap
-                      token={apiTokenAddress}
-                      chain="pulsechain"
-                      symbol={tokenInfo?.symbol}
-                    />
                   )}
                   <GeickoHoldersTab
                   holders={holders}
