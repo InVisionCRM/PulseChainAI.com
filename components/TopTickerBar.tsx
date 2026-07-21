@@ -126,7 +126,6 @@ export function TopTickerBar() {
   const [chain, setChain] = useState<TickerChain>('pulsechain');
   const [tokens, setTokens] = useState<TokenData[]>([]);
   const [priorityAddresses, setPriorityAddresses] = useState<string[]>([]);
-  const [hasLoaded, setHasLoaded] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
@@ -159,7 +158,6 @@ export function TopTickerBar() {
         const mapped = rows.filter((r) => r?.baseAddress).slice(0, 30).map(rowToTokenData);
         if (mapped.length > 0) {
           setTokens(mapped);
-          setHasLoaded(true);
         }
       } catch (error) {
         console.error('❌ Failed to fetch ticker tokens:', error);
@@ -180,7 +178,6 @@ export function TopTickerBar() {
       const fetched: TokenData[] = Array.isArray(data?.tokens) ? data.tokens : [];
       if (fetched.length > 0) {
         setTokens(fetched);
-        setHasLoaded(true);
       }
     } catch (error) {
       console.error('❌ Failed to fetch priority tokens:', error);
@@ -200,11 +197,12 @@ export function TopTickerBar() {
   const handlePause = () => setIsPaused(true);
   const handleResume = () => setIsPaused(false);
 
-  // Keep the bar (and its chain dropdown) mounted once anything has loaded, so
-  // switching chains doesn't make the whole bar vanish mid-fetch.
-  if (!hasLoaded && tokens.length === 0) {
-    return null;
-  }
+  // The bar is ALWAYS rendered — never return null. Returning null on an empty
+  // token list made the whole ticker vanish on every page load/refocus (until
+  // the first fetch resolved, ~several seconds) and on every chain switch (which
+  // clears tokens mid-fetch), which read as the bar "randomly disappearing".
+  // Instead we always render the bar + chain dropdown and just swap the scrolling
+  // cards for a lightweight loading hint while a feed is in flight.
 
   // Duplicate tokens for seamless infinite scroll
   const duplicatedTokens = [...tokens, ...tokens, ...tokens];
@@ -212,31 +210,39 @@ export function TopTickerBar() {
   return (
     <div className="relative">
       <div className="h-12 flex items-center w-full overflow-hidden relative border-b-2 border-[#FA4616] bg-[var(--app-bg)]">
-        <div
-          ref={scrollerRef}
-          className="flex gap-1 animate-scroll-ticker pl-24 sm:pl-40"
-          style={{
-            maskImage: 'linear-gradient(to right, transparent, white 10%, white 90%, transparent)',
-            WebkitMaskImage: 'linear-gradient(to right, transparent, white 10%, white 90%, transparent)',
-            animationPlayState: isPaused ? 'paused' : 'running',
-          }}
-        >
-        {duplicatedTokens.map((token, idx) => (
-          <TickerCardWithPopover
-            key={`${token.address}-${idx}`}
-            token={token}
-            chain={chain}
-            onPause={handlePause}
-            onResume={handleResume}
-          />
-        ))}
-        </div>
+        {tokens.length > 0 ? (
+          <div
+            ref={scrollerRef}
+            className="flex gap-1 animate-scroll-ticker pl-24 sm:pl-40"
+            style={{
+              maskImage: 'linear-gradient(to right, transparent, white 10%, white 90%, transparent)',
+              WebkitMaskImage: 'linear-gradient(to right, transparent, white 10%, white 90%, transparent)',
+              animationPlayState: isPaused ? 'paused' : 'running',
+            }}
+          >
+          {duplicatedTokens.map((token, idx) => (
+            <TickerCardWithPopover
+              key={`${token.address}-${idx}`}
+              token={token}
+              chain={chain}
+              onPause={handlePause}
+              onResume={handleResume}
+            />
+          ))}
+          </div>
+        ) : (
+          <div className="pl-24 sm:pl-40 text-xs text-[var(--text-muted)] animate-pulse">
+            Loading {TICKER_CHAINS.find((c) => c.key === chain)?.name ?? ''} markets…
+          </div>
+        )}
       </div>
 
       {/* Chain picker — pinned far-left, overlaying the ticker. It lives OUTSIDE
           the overflow-hidden bar above so its dropdown menu (which opens below
-          the bar) isn't clipped. */}
-      <div className="absolute left-0 top-0 z-50 h-12">
+          the bar) isn't clipped. z-[60] keeps its open menu above the sticky
+          MobileSearchBar (z-50) that sits directly beneath the ticker — without
+          it the two tie at z-50 and DOM order lets the search bar win. */}
+      <div className="absolute left-0 top-0 z-[60] h-12">
         <ChainDropdown chain={chain} onChange={setChain} />
       </div>
       {/* Shadow effect under the ticker bar */}
