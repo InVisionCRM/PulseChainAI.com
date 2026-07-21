@@ -4,8 +4,8 @@
 // graph. Each bubble is a holder sized by its share of supply; edges are direct
 // transfers of the token between two holders, and connected holders are tinted
 // into clusters (wallets likely controlled together). This is our own,
-// chain-agnostic take on Bubblemaps — it works on PulseChain, which Bubblemaps
-// does not support.
+// chain-agnostic take on Bubblemaps — it works across every chain the app
+// supports (PulseChain, Robinhood, …), including ones Bubblemaps doesn't.
 //
 // Two independent costs, decoupled so we can show lots of bubbles without a long
 // wait:
@@ -42,6 +42,16 @@ const NODE_OPTIONS = [250, 500, 1000] as const;
 // Default to the lowest option for the fastest first paint — bigger counts are
 // one click away, and clusters always cover the top EDGE_LIMIT regardless.
 const DEFAULT_LIMIT = NODE_OPTIONS[0];
+
+// Bubble radius bounds. A gentle power curve (< 0.5) spreads the mid/small
+// holders out so sizes vary visibly instead of collapsing to a dot when one
+// holder dominates; MAX_R hard-caps the biggest bubble so a single whale can't
+// swallow the map.
+const MIN_R = 5;
+const MAX_R = 52;
+const SIZE_POWER = 0.4;
+const bubbleRadius = (pct: number, maxPct: number) =>
+  Math.max(MIN_R, Math.min(MAX_R, MIN_R + Math.pow(Math.max(0, pct) / maxPct, SIZE_POWER) * (MAX_R - MIN_R)));
 
 const EXPLORER_ADDRESS: Record<ChainId, string> = {
   ethereum: 'https://etherscan.io/address/',
@@ -168,8 +178,7 @@ export function BubbleMap({ token, chain, symbol }: Props) {
           category: n.category,
           cluster: -1,
           color: nodeColor(base),
-          // Radius ∝ √(share) so bubble AREA tracks share of supply.
-          r: 4 + Math.sqrt(n.pctSupply / maxPct) * 30,
+          r: bubbleRadius(n.pctSupply, maxPct),
           short: truncate(n.address),
           x: 0, y: 0, vx: 0, vy: 0, fx: null, fy: null, pinned: false,
         };
@@ -411,12 +420,37 @@ export function BubbleMap({ token, chain, symbol }: Props) {
       if (n) { n.fx = null; n.fy = null; n.pinned = false; sim.alpha(0.4); }
     };
     const onLeave = () => { if (!drag) { hover = null; hideTip(); } };
+    // Right-click removes a bubble from the map; edges touching it drop and the
+    // rest re-settle live (collide fills the gap, re-centering pulls in).
+    const onContext = (e: MouseEvent) => {
+      e.preventDefault();
+      const sp = mpos(e), p = toWorld(sp.x, sp.y), n = pick(p);
+      if (!n) return;
+      const ti = nodes.indexOf(n);
+      if (ti < 0) return;
+      // Drop edges touching the node; shift every index above it down by one.
+      const remapped: BEdge[] = [];
+      for (const ed of data.edges) {
+        if (ed.a === ti || ed.b === ti) continue;
+        remapped.push({ a: ed.a > ti ? ed.a - 1 : ed.a, b: ed.b > ti ? ed.b - 1 : ed.b });
+      }
+      data.edges.length = 0; data.edges.push(...remapped);
+      nodes.splice(ti, 1);
+      if (selectedRef.current === n) { selectedRef.current = null; setSelected(null); }
+      if (hover === n) { hover = null; hideTip(); }
+      if (drag === n) drag = null;
+      sim.nodes(nodes);
+      applyLinks();
+      sim.alpha(0.6).restart();
+      setMeta((m) => ({ ...m, shown: nodes.length }));
+    };
     const onResize = () => { measure(); fxF.x(cx); fyF.y(cy); sim.alpha(0.4); };
 
     cvs.addEventListener('mousemove', onMove);
     cvs.addEventListener('mousedown', onDown);
     window.addEventListener('mouseup', onUp);
     cvs.addEventListener('dblclick', onDbl);
+    cvs.addEventListener('contextmenu', onContext);
     cvs.addEventListener('mouseleave', onLeave);
     window.addEventListener('resize', onResize);
     raf = requestAnimationFrame(frame);
@@ -430,6 +464,7 @@ export function BubbleMap({ token, chain, symbol }: Props) {
       cvs.removeEventListener('mousedown', onDown);
       window.removeEventListener('mouseup', onUp);
       cvs.removeEventListener('dblclick', onDbl);
+      cvs.removeEventListener('contextmenu', onContext);
       cvs.removeEventListener('mouseleave', onLeave);
       window.removeEventListener('resize', onResize);
     };
@@ -551,7 +586,7 @@ export function BubbleMap({ token, chain, symbol }: Props) {
           )}
 
           <p className="mt-2 text-[11px] text-[var(--text-muted)]">
-            Bubble size = share of supply · lines link wallets that trade the token directly or share a funding source · clusters = likely-linked wallets among the top {EDGE_LIMIT} (recent transfers; contracts excluded). Hover to focus · drag to pin · double-click to unpin.
+            Bubble size = share of supply · lines link wallets that trade the token directly or share a funding source · clusters = likely-linked wallets among the top {EDGE_LIMIT} (recent transfers; contracts excluded). Hover to focus · drag to pin · double-click to unpin · right-click to remove a bubble.
           </p>
         </>
       )}
