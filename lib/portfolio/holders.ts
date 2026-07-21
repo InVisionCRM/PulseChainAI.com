@@ -113,11 +113,20 @@ export async function fetchTopHolders(
 
     if (items.length === 0) return null;
 
-    const tokenMeta = items[0]?.token ?? {};
-    totalSupplyRaw = tokenMeta.total_supply ?? null;
-    decimals = Number(tokenMeta.decimals ?? 18) || 18;
-    symbol = tokenMeta.symbol ?? null;
-    holdersCount = tokenMeta.holders != null ? Number(tokenMeta.holders) : null;
+    // Fetch token meta separately: some Blockscout instances (e.g. Robinhood)
+    // don't embed a `token` object on holder items, so total_supply — which the
+    // bubble sizes depend on — must come from /tokens/{addr}. Fall back to any
+    // embedded token object. Robinhood reports the count as `holders_count`.
+    const meta = (await fetchJson(`${base}/tokens/${tok}`)) ?? items[0]?.token ?? {};
+    totalSupplyRaw = meta.total_supply ?? null;
+    decimals = Number(meta.decimals ?? 18) || 18;
+    symbol = meta.symbol ?? null;
+    holdersCount =
+      meta.holders != null
+        ? Number(meta.holders)
+        : meta.holders_count != null
+          ? Number(meta.holders_count)
+          : null;
   }
   // Float is fine here — we only need ~15 sig-figs for a percentage, not the
   // exact wei. (Both numerator and denominator are wei-scale BigInts.)

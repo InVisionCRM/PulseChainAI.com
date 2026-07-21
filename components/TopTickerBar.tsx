@@ -231,11 +231,13 @@ export function TopTickerBar() {
           />
         ))}
         </div>
+      </div>
 
-        {/* Chain picker — pinned far-left, overlaying the ticker. */}
-        <div className="absolute left-0 top-0 z-20 h-full">
-          <ChainDropdown chain={chain} onChange={setChain} />
-        </div>
+      {/* Chain picker — pinned far-left, overlaying the ticker. It lives OUTSIDE
+          the overflow-hidden bar above so its dropdown menu (which opens below
+          the bar) isn't clipped. */}
+      <div className="absolute left-0 top-0 z-50 h-12">
+        <ChainDropdown chain={chain} onChange={setChain} />
       </div>
       {/* Shadow effect under the ticker bar */}
       <div className="absolute top-full left-0 right-0 h-4 pointer-events-none" style={{

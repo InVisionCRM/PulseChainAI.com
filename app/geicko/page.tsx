@@ -2371,7 +2371,7 @@ function GeickoPageContent() {
                   {apiTokenAddress && (
                     <BubbleMap
                       token={apiTokenAddress}
-                      chain="pulsechain"
+                      chain={network}
                       symbol={tokenInfo?.symbol}
                     />
                   )}
