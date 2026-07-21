@@ -24,6 +24,7 @@ import {
   formatWebsiteDisplay,
   PUMP_TIRES_CREATOR,
 } from '@/components/geicko/utils';
+import { dexLogo } from '@/components/Screener/format';
 import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
 import { useToast } from '@/components/ui/toast-provider';
@@ -80,6 +81,39 @@ const TokenAIChat = dynamic(() => import('@/components/TokenAIChat'), { ssr: fal
 const TokenContractView = dynamic(() => import('@/components/TokenContractView'), { ssr: false, loading: TabLoading });
 const LiquidityTab = dynamic(() => import('@/components/LiquidityTab'), { loading: TabLoading });
 const ContractAuditPanel = dynamic(() => import('@/components/ContractAuditPanel'), { ssr: false, loading: TabLoading });
+
+// One row in the "Top Pairs" stat card: DEX icon + BASE/QUOTE + $ liquidity.
+// DexScreener's per-dex logo can 404, so fall back to the base symbol's initial.
+function TopPairRow({ pair }: { pair: any }) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const dexId = pair?.dexId as string | undefined;
+  const base = pair?.baseToken?.symbol || '?';
+  const quote = pair?.quoteToken?.symbol || '?';
+  const liq = Number(pair?.liquidity?.usd || 0);
+  return (
+    <div className="flex items-center gap-2">
+      {dexId && !logoFailed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={dexLogo(dexId)}
+          alt=""
+          onError={() => setLogoFailed(true)}
+          className="h-5 w-5 shrink-0 rounded-full bg-[var(--surface-2)] object-cover"
+        />
+      ) : (
+        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--surface-2)] text-[8px] font-semibold text-[var(--text-muted)]">
+          {base.slice(0, 1).toUpperCase()}
+        </span>
+      )}
+      <div className="min-w-0 flex-1 text-left leading-tight">
+        <div className="truncate text-xs font-semibold text-[var(--text)]">
+          {base}<span className="text-[var(--text-faint)]">/</span>{quote}
+        </div>
+        <div className="text-[10px] text-[var(--text-faint)]">{liq > 0 ? `$${formatAbbrev(liq)}` : '—'}</div>
+      </div>
+    </div>
+  );
+}
 
 function ContractHolderTooltipRow({
   holder,
@@ -2079,6 +2113,23 @@ function GeickoPageContent() {
                   )}
                 </div>
 
+                {/* Top Pairs — 3 biggest LPs by liquidity, from the pairs already
+                    in memory (no extra fetch). DEX icon, BASE/QUOTE, $ liquidity. */}
+                {(dexScreenerData?.pairs?.length ?? 0) > 0 && (
+                  <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
+                    <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Top Pairs</div>
+                    <div className="space-y-2">
+                      {[...(dexScreenerData?.pairs ?? [])]
+                        .filter((pr: any) => Number(pr?.liquidity?.usd || 0) > 0)
+                        .sort((a: any, b: any) => Number(b?.liquidity?.usd || 0) - Number(a?.liquidity?.usd || 0))
+                        .slice(0, 3)
+                        .map((pr: any, i: number) => (
+                          <TopPairRow key={pr.pairAddress || i} pair={pr} />
+                        ))}
+                    </div>
+                  </div>
+                )}
+
 
               </div>
             </div>
@@ -3160,6 +3211,23 @@ function GeickoPageContent() {
                           </div>
                         )}
                       </div>
+
+                      {/* Top Pairs — 3 biggest LPs by liquidity, from the pairs
+                          already in memory (no extra fetch). */}
+                      {(dexScreenerData?.pairs?.length ?? 0) > 0 && (
+                        <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] p-3">
+                          <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Top Pairs</div>
+                          <div className="space-y-2">
+                            {[...(dexScreenerData?.pairs ?? [])]
+                              .filter((pr: any) => Number(pr?.liquidity?.usd || 0) > 0)
+                              .sort((a: any, b: any) => Number(b?.liquidity?.usd || 0) - Number(a?.liquidity?.usd || 0))
+                              .slice(0, 3)
+                              .map((pr: any, i: number) => (
+                                <TopPairRow key={pr.pairAddress || i} pair={pr} />
+                              ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
