@@ -75,6 +75,7 @@ export interface SearchPair {
   baseSymbol: string;
   baseName: string | null;
   quoteSymbol: string | null;
+  quoteAddress: string | null;
   imageUrl: string | null;
   priceUsd: number | null;
   marketCap: number | null;

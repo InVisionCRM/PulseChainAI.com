@@ -6,6 +6,7 @@ import { resolveTokenIcon } from '@/lib/services/token-icon-resolver';
 import { formatCurrencyCompact } from '@/components/geicko/utils';
 import { fmtAmount } from '@/lib/format';
 import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
+import { dexLogo, dexName } from '@/components/Screener/format';
 
 // A trading-pair to render. Fields are optional because the list can come from
 // either GeckoTerminal or DexScreener (already normalised by the page).
@@ -105,6 +106,21 @@ function TokenLogo({
       style={dim}
       onError={() => setFailed(true)}
       className={`shrink-0 rounded-full bg-[var(--surface-2)] object-cover ring-2 ring-[var(--panel)] ${className}`}
+    />
+  );
+}
+
+// ── DEX logo (DexScreener per-dex icon, falls back to nothing on 404) ─────────
+function DexLogo({ dexId }: { dexId: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={dexLogo(dexId)}
+      alt=""
+      onError={() => setFailed(true)}
+      className="h-3.5 w-3.5 shrink-0 rounded-full bg-[var(--surface-2)] object-cover"
     />
   );
 }
@@ -245,7 +261,10 @@ export default function GeickoPairModal({
                         {selected && <IconCheck className="h-3.5 w-3.5 shrink-0 text-[var(--up)]" />}
                       </span>
                       {p.dexId && (
-                        <span className="text-[11px] capitalize text-[var(--text-muted)]">{p.dexId}</span>
+                        <span className="flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
+                          <DexLogo dexId={p.dexId} />
+                          {dexName(p.dexId)}
+                        </span>
                       )}
                     </span>
                   </div>

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo } fr
 import { useSearchParams, useRouter } from 'next/navigation';
 import DexScreenerChart from '@/components/DexScreenerChart';
 import { LoaderOne, LoaderThree } from "@/components/ui/loader";
-import { Copy, Download, Info, ChevronDown } from 'lucide-react';
+import { Copy, Download, Info, ChevronDown, Star } from 'lucide-react';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem, ContractAuditResult } from '../../types';
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '@/services';
 import { analyzeContractAudit } from '../../services/contractAuditService';
@@ -54,6 +54,7 @@ import GeickoPairModal from '@/components/geicko/GeickoPairModal';
 import { isChainKey, getChain } from '@/lib/chains/registry';
 import type { ChainKey } from '@/lib/chains/types';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
+import { useScreenerWatchlist } from '@/components/Screener/watchlist';
 import dynamic from 'next/dynamic';
 
 // The bubble map pulls in d3-force and only renders inside the Holders tab, so
@@ -279,6 +280,9 @@ function GeickoPageContent() {
   const [geckoPools, setGeckoPools] = useState<DexScreenerData | null>(null);
   const [selectedPairAddress, setSelectedPairAddress] = useState<string | null>(null);
   const [pairModalOpen, setPairModalOpen] = useState(false);
+  // Shared watchlist store (same one the screener + portfolio use) so the header
+  // star toggles the current token in/out of the watchlist.
+  const watchlist = useScreenerWatchlist();
   const [profileData, setProfileData] = useState<any>(null);
   const [topTokens, setTopTokens] = useState<Array<{symbol: string; priceChange: number}>>([]);
   const [transactions, setTransactions] = useState<Array<{
@@ -1635,6 +1639,26 @@ function GeickoPageContent() {
                 </div>
 
 
+                {apiTokenAddress && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      watchlist.toggle({
+                        address: apiTokenAddress,
+                        chain: network,
+                        symbol: baseSymbol,
+                        name: tokenInfo?.name ?? baseSymbol,
+                        logoURI: tokenLogoSrc ?? undefined,
+                      })
+                    }
+                    aria-label={watchlist.has(apiTokenAddress, network) ? 'Remove from watchlist' : 'Add to watchlist'}
+                    title={watchlist.has(apiTokenAddress, network) ? 'Remove from watchlist' : 'Add to watchlist'}
+                    className="absolute bottom-3 right-3 z-20 inline-flex items-center gap-1 rounded-lg border border-[var(--line-strong)] bg-[var(--surface-2)] px-2 py-1 text-xs font-semibold text-[var(--text)] backdrop-blur-md transition-colors hover:bg-[var(--surface-3)]"
+                  >
+                    <Star className={`h-4 w-4 ${watchlist.has(apiTokenAddress, network) ? 'fill-orange-400 text-orange-400' : 'text-[var(--text-muted)]'}`} />
+                    <span>{watchlist.has(apiTokenAddress, network) ? 'Watching' : 'Watchlist'}</span>
+                  </button>
+                )}
                 <div className="absolute left-4 bottom-3 flex items-center gap-3">
                   {tokenLogoSrc ? (
                     <img
@@ -2672,6 +2696,26 @@ function GeickoPageContent() {
                           <span>Pump.Tires</span>
                         </a>
                       </div>
+                    )}
+                    {apiTokenAddress && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          watchlist.toggle({
+                            address: apiTokenAddress,
+                            chain: network,
+                            symbol: baseSymbol,
+                            name: tokenInfo?.name ?? baseSymbol,
+                            logoURI: tokenLogoSrc ?? undefined,
+                          })
+                        }
+                        aria-label={watchlist.has(apiTokenAddress, network) ? 'Remove from watchlist' : 'Add to watchlist'}
+                        title={watchlist.has(apiTokenAddress, network) ? 'Remove from watchlist' : 'Add to watchlist'}
+                        className="absolute bottom-3 right-3 z-20 inline-flex items-center gap-1 rounded-lg border border-[var(--line-strong)] bg-[var(--surface-2)] px-2 py-1 text-xs font-semibold text-[var(--text)] backdrop-blur-md transition-colors hover:bg-[var(--surface-3)]"
+                      >
+                        <Star className={`h-4 w-4 ${watchlist.has(apiTokenAddress, network) ? 'fill-orange-400 text-orange-400' : 'text-[var(--text-muted)]'}`} />
+                        <span>{watchlist.has(apiTokenAddress, network) ? 'Watching' : 'Watchlist'}</span>
+                      </button>
                     )}
                     <div className="absolute left-4 bottom-3 flex items-center gap-3">
                       {tokenLogoSrc ? (
