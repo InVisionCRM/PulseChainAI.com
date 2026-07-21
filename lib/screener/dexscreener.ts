@@ -204,6 +204,7 @@ export async function searchPairs(query: string): Promise<SearchPair[]> {
       baseSymbol: p.baseToken.symbol,
       baseName: p.baseToken.name ?? null,
       quoteSymbol: p.quoteToken?.symbol ?? null,
+      quoteAddress: p.quoteToken?.address ?? null,
       imageUrl: p.info?.imageUrl ?? null,
       priceUsd: num(p.priceUsd),
       marketCap: num(p.marketCap) ?? num(p.fdv),

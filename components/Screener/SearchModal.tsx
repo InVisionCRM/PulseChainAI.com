@@ -8,6 +8,7 @@ import { dexLogo, dexName, fmtAge, fmtPct, fmtPrice, fmtUsd, pctClass, shortAddr
 import type { ScreenerWatchlist } from './watchlist';
 import { ChainLogo } from '@/components/ui/ChainLogo';
 import { useWatchlistStore } from '@/lib/stores/watchlistStore';
+import { resolveTokenIcon } from '@/lib/services/token-icon-resolver';
 
 const RECENT_KEY = 'screener.recent';
 const MAX_RECENT = 8;
@@ -272,6 +273,57 @@ function WatchAvatar({ logo, symbol }: { logo?: string | null; symbol: string })
   );
 }
 
+// Both tokens of the pair as overlapping avatars: base (from the search
+// response's imageUrl) + quote (resolved by address — cached, and quotes are a
+// tiny set of addresses like WPLS/aeWETH/stables, so it's ~one fetch overall).
+function PairAvatars({ pair }: { pair: SearchPair }) {
+  const [baseFailed, setBaseFailed] = useState(false);
+  const [quoteSrc, setQuoteSrc] = useState<string | null>(null);
+  const [quoteFailed, setQuoteFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    if (!pair.quoteAddress) return;
+    resolveTokenIcon(pair.quoteAddress, pair.chain).then((url) => {
+      if (alive && url) setQuoteSrc(url);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [pair.quoteAddress, pair.chain]);
+
+  return (
+    <span className="flex shrink-0 items-center -space-x-2">
+      {!baseFailed && pair.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={pair.imageUrl}
+          alt=""
+          onError={() => setBaseFailed(true)}
+          className="relative z-10 h-7 w-7 rounded-full bg-[var(--surface-2)] object-cover ring-2 ring-[var(--panel)]"
+        />
+      ) : (
+        <span className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-2)] tabular-nums text-[11px] text-[var(--text-muted)] ring-2 ring-[var(--panel)]">
+          {pair.baseSymbol.charAt(0)}
+        </span>
+      )}
+      {!quoteFailed && quoteSrc ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={quoteSrc}
+          alt=""
+          onError={() => setQuoteFailed(true)}
+          className="h-5 w-5 rounded-full bg-[var(--surface-2)] object-cover ring-2 ring-[var(--panel)]"
+        />
+      ) : (
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-3)] tabular-nums text-[8px] text-[var(--text-muted)] ring-2 ring-[var(--panel)]">
+          {(pair.quoteSymbol ?? '?').charAt(0)}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function SearchRow({
   pair: p,
   starred,
@@ -283,7 +335,6 @@ function SearchRow({
   onOpen: (p: SearchPair) => void;
   onStar: (p: SearchPair, e: React.MouseEvent) => void;
 }) {
-  const [logoFailed, setLogoFailed] = useState(false);
   const [dexFailed, setDexFailed] = useState(false);
   return (
     <div
@@ -299,14 +350,7 @@ function SearchRow({
           <span className="rounded border border-[var(--line-strong)] px-1 tabular-nums text-[9px] uppercase text-[var(--text-faint)]">{p.label}</span>
         ) : null}
       </div>
-      {!logoFailed && p.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={p.imageUrl} alt="" className="h-7 w-7 shrink-0 rounded-full" onError={() => setLogoFailed(true)} />
-      ) : (
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--surface-2)] tabular-nums text-[11px] text-[var(--text-muted)]">
-          {p.baseSymbol.charAt(0)}
-        </div>
-      )}
+      <PairAvatars pair={p} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           {p.chain !== 'pulsechain' ? <ChainLogo chain={p.chain} size={14} /> : null}
