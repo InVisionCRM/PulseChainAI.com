@@ -1446,7 +1446,12 @@ function GeickoPageContent() {
   const priceUsd = Number(displayPair?.priceUsd || 0);
   const priceChange = Number(displayPair?.priceChange?.h24 || 0);
   const formattedPrice = priceUsd >= 1 ? priceUsd.toFixed(4) : priceUsd.toFixed(6);
-  const marketCapValue = Number(displayPair?.marketCap ?? displayPair?.fdv ?? 0);
+  // Prefer FDV (on-chain total supply × price) over GeckoTerminal's
+  // `market_cap_usd`, which is a CoinGecko circulating-supply figure that is
+  // 0 / null / stale for almost every PulseChain & Robinhood token (verified:
+  // GT returns mc=0 for PLSX/HEX despite huge FDV). Fall back to marketCap only
+  // when FDV is missing. This matches the pair-dropdown/other MC reads below.
+  const marketCapValue = Number(displayPair?.fdv || displayPair?.marketCap || 0);
   const formattedMarketCap = formatMarketCapLabel(marketCapValue);
   const heroTagline = formatWebsiteDisplay(websiteLink) || profileData?.profile?.header || displayPair?.info?.header || tokenNameDisplay;
   const socialTabs: Array<{ label: string; url: string | null; isDownload?: boolean }> = [
