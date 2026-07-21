@@ -3091,9 +3091,9 @@ function GeickoPageContent() {
 
                     {/* Right Column */}
                     <div className="space-y-0.5">
-                      {/* Price in WPLS */}
+                      {/* Price in the pair's quote token (WPLS on PulseChain, WETH on Robinhood, …) */}
                       <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] py-0 px-3 min-h-[60px] flex items-center justify-center">
-                        <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Price (WPLS)</div>
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Price ({quoteSymbol})</div>
                         <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -3329,7 +3329,7 @@ function GeickoPageContent() {
                           return (
                             <>
                               <span className="flex-1">{totalWpls.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</span>
-                              <span className="text-[var(--text-muted)] text-sm ml-2">WPLS</span>
+                              <span className="text-[var(--text-muted)] text-sm ml-2">{quoteSymbol}</span>
                             </>
                           );
                         }
@@ -3366,7 +3366,7 @@ function GeickoPageContent() {
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       )}
-                      WPLS
+                      {quoteSymbol}
                     </button>
                   </div>
                 </div>

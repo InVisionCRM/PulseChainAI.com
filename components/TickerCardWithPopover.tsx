@@ -25,14 +25,17 @@ interface TickerCardProps {
   };
   onPause?: () => void;
   onResume?: () => void;
+  /** Which chain the token is on — drives the analyzer link + logo path. */
+  chain?: 'pulsechain' | 'robinhood';
 }
 
-export function TickerCardWithPopover({ token, onPause, onResume }: TickerCardProps) {
+export function TickerCardWithPopover({ token, onPause, onResume, chain = 'pulsechain' }: TickerCardProps) {
   const router = useRouter();
   const isPositive = token.priceChange24h >= 0;
+  const logoSrc = `https://dd.dexscreener.com/ds-data/tokens/${chain}/${token.address}.png?key=6eae20`;
 
   const handleClick = () => {
-    router.push(`/geicko?address=${token.address}`);
+    router.push(`/geicko?address=${token.address}${chain === 'pulsechain' ? '' : `&network=${chain}`}`);
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -69,7 +72,7 @@ export function TickerCardWithPopover({ token, onPause, onResume }: TickerCardPr
           className="flex items-center gap-2 cursor-pointer hover:bg-[var(--surface)] transition-all duration-200 rounded-lg px-3 py-1.5 group"
         >
           <img
-            src={`https://dd.dexscreener.com/ds-data/tokens/pulsechain/${token.address}.png?key=6eae20`}
+            src={logoSrc}
             alt={token.symbol}
             className="w-5 h-5 rounded-full flex-shrink-0 group-hover:scale-110 transition-transform"
             onError={(e) => {
@@ -100,7 +103,7 @@ export function TickerCardWithPopover({ token, onPause, onResume }: TickerCardPr
             {/* Header */}
             <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[var(--line)]">
               <img
-                src={`https://dd.dexscreener.com/ds-data/tokens/pulsechain/${token.address}.png?key=6eae20`}
+                src={logoSrc}
                 alt={token.symbol}
                 className="w-10 h-10 rounded-full"
                 onError={(e) => {

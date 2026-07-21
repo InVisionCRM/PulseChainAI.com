@@ -14,13 +14,11 @@ import type { ScreenerRow } from '@/lib/screener/types';
 
 const SEEDED_KEY = 'screener.watchlist.seeded';
 
+// Chain-neutral house defaults: each supported chain's wrapped native only —
+// WPLS on PulseChain, WETH on Robinhood. Seeded once for brand-new users.
 export const DEFAULT_WATCHLIST: Omit<WatchedToken, 'addedAt'>[] = [
-  { address: '0xb7d4eb5fdfe3d4d3b5c16a44a49948c6ec77c6f1', chain: 'pulsechain', symbol: 'Morbius', name: 'Morbius' },
   { address: '0xa1077a294dde1b09bb078844df40758a5d0f9a27', chain: 'pulsechain', symbol: 'WPLS', name: 'Wrapped Pulse' },
-  { address: '0x95b303987a60c71504d99aa1b13b4da07b0790ab', chain: 'pulsechain', symbol: 'PLSX', name: 'PulseX' },
-  { address: '0x2fa878ab3f87cc1c9737fc071108f904c0b0c95d', chain: 'pulsechain', symbol: 'INC', name: 'Incentive' },
-  { address: '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39', chain: 'pulsechain', symbol: 'HEX', name: 'HEX' },
-  { address: '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39', chain: 'ethereum', symbol: 'HEX', name: 'HEX on Ethereum' },
+  { address: '0x0bd7d308f8e1639fab988df18a8011f41eacad73', chain: 'robinhood', symbol: 'WETH', name: 'WETH' },
 ];
 
 export interface ScreenerWatchlist {

@@ -1,7 +1,7 @@
 'use client';
 
-// Cinematic intro shown on a cold open: displays the PulseChain loader
-// full-screen (the same animated logo used on the Geicko screen), then fades
+// Cinematic intro shown on a cold open: displays the Morbius loader
+// full-screen (the same animated mark used across the app), then fades
 // out into the app. Shown once per browser session (so in-app navigations
 // don't replay it) and skippable with a tap. Auto-dismisses after MAX_MS.
 
