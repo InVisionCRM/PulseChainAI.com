@@ -2034,6 +2034,29 @@ function GeickoPageContent() {
                   </div>
                 </div>
 
+                {/* Vol/Liq Turnover (24h) — 24h volume across all pairs ÷ total
+                    liquidity. Both are already in memory, so this is free. */}
+                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
+                  <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Vol/Liq (24h)</div>
+                  <div className="text-center text-base text-[var(--text)] font-semibold">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          {(() => {
+                            const vol24 = (dexScreenerData?.pairs ?? []).reduce((sum: number, pair: any) => sum + Number(pair?.volume?.h24 || 0), 0);
+                            const liq = Number(totalLiquidity.usd || 0);
+                            const turnover = liq > 0 ? vol24 / liq : 0;
+                            return turnover > 0 ? `${turnover.toFixed(2)}×` : '—';
+                          })()}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>24h volume ÷ total liquidity</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+
                 {/* Burned Tokens */}
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                   <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Burned</div>
@@ -3086,6 +3109,29 @@ function GeickoPageContent() {
                             const ratio = mcap > 0 ? liquidity / mcap : 0;
                             return ratio > 0 ? `${(ratio * 100).toFixed(1)}%` : '—';
                           })()}
+                        </div>
+                      </div>
+
+                      {/* Vol/Liq Turnover (24h) — 24h volume across all pairs ÷
+                          total liquidity. Both already in memory, so this is free. */}
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] py-0 px-3 min-h-[60px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider whitespace-nowrap">Vol/Liq (24h)</div>
+                        <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                {(() => {
+                                  const vol24 = (dexScreenerData?.pairs ?? []).reduce((sum: number, pair: any) => sum + Number(pair?.volume?.h24 || 0), 0);
+                                  const liq = Number(totalLiquidity.usd || 0);
+                                  const turnover = liq > 0 ? vol24 / liq : 0;
+                                  return turnover > 0 ? `${turnover.toFixed(2)}×` : '—';
+                                })()}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>24h volume ÷ total liquidity</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                       </div>
 
