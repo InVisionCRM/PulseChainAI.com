@@ -1446,12 +1446,21 @@ function GeickoPageContent() {
   const priceUsd = Number(displayPair?.priceUsd || 0);
   const priceChange = Number(displayPair?.priceChange?.h24 || 0);
   const formattedPrice = priceUsd >= 1 ? priceUsd.toFixed(4) : priceUsd.toFixed(6);
-  // Prefer FDV (on-chain total supply × price) over GeckoTerminal's
-  // `market_cap_usd`, which is a CoinGecko circulating-supply figure that is
-  // 0 / null / stale for almost every PulseChain & Robinhood token (verified:
-  // GT returns mc=0 for PLSX/HEX despite huge FDV). Fall back to marketCap only
-  // when FDV is missing. This matches the pair-dropdown/other MC reads below.
-  const marketCapValue = Number(displayPair?.fdv || displayPair?.marketCap || 0);
+  // Market cap = on-chain total supply × current price, computed here rather
+  // than trusting an aggregator's FDV field. GeckoTerminal (our primary pool
+  // source) serves a stale `total_supply` for some tokens — verified: dMKT
+  // reported FDV ~$2.6k off a cached 2,576 supply while the real on-chain
+  // supply is ~16,738 → ~$17k. `totalSupply` here is the authoritative on-chain
+  // value from /api/token-metrics (Blockscout total_supply / RPC 0x18160ddd).
+  // Fall back to the pair's fdv/marketCap only until that supply loads.
+  const supplyNormalized = totalSupply
+    ? Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals)
+    : 0;
+  const mcPriceUsd = priceUsd > 0 ? priceUsd : Number(effectivePair?.priceUsd || 0);
+  const marketCapValue =
+    supplyNormalized > 0 && mcPriceUsd > 0
+      ? supplyNormalized * mcPriceUsd
+      : Number(effectivePair?.fdv || effectivePair?.marketCap || 0);
   const formattedMarketCap = formatMarketCapLabel(marketCapValue);
   const heroTagline = formatWebsiteDisplay(websiteLink) || profileData?.profile?.header || displayPair?.info?.header || tokenNameDisplay;
   const socialTabs: Array<{ label: string; url: string | null; isDownload?: boolean }> = [
@@ -2068,15 +2077,13 @@ function GeickoPageContent() {
                       <TooltipTrigger asChild>
                         <span>
                           {(() => {
-                            const p = displayPair ?? effectivePair;
-                            const mcap = p?.fdv ? Number(p.fdv) : Number(p?.marketCap || 0);
+                            const mcap = marketCapValue;
                             return mcap > 0 ? `$${formatAbbrev(mcap)}` : '—';
                           })()}
                         </span>
                       </TooltipTrigger>
                       {(() => {
-                        const p = displayPair ?? effectivePair;
-                        const mcap = p?.fdv ? Number(p.fdv) : Number(p?.marketCap || 0);
+                        const mcap = marketCapValue;
                         return mcap > 0 ? (
                           <TooltipContent>
                             <p>${mcap.toLocaleString()}</p>
@@ -2092,9 +2099,8 @@ function GeickoPageContent() {
                   <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Liq/MCAP</div>
                   <div className="text-center text-base text-[var(--text)] font-semibold">
                     {(() => {
-                      const p = displayPair ?? effectivePair;
                       const liquidity = Number(totalLiquidity.usd || 0);
-                      const mcap = p?.fdv ? Number(p.fdv) : Number(p?.marketCap || 0);
+                      const mcap = marketCapValue;
                       const ratio = mcap > 0 ? liquidity / mcap : 0;
                       return ratio > 0 ? `${(ratio * 100).toFixed(1)}%` : '—';
                     })()}
@@ -3186,13 +3192,13 @@ function GeickoPageContent() {
                             <TooltipTrigger asChild>
                               <span>
                                 {(() => {
-                                  const mcap = displayPair.fdv ? Number(displayPair.fdv) : Number(displayPair.marketCap || 0);
+                                  const mcap = marketCapValue;
                                   return mcap > 0 ? `$${formatAbbrev(mcap)}` : '—';
                                 })()}
                               </span>
                             </TooltipTrigger>
                             {(() => {
-                              const mcap = displayPair.fdv ? Number(displayPair.fdv) : Number(displayPair.marketCap || 0);
+                              const mcap = marketCapValue;
                               return mcap > 0 ? (
                                 <TooltipContent>
                                   <p>${mcap.toLocaleString()}</p>
@@ -3209,7 +3215,7 @@ function GeickoPageContent() {
                         <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
                           {(() => {
                             const liquidity = Number(totalLiquidity.usd || 0);
-                            const mcap = displayPair.fdv ? Number(displayPair.fdv) : Number(displayPair.marketCap || 0);
+                            const mcap = marketCapValue;
                             const ratio = mcap > 0 ? liquidity / mcap : 0;
                             return ratio > 0 ? `${(ratio * 100).toFixed(1)}%` : '—';
                           })()}
