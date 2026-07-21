@@ -50,7 +50,6 @@ import {
 } from '@/components/geicko';
 import { DesktopSearchBar } from '@/components/DesktopSearchBar';
 import GeickoPairModal from '@/components/geicko/GeickoPairModal';
-import { explorerAddressUrl } from '@/lib/explorer';
 import { isChainKey, getChain } from '@/lib/chains/registry';
 import type { ChainKey } from '@/lib/chains/types';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
@@ -81,27 +80,6 @@ const TokenAIChat = dynamic(() => import('@/components/TokenAIChat'), { ssr: fal
 const TokenContractView = dynamic(() => import('@/components/TokenContractView'), { ssr: false, loading: TabLoading });
 const LiquidityTab = dynamic(() => import('@/components/LiquidityTab'), { loading: TabLoading });
 const ContractAuditPanel = dynamic(() => import('@/components/ContractAuditPanel'), { ssr: false, loading: TabLoading });
-
-// "pulsex-v2" → "PulseX V2", "9mm" → "9mm", "9inch" → "9inch", etc.
-const prettyDex = (dexId?: string | null): string => {
-  if (!dexId) return '';
-  const known: Record<string, string> = {
-    pulsex: 'PulseX',
-    'pulsex-v1': 'PulseX V1',
-    'pulsex-v2': 'PulseX V2',
-    '9mm': '9mm',
-    '9inch': '9inch',
-    uniswap: 'Uniswap',
-    'uniswap-v2': 'Uniswap V2',
-    'uniswap-v3': 'Uniswap V3',
-  };
-  const key = dexId.toLowerCase();
-  if (known[key]) return known[key];
-  return key
-    .replace(/-/g, ' ')
-    .replace(/\bv(\d)/gi, 'V$1')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-};
 
 function ContractHolderTooltipRow({
   holder,
@@ -1987,31 +1965,32 @@ function GeickoPageContent() {
 
               {/* Right Column */}
               <div className="space-y-0.5">
-                {/* Liquidity */}
+                {/* Total Liquidity */}
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                  <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Liquidity</div>
-                  <div className="text-center text-base text-[var(--text)] font-semibold">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span>
-                          {(() => {
-                            const p = displayPair ?? effectivePair;
-                            const usdLiquidity = Number(p?.liquidity?.usd || 0);
-                            return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
-                          })()}
-                        </span>
-                      </TooltipTrigger>
-                      {(() => {
-                        const p = displayPair ?? effectivePair;
-                        const usdLiquidity = Number(p?.liquidity?.usd || 0);
-                        return usdLiquidity > 0 ? (
+                  <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Total Liquidity</div>
+                  {totalLiquidity.isLoading ? (
+                    <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
+                  ) : (
+                    <div className="text-center text-base text-[var(--text)] font-semibold">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            {totalLiquidity.usd > 0 ? `$${formatAbbrev(totalLiquidity.usd)}` : '—'}
+                          </span>
+                        </TooltipTrigger>
+                        {totalLiquidity.usd > 0 && (
                           <TooltipContent>
-                            <p>${usdLiquidity.toLocaleString()}</p>
+                            <p>${totalLiquidity.usd.toLocaleString()}</p>
                           </TooltipContent>
-                        ) : null;
-                      })()}
-                    </Tooltip>
-                  </div>
+                        )}
+                      </Tooltip>
+                    </div>
+                  )}
+                  {totalLiquidity.pairCount > 0 && (
+                    <div className="text-center text-xs text-[var(--up)] font-medium mt-0.5">
+                      {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
+                    </div>
+                  )}
                 </div>
 
                 {/* Market Cap */}
@@ -2047,40 +2026,12 @@ function GeickoPageContent() {
                   <div className="text-center text-base text-[var(--text)] font-semibold">
                     {(() => {
                       const p = displayPair ?? effectivePair;
-                      const liquidity = Number(p?.liquidity?.usd || 0);
+                      const liquidity = Number(totalLiquidity.usd || 0);
                       const mcap = p?.fdv ? Number(p.fdv) : Number(p?.marketCap || 0);
                       const ratio = mcap > 0 ? liquidity / mcap : 0;
                       return ratio > 0 ? `${(ratio * 100).toFixed(1)}%` : '—';
                     })()}
                   </div>
-                </div>
-
-                {/* Total Liquidity */}
-                <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
-                  <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Total Liquidity</div>
-                  {totalLiquidity.isLoading ? (
-                    <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
-                  ) : (
-                    <div className="text-center text-base text-[var(--text)] font-semibold">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>
-                            {totalLiquidity.usd > 0 ? `$${formatAbbrev(totalLiquidity.usd)}` : '—'}
-                          </span>
-                        </TooltipTrigger>
-                        {totalLiquidity.usd > 0 && (
-                          <TooltipContent>
-                            <p>${totalLiquidity.usd.toLocaleString()}</p>
-                          </TooltipContent>
-                        )}
-                      </Tooltip>
-                    </div>
-                  )}
-                  {totalLiquidity.pairCount > 0 && (
-                    <div className="text-center text-xs text-[var(--up)] font-medium mt-0.5">
-                      {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
-                    </div>
-                  )}
                 </div>
 
                 {/* Burned Tokens */}
@@ -3070,40 +3021,34 @@ function GeickoPageContent() {
                         </div>
                       </div>
 
-                      {/* Liquidity (for the selected pair) */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] py-0 px-3 min-h-[60px] flex items-center justify-center">
-                        <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Liquidity</div>
-                        <div className="absolute bottom-1.5 right-1/2 translate-x-1/2 flex flex-col items-center leading-tight">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-base text-[var(--text)] font-semibold">
-                                {(() => {
-                                  const usdLiquidity = Number(displayPair.liquidity?.usd || 0);
-                                  return usdLiquidity > 0 ? `$${formatAbbrev(usdLiquidity)}` : '—';
-                                })()}
-                              </span>
-                            </TooltipTrigger>
-                            {(() => {
-                              const usdLiquidity = Number(displayPair.liquidity?.usd || 0);
-                              return usdLiquidity > 0 ? (
+                      {/* Total Liquidity */}
+                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] py-0 px-3 min-h-[80px] flex items-center justify-center">
+                        <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Total Liquidity</div>
+                        {totalLiquidity.isLoading ? (
+                          <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
+                        ) : totalLiquidity.usd > 0 ? (
+                          <div className="absolute bottom-6 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  ${formatAbbrev(totalLiquidity.usd)}
+                                </span>
+                              </TooltipTrigger>
+                              {totalLiquidity.usd > 0 && (
                                 <TooltipContent>
-                                  <p>${usdLiquidity.toLocaleString()}</p>
+                                  <p>${totalLiquidity.usd.toLocaleString()}</p>
                                 </TooltipContent>
-                              ) : null;
-                            })()}
-                          </Tooltip>
-                          {displayPair.dexId && (
-                            <a
-                              href={explorerAddressUrl(network, displayPair.pairAddress || '')}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title="View this LP on the explorer"
-                              className="max-w-[110px] truncate text-[9px] font-medium uppercase tracking-wide text-[var(--text-faint)] hover:text-[var(--text)]"
-                            >
-                              {prettyDex(displayPair.dexId)}
-                            </a>
-                          )}
-                        </div>
+                              )}
+                            </Tooltip>
+                          </div>
+                        ) : (
+                          <div className="text-center text-base text-[var(--text)] font-semibold">—</div>
+                        )}
+                        {totalLiquidity.pairCount > 0 && (
+                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-xs text-[var(--up)] font-medium">
+                            {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
+                          </div>
+                        )}
                       </div>
 
                       {/* Market Cap */}
@@ -3136,42 +3081,12 @@ function GeickoPageContent() {
                         <div className="absolute top-2 right-1/2 translate-x-1/2 text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Liq/MCAP</div>
                         <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
                           {(() => {
-                            const liquidity = Number(displayPair.liquidity?.usd || 0);
+                            const liquidity = Number(totalLiquidity.usd || 0);
                             const mcap = displayPair.fdv ? Number(displayPair.fdv) : Number(displayPair.marketCap || 0);
                             const ratio = mcap > 0 ? liquidity / mcap : 0;
                             return ratio > 0 ? `${(ratio * 100).toFixed(1)}%` : '—';
                           })()}
                         </div>
-                      </div>
-
-                      {/* Total Liquidity */}
-                      <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] py-0 px-3 min-h-[80px] flex items-center justify-center">
-                        <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Total Liquidity</div>
-                        {totalLiquidity.isLoading ? (
-                          <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
-                        ) : totalLiquidity.usd > 0 ? (
-                          <div className="absolute bottom-6 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span>
-                                  ${formatAbbrev(totalLiquidity.usd)}
-                                </span>
-                              </TooltipTrigger>
-                              {totalLiquidity.usd > 0 && (
-                                <TooltipContent>
-                                  <p>${totalLiquidity.usd.toLocaleString()}</p>
-                                </TooltipContent>
-                              )}
-                            </Tooltip>
-                          </div>
-                        ) : (
-                          <div className="text-center text-base text-[var(--text)] font-semibold">—</div>
-                        )}
-                        {totalLiquidity.pairCount > 0 && (
-                          <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-xs text-[var(--up)] font-medium">
-                            {totalLiquidity.pairCount} {totalLiquidity.pairCount === 1 ? 'Pair' : 'Pairs'}
-                          </div>
-                        )}
                       </div>
 
                       {/* Burned Tokens */}
