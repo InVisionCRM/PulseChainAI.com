@@ -106,7 +106,7 @@ export default function GeickoMobileTokenHeader({
                 {Math.abs(primaryPair.priceChange?.h24 || 0).toFixed(2)}%
               </div>
               <div className="text-lg font-bold text-[var(--text-muted)]">
-                {formatMarketCapLabel(primaryPair.marketCap)}
+                {formatMarketCapLabel(primaryPair.fdv || primaryPair.marketCap)}
               </div>
             </div>
           </div>
