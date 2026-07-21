@@ -938,12 +938,16 @@ function GeickoPageContent() {
   //   ... (ownership calculation removed for performance)
   // }, [apiTokenAddress]);
 
-  // Fetch total liquidity (USD) from all pairs
+  // Fetch total liquidity (USD) from all pairs. Use the SAME source the
+  // Liquidity tab uses — GeckoTerminal (geckoPools), which indexes more pairs
+  // than DexScreener, falling back to DexScreener — so the pair count shown here
+  // matches the Liquidity tab instead of undercounting.
   useEffect(() => {
     let cancelled = false;
 
     const loadTotalLiquidity = async () => {
-      if (!dexScreenerData?.pairs || dexScreenerData.pairs.length === 0) {
+      const source = geckoPools ?? dexScreenerData;
+      if (!source?.pairs || source.pairs.length === 0) {
         if (!cancelled) {
           setTotalLiquidity({
             usd: 0,
@@ -956,9 +960,9 @@ function GeickoPageContent() {
 
       try {
         setTotalLiquidity(prev => ({ ...prev, isLoading: true }));
-        
-        // Sum of USD liquidity across every discovered pair (same as admin panel)
-        const pairs = dexScreenerData.pairs || [];
+
+        // Sum of USD liquidity across every discovered pair.
+        const pairs = source.pairs || [];
         const totalUsd = pairs.reduce((sum: number, pair: any) => {
           return sum + Number(pair?.liquidity?.usd || 0);
         }, 0);
@@ -980,7 +984,7 @@ function GeickoPageContent() {
 
     loadTotalLiquidity();
     return () => { cancelled = true; };
-  }, [dexScreenerData]);
+  }, [dexScreenerData, geckoPools]);
 
   // DISABLED: Fetch contract age, total pairs, and supply held - NOW HANDLED BY SERVER API
   // This heavy calculation with multiple sequential API calls is now done server-side
@@ -2139,11 +2143,11 @@ function GeickoPageContent() {
 
                 {/* Top Pairs — 3 biggest LPs by liquidity, from the pairs already
                     in memory (no extra fetch). DEX icon, BASE/QUOTE, $ liquidity. */}
-                {(dexScreenerData?.pairs?.length ?? 0) > 0 && (
+                {((geckoPools ?? dexScreenerData)?.pairs?.length ?? 0) > 0 && (
                   <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                     <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Top Pairs</div>
                     <div className="space-y-2">
-                      {[...(dexScreenerData?.pairs ?? [])]
+                      {[...((geckoPools ?? dexScreenerData)?.pairs ?? [])]
                         .filter((pr: any) => Number(pr?.liquidity?.usd || 0) > 0)
                         .sort((a: any, b: any) => Number(b?.liquidity?.usd || 0) - Number(a?.liquidity?.usd || 0))
                         .slice(0, 3)
@@ -3258,11 +3262,11 @@ function GeickoPageContent() {
 
                       {/* Top Pairs — 3 biggest LPs by liquidity, from the pairs
                           already in memory (no extra fetch). */}
-                      {(dexScreenerData?.pairs?.length ?? 0) > 0 && (
+                      {((geckoPools ?? dexScreenerData)?.pairs?.length ?? 0) > 0 && (
                         <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] p-3">
                           <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Top Pairs</div>
                           <div className="space-y-2">
-                            {[...(dexScreenerData?.pairs ?? [])]
+                            {[...((geckoPools ?? dexScreenerData)?.pairs ?? [])]
                               .filter((pr: any) => Number(pr?.liquidity?.usd || 0) > 0)
                               .sort((a: any, b: any) => Number(b?.liquidity?.usd || 0) - Number(a?.liquidity?.usd || 0))
                               .slice(0, 3)
