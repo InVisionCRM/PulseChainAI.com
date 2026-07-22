@@ -1441,10 +1441,6 @@ function GeickoPageContent() {
     '';
   // Banner header first; if none, use logo (including custom); if no logo, use default
   const headerImageUrl = profileData?.profile?.headerImageUrl || displayPair?.info?.imageUrl || tokenLogoSrc || '/app-pics/clean.png';
-  const isPumpTiresToken =
-    ownershipData.isPumpTiresToken === true ||
-    ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase() ||
-    ownershipData.creationTxTo?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase();
   const priceUsd = Number(displayPair?.priceUsd || 0);
   const priceChange = Number(displayPair?.priceChange?.h24 || 0);
   const formattedPrice = priceUsd >= 1 ? priceUsd.toFixed(4) : priceUsd.toFixed(6);
@@ -1603,19 +1599,6 @@ function GeickoPageContent() {
                   <div className="w-full h-full" />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                {isPumpTiresToken && (
-                  <div className="absolute top-2 left-2 z-10">
-                    <a
-                      href="https://pump.tires"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--surface-2)] backdrop-blur border border-[var(--line)] text-[var(--text)] text-xs font-semibold tracking-wide hover:bg-[var(--surface-3)] hover:border-[var(--line-strong)] transition-all"
-                    >
-                      <span aria-hidden>🛞</span>
-                      <span>Pump.Tires</span>
-                    </a>
-                  </div>
-                )}
                 {/* Token info overlay */}
                 <div className="absolute top-1 left-1 right-1 p-0">
                   <div className="flex justify-between gap-0">
@@ -1625,23 +1608,20 @@ function GeickoPageContent() {
                           type="button"
                           aria-label="Select trading pair"
                           onClick={() => setPairModalOpen(true)}
-                          className="inline-flex max-w-[190px] items-center gap-1 rounded-tl-lg border border-[var(--line-strong)] bg-[var(--surface-2)] px-2 py-0.5 text-xl font-bold tracking-tight text-[var(--text)] backdrop-blur-md transition-colors hover:bg-[var(--surface-3)] focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
+                          className="inline-flex max-w-[160px] items-center gap-1 rounded-tl-lg border border-[var(--line-strong)] bg-[var(--surface-2)] px-1.5 py-0.5 text-xs font-bold tracking-tight text-[var(--text)] backdrop-blur-md transition-colors hover:bg-[var(--surface-3)] focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
                         >
                           <span className="truncate">
                             {(displayPair?.baseToken?.symbol ?? baseSymbol)}{' '}
                             <span className="text-[var(--text-faint)]">/</span>{' '}
                             {(displayPair?.quoteToken?.symbol ?? quoteSymbol)}
                           </span>
-                          <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                          <ChevronDown className="h-3 w-3 shrink-0 text-[var(--text-muted)]" />
                         </button>
                       ) : (
-                        <div className="text-lg p-1 font-bold text-[var(--text)] rounded-tl-lg bg-transparent backdrop-blur-md tracking-tight">
+                        <div className="text-xs p-1 font-bold text-[var(--text)] rounded-tl-lg bg-transparent backdrop-blur-md tracking-tight">
                           {(effectivePair?.baseToken?.symbol ?? baseSymbol)} <span className="text-[var(--text)] pb-1 bg-transparent">/</span> {(effectivePair?.quoteToken?.symbol ?? quoteSymbol)}
                         </div>
                       )}
-                      <div className="text-xs text-[var(--text)] pb-1 text-left pl-2 bg-transparent backdrop-blur-xs">
-                        {tokenNameDisplay}
-                      </div>
                     </div>
                     <div className="text-center justify-center">
                       <div className="text-lg p-1 font-semibold text-[var(--text)] rounded-tr-lg bg-transparent backdrop-blur-md">
@@ -2662,23 +2642,20 @@ function GeickoPageContent() {
                             type="button"
                             aria-label="Select trading pair"
                             onClick={() => setPairModalOpen(true)}
-                            className="inline-flex max-w-[240px] items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--panel)] px-2 py-1 text-2xl font-bold tracking-tight text-[var(--text)] transition-colors hover:bg-[var(--surface-2)] focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                            className="inline-flex max-w-[200px] items-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--panel)] px-1.5 py-0.5 text-sm font-bold tracking-tight text-[var(--text)] transition-colors hover:bg-[var(--surface-2)] focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                           >
                             <span className="truncate">
                               {(displayPair?.baseToken?.symbol ?? baseSymbol)}{' '}
                               <span className="text-[var(--text-muted)]">/</span>{' '}
                               {(displayPair?.quoteToken?.symbol ?? quoteSymbol)}
                             </span>
-                            <ChevronDown className="h-5 w-5 shrink-0 text-[var(--text-muted)]" />
+                            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
                           </button>
                         ) : (
-                          <div className="text-2xl font-bold text-[var(--text)] tracking-tight">
+                          <div className="text-sm font-bold text-[var(--text)] tracking-tight">
                             {(effectivePair?.baseToken?.symbol ?? baseSymbol)} <span className="text-[var(--text-muted)]">/</span> {(effectivePair?.quoteToken?.symbol ?? quoteSymbol)}
                           </div>
                         )}
-                        <div className="text-xs text-[var(--text-muted)] mt-1 truncate">
-                          {tokenNameDisplay}
-                        </div>
                       </div>
                       <div className="text-right">
                         <div className="text-xl font-semibold text-[var(--text)]">
@@ -2713,19 +2690,6 @@ function GeickoPageContent() {
                       <div className="w-full h-full" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    {isPumpTiresToken && (
-                      <div className="absolute top-2 left-2 z-10">
-                        <a
-                          href="https://pump.tires"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--surface-2)] backdrop-blur border border-[var(--line)] text-[var(--text)] text-xs font-semibold tracking-wide hover:bg-[var(--surface-3)] hover:border-[var(--line-strong)] transition-all"
-                        >
-                          <span aria-hidden>🛞</span>
-                          <span>Pump.Tires</span>
-                        </a>
-                      </div>
-                    )}
                     {apiTokenAddress && (
                       <button
                         type="button"

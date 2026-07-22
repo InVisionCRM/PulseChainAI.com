@@ -5,6 +5,16 @@
 // and the caller's choice is mirrored in localStorage for an instant highlight.
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { ThumbsUp, ThumbsDown } from 'lucide-react';
+
+// Smooth-scrolls to the comment box (rendered by GeickoComments) and focuses it.
+function goToReview() {
+  if (typeof document === 'undefined') return;
+  const el = document.getElementById('geicko-comment-input');
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  window.setTimeout(() => (el as HTMLTextAreaElement).focus(), 350);
+}
 
 type Vote = 0 | 1 | -1;
 
@@ -80,21 +90,21 @@ export default function GeickoRating({ token, chain }: { token: string; chain: s
 
   return (
     <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] px-3 py-2.5">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Community</span>
-        {pct !== null && (
-          <span className="text-xs text-[var(--text-muted)] tabular-nums">{pct}% 👍 · {total} vote{total === 1 ? '' : 's'}</span>
-        )}
-      </div>
+      {pct !== null && (
+        <div className="mb-2 text-right text-xs text-[var(--text-muted)] tabular-nums">
+          {pct}% positive · {total} vote{total === 1 ? '' : 's'}
+        </div>
+      )}
       <div className="flex items-center gap-2">
         <button
           type="button"
           disabled={busy}
           onClick={() => vote(1)}
           aria-pressed={yourVote === 1}
+          aria-label="Thumbs up"
           className={`${btn} ${yourVote === 1 ? 'border-[var(--up)] text-[var(--up)] bg-[var(--up)]/10' : 'border-[var(--line)] text-[var(--text)] hover:bg-[var(--surface)]'}`}
         >
-          <span aria-hidden>👍</span>
+          <ThumbsUp className="h-4 w-4" strokeWidth={2} />
           <span className="tabular-nums">{up}</span>
         </button>
         <button
@@ -102,10 +112,18 @@ export default function GeickoRating({ token, chain }: { token: string; chain: s
           disabled={busy}
           onClick={() => vote(-1)}
           aria-pressed={yourVote === -1}
+          aria-label="Thumbs down"
           className={`${btn} ${yourVote === -1 ? 'border-red-400 text-red-400 bg-red-400/10' : 'border-[var(--line)] text-[var(--text)] hover:bg-[var(--surface)]'}`}
         >
-          <span aria-hidden>👎</span>
+          <ThumbsDown className="h-4 w-4" strokeWidth={2} />
           <span className="tabular-nums">{down}</span>
+        </button>
+        <button
+          type="button"
+          onClick={goToReview}
+          className={`${btn} border-[var(--line)] text-[var(--text)] hover:bg-[var(--surface)]`}
+        >
+          Leave Review
         </button>
       </div>
       {note && <div className="mt-1.5 text-[11px] text-[var(--text-faint)] text-center">{note}</div>}

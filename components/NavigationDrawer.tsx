@@ -16,6 +16,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { ThemeToggle } from "./theme/ThemeToggle";
 
 interface NavigationDrawerProps {
   isOpen: boolean;
@@ -113,6 +114,14 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
                 </Link>
               );
             })}
+          </div>
+
+          {/* Appearance — theme toggle (moved here from the bottom bar) */}
+          <div className="mt-6 pt-4 border-t border-[var(--line)]">
+            <p className="text-[var(--text-muted)] text-xs font-semibold uppercase tracking-wider mb-2">
+              Appearance
+            </p>
+            <ThemeToggle />
           </div>
 
           {/* Sponsored by Section */}

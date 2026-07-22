@@ -2,11 +2,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconHome, IconSearch, IconWallet, IconDots } from "@tabler/icons-react";
+import { IconHome, IconSearch, IconWallet, IconDots, IconStar } from "@tabler/icons-react";
 import { NavigationDrawer } from "./NavigationDrawer";
 import SearchModal from "./Screener/SearchModal";
+import WatchlistModal from "./WatchlistModal";
 import { useScreenerWatchlist } from "./Screener/watchlist";
-import { ThemeToggle } from "./theme/ThemeToggle";
 
 type NavItem = {
   label: string;
@@ -22,6 +22,7 @@ export const MobileBottomNav = () => {
   const watchlist = useScreenerWatchlist();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
 
   const navItems: NavItem[] = [
     {
@@ -47,6 +48,12 @@ export const MobileBottomNav = () => {
         // eslint-disable-next-line @next/next/no-img-element
         <img src="/hex-logo.svg" alt="HEX" className="h-5 w-5 object-contain" />
       ),
+    },
+    {
+      label: "Watchlist",
+      onClick: () => setIsWatchlistOpen(true),
+      icon: <IconStar className="h-5 w-5" />,
+      isAction: true,
     },
   ];
 
@@ -102,9 +109,6 @@ export const MobileBottomNav = () => {
             );
           })}
 
-          {/* Theme toggle — pull-chain dark/light switch */}
-          <ThemeToggle variant="bar" />
-
           {/* More Button */}
           <button
             onClick={() => setIsDrawerOpen(true)}
@@ -127,6 +131,12 @@ export const MobileBottomNav = () => {
         open={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
         watchlist={watchlist}
+      />
+
+      {/* Watchlist Modal — bottom sheet listing starred tokens */}
+      <WatchlistModal
+        open={isWatchlistOpen}
+        onClose={() => setIsWatchlistOpen(false)}
       />
     </>
   );
