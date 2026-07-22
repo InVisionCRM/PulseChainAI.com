@@ -30,6 +30,8 @@ import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
 import { useToast } from '@/components/ui/toast-provider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
+import GeickoRating from '@/components/geicko/GeickoRating';
+import GeickoComments from '@/components/geicko/GeickoComments';
 import {
   GeickoHolderModal,
   GeickoHoldersTab,
@@ -1742,6 +1744,11 @@ function GeickoPageContent() {
         {/* Stats Grid - Same layout as mobile single panel */}
         {effectivePair && (
           <div className="block mb-1 px-1">
+            {apiTokenAddress && (
+              <div className="mb-1">
+                <GeickoRating token={apiTokenAddress} chain={network} />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-1">
               {/* Left Column */}
               <div className="space-y-0.5">
@@ -2429,6 +2436,13 @@ function GeickoPageContent() {
             </div>
           </div>
 
+          {/* Community comments — below the tab content */}
+          {apiTokenAddress && (
+            <div className="px-2 md:px-3">
+              <GeickoComments token={apiTokenAddress} chain={network} />
+            </div>
+          )}
+
           {/* Token Information Tabs */}
           <div className="px-2 md:px-3 py-2 border-t border-[var(--line)]">
 
@@ -2803,6 +2817,11 @@ function GeickoPageContent() {
               {/* Stats Grid - Desktop right panel */}
               {displayPair && (
                 <div className="block mb-2 px-0">
+                  {apiTokenAddress && (
+                    <div className="mb-1">
+                      <GeickoRating token={apiTokenAddress} chain={network} />
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-1">
                     {/* Left Column */}
                     <div className="space-y-0.5">
