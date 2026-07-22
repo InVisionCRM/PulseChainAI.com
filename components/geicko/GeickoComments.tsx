@@ -192,6 +192,7 @@ export default function GeickoComments({ token, chain }: { token: string; chain:
         />
         <div className="relative">
           <textarea
+            id="geicko-comment-input"
             value={body}
             onChange={(e) => setBody(e.target.value.slice(0, BODY_MAX))}
             maxLength={BODY_MAX}
