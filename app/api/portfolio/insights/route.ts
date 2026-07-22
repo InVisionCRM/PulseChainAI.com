@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cached } from '@/lib/geicko/serverCache';
+import { fetchGeckoTokenPools } from '@/lib/geicko/pools';
 
 // Per-token insights for the portfolio's Aceternity-style expandable card.
 // Aggregates the DexScreener token profile (description / socials / market
-// cap / liquidity) with PulseScan / eth.blockscout creator info, so the
-// portfolio can show contextual research per holding without sending the
-// user to the full /geicko page. The geicko page stays the link target for
-// the deep-dive (full audit + holders + AI chat).
+// cap) and GeckoTerminal liquidity pools with PulseScan / eth.blockscout
+// creator info, so the portfolio can show contextual research per holding
+// without sending the user to the full /geicko page. The geicko page stays the
+// link target for the deep-dive (full audit + holders + AI chat).
+//
+// Liquidity (the Liquidity tab + headline figure) comes from GeckoTerminal —
+// the SAME source the geicko page uses — because DexScreener's pair list is
+// noisy/incomplete for PulseChain. Falls back to DexScreener pairs when
+// GeckoTerminal has none, mirroring the geicko page's `geckoPools ?? dexData`.
 
 type ChainId = 'ethereum' | 'pulsechain' | 'robinhood';
 
@@ -229,10 +236,18 @@ async function buildInsights(
   chain: ChainId,
   address: string,
 ): Promise<InsightsResponse> {
-  const [dexData, tokenMeta, addrInfo] = await Promise.all([
+  const [dexData, tokenMeta, addrInfo, geckoPools] = await Promise.all([
     fetchDexProfile(address),
     fetchTokenMetadata(chain, address),
     fetchAddressInfo(chain, address),
+    // Same GeckoTerminal source (and shared memoized cache key) the geicko
+    // /api/geicko/pools route uses, so liquidity here matches the geicko page.
+    cached(
+      `pools:${chain}:${address.toLowerCase()}`,
+      600_000,
+      () => fetchGeckoTokenPools(chain, address),
+      (v) => v.pairs.length > 0,
+    ).catch(() => null),
   ]);
 
   const pair = bestPair(dexData?.pairs || [], address);
@@ -269,7 +284,18 @@ async function buildInsights(
       ? Number(tokenMeta.circulating_market_cap)
       : null);
   const fdv = Number(pair?.fdv) || null;
-  const liquidityUsd = Number(pair?.liquidity?.usd) || null;
+
+  // Liquidity source: GeckoTerminal pools when present (same as the geicko
+  // page), else DexScreener's pairs. The headline liquidity is the SUM across
+  // all pools (GeckoTerminal's total reserve) — matching the geicko page's
+  // "Total Liquidity" — not just the single deepest pair.
+  const gtPairs: any[] = geckoPools?.pairs ?? [];
+  const dsPairs: any[] = Array.isArray(dexData?.pairs) ? dexData.pairs : [];
+  const useGecko = gtPairs.length > 0;
+  const liqPairs = useGecko ? gtPairs : dsPairs;
+  const liquidityUsd = useGecko
+    ? (gtPairs.reduce((s, p) => s + (Number(p?.liquidity?.usd) || 0), 0) || null)
+    : (Number(pair?.liquidity?.usd) || null);
 
   const description =
     pair?.info?.description ||
@@ -287,9 +313,11 @@ async function buildInsights(
     pair?.profile?.headerImageUrl ||
     null;
 
-  // Top pairs by liquidity for the Liquidity tab.
-  const allPairs: any[] = Array.isArray(dexData?.pairs) ? dexData.pairs : [];
-  const topPairs: PairSummary[] = allPairs
+  // Top pairs by liquidity for the Liquidity tab — from the same source as the
+  // headline figure above (GeckoTerminal pools, DexScreener fallback). Both
+  // shapes expose liquidity.usd / volume.h24 / txns.h24 / priceChange.h24, so
+  // one mapping serves both.
+  const topPairs: PairSummary[] = liqPairs
     .filter((p) => p?.pairAddress)
     .map((p) => ({
       pairAddress: String(p.pairAddress).toLowerCase(),
@@ -322,7 +350,7 @@ async function buildInsights(
     fdv: Number.isFinite(fdv) ? (fdv as number) : null,
     totalSupply,
     liquidityUsd,
-    pairCount: allPairs.length,
+    pairCount: liqPairs.length,
     primaryPairUrl: pair?.url || null,
     topPairs,
     creatorAddress,
