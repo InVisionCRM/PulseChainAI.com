@@ -158,7 +158,7 @@ export async function bestPairsForToken(
   for (const [chain, p] of best) {
     const m = normalize(p);
     out.set(chain, {
-      chainId: chain as 'pulsechain' | 'ethereum',
+      chainId: chain as 'pulsechain' | 'ethereum' | 'robinhood',
       pairAddress: m.pairAddress,
       dexId: m.dexId,
       label: m.label,
