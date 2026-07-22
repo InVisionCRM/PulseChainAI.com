@@ -568,7 +568,7 @@ function LiquidityTab({
   if (pairs.length === 0) {
     return (
       <div className="text-sm text-[var(--text-faint)] text-center py-8">
-        No DEX pools indexed for this token on DexScreener.
+        No DEX pools indexed for this token.
       </div>
     );
   }
