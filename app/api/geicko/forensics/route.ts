@@ -251,13 +251,27 @@ export async function GET(req: NextRequest) {
       const own = (Array.isArray(balances) ? balances : []).find((b: any) => b?.token?.address?.toLowerCase() === token);
       const creatorTokens = own ? toTokens(own.value) : 0;
 
+      // Resolve deployment names. `created_contract.name` is only set for verified
+      // contracts, so most deployments arrive nameless and render as bare
+      // addresses. `/addresses/{addr}.name` resolves both token names ("Morbius")
+      // and verified-contract names ("XENStake") in one call. Bounded concurrency,
+      // and we stop starting lookups near the deadline so this never blows the
+      // route budget — anything unresolved just keeps its address label.
+      const shown = deployments.slice(0, 20);
+      const namedDeployments = await mapLimit(shown, 5, async (dep) => {
+        if (dep.name || timeLeft() < 4_000) return dep;
+        const info = await bs(`/addresses/${dep.address}`);
+        const nm = info?.name != null && String(info.name).trim() ? String(info.name).trim() : null;
+        return nm ? { ...dep, name: nm } : dep;
+      });
+
       return {
         address: creator,
         creationTx,
         via: viaFactory,
         fundedBy: earliestIncoming,
         fundedByPartial: txPagesPartial,
-        deployments: deployments.slice(0, 20),
+        deployments: namedDeployments,
         deploymentCount: deployments.length,
         tokenBalance: creatorTokens,
         pctSupply: totalSupply > 0 ? (creatorTokens / totalSupply) * 100 : null,
