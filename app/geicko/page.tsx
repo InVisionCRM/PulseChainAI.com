@@ -1824,6 +1824,14 @@ function GeickoPageContent() {
                         {creatorLaunchpad.name}
                       </a>
                     )}
+                    {ownershipData.devHoldingPercent != null && ownershipData.devHoldingPercent > 0 && (
+                      <span
+                        title={`The wallet that launched this token holds ${ownershipData.devHoldingPercent.toFixed(2)}% of supply`}
+                        className="mt-1 inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-muted)]"
+                      >
+                        Dev holds <span className="text-[var(--text)] tabular-nums">{ownershipData.devHoldingPercent.toFixed(2)}%</span>
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -2877,6 +2885,14 @@ function GeickoPageContent() {
                               <Rocket className="h-3 w-3" />
                               {creatorLaunchpad.name}
                             </a>
+                          )}
+                          {ownershipData.devHoldingPercent != null && ownershipData.devHoldingPercent > 0 && (
+                            <span
+                              title={`The wallet that launched this token holds ${ownershipData.devHoldingPercent.toFixed(2)}% of supply`}
+                              className="mt-1 inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-muted)]"
+                            >
+                              Dev holds <span className="text-[var(--text)] tabular-nums">{ownershipData.devHoldingPercent.toFixed(2)}%</span>
+                            </span>
                           )}
                         </div>
                       </div>

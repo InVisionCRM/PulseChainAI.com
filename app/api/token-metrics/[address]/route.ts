@@ -39,6 +39,10 @@ interface TokenMetrics {
     creationTxTo: string | null;
     /** True when token was created by or via a known Pump.tires contract (shows badge) */
     isPumpTiresToken: boolean;
+    /** The wallet that sent the creation tx (the dev/launcher EOA — for factory launches this is the real dev, not the factory). */
+    devWallet: string | null;
+    /** Dev/launcher wallet's current balance ÷ total supply, as a percent (null if unknown / holds ~0). */
+    devHoldingPercent: number | null;
   };
   totalSupply: {
     supply: string;
@@ -381,7 +385,62 @@ async function getBurnedViaRpc(
   return { amount, percent };
 }
 
-async function getOwnershipData(address: string, bases?: string[]) {
+// eth_call across an arbitrary RPC pool (chain-aware), first usable answer wins.
+// Used for the dev-holding lookup, which must run on the *token's* chain rather
+// than the PulseChain-only PLC_RPC_URLS pool the ownership walk uses.
+async function ethCallPool(rpcUrls: string[], to: string, data: string): Promise<string | null> {
+  const results = await Promise.allSettled(
+    rpcUrls.map((url) =>
+      (async () => {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_call', params: [{ to, data }, 'latest'], id: 1 }),
+          signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        if (json?.error || !json?.result || json.result === '0x') return null;
+        return json.result as string;
+      })().catch(() => null),
+    ),
+  );
+  for (const r of results) if (r.status === 'fulfilled' && r.value) return r.value;
+  return null;
+}
+
+// Dev/launcher holding: the wallet that deployed the token (creation-tx sender)
+// still holds what % of supply? For pad launches (pump.tires / NOXA) the *creator*
+// is the factory contract (~0), but the tx *sender* is the real dev, who usually
+// bundles their first buy at launch — so this is the meaningful "dev bag". Honest
+// by construction: returns null (row hidden) when the wallet has since sold out.
+async function getDevHoldingPercent(
+  token: string,
+  devWallet: string | null,
+  rpcUrls: string[],
+): Promise<number | null> {
+  const w = (devWallet || '').toLowerCase();
+  if (!w || w === ZERO_ADDRESS || isBurnAddress(w)) return null;
+  if (!rpcUrls?.length) return null;
+  const balData = BALANCE_OF_SELECTOR + w.slice(2).padStart(64, '0');
+  const [balHex, supHex] = await Promise.all([
+    ethCallPool(rpcUrls, token, balData),
+    ethCallPool(rpcUrls, token, TOTAL_SUPPLY_SELECTOR),
+  ]);
+  if (!balHex || !supHex) return null;
+  let bal: bigint, sup: bigint;
+  try {
+    bal = BigInt(balHex);
+    sup = BigInt(supHex);
+  } catch {
+    return null;
+  }
+  if (sup <= 0n || bal <= 0n) return null;
+  const pct = Number((bal * 1_000_000n) / sup) / 10_000; // percent, 4dp precision
+  return pct >= 0.01 ? pct : null; // hide sub-0.01% (effectively sold out)
+}
+
+async function getOwnershipData(address: string, bases?: string[], chain: string = 'pulsechain') {
   // `bases` set → a non-PulseChain chain. The on-chain owner() walk uses the
   // PulseChain RPC pool, so we only run it (and the renounce inference) on
   // PulseChain. On other chains we surface the Blockscout-derived creator but
@@ -391,6 +450,7 @@ async function getOwnershipData(address: string, bases?: string[]) {
     let creatorAddress: string | null = null;
     let creationTxHash: string | null = null;
     let creationTxTo: string | null = null;
+    let creationTxFrom: string | null = null;
     let renounceTxHash: string | null = null;
 
     // Fetch address info and token info in parallel
@@ -400,7 +460,9 @@ async function getOwnershipData(address: string, bases?: string[]) {
     ]);
 
     creatorAddress = addressInfo?.creator_address_hash || null;
-    creationTxHash = addressInfo?.creation_tx_hash || null;
+    // Field name varies by Blockscout version: PulseChain uses `creation_tx_hash`,
+    // Robinhood's newer instance uses `creation_transaction_hash`.
+    creationTxHash = addressInfo?.creation_tx_hash || addressInfo?.creation_transaction_hash || null;
 
     // Special exception for HEX token - always show as renounced
     const isHexToken = address?.toLowerCase() === '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
@@ -408,6 +470,9 @@ async function getOwnershipData(address: string, bases?: string[]) {
     if (creationTxHash) {
       const creationTx = await fetchJson(`/transactions/${creationTxHash}`, bases).catch(() => null);
       creationTxTo = creationTx?.to?.hash || creationTx?.to || null;
+      // The tx sender is the dev/launcher EOA (even when the deploy routed through
+      // a launchpad factory, which is what `creatorAddress` / `creationTxTo` hold).
+      creationTxFrom = creationTx?.from?.hash || creationTx?.from || null;
     }
 
     // Primary source of truth: call owner() on-chain (PulseChain only).
@@ -448,6 +513,11 @@ async function getOwnershipData(address: string, bases?: string[]) {
       PUMP_TIRES_ADDRESSES.has((creatorAddress || '').toLowerCase()) ||
       PUMP_TIRES_ADDRESSES.has((creationTxTo || '').toLowerCase());
 
+    // Dev bag = the launcher wallet's current holding, on the token's own chain.
+    const rpcUrls = getChain(isChainKey(chain) ? chain : 'pulsechain').rpcUrls;
+    const devWallet = creationTxFrom;
+    const devHoldingPercent = await getDevHoldingPercent(address, devWallet, rpcUrls);
+
     return {
       creatorAddress,
       ownerAddress,
@@ -455,6 +525,8 @@ async function getOwnershipData(address: string, bases?: string[]) {
       renounceTxHash: isHexToken ? 'HEX_TOKEN_EXCEPTION' : renounceTxHash,
       creationTxTo,
       isPumpTiresToken,
+      devWallet,
+      devHoldingPercent,
     };
   } catch (error) {
     console.error('Failed to get ownership data:', error);
@@ -465,6 +537,8 @@ async function getOwnershipData(address: string, bases?: string[]) {
       renounceTxHash: null,
       creationTxTo: null,
       isPumpTiresToken: false,
+      devWallet: null,
+      devHoldingPercent: null,
     };
   }
 }
@@ -472,7 +546,7 @@ async function getOwnershipData(address: string, bases?: string[]) {
 async function getCreationDate(address: string, bases?: string[]) {
   try {
     const addressInfo = await fetchJson(`/addresses/${address}`, bases);
-    const creationTxHash = addressInfo?.creation_tx_hash;
+    const creationTxHash = addressInfo?.creation_tx_hash || addressInfo?.creation_transaction_hash;
 
     if (creationTxHash) {
       const creationTx = await fetchJson(`/transactions/${creationTxHash}`, bases);
@@ -638,7 +712,7 @@ export async function GET(
       : (getChain(chain).blockscoutApiBase ? [getChain(chain).blockscoutApiBase as string] : undefined);
 
     if (scope === 'ownership') {
-      const ownershipData = await getOwnershipData(address, bases);
+      const ownershipData = await getOwnershipData(address, bases, chain);
       return NextResponse.json({ ownershipData }, { headers: CACHE_HEADERS });
     }
 
@@ -649,7 +723,7 @@ export async function GET(
 
     const [core, ownershipData] = await Promise.all([
       getCoreMetrics(address, bases),
-      getOwnershipData(address, bases),
+      getOwnershipData(address, bases, chain),
     ]);
 
     const metrics: TokenMetrics = { ...core, ownershipData };
