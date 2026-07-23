@@ -948,7 +948,11 @@ function GeickoPageContent() {
     let cancelled = false;
 
     const loadTotalLiquidity = async () => {
-      const source = geckoPools ?? dexScreenerData;
+      // Prefer GeckoTerminal, but only when it actually has pairs — an empty
+      // (e.g. wrong-chain) geckoPools object must fall back to DexScreener, not
+      // shadow it. `??` would keep the empty object; the pair dropdown guards on
+      // `.length`, which is why it populated while the stats/liquidity tab didn't.
+      const source = geckoPools?.pairs?.length ? geckoPools : dexScreenerData;
       if (!source?.pairs || source.pairs.length === 0) {
         if (!cancelled) {
           setTotalLiquidity({
@@ -2141,11 +2145,11 @@ function GeickoPageContent() {
 
                 {/* Top Pairs — 3 biggest LPs by liquidity, from the pairs already
                     in memory (no extra fetch). DEX icon, BASE/QUOTE, $ liquidity. */}
-                {((geckoPools ?? dexScreenerData)?.pairs?.length ?? 0) > 0 && (
+                {(((geckoPools?.pairs?.length ? geckoPools : dexScreenerData)?.pairs?.length ?? 0)) > 0 && (
                   <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                     <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Top Pairs</div>
                     <div className="space-y-2">
-                      {[...((geckoPools ?? dexScreenerData)?.pairs ?? [])]
+                      {[...((geckoPools?.pairs?.length ? geckoPools : dexScreenerData)?.pairs ?? [])]
                         .filter((pr: any) => Number(pr?.liquidity?.usd || 0) > 0)
                         .sort((a: any, b: any) => Number(b?.liquidity?.usd || 0) - Number(a?.liquidity?.usd || 0))
                         .slice(0, 3)
@@ -2396,7 +2400,7 @@ function GeickoPageContent() {
                       token={apiTokenAddress}
                     />
                   )}
-                  <LiquidityTab dexScreenerData={geckoPools ?? dexScreenerData} isLoading={isLoadingData} />
+                  <LiquidityTab dexScreenerData={geckoPools?.pairs?.length ? geckoPools : dexScreenerData} isLoading={isLoadingData} />
                 </div>
               )}
 
@@ -3236,11 +3240,11 @@ function GeickoPageContent() {
 
                       {/* Top Pairs — 3 biggest LPs by liquidity, from the pairs
                           already in memory (no extra fetch). */}
-                      {((geckoPools ?? dexScreenerData)?.pairs?.length ?? 0) > 0 && (
+                      {(((geckoPools?.pairs?.length ? geckoPools : dexScreenerData)?.pairs?.length ?? 0)) > 0 && (
                         <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] p-3">
                           <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Top Pairs</div>
                           <div className="space-y-2">
-                            {[...((geckoPools ?? dexScreenerData)?.pairs ?? [])]
+                            {[...((geckoPools?.pairs?.length ? geckoPools : dexScreenerData)?.pairs ?? [])]
                               .filter((pr: any) => Number(pr?.liquidity?.usd || 0) > 0)
                               .sort((a: any, b: any) => Number(b?.liquidity?.usd || 0) - Number(a?.liquidity?.usd || 0))
                               .slice(0, 3)
