@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import DexScreenerChart from '@/components/DexScreenerChart';
-import { LoaderOne, LoaderThree } from "@/components/ui/loader";
+import { LoaderThree } from "@/components/ui/loader";
 import { Copy, Download, Info, ChevronDown, Star, Rocket } from 'lucide-react';
 import { launchpadByAddress } from '@/lib/launchpads';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem, ContractAuditResult } from '../../types';
@@ -1919,7 +1919,7 @@ function GeickoPageContent() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Decimals</span>
                     <span className="text-xs text-[var(--text)] font-semibold">
-                      {totalSupply?.decimals !== undefined ? totalSupply.decimals : <LoaderOne />}
+                      {totalSupply?.decimals !== undefined ? totalSupply.decimals : <Skeleton className="inline-block h-4 w-8 align-middle" />}
                     </span>
                   </div>
                 </div>
@@ -1934,7 +1934,7 @@ function GeickoPageContent() {
                         {totalSupply ? (() => {
                           const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
                           return formatAbbrev(supply);
-                        })() : <LoaderOne />}
+                        })() : <Skeleton className="inline-block h-4 w-12 align-middle" />}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -1947,7 +1947,7 @@ function GeickoPageContent() {
                               const burned = burnedTokens?.amount ?? 0;
                               const circulating = Math.max(0, supply - burned);
                               return formatAbbrev(circulating);
-                            })() : <LoaderOne />}
+                            })() : <Skeleton className="inline-block h-4 w-12 align-middle" />}
                           </span>
                         </TooltipTrigger>
                         {totalSupply && (() => {
