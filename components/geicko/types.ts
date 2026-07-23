@@ -24,6 +24,10 @@ export interface OwnershipData {
   creationTxTo?: string | null;
   /** True when token was created by or via a known Pump.tires contract (server-computed). */
   isPumpTiresToken?: boolean;
+  /** The wallet that deployed the token (creation-tx sender) — the real dev/launcher even for factory launches. */
+  devWallet?: string | null;
+  /** Dev/launcher wallet's current balance ÷ total supply, as a percent (null = unknown / sold out). */
+  devHoldingPercent?: number | null;
   isLoading: boolean;
 }
 

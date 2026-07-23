@@ -4,7 +4,8 @@ import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo } fr
 import { useSearchParams, useRouter } from 'next/navigation';
 import DexScreenerChart from '@/components/DexScreenerChart';
 import { LoaderOne, LoaderThree } from "@/components/ui/loader";
-import { Copy, Download, Info, ChevronDown, Star } from 'lucide-react';
+import { Copy, Download, Info, ChevronDown, Star, Rocket } from 'lucide-react';
+import { launchpadByAddress } from '@/lib/launchpads';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem, ContractAuditResult } from '../../types';
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '@/services';
 import { analyzeContractAudit } from '../../services/contractAuditService';
@@ -43,6 +44,7 @@ import {
   GeickoMarketStatsPanel,
   GeickoPerformancePanel,
   GeickoLiquidityPanel,
+  GeickoVolumePanel,
   GeickoPressurePanel,
   GeickoTradesTab,
   GeickoForensicsTab,
@@ -175,7 +177,7 @@ function GeickoPageContent() {
   const [network, setNetwork] = useState<ChainKey>(
     networkFromQuery && isChainKey(networkFromQuery) ? networkFromQuery : 'pulsechain',
   );
-  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'trades' | 'forensics' | 'holders' | 'bridge' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
+  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'trades' | 'forensics' | 'holders' | 'bridge' | 'liquidity' | 'volume' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
   const tokenInfoTab: 'token' = 'token';
   const [apiTokenAddress, setApiTokenAddress] = useState<string>('');
   const [goldBadgeAddresses, setGoldBadgeAddresses] = useState<string[]>([]);
@@ -948,7 +950,11 @@ function GeickoPageContent() {
     let cancelled = false;
 
     const loadTotalLiquidity = async () => {
-      const source = geckoPools ?? dexScreenerData;
+      // Prefer GeckoTerminal, but only when it actually has pairs — an empty
+      // (e.g. wrong-chain) geckoPools object must fall back to DexScreener, not
+      // shadow it. `??` would keep the empty object; the pair dropdown guards on
+      // `.length`, which is why it populated while the stats/liquidity tab didn't.
+      const source = geckoPools?.pairs?.length ? geckoPools : dexScreenerData;
       if (!source?.pairs || source.pairs.length === 0) {
         if (!cancelled) {
           setTotalLiquidity({
@@ -1150,7 +1156,7 @@ function GeickoPageContent() {
       setApiTokenAddress(addressFromQuery);
     }
     if (tabFromQuery) {
-      const validTabs = ['gold', 'chart', 'trades', 'forensics', 'holders', 'bridge', 'liquidity', 'contract', 'switch', 'stats', 'website', 'audit'];
+      const validTabs = ['gold', 'chart', 'trades', 'forensics', 'holders', 'bridge', 'liquidity', 'volume', 'contract', 'switch', 'stats', 'website', 'audit'];
       if (validTabs.includes(tabFromQuery)) {
         setActiveTab(tabFromQuery as typeof activeTab);
       }
@@ -1282,7 +1288,7 @@ function GeickoPageContent() {
   // If the active tab is PulseChain-only and we're now on another chain, fall
   // back to Chart so the user never lands on a hidden/empty tab.
   useEffect(() => {
-    if (network !== 'pulsechain' && ['forensics', 'bridge', 'switch', 'gold'].includes(activeTab)) {
+    if (network !== 'pulsechain' && ['forensics', 'bridge', 'switch', 'gold', 'volume'].includes(activeTab)) {
       setActiveTab('chart');
     }
   }, [network, activeTab]);
@@ -1441,6 +1447,18 @@ function GeickoPageContent() {
     '';
   // Banner header first; if none, use logo (including custom); if no logo, use default
   const headerImageUrl = profileData?.profile?.headerImageUrl || displayPair?.info?.imageUrl || tokenLogoSrc || '/app-pics/clean.png';
+  // Launchpad the token was created on — resolved from its creator/deployer via
+  // our own factory registry (same approach as the pump.tires attribution),
+  // e.g. pump.tires on PulseChain, NOXA on Robinhood. Shown under the Creator card.
+  const creatorLaunchpad = useMemo(() => {
+    for (const a of [ownershipData.creatorAddress, ownershipData.creationTxTo]) {
+      if (a) {
+        const lp = launchpadByAddress(a);
+        if (lp) return lp;
+      }
+    }
+    return null;
+  }, [ownershipData.creatorAddress, ownershipData.creationTxTo]);
   const priceUsd = Number(displayPair?.priceUsd || 0);
   const priceChange = Number(displayPair?.priceChange?.h24 || 0);
   const formattedPrice = priceUsd >= 1 ? priceUsd.toFixed(4) : priceUsd.toFixed(6);
@@ -1546,7 +1564,7 @@ function GeickoPageContent() {
   const isGoldToken = Boolean(apiTokenAddress && goldBadgeAddresses.some((a) => a.toLowerCase() === apiTokenAddress.toLowerCase()));
   // Tabs backed by PulseChain-only sources (PulseX subgraph, PulseChain bridges,
   // PulseX swap widget, gold badges). Hidden on other chains — see plan.
-  const PULSECHAIN_ONLY_TABS = new Set<typeof activeTab>(['forensics', 'bridge', 'switch', 'gold']);
+  const PULSECHAIN_ONLY_TABS = new Set<typeof activeTab>(['forensics', 'bridge', 'switch', 'gold', 'volume']);
   const tabOptions: Array<{ id: typeof activeTab; label: string }> = [
     ...(isGoldToken ? [{ id: 'gold' as const, label: 'GOLD' }] : []),
     { id: 'chart', label: 'Chart' },
@@ -1555,6 +1573,7 @@ function GeickoPageContent() {
     { id: 'holders', label: 'Holders' },
     { id: 'bridge', label: 'Bridge' },
     { id: 'liquidity', label: 'Liquidity' },
+    { id: 'volume', label: 'Volume' },
     { id: 'contract', label: 'Code' },
     { id: 'switch', label: 'Swap' },
     { id: 'website', label: 'Website' },
@@ -1793,6 +1812,26 @@ function GeickoPageContent() {
                         <span className="text-xs text-[var(--text)] font-semibold">—</span>
                       )}
                     </div>
+                    {creatorLaunchpad && (
+                      <a
+                        href={creatorLaunchpad.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Launched on ${creatorLaunchpad.name}`}
+                        className="mt-1 inline-flex items-center gap-1 rounded-full border border-[#FA4616]/40 bg-[#FA4616]/10 px-2 py-0.5 text-[10px] font-semibold text-[#FA4616] transition-colors hover:bg-[#FA4616]/20"
+                      >
+                        <Rocket className="h-3 w-3" />
+                        {creatorLaunchpad.name}
+                      </a>
+                    )}
+                    {ownershipData.devHoldingPercent != null && ownershipData.devHoldingPercent > 0 && (
+                      <span
+                        title={`The wallet that launched this token holds ${ownershipData.devHoldingPercent.toFixed(2)}% of supply`}
+                        className="mt-1 inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-muted)]"
+                      >
+                        Dev holds <span className="text-[var(--text)] tabular-nums">{ownershipData.devHoldingPercent.toFixed(2)}%</span>
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -2141,11 +2180,11 @@ function GeickoPageContent() {
 
                 {/* Top Pairs — 3 biggest LPs by liquidity, from the pairs already
                     in memory (no extra fetch). DEX icon, BASE/QUOTE, $ liquidity. */}
-                {((geckoPools ?? dexScreenerData)?.pairs?.length ?? 0) > 0 && (
+                {(((geckoPools?.pairs?.length ? geckoPools : dexScreenerData)?.pairs?.length ?? 0)) > 0 && (
                   <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                     <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Top Pairs</div>
                     <div className="space-y-2">
-                      {[...((geckoPools ?? dexScreenerData)?.pairs ?? [])]
+                      {[...((geckoPools?.pairs?.length ? geckoPools : dexScreenerData)?.pairs ?? [])]
                         .filter((pr: any) => Number(pr?.liquidity?.usd || 0) > 0)
                         .sort((a: any, b: any) => Number(b?.liquidity?.usd || 0) - Number(a?.liquidity?.usd || 0))
                         .slice(0, 3)
@@ -2396,8 +2435,13 @@ function GeickoPageContent() {
                       token={apiTokenAddress}
                     />
                   )}
-                  <LiquidityTab dexScreenerData={geckoPools ?? dexScreenerData} isLoading={isLoadingData} />
+                  <LiquidityTab dexScreenerData={geckoPools?.pairs?.length ? geckoPools : dexScreenerData} isLoading={isLoadingData} />
                 </div>
+              )}
+
+              {/* Volume Tab — all-time volume history from the PulseX subgraph (PulseChain only). */}
+              {activeTab === 'volume' && (
+                <GeickoVolumePanel token={apiTokenAddress} network={network} />
               )}
 
               {/* Contract Tab */}
@@ -2426,81 +2470,61 @@ function GeickoPageContent() {
           {/* Token Information Tabs */}
           <div className="px-2 md:px-3 py-2 border-t border-[var(--line)]">
 
-            {/* View More Stats Button */}
-            {displayPair && (
-              <div className="px-2 md:px-3 pt-3 pb-3">
-                <button
-                  onClick={() => setIsStatsModalOpen(true)}
-                  className="relative w-full overflow-hidden text-xs text-blue-200 hover:text-[var(--text)] font-semibold py-3 rounded-lg border border-cyan-400/40 bg-gradient-to-r from-blue-900/40 via-purple-900/30 to-cyan-900/40 shadow-[0_0_15px_rgba(59,130,246,0.6),0_0_25px_rgba(168,85,247,0.45)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(59,130,246,0.85),0_0_40px_rgba(168,85,247,0.7)]"
-                >
-                  <span className="absolute inset-0 bg-gradient-to-r from-cyan-400/10 via-transparent to-purple-400/10 blur-md" aria-hidden="true" />
-                  <span className="pointer-events-none relative">View More Stats →</span>
-                  <span className="pointer-events-none absolute -left-10 top-0 h-0.5 w-2/3 bg-gradient-to-r from-transparent via-cyan-300 to-transparent animate-pulse" aria-hidden="true" />
-                  <span className="pointer-events-none absolute -right-10 bottom-0 h-0.5 w-2/3 bg-gradient-to-r from-transparent via-purple-400 to-transparent animate-pulse" aria-hidden="true" />
-                </button>
-              </div>
-            )}
-
-            {/* Links Section - Only show for token tab */}
+            {/* Links Section — compact single-icon row (website + socials) */}
             {tokenInfoTab === 'token' && (profileData?.profile?.websites?.length > 0 || profileData?.profile?.socials?.length > 0) && (
-              <div className="mb-3 pt-3">
-                <div className="flex flex-wrap gap-2 justify-center">
-                    {/* Websites */}
-                    {uniqueWebsites.map((website, index) => (
-                      <a
-                        key={`website-${index}`}
-                        href={website.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-2)] text-[var(--text)] text-xs sm:text-sm font-semibold rounded-full border border-[var(--line-strong)] backdrop-blur-lg shadow-[0_8px_25px_rgba(0,0,0,0.2)] hover:bg-[var(--surface-2)] transition-colors"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="mb-3 pt-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Websites */}
+                  {uniqueWebsites.map((website, index) => (
+                    <a
+                      key={`website-${index}`}
+                      href={website.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={website.label || 'Website'}
+                      aria-label={website.label || 'Website'}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:border-[var(--line-strong)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      </svg>
+                    </a>
+                  ))}
+
+                  {/* Socials */}
+                  {uniqueSocials.map((social, index) => {
+                    const icon =
+                      social.type === 'twitter' ? (
+                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                        </svg>
+                      ) : social.type === 'telegram' ? (
+                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                        </svg>
+                      ) : social.type === 'discord' ? (
+                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
+                        </svg>
+                      ) : (
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
-                        <span>{website.label || 'Website'}</span>
-                      </a>
-                    ))}
-
-                    {/* Socials */}
-                    {uniqueSocials.map((social, index) => {
-                      const getIcon = (type: string | undefined) => {
-                        if (type === 'twitter') {
-                          return (
-                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                            </svg>
-                          );
-                        }
-                        if (type === 'telegram') {
-                          return (
-                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.781-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-                            </svg>
-                          );
-                        }
-                        if (type === 'discord') {
-                          return (
-                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
-                            </svg>
-                          );
-                        }
-                        return null;
-                      };
-
-                      return (
-                        <a
-                          key={`social-${index}`}
-                          href={social.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-2)] text-[var(--text)] text-xs sm:text-sm font-semibold rounded-full border border-[var(--line-strong)] backdrop-blur-lg shadow-[0_8px_25px_rgba(0,0,0,0.2)] hover:bg-[var(--surface-2)] transition-colors"
-                        >
-                          {getIcon(social.type)}
-                          <span className="capitalize">{social.type ?? 'Link'}</span>
-                        </a>
                       );
-                    })}
+                    return (
+                      <a
+                        key={`social-${index}`}
+                        href={social.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={social.type ?? 'Link'}
+                        aria-label={social.type ?? 'Link'}
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface)] text-[var(--text-muted)] capitalize transition-colors hover:border-[var(--line-strong)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+                      >
+                        {icon}
+                      </a>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -2850,6 +2874,26 @@ function GeickoPageContent() {
                               <span className="text-xs text-[var(--text)] font-semibold">—</span>
                             )}
                           </div>
+                          {creatorLaunchpad && (
+                            <a
+                              href={creatorLaunchpad.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Launched on ${creatorLaunchpad.name}`}
+                              className="mt-1 inline-flex items-center gap-1 rounded-full border border-[#FA4616]/40 bg-[#FA4616]/10 px-2 py-0.5 text-[10px] font-semibold text-[#FA4616] transition-colors hover:bg-[#FA4616]/20"
+                            >
+                              <Rocket className="h-3 w-3" />
+                              {creatorLaunchpad.name}
+                            </a>
+                          )}
+                          {ownershipData.devHoldingPercent != null && ownershipData.devHoldingPercent > 0 && (
+                            <span
+                              title={`The wallet that launched this token holds ${ownershipData.devHoldingPercent.toFixed(2)}% of supply`}
+                              className="mt-1 inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-muted)]"
+                            >
+                              Dev holds <span className="text-[var(--text)] tabular-nums">{ownershipData.devHoldingPercent.toFixed(2)}%</span>
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -3256,11 +3300,11 @@ function GeickoPageContent() {
 
                       {/* Top Pairs — 3 biggest LPs by liquidity, from the pairs
                           already in memory (no extra fetch). */}
-                      {((geckoPools ?? dexScreenerData)?.pairs?.length ?? 0) > 0 && (
+                      {(((geckoPools?.pairs?.length ? geckoPools : dexScreenerData)?.pairs?.length ?? 0)) > 0 && (
                         <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] p-3">
                           <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Top Pairs</div>
                           <div className="space-y-2">
-                            {[...((geckoPools ?? dexScreenerData)?.pairs ?? [])]
+                            {[...((geckoPools?.pairs?.length ? geckoPools : dexScreenerData)?.pairs ?? [])]
                               .filter((pr: any) => Number(pr?.liquidity?.usd || 0) > 0)
                               .sort((a: any, b: any) => Number(b?.liquidity?.usd || 0) - Number(a?.liquidity?.usd || 0))
                               .slice(0, 3)
