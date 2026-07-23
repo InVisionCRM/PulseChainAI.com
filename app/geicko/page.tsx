@@ -44,6 +44,7 @@ import {
   GeickoMarketStatsPanel,
   GeickoPerformancePanel,
   GeickoLiquidityPanel,
+  GeickoVolumePanel,
   GeickoPressurePanel,
   GeickoTradesTab,
   GeickoForensicsTab,
@@ -176,7 +177,7 @@ function GeickoPageContent() {
   const [network, setNetwork] = useState<ChainKey>(
     networkFromQuery && isChainKey(networkFromQuery) ? networkFromQuery : 'pulsechain',
   );
-  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'trades' | 'forensics' | 'holders' | 'bridge' | 'liquidity' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
+  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'trades' | 'forensics' | 'holders' | 'bridge' | 'liquidity' | 'volume' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
   const tokenInfoTab: 'token' = 'token';
   const [apiTokenAddress, setApiTokenAddress] = useState<string>('');
   const [goldBadgeAddresses, setGoldBadgeAddresses] = useState<string[]>([]);
@@ -1155,7 +1156,7 @@ function GeickoPageContent() {
       setApiTokenAddress(addressFromQuery);
     }
     if (tabFromQuery) {
-      const validTabs = ['gold', 'chart', 'trades', 'forensics', 'holders', 'bridge', 'liquidity', 'contract', 'switch', 'stats', 'website', 'audit'];
+      const validTabs = ['gold', 'chart', 'trades', 'forensics', 'holders', 'bridge', 'liquidity', 'volume', 'contract', 'switch', 'stats', 'website', 'audit'];
       if (validTabs.includes(tabFromQuery)) {
         setActiveTab(tabFromQuery as typeof activeTab);
       }
@@ -1287,7 +1288,7 @@ function GeickoPageContent() {
   // If the active tab is PulseChain-only and we're now on another chain, fall
   // back to Chart so the user never lands on a hidden/empty tab.
   useEffect(() => {
-    if (network !== 'pulsechain' && ['forensics', 'bridge', 'switch', 'gold'].includes(activeTab)) {
+    if (network !== 'pulsechain' && ['forensics', 'bridge', 'switch', 'gold', 'volume'].includes(activeTab)) {
       setActiveTab('chart');
     }
   }, [network, activeTab]);
@@ -1563,7 +1564,7 @@ function GeickoPageContent() {
   const isGoldToken = Boolean(apiTokenAddress && goldBadgeAddresses.some((a) => a.toLowerCase() === apiTokenAddress.toLowerCase()));
   // Tabs backed by PulseChain-only sources (PulseX subgraph, PulseChain bridges,
   // PulseX swap widget, gold badges). Hidden on other chains — see plan.
-  const PULSECHAIN_ONLY_TABS = new Set<typeof activeTab>(['forensics', 'bridge', 'switch', 'gold']);
+  const PULSECHAIN_ONLY_TABS = new Set<typeof activeTab>(['forensics', 'bridge', 'switch', 'gold', 'volume']);
   const tabOptions: Array<{ id: typeof activeTab; label: string }> = [
     ...(isGoldToken ? [{ id: 'gold' as const, label: 'GOLD' }] : []),
     { id: 'chart', label: 'Chart' },
@@ -1572,6 +1573,7 @@ function GeickoPageContent() {
     { id: 'holders', label: 'Holders' },
     { id: 'bridge', label: 'Bridge' },
     { id: 'liquidity', label: 'Liquidity' },
+    { id: 'volume', label: 'Volume' },
     { id: 'contract', label: 'Code' },
     { id: 'switch', label: 'Swap' },
     { id: 'website', label: 'Website' },
@@ -2427,6 +2429,11 @@ function GeickoPageContent() {
                   )}
                   <LiquidityTab dexScreenerData={geckoPools?.pairs?.length ? geckoPools : dexScreenerData} isLoading={isLoadingData} />
                 </div>
+              )}
+
+              {/* Volume Tab — all-time volume history from the PulseX subgraph (PulseChain only). */}
+              {activeTab === 'volume' && (
+                <GeickoVolumePanel token={apiTokenAddress} network={network} />
               )}
 
               {/* Contract Tab */}
