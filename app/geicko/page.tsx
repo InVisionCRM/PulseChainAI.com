@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import DexScreenerChart from '@/components/DexScreenerChart';
-import { LoaderOne, LoaderThree } from "@/components/ui/loader";
+import { LoaderThree } from "@/components/ui/loader";
 import { Copy, Download, Info, ChevronDown, Star, Rocket } from 'lucide-react';
 import { launchpadByAddress } from '@/lib/launchpads';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem, ContractAuditResult } from '../../types';
@@ -850,6 +850,43 @@ function GeickoPageContent() {
       return updated;
     });
   }, []);
+
+  // Fresh slate on token switch. Navigating between token pages keeps this same
+  // mounted component (only the ?address= query changes), so without this the
+  // previous token's header, stats, holders, chart and metrics stay on screen
+  // and get overwritten piece by piece as the new data trickles in. Clearing the
+  // per-token state up front — and flipping the loaders on — makes the page show
+  // a clean loading state and start fresh. Gated on a real address so the empty
+  // landing state never shows spinners.
+  useEffect(() => {
+    if (!apiTokenAddress || !/^0x[a-fA-F0-9]{40}$/.test(apiTokenAddress)) return;
+    setContractData(null);
+    setTokenInfo(null);
+    setDexScreenerData(null);
+    setGeckoPools(null);
+    setProfileData(null);
+    setHolders([]);
+    setTransactions([]);
+    setTotalSupply(null);
+    setBurnedTokens(null);
+    setHoldersCount(null);
+    setCreationDate(null);
+    setAuditResult(null);
+    setSelectedPairAddress(null);
+    setError(null);
+    setGoldProfile(null);
+    setGoldLogoFallback(null);
+    setGoldLogoCustomFailed(false);
+    setActiveSocialTab(null);
+    setSupplyHeld({ top10: 0, top20: 0, top50: 0, isLoading: true });
+    setSmartContractHolderShare({ percent: 0, contractCount: 0, isLoading: true });
+    setTotalLiquidity({ usd: 0, pairCount: 0, isLoading: true });
+    setOwnershipData({ creatorAddress: null, ownerAddress: null, isRenounced: false, renounceTxHash: null, isLoading: true });
+    setIsLoadingData(true);
+    setIsLoadingHolders(true);
+    setIsLoadingMetrics(true);
+    setIsLoadingTransactions(true);
+  }, [apiTokenAddress]);
 
   // Load data when token address changes
   useEffect(() => {
@@ -1882,7 +1919,7 @@ function GeickoPageContent() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Decimals</span>
                     <span className="text-xs text-[var(--text)] font-semibold">
-                      {totalSupply?.decimals !== undefined ? totalSupply.decimals : <LoaderOne />}
+                      {totalSupply?.decimals !== undefined ? totalSupply.decimals : <Skeleton className="inline-block h-4 w-8 align-middle" />}
                     </span>
                   </div>
                 </div>
@@ -1897,7 +1934,7 @@ function GeickoPageContent() {
                         {totalSupply ? (() => {
                           const supply = Number(totalSupply.supply) / Math.pow(10, totalSupply.decimals);
                           return formatAbbrev(supply);
-                        })() : <LoaderOne />}
+                        })() : <Skeleton className="inline-block h-4 w-12 align-middle" />}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -1910,7 +1947,7 @@ function GeickoPageContent() {
                               const burned = burnedTokens?.amount ?? 0;
                               const circulating = Math.max(0, supply - burned);
                               return formatAbbrev(circulating);
-                            })() : <LoaderOne />}
+                            })() : <Skeleton className="inline-block h-4 w-12 align-middle" />}
                           </span>
                         </TooltipTrigger>
                         {totalSupply && (() => {
