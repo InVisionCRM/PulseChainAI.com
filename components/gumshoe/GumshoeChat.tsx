@@ -14,17 +14,17 @@ import { useApiKey } from '@/lib/hooks/useApiKey';
 interface Msg { role: 'user' | 'assistant'; text: string; tools?: string[]; error?: boolean }
 
 const SUGGESTIONS = [
+  'How many of the holders are connected to the creator wallet?',
   'Are the first buyers connected — did the founder use multiple wallets?',
   'How many of these holders also hold HEX?',
   "Where did the biggest holder's money come from?",
-  'Which first buyers are still holding, and are any linked to the creator?',
 ];
 
 // Friendly labels for the "checked …" chips.
 const TOOL_LABELS: Record<string, string> = {
   get_token_overview: 'overview',
   get_forensics: 'forensics',
-  analyze_buyer_connections: 'buyer connections',
+  analyze_connections: 'wallet connections',
   get_top_holders: 'holders',
   get_liquidity: 'liquidity',
   get_volume_history: 'volume',

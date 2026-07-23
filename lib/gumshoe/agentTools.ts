@@ -19,6 +19,16 @@ export interface ToolContext {
 const ADDR_RX = /^0x[a-fA-F0-9]{40}$/;
 const short = (a?: string | null) => (a && a.length > 10 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a || null);
 
+// Canonical PulseChain addresses for majors, so common symbols resolve reliably
+// instead of depending on a fuzzy DexScreener search that can pick a scam clone.
+const KNOWN_TOKENS: Record<string, string> = {
+  HEX: '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39',
+  PLSX: '0x95b303987a60c71504d99aa1b13b4da07b0790ab',
+  INC: '0x2fa878ab3f87cc1c9737fc071108f17c1a5ab23b',
+  WPLS: '0xa1077a294dde1b09bb078844df40758a5d0f9a27',
+  PLS: '0xa1077a294dde1b09bb078844df40758a5d0f9a27',
+};
+
 async function getJson(url: string, init?: RequestInit): Promise<any | null> {
   try {
     const r = await fetch(url, { ...init, headers: { accept: 'application/json', ...(init?.headers || {}) } });
@@ -26,6 +36,28 @@ async function getJson(url: string, init?: RequestInit): Promise<any | null> {
   } catch {
     return null;
   }
+}
+
+// Turn a token name/symbol/address into a canonical address. Address → passthrough;
+// major symbol → curated map; otherwise DexScreener search, preferring an EXACT
+// symbol match on the same chain by highest liquidity (not just the first hit).
+async function resolveTokenAddress(query: string, origin: string, network: string): Promise<{ address: string; symbol?: string } | null> {
+  const q = (query || '').trim();
+  if (ADDR_RX.test(q)) return { address: q.toLowerCase() };
+  const up = q.toUpperCase();
+  if (KNOWN_TOKENS[up]) return { address: KNOWN_TOKENS[up], symbol: up };
+  const d = await getJson(`${origin}/api/search?q=${encodeURIComponent(q)}`);
+  const cands = (d?.pairs ?? [])
+    .map((p: any) => ({
+      address: (p.baseAddress || p.baseToken?.address || '').toLowerCase(),
+      symbol: String(p.baseSymbol || p.baseToken?.symbol || ''),
+      chain: p.chainId ?? null,
+      liq: Number(p.liquidityUsd ?? p.liquidity?.usd ?? 0),
+    }))
+    .filter((c: any) => ADDR_RX.test(c.address));
+  const exact = cands.filter((c: any) => c.symbol.toUpperCase() === up && (!network || !c.chain || c.chain === network));
+  const pick = (exact.length ? exact : cands).sort((a: any, b: any) => b.liq - a.liq)[0];
+  return pick ? { address: pick.address, symbol: pick.symbol } : null;
 }
 
 // Resolve a token arg against the current-page default.
@@ -65,13 +97,15 @@ export const TOOL_DECLARATIONS = [
     },
   },
   {
-    name: 'analyze_buyer_connections',
+    name: 'analyze_connections',
     description:
-      "Detects whether a token's EARLIEST buyers are secretly the same entity, by clustering their wallets on shared funding sources (who first funded each buyer wallet). Wallets funded by the same ordinary wallet — or by the token's own creator — are the classic 'founder bought their own launch across many wallets' pattern. Use for 'are the first buyers connected / is this one person / is the launch organic' questions. PulseChain only.",
+      "Analyzes whether a set of a token's wallets are connected — to EACH OTHER or to a TARGET wallet — via native-coin funding (who funded whom). Two wallets are linked if one funded the other or they share an ordinary (non-exchange) funder. Choose the population with `scope`: 'first_buyers' (the earliest buyers) or 'holders' (the largest holders) — MATCH what the user asked (if they say 'holders', use holders; if 'buyers', use first_buyers). Optionally set `target` to 'creator' (the token's creator/launcher) or a specific 0x wallet to count how many of that set are connected TO it. Use for ANY question like 'are the buyers connected', 'how many holders are linked to the creator', 'did the founder use multiple wallets', 'are holders connected to 0x…'. PulseChain only.",
     parameters: {
       type: Type.OBJECT,
       properties: {
         token: { type: Type.STRING, description: 'Token contract address. Omit to use the current token.' },
+        scope: { type: Type.STRING, description: "Which wallets to analyze: 'holders' (largest holders) or 'first_buyers' (earliest buyers, the default). Match the user's wording." },
+        target: { type: Type.STRING, description: "Optional connection target: 'creator' for the token's creator/launcher wallet, or a specific 0x address. Omit to just cluster the set among themselves." },
       },
     },
   },
@@ -255,26 +289,28 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
       };
     }
 
-    case 'analyze_buyer_connections': {
+    case 'analyze_connections': {
       const token = resolveToken(args, ctx);
       if (!token) return { error: 'No token address available.' };
-      const d = await getJson(`${o}/api/geicko/buyer-connections?token=${token}&network=pulsechain`);
-      if (!d || d.supported === false) return { error: 'Buyer-connection analysis is PulseChain-only and unavailable here.' };
-      if (!d.hasData) return { note: 'No first-buyer data to analyze for this token.' };
+      const scope = String(args?.scope || 'first_buyers').toLowerCase() === 'holders' ? 'holders' : 'first_buyers';
+      const target = String(args?.target || '').toLowerCase();
+      const qs = new URLSearchParams({ token, scope, network: 'pulsechain' });
+      if (target) qs.set('target', target);
+      const d = await getJson(`${o}/api/geicko/connections?${qs.toString()}`);
+      if (!d || d.supported === false) return { error: 'Connection analysis is PulseChain-only.' };
+      if (!d.hasData) return { note: `No ${scope.replace('_', ' ')} found to analyze for this token.` };
       return {
-        buyersAnalyzed: d.buyersAnalyzed,
-        linkedBuyers: d.linkedBuyers,
-        largestClusterSize: d.largestClusterSize,
-        creatorFundedBuyers: d.creatorFundedBuyers,
-        clusters: (d.clusters ?? []).map((c: any) => ({
-          sharedFunder: short(c.funder),
-          funderLabel: c.label,
-          isTokenCreator: c.isCreator,
-          walletCount: c.count,
-          wallets: c.buyers.map((b: any) => short(b.wallet)),
-        })),
+        scope: d.scope,
+        walletsAnalyzed: d.walletsAnalyzed,
+        target: d.target,
+        targetKind: d.targetKind,
+        connectedToTarget: d.connectedToTarget, // { count, wallets:[{address, via}] } or null
+        clusterCount: d.clusterCount,
+        walletsInClusters: d.walletsInClusters,
+        clusters: d.clusters,
+        note: d.note,
         interpretationHint:
-          'Wallets sharing a non-exchange funder are likely one operator. A large cluster, or a cluster whose funder isTokenCreator=true, indicates the founder bought their own launch across multiple wallets.',
+          'connectedToTarget.count is how many of the analyzed wallets are funding-linked to the target. Clusters group wallets that share a funder (likely one operator); a cluster with isTokenCreator=true means the creator funded those wallets.',
       };
     }
 
@@ -406,33 +442,21 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
 
     case 'resolve_token': {
       const query = String(args?.query || '').trim();
+      const network = resolveNetwork(args, ctx);
       if (query.length < 2) return { error: 'Provide a token name, symbol, or address.' };
-      if (ADDR_RX.test(query)) return { matches: [{ address: query.toLowerCase(), note: 'already an address' }] };
-      const d = await getJson(`${o}/api/search?q=${encodeURIComponent(query)}`);
-      const pairs: any[] = d?.pairs ?? [];
-      const seen = new Set<string>();
-      const matches: any[] = [];
-      for (const p of pairs) {
-        const addr = (p.baseAddress || p.baseToken?.address || '').toLowerCase();
-        if (!ADDR_RX.test(addr) || seen.has(addr)) continue;
-        seen.add(addr);
-        matches.push({
-          address: addr,
-          symbol: p.baseSymbol ?? p.baseToken?.symbol ?? null,
-          name: p.baseName ?? p.baseToken?.name ?? null,
-          chain: p.chainId ?? null,
-          liquidityUsd: Math.round(Number(p.liquidityUsd ?? p.liquidity?.usd ?? 0)) || null,
-        });
-        if (matches.length >= 8) break;
-      }
-      return matches.length ? { query, matches } : { query, matches: [], note: 'No token found by that name/symbol. Ask the user for the contract address.' };
+      const best = await resolveTokenAddress(query, o, network);
+      if (!best) return { query, matches: [], note: 'No token found by that name/symbol. Ask the user for the contract address.' };
+      return { query, best, note: 'Use best.address in the next tool call.' };
     }
 
     case 'holder_overlap': {
       const a = (args?.tokenA || ctx.token || '').toLowerCase();
-      const b = (args?.tokenB || '').toLowerCase();
       const network = resolveNetwork(args, ctx);
-      if (!ADDR_RX.test(a) || !ADDR_RX.test(b)) return { error: 'Two token addresses are required (use resolve_token for names).' };
+      // Resolve token B even if the model passed a symbol/name (robust to bad routing).
+      const rawB = String(args?.tokenB || '');
+      const resolvedB = ADDR_RX.test(rawB) ? { address: rawB.toLowerCase() } : await resolveTokenAddress(rawB, o, network);
+      const b = resolvedB?.address ?? '';
+      if (!ADDR_RX.test(a) || !ADDR_RX.test(b)) return { error: `Could not resolve token${!ADDR_RX.test(b) ? ' B (\"' + rawB + '\")' : ' A'}. Ask the user for its contract address.` };
       if (a === b) return { error: 'The two tokens must be different.' };
       const d = await getJson(`${o}/api/geicko/holder-overlap?tokenA=${a}&tokenB=${b}&network=${network}`);
       if (!d) return { error: 'Overlap analysis unavailable.' };
