@@ -83,6 +83,7 @@ const TabLoading = () => (
 );
 const AdminStatsPanel = dynamic(() => import('@/components/AdminStatsPanel'), { loading: TabLoading });
 const TokenAIChat = dynamic(() => import('@/components/TokenAIChat'), { ssr: false, loading: TabLoading });
+const GumshoeChat = dynamic(() => import('@/components/gumshoe/GumshoeChat'), { ssr: false });
 const TokenContractView = dynamic(() => import('@/components/TokenContractView'), { ssr: false, loading: TabLoading });
 const LiquidityTab = dynamic(() => import('@/components/LiquidityTab'), { loading: TabLoading });
 const ContractAuditPanel = dynamic(() => import('@/components/ContractAuditPanel'), { ssr: false, loading: TabLoading });
@@ -2502,6 +2503,11 @@ function GeickoPageContent() {
             <div className="px-2 md:px-3">
               <GeickoComments token={apiTokenAddress} chain={network} />
             </div>
+          )}
+
+          {/* Gumshoe — floating ask-anything on-chain analyst (context-aware) */}
+          {apiTokenAddress && (
+            <GumshoeChat token={apiTokenAddress} network={network} symbol={baseSymbol} />
           )}
 
           {/* Token Information Tabs */}
