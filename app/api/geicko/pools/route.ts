@@ -11,6 +11,18 @@ import { fetchGeckoTokenPools } from '@/lib/geicko/pools';
 export const revalidate = 0;
 export const maxDuration = 30;
 
+// EVM chains we index on GeckoTerminal. Used for the cross-chain fallback below.
+const SUPPORTED_CHAINS = ['pulsechain', 'robinhood', 'ethereum'];
+
+const poolsFor = (chain: string, token: string) =>
+  cached(
+    // Keyed by chain so /api/portfolio/insights shares the same memoized result.
+    `pools:${chain}:${token}`,
+    600_000,
+    () => fetchGeckoTokenPools(chain, token),
+    (v) => v.pairs.length > 0, // never cache an empty (usually a rate-limit) result
+  );
+
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const chain = (sp.get('network') || 'pulsechain').toLowerCase();
@@ -20,15 +32,28 @@ export async function GET(req: NextRequest) {
   try {
     // Memoize for 10 minutes (matching Cache-Control): the page fetches this from
     // more than one component, and GeckoTerminal rate-limits aggressively enough
-    // that duplicate bursts can come back empty. Empty results aren't cached —
-    // they usually mean a rate-limit, not a token without pools. Keyed by chain
-    // so /api/portfolio/insights shares the same memoized result.
-    const payload = await cached(
-      `pools:${chain}:${token}`,
-      600_000,
-      () => fetchGeckoTokenPools(chain, token),
-      (v) => v.pairs.length > 0,
-    );
+    // that duplicate bursts can come back empty.
+    let payload = await poolsFor(chain, token);
+
+    // Cross-chain fallback. The geicko page opens on its default network
+    // (pulsechain) before it knows the token's chain, and chain auto-detection
+    // leans on a client-side DexScreener call that can lag or fail. So when the
+    // requested chain has no pools, probe the other supported chains — a
+    // Robinhood/Ethereum-only token (e.g. CASHCAT on Robinhood) then still
+    // returns its liquidity, and each pair carries `chainId`, which the page
+    // uses to switch the active network. Normal (found-on-first-chain) tokens
+    // never trigger this.
+    if (payload.pairs.length === 0) {
+      for (const alt of SUPPORTED_CHAINS) {
+        if (alt === chain) continue;
+        const p = await poolsFor(alt, token);
+        if (p.pairs.length > 0) {
+          payload = p;
+          break;
+        }
+      }
+    }
+
     return NextResponse.json(payload, {
       headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=7200' },
     });
