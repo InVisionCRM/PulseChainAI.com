@@ -13,6 +13,7 @@ import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { useInsightsStore } from '@/lib/stores/insightsStore';
 import { useManageTokensStore } from '@/lib/stores/manageTokensStore';
 import { ApprovalsPanel } from '@/components/portfolio/ApprovalsPanel';
+import LpPositionRow from '@/components/portfolio/LpPositionRow';
 import { WalletActionsMenu } from '@/components/portfolio/WalletActionsMenu';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
 import { ProtocolPositions } from '@/components/portfolio/ProtocolPositions';
@@ -532,6 +533,7 @@ export function WalletCard({ wallet }: Props) {
                   sortDir={sortDir}
                   onSort={handleSort}
                   onOpenInsights={openInsights}
+                  walletAddress={wallet.address}
                 />
               )}
               <ApprovalsPanel
@@ -565,12 +567,14 @@ function TokenTable({
   sortDir,
   onSort,
   onOpenInsights,
+  walletAddress,
 }: {
   tokens: PortfolioToken[];
   sortKey: SortKey;
   sortDir: SortDir;
   onSort: (k: SortKey) => void;
   onOpenInsights: (t: PortfolioToken) => void;
+  walletAddress: string;
 }) {
   const header = (key: SortKey, label: string, align: 'left' | 'right') => (
     <SortButton
@@ -627,7 +631,7 @@ function TokenTable({
                 total={total}
                 isFirst={si === 0}
               />,
-              ...renderTokenRows(section.items, onOpenInsights),
+              ...renderTokenRows(section.items, onOpenInsights, walletAddress),
             ];
           })}
         </tbody>
@@ -642,6 +646,7 @@ function TokenTable({
 function renderTokenRows(
   tokens: PortfolioToken[],
   onOpenInsights: (t: PortfolioToken) => void,
+  walletAddress: string,
 ): React.ReactNode[] {
   return tokens.flatMap((t, i) => {
     const key = `${t.chain}:${t.address}`;
@@ -723,6 +728,18 @@ function renderTokenRows(
               </span>
             </td>
           </tr>,
+        );
+      }
+      // Per-position fees + net P&L (PulseChain only; self-hides otherwise).
+      if (t.lp.pairAddress) {
+        rows.push(
+          <LpPositionRow
+            key={`${key}:pos`}
+            pair={t.lp.pairAddress}
+            wallet={walletAddress}
+            chain={t.chain}
+            balance={t.balanceFormatted}
+          />,
         );
       }
     }
