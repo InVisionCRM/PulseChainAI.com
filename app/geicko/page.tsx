@@ -4,7 +4,8 @@ import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo } fr
 import { useSearchParams, useRouter } from 'next/navigation';
 import DexScreenerChart from '@/components/DexScreenerChart';
 import { LoaderOne, LoaderThree } from "@/components/ui/loader";
-import { Copy, Download, Info, ChevronDown, Star } from 'lucide-react';
+import { Copy, Download, Info, ChevronDown, Star, Rocket } from 'lucide-react';
+import { launchpadByAddress } from '@/lib/launchpads';
 import type { ContractData, TokenInfo, DexScreenerData, SearchResultItem, ContractAuditResult } from '../../types';
 import { fetchContract, fetchTokenInfo, fetchDexScreenerData, search } from '@/services';
 import { analyzeContractAudit } from '../../services/contractAuditService';
@@ -1445,6 +1446,18 @@ function GeickoPageContent() {
     '';
   // Banner header first; if none, use logo (including custom); if no logo, use default
   const headerImageUrl = profileData?.profile?.headerImageUrl || displayPair?.info?.imageUrl || tokenLogoSrc || '/app-pics/clean.png';
+  // Launchpad the token was created on — resolved from its creator/deployer via
+  // our own factory registry (same approach as the pump.tires attribution),
+  // e.g. pump.tires on PulseChain, NOXA on Robinhood. Shown under the Creator card.
+  const creatorLaunchpad = useMemo(() => {
+    for (const a of [ownershipData.creatorAddress, ownershipData.creationTxTo]) {
+      if (a) {
+        const lp = launchpadByAddress(a);
+        if (lp) return lp;
+      }
+    }
+    return null;
+  }, [ownershipData.creatorAddress, ownershipData.creationTxTo]);
   const priceUsd = Number(displayPair?.priceUsd || 0);
   const priceChange = Number(displayPair?.priceChange?.h24 || 0);
   const formattedPrice = priceUsd >= 1 ? priceUsd.toFixed(4) : priceUsd.toFixed(6);
@@ -1797,6 +1810,18 @@ function GeickoPageContent() {
                         <span className="text-xs text-[var(--text)] font-semibold">—</span>
                       )}
                     </div>
+                    {creatorLaunchpad && (
+                      <a
+                        href={creatorLaunchpad.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Launched on ${creatorLaunchpad.name}`}
+                        className="mt-1 inline-flex items-center gap-1 rounded-full border border-[#FA4616]/40 bg-[#FA4616]/10 px-2 py-0.5 text-[10px] font-semibold text-[#FA4616] transition-colors hover:bg-[#FA4616]/20"
+                      >
+                        <Rocket className="h-3 w-3" />
+                        {creatorLaunchpad.name}
+                      </a>
+                    )}
                   </div>
                 </div>
 
@@ -2834,6 +2859,18 @@ function GeickoPageContent() {
                               <span className="text-xs text-[var(--text)] font-semibold">—</span>
                             )}
                           </div>
+                          {creatorLaunchpad && (
+                            <a
+                              href={creatorLaunchpad.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Launched on ${creatorLaunchpad.name}`}
+                              className="mt-1 inline-flex items-center gap-1 rounded-full border border-[#FA4616]/40 bg-[#FA4616]/10 px-2 py-0.5 text-[10px] font-semibold text-[#FA4616] transition-colors hover:bg-[#FA4616]/20"
+                            >
+                              <Rocket className="h-3 w-3" />
+                              {creatorLaunchpad.name}
+                            </a>
+                          )}
                         </div>
                       </div>
 
