@@ -14,10 +14,10 @@ import { useApiKey } from '@/lib/hooks/useApiKey';
 interface Msg { role: 'user' | 'assistant'; text: string; tools?: string[]; error?: boolean }
 
 const SUGGESTIONS = [
-  'Are the first buyers connected — is this one person?',
-  'Is this token safe? Summarize the risks.',
-  "Who's the creator and what else have they launched?",
-  'How do the liquidity and volume look?',
+  'Are the first buyers connected — did the founder use multiple wallets?',
+  'How many of these holders also hold HEX?',
+  "Where did the biggest holder's money come from?",
+  'Which first buyers are still holding, and are any linked to the creator?',
 ];
 
 // Friendly labels for the "checked …" chips.
@@ -31,6 +31,9 @@ const TOOL_LABELS: Record<string, string> = {
   trace_wallet_funding: 'funding trace',
   classify_addresses: 'address labels',
   get_lp_position: 'LP position',
+  resolve_token: 'token lookup',
+  holder_overlap: 'holder overlap',
+  check_wallet_link: 'wallet link',
 };
 
 const MD = {
@@ -102,7 +105,7 @@ export default function GumshoeChat({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Ask Gumshoe"
+        aria-label="Ask Sleuth"
         className="fixed bottom-20 right-4 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-[#FA4616] text-white shadow-lg shadow-black/40 transition-transform hover:scale-105 md:bottom-6"
       >
         {open ? <IconX className="h-5 w-5" /> : <IconSearch className="h-5 w-5" />}
@@ -117,7 +120,7 @@ export default function GumshoeChat({
                 <IconSearch className="h-4 w-4" />
               </div>
               <div className="leading-tight">
-                <div className="text-sm font-semibold text-[var(--text)]">Gumshoe</div>
+                <div className="text-sm font-semibold text-[var(--text)]">Sleuth</div>
                 <div className="text-[10px] text-[var(--text-faint)]">
                   on-chain analyst{symbol ? ` · ${symbol}` : ''}
                 </div>
@@ -227,7 +230,7 @@ export default function GumshoeChat({
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }}
                 rows={1}
-                placeholder="Ask Gumshoe…"
+                placeholder="Ask Sleuth…"
                 className="max-h-24 min-h-[24px] flex-1 resize-none bg-transparent text-sm text-[var(--text)] placeholder:text-[var(--text-faint)] focus:outline-none"
               />
               <button
@@ -240,7 +243,7 @@ export default function GumshoeChat({
               </button>
             </div>
             <div className="mt-1 px-1 text-center text-[9px] text-[var(--text-faint)]">
-              Gumshoe reads on-chain data. Not financial advice. Can make mistakes — verify what matters.
+              Sleuth reads on-chain data. Not financial advice. Can make mistakes — verify what matters.
             </div>
           </div>
         </div>

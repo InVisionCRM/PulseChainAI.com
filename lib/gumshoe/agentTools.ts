@@ -148,6 +148,45 @@ export const TOOL_DECLARATIONS = [
       required: ['pair', 'wallet'],
     },
   },
+  {
+    name: 'resolve_token',
+    description:
+      'Look up a token by name or symbol and return matching contract addresses (with symbol, name, chain, liquidity). Call this FIRST whenever the user names a token by word instead of address (e.g. "how many also hold PLSX") so you can pass a real address to other tools. Already-address inputs pass straight through.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        query: { type: Type.STRING, description: 'Token name, symbol, or address to look up.' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'holder_overlap',
+    description:
+      "How many of token A's largest holders ALSO hold token B — a cross-token overlap you can't see on a single token page. Use for 'how many holders of this token also hold X' / 'do these two communities overlap' questions. Pass addresses; resolve names with resolve_token first. Checks each of A's top holders for any on-chain balance of B.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        tokenA: { type: Type.STRING, description: "The base token's address (whose holders you're checking). Omit to use the token the user is viewing." },
+        tokenB: { type: Type.STRING, description: 'The other token address to check those holders against.' },
+        network: { type: Type.STRING, description: 'Chain. Omit to use the current chain.' },
+      },
+      required: ['tokenB'],
+    },
+  },
+  {
+    name: 'check_wallet_link',
+    description:
+      "Determines whether two wallets are connected, by tracing each wallet's funding ancestry (who first funded it, and so on) and checking if one funded the other or they share an ordinary (non-exchange) funder. Use for 'is wallet A connected to wallet B / are these the same person' questions. A shared exchange is not treated as a connection. PulseChain.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        walletA: { type: Type.STRING, description: 'First wallet address (0x…).' },
+        walletB: { type: Type.STRING, description: 'Second wallet address (0x…).' },
+      },
+      required: ['walletA', 'walletB'],
+    },
+  },
 ] as const;
 
 // ── Executors ─────────────────────────────────────────────────────────────────
@@ -362,6 +401,66 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
         feeAprPercent: d.feeApr ?? null,
         partialHistory: d.partialHistory ?? false,
         note: 'Fees are estimated (isolated from impermanent loss); net P&L includes impermanent loss.',
+      };
+    }
+
+    case 'resolve_token': {
+      const query = String(args?.query || '').trim();
+      if (query.length < 2) return { error: 'Provide a token name, symbol, or address.' };
+      if (ADDR_RX.test(query)) return { matches: [{ address: query.toLowerCase(), note: 'already an address' }] };
+      const d = await getJson(`${o}/api/search?q=${encodeURIComponent(query)}`);
+      const pairs: any[] = d?.pairs ?? [];
+      const seen = new Set<string>();
+      const matches: any[] = [];
+      for (const p of pairs) {
+        const addr = (p.baseAddress || p.baseToken?.address || '').toLowerCase();
+        if (!ADDR_RX.test(addr) || seen.has(addr)) continue;
+        seen.add(addr);
+        matches.push({
+          address: addr,
+          symbol: p.baseSymbol ?? p.baseToken?.symbol ?? null,
+          name: p.baseName ?? p.baseToken?.name ?? null,
+          chain: p.chainId ?? null,
+          liquidityUsd: Math.round(Number(p.liquidityUsd ?? p.liquidity?.usd ?? 0)) || null,
+        });
+        if (matches.length >= 8) break;
+      }
+      return matches.length ? { query, matches } : { query, matches: [], note: 'No token found by that name/symbol. Ask the user for the contract address.' };
+    }
+
+    case 'holder_overlap': {
+      const a = (args?.tokenA || ctx.token || '').toLowerCase();
+      const b = (args?.tokenB || '').toLowerCase();
+      const network = resolveNetwork(args, ctx);
+      if (!ADDR_RX.test(a) || !ADDR_RX.test(b)) return { error: 'Two token addresses are required (use resolve_token for names).' };
+      if (a === b) return { error: 'The two tokens must be different.' };
+      const d = await getJson(`${o}/api/geicko/holder-overlap?tokenA=${a}&tokenB=${b}&network=${network}`);
+      if (!d) return { error: 'Overlap analysis unavailable.' };
+      if (!d.hasData) return { note: "Couldn't read holders for the base token." };
+      return {
+        holdersChecked: d.holdersChecked,
+        alsoHoldOtherToken: d.overlapCount,
+        overlapPercent: d.overlapPercent,
+        overlappingWallets: (d.overlappingWallets ?? []).slice(0, 12).map(short),
+        note: d.note,
+      };
+    }
+
+    case 'check_wallet_link': {
+      const a = (args?.walletA || '').toLowerCase();
+      const b = (args?.walletB || '').toLowerCase();
+      if (!ADDR_RX.test(a) || !ADDR_RX.test(b)) return { error: 'Two valid wallet addresses are required.' };
+      if (a === b) return { error: 'The two wallets are the same address.' };
+      const d = await getJson(`${o}/api/portfolio/wallet-link?a=${a}&b=${b}&network=pulsechain`);
+      if (!d || d.supported === false) return { error: 'Wallet-link analysis is PulseChain-only.' };
+      return {
+        connected: d.connected,
+        relationship: d.relationship,
+        sharedFunder: d.link,
+        sharedFunderLabel: d.linkLabel,
+        walletA_fundingChain: d.walletA_fundingChain,
+        walletB_fundingChain: d.walletB_fundingChain,
+        note: d.note,
       };
     }
 
