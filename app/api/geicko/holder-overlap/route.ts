@@ -66,6 +66,8 @@ async function build(origin: string, tokenA: string, tokenB: string, network: st
   if (!holdersA.length) return { supported: true, hasData: false, reason: 'no-holders-for-token-a' };
 
   // Focus on real wallets — LP pools and contracts holding both tokens are noise.
+  const totalHolders = holdersA.length;
+  const contractCount = holdersA.filter((h) => h.isContract).length;
   const wallets = holdersA.filter((h) => !h.isContract).slice(0, MAX_HOLDERS);
 
   const bData = BALANCE_OF; // + padded holder below
@@ -88,7 +90,9 @@ async function build(origin: string, tokenA: string, tokenB: string, network: st
     overlapCount: overlap.length,
     overlapPercent: checked ? Number(((overlap.length / checked) * 100).toFixed(1)) : null,
     overlappingWallets: overlap.slice(0, 20).map((c) => c.address),
-    note: `Checked the ${checked} real wallets among token A's top 100 holders (the block explorer returns at most 100; LP pools and contracts are excluded) for any balance of token B.`,
+    holdersLookedAt: totalHolders,
+    contractsExcluded: contractCount,
+    note: `Checked ${checked} real wallets for any balance of token B. Source: the token's top ${totalHolders} holders from the explorer${contractCount ? `, of which ${contractCount} are LP pools/contracts (excluded)` : ''}.`,
   };
 }
 

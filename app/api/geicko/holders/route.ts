@@ -24,29 +24,49 @@ async function fromBlockscout(base: string, token: string, sendLimit: boolean): 
   totalSupply: string | null;
   holdersCount: number | null;
 } | null> {
-  // Only the PulseChain primary accepts the non-standard ?limit= param; other
-  // Blockscout instances (e.g. Robinhood) reject it with HTTP 422 and paginate
-  // via next_page_params instead. Default page (50) is plenty for the tab.
-  const url = sendLimit
+  // Blockscout returns ~50 holders per page regardless of the ?limit= hint, so
+  // to actually reach LIMIT we follow next_page_params. (`sendLimit` still adds
+  // the hint on PulseChain; other instances reject it and paginate the default.)
+  let url = sendLimit
     ? `${base}/tokens/${token}/holders?limit=${LIMIT}`
     : `${base}/tokens/${token}/holders`;
-  const res = await fetch(url, {
-    headers: { Accept: 'application/json' },
-    next: { revalidate: 120 },
-  }).catch(() => null);
-  if (!res || !res.ok) return null;
-  const data = await res.json().catch(() => null);
-  const items: any[] = Array.isArray(data?.items) ? data.items : [];
+  const items: any[] = [];
+  let meta: any = null;
+  for (let page = 0; page < 3 && items.length < LIMIT; page++) {
+    // PulseScan intermittently 500s on paginated holder reads (same request
+    // succeeds on a retry), so give each page a couple of quick attempts before
+    // giving up. If a page ultimately fails we keep whatever we already have.
+    let data: any = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const res = await fetch(url, {
+        headers: { Accept: 'application/json' },
+        next: { revalidate: 120 },
+      }).catch(() => null);
+      if (res && res.ok) {
+        const parsed = await res.json().catch(() => null);
+        if (parsed && Array.isArray(parsed.items)) { data = parsed; break; }
+      }
+      await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+    }
+    if (!data) break;
+    const pageItems: any[] = Array.isArray(data?.items) ? data.items : [];
+    if (pageItems.length === 0) break;
+    if (meta == null) meta = pageItems[0]?.token ?? {};
+    items.push(...pageItems);
+    const np = data?.next_page_params;
+    if (!np || items.length >= LIMIT) break;
+    const qs = new URLSearchParams(Object.entries(np).map(([k, v]) => [k, String(v)])).toString();
+    url = `${base}/tokens/${token}/holders?${qs}`;
+  }
   if (items.length === 0) return null;
-  const meta = items[0]?.token ?? {};
   return {
-    holders: items.map((it) => ({
+    holders: items.slice(0, LIMIT).map((it) => ({
       address: String(it?.address?.hash ?? '').toLowerCase(),
       value: String(it?.value ?? '0'),
       isContract: !!it?.address?.is_contract,
     })),
-    totalSupply: meta.total_supply ?? null,
-    holdersCount: meta.holders != null ? Number(meta.holders) : null,
+    totalSupply: meta?.total_supply ?? null,
+    holdersCount: meta?.holders != null ? Number(meta.holders) : null,
   };
 }
 

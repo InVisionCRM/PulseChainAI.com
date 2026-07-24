@@ -48,10 +48,15 @@ async function build(origin: string, token: string, scope: string, targetArg: st
 
   // Resolve the wallet set.
   let wallets: string[] = [];
+  let totalHolders = 0;
+  let contractCount = 0;
   if (scope === 'holders') {
     const h = await fetch(`${origin}/api/geicko/holders?token=${token}&network=pulsechain`, { headers: { accept: 'application/json' } })
       .then((r) => (r.ok ? r.json() : null)).catch(() => null);
-    wallets = (h?.holders ?? [])
+    const list: any[] = h?.holders ?? [];
+    totalHolders = list.length;
+    contractCount = list.filter((x) => x.isContract).length;
+    wallets = list
       .filter((x: any) => !x.isContract)
       .map((x: any) => (x.address ?? '').toLowerCase())
       .filter((a: string) => ADDR_RX.test(a))
@@ -117,7 +122,7 @@ async function build(origin: string, token: string, scope: string, targetArg: st
       wallets: g.wallets.map(short),
     })),
     note: scope === 'holders'
-      ? `Analyzed the ${wallets.length} real wallets among the token's top 100 holders (the block explorer returns at most 100; LP pools and contracts are excluded). "Connected" means a native-coin funding link.`
+      ? `Analyzed the ${wallets.length} real wallets among the token's top ${totalHolders} holders${contractCount ? ` (${contractCount} are LP pools/contracts, excluded)` : ''}. "Connected" means a native-coin funding link.`
       : `Analyzed the token's ${wallets.length} earliest buyers. "Connected" means a native-coin funding link.`,
   };
 }
