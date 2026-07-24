@@ -106,6 +106,9 @@ export default function RootLayout({
   const isAICodeReaderPage = pathname === "/ai-agent";
   const isGeickoPage = pathname === "/geicko";
   const isStackerGamePage = pathname === "/stacker-game";
+  // The home page has its own prominent search bar, so the sticky mobile
+  // search would be a redundant second bar there — hide it on "/".
+  const isHomePage = pathname === "/";
 
   const primaryLinks: NavLink[] = [
     {
@@ -183,7 +186,7 @@ export default function RootLayout({
       >
         <div className="flex flex-col min-h-screen md:h-screen w-full md:overflow-hidden">
           {!isStackerGamePage && <TopTickerBar />}
-          <MobileSearchBar />
+          {!isHomePage && <MobileSearchBar />}
           <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
             <SidebarBody>
                 <div className="flex flex-1 flex-col overflow-x-hidden min-h-0">
