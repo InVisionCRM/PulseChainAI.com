@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { GEMINI_MODEL } from '@/lib/geminiModel';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
@@ -49,7 +50,7 @@ FAILURE MODES
 `;
 
           const response = await ai.models.generateContentStream({
-            model: 'gemini-2.5-flash',
+            model: GEMINI_MODEL,
             contents: prompt,
             config: {
               temperature: 1.0,

@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { GEMINI_MODEL } from '@/lib/geminiModel';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     
     try {
       const model = genAI.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: GEMINI_MODEL,
         contents: "Hello, this is a test message.",
       });
 

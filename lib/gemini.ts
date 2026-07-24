@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { GEMINI_MODEL } from './geminiModel';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
@@ -7,7 +8,7 @@ export async function generateWithThoughts(prompt: string): Promise<{ thoughts: 
   let answer = "";
 
   const response = await ai.models.generateContentStream({
-    model: "gemini-2.5-flash",
+    model: GEMINI_MODEL,
     contents: prompt,
     config: {
       thinkingConfig: {
@@ -34,7 +35,7 @@ export async function generateWithThoughts(prompt: string): Promise<{ thoughts: 
 export async function generateGeminiResponse(prompt: string): Promise<string> {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: GEMINI_MODEL,
       contents: prompt,
     });
 

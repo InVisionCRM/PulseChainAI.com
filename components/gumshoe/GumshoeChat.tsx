@@ -89,13 +89,25 @@ export default function GumshoeChat({
       });
       const d = await r.json().catch(() => null);
       if (!r.ok) {
-        // Quota / key problems → a short friendly line + open the key guide,
-        // instead of dumping a raw technical error at the user.
+        // Quota / key problems. If the user already added their own key, show
+        // the REAL reason (their key was rejected / rate-limited) instead of
+        // looping them back to "add a key" — the confusing dead-end otherwise.
         if (r.status === 429 || r.status === 401 || r.status === 503) {
-          setShowKey(true);
-          const friendly = r.status === 429
-            ? "That's all the free questions for now. Add your own free Gemini key just below to keep going — it takes about a minute."
-            : 'To use the assistant, add a free Gemini key just below — it only takes a minute.';
+          const raw = (d?.error || '').toString();
+          let friendly: string;
+          if (hasApiKey()) {
+            if (r.status === 429 || /quota|rate|resource has been exhausted/i.test(raw)) {
+              friendly = 'Your Gemini key just hit its rate limit. Give it a minute and try again.';
+            } else {
+              friendly = `Your Gemini key was rejected${raw ? `: ${raw}` : '.'} Double-check you pasted the whole key, and that it was created at aistudio.google.com/apikey. You can paste a new one below.`;
+              setShowKey(true);
+            }
+          } else {
+            setShowKey(true);
+            friendly = r.status === 429
+              ? "That's all the free questions for now. Add your own free Gemini key just below to keep going — it takes about a minute."
+              : 'To use the assistant, add a free Gemini key just below — it only takes a minute.';
+          }
           setMsgs((prev) => [...prev, { role: 'assistant', text: friendly, error: true }]);
         } else {
           setMsgs((prev) => [...prev, { role: 'assistant', text: d?.error || 'Something went wrong — please try again.', error: true }]);

@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { GEMINI_MODEL } from '@/lib/geminiModel';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
       })) || [];
 
     const chat = genAI.chats.create({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_MODEL,
       history: chatHistory,
       config: {
         systemInstruction: `You are Richard Heart, the charismatic and controversial crypto founder, entrepreneur, and thought leader. You have a unique personality characterized by:
