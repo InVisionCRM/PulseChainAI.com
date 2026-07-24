@@ -22,8 +22,10 @@ export const maxDuration = 90;
 
 const ADDR_RX = /^0x[a-fA-F0-9]{40}$/;
 const NOISE = new Set(['cex', 'router', 'bridge', 'locker', 'burn', 'factory', 'defi']);
-const MAX_HOLDERS = 40;
-const MAX_BUYERS = 20;
+// The block explorer returns up to 100 holders; we analyze the full set (minus
+// LP pools / contracts). Round caps so results read as "the top 100 holders".
+const MAX_HOLDERS = 100;
+const MAX_BUYERS = 30;
 
 async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
@@ -68,7 +70,7 @@ async function build(origin: string, token: string, scope: string, targetArg: st
   else if (ADDR_RX.test(targetArg)) target = targetArg.toLowerCase();
 
   // Funding source for every wallet in the set (+ the target).
-  const funders = await mapLimit(wallets, 6, async (w) => ({ w, fund: await firstFunder(w) }));
+  const funders = await mapLimit(wallets, 8, async (w) => ({ w, fund: await firstFunder(w) }));
   const targetFund = target ? await firstFunder(target) : null;
 
   // Cluster the set by shared ordinary funder.
@@ -115,8 +117,8 @@ async function build(origin: string, token: string, scope: string, targetArg: st
       wallets: g.wallets.map(short),
     })),
     note: scope === 'holders'
-      ? `Analyzed the token's top ${wallets.length} non-contract holders (holder list is capped). "Connected" means a native-coin funding link.`
-      : `Analyzed the ${wallets.length} earliest buyers. "Connected" means a native-coin funding link.`,
+      ? `Analyzed the ${wallets.length} real wallets among the token's top 100 holders (the block explorer returns at most 100; LP pools and contracts are excluded). "Connected" means a native-coin funding link.`
+      : `Analyzed the token's ${wallets.length} earliest buyers. "Connected" means a native-coin funding link.`,
   };
 }
 
@@ -135,7 +137,9 @@ export async function GET(req: NextRequest) {
       `connections:${token}:${scope}:${target}`,
       600_000,
       () => build(origin, token, scope, target),
-      (v) => v.supported === true,
+      // Don't cache a run where the creator target failed to resolve (transient
+      // forensics/Blockscout hiccup) — otherwise a null result sticks for 10 min.
+      (v) => v.supported === true && v.hasData !== false && !(target === 'creator' && !v.target),
     );
     return NextResponse.json(payload, {
       headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=3600' },

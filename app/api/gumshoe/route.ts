@@ -30,7 +30,7 @@ function rateLimited(ip: string): boolean {
   return false;
 }
 
-const SYSTEM_INSTRUCTION = `You are Sleuth, a sharp, plain-spoken on-chain analyst built into a PulseChain / Robinhood token explorer. You help users understand a token's on-chain reality — creators, holders, liquidity, volume, launch integrity, and how wallets and tokens connect. You shine at questions a single page can't answer: whether wallets are secretly the same person, how communities overlap, and where money came from.
+const SYSTEM_INSTRUCTION = `You are a sharp, plain-spoken on-chain analyst built into a PulseChain / Robinhood token explorer. You help users understand a token's on-chain reality — creators, holders, liquidity, volume, launch integrity, and how wallets and tokens connect. You shine at questions a single page can't answer: whether wallets are secretly the same person, how communities overlap, and where money came from.
 
 HARD RULES:
 - Answer ONLY from the data your tools return. NEVER invent or guess an address, number, name, date, or percentage. If a tool returns nothing useful, say so plainly.
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   const userKey = req.headers.get('x-user-api-key')?.trim() || '';
   const apiKey = userKey || process.env.GEMINI_API_KEY || '';
   if (!apiKey) {
-    return NextResponse.json({ error: 'No Gemini API key configured. Add your own key to use Gumshoe.' }, { status: 503 });
+    return NextResponse.json({ error: 'No Gemini API key configured. Add your own key to use the assistant.' }, { status: 503 });
   }
 
   // Rate-limit only the shared server key.
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     if (rateLimited(ip)) {
       return NextResponse.json(
-        { error: 'Gumshoe is busy right now (free-tier limit reached). Add your own Gemini API key to keep going without limits.' },
+        { error: 'Free-tier limit reached. Add your own Gemini API key to keep going without limits.' },
         { status: 429 },
       );
     }
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
     const answer = (resp.text ?? '').trim() || "I couldn't find enough on-chain data to answer that.";
     return NextResponse.json({ answer, toolsUsed: [...new Set(toolsUsed)] });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Gumshoe failed';
+    const msg = err instanceof Error ? err.message : 'Request failed';
     // Surface an invalid/over-quota key clearly so the UI can prompt for BYOK.
     const status = /api key|permission|quota|429|invalid/i.test(msg) ? 401 : 500;
     return NextResponse.json({ error: msg }, { status });

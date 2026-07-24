@@ -16,7 +16,8 @@ export const maxDuration = 60;
 
 const ADDR_RX = /^0x[a-fA-F0-9]{40}$/;
 const BALANCE_OF = '0x70a08231';
-const MAX_HOLDERS = 75;
+// The explorer returns up to 100 holders; check the full set of real wallets.
+const MAX_HOLDERS = 100;
 const RPC_TIMEOUT_MS = 6000;
 
 async function ethCall(rpcUrls: string[], to: string, data: string): Promise<string | null> {
@@ -87,7 +88,7 @@ async function build(origin: string, tokenA: string, tokenB: string, network: st
     overlapCount: overlap.length,
     overlapPercent: checked ? Number(((overlap.length / checked) * 100).toFixed(1)) : null,
     overlappingWallets: overlap.slice(0, 20).map((c) => c.address),
-    note: `Checked token A's top ${checked} non-contract holders for any balance of token B. (Holder lists are capped, so this reflects the largest holders, not every holder.)`,
+    note: `Checked the ${checked} real wallets among token A's top 100 holders (the block explorer returns at most 100; LP pools and contracts are excluded) for any balance of token B.`,
   };
 }
 
