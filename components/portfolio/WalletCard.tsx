@@ -237,9 +237,10 @@ export function WalletCard({ wallet }: Props) {
   };
 
   return (
-    <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl overflow-hidden">
+    <section className="relative rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl overflow-hidden">
       <header className="p-2 border-b border-[var(--line)]">
-        {/* Address (full, mono) wrapping into two lines, with copy. */}
+        {/* Address — full address on one line (desktop); just the last 4 chars,
+            bold, on mobile. Copy button alongside. */}
         <div className="flex items-start gap-1.5">
           <button
             type="button"
@@ -247,18 +248,17 @@ export function WalletCard({ wallet }: Props) {
             className="flex items-start gap-1.5 text-[var(--text)] min-w-0 text-left"
             aria-expanded={expanded}
           >
-            <IconChevronDown
-              className={`h-4 w-4 mt-0.5 shrink-0 text-[var(--text-muted)] transition-transform ${expanded ? '' : '-rotate-90'}`}
-            />
             <span className="min-w-0">
               {wallet.label && !editingName && (
                 <span className="block font-semibold leading-tight">{wallet.label}</span>
               )}
-              <span className="block text-sm font-mono leading-tight text-[var(--text)]">
-                {wallet.address.slice(0, 21)}
-              </span>
-              <span className="block text-sm font-mono leading-tight text-[var(--text)]">
-                {wallet.address.slice(21)}
+              <span className="block font-mono leading-tight text-[var(--text)]">
+                <span className="sm:hidden text-[12px] font-bold">
+                  {wallet.address.slice(-4)}
+                </span>
+                <span className="hidden truncate sm:block text-sm">
+                  {wallet.address}
+                </span>
               </span>
             </span>
           </button>
@@ -355,8 +355,21 @@ export function WalletCard({ wallet }: Props) {
         </div>
       </header>
 
+      {/* Expand / collapse toggle — centered at the bottom of the card. */}
+      <button
+        type="button"
+        onClick={() => setExpanded((p) => !p)}
+        aria-expanded={expanded}
+        aria-label={expanded ? 'Collapse wallet' : 'Expand wallet'}
+        className="absolute bottom-4 right-1/2 z-10 flex h-7 w-7 translate-x-1/2 items-center justify-center rounded-full border border-orange-500/60 bg-[var(--surface)] text-orange-400 shadow-sm transition-colors hover:bg-orange-500/15"
+      >
+        <IconChevronDown
+          className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`}
+        />
+      </button>
+
       {expanded && (
-        <div className="p-4 space-y-3">
+        <div className="p-4 pb-12 space-y-3">
           {/* Tokens | Activity switch — Activity is the DeBank-style decoded
               transaction history; Tokens is the holdings table + approvals. */}
           <div className="flex flex-wrap justify-center gap-0.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-0.5">
