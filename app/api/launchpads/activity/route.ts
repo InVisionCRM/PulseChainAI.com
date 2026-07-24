@@ -4,6 +4,7 @@ import type { ChainKey } from '@/lib/chains/types';
 import { blockscoutJson } from '@/lib/blockscout';
 import { launchpadByAddress, launchpadsForChain } from '@/lib/launchpads';
 import { cached } from '@/lib/geicko/serverCache';
+import { robinscanAddress } from '@/lib/robinscan';
 
 // Launchpad activity leaderboard.
 //
@@ -101,6 +102,13 @@ async function creatorOf(chain: ChainKey, base: string | null, token: string): P
     `launchpad-creator:${chain}:${token}`,
     CREATOR_TTL,
     async () => {
+      // Robinhood's Blockscout doesn't reliably return the creator, which
+      // collapsed the whole leaderboard (NOXA/Pons never attributed). robinscan
+      // has it. Other chains keep using Blockscout.
+      if (chain === 'robinhood') {
+        const info = await robinscanAddress(token);
+        return info?.contractCreator ? info.contractCreator.toLowerCase() : null;
+      }
       const bases = base ? [base] : undefined;
       const d = await blockscoutJson(`/addresses/${token}`, bases ? { bases } : undefined);
       const c = d?.creator_address_hash;
