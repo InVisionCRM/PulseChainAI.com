@@ -90,16 +90,18 @@ export default function PortfolioPage() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
-          <div className="space-y-6 min-w-0">
-            <AdBanner />
-            <AddWalletForm />
-            {wallets.length === 0 && !hasSavedMembers ? (
-              <EmptyState />
-            ) : (
-              <PortfolioGroups />
-            )}
-          </div>
+        {/* The watchlist now lives in the left nav column on desktop; it only
+            renders inline here on mobile. Main column takes the full width. */}
+        <div className="space-y-6 min-w-0">
+          <AdBanner />
+          <AddWalletForm />
+          {wallets.length === 0 && !hasSavedMembers ? (
+            <EmptyState />
+          ) : (
+            <PortfolioGroups />
+          )}
+        </div>
+        <div className="mt-6 md:hidden">
           <WatchlistPanel />
         </div>
       </div>

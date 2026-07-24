@@ -15,10 +15,11 @@ export default function Home(): React.JSX.Element {
         <HomeSearchBar />
         <AdBanner />
       </div>
-      {/* Full-width work area: screener + watchlist rail, minimal gutters. */}
+      {/* Screener uses the full width — the watchlist now lives in the left
+          nav column on desktop, so it only renders inline here on mobile. */}
       <section id="tokentable" className="w-full px-3 py-3 md:px-4">
-        <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[1fr_300px]">
-          <Screener />
+        <Screener />
+        <div className="mt-3 md:hidden">
           <WatchlistPanel />
         </div>
       </section>

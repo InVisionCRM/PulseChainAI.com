@@ -123,20 +123,6 @@ export default function RootLayout({
       ),
     },
     {
-      label: "RH Launchpads",
-      href: "/robinhood/launchpads",
-      icon: (
-        <IconRocket className="h-5 w-5 shrink-0 text-[var(--text)]" />
-      ),
-    },
-    {
-      label: "PLS Launchpads",
-      href: "/pulsechain/launchpads",
-      icon: (
-        <IconRocket className="h-5 w-5 shrink-0 text-[var(--text)]" />
-      ),
-    },
-    {
       label: "HEX Strategist",
       href: "/hex-strategist",
       icon: (

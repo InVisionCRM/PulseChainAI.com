@@ -159,7 +159,11 @@ function toInsightsToken(t: WatchedToken, p?: WatchPriceEntry): PortfolioToken {
   };
 }
 
-export function WatchlistPanel() {
+export function WatchlistPanel({ variant = 'card' }: { variant?: 'card' | 'rail' } = {}) {
+  // 'card' = the standalone rounded panel used inline on mobile.
+  // 'rail'  = compact, chrome-less list that lives in the left nav column
+  //           (desktop): no border/background, groups tucked behind a toggle.
+  const rail = variant === 'rail';
   const tokens = useWatchlistStore((s) => s.tokens);
   const prices = useWatchlistStore((s) => s.prices);
   const add = useWatchlistStore((s) => s.add);
@@ -197,6 +201,8 @@ export function WatchlistPanel() {
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [searching, setSearching] = useState(false);
   const [open, setOpen] = useState(false);
+  // Rail mode keeps the bulky group manager collapsed to stay compact.
+  const [showGroups, setShowGroups] = useState(false);
 
   // Debounced cross-chain search
   useEffect(() => {
@@ -230,9 +236,13 @@ export function WatchlistPanel() {
   return (
     <aside
       id="watchlist"
-      className="scroll-mt-20 rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl p-4 lg:sticky lg:top-4 lg:flex lg:flex-col lg:max-h-[calc(100vh-2rem)]"
+      className={
+        rail
+          ? 'flex h-full min-h-0 flex-col'
+          : 'scroll-mt-20 rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl p-4 lg:sticky lg:top-4 lg:flex lg:flex-col lg:max-h-[calc(100vh-2rem)]'
+      }
     >
-      <div className="flex items-center justify-between mb-3 lg:shrink-0">
+      <div className={`flex items-center justify-between shrink-0 ${rail ? 'mb-2' : 'mb-3 lg:shrink-0'}`}>
         <div className="flex items-center gap-2 text-orange-400/80 text-xs font-semibold uppercase tracking-wider">
           <IconStar className="h-4 w-4" />
           Watchlist
@@ -242,18 +252,30 @@ export function WatchlistPanel() {
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          disabled={isLoading || tokens.length === 0}
-          className="text-[var(--text-faint)] hover:text-[var(--text)] disabled:opacity-30"
-          title="Refresh prices"
-        >
-          <IconRefresh className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-2">
+          {rail && tokens.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowGroups((v) => !v)}
+              className={`text-[10px] font-semibold uppercase tracking-wider ${showGroups ? 'text-orange-300' : 'text-[var(--text-faint)] hover:text-[var(--text)]'}`}
+              title="Manage groups"
+            >
+              Groups
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            disabled={isLoading || tokens.length === 0}
+            className="text-[var(--text-faint)] hover:text-[var(--text)] disabled:opacity-30"
+            title="Refresh prices"
+          >
+            <IconRefresh className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
-      <div className="relative mb-3 lg:shrink-0">
+      <div className={`relative shrink-0 ${rail ? 'mb-2' : 'mb-3 lg:shrink-0'}`}>
         <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-faint)] pointer-events-none" />
         <input
           type="text"
@@ -301,14 +323,16 @@ export function WatchlistPanel() {
         )}
       </div>
 
-      <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:-mr-2 lg:pr-2">
+      <div className={rail ? 'flex-1 min-h-0 overflow-y-auto -mr-1 pr-1' : 'lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:-mr-2 lg:pr-2'}>
       {tokens.length === 0 ? (
         <div className="text-sm text-[var(--text-faint)] py-6 text-center">
           Track tokens you don't hold yet. Paste an address or search above.
         </div>
       ) : (
         <>
-          <WlGroupManager groups={orderedGroups} tokensByGroup={tokensByGroup} />
+          {(!rail || showGroups) && (
+            <WlGroupManager groups={orderedGroups} tokensByGroup={tokensByGroup} />
+          )}
 
           {!hasCustomGroups ? (
             <ul className="space-y-1">
