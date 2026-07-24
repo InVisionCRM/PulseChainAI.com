@@ -310,6 +310,10 @@ function GeickoPageContent() {
   const [isLoadingHolders, setIsLoadingHolders] = useState<boolean>(false);
   const [holdersPage, setHoldersPage] = useState<number>(1);
   const holdersPerPage = 25;
+  // Cursor-based lazy loading: the endpoint returns 100 holders + an opaque
+  // cursor; "load more" fetches the next page and appends it.
+  const [holdersNextCursor, setHoldersNextCursor] = useState<string | null>(null);
+  const [isLoadingMoreHolders, setIsLoadingMoreHolders] = useState<boolean>(false);
   const [isHolderTransfersOpen, setIsHolderTransfersOpen] = useState(false);
   const [holderTransfersAddress, setHolderTransfersAddress] = useState<string | null>(null);
 
@@ -493,6 +497,7 @@ function GeickoPageContent() {
     }
 
     setIsLoadingHolders(true);
+    setHoldersNextCursor(null);
 
     try {
       // Route through our server endpoint, NOT a browser-direct Blockscout call:
@@ -500,8 +505,9 @@ function GeickoPageContent() {
       // production, and (2) the endpoint falls back to on-chain Transfer-log
       // reconstruction via the RPC pool when the flaky PulseChain explorer is
       // down — so holders still load instead of showing "no holders".
+      // First page only (100); deeper pages load lazily via the cursor.
       const res = await fetch(
-        `/api/geicko/holders?token=${address}&network=${network}`,
+        `/api/geicko/holders?token=${address}&network=${network}&limit=100`,
       );
       const data = res.ok ? await res.json() : null;
       const items: Array<{ address?: string; value?: string; isContract?: boolean }> =
@@ -516,13 +522,42 @@ function GeickoPageContent() {
         .filter((item) => item.address && item.value !== '0');
 
       setHolders(processedHolders);
+      setHoldersNextCursor(typeof data?.nextCursor === 'string' ? data.nextCursor : null);
     } catch (error) {
       console.error('Failed to load holders:', error);
       setHolders([]);
+      setHoldersNextCursor(null);
     } finally {
       setIsLoadingHolders(false);
     }
   }, [network]);
+
+  // Lazy "load more": fetch the next page via the cursor and append it,
+  // de-duplicating by address in case a page boundary overlaps.
+  const loadMoreHolders = useCallback(async () => {
+    if (!apiTokenAddress || !holdersNextCursor || isLoadingMoreHolders) return;
+    setIsLoadingMoreHolders(true);
+    try {
+      const res = await fetch(
+        `/api/geicko/holders?token=${apiTokenAddress}&network=${network}&limit=100&cursor=${encodeURIComponent(holdersNextCursor)}`,
+      );
+      const data = res.ok ? await res.json() : null;
+      const items: Array<{ address?: string; value?: string; isContract?: boolean }> =
+        Array.isArray(data?.holders) ? data.holders : [];
+      const more = items
+        .map((h) => ({ address: (h.address || '').toLowerCase(), value: h.value || '0', isContract: !!h.isContract }))
+        .filter((item) => item.address && item.value !== '0');
+      setHolders((prev) => {
+        const seen = new Set(prev.map((h) => h.address));
+        return [...prev, ...more.filter((h) => !seen.has(h.address))];
+      });
+      setHoldersNextCursor(typeof data?.nextCursor === 'string' ? data.nextCursor : null);
+    } catch (error) {
+      console.error('Failed to load more holders:', error);
+    } finally {
+      setIsLoadingMoreHolders(false);
+    }
+  }, [apiTokenAddress, network, holdersNextCursor, isLoadingMoreHolders]);
 
   // Load token metrics from server-side API
   const loadTokenMetrics = useCallback(async (address: string) => {
@@ -867,6 +902,7 @@ function GeickoPageContent() {
     setGeckoPools(null);
     setProfileData(null);
     setHolders([]);
+    setHoldersNextCursor(null);
     setTransactions([]);
     setTotalSupply(null);
     setBurnedTokens(null);
@@ -2453,13 +2489,13 @@ function GeickoPageContent() {
                   <GeickoHoldersTab
                   holders={holders}
                   holderStats={holderStats}
-                  holdersPage={holdersPage}
-                  holdersPerPage={holdersPerPage}
                   isLoadingHolders={isLoadingHolders}
                   tokenInfo={tokenInfo}
                   lpAddressSet={lpAddressSet}
-                  onPageChange={setHoldersPage}
                   onViewHolder={handleOpenHolderTransfers}
+                  hasMore={holdersNextCursor != null}
+                  isLoadingMore={isLoadingMoreHolders}
+                  onLoadMore={loadMoreHolders}
                 />
                 </div>
               )}

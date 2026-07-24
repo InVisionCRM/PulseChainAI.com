@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { LoaderThree } from '@/components/ui/loader';
 import { Holder, HolderStats, TokenInfo } from './types';
 import { isBurnAddress } from './utils';
@@ -6,24 +6,24 @@ import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import { fmtAmount, fmtNum } from '@/lib/format';
 
 export interface GeickoHoldersTabProps {
-  /** Array of holder data */
+  /** Holders loaded so far (accumulates as more pages are lazily fetched) */
   holders: Holder[];
   /** Aggregated holder statistics */
   holderStats: HolderStats;
-  /** Current page number */
-  holdersPage: number;
-  /** Items per page */
-  holdersPerPage: number;
-  /** Is data loading */
+  /** Is the initial load in flight */
   isLoadingHolders: boolean;
   /** Token information for decimals and total supply */
   tokenInfo: TokenInfo | null;
   /** Set of LP addresses for tagging */
   lpAddressSet: Set<string>;
-  /** Callback when page changes */
-  onPageChange: (page: number) => void;
   /** Callback when opening the holder modal (portfolio / transactions / stakes) */
   onViewHolder: (address: string) => void;
+  /** Whether another page of holders can be lazily loaded */
+  hasMore: boolean;
+  /** Is a "load more" fetch in flight */
+  isLoadingMore: boolean;
+  /** Fetch the next page of holders (cursor-based, server-side) */
+  onLoadMore: () => void;
 }
 
 /**
@@ -33,13 +33,13 @@ export interface GeickoHoldersTabProps {
 export default function GeickoHoldersTab({
   holders,
   holderStats,
-  holdersPage,
-  holdersPerPage,
   isLoadingHolders,
   tokenInfo,
   lpAddressSet,
-  onPageChange,
   onViewHolder,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
 }: GeickoHoldersTabProps) {
   if (isLoadingHolders) {
     return (
@@ -65,10 +65,28 @@ export default function GeickoHoldersTab({
 
   const decimals = tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18;
   const totalSupply = tokenInfo?.total_supply ? Number(tokenInfo.total_supply) : 0;
-  const startIndex = (holdersPage - 1) * holdersPerPage;
-  const endIndex = startIndex + holdersPerPage;
-  const currentPageHolders = holders.slice(startIndex, endIndex);
-  const totalPages = Math.ceil(holders.length / holdersPerPage);
+
+  // Holders accumulate in the parent and are lazily fetched a page at a time, so
+  // render everything loaded so far; the footer/sentinel pulls the next page.
+  const startIndex = 0;
+  const visibleHolders = holders;
+
+  // Auto-load the next page when the sentinel scrolls into view (infinite
+  // scroll), with the button below as the accessible fallback.
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!hasMore || isLoadingMore) return;
+    const el = sentinelRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) onLoadMore();
+      },
+      { rootMargin: '200px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, isLoadingMore, onLoadMore]);
 
   return (
     <div className="space-y-1.5">
@@ -103,9 +121,11 @@ export default function GeickoHoldersTab({
         </div>
       </div>
 
-      {/* Top 50 Holders Header */}
+      {/* Holders list header */}
       <div className="text-center">
-        <p className="text-[12px] text-cyan-500 uppercase tracking-wider">Showing Top 50 Holders</p>
+        <p className="text-[12px] text-cyan-500 uppercase tracking-wider">
+          Showing top {holders.length} holders{hasMore ? ' — scroll for more' : ''}
+        </p>
       </div>
 
       {/* Holders Table */}
@@ -121,7 +141,7 @@ export default function GeickoHoldersTab({
 
         {/* Table Rows */}
         <div className="divide-y divide-[var(--line)]">
-          {currentPageHolders.map((holder, i) => {
+          {visibleHolders.map((holder, i) => {
             const globalIndex = startIndex + i + 1;
             const balance = Number(holder.value) / Math.pow(10, decimals);
             const percentage = totalSupply > 0 ? (Number(holder.value) / totalSupply) * 100 : 0;
@@ -205,60 +225,22 @@ export default function GeickoHoldersTab({
           })}
         </div>
 
-        {/* Pagination Controls */}
-        {holders.length > holdersPerPage && (
-          <div className="flex items-center justify-between px-2 py-1.5 border-t border-[var(--line)] bg-[var(--surface)]">
+        {/* Load-more footer + infinite-scroll sentinel */}
+        {hasMore && (
+          <div
+            ref={sentinelRef}
+            className="flex items-center justify-between px-2 py-1.5 border-t border-[var(--line)] bg-[var(--surface)]"
+          >
             <div className="text-xs text-[var(--text-muted)] font-medium">
-              Showing {startIndex + 1}-{Math.min(endIndex, holders.length)} of{' '}
-              {holders.length}
+              {holders.length} loaded
             </div>
-            <div className="flex items-center gap-0.5">
-              {/* Previous Button */}
-              <button
-                onClick={() => onPageChange(Math.max(1, holdersPage - 1))}
-                disabled={holdersPage === 1}
-                className="px-2 py-0.5 text-xs font-medium bg-[var(--surface-2)] hover:bg-[var(--surface-3)] disabled:bg-[var(--surface)] disabled:text-[var(--text-faint)] disabled:cursor-not-allowed text-[var(--text)] rounded border border-[var(--line)] transition-colors"
-              >
-                Prev
-              </button>
-
-              {/* Page Numbers */}
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (holdersPage <= 3) {
-                  pageNum = i + 1;
-                } else if (holdersPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = holdersPage - 2 + i;
-                }
-
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => onPageChange(pageNum)}
-                    className={`px-2 py-0.5 text-xs font-medium rounded border transition-colors ${
-                      holdersPage === pageNum
-                        ? 'bg-cyan-500/30 text-[var(--text)] border-cyan-400/50'
-                        : 'bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] border-[var(--line)]'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-
-              {/* Next Button */}
-              <button
-                onClick={() => onPageChange(Math.min(totalPages, holdersPage + 1))}
-                disabled={holdersPage === totalPages}
-                className="px-2 py-0.5 text-xs font-medium bg-[var(--surface-2)] hover:bg-[var(--surface-3)] disabled:bg-[var(--surface)] disabled:text-[var(--text-faint)] disabled:cursor-not-allowed text-[var(--text)] rounded border border-[var(--line)] transition-colors"
-              >
-                Next
-              </button>
-            </div>
+            <button
+              onClick={onLoadMore}
+              disabled={isLoadingMore}
+              className="px-3 py-0.5 text-xs font-medium bg-cyan-500/20 hover:bg-cyan-500/30 disabled:opacity-60 text-[var(--text)] rounded border border-cyan-400/40 transition-colors"
+            >
+              {isLoadingMore ? 'Loading…' : 'Load more'}
+            </button>
           </div>
         )}
       </div>

@@ -51,7 +51,7 @@ async function build(origin: string, token: string, scope: string, targetArg: st
   let totalHolders = 0;
   let contractCount = 0;
   if (scope === 'holders') {
-    const h = await fetch(`${origin}/api/geicko/holders?token=${token}&network=pulsechain`, { headers: { accept: 'application/json' } })
+    const h = await fetch(`${origin}/api/geicko/holders?token=${token}&network=pulsechain&limit=100`, { headers: { accept: 'application/json' } })
       .then((r) => (r.ok ? r.json() : null)).catch(() => null);
     const list: any[] = h?.holders ?? [];
     totalHolders = list.length;

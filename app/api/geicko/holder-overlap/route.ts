@@ -58,8 +58,8 @@ async function build(origin: string, tokenA: string, tokenB: string, network: st
 
   // Token A's holders + token B's symbol for a friendly label.
   const [ha, hb] = await Promise.all([
-    fetch(`${origin}/api/geicko/holders?token=${tokenA}&network=${chain}`, { headers: { accept: 'application/json' } }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-    fetch(`${origin}/api/geicko/holders?token=${tokenB}&network=${chain}`, { headers: { accept: 'application/json' } }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    fetch(`${origin}/api/geicko/holders?token=${tokenA}&network=${chain}&limit=100`, { headers: { accept: 'application/json' } }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    fetch(`${origin}/api/geicko/holders?token=${tokenB}&network=${chain}&limit=100`, { headers: { accept: 'application/json' } }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
   ]);
 
   const holdersA: any[] = ha?.holders ?? [];
