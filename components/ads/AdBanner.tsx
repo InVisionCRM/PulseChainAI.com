@@ -161,7 +161,7 @@ export default function AdBanner() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Advertise with Morbius"
-        className="group relative block h-14 w-full overflow-hidden rounded-lg border border-[var(--line)] sm:h-16"
+        className="group relative block h-12 w-full overflow-hidden rounded-lg border border-[var(--line)] sm:h-14"
       >
         <video
           ref={videoRef}
