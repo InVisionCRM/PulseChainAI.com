@@ -89,8 +89,17 @@ export default function GumshoeChat({
       });
       const d = await r.json().catch(() => null);
       if (!r.ok) {
-        if (r.status === 429 || r.status === 401 || r.status === 503) setShowKey(true);
-        setMsgs((prev) => [...prev, { role: 'assistant', text: d?.error || 'Something went wrong.', error: true }]);
+        // Quota / key problems → a short friendly line + open the key guide,
+        // instead of dumping a raw technical error at the user.
+        if (r.status === 429 || r.status === 401 || r.status === 503) {
+          setShowKey(true);
+          const friendly = r.status === 429
+            ? "That's all the free questions for now. Add your own free Gemini key just below to keep going — it takes about a minute."
+            : 'To use the assistant, add a free Gemini key just below — it only takes a minute.';
+          setMsgs((prev) => [...prev, { role: 'assistant', text: friendly, error: true }]);
+        } else {
+          setMsgs((prev) => [...prev, { role: 'assistant', text: d?.error || 'Something went wrong — please try again.', error: true }]);
+        }
       } else {
         setMsgs((prev) => [...prev, { role: 'assistant', text: d?.answer || 'No answer.', tools: d?.toolsUsed }]);
       }
@@ -115,7 +124,7 @@ export default function GumshoeChat({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          aria-label="Ask Sleuth"
+          aria-label="Open AI analyst"
           className="fixed bottom-20 right-4 z-[120] flex h-12 w-12 items-center justify-center rounded-full bg-[#FA4616] text-white shadow-lg shadow-black/40 transition-transform hover:scale-105 md:bottom-6"
         >
           <IconSearch className="h-5 w-5" />
@@ -131,7 +140,7 @@ export default function GumshoeChat({
                 <IconSearch className="h-4 w-4" />
               </div>
               <div className="leading-tight">
-                <div className="text-sm font-semibold text-[var(--text)]">Sleuth</div>
+                <div className="text-sm font-semibold text-[var(--text)]">AI Analyst</div>
                 <div className="text-[10px] text-[var(--text-faint)]">
                   on-chain analyst{symbol ? ` · ${symbol}` : ''}
                 </div>
@@ -152,22 +161,36 @@ export default function GumshoeChat({
             </div>
           </div>
 
-          {/* BYOK panel */}
+          {/* BYOK panel — a plain-language guide to a free key */}
           {showKey && (
-            <div className="border-b border-[var(--line)] bg-[var(--surface)] px-4 py-3">
-              <div className="mb-1.5 text-[11px] text-[var(--text-muted)]">
-                Add your own free Gemini API key to skip rate limits. Get one at
-                {' '}<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-[#FA4616] underline">aistudio.google.com/apikey</a>. Stored only in your browser.
+            <div className="border-b border-[var(--line)] bg-[var(--surface)] px-4 py-3.5">
+              <div className="mb-1.5 flex items-center gap-2">
+                <IconKey className="h-4 w-4 text-[#FA4616]" />
+                <span className="text-[13px] font-semibold text-[var(--text)]">Get a free key — takes a minute</span>
               </div>
+              <p className="mb-2.5 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
+                Google gives out free Gemini keys — no card, no cost. Your key is saved only in this browser.
+              </p>
+              <ol className="mb-3 space-y-1.5 text-[11.5px] text-[var(--text-muted)]">
+                <li>
+                  <span className="mr-1 font-semibold text-[var(--text)]">1.</span>
+                  Open{' '}
+                  <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="font-medium text-[#FA4616] underline">Google&nbsp;AI&nbsp;Studio&nbsp;↗</a>
+                  {' '}and sign in with any Google account
+                </li>
+                <li><span className="mr-1 font-semibold text-[var(--text)]">2.</span>Click <b className="text-[var(--text)]">Create API key</b>, then copy it</li>
+                <li><span className="mr-1 font-semibold text-[var(--text)]">3.</span>Paste it below and hit Save</li>
+              </ol>
               <div className="flex gap-2">
                 <input
                   type="password"
                   value={keyDraft}
                   onChange={(e) => setKeyDraft(e.target.value)}
-                  placeholder={hasApiKey() ? 'Key set — enter a new one to replace' : 'AIza…'}
-                  className="min-w-0 flex-1 rounded-md border border-[var(--line)] bg-[var(--panel)] px-2 py-1.5 text-xs text-[var(--text)] focus:border-[#FA4616]/60 focus:outline-none"
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveKey(); }}
+                  placeholder={hasApiKey() ? 'Replace your key…' : 'Paste your key (AIza…)'}
+                  className="min-w-0 flex-1 rounded-md border border-[var(--line)] bg-[var(--panel)] px-2.5 py-1.5 text-xs text-[var(--text)] focus:border-[#FA4616]/60 focus:outline-none"
                 />
-                <button type="button" onClick={saveKey} disabled={!keyDraft.trim()} className="rounded-md bg-[#FA4616] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">Save</button>
+                <button type="button" onClick={saveKey} disabled={!keyDraft.trim()} className="rounded-md bg-[#FA4616] px-3.5 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40">Save</button>
               </div>
             </div>
           )}
@@ -241,7 +264,7 @@ export default function GumshoeChat({
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }}
                 rows={1}
-                placeholder="Ask Sleuth…"
+                placeholder="Ask a question…"
                 className="max-h-24 min-h-[24px] flex-1 resize-none bg-transparent text-sm text-[var(--text)] placeholder:text-[var(--text-faint)] focus:outline-none"
               />
               <button
@@ -254,7 +277,7 @@ export default function GumshoeChat({
               </button>
             </div>
             <div className="mt-1 px-1 text-center text-[9px] text-[var(--text-faint)]">
-              Sleuth reads on-chain data. Not financial advice. Can make mistakes — verify what matters.
+              This reads live on-chain data. Not financial advice. Can make mistakes — verify what matters.
             </div>
           </div>
         </div>
