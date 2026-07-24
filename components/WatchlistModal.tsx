@@ -14,6 +14,7 @@ import {
   DrawerTitle,
   DrawerClose,
 } from '@/components/ui/drawer';
+import AdBanner from '@/components/ads/AdBanner';
 import { useScreenerWatchlist } from './Screener/watchlist';
 import { fmtPrice, fmtUsd, fmtPct, pctClass } from './Screener/format';
 import type { ScreenerRow } from '@/lib/screener/types';
@@ -86,6 +87,10 @@ export default function WatchlistModal({ open, onClose }: { open: boolean; onClo
         </DrawerHeader>
 
         <div className="p-3 overflow-y-auto max-h-[65vh]">
+          {/* Promo ad slot on top of the watchlist. */}
+          <div className="mb-3">
+            <AdBanner />
+          </div>
           {loading && rows.length === 0 ? (
             <div className="space-y-2">
               {[0, 1, 2].map((i) => (

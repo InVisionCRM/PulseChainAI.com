@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePollingEffect } from '@/hooks/usePollingEffect';
+import AdBanner from '@/components/ads/AdBanner';
 import {
   IconSearch,
   IconStar,
@@ -232,6 +233,10 @@ export function WatchlistPanel() {
       id="watchlist"
       className="scroll-mt-20 rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl p-4 lg:sticky lg:top-4 lg:flex lg:flex-col lg:max-h-[calc(100vh-2rem)]"
     >
+      {/* Promo ad slot on top of the watchlist. */}
+      <div className="mb-3 lg:shrink-0">
+        <AdBanner />
+      </div>
       <div className="flex items-center justify-between mb-3 lg:shrink-0">
         <div className="flex items-center gap-2 text-orange-400/80 text-xs font-semibold uppercase tracking-wider">
           <IconStar className="h-4 w-4" />
