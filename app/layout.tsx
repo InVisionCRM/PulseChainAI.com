@@ -8,7 +8,6 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import {
   IconHome,
-  IconCode,
   IconChartBar,
   IconSearch,
   IconRocket,
@@ -114,13 +113,6 @@ export default function RootLayout({
       href: "/",
       icon: (
         <IconHome className="h-5 w-5 shrink-0 text-[var(--text)]" />
-      ),
-    },
-    {
-      label: "Tokens",
-      href: "/geicko",
-      icon: (
-        <IconCode className="h-5 w-5 shrink-0 text-[var(--text)]" />
       ),
     },
     {
