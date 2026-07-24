@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCreationDateViaRpc } from '@/lib/geicko/rpcHolders';
 import { blockscoutJson } from '@/lib/blockscout';
 import { getChain, isChainKey } from '@/lib/chains/registry';
+import { robinscanToken, robinscanHolders, robinscanAddress } from '@/lib/robinscan';
 
 const CACHE_DURATION = 120; // 2 minutes cache
 
@@ -453,26 +454,39 @@ async function getOwnershipData(address: string, bases?: string[], chain: string
     let creationTxFrom: string | null = null;
     let renounceTxHash: string | null = null;
 
-    // Fetch address info and token info in parallel
-    const [addressInfo] = await Promise.all([
-      fetchJson(`/addresses/${address}`, bases).catch(() => null),
-      fetchJson(`/tokens/${address}`, bases).catch(() => null)
-    ]);
-
-    creatorAddress = addressInfo?.creator_address_hash || null;
-    // Field name varies by Blockscout version: PulseChain uses `creation_tx_hash`,
-    // Robinhood's newer instance uses `creation_transaction_hash`.
-    creationTxHash = addressInfo?.creation_tx_hash || addressInfo?.creation_transaction_hash || null;
-
     // Special exception for HEX token - always show as renounced
     const isHexToken = address?.toLowerCase() === '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
 
-    if (creationTxHash) {
-      const creationTx = await fetchJson(`/transactions/${creationTxHash}`, bases).catch(() => null);
-      creationTxTo = creationTx?.to?.hash || creationTx?.to || null;
-      // The tx sender is the dev/launcher EOA (even when the deploy routed through
-      // a launchpad factory, which is what `creatorAddress` / `creationTxTo` hold).
-      creationTxFrom = creationTx?.from?.hash || creationTx?.from || null;
+    if (chain === 'robinhood') {
+      // Robinhood: creator + creation tx come from robinscan.io; the tx's
+      // sender/recipient (dev wallet / factory) come from the RH RPC.
+      const info = await robinscanAddress(address);
+      creatorAddress = info?.contractCreator ?? null;
+      creationTxHash = info?.contractCreationTx ?? null;
+      if (creationTxHash) {
+        const tx = await rhGetTx(creationTxHash, getChain('robinhood').rpcUrls);
+        creationTxTo = tx?.to ?? null;
+        creationTxFrom = tx?.from ?? null;
+      }
+    } else {
+      // Fetch address info and token info in parallel
+      const [addressInfo] = await Promise.all([
+        fetchJson(`/addresses/${address}`, bases).catch(() => null),
+        fetchJson(`/tokens/${address}`, bases).catch(() => null)
+      ]);
+
+      creatorAddress = addressInfo?.creator_address_hash || null;
+      // Field name varies by Blockscout version: PulseChain uses `creation_tx_hash`,
+      // Robinhood's newer instance uses `creation_transaction_hash`.
+      creationTxHash = addressInfo?.creation_tx_hash || addressInfo?.creation_transaction_hash || null;
+
+      if (creationTxHash) {
+        const creationTx = await fetchJson(`/transactions/${creationTxHash}`, bases).catch(() => null);
+        creationTxTo = creationTx?.to?.hash || creationTx?.to || null;
+        // The tx sender is the dev/launcher EOA (even when the deploy routed through
+        // a launchpad factory, which is what `creatorAddress` / `creationTxTo` hold).
+        creationTxFrom = creationTx?.from?.hash || creationTx?.from || null;
+      }
     }
 
     // Primary source of truth: call owner() on-chain (PulseChain only).
@@ -567,6 +581,122 @@ async function getCreationDate(address: string, bases?: string[]) {
   return getCreationDateViaRpc(address);
 }
 
+// ── Robinhood (chain 4663) via robinscan.io ─────────────────────────────────
+// Robinhood's Blockscout is too thin for the sidebar (creator/supply/holders all
+// come back empty), so on that chain we source those facts from robinscan.io and
+// reuse the same holder-derived calculators below. See lib/robinscan.ts.
+
+// is_contract for a batch of holders in one RPC round-trip (eth_getCode != '0x').
+async function rhContractFlags(addresses: string[], rpcUrls: string[]): Promise<boolean[]> {
+  if (!addresses.length || !rpcUrls.length) return addresses.map(() => false);
+  const body = addresses.map((a, i) => ({ jsonrpc: '2.0', method: 'eth_getCode', params: [a, 'latest'], id: i }));
+  for (const url of rpcUrls) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
+      });
+      if (!res.ok) continue;
+      const arr = await res.json();
+      if (!Array.isArray(arr)) continue;
+      const out = new Array(addresses.length).fill(false);
+      for (const x of arr) {
+        if (typeof x?.id === 'number' && x.id < out.length) {
+          const code = x?.result;
+          out[x.id] = typeof code === 'string' && code.length > 2 && code !== '0x';
+        }
+      }
+      return out;
+    } catch { continue; }
+  }
+  return addresses.map(() => false);
+}
+
+// Creation timestamp from the creation tx: getTransactionByHash → block → timestamp.
+async function rhCreationDate(txHash: string | null, rpcUrls: string[]): Promise<string | null> {
+  if (!txHash || !rpcUrls.length) return null;
+  const rpc = async (method: string, params: unknown[]) => {
+    for (const url of rpcUrls) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
+          signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
+        });
+        if (!res.ok) continue;
+        const j = await res.json();
+        if (j?.result) return j.result;
+      } catch { continue; }
+    }
+    return null;
+  };
+  const tx = await rpc('eth_getTransactionByHash', [txHash]);
+  const blockNumber = tx?.blockNumber;
+  if (!blockNumber) return null;
+  const block = await rpc('eth_getBlockByNumber', [blockNumber, false]);
+  const tsHex = block?.timestamp;
+  if (!tsHex) return null;
+  try { return new Date(parseInt(tsHex, 16) * 1000).toISOString(); } catch { return null; }
+}
+
+// A creation tx's sender/recipient via the RH RPC (Blockscout /transactions is
+// unreliable here). `from` is the launcher EOA; `to` is null for a raw deploy or
+// the factory for a launchpad deploy.
+async function rhGetTx(txHash: string, rpcUrls: string[]): Promise<{ from: string | null; to: string | null } | null> {
+  for (const url of rpcUrls) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_getTransactionByHash', params: [txHash], id: 1 }),
+        signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
+      });
+      if (!res.ok) continue;
+      const j = await res.json();
+      if (j?.result) return { from: (j.result.from ?? null)?.toLowerCase() ?? null, to: (j.result.to ?? null)?.toLowerCase() ?? null };
+    } catch { continue; }
+  }
+  return null;
+}
+
+// Core metrics for Robinhood, shaped exactly like getCoreMetrics' return so the
+// UI is chain-agnostic. Reuses the holder-derived calculators by mapping
+// robinscan holders (holder + raw balance + on-chain is_contract) into HoldersItem.
+async function robinscanCore(address: string): Promise<Omit<TokenMetrics, 'ownershipData'>> {
+  const rpcUrls = getChain('robinhood').rpcUrls;
+  // All four independent lookups in parallel.
+  const [tok, hp, pairAddresses, info] = await Promise.all([
+    robinscanToken(address),
+    robinscanHolders(address, { pageSize: 50 }),
+    fetchTokenPairAddresses(address), // DexScreener carries Robinhood pairs too
+    robinscanAddress(address),
+  ]);
+  if (!tok) throw new Error('robinscan token unavailable');
+  const decimals = tok.decimals ?? 18;
+  const totalSupply = Number(tok.totalSupply || 0);
+  const rs = hp?.items ?? [];
+
+  // The two RPC-bound steps (contract flags + creation date) run in parallel.
+  const [flags, creationDate] = await Promise.all([
+    rhContractFlags(rs.map((h) => h.holder), rpcUrls),
+    rhCreationDate(info?.contractCreationTx ?? null, rpcUrls),
+  ]);
+  const holders: HoldersItem[] = rs.map((h, i) => ({
+    address: { hash: h.holder, is_contract: flags[i] },
+    value: h.balance,
+  }));
+
+  return {
+    burnedTokens: calculateBurnedFromHolders(holders, decimals, totalSupply),
+    holdersCount: tok.holderCount,
+    creationDate,
+    supplyHeld: calculateSupplyHeldFromHolders(holders, totalSupply),
+    smartContractHolderShare: calculateSmartContractShareFromHolders(holders, totalSupply, pairAddresses),
+    totalSupply: { supply: tok.totalSupply || '0', decimals },
+  };
+}
+
 /**
  * The "fast" half of the metrics: everything derivable from PulseScan's
  * token info + the top-50 holders (+ DexScreener pairs for LP labelling).
@@ -577,7 +707,10 @@ async function getCreationDate(address: string, bases?: string[]) {
 async function getCoreMetrics(
   address: string,
   bases?: string[],
+  chain: string = 'pulsechain',
 ): Promise<Omit<TokenMetrics, 'ownershipData'>> {
+  // Robinhood: Blockscout is too thin here — source the facts from robinscan.io.
+  if (chain === 'robinhood') return robinscanCore(address);
   const isPls = !bases;
   // Token info first — it already carries the holders count and total supply.
   // PulseScan v2 goes down for stretches (HTTP 500 everywhere); catch that
@@ -717,12 +850,12 @@ export async function GET(
     }
 
     if (scope === 'core') {
-      const core = await getCoreMetrics(address, bases);
+      const core = await getCoreMetrics(address, bases, chain);
       return NextResponse.json(core, { headers: CACHE_HEADERS });
     }
 
     const [core, ownershipData] = await Promise.all([
-      getCoreMetrics(address, bases),
+      getCoreMetrics(address, bases, chain),
       getOwnershipData(address, bases, chain),
     ]);
 
