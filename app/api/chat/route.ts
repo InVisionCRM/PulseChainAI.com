@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest } from 'next/server';
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+import { GEMINI_MODEL } from '@/lib/geminiModel';
 
 const PRO_SYSTEM_PROMPT = (contractContext: any) => `You are a world-class expert in Solidity and smart contract analyzing. You are an expert and breaking things down into simple terms for the user. Analyze the provided smart contract source code to answer questions using the AI Smart Contract Response Formatting Guide. .The user has loaded the contract named '${contractContext.name}' at address ${contractContext.address}.
 

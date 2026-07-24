@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { GEMINI_MODEL } from '@/lib/geminiModel';
 import { unifiedHexStakingService } from '@/services/unifiedHexStakingService';
 import { hexStakingService } from '@/services/hexStakingService';
 import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingService';
@@ -235,7 +236,7 @@ Please provide a helpful, conversational response about HEX based on the availab
 `;
 
           const response = await ai.models.generateContentStream({
-            model: 'gemini-2.5-flash',
+            model: GEMINI_MODEL,
             contents: fullPrompt,
             config: {
               temperature: 0.7, // Slightly higher for more conversational responses

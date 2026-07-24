@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { TOOL_DECLARATIONS, executeTool, type ToolContext } from '@/lib/gumshoe/agentTools';
+import { GEMINI_MODEL } from '@/lib/geminiModel';
 
 // Gumshoe — the ask-anything on-chain analyst for the geicko token pages. It runs
 // a Gemini function-calling loop: the model picks which of our data tools to call
@@ -13,7 +14,7 @@ import { TOOL_DECLARATIONS, executeTool, type ToolContext } from '@/lib/gumshoe/
 
 export const maxDuration = 120;
 
-const MODEL = 'gemini-2.5-flash';
+const MODEL = GEMINI_MODEL;
 const MAX_ROUNDS = 5;        // tool-call rounds
 const MAX_TOOL_CALLS = 10;   // total tool executions per request
 
@@ -121,9 +122,15 @@ export async function POST(req: NextRequest) {
     const answer = (resp.text ?? '').trim() || "I couldn't find enough on-chain data to answer that.";
     return NextResponse.json({ answer, toolsUsed: [...new Set(toolsUsed)] });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Request failed';
-    // Surface an invalid/over-quota key clearly so the UI can prompt for BYOK.
-    const status = /api key|permission|quota|429|invalid/i.test(msg) ? 401 : 500;
+    let msg = err instanceof Error ? err.message : 'Request failed';
+    // The Gemini SDK usually throws with a JSON string body; surface the human
+    // message inside it instead of dumping the raw blob at the user.
+    try {
+      const parsed = JSON.parse(msg);
+      if (parsed?.error?.message) msg = String(parsed.error.message);
+    } catch { /* not JSON — use as-is */ }
+    // Surface key/quota/model problems as 401 so the UI can prompt for BYOK.
+    const status = /api key|permission|quota|429|invalid|not found|not available|unavailable/i.test(msg) ? 401 : 500;
     return NextResponse.json({ error: msg }, { status });
   }
 }

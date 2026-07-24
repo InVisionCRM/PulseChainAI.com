@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { GEMINI_MODEL } from '@/lib/geminiModel';
 
 // Helper function to attempt API call with fallback
 async function generateWithFallback(prompt: string) {
@@ -22,7 +23,7 @@ async function generateWithFallback(prompt: string) {
       const ai = new GoogleGenAI({ apiKey });
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: GEMINI_MODEL,
         contents: prompt,
       });
 
