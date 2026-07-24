@@ -2,6 +2,7 @@
 
 import React from 'react';
 import AdBanner from '@/components/ads/AdBanner';
+import HomeSearchBar from '@/components/HomeSearchBar';
 import Screener from '@/components/Screener/Screener';
 import { WatchlistPanel } from '@/components/portfolio/WatchlistPanel';
 import { TokenInsightsCard } from '@/components/portfolio/TokenInsightsCard';
@@ -9,8 +10,12 @@ import { TokenInsightsCard } from '@/components/portfolio/TokenInsightsCard';
 export default function Home(): React.JSX.Element {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)]">
-      {/* Promo ad slot — replaces the old sticky banner at the top of home. */}
+      {/* Prominent token search — top of the home page. */}
       <div className="mx-auto w-full max-w-[1600px] px-3 pt-4 md:px-6">
+        <HomeSearchBar />
+      </div>
+      {/* Promo ad slot — replaces the old sticky banner at the top of home. */}
+      <div className="mx-auto w-full max-w-[1600px] px-3 pt-3 md:px-6">
         <AdBanner />
       </div>
       <section id="tokentable" className="mx-auto w-full max-w-[1600px] px-3 py-4 md:px-6">
