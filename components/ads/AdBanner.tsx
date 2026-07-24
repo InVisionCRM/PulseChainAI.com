@@ -1,11 +1,10 @@
 'use client';
 
-// Promo ad slot on the geicko token page — sits between the stat cards and the
-// Price Performance block (mirrors DexScreener's banner placement). For now the
-// creative is one of our own videos with a cycling typewriter tagline; clicking
-// it opens the "Advertise with Morbius" inquiry modal (pricing + creative spec +
-// contact). Payment/creative upload will be automated later; today it's an
-// inquiry funnel via X / Telegram.
+// Shared "Advertise with Morbius" promo slot, reused across the app (geicko
+// token page, home, portfolio, HEX strategist, watchlists). The creative is one
+// of our own videos with a cycling typewriter tagline; clicking it opens the
+// inquiry modal (pricing + creative spec + contact). Payment/creative upload
+// will be automated later; today it's an inquiry funnel via X / Telegram.
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -16,7 +15,7 @@ import { IconX, IconBrandX, IconBrandTelegram } from '@tabler/icons-react';
 const AD_SPEC = { w: 1200, h: 300, ratio: '4:1', maxKb: 500 };
 
 const CONTACT = {
-  x: { handle: '@KCrypto369', url: 'https://x.com/KCrypto369' },
+  x: { handle: '@KCCrypto369', url: 'https://x.com/KCCrypto369' },
   telegram: { handle: '@Morbius_Cash', url: 'https://t.me/Morbius_Cash' },
 };
 
@@ -148,7 +147,7 @@ function InquiryModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-export default function GeickoAdBanner() {
+export default function AdBanner() {
   const [open, setOpen] = useState(false);
   const text = useTypewriter(PHRASES);
   const videoRef = useRef<HTMLVideoElement | null>(null);

@@ -10,6 +10,7 @@ import { WatchlistPanel } from '@/components/portfolio/WatchlistPanel';
 import { TokenInsightsCard } from '@/components/portfolio/TokenInsightsCard';
 import { ManageTokensModal } from '@/components/portfolio/ManageTokensModal';
 import { ConnectWalletButton } from '@/components/portfolio/ConnectWalletButton';
+import AdBanner from '@/components/ads/AdBanner';
 import { fmtUsd } from '@/lib/format';
 
 export default function PortfolioPage() {
@@ -91,6 +92,7 @@ export default function PortfolioPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
           <div className="space-y-6 min-w-0">
+            <AdBanner />
             <AddWalletForm />
             {wallets.length === 0 && !hasSavedMembers ? (
               <EmptyState />
