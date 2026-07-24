@@ -7,6 +7,7 @@
 // free-tier key, which is rate-limited.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import { IconSearch, IconX, IconArrowUp, IconLoader2, IconKey } from '@tabler/icons-react';
 import { useApiKey } from '@/lib/hooks/useApiKey';
@@ -14,17 +15,17 @@ import { useApiKey } from '@/lib/hooks/useApiKey';
 interface Msg { role: 'user' | 'assistant'; text: string; tools?: string[]; error?: boolean }
 
 const SUGGESTIONS = [
+  'How many of the holders are connected to the creator wallet?',
   'Are the first buyers connected — did the founder use multiple wallets?',
   'How many of these holders also hold HEX?',
   "Where did the biggest holder's money come from?",
-  'Which first buyers are still holding, and are any linked to the creator?',
 ];
 
 // Friendly labels for the "checked …" chips.
 const TOOL_LABELS: Record<string, string> = {
   get_token_overview: 'overview',
   get_forensics: 'forensics',
-  analyze_buyer_connections: 'buyer connections',
+  analyze_connections: 'wallet connections',
   get_top_holders: 'holders',
   get_liquidity: 'liquidity',
   get_volume_history: 'volume',
@@ -60,6 +61,11 @@ export default function GumshoeChat({
   const { apiKey, saveApiKey, hasApiKey } = useApiKey();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Render through a portal to <body> so the widget escapes the geicko page's
+  // `isolate`/`overflow-hidden` stacking context — otherwise the global bottom
+  // nav and footer paint over it and fixed positioning glitches on scroll.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -99,20 +105,25 @@ export default function GumshoeChat({
     if (keyDraft.trim()) { saveApiKey(keyDraft.trim()); setKeyDraft(''); setShowKey(false); }
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
-      {/* Floating button */}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label="Ask Sleuth"
-        className="fixed bottom-20 right-4 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-[#FA4616] text-white shadow-lg shadow-black/40 transition-transform hover:scale-105 md:bottom-6"
-      >
-        {open ? <IconX className="h-5 w-5" /> : <IconSearch className="h-5 w-5" />}
-      </button>
+      {/* Floating button — hidden while the panel is open so it never overlaps
+          the composer on mobile; the panel's header X handles closing. */}
+      {!open && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Ask Sleuth"
+          className="fixed bottom-20 right-4 z-[120] flex h-12 w-12 items-center justify-center rounded-full bg-[#FA4616] text-white shadow-lg shadow-black/40 transition-transform hover:scale-105 md:bottom-6"
+        >
+          <IconSearch className="h-5 w-5" />
+        </button>
+      )}
 
       {open && (
-        <div className="fixed inset-x-0 bottom-0 z-[59] mx-auto flex h-[70vh] max-h-[640px] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--line)] bg-[var(--panel)] shadow-2xl md:inset-x-auto md:right-4 md:bottom-24 md:h-[600px] md:w-[420px] md:rounded-2xl">
+        <div className="fixed inset-x-0 bottom-0 z-[120] mx-auto flex h-[70vh] max-h-[640px] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--line)] bg-[var(--panel)] shadow-2xl md:inset-x-auto md:right-4 md:bottom-24 md:h-[600px] md:w-[420px] md:rounded-2xl">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
             <div className="flex items-center gap-2">
@@ -248,6 +259,7 @@ export default function GumshoeChat({
           </div>
         </div>
       )}
-    </>
+    </>,
+    document.body,
   );
 }
