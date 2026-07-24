@@ -314,6 +314,11 @@ function GeickoPageContent() {
   // cursor; "load more" fetches the next page and appends it.
   const [holdersNextCursor, setHoldersNextCursor] = useState<string | null>(null);
   const [isLoadingMoreHolders, setIsLoadingMoreHolders] = useState<boolean>(false);
+  // Estimated wallet value per holder (core + stablecoins basket). Fetched
+  // lazily for each page of holders as it loads. `requestedValuesRef` tracks
+  // which addresses we've already asked about so we don't refetch.
+  const [holderValues, setHolderValues] = useState<Record<string, { usd: number; native: number; core: number; stable: number }>>({});
+  const requestedValuesRef = useRef<Set<string>>(new Set());
   const [isHolderTransfersOpen, setIsHolderTransfersOpen] = useState(false);
   const [holderTransfersAddress, setHolderTransfersAddress] = useState<string | null>(null);
 
@@ -490,6 +495,42 @@ function GeickoPageContent() {
     }
   }, [network]);
 
+  // Estimate wallet value (core + stablecoins) for a batch of holder addresses
+  // and merge the results into `holderValues`. Only asks about addresses we
+  // haven't requested yet, in chunks of 100 (the endpoint's max).
+  const fetchHolderValues = useCallback(async (addrs: string[]) => {
+    const need = addrs.filter((a) => a && !requestedValuesRef.current.has(a));
+    if (need.length === 0) return;
+    need.forEach((a) => requestedValuesRef.current.add(a));
+    for (let i = 0; i < need.length; i += 100) {
+      const chunk = need.slice(i, i + 100);
+      let merged = false;
+      // Retry a few times: the value read hits the RPC pool and can fail
+      // transiently. Only give up after that.
+      for (let attempt = 0; attempt < 3 && !merged; attempt++) {
+        try {
+          const res = await fetch('/api/geicko/holder-values', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ addresses: chunk, network }),
+          });
+          const data = res.ok ? await res.json() : null;
+          const vals = data?.values;
+          if (vals && typeof vals === 'object') {
+            setHolderValues((prev) => ({ ...prev, ...vals }));
+            merged = true;
+          }
+        } catch {
+          /* fall through to retry */
+        }
+        if (!merged) await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+      }
+      // If every attempt failed, unmark these addresses so a later trigger
+      // (re-render, load-more) can retry them instead of leaving "—" forever.
+      if (!merged) chunk.forEach((a) => requestedValuesRef.current.delete(a));
+    }
+  }, [network]);
+
   // Load holders function
   const loadHolders = useCallback(async (address: string) => {
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
@@ -523,6 +564,7 @@ function GeickoPageContent() {
 
       setHolders(processedHolders);
       setHoldersNextCursor(typeof data?.nextCursor === 'string' ? data.nextCursor : null);
+      void fetchHolderValues(processedHolders.map((h) => h.address));
     } catch (error) {
       console.error('Failed to load holders:', error);
       setHolders([]);
@@ -530,7 +572,7 @@ function GeickoPageContent() {
     } finally {
       setIsLoadingHolders(false);
     }
-  }, [network]);
+  }, [network, fetchHolderValues]);
 
   // Lazy "load more": fetch the next page via the cursor and append it,
   // de-duplicating by address in case a page boundary overlaps.
@@ -552,12 +594,13 @@ function GeickoPageContent() {
         return [...prev, ...more.filter((h) => !seen.has(h.address))];
       });
       setHoldersNextCursor(typeof data?.nextCursor === 'string' ? data.nextCursor : null);
+      void fetchHolderValues(more.map((h) => h.address));
     } catch (error) {
       console.error('Failed to load more holders:', error);
     } finally {
       setIsLoadingMoreHolders(false);
     }
-  }, [apiTokenAddress, network, holdersNextCursor, isLoadingMoreHolders]);
+  }, [apiTokenAddress, network, holdersNextCursor, isLoadingMoreHolders, fetchHolderValues]);
 
   // Load token metrics from server-side API
   const loadTokenMetrics = useCallback(async (address: string) => {
@@ -903,6 +946,8 @@ function GeickoPageContent() {
     setProfileData(null);
     setHolders([]);
     setHoldersNextCursor(null);
+    setHolderValues({});
+    requestedValuesRef.current = new Set();
     setTransactions([]);
     setTotalSupply(null);
     setBurnedTokens(null);
@@ -2496,6 +2541,7 @@ function GeickoPageContent() {
                   hasMore={holdersNextCursor != null}
                   isLoadingMore={isLoadingMoreHolders}
                   onLoadMore={loadMoreHolders}
+                  holderValues={holderValues}
                 />
                 </div>
               )}

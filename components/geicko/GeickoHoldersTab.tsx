@@ -5,6 +5,16 @@ import { isBurnAddress } from './utils';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import { fmtAmount, fmtNum } from '@/lib/format';
 
+// Compact USD for the holder value column: "$1.2M", "$3.4k", "$12", "<$1", "$0".
+function fmtUsd(v: number): string {
+  if (!Number.isFinite(v) || v <= 0) return '$0';
+  if (v < 1) return '<$1';
+  if (v < 1000) return `$${Math.round(v)}`;
+  if (v < 1_000_000) return `$${(v / 1000).toFixed(v < 10_000 ? 1 : 0)}k`;
+  if (v < 1_000_000_000) return `$${(v / 1_000_000).toFixed(v < 10_000_000 ? 1 : 0)}M`;
+  return `$${(v / 1_000_000_000).toFixed(1)}B`;
+}
+
 export interface GeickoHoldersTabProps {
   /** Holders loaded so far (accumulates as more pages are lazily fetched) */
   holders: Holder[];
@@ -24,6 +34,8 @@ export interface GeickoHoldersTabProps {
   isLoadingMore: boolean;
   /** Fetch the next page of holders (cursor-based, server-side) */
   onLoadMore: () => void;
+  /** Estimated wallet value (core + stablecoins) per lowercased address. */
+  holderValues: Record<string, { usd: number; native: number; core: number; stable: number }>;
 }
 
 /**
@@ -40,6 +52,7 @@ export default function GeickoHoldersTab({
   hasMore,
   isLoadingMore,
   onLoadMore,
+  holderValues,
 }: GeickoHoldersTabProps) {
   if (isLoadingHolders) {
     return (
@@ -134,8 +147,9 @@ export default function GeickoHoldersTab({
         <div className="flex items-center px-2 py-1 text-[10px] uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--line-strong)] bg-[var(--surface)]">
           <div className="flex-[0.6] min-w-[30px]">#</div>
           <div className="flex-[1.5] min-w-[90px]">Address & Tags</div>
-          <div className="flex-[2] min-w-[70px]">Balance</div>
-          <div className="flex-[1.5] min-w-[60px]">% Total</div>
+          <div className="flex-[1.6] min-w-[64px]">Balance</div>
+          <div className="flex-[1.3] min-w-[52px]" title="Estimated wallet value from native coin, wrapped native, core majors and pegged stablecoins">Wallet $</div>
+          <div className="flex-[1.1] min-w-[48px]">% Total</div>
           <div className="flex-[0.8] min-w-[64px]">View</div>
         </div>
 
@@ -184,12 +198,26 @@ export default function GeickoHoldersTab({
                 </div>
 
                 {/* Balance */}
-                <div className="flex-[2] min-w-[70px] text-[var(--text)] truncate font-semibold">
+                <div className="flex-[1.6] min-w-[64px] text-[var(--text)] truncate font-semibold">
                   {fmtAmount(Math.floor(balance))}
                 </div>
 
+                {/* Estimated wallet value (core + stablecoins). '—' while its
+                    page of values is still loading; '$0' once known to be empty. */}
+                <div className="flex-[1.3] min-w-[52px] font-semibold">
+                  {(() => {
+                    const v = holderValues[(holder.address || '').toLowerCase()];
+                    if (!v) return <span className="text-[var(--text-faint)]">—</span>;
+                    return (
+                      <span className={v.usd > 0 ? 'text-emerald-400' : 'text-[var(--text-muted)]'} title={`$${v.usd.toLocaleString(undefined, { maximumFractionDigits: 2 })} — native $${v.native.toFixed(0)} · core $${v.core.toFixed(0)} · stables $${v.stable.toFixed(0)}`}>
+                        {fmtUsd(v.usd)}
+                      </span>
+                    );
+                  })()}
+                </div>
+
                 {/* Percentage */}
-                <div className="flex-[1.5] min-w-[60px] text-[var(--text)] font-semibold">
+                <div className="flex-[1.1] min-w-[48px] text-[var(--text)] font-semibold">
                   {percentage.toFixed(1)}%
                 </div>
 
