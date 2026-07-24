@@ -43,6 +43,7 @@ import {
   GeickoMetricsGrid,
   GeickoMarketStatsPanel,
   GeickoPerformancePanel,
+  GeickoAdBanner,
   GeickoLiquidityPanel,
   GeickoVolumePanel,
   GeickoPressurePanel,
@@ -2330,6 +2331,13 @@ function GeickoPageContent() {
             <DesktopSearchBar />
           </div>
 
+
+          {/* Promo ad slot — between the stat cards and Price Performance */}
+          {apiTokenAddress && (
+            <div className="px-2 md:px-3 mb-2">
+              <GeickoAdBanner />
+            </div>
+          )}
 
           {/* Price Performance — above the tabbed container, not inside it */}
           {apiTokenAddress && (
