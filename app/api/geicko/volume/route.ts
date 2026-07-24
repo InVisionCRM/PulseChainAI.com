@@ -26,11 +26,26 @@ interface PairVol {
 }
 
 async function dayDatas(url: string, token: string): Promise<any[]> {
-  const d = await gql(
-    url,
-    `{ tokenDayDatas(first:1000, orderBy:date, orderDirection:asc, where:{ token:"${token}" }){ date dailyVolumeUSD dailyTxns totalLiquidityUSD priceUSD } }`,
-  );
-  return Array.isArray(d?.tokenDayDatas) ? d.tokenDayDatas : [];
+  // The subgraph returns at most 1000 rows per query. A token trading for more
+  // than ~2.7 years has >1000 daily entries, so a single `first:1000, asc` call
+  // returns only the OLDEST 1000 days and silently drops the most recent ones —
+  // making an active token's last months look empty. Paginate by a date cursor
+  // so we get the complete history (launch → today). The 20-page cap is a safety
+  // backstop (~55 years of days), never reached in practice.
+  const out: any[] = [];
+  let lastDate = 0;
+  for (let page = 0; page < 20; page++) {
+    const d = await gql(
+      url,
+      `{ tokenDayDatas(first:1000, orderBy:date, orderDirection:asc, where:{ token:"${token}", date_gt:${lastDate} }){ date dailyVolumeUSD dailyTxns totalLiquidityUSD priceUSD } }`,
+    );
+    const rows = Array.isArray(d?.tokenDayDatas) ? d.tokenDayDatas : [];
+    out.push(...rows);
+    if (rows.length < 1000) break;
+    lastDate = Number(rows[rows.length - 1].date);
+    if (!Number.isFinite(lastDate) || lastDate <= 0) break;
+  }
+  return out;
 }
 
 async function pairVols(url: string, token: string): Promise<any[]> {
