@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import HexStrategistTabs from '@/components/hex-strategist/HexStrategistTabs';
+import AdBanner from '@/components/ads/AdBanner';
 
 export const metadata: Metadata = {
   title: 'HEX Stake Strategist',
@@ -10,6 +11,9 @@ export const metadata: Metadata = {
 export default function HexStrategistPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)] text-[var(--text)]">
+      <div className="mx-auto w-full max-w-6xl px-3 pt-4 md:px-6">
+        <AdBanner />
+      </div>
       <HexStrategistTabs />
     </main>
   );

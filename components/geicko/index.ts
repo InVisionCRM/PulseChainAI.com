@@ -25,7 +25,7 @@ export { default as GeickoOwnershipPanel } from './GeickoOwnershipPanel';
 export { default as GeickoMetricsGrid } from './GeickoMetricsGrid';
 export { default as GeickoMarketStatsPanel } from './GeickoMarketStatsPanel';
 export { default as GeickoPerformancePanel } from './GeickoPerformancePanel';
-export { default as GeickoAdBanner } from './GeickoAdBanner';
+export { default as GeickoAdBanner } from '../ads/AdBanner';
 export { default as GeickoLiquidityPanel } from './GeickoLiquidityPanel';
 export { default as GeickoVolumePanel } from './GeickoVolumePanel';
 export { default as GeickoPressurePanel } from './GeickoPressurePanel';

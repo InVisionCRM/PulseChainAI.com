@@ -1,18 +1,28 @@
 'use client';
 
 import React from 'react';
-import StickyBanner from '@/components/ui/sticky-banner';
+import AdBanner from '@/components/ads/AdBanner';
+import HomeSearchBar from '@/components/HomeSearchBar';
 import Screener from '@/components/Screener/Screener';
 import { WatchlistPanel } from '@/components/portfolio/WatchlistPanel';
 import { TokenInsightsCard } from '@/components/portfolio/TokenInsightsCard';
 
 export default function Home(): React.JSX.Element {
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)]">
-      <StickyBanner />
-      <section id="tokentable" className="mx-auto w-full max-w-[1600px] px-3 py-4 md:px-6">
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_320px]">
-          <Screener />
+    <div className="min-h-screen w-full bg-[var(--app-bg)]">
+      {/* Search bar is the hero at the very top; the promo strip sits below it
+          with clear separation so the two don't read as one cluttered block. */}
+      <div className="w-full px-3 pt-3 md:px-4">
+        <HomeSearchBar />
+      </div>
+      <div className="w-full px-3 pt-3 md:px-4">
+        <AdBanner />
+      </div>
+      {/* Screener uses the full width — the watchlist now lives in the left
+          nav column on desktop, so it only renders inline here on mobile. */}
+      <section id="tokentable" className="w-full px-3 py-3 md:px-4">
+        <Screener />
+        <div className="mt-3 md:hidden">
           <WatchlistPanel />
         </div>
       </section>

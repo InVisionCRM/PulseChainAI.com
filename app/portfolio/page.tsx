@@ -10,6 +10,7 @@ import { WatchlistPanel } from '@/components/portfolio/WatchlistPanel';
 import { TokenInsightsCard } from '@/components/portfolio/TokenInsightsCard';
 import { ManageTokensModal } from '@/components/portfolio/ManageTokensModal';
 import { ConnectWalletButton } from '@/components/portfolio/ConnectWalletButton';
+import AdBanner from '@/components/ads/AdBanner';
 import { fmtUsd } from '@/lib/format';
 
 export default function PortfolioPage() {
@@ -33,16 +34,11 @@ export default function PortfolioPage() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)]">
-      <div className="mx-auto max-w-7xl px-4 py-8 md:py-12 space-y-6">
-        <header className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-orange-400/80 text-xs font-semibold uppercase tracking-wider">
-              <IconWallet className="h-4 w-4" />
-              Portfolio Tracker
-            </div>
-            <h1 className="mt-1 text-3xl md:text-4xl font-bold text-[var(--text)]">
-              Your wallets, all in one place
-            </h1>
+      <div className="mx-auto max-w-7xl px-4 py-4 md:py-6 space-y-5">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-[var(--text)] text-lg font-bold">
+            <IconWallet className="h-5 w-5 text-orange-400" />
+            Portfolio
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
@@ -89,15 +85,20 @@ export default function PortfolioPage() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
-          <div className="space-y-6 min-w-0">
-            <AddWalletForm />
-            {wallets.length === 0 && !hasSavedMembers ? (
-              <EmptyState />
-            ) : (
-              <PortfolioGroups />
-            )}
-          </div>
+        {/* The watchlist now lives in the left nav column on desktop; it only
+            renders inline here on mobile. Main column takes the full width. */}
+        <div className="space-y-6 min-w-0">
+          <AddWalletForm />
+          {/* Promo strip sits below the wallet form so it doesn't crowd the
+              top of the page. */}
+          <AdBanner />
+          {wallets.length === 0 && !hasSavedMembers ? (
+            <EmptyState />
+          ) : (
+            <PortfolioGroups />
+          )}
+        </div>
+        <div className="mt-6 md:hidden">
           <WatchlistPanel />
         </div>
       </div>

@@ -8,7 +8,6 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import {
   IconHome,
-  IconCode,
   IconChartBar,
   IconSearch,
   IconRocket,
@@ -107,6 +106,9 @@ export default function RootLayout({
   const isAICodeReaderPage = pathname === "/ai-agent";
   const isGeickoPage = pathname === "/geicko";
   const isStackerGamePage = pathname === "/stacker-game";
+  // The home page has its own prominent search bar, so the sticky mobile
+  // search would be a redundant second bar there — hide it on "/".
+  const isHomePage = pathname === "/";
 
   const primaryLinks: NavLink[] = [
     {
@@ -117,31 +119,10 @@ export default function RootLayout({
       ),
     },
     {
-      label: "Tokens",
-      href: "/geicko",
-      icon: (
-        <IconCode className="h-5 w-5 shrink-0 text-[var(--text)]" />
-      ),
-    },
-    {
       label: "Portfolio",
       href: "/portfolio",
       icon: (
         <IconWallet className="h-5 w-5 shrink-0 text-[var(--text)]" />
-      ),
-    },
-    {
-      label: "RH Launchpads",
-      href: "/robinhood/launchpads",
-      icon: (
-        <IconRocket className="h-5 w-5 shrink-0 text-[var(--text)]" />
-      ),
-    },
-    {
-      label: "PLS Launchpads",
-      href: "/pulsechain/launchpads",
-      icon: (
-        <IconRocket className="h-5 w-5 shrink-0 text-[var(--text)]" />
       ),
     },
     {
@@ -205,7 +186,7 @@ export default function RootLayout({
       >
         <div className="flex flex-col min-h-screen md:h-screen w-full md:overflow-hidden">
           {!isStackerGamePage && <TopTickerBar />}
-          <MobileSearchBar />
+          {!isHomePage && <MobileSearchBar />}
           <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
             <SidebarBody>
                 <div className="flex flex-1 flex-col overflow-x-hidden min-h-0">

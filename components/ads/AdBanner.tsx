@@ -1,11 +1,10 @@
 'use client';
 
-// Promo ad slot on the geicko token page — sits between the stat cards and the
-// Price Performance block (mirrors DexScreener's banner placement). For now the
-// creative is one of our own videos with a cycling typewriter tagline; clicking
-// it opens the "Advertise with Morbius" inquiry modal (pricing + creative spec +
-// contact). Payment/creative upload will be automated later; today it's an
-// inquiry funnel via X / Telegram.
+// Shared "Advertise with Morbius" promo slot, reused across the app (geicko
+// token page, home, portfolio, HEX strategist, watchlists). The creative is one
+// of our own videos with a cycling typewriter tagline; clicking it opens the
+// inquiry modal (pricing + creative spec + contact). Payment/creative upload
+// will be automated later; today it's an inquiry funnel via X / Telegram.
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -13,10 +12,10 @@ import { IconX, IconBrandX, IconBrandTelegram } from '@tabler/icons-react';
 
 // The exact banner size advertisers supply — kept to one simple, standard ratio
 // so it's easy to make. The banner renders at this aspect so the art fits 1:1.
-const AD_SPEC = { w: 1200, h: 300, ratio: '4:1', maxKb: 500 };
+const AD_SPEC = { w: 1200, h: 180, ratio: '≈6:1', maxKb: 400 };
 
 const CONTACT = {
-  x: { handle: '@KCrypto369', url: 'https://x.com/KCrypto369' },
+  x: { handle: '@KCCrypto369', url: 'https://x.com/KCCrypto369' },
   telegram: { handle: '@Morbius_Cash', url: 'https://t.me/Morbius_Cash' },
 };
 
@@ -148,7 +147,7 @@ function InquiryModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-export default function GeickoAdBanner() {
+export default function AdBanner() {
   const [open, setOpen] = useState(false);
   const text = useTypewriter(PHRASES);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -157,12 +156,12 @@ export default function GeickoAdBanner() {
 
   return (
     <>
+      {/* Slim full-width leaderboard strip — not a giant box. */}
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Advertise with Morbius"
-        className="group relative block w-full overflow-hidden rounded-xl border border-[var(--line)]"
-        style={{ aspectRatio: `${AD_SPEC.w} / ${AD_SPEC.h}`, maxHeight: 160 }}
+        className="group relative block h-12 w-full overflow-hidden rounded-lg border border-[var(--line)] sm:h-14"
       >
         <video
           ref={videoRef}
@@ -176,19 +175,19 @@ export default function GeickoAdBanner() {
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/20" />
 
         {/* "Ad" chip */}
-        <span className="absolute right-2 top-2 rounded bg-black/55 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white/70">
+        <span className="absolute right-2 top-1.5 rounded bg-black/55 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white/70">
           Ad
         </span>
 
-        {/* Typewriter tagline */}
-        <div className="absolute inset-0 flex flex-col justify-center px-4 text-left sm:px-6">
-          <div className="text-base font-extrabold text-white drop-shadow sm:text-xl">
+        {/* Tagline + CTA on one line to keep the strip short */}
+        <div className="absolute inset-0 flex items-center gap-3 px-3 sm:px-4">
+          <span className="min-w-0 flex-1 truncate text-sm font-extrabold text-white drop-shadow sm:text-base">
             {text}
             <span className="ml-0.5 inline-block w-[2px] animate-pulse bg-white align-middle" style={{ height: '1em' }} />
-          </div>
-          <div className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-[#FA4616] px-3 py-1 text-[11px] font-bold text-white shadow transition-transform group-hover:scale-105">
-            Advertise here →
-          </div>
+          </span>
+          <span className="shrink-0 rounded-full bg-[#FA4616] px-3 py-1 text-[11px] font-bold text-white shadow transition-transform group-hover:scale-105">
+            Advertise →
+          </span>
         </div>
       </button>
 

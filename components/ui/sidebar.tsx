@@ -8,6 +8,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Message } from "@/types";
 import { useApiKey } from "@/lib/hooks/useApiKey";
+import { WatchlistPanel } from "@/components/portfolio/WatchlistPanel";
 
 interface Links {
   label: string;
@@ -35,14 +36,25 @@ export const SidebarBody = ({
         className,
       )}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/Morbiusbanner.png"
-        alt="Morbius Banner"
-        className="w-full h-auto object-cover max-h-24 shrink-0 border-b border-[var(--line)]"
-      />
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col px-2 pb-3">
+      {/* Compact brand header — small mark + wordmark, not the tall banner. */}
+      <a href="/" className="flex items-center gap-2 px-3 py-2.5 shrink-0 border-b border-[var(--line)]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/morbius-mark.png" alt="Morbius" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
+        <span className="text-[15px] font-bold tracking-tight text-[var(--text)]">Scan.Morbius</span>
+      </a>
+
+      {/* Nav — top portion. Scrolls internally if the links overflow. */}
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col px-2 pb-2">
         {children}
+      </div>
+
+      {/* Watchlist — bottom portion, always under the nav on every page. */}
+      <div className="flex flex-1 min-h-0 flex-col border-t border-[var(--line)] px-2 pt-2 pb-1">
+        <WatchlistPanel variant="rail" />
+      </div>
+
+      {/* Richard Heart chat — pinned to the very bottom. */}
+      <div className="shrink-0 border-t border-[var(--line)] px-2 py-2">
         <RichardHeartChat />
       </div>
     </aside>
