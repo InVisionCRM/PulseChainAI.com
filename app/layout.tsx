@@ -12,7 +12,6 @@ import {
   IconSearch,
   IconRocket,
   IconHexagon,
-  IconPhoneOutgoing,
   IconChevronDown,
   IconX,
   IconCurrencyDollar,
@@ -147,13 +146,6 @@ export default function RootLayout({
         <IconCurrencyDollar className="h-5 w-5 shrink-0 text-[var(--text)]" />
       ),
     },
-    {
-      label: "GOLD Badges Admin",
-      href: "/admin/gold-badges",
-      icon: (
-        <IconPhoneOutgoing className="h-5 w-5 shrink-0 text-[var(--text)]" />
-      ),
-    },
   ];
 
 
@@ -212,45 +204,8 @@ export default function RootLayout({
                       <SidebarLink key={idx} link={link} />
                     ))}
 
-                    <SidebarGroup
-                      label="Community Builders"
-                      icon={<span className="h-5 w-5 shrink-0" />}
-                      initiallyOpen
-                      links={[
-                        {
-                          label: "PLStart.me",
-                          href: "https://plstart.me",
-                          icon: <IconRocket className="h-5 w-5 shrink-0 text-[var(--text)]" />,
-                        },
-                        {
-                          label: "Liquid Liberty",
-                          href: "https://liquidliberty.io/",
-                          icon: (
-                            <img
-                              src="https://cdn.dexscreener.com/cms/images/ad1c2e9c26c49bcaafa3dbad58c07b82893f2366dc64a47e75b40902ffddc098?width=64&height=64&quality=95&format=auto"
-                              alt="Liquid Liberty (LBRTY)"
-                              className="h-5 w-5 shrink-0 rounded-full object-cover"
-                            />
-                          ),
-                        },
-                      ]}
-                    />
-
-                    {/* Sponsored by Section */}
-                    <div className="mt-6">
-                      <div className="text-[var(--text-faint)] text-xs font-semibold uppercase tracking-wider px-2 mb-2 text-center">
-                        Sponsored by
-                      </div>
-                      <div className="flex justify-center">
-                        <SidebarLink
-                          link={{
-                            label: "SuperStake.Win",
-                            href: "https://superstake.win",
-                            icon: (<span className="h-5 w-5 shrink-0" />),
-                          }}
-                        />
-                      </div>
-                    </div>
+                    {/* Community Builders, Sponsored, and GOLD Badges Admin
+                        moved to the global footer to keep the nav lean. */}
 
                     {/* Theme toggle — pull-chain dark/light switch */}
                     <div className="mt-6 pt-3 border-t border-[var(--line)]">
