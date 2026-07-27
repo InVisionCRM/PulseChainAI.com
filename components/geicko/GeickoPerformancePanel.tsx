@@ -54,6 +54,24 @@ function ExtremeCard({ label, price, date, pct, denom }: { label: string; price:
   );
 }
 
+// Compact variant of ExtremeCard — a single row (label/date left, %/price right)
+// so the three extremes stack readably in the narrow right-hand stats rail
+// instead of being squeezed into three columns.
+function ExtremeRow({ label, price, date, pct, denom }: { label: string; price: number; date: number; pct: number | null; denom: Denom }) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg bg-gradient-to-br from-white/5 via-purple-500/5 to-white/5 border border-[var(--line)] px-2 py-1.5">
+      <div className="min-w-0">
+        <div className="truncate text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">{label}</div>
+        <div className="text-[10px] tabular-nums text-[var(--text-faint)]">{fmtDate(date)}</div>
+      </div>
+      <div className="shrink-0 text-right">
+        <div className={`text-xs font-bold tabular-nums ${clsOf(pct)}`}>{fmtPct(pct)}</div>
+        <div className="text-[10px] tabular-nums text-[var(--text)]">{fmtPrice(price, denom)}</div>
+      </div>
+    </div>
+  );
+}
+
 function DenomTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
@@ -67,8 +85,8 @@ function DenomTab({ active, onClick, children }: { active: boolean; onClick: () 
 }
 
 export default function GeickoPerformancePanel({
-  network, token, pool, price,
-}: { network?: string | null; token?: string | null; pool?: string | null; price?: number }) {
+  network, token, pool, price, compact = false,
+}: { network?: string | null; token?: string | null; pool?: string | null; price?: number; compact?: boolean }) {
   const [data, setData] = useState<PerfResp | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [denom, setDenom] = useState<Denom>('usd');
@@ -115,10 +133,10 @@ export default function GeickoPerformancePanel({
   const full = view?.coverage === 'full';
 
   return (
-    <div className="mb-2 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Price Performance</h3>
+    <div className={`rounded-lg border border-[var(--line)] bg-[var(--panel)] ${compact ? 'mb-2 p-2.5' : 'mb-2 p-3'}`}>
+      <div className={`flex items-center justify-between gap-2 ${compact ? 'mb-1.5' : 'mb-2'}`}>
+        <div className={`flex items-center gap-2 ${compact ? 'min-w-0 flex-wrap' : ''}`}>
+          <h3 className={`font-semibold uppercase tracking-wider text-[var(--text-muted)] ${compact ? 'text-[11px]' : 'text-xs'}`}>Price Performance</h3>
           {status === 'ready' && data && (
             <div className="inline-flex rounded-lg border border-[var(--line)] bg-[var(--surface)] p-0.5">
               <DenomTab active={denom === 'usd'} onClick={() => setDenom('usd')}>USD</DenomTab>
@@ -129,27 +147,37 @@ export default function GeickoPerformancePanel({
       </div>
 
       {status === 'loading' && (
-        <div className="py-6 text-center text-xs text-[var(--text-muted)]">Loading price history…</div>
+        <div className={`text-center text-xs text-[var(--text-muted)] ${compact ? 'py-4' : 'py-6'}`}>Loading price history…</div>
       )}
       {status === 'error' && (
-        <div className="py-6 text-center text-xs text-[var(--text-muted)]">Price history isn’t available for this token yet.</div>
+        <div className={`text-center text-xs text-[var(--text-muted)] ${compact ? 'py-4' : 'py-6'}`}>Price history isn’t available for this token yet.</div>
       )}
 
       {status === 'ready' && view && (
         <>
-          <div className="mb-2 grid grid-cols-3 gap-2">
+          <div className={`grid grid-cols-3 ${compact ? 'mb-1.5 gap-1' : 'mb-2 gap-2'}`}>
             <ChangeChip label="7D" value={view.changes.d7} />
             <ChangeChip label="30D" value={view.changes.d30} />
             <ChangeChip label="1Y" value={view.changes.d365} />
           </div>
 
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            <ExtremeCard denom={denom} label={full ? 'All-time high' : '6-mo high'} price={view.ath.price} date={view.ath.date} pct={view.ath.fromPct} />
-            <ExtremeCard denom={denom} label={full ? 'All-time low' : '6-mo low'} price={view.atl.price} date={view.atl.date} pct={view.atl.fromPct} />
-            <ExtremeCard denom={denom} label={full ? 'Since launch' : `Since ${fmtDate(view.launch.date)}`} price={view.launch.price} date={view.launch.date} pct={view.launch.pct} />
-          </div>
+          {/* Wide layout: three side-by-side cards. Compact (right rail):
+              stacked rows, which stay legible at ~1/3 the width. */}
+          {compact ? (
+            <div className="space-y-1">
+              <ExtremeRow denom={denom} label={full ? 'All-time high' : '6-mo high'} price={view.ath.price} date={view.ath.date} pct={view.ath.fromPct} />
+              <ExtremeRow denom={denom} label={full ? 'All-time low' : '6-mo low'} price={view.atl.price} date={view.atl.date} pct={view.atl.fromPct} />
+              <ExtremeRow denom={denom} label={full ? 'Since launch' : `Since ${fmtDate(view.launch.date)}`} price={view.launch.price} date={view.launch.date} pct={view.launch.pct} />
+            </div>
+          ) : (
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <ExtremeCard denom={denom} label={full ? 'All-time high' : '6-mo high'} price={view.ath.price} date={view.ath.date} pct={view.ath.fromPct} />
+              <ExtremeCard denom={denom} label={full ? 'All-time low' : '6-mo low'} price={view.atl.price} date={view.atl.date} pct={view.atl.fromPct} />
+              <ExtremeCard denom={denom} label={full ? 'Since launch' : `Since ${fmtDate(view.launch.date)}`} price={view.launch.price} date={view.launch.date} pct={view.launch.pct} />
+            </div>
+          )}
 
-          {denom === 'wpls' && (
+          {denom === 'wpls' && !compact && (
             <div className="mt-2 text-[10px] text-[var(--text-faint)]">Priced in WPLS — strips out PLS’s own move, so this is the token’s performance relative to PulseChain itself.</div>
           )}
         </>
