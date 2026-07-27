@@ -125,7 +125,14 @@ interface Props {
 export function BubbleMap({ token, chain, symbol }: Props) {
   const [limit, setLimit] = useState<number>(DEFAULT_LIMIT);
   const [fs, setFs] = useState(false);
+  // Clusters-only (default): hide unconnected singleton bubbles so the map shows
+  // just the linked-wallet groups instead of a haze of dust holders.
+  const [clustersOnly, setClustersOnly] = useState(true);
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
+  // Bumped whenever `load()` installs a fresh node set. The render effect keys
+  // off this: without it, a reload that leaves `status` on 'ready' would not
+  // re-run the effect, and the canvas would keep drawing the previous array.
+  const [dataVersion, setDataVersion] = useState(0);
   const [edgesStatus, setEdgesStatus] = useState<'idle' | 'loading' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<BNode | null>(null);
@@ -140,10 +147,19 @@ export function BubbleMap({ token, chain, symbol }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const tipRef = useRef<HTMLDivElement | null>(null);
   const dataRef = useRef<{ nodes: BNode[]; edges: BEdge[] } | null>(null);
+  // Every fetched holder + the raw cluster edges, kept whole so the clusters-only
+  // filter can be toggled without refetching. `dataRef` holds the *displayed*
+  // subset, and is always mutated in place (the render effect captures it).
+  const allNodesRef = useRef<BNode[]>([]);
+  const rawEdgesRef = useRef<ApiEdge[]>([]);
   const selectedRef = useRef<BNode | null>(null);
   const simRef = useRef<Simulation<BNode, undefined> | null>(null);
   // Lets the async edge fetch reheat the running simulation once links arrive.
   const applyLinksRef = useRef<(() => void) | null>(null);
+  // Re-seeds the simulation after the displayed node set changes (filter toggle).
+  const reseedRef = useRef<(() => void) | null>(null);
+  // Latest filter fn, so the async cluster fetch can call it after it resolves.
+  const applyFilterRef = useRef<(() => void) | null>(null);
   const viewRef = useRef({ scale: 0.92, ox: 0, oy: 0 });
 
   const load = useCallback(async () => {
@@ -183,7 +199,12 @@ export function BubbleMap({ token, chain, symbol }: Props) {
           x: 0, y: 0, vx: 0, vy: 0, fx: null, fy: null, pinned: false,
         };
       });
-      dataRef.current = { nodes, edges: [] };
+      allNodesRef.current = nodes;
+      rawEdgesRef.current = [];
+      // Show everything until clusters are known — filtering now would just blank
+      // the map while phase 2 is still running.
+      dataRef.current = { nodes: [...nodes], edges: [] };
+      setDataVersion((v) => v + 1);
       setMeta({ holders: data.holdersCount ?? null, clusters: 0, shown: nodes.length, partial: false, scanned: 0 });
       setStatus('ready');
 
@@ -199,29 +220,20 @@ export function BubbleMap({ token, chain, symbol }: Props) {
       })
         .then((r) => (r.ok ? r.json() : null))
         .then((g) => {
-          const cur = dataRef.current;
-          if (!g || !cur) { setEdgesStatus('done'); return; }
-          const idx = new Map(cur.nodes.map((n, i) => [n.address, i]));
+          const all = allNodesRef.current;
+          if (!g || !dataRef.current || all.length === 0) { setEdgesStatus('done'); return; }
+          const byAddr = new Map(all.map((n) => [n.address, n]));
           const clusters: string[][] = g.clusters ?? [];
           clusters.forEach((members: string[], ci: number) => {
             for (const addr of members) {
-              const i = idx.get(addr.toLowerCase());
-              if (i == null) continue;
-              const n = cur.nodes[i];
+              const n = byAddr.get(addr.toLowerCase());
+              if (!n) continue;
               n.cluster = ci;
               n.color = nodeColor(n);
             }
           });
-          const apiEdges: ApiEdge[] = g.edges ?? [];
-          const edges: BEdge[] = [];
-          for (const e of apiEdges) {
-            const a = idx.get(e.from.toLowerCase());
-            const b = idx.get(e.to.toLowerCase());
-            if (a != null && b != null) edges.push({ a, b });
-          }
-          cur.edges.length = 0;
-          cur.edges.push(...edges);
-          applyLinksRef.current?.();
+          rawEdgesRef.current = g.edges ?? [];
+          applyFilterRef.current?.();
           setMeta((m) => ({ ...m, clusters: clusters.length, partial: !!g.partial, scanned: g.scannedHolders ?? 0 }));
           setEdgesStatus('done');
         })
@@ -233,6 +245,34 @@ export function BubbleMap({ token, chain, symbol }: Props) {
   }, [token, chain, limit]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Narrow the displayed bubbles to clustered wallets (or restore all). Mutates
+  // dataRef's arrays in place — the render effect captured those references —
+  // then re-seeds the simulation so the surviving bubbles re-settle.
+  const applyFilter = useCallback(() => {
+    const cur = dataRef.current;
+    const all = allNodesRef.current;
+    if (!cur || all.length === 0) return;
+    const nodes = clustersOnly ? all.filter((n) => n.cluster >= 0) : all;
+    const idx = new Map(nodes.map((n, i) => [n.address, i]));
+    const edges: BEdge[] = [];
+    for (const e of rawEdgesRef.current) {
+      const a = idx.get(e.from.toLowerCase());
+      const b = idx.get(e.to.toLowerCase());
+      if (a != null && b != null) edges.push({ a, b });
+    }
+    cur.nodes.length = 0; cur.nodes.push(...nodes);
+    cur.edges.length = 0; cur.edges.push(...edges);
+    reseedRef.current?.();
+    setMeta((m) => ({ ...m, shown: nodes.length }));
+  }, [clustersOnly]);
+
+  useEffect(() => { applyFilterRef.current = applyFilter; }, [applyFilter]);
+  // Only meaningful once the cluster scan has landed; before that every node
+  // still has cluster === -1 and filtering would blank the canvas.
+  useEffect(() => {
+    if (edgesStatus === 'done') applyFilter();
+  }, [clustersOnly, edgesStatus, applyFilter]);
 
   // Exit fullscreen on Escape.
   useEffect(() => {
@@ -292,6 +332,18 @@ export function BubbleMap({ token, chain, symbol }: Props) {
     }
     applyLinks(); // pick up edges if phase 2 already finished
     applyLinksRef.current = () => { applyLinks(); sim.alpha(0.6); };
+    // Called after the displayed node set changes (clusters-only toggle).
+    reseedRef.current = () => {
+      nodes.forEach((n, i) => {
+        if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) {
+          const a = i * 2.399, rad = 12 + Math.sqrt(i) * 18;
+          n.x = cx + Math.cos(a) * rad; n.y = cy + Math.sin(a) * rad;
+        }
+      });
+      sim.nodes(nodes);
+      applyLinks();
+      sim.alpha(0.9).restart();
+    };
 
     // Pre-settle off-screen so it opens already laid out.
     for (let i = 0; i < 90; i++) sim.tick();
@@ -460,6 +512,7 @@ export function BubbleMap({ token, chain, symbol }: Props) {
       sim.stop();
       simRef.current = null;
       applyLinksRef.current = null;
+      reseedRef.current = null;
       cvs.removeEventListener('mousemove', onMove);
       cvs.removeEventListener('mousedown', onDown);
       window.removeEventListener('mouseup', onUp);
@@ -468,7 +521,7 @@ export function BubbleMap({ token, chain, symbol }: Props) {
       cvs.removeEventListener('mouseleave', onLeave);
       window.removeEventListener('resize', onResize);
     };
-  }, [status, fs]);
+  }, [status, fs, dataVersion]);
 
   const legend = useMemo(() => {
     const items: { label: string; color: string }[] = [];
@@ -492,25 +545,42 @@ export function BubbleMap({ token, chain, symbol }: Props) {
           {meta.holders != null && (
             <span className="font-normal normal-case text-[var(--text-faint)]">
               {meta.holders.toLocaleString()} holders{symbol ? ` · ${symbol}` : ''}
+              {meta.shown > 0 && ` · ${meta.shown} shown`}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
+          {/* Clusters-only — hides unconnected singletons so only linked-wallet
+              groups remain. On by default. */}
+          <button
+            type="button"
+            onClick={() => setClustersOnly((v) => !v)}
+            aria-pressed={clustersOnly}
+            className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+              clustersOnly
+                ? 'border-orange-500/60 bg-orange-500/15 text-orange-300'
+                : 'border-[var(--line)] text-[var(--text-faint)] hover:text-[var(--text)]'
+            }`}
+            title={clustersOnly ? 'Showing only clustered (linked) wallets — click to show every holder' : 'Show only clustered (linked) wallets'}
+          >
+            Clusters only
+          </button>
           {/* Bubble-count selector — clusters always cover the top 150, so a
-              bigger number adds bubbles without slowing first-load. */}
+              bigger number adds bubbles without slowing first-load. It has no
+              effect while clusters-only is on, so it's disabled there. */}
           <div className="flex items-center rounded-md border border-[var(--line)] overflow-hidden">
             {NODE_OPTIONS.map((opt) => (
               <button
                 key={opt}
                 type="button"
                 onClick={() => { if (opt !== limit) setLimit(opt); }}
-                disabled={status === 'loading'}
+                disabled={status === 'loading' || clustersOnly}
                 className={`px-2 py-0.5 text-[11px] font-semibold tabular-nums transition-colors disabled:opacity-40 ${
                   opt === limit
                     ? 'bg-[var(--surface-2)] text-[var(--text)]'
                     : 'text-[var(--text-faint)] hover:text-[var(--text)]'
                 }`}
-                title={`Show top ${opt} holders`}
+                title={clustersOnly ? `Clusters come from the top ${EDGE_LIMIT} holders — turn off "Clusters only" to change the bubble count` : `Show top ${opt} holders`}
               >
                 {opt}
               </button>
@@ -566,6 +636,25 @@ export function BubbleMap({ token, chain, symbol }: Props) {
                 <IconRefresh className="h-3 w-3 animate-spin" /> Finding clusters (top {EDGE_LIMIT})…
               </div>
             )}
+            {/* Clusters-only with nothing to show — say so instead of leaving a
+                blank canvas that reads as a failure. */}
+            {clustersOnly && edgesStatus === 'done' && meta.shown === 0 && (
+              <div className="pointer-events-none absolute inset-0 grid place-items-center p-6">
+                <div className="pointer-events-auto max-w-xs text-center">
+                  <div className="text-sm text-[var(--text)]">No linked-wallet clusters found</div>
+                  <div className="mt-1 text-xs text-[var(--text-faint)]">
+                    None of the top {EDGE_LIMIT} holders traded this token directly with each other.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setClustersOnly(false)}
+                    className="mt-3 rounded-md border border-[var(--line)] px-3 py-1 text-xs font-semibold text-[var(--text)] hover:bg-[var(--surface-2)]"
+                  >
+                    Show all holders
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-faint)]">
@@ -586,7 +675,11 @@ export function BubbleMap({ token, chain, symbol }: Props) {
           )}
 
           <p className="mt-2 text-[11px] text-[var(--text-muted)]">
-            Bubble size = share of supply · lines link wallets that trade the token directly or share a funding source · clusters = likely-linked wallets among the top {EDGE_LIMIT} (recent transfers; contracts excluded). Hover to focus · drag to pin · double-click to unpin · right-click to remove a bubble.
+            Bubble size = share of supply · lines link wallets that trade the token directly or share a funding source · clusters = likely-linked wallets among the top {EDGE_LIMIT} (recent transfers; contracts excluded).
+            {clustersOnly
+              ? ` Showing clustered wallets only — unconnected holders (and contracts like the LP pair) are hidden; turn off "Clusters only" to see every holder.`
+              : ' Showing every fetched holder.'}
+            {' '}Hover to focus · drag to pin · double-click to unpin · right-click to remove a bubble.
           </p>
         </>
       )}
