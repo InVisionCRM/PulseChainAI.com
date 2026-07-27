@@ -2323,9 +2323,9 @@ function GeickoPageContent() {
       </div>
 
       {/* Main Content */}
-      <div className="flex flex-col md:flex-row md:items-stretch md:h-[calc(100vh-100px)] md:min-h-[760px] pt-4">
+      <div className="flex flex-col md:flex-row md:items-stretch md:h-[calc(100vh-100px)] md:min-h-[900px] pt-4">
         {/* Left Panel - Chart Section */}
-        <div className="w-full md:flex-[3] min-w-0 bg-slate-850 flex flex-col md:h-full md:min-h-0">
+        <div className="w-full md:flex-[3] min-w-0 bg-slate-850 flex flex-col md:h-full md:min-h-0 md:overflow-y-auto">
           {/* Desktop Search Bar - Above left panel only */}
           <div className="hidden md:block mb-2 px-2">
             <DesktopSearchBar />
@@ -2339,17 +2339,8 @@ function GeickoPageContent() {
             </div>
           )}
 
-          {/* Price Performance — above the tabbed container, not inside it */}
-          {apiTokenAddress && (
-            <div className="px-2 md:px-3">
-              <GeickoPerformancePanel
-                network={displayPair?.chainId}
-                token={apiTokenAddress}
-                pool={displayPair?.pairAddress}
-                price={priceUsd}
-              />
-            </div>
-          )}
+          {/* Price Performance now lives in the right-hand stats rail (compact),
+              so the tabbed content below gets that vertical space instead. */}
 
           {/* Bottom Tabs */}
           <GeickoTabNavigation
@@ -2359,7 +2350,7 @@ function GeickoPageContent() {
           />
 
           {/* Content Tables */}
-          <div className="px-2 md:px-3 py-1 min-w-0 flex-1 min-h-0 flex flex-col">
+          <div className="px-2 md:px-3 py-1 min-w-0 flex-1 min-h-0 flex flex-col md:min-h-[640px]">
           <div className="bg-[var(--panel)] rounded-t-none border-t-0 border border-[var(--line)] w-full min-w-0 relative z-20 overflow-auto rounded-lg flex-1 min-h-0">
               {/* GOLD Tab */}
               {activeTab === 'gold' && isGoldToken && (
@@ -3452,6 +3443,18 @@ function GeickoPageContent() {
                 </div>
               )}
             </div>
+
+            {/* Price Performance — compact, in the stats rail. Moved here from
+                above the tabs so the tabbed content gets that height back. */}
+            {apiTokenAddress && (
+              <GeickoPerformancePanel
+                compact
+                network={displayPair?.chainId}
+                token={apiTokenAddress}
+                pool={displayPair?.pairAddress}
+                price={priceUsd}
+              />
+            )}
 
             {/* Token Amount Calculator */}
             {displayPair && (

@@ -43,8 +43,13 @@ export const SidebarBody = ({
         <span className="text-[15px] font-bold tracking-tight text-[var(--text)]">Scan.Morbius</span>
       </a>
 
-      {/* Nav — top portion. Scrolls internally if the links overflow. */}
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col px-2 pb-2">
+      {/* Nav — top portion. Scrolls internally if the links overflow. NOTE:
+          this must NOT be a flex container — the children wrapper carries
+          `flex-1`, which (in a flex parent) clamps it to the visible height
+          while its real content overflows and paints over the watchlist
+          below. Keeping this a plain block lets that flex-1 go inert so the
+          content sizes naturally and this box scrolls it. */}
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide px-2 pb-2">
         {children}
       </div>
 

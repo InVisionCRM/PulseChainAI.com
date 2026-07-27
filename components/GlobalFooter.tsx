@@ -57,6 +57,38 @@ export default function GlobalFooter() {
               </svg>
               GitHub
             </a>
+            {/* Community builders + sponsor + admin — moved here from the
+                sidebar nav to keep the nav lean. */}
+            <a
+              href="https://plstart.me"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors duration-200 text-xs md:text-sm font-medium px-2 md:px-3 py-1 rounded-lg hover:bg-[var(--surface-2)]"
+            >
+              PLStart.me
+            </a>
+            <a
+              href="https://liquidliberty.io/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors duration-200 text-xs md:text-sm font-medium px-2 md:px-3 py-1 rounded-lg hover:bg-[var(--surface-2)]"
+            >
+              Liquid Liberty
+            </a>
+            <a
+              href="https://superstake.win"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors duration-200 text-xs md:text-sm font-medium px-2 md:px-3 py-1 rounded-lg hover:bg-[var(--surface-2)]"
+            >
+              SuperStake.Win
+            </a>
+            <a
+              href="/admin/gold-badges"
+              className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors duration-200 text-xs md:text-sm font-medium px-2 md:px-3 py-1 rounded-lg hover:bg-[var(--surface-2)]"
+            >
+              GOLD Badges Admin
+            </a>
             <button
               onClick={() => setShowApiKeyModal(true)}
               className={`flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors duration-200 text-xs md:text-sm font-medium px-2 md:px-3 py-1 rounded-lg hover:bg-[var(--surface-2)] ${
