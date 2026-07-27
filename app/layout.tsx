@@ -182,35 +182,36 @@ export default function RootLayout({
           <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
             <SidebarBody>
                 <div className="flex flex-1 flex-col overflow-x-hidden min-h-0">
-                  <div className="mt-4 flex w-full flex-col gap-1 text-sm">
-                    {/* Get Morbius Button */}
-                    <a
-                      href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 py-2 px-3 mb-2 bg-orange-500/15 border border-orange-500/40 hover:bg-orange-500/25 rounded-lg transition duration-200"
-                      title="Get Morbius"
-                    >
-                      <IconRocket className="h-5 w-5 shrink-0 text-orange-400" />
-                      <span className="text-[var(--text)] text-sm whitespace-pre inline-block">
-                        Get Morbius
-                      </span>
-                    </a>
+                  <div className="mt-3 flex w-full flex-col gap-1 text-sm">
+                    {/* Utility row — Get Morbius / Install / Theme as three
+                        equal compact tiles. Flex-1 rather than grid-cols-3 so
+                        the row stays even when Install hides itself (already
+                        installed, or a browser with no install prompt). */}
+                    <div className="mb-2 flex items-stretch gap-1">
+                      <a
+                        href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-1 py-2 text-[var(--text)] transition-colors hover:bg-[var(--surface-2)]"
+                        title="Get Morbius"
+                      >
+                        <IconRocket className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                        <span className="text-[10px] font-semibold leading-none">Morbius</span>
+                      </a>
 
-                    {/* Install as a PWA (hidden when already installed) */}
-                    <InstallButton />
+                      {/* Hidden when already installed / unsupported browser. */}
+                      <InstallButton variant="tile" />
+
+                      <ThemeToggle variant="tile" />
+                    </div>
 
                     {primaryLinks.map((link, idx) => (
                       <SidebarLink key={idx} link={link} />
                     ))}
 
                     {/* Community Builders, Sponsored, and GOLD Badges Admin
-                        moved to the global footer to keep the nav lean. */}
-
-                    {/* Theme toggle — pull-chain dark/light switch */}
-                    <div className="mt-6 pt-3 border-t border-[var(--line)]">
-                      <ThemeToggle variant="rail" />
-                    </div>
+                        moved to the global footer to keep the nav lean.
+                        The theme toggle now lives in the utility row above. */}
                   </div>
                 </div>
               </SidebarBody>
