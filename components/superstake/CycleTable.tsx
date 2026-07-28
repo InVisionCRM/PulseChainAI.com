@@ -20,6 +20,21 @@ export interface CycleRow {
   result: CycleResult;
 }
 
+/** What a cycle brought in against the 1% it paid out. */
+export interface Cover {
+  ratio: number;
+  gained: number;
+  bought: number;
+}
+
+const gradText = {
+  backgroundImage: GRAD,
+  WebkitBackgroundClip: 'text',
+  backgroundClip: 'text',
+  color: 'transparent',
+} as const;
+
+const pctOf = (v: number, max: number) => (max > 0 ? (v / max) * 100 : 0);
 const n0 = (v: number) => Math.round(v).toLocaleString();
 const usd = (v: number, dp = 5) => (v > 0 ? `$${v.toFixed(dp)}` : '—');
 const usdShort = (v: number) =>
@@ -32,13 +47,15 @@ const usdShort = (v: number) =>
         : `$${v.toFixed(2)}`;
 
 export default function CycleTable({
-  rows, coverage, amount, psshWins, running, daysLeft,
+  rows, coverage, amount, psshWins, series, running, daysLeft,
 }: {
   rows: CycleRow[];
-  /** Cycle number -> how many times over that cycle covered its own 1% payout. */
-  coverage: Map<number, number>;
+  /** Cycle number -> what that cycle brought in against the 1% it paid out. */
+  coverage: Map<number, Cover>;
   amount: number;
   psshWins: number;
+  /** Daily series, for the per-cycle volume chart. */
+  series?: { d0: number; VV: number[] } | null;
   /** The cycle currently open, if any — listed but not scored. */
   running?: SuperStakeCycle | null;
   daysLeft?: number;
@@ -91,6 +108,8 @@ export default function CycleTable({
                   isOpen={isOpen}
                   toggle={toggle}
                   cover={coverage.get(cycle.i) ?? null}
+                  amount={amount}
+                  series={series}
                 />
               );
             })}
@@ -128,14 +147,16 @@ export default function CycleTable({
 }
 
 function CycleRowPair({
-  cycle, result, won, isOpen, toggle, cover,
+  cycle, result, won, isOpen, toggle, cover, amount, series,
 }: {
   cycle: SuperStakeCycle;
   result: CycleResult;
   won: boolean;
   isOpen: boolean;
   toggle: () => void;
-  cover: number | null;
+  cover: Cover | null;
+  amount: number;
+  series?: { d0: number; VV: number[] } | null;
 }) {
   return (
     <>
@@ -191,47 +212,66 @@ function CycleRowPair({
 
       {isOpen && (
         <tr className="border-t border-[var(--line)] bg-[var(--app-bg)]">
-          <td colSpan={8} className="px-4 py-4">
-            <div className="grid gap-4 md:grid-cols-3">
-              <Block title={`What cycle ${cycle.i} did`}>
-                <Item
-                  k="Ran"
-                  v={`${dayToISO(cycle.d0)} → ${dayToISO(cycle.d1)}`}
-                  sub={`${cycle.d1 - cycle.d0} days`}
+          {/* The table is 660px wide and scrolls on narrow screens. Left alone,
+              the detail's right-aligned figures — the whole point of it — sit
+              off-screen on a phone. Pinning it to the viewport keeps it visible
+              no matter how far the table is scrolled. */}
+          <td colSpan={8} className="p-0">
+            <div className="sticky left-0 w-[calc(100vw-2.5rem)] px-4 py-4 md:w-auto">
+            {/* the facts that don't chart, kept to one quiet line */}
+            <div
+              className="flex flex-wrap gap-x-4 gap-y-1 text-[10.5px] uppercase tracking-[0.1em] text-[var(--text-faint)]"
+              style={{ fontFamily: MONO }}
+            >
+              <span>
+                RAN {dayToISO(cycle.d0)} → {dayToISO(cycle.d1)} · {cycle.d1 - cycle.d0}D
+              </span>
+              <span>pHEX {usd(cycle.pH0, 6)}</span>
+              <span>pSSH {usd(cycle.pS0, 6)}</span>
+              <span>{cycle.tsh.toFixed(2)} T-SHARES</span>
+              <span>{n0(cycle.hex)} HEX STAKED</span>
+            </div>
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Panel title={`$${amount} in, side by side`}>
+                <VBars
+                  a={{ label: 'Stake', value: result.stakeYield, win: !won }}
+                  b={{ label: 'pSSH', value: result.psshYield, win: won, accent: true }}
                 />
-                <Item k="HEX in the stake" v={`${n0(cycle.hex)} HEX`} />
-                <Item k="T-shares" v={cycle.tsh.toFixed(2)} />
-                <Item k="Native yield earned" v={`${n0(cycle.nY)} HEX`} />
-                <Item k="Paid to holders" v={`${n0(cycle.pay)} HEX`} sub="1% of principal + yield" />
-                <Item k="pSSH volume" v={usdShort(cycle.vol)} />
-                {cover != null && (
-                  <Item
-                    k="Covered its own payout"
-                    v={`${cover.toFixed(2)}×`}
-                    good={cover >= 1}
-                  />
+                <Note>
+                  <b style={won ? gradText : { color: 'var(--text)' }}>
+                    {won ? 'pSSH' : 'The stake'}
+                  </b>{' '}
+                  ahead {result.ratio.toFixed(2)}×
+                </Note>
+              </Panel>
+
+              <Panel title="Did it pay for itself">
+                {cover ? (
+                  <>
+                    <Gauge ratio={cover.ratio} />
+                    <Note>
+                      {n0(cover.gained)} in vs {n0(cycle.pay)} out
+                      {cover.bought > 0 && <> · buy-tax added {n0(cover.bought)}</>}
+                    </Note>
+                  </>
+                ) : (
+                  <Note>Not settled — no following cycle yet.</Note>
                 )}
-              </Block>
+              </Panel>
 
-              <Block title="If you staked the HEX">
-                <Item k="Bought at" v={usd(result.pHex, 6)} />
-                <Item k="HEX staked" v={n0(result.hexAmount)} />
-                <Item k="T-shares earned" v={result.tShares.toFixed(3)} />
-                <Item
-                  k="Longer-pays-better"
-                  v={`+${((result.lpbMultiplier - 1) * 100).toFixed(1)}%`}
+              <Panel title="What paid the pSSH side">
+                <Donut
+                  a={{ label: 'End-stake', value: result.payouts, color: '#AE176A' }}
+                  b={{ label: 'Reflections', value: result.reflections, color: '#FB9438' }}
+                  total={result.psshYield}
                 />
-                <Item k="Earned" v={`${n0(result.stakeYield)} HEX`} strong />
-              </Block>
+              </Panel>
 
-              <Block title="If you held the pSSH" accent>
-                <Item k="Bought at" v={usd(result.pSsh, 6)} sub="after the 5.5% tax" />
-                <Item k="pSSH held" v={n0(result.psshAmount)} />
-                <Item k="Share of supply" v={`${(result.supplyShare * 100).toFixed(4)}%`} />
-                <Item k="End-stake payout" v={`${n0(result.payouts)} HEX`} />
-                <Item k="Reflections" v={`${n0(result.reflections)} HEX`} sub="2.5% of volume" />
-                <Item k="Earned" v={`${n0(result.psshYield)} HEX`} strong accent />
-              </Block>
+              <Panel title="Trading through the cycle">
+                <Velocity series={series} from={cycle.d0} to={cycle.d1} />
+                <Note>{usdShort(cycle.vol)} traded over {cycle.d1 - cycle.d0} days</Note>
+              </Panel>
             </div>
 
             <a
@@ -242,8 +282,9 @@ function CycleRowPair({
               className="mt-3 inline-block text-[10.5px] text-[var(--text-faint)] underline-offset-2 transition-colors hover:text-[var(--text-muted)] hover:underline"
               style={{ fontFamily: MONO }}
             >
-              HEX STAKE #{cycle.id} · VIEW THE STAKING CONTRACT
-            </a>
+                HEX STAKE #{cycle.id} · VIEW THE STAKING CONTRACT
+              </a>
+            </div>
           </td>
         </tr>
       )}
@@ -251,51 +292,211 @@ function CycleRowPair({
   );
 }
 
-function Block({
-  title, accent, children,
-}: { title: string; accent?: boolean; children: React.ReactNode }) {
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3">
+    <div className="flex flex-col rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3">
       <div
-        className="text-[9.5px] uppercase tracking-[0.13em]"
-        style={
-          accent
-            ? { backgroundImage: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', fontFamily: MONO }
-            : { color: 'var(--text-faint)', fontFamily: MONO }
-        }
+        className="text-[9.5px] uppercase tracking-[0.13em] text-[var(--text-faint)]"
+        style={{ fontFamily: MONO }}
       >
         {title}
       </div>
-      <dl className="mt-2 grid gap-1.5">{children}</dl>
+      <div className="mt-2 flex flex-1 flex-col justify-center">{children}</div>
     </div>
   );
 }
 
-function Item({
-  k, v, sub, strong, accent, good,
+function Note({ children }: { children: React.ReactNode }) {
+  return <p className="mt-2 text-center text-[10.5px] leading-snug text-[var(--text-faint)]">{children}</p>;
+}
+
+/** Two columns, height relative to the taller — the shape reads before the number. */
+function VBars({
+  a, b,
 }: {
-  k: string; v: string; sub?: string; strong?: boolean; accent?: boolean; good?: boolean;
+  a: { label: string; value: number; win: boolean; accent?: boolean };
+  b: { label: string; value: number; win: boolean; accent?: boolean };
 }) {
+  const max = Math.max(a.value, b.value, 1);
   return (
-    <div className="flex items-baseline justify-between gap-3 border-t border-[var(--line)] pt-1.5 first:border-t-0 first:pt-0">
-      <dt className="text-[11.5px] leading-snug text-[var(--text-muted)]">
-        {k}
-        {sub && <span className="block text-[10px] text-[var(--text-faint)]">{sub}</span>}
-      </dt>
-      <dd
-        className={`shrink-0 text-right tabular-nums ${
-          strong ? 'text-[15px] font-bold' : 'text-[12.5px] font-semibold'
-        }`}
-        style={
-          accent && strong
-            ? { backgroundImage: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
-            : good
-              ? { color: 'var(--up)' }
-              : { color: 'var(--text)' }
-        }
+    <div className="flex h-[110px] items-end justify-center gap-5">
+      {[a, b].map((x) => (
+        <div key={x.label} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
+          <span
+            className={`text-[13px] font-bold tabular-nums ${x.win ? '' : 'text-[var(--text-muted)]'}`}
+            style={x.win && x.accent ? gradText : x.win ? { color: 'var(--text)' } : undefined}
+          >
+            {n0(x.value)}
+          </span>
+          <div
+            className="w-full max-w-[46px] rounded-t-md transition-[height] duration-500"
+            style={{
+              height: `${Math.max(4, (x.value / max) * 100)}%`,
+              background: x.accent ? GRAD : 'var(--line-strong)',
+            }}
+          />
+          <span className="text-[10px] uppercase tracking-[0.1em] text-[var(--text-faint)]" style={{ fontFamily: MONO }}>
+            {x.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Coverage as a speedometer. Break-even (1x) sits a quarter along so "covered"
+ * is visibly past a marked line rather than buried at the far left; beyond that
+ * the scale is logarithmic, because coverage across cycles spans 1.7x to 227x
+ * and a linear dial would pin almost every needle to the stop.
+ */
+function Gauge({ ratio }: { ratio: number }) {
+  const R = 58;
+  const CX = 80;
+  const CY = 72;
+  const LEN = Math.PI * R;
+  const frac =
+    ratio <= 0
+      ? 0
+      : ratio < 1
+        ? 0.25 * ratio
+        : 0.25 + 0.75 * Math.min(1, Math.log10(ratio) / Math.log10(30));
+  const ok = ratio >= 1;
+  // Needle stops short of the arc and well above the readout, which sits below
+  // the pivot — an overlapping needle made the number unreadable.
+  const ang = Math.PI * (1 - frac);
+  const nx = CX + Math.cos(ang) * (R - 16);
+  const ny = CY - Math.sin(ang) * (R - 16);
+  const tAng = Math.PI * (1 - 0.25);
+  return (
+    <svg viewBox="0 0 160 108" className="block h-auto w-full" role="img"
+         aria-label={`This cycle brought in ${ratio.toFixed(2)} times what it paid out.`}>
+      <defs>
+        <linearGradient id="ss-gauge" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#7E089D" />
+          <stop offset="0.55" stopColor="#D83639" />
+          <stop offset="1" stopColor="#FB9438" />
+        </linearGradient>
+      </defs>
+      <path d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`} fill="none"
+            stroke="var(--line)" strokeWidth="10" strokeLinecap="round" />
+      <path d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`} fill="none"
+            stroke="url(#ss-gauge)" strokeWidth="10" strokeLinecap="round"
+            strokeDasharray={LEN} strokeDashoffset={LEN * (1 - frac)}
+            style={{ transition: 'stroke-dashoffset .6s ease' }} />
+      {/* break-even tick */}
+      <line
+        x1={CX + Math.cos(tAng) * (R - 7)} y1={CY - Math.sin(tAng) * (R - 7)}
+        x2={CX + Math.cos(tAng) * (R + 7)} y2={CY - Math.sin(tAng) * (R + 7)}
+        stroke="var(--text-faint)" strokeWidth="1.5" strokeDasharray="2 2"
+      />
+      <line x1={CX} y1={CY} x2={nx} y2={ny} stroke="var(--text)" strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx={CX} cy={CY} r="3.5" fill="var(--text)" />
+      <text x={CX} y={94} textAnchor="middle" fontSize="19" fontWeight="700"
+            fill={ok ? 'var(--up)' : 'var(--text)'} style={{ fontVariantNumeric: 'tabular-nums' }}>
+        {ratio.toFixed(2)}×
+      </text>
+      <text x={CX} y={105} textAnchor="middle" fontSize="7.5" letterSpacing="1.1"
+            fill="var(--text-faint)" style={{ fontFamily: MONO }}>
+        1× = BREAK-EVEN
+      </text>
+    </svg>
+  );
+}
+
+/** Where the pSSH side's HEX came from, as a ring with the total in the middle. */
+function Donut({
+  a, b, total,
+}: {
+  a: { label: string; value: number; color: string };
+  b: { label: string; value: number; color: string };
+  total: number;
+}) {
+  const R = 40;
+  const C = 2 * Math.PI * R;
+  const sum = a.value + b.value;
+  const pa = sum > 0 ? a.value / sum : 0;
+  return (
+    <div className="flex items-center gap-3">
+      <div className="relative shrink-0">
+        <svg viewBox="0 0 100 100" className="block h-[92px] w-[92px] -rotate-90" aria-hidden="true">
+          <circle cx="50" cy="50" r={R} fill="none" stroke={b.color} strokeWidth="14" />
+          <circle
+            cx="50" cy="50" r={R} fill="none" stroke={a.color} strokeWidth="14"
+            strokeDasharray={C} strokeDashoffset={C * (1 - pa)}
+            style={{ transition: 'stroke-dashoffset .6s ease' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-[14px] font-bold leading-none tabular-nums text-[var(--text)]">
+            {n0(total)}
+          </span>
+          <span className="text-[8.5px] uppercase tracking-[0.12em] text-[var(--text-faint)]" style={{ fontFamily: MONO }}>
+            HEX
+          </span>
+        </div>
+      </div>
+      <dl className="min-w-0 flex-1 grid gap-1.5">
+        {[{ ...a, pct: pa * 100 }, { ...b, pct: (1 - pa) * 100 }].map((x) => (
+          <div key={x.label}>
+            <dt className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+              <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: x.color }} />
+              <span className="truncate">{x.label}</span>
+            </dt>
+            <dd className="ml-3.5 text-[12px] tabular-nums text-[var(--text)]">
+              <b>{n0(x.value)}</b>
+              <span className="ml-1 text-[var(--text-faint)]">{x.pct.toFixed(0)}%</span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+/** Daily pSSH volume across the cycle — where the trading actually happened. */
+function Velocity({
+  series, from, to,
+}: { series?: { d0: number; VV: number[] } | null; from: number; to: number }) {
+  if (!series?.VV?.length) {
+    return <div className="h-[92px] rounded bg-[var(--line)]/40" aria-hidden="true" />;
+  }
+  const days: number[] = [];
+  for (let d = from; d < to; d++) days.push(series.VV[d - series.d0] ?? 0);
+  const max = Math.max(...days, 1);
+  const W = 160;
+  const H = 74;
+  const step = days.length > 1 ? W / (days.length - 1) : W;
+  const pts = days.map((v, i) => [i * step, H - (v / max) * (H - 6)]);
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+  const peak = days.indexOf(max);
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="block h-[74px] w-full" role="img"
+           aria-label={`Daily pSSH volume across the cycle, peaking at ${usdShort(max)}.`}>
+        <defs>
+          <linearGradient id="ss-vel" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#7E089D" /><stop offset="1" stopColor="#FB9438" />
+          </linearGradient>
+          <linearGradient id="ss-velf" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#D83639" stopOpacity="0.35" />
+            <stop offset="1" stopColor="#D83639" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={`${line} L${W} ${H} L0 ${H} Z`} fill="url(#ss-velf)" />
+        <path d={line} fill="none" stroke="url(#ss-vel)" strokeWidth="1.8" strokeLinejoin="round" />
+        {peak >= 0 && (
+          <circle cx={(peak * step).toFixed(1)} cy={(H - (max / max) * (H - 6)).toFixed(1)} r="2.5" fill="#FB9438" />
+        )}
+      </svg>
+      <div
+        className="flex justify-between text-[9px] uppercase tracking-[0.1em] text-[var(--text-faint)]"
+        style={{ fontFamily: MONO }}
       >
-        {v}
-      </dd>
+        <span>day 1</span>
+        <span>peak {usdShort(max)}</span>
+        <span>day {days.length}</span>
+      </div>
     </div>
   );
 }

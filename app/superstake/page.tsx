@@ -156,7 +156,9 @@ export default function SuperStakeHubPage() {
 
     return {
       cycles, running, per, psshWins, streak, coverage, covered, growth,
-      coverageByCycle: new Map(coverage.map((x) => [x.cycle.i, x.ratio])),
+      coverageByCycle: new Map(
+        coverage.map((x) => [x.cycle.i, { ratio: x.ratio, gained: x.gained, bought: x.bought }]),
+      ),
       neverShrank: cycles.every((c, i) => i === 0 || c.hex >= cycles[i - 1].hex),
     };
   }, [snap]);
@@ -494,6 +496,7 @@ export default function SuperStakeHubPage() {
               coverage={view.coverageByCycle}
               amount={STAKE_AMOUNT}
               psshWins={view.psshWins}
+              series={snap?.series}
               running={view.running}
               daysLeft={Math.max(
                 0,
