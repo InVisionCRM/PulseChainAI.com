@@ -107,6 +107,14 @@ export default function RootLayout({
   // The home page has its own prominent search bar, so the sticky mobile
   // search would be a redundant second bar there — hide it on "/".
   const isHomePage = pathname === "/";
+  // The HEX and SuperStake pages are about one asset each, not a pair the
+  // visitor is looking for, so a pair search at the top of them is just a bar
+  // in the way of the content. It stays reachable from the bottom-nav Search.
+  const isSingleAssetPage =
+    pathname === "/hex-dashboard" ||
+    pathname === "/hex-strategist" ||
+    pathname === "/superstake" ||
+    pathname.startsWith("/superstake/");
 
   const primaryLinks: NavLink[] = [
     {
@@ -185,7 +193,7 @@ export default function RootLayout({
       >
         <div className="flex flex-col min-h-screen md:h-screen w-full md:overflow-hidden">
           {!isStackerGamePage && <TopTickerBar />}
-          {!isHomePage && <MobileSearchBar />}
+          {!isHomePage && !isSingleAssetPage && <MobileSearchBar />}
           <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
             <SidebarBody>
                 <div className="flex flex-1 flex-col overflow-x-hidden min-h-0">
