@@ -4,7 +4,7 @@
 // icon rather than by label. Every figure here is stated in full elsewhere on
 // the page; this strip exists to be scanned, not to be the source.
 
-import { IconClock, IconFlame, IconActivity, IconArrowUp, IconArrowDown } from '@tabler/icons-react';
+import { IconFlame, IconActivity, IconArrowUp, IconArrowDown } from '@tabler/icons-react';
 
 const MONO = 'var(--font-jetbrains-mono), ui-monospace, monospace';
 const GRAD_STOPS = (
@@ -15,10 +15,16 @@ const GRAD_STOPS = (
   </>
 );
 
-function Tile({ children }: { children: React.ReactNode }) {
+function Tile({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-3 py-3">
-      {children}
+    <div className="flex flex-col items-center rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-3 py-3">
+      <div
+        className="mb-1.5 text-center text-[9px] uppercase tracking-[0.13em] text-[var(--text-faint)]"
+        style={{ fontFamily: MONO }}
+      >
+        {title}
+      </div>
+      <div className="flex flex-1 flex-col items-center justify-center">{children}</div>
     </div>
   );
 }
@@ -30,9 +36,9 @@ function Tile({ children }: { children: React.ReactNode }) {
  * on the dial instead of pinned to a stop.
  */
 export function VersusGauge({ ratio }: { ratio: number }) {
-  const R = 46;
-  const CX = 60;
-  const CY = 54;
+  const R = 62;
+  const CX = 80;
+  const CY = 72;
   const LEN = Math.PI * R;
   const frac =
     ratio > 0
@@ -43,10 +49,10 @@ export function VersusGauge({ ratio }: { ratio: number }) {
   const ny = CY - Math.sin(ang) * (R - 13);
   const psshAhead = ratio >= 1;
   return (
-    <Tile>
+    <Tile title="HEX earned per $1">
       <svg
-        viewBox="0 0 120 82"
-        className="block h-auto w-full max-w-[128px]"
+        viewBox="0 0 160 108"
+        className="block h-auto w-full max-w-[210px]"
         role="img"
         aria-label={
           psshAhead
@@ -58,20 +64,20 @@ export function VersusGauge({ ratio }: { ratio: number }) {
           <linearGradient id="ss-vs" x1="0" y1="0" x2="1" y2="0">{GRAD_STOPS}</linearGradient>
         </defs>
         <path d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`} fill="none"
-              stroke="var(--line)" strokeWidth="8" strokeLinecap="round" />
+              stroke="var(--line)" strokeWidth="10" strokeLinecap="round" />
         <path d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`} fill="none"
-              stroke="url(#ss-vs)" strokeWidth="8" strokeLinecap="round"
+              stroke="url(#ss-vs)" strokeWidth="10" strokeLinecap="round"
               strokeDasharray={LEN} strokeDashoffset={LEN * (1 - frac)}
               style={{ transition: 'stroke-dashoffset .6s ease' }} />
         {/* dead-centre tick: the two are level */}
-        <line x1={CX} y1={CY - R - 5} x2={CX} y2={CY - R + 5}
+        <line x1={CX} y1={CY - R - 6} x2={CX} y2={CY - R + 6}
               stroke="var(--text-faint)" strokeWidth="1.5" strokeDasharray="2 2" />
-        <line x1={CX} y1={CY} x2={nx} y2={ny} stroke="var(--text)" strokeWidth="2.2" strokeLinecap="round" />
-        <circle cx={CX} cy={CY} r="3" fill="var(--text)" />
+        <line x1={CX} y1={CY} x2={nx} y2={ny} stroke="var(--text)" strokeWidth="2.5" strokeLinecap="round" />
+        <circle cx={CX} cy={CY} r="3.5" fill="var(--text)" />
         {/* the two contenders, no words */}
-        <image href="/hex-logo.svg" x={CX - R - 8} y={CY + 4} width="16" height="16" opacity={psshAhead ? 0.45 : 1} />
-        <image href="/superstake-logo.png" x={CX + R - 8} y={CY + 4} width="16" height="16" opacity={psshAhead ? 1 : 0.45} />
-        <text x={CX} y={CY + 20} textAnchor="middle" fontSize="15" fontWeight="700"
+        <image href="/hex-logo.svg" x={CX - R - 10} y={CY + 6} width="21" height="21" opacity={psshAhead ? 0.4 : 1} />
+        <image href="/superstake-logo.png" x={CX + R - 11} y={CY + 6} width="21" height="21" opacity={psshAhead ? 1 : 0.4} />
+        <text x={CX} y={CY + 24} textAnchor="middle" fontSize="21" fontWeight="700"
               fill="var(--text)" style={{ fontVariantNumeric: 'tabular-nums' }}>
           {(psshAhead ? ratio : 1 / ratio).toFixed(2)}×
         </text>
@@ -82,19 +88,22 @@ export function VersusGauge({ ratio }: { ratio: number }) {
 
 /** A ring that fills as something progresses, with an icon and a bare number. */
 export function RingTile({
-  frac, value, icon, title, good,
+  frac, value, icon, title, label, good,
 }: {
   frac: number;
   value: string;
   icon: React.ReactNode;
+  /** Hover/screen-reader description. */
   title: string;
+  /** The short heading shown on the tile. */
+  label: string;
   good?: boolean;
 }) {
   const R = 34;
   const C = 2 * Math.PI * R;
   const f = Math.max(0, Math.min(1, frac));
   return (
-    <Tile>
+    <Tile title={label}>
       <div className="relative" title={title}>
         <svg viewBox="0 0 84 84" className="block h-[84px] w-[84px] -rotate-90" role="img" aria-label={title}>
           <defs>
@@ -131,7 +140,7 @@ export function ThresholdTile({ inPct, outPct }: { inPct: number; outPct: number
   const h = (v: number) => Math.max(2, Math.min(100, (v / CAP) * 100));
   const over = inPct >= outPct;
   return (
-    <Tile>
+    <Tile title="Coming in vs the 1% out">
       <div
         className="flex items-end gap-2"
         title={`Taking in ${inPct.toFixed(2)}% of the pool this cycle against the ${outPct.toFixed(2)}% it pays out.`}
@@ -172,12 +181,10 @@ export function ThresholdTile({ inPct, outPct }: { inPct: number; outPct: number
 }
 
 export default function GlanceStrip({
-  perDollarRatio, cycleFrac, daysLeft, sharesLeft, sharesMinted, coverTimes, inPct, outPct,
+  perDollarRatio, sharesLeft, sharesMinted, coverTimes, inPct, outPct,
 }: {
   /** pSSH HEX-per-dollar divided by the stake's, for the tug-of-war needle. */
   perDollarRatio: number;
-  cycleFrac: number;
-  daysLeft: number;
   sharesLeft: number;
   sharesMinted: number;
   /** How many times over current volume covers what the cycle needs. */
@@ -188,18 +195,17 @@ export default function GlanceStrip({
 }) {
   const nf = (n: number) => Math.round(n).toLocaleString();
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-      <VersusGauge ratio={perDollarRatio} />
-      <RingTile
-        frac={cycleFrac}
-        value={`${daysLeft}`}
-        icon={<IconClock className="h-4 w-4" />}
-        title={`${daysLeft} days left in the current cycle.`}
-      />
+    <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+      {/* The countdown already has a full clock in the hero, so this strip gives
+          its slot to the head-to-head instead of repeating it. */}
+      <div className="col-span-2">
+        <VersusGauge ratio={perDollarRatio} />
+      </div>
       <RingTile
         frac={sharesMinted > 0 ? sharesLeft / sharesMinted : 0}
         value={nf(sharesLeft)}
         icon={<IconFlame className="h-4 w-4" />}
+        label="S-shares left"
         title={`${nf(sharesLeft)} of ${nf(sharesMinted)} S-shares left — the count only falls.`}
       />
       <ThresholdTile inPct={inPct} outPct={outPct} />
@@ -207,6 +213,7 @@ export default function GlanceStrip({
         frac={Math.min(1, coverTimes / 10)}
         value={`${coverTimes.toFixed(1)}×`}
         icon={<IconActivity className="h-4 w-4" />}
+        label="Volume vs needed"
         title={`Trading is running ${coverTimes.toFixed(1)} times what this cycle needs to break even.`}
         good={coverTimes >= 1}
       />

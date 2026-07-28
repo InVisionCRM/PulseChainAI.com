@@ -216,13 +216,6 @@ export default function SuperStakeHubPage() {
     };
   }, [view, snap, live]);
 
-  // Same countdown the clock shows, reused so the two never disagree.
-  const glanceDaysLeft = useMemo(() => {
-    if (!view) return 0;
-    const end = Date.parse(`${dayToISO(view.running.d1)}T00:00:00Z`);
-    return Math.max(0, Math.ceil((end - Date.now()) / 86_400_000));
-  }, [view]);
-
   const pSshPrice = live?.pSSH ?? snap?.meta.pSSH ?? null;
 
   return (
@@ -328,11 +321,6 @@ export default function SuperStakeHubPage() {
                   ? ahead.result.psshYield / ahead.result.stakeYield
                   : 1
               }
-              cycleFrac={
-                1 -
-                Math.max(0, Math.min(1, need.days > 0 ? glanceDaysLeft / need.days : 0))
-              }
-              daysLeft={glanceDaysLeft}
               sharesLeft={snap ? snap.meta.supply / S_SHARE : 0}
               sharesMinted={snap ? (snap.meta.supply + snap.meta.burned) / S_SHARE : 0}
               coverTimes={need.times}
