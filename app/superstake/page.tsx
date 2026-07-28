@@ -25,6 +25,9 @@ import MachineFlow from '@/components/superstake/MachineFlow';
 import CycleClock from '@/components/superstake/CycleClock';
 import CycleTable from '@/components/superstake/CycleTable';
 import PairVolume from '@/components/superstake/PairVolume';
+import GlanceStrip from '@/components/superstake/GlanceStrip';
+import ShareCards from '@/components/superstake/ShareCards';
+import type { ShareData } from '@/lib/superstake/shareCard';
 
 const PSSH = '0xb5c4ecef450fd36d0eba1420f6a19dbfbee5292e';
 /**
@@ -202,8 +205,58 @@ export default function SuperStakeHubPage() {
     const gapHex = Math.max(0, payout - expYield);
     const perDay = (gapHex * pHex) / 0.02 / days;
     const actual = live?.wins?.['60'] ?? snap.wins?.['60'] ?? 0;
-    return { days, expYield, payout, gapHex, perDay, actual, times: perDay > 0 ? actual / perDay : 0 };
+    // What the cycle is actually taking in — HEX's own yield plus the HEX the
+    // 2% buys at current volume — against the 1% it hands out, both as a share
+    // of the principal so they sit on one scale.
+    const boughtHex = (0.02 * actual * days) / pHex;
+    const inPct = running.hex > 0 ? ((expYield + boughtHex) / running.hex) * 100 : 0;
+    const outPct = running.hex > 0 ? (payout / running.hex) * 100 : 0;
+    return {
+      days, expYield, payout, gapHex, perDay, actual,
+      times: perDay > 0 ? actual / perDay : 0,
+      inPct, outPct,
+    };
   }, [view, snap, live]);
+
+  // Everything the cards draw, from the same figures the page renders.
+  const shareData: ShareData | null = useMemo(() => {
+    if (!snap || !view || !ahead || !need) return null;
+    return {
+      asOf: fresh ? new Date().toISOString().slice(0, 10) : snap.meta.asOf,
+      cycleNo: view.running.i,
+      daysLeft: Math.max(
+        0,
+        Math.ceil((Date.parse(`${dayToISO(view.running.d1)}T00:00:00Z`) - Date.now()) / 86_400_000),
+      ),
+      stakeHex: view.running.hex,
+      tShares: view.running.tsh,
+      pSSH: live?.pSSH ?? snap.meta.pSSH,
+      pHEX: live?.pHEX ?? snap.meta.pHEX,
+      amount: STAKE_AMOUNT,
+      stakeYield: ahead.result.stakeYield,
+      psshYield: ahead.result.psshYield,
+      payouts: ahead.result.payouts,
+      reflections: ahead.result.reflections,
+      psshWins: view.psshWins,
+      cyclesDone: view.per.length,
+      winnerStrip: view.per.map((p) => p.result.winner === 'pssh'),
+      covered: view.covered,
+      coverage: view.coverage.map((x) => x.ratio),
+      needPerDay: need.perDay,
+      actualPerDay: need.actual,
+      coverTimes: need.times,
+      inPct: need.inPct,
+      outPct: need.outPct,
+      sSharesLeft: snap.meta.supply / S_SHARE,
+      sSharesMinted: (snap.meta.supply + snap.meta.burned) / S_SHARE,
+      burned: snap.meta.burned,
+      hexByCycle: view.cycles.map((c) => c.hex),
+      growthMultiple: view.growth.multiple,
+      growthAllTime: view.growth.allTime,
+      growthRecent: view.growth.recent,
+      growthRecentN: view.growth.recentN,
+    };
+  }, [snap, view, ahead, need, live, fresh]);
 
   const pSshPrice = live?.pSSH ?? snap?.meta.pSSH ?? null;
 
@@ -300,6 +353,24 @@ export default function SuperStakeHubPage() {
             )}
           </div>
         </div>
+
+        {/* ─────────── at a glance, no words ─────────── */}
+        {view && ahead && need && (
+          <div className="mt-3">
+            <GlanceStrip
+              perDollarRatio={
+                ahead.result.stakeYield > 0
+                  ? ahead.result.psshYield / ahead.result.stakeYield
+                  : 1
+              }
+              sharesLeft={snap ? snap.meta.supply / S_SHARE : 0}
+              sharesMinted={snap ? (snap.meta.supply + snap.meta.burned) / S_SHARE : 0}
+              coverTimes={need.times}
+              inPct={need.inPct}
+              outPct={need.outPct}
+            />
+          </div>
+        )}
 
         {/* ─────────── the machine ─────────── */}
         <section className="mt-9">
@@ -559,7 +630,8 @@ export default function SuperStakeHubPage() {
         )}
 
         {/* ─────────── links + provenance ─────────── */}
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          {shareData && <ShareCards data={shareData} />}
           <Tool href={`/geicko?address=${PSSH}`} label="pSSH on the scanner" />
           <Tool href={pulsechainTokenUrl(PSSH)} label="pSSH contract" external />
           <Tool href="https://superstake.win" label="superstake.win" external />
