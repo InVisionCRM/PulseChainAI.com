@@ -61,6 +61,12 @@ export default function CycleTable({
   daysLeft?: number;
 }) {
   const [open, setOpen] = useState<number | null>(null);
+  // HEX's payout per T-share per day, cycle by cycle — the rate that decides
+  // what any stake earns, and the clearest picture of HEX's yield over time.
+  const ppt = rows.map(({ cycle }) => {
+    const days = cycle.d1 - cycle.d0;
+    return days > 0 && cycle.tsh > 0 ? cycle.nY / (cycle.tsh * days) : 0;
+  });
 
   return (
     <div className="mt-3 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)]">
@@ -95,7 +101,7 @@ export default function CycleTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ cycle, result }) => {
+            {rows.map(({ cycle, result }, idx) => {
               const won = result.winner === 'pssh';
               const isOpen = open === cycle.i;
               const toggle = () => setOpen(isOpen ? null : cycle.i);
@@ -110,6 +116,9 @@ export default function CycleTable({
                   cover={coverage.get(cycle.i) ?? null}
                   amount={amount}
                   series={series}
+                  prev={idx > 0 ? rows[idx - 1].cycle : null}
+                  ppt={ppt}
+                  pptIndex={idx}
                 />
               );
             })}
@@ -147,7 +156,7 @@ export default function CycleTable({
 }
 
 function CycleRowPair({
-  cycle, result, won, isOpen, toggle, cover, amount, series,
+  cycle, result, won, isOpen, toggle, cover, amount, series, prev, ppt, pptIndex,
 }: {
   cycle: SuperStakeCycle;
   result: CycleResult;
@@ -157,6 +166,9 @@ function CycleRowPair({
   cover: Cover | null;
   amount: number;
   series?: { d0: number; VV: number[] } | null;
+  prev: SuperStakeCycle | null;
+  ppt: number[];
+  pptIndex: number;
 }) {
   return (
     <>
@@ -272,6 +284,16 @@ function CycleRowPair({
                 <Velocity series={series} from={cycle.d0} to={cycle.d1} />
                 <Note>{usdShort(cycle.vol)} traded over {cycle.d1 - cycle.d0} days</Note>
               </Panel>
+
+              <Panel title="HEX payout per T-share, every cycle">
+                <PptTrend values={ppt} current={pptIndex} />
+              </Panel>
+
+              <div className="sm:col-span-2 xl:col-span-3">
+                <Panel title={prev ? `Conditions vs cycle ${prev.i}` : 'Conditions this cycle'}>
+                  <Deltas cycle={cycle} prev={prev} ppt={ppt[pptIndex]} prevPpt={pptIndex > 0 ? ppt[pptIndex - 1] : null} />
+                </Panel>
+              </div>
             </div>
 
             <a
@@ -498,5 +520,140 @@ function Velocity({
         <span>day {days.length}</span>
       </div>
     </div>
+  );
+}
+
+/**
+ * HEX's payout per T-share per day across every cycle, with this one lit up.
+ * It is the rate that decides what any HEX stake earns, and it has fallen hard
+ * — seeing the whole run is the point, so the current cycle is highlighted
+ * rather than shown alone.
+ */
+function PptTrend({ values, current }: { values: number[]; current: number }) {
+  const max = Math.max(...values, 1e-9);
+  return (
+    <div>
+      <div className="flex h-[74px] items-end gap-[2px]">
+        {values.map((v, i) => (
+          <span
+            key={i}
+            title={`Cycle ${i + 1} — ${v.toFixed(4)} HEX per T-share per day`}
+            className="flex-1 rounded-t-sm"
+            style={{
+              height: `${Math.max(3, (v / max) * 100)}%`,
+              background: i === current ? GRAD : 'var(--line-strong)',
+            }}
+          />
+        ))}
+      </div>
+      <div
+        className="mt-1.5 flex justify-between text-[9px] uppercase tracking-[0.1em] text-[var(--text-faint)]"
+        style={{ fontFamily: MONO }}
+      >
+        <span>cycle 1</span>
+        <span className="text-[var(--text)]">this one {values[current]?.toFixed(4)}</span>
+        <span>cycle {values.length}</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Conditions this cycle against the one before it.
+ *
+ * `good` is only set where a direction genuinely means better. More payout per
+ * T-share, more yield, more volume, a bigger stake — those are unambiguous. A
+ * higher share rate is worse for anyone opening a new stake and irrelevant to
+ * an existing one, and a higher price helps a holder while hurting a buyer, so
+ * those are shown as plain movement with no verdict attached.
+ */
+function Deltas({
+  cycle, prev, ppt, prevPpt,
+}: {
+  cycle: SuperStakeCycle;
+  prev: SuperStakeCycle | null;
+  ppt: number;
+  prevPpt: number | null;
+}) {
+  const days = cycle.d1 - cycle.d0;
+  const prevDays = prev ? prev.d1 - prev.d0 : 0;
+  const rows: { k: string; v: string; now: number; was: number | null; goodUp?: boolean }[] = [
+    { k: 'Payout per T-share / day', v: ppt.toFixed(4), now: ppt, was: prevPpt, goodUp: true },
+    {
+      k: 'HEX yield earned',
+      v: `${n0(cycle.nY)} HEX`,
+      now: cycle.nY,
+      was: prev?.nY ?? null,
+      goodUp: true,
+    },
+    {
+      k: 'HEX in the stake',
+      v: n0(cycle.hex),
+      now: cycle.hex,
+      was: prev?.hex ?? null,
+      goodUp: true,
+    },
+    {
+      k: 'pSSH volume',
+      v: usdShort(cycle.vol),
+      now: cycle.vol,
+      was: prev?.vol ?? null,
+      goodUp: true,
+    },
+    { k: 'T-shares held', v: cycle.tsh.toFixed(2), now: cycle.tsh, was: prev?.tsh ?? null },
+    { k: 'pHEX at open', v: usd(cycle.pH0, 6), now: cycle.pH0, was: prev?.pH0 ?? null },
+    { k: 'pSSH at open', v: usd(cycle.pS0, 6), now: cycle.pS0, was: prev?.pS0 ?? null },
+    {
+      k: 'Cycle length',
+      v: `${days} days`,
+      now: days,
+      was: prevDays || null,
+    },
+  ];
+
+  return (
+    <>
+      <dl className="grid gap-x-5 gap-y-1.5 sm:grid-cols-2 xl:grid-cols-4">
+        {rows.map((r) => (
+          <div
+            key={r.k}
+            className="flex items-baseline justify-between gap-2 border-b border-[var(--line)] pb-1.5"
+          >
+            <dt className="text-[11px] leading-tight text-[var(--text-muted)]">{r.k}</dt>
+            <dd className="flex shrink-0 items-baseline gap-1.5">
+              <span className="text-[12.5px] font-bold tabular-nums text-[var(--text)]">{r.v}</span>
+              <Delta now={r.now} was={r.was} goodUp={r.goodUp} />
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-faint)]">
+        Green and red only where a direction actually means better or worse. A higher share rate
+        buys fewer T-shares and a higher price cuts both ways, so those move without a verdict.
+      </p>
+    </>
+  );
+}
+
+function Delta({ now, was, goodUp }: { now: number; was: number | null; goodUp?: boolean }) {
+  if (was == null || !(was > 0) || !Number.isFinite(now)) {
+    return <span className="text-[10px] text-[var(--text-faint)]">—</span>;
+  }
+  const pct = ((now - was) / was) * 100;
+  if (Math.abs(pct) < 0.05) {
+    return <span className="text-[10px] text-[var(--text-faint)]">flat</span>;
+  }
+  const up = pct > 0;
+  const colour =
+    goodUp === undefined
+      ? 'var(--text-faint)'
+      : up === goodUp
+        ? 'var(--up)'
+        : '#f87171';
+  return (
+    <span className="text-[10px] font-semibold tabular-nums" style={{ color: colour }}>
+      {up ? '▲' : '▼'}
+      {Math.abs(pct) >= 100 ? Math.abs(pct).toFixed(0) : Math.abs(pct).toFixed(1)}%
+    </span>
   );
 }
