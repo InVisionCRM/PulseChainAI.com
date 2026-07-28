@@ -31,6 +31,12 @@ const PULSEX_SUBGRAPHS = [
   'https://graph.pulsechain.com/subgraphs/name/pulsechain/pulsex',
 ];
 
+// A cold rebuild paginates both subgraphs and takes ~10s. Without this the
+// route inherits Vercel's short default, gets cut off, and the page silently
+// falls back to the baked snapshot — which is exactly how it went stale after
+// cycle 17 closed. 60s leaves real headroom on a slow upstream day.
+export const maxDuration = 60;
+
 /** Holders are paid 1% of the pool each time a cycle closes. */
 const HOLDER_PAYOUT_RATE = 0.01;
 /** Rebuilding touches both subgraphs, so keep it cached for an hour. */
