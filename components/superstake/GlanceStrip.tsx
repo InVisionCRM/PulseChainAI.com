@@ -1,10 +1,13 @@
 'use client';
 
-// Five wordless dials — the state of the machine at a glance, read by shape and
-// icon rather than by label. Every figure here is stated in full elsewhere on
-// the page; this strip exists to be scanned, not to be the source.
+// The state of the machine at a glance, read by shape and icon as much as by
+// label. Every figure here is stated in full elsewhere on the page; this strip
+// exists to be scanned, not to be the source.
 
-import { IconFlame, IconActivity, IconArrowUp, IconArrowDown } from '@tabler/icons-react';
+import {
+  IconFlame, IconActivity, IconArrowUp, IconArrowDown,
+  IconClock, IconTag, IconHourglass,
+} from '@tabler/icons-react';
 
 const MONO = 'var(--font-jetbrains-mono), ui-monospace, monospace';
 const GRAD_STOPS = (
@@ -131,6 +134,42 @@ export function RingTile({
 }
 
 /**
+ * A figure that has no natural fraction behind it — no ring, because a ring
+ * would imply a full it is filling toward and there isn't one.
+ */
+export function ValueTile({
+  value, unit, icon, label, title, accent,
+}: {
+  value: string;
+  /** The small line under the figure. */
+  unit: string;
+  icon: React.ReactNode;
+  label: string;
+  title: string;
+  accent?: string;
+}) {
+  return (
+    <Tile title={label}>
+      <div className="flex h-[84px] flex-col items-center justify-center gap-1" title={title}>
+        <span className="text-[var(--text-faint)]">{icon}</span>
+        <span
+          className="text-[20px] font-bold leading-none tabular-nums"
+          style={{ color: accent ?? 'var(--text)' }}
+        >
+          {value}
+        </span>
+        <span
+          className="text-[9px] leading-none text-[var(--text-faint)]"
+          style={{ fontFamily: MONO }}
+        >
+          {unit}
+        </span>
+      </div>
+    </Tile>
+  );
+}
+
+/**
  * What the cycle is taking in against the 1% it hands out, as a level against a
  * marked line. Above the line the machine grows; below it the stake shrinks —
  * which is the single condition everything else on the page depends on.
@@ -182,6 +221,7 @@ export function ThresholdTile({ inPct, outPct }: { inPct: number; outPct: number
 
 export default function GlanceStrip({
   perDollarRatio, sharesLeft, sharesMinted, coverTimes, inPct, outPct,
+  daysLeft, cycleDays, sShareCost, hexWaiting, stakeHex,
 }: {
   /** pSSH HEX-per-dollar divided by the stake's, for the tug-of-war needle. */
   perDollarRatio: number;
@@ -192,12 +232,21 @@ export default function GlanceStrip({
   /** What the cycle takes in, and the 1% it pays out, both as % of principal. */
   inPct: number;
   outPct: number;
+  /** Days to the next end-stake, and how long the whole cycle runs. */
+  daysLeft: number;
+  cycleDays: number;
+  /** What one S-share (5,555 pSSH) costs at the live price, USD. */
+  sShareCost: number | null;
+  /** HEX bought but not yet staked, and the stake it will be added to. */
+  hexWaiting: number | null;
+  stakeHex: number;
 }) {
   const nf = (n: number) => Math.round(n).toLocaleString();
+  const elapsed = cycleDays > 0 ? (cycleDays - daysLeft) / cycleDays : 0;
+  const waitPct = hexWaiting != null && stakeHex > 0 ? (hexWaiting / stakeHex) * 100 : null;
   return (
-    <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
-      {/* The countdown already has a full clock in the hero, so this strip gives
-          its slot to the head-to-head instead of repeating it. */}
+    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+      {/* The head-to-head is the one people come for, so it gets the double slot. */}
       <div className="col-span-2">
         <VersusGauge ratio={perDollarRatio} />
       </div>
@@ -216,6 +265,31 @@ export default function GlanceStrip({
         label="Volume vs needed"
         title={`Trading is running ${coverTimes.toFixed(1)} times what this cycle needs to break even.`}
         good={coverTimes >= 1}
+      />
+      <RingTile
+        frac={elapsed}
+        value={`${daysLeft}d`}
+        icon={<IconClock className="h-4 w-4" />}
+        label="Cycle time left"
+        title={`${daysLeft} days until this cycle ends and the stake reopens.`}
+      />
+      <ValueTile
+        value={sShareCost == null ? '—' : sShareCost >= 100 ? `$${Math.round(sShareCost)}` : `$${sShareCost.toFixed(2)}`}
+        unit="5,555 pSSH"
+        icon={<IconTag className="h-4 w-4" />}
+        label="Cost per S-share"
+        title="What one S-share — the 5,555 pSSH you need to qualify for payouts — costs at the live price."
+      />
+      <ValueTile
+        value={hexWaiting == null ? '—' : nf(hexWaiting)}
+        unit={waitPct == null ? 'HEX' : `HEX · +${waitPct.toFixed(2)}%`}
+        icon={<IconHourglass className="h-4 w-4" />}
+        label="HEX waiting"
+        title={
+          hexWaiting == null
+            ? 'HEX held by the contract and not yet staked.'
+            : `${nf(hexWaiting)} HEX bought by the 2% so far, sitting in the contract until the next restake — ${waitPct?.toFixed(2)}% on top of the current stake.`
+        }
       />
     </div>
   );

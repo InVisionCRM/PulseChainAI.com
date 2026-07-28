@@ -47,6 +47,8 @@ interface Live {
   pHEX: number | null;
   pSSH: number | null;
   wins: Record<string, number>;
+  /** HEX bought by the 2% and held unstaked, read off chain. */
+  poolHexWaiting?: number | null;
   source: string;
 }
 
@@ -218,16 +220,28 @@ export default function SuperStakeHubPage() {
     };
   }, [view, snap, live]);
 
+  // Client-only, so the first paint matches the server's and React doesn't
+  // complain about a mismatched countdown. Floored to whole days to match the
+  // hero clock exactly — two different roundings of the same deadline sitting
+  // a few hundred pixels apart just reads as one of them being wrong.
+  const [daysLeft, setDaysLeft] = useState(0);
+  useEffect(() => {
+    if (!view) return;
+    setDaysLeft(
+      Math.max(
+        0,
+        Math.floor((Date.parse(`${dayToISO(view.running.d1)}T00:00:00Z`) - Date.now()) / 86_400_000),
+      ),
+    );
+  }, [view]);
+
   // Everything the cards draw, from the same figures the page renders.
   const shareData: ShareData | null = useMemo(() => {
     if (!snap || !view || !ahead || !need) return null;
     return {
       asOf: fresh ? new Date().toISOString().slice(0, 10) : snap.meta.asOf,
       cycleNo: view.running.i,
-      daysLeft: Math.max(
-        0,
-        Math.ceil((Date.parse(`${dayToISO(view.running.d1)}T00:00:00Z`) - Date.now()) / 86_400_000),
-      ),
+      daysLeft,
       stakeHex: view.running.hex,
       tShares: view.running.tsh,
       pSSH: live?.pSSH ?? snap.meta.pSSH,
@@ -255,8 +269,11 @@ export default function SuperStakeHubPage() {
       growthAllTime: view.growth.allTime,
       growthRecent: view.growth.recent,
       growthRecentN: view.growth.recentN,
+      sShareCost: (live?.pSSH ?? snap.meta.pSSH) * S_SHARE,
+      hexWaiting: live?.poolHexWaiting ?? null,
+      streak: view.streak,
     };
-  }, [snap, view, ahead, need, live, fresh]);
+  }, [snap, view, ahead, need, live, fresh, daysLeft]);
 
   const pSshPrice = live?.pSSH ?? snap?.meta.pSSH ?? null;
 
@@ -328,6 +345,16 @@ export default function SuperStakeHubPage() {
                 }
               />
             </dl>
+
+            {/* Tools and the card picker sit here rather than at the foot of the
+                page — they're what people act on, and nobody scrolled past the
+                whole history to find them. */}
+            <div className="relative mt-3.5 flex flex-wrap items-center gap-2">
+              {shareData && <ShareCards data={shareData} />}
+              <Tool href={`/geicko?address=${PSSH}`} label="pSSH on the scanner" />
+              <Tool href={pulsechainTokenUrl(PSSH)} label="pSSH contract" external />
+              <Tool href="https://superstake.win" label="superstake.win" external />
+            </div>
           </header>
 
           <div className="flex flex-col gap-3">
@@ -368,6 +395,11 @@ export default function SuperStakeHubPage() {
               coverTimes={need.times}
               inPct={need.inPct}
               outPct={need.outPct}
+              daysLeft={daysLeft}
+              cycleDays={view.running.d1 - view.running.d0}
+              sShareCost={pSshPrice != null ? pSshPrice * S_SHARE : null}
+              hexWaiting={live?.poolHexWaiting ?? null}
+              stakeHex={view.running.hex}
             />
           </div>
         )}
@@ -629,15 +661,8 @@ export default function SuperStakeHubPage() {
           </section>
         )}
 
-        {/* ─────────── links + provenance ─────────── */}
-        <div className="mt-6 flex flex-wrap items-center gap-2">
-          {shareData && <ShareCards data={shareData} />}
-          <Tool href={`/geicko?address=${PSSH}`} label="pSSH on the scanner" />
-          <Tool href={pulsechainTokenUrl(PSSH)} label="pSSH contract" external />
-          <Tool href="https://superstake.win" label="superstake.win" external />
-        </div>
-
-        <p className="mt-5 border-t border-[var(--line)] pt-3.5 text-[11px] leading-relaxed text-[var(--text-faint)]">
+        {/* ─────────── provenance ─────────── */}
+        <p className="mt-8 border-t border-[var(--line)] pt-3.5 text-[11px] leading-relaxed text-[var(--text-faint)]">
           <b className="text-[var(--text-muted)]">Where these come from.</b> Cycle history, share
           rates and payouts are replayed from the HEX subgraph; prices and pSSH volume from the
           PulseX subgraph, using untracked volume so the smaller pairs aren&apos;t dropped.{' '}

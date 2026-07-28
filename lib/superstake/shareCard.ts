@@ -56,6 +56,12 @@ export interface ShareData {
   growthAllTime: number;
   growthRecent: number;
   growthRecentN: number;
+  /** What one S-share (5,555 pSSH) costs at the live price, USD. */
+  sShareCost: number | null;
+  /** HEX bought by the 2% and held unstaked, waiting for the next restake. */
+  hexWaiting: number | null;
+  /** How many cycles running pSSH has come out ahead. */
+  streak: number;
 }
 
 export interface CardDef {
@@ -75,6 +81,17 @@ export const CARDS: CardDef[] = [
   { id: 'reflections', name: 'What pays you', blurb: 'Payout against reflections' },
   { id: 'growth', name: 'Compounding', blurb: 'How fast the pool grows' },
   { id: 'countdown', name: 'Next end-stake', blurb: 'The cycle now running' },
+  // Collages — several figures at once, for when one number isn't the point.
+  { id: 'board', name: 'The whole board', blurb: 'Six numbers, the full state' },
+  { id: 'versus', name: 'Side by side', blurb: 'Both columns, same $100' },
+  { id: 'supply', name: 'Supply & burn', blurb: 'What is left and what went' },
+  { id: 'thiscycle', name: 'This cycle', blurb: 'Where the running cycle stands' },
+  { id: 'record', name: 'The record', blurb: 'Every finished cycle, four ways' },
+  { id: 'prices', name: 'At today’s prices', blurb: 'What it all costs and is worth' },
+  { id: 'proof', name: 'Four facts', blurb: 'The claims, with their numbers' },
+  { id: 'stakeboard', name: 'The stake, in full', blurb: 'Size, shares, growth, chart' },
+  { id: 'holder', name: 'What a holder gets', blurb: 'Payouts, reflections, the split' },
+  { id: 'ticket', name: 'The $100 ticket', blurb: 'Stub-style, entry to result' },
 ];
 
 /* ────────────────────────── canvas helpers ────────────────────────── */
@@ -258,6 +275,101 @@ function panel(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: 
   c.strokeStyle = LINE;
   c.lineWidth = 2;
   c.stroke();
+}
+
+/* ────────────────────────── collage pieces ────────────────────────── */
+
+/** Content box between the header rule and the footer rule. */
+const PAD = 64;
+const BOX_W = CARD_W - PAD * 2;
+
+/** Width a string will occupy, for laying a caption out beside a big figure. */
+function measure(c: CanvasRenderingContext2D, s: string, size: number, weight: number): number {
+  c.save();
+  c.font = `${weight} ${size}px ${SANS}`;
+  const w = c.measureText(s).width;
+  c.restore();
+  return w;
+}
+
+type Box = [x: number, y: number, w: number, h: number];
+
+/** Split a box into an even grid, filled left-to-right then top-to-bottom. */
+function grid(
+  x: number, y: number, w: number, h: number,
+  cols: number, rows: number, gap = 18,
+): Box[] {
+  const cw = (w - gap * (cols - 1)) / cols;
+  const ch = (h - gap * (rows - 1)) / rows;
+  const out: Box[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let i = 0; i < cols; i++) out.push([x + i * (cw + gap), y + r * (ch + gap), cw, ch]);
+  }
+  return out;
+}
+
+interface TileSpec {
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: string;
+  /** Force the figure's size when the default would overflow the box. */
+  size?: number;
+}
+
+/** One labelled block of the collage. */
+function statTile(c: CanvasRenderingContext2D, [x, y, w, h]: Box, t: TileSpec) {
+  panel(c, x, y, w, h);
+  if (t.accent) {
+    c.save();
+    rr(c, x, y, w, h, 28);
+    c.clip();
+    c.fillStyle = t.accent;
+    c.fillRect(x, y, 6, h);
+    c.restore();
+  }
+  // Centre the label/value/sub block in the box rather than pinning it to the
+  // top — the tiles vary a lot in height, and a fixed top offset leaves the
+  // taller ones looking half-empty.
+  const vs = t.size ?? Math.min(72, h * 0.34);
+  const blockH = 16 + 16 + vs + (t.sub ? 12 + 19 : 0);
+  const top = y + Math.max(20, (h - blockH) / 2);
+  text(c, t.label.toUpperCase(), x + 26, top + 16, {
+    size: 16, color: TX_DIM, font: MONO, spacing: 2,
+  });
+  const vy = top + 32 + vs;
+  text(c, t.value, x + 26, vy, { size: vs, weight: 800, color: t.accent ?? TX });
+  if (t.sub) text(c, t.sub, x + 26, vy + 31, { size: 19, color: TX_MID });
+}
+
+/** The finished-cycle winner strip, reused by several collages. */
+function winStrip(
+  c: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  flags: boolean[],
+) {
+  const n = flags.length || 1;
+  const gap = Math.min(8, w / (n * 4));
+  const bw = (w - gap * (n - 1)) / n;
+  flags.forEach((won, i) => {
+    const bx = x + i * (bw + gap);
+    const bh = won ? h : h * 0.5;
+    c.fillStyle = won ? brand(c, bx, y, bx + bw, y + h) : LINE_2;
+    rr(c, bx, y + h - bh, bw, bh, 6);
+    c.fill();
+  });
+}
+
+/** Section caption for the split collages. */
+function colHead(c: CanvasRenderingContext2D, s: string, x: number, y: number, col: string) {
+  text(c, s.toUpperCase(), x, y, { size: 18, weight: 700, color: col, font: MONO, spacing: 2 });
+}
+
+/** Share of pSSH ever minted that has been burned. */
+function burnedPct(d: ShareData): number {
+  const live = d.sSharesLeft * 5555;
+  const total = live + d.burned;
+  return total > 0 ? (d.burned / total) * 100 : 0;
 }
 
 /* ────────────────────────── the cards ────────────────────────── */
@@ -545,6 +657,373 @@ const paint: Record<string, Painter> = {
     });
     text(c, 'and the rest restakes.', CARD_W / 2, 928, { size: 28, color: TX_MID, align: 'center' });
   },
+
+  /* ─────────────── collages ─────────────── */
+
+  board(c, d) {
+    text(c, 'SuperStake right now', CARD_W / 2, 224, {
+      size: 40, weight: 700, color: TX_MID, align: 'center',
+    });
+    const g = grid(PAD, 262, BOX_W, 678, 2, 3);
+    statTile(c, g[0], {
+      label: 'In the stake', value: compact(d.stakeHex), sub: `HEX · cycle ${d.cycleNo}`,
+      accent: '#FB9438',
+    });
+    statTile(c, g[1], {
+      label: 'T-shares', value: d.tShares.toFixed(2), sub: 'working every day of the cycle',
+    });
+    statTile(c, g[2], {
+      label: 'S-shares left', value: nf(d.sSharesLeft),
+      sub: `of ${nf(d.sSharesMinted)} · only ever fewer`, accent: '#D83639',
+    });
+    statTile(c, g[3], {
+      label: 'Cycle ends in', value: `${d.daysLeft} days`, sub: 'then 1% pays out to holders',
+    });
+    statTile(c, g[4], {
+      label: 'Volume vs needed', value: `${d.coverTimes.toFixed(1)}×`,
+      sub: `${money(d.actualPerDay)}/day against ${money(d.needPerDay)}`,
+      accent: d.coverTimes >= 1 ? UP : undefined,
+    });
+    statTile(c, g[5], {
+      label: 'pSSH price', value: `$${d.pSSH.toFixed(6)}`, size: 52,
+      sub: d.sShareCost == null ? '5,555 pSSH per S-share' : `${money(d.sShareCost)} per S-share`,
+    });
+  },
+
+  versus(c, d) {
+    const won = d.psshYield >= d.stakeYield;
+    const ratio = won
+      ? d.psshYield / Math.max(d.stakeYield, 1e-9)
+      : d.stakeYield / Math.max(d.psshYield, 1e-9);
+    text(c, `The same $${d.amount}, both ways`, CARD_W / 2, 222, {
+      size: 40, weight: 700, color: TX_MID, align: 'center',
+    });
+    const colW = (BOX_W - 20) / 2;
+    const rx = PAD + colW + 20;
+    colHead(c, 'Stake the HEX', PAD + 4, 274, TX_DIM);
+    colHead(c, 'Hold the pSSH', rx + 4, 274, '#FB9438');
+
+    statTile(c, [PAD, 292, colW, 190], {
+      label: 'HEX earned', value: `+${nf(d.stakeYield)}`, sub: 'one 60-day stake, start to end',
+    });
+    statTile(c, [PAD, 498, colW, 150], {
+      label: 'Where it comes from', value: 'Yield', size: 46, sub: 'the stake’s own interest',
+    });
+    statTile(c, [PAD, 664, colW, 150], {
+      label: 'Locked away', value: '60 days', size: 46, sub: 'you cannot touch it',
+    });
+
+    statTile(c, [rx, 292, colW, 190], {
+      label: 'HEX earned', value: `+${nf(d.psshYield)}`, sub: 'same window, nothing locked',
+      accent: '#FB9438',
+    });
+    statTile(c, [rx, 498, colW, 150], {
+      label: 'Where it comes from', value: 'Two taps', size: 46,
+      sub: `${nf(d.payouts)} payout · ${nf(d.reflections)} reflections`,
+    });
+    statTile(c, [rx, 664, colW, 150], {
+      label: 'Locked away', value: 'Nothing', size: 46, sub: 'sell any minute you like',
+    });
+
+    panel(c, PAD, 830, BOX_W, 110);
+    const rs = `${ratio.toFixed(2)}×`;
+    const g = brand(c, PAD + 34, 848, PAD + 220, 908);
+    text(c, rs, PAD + 34, 908, { size: 62, weight: 800, color: g });
+    text(c, won ? 'ahead for holding pSSH, this cycle' : 'ahead for staking HEX, this cycle',
+      PAD + 34 + measure(c, rs, 62, 800) + 26, 900, { size: 28, weight: 600, color: TX_MID });
+  },
+
+  supply(c, d) {
+    text(c, 'The count only ever falls', CARD_W / 2, 224, {
+      size: 40, weight: 700, color: TX_MID, align: 'center',
+    });
+    const g = grid(PAD, 262, BOX_W, 430, 2, 2);
+    statTile(c, g[0], {
+      label: 'S-shares minted', value: nf(d.sSharesMinted), sub: 'fixed at launch, never added to',
+    });
+    statTile(c, g[1], {
+      label: 'S-shares left', value: nf(d.sSharesLeft), sub: 'what the supply still divides into',
+      accent: '#FB9438',
+    });
+    statTile(c, g[2], {
+      label: 'S-shares burned', value: nf(d.sSharesMinted - d.sSharesLeft),
+      sub: 'gone for good', accent: '#D83639',
+    });
+    statTile(c, g[3], {
+      label: 'pSSH burned', value: compact(d.burned),
+      sub: `${burnedPct(d).toFixed(1)}% of everything ever minted`, accent: '#D83639',
+    });
+    statTile(c, [PAD, 712, BOX_W, 150], {
+      label: 'Cost of one S-share today',
+      value: d.sShareCost == null ? '—' : money(d.sShareCost),
+      sub: '5,555 pSSH — the holding that qualifies for payouts',
+      accent: '#AE176A',
+    });
+    text(c, '1% of the trade tax buys pSSH and burns it, every trade, forever.',
+      CARD_W / 2, 912, { size: 24, color: TX_DIM, align: 'center' });
+  },
+
+  thiscycle(c, d) {
+    text(c, `Cycle ${d.cycleNo}, as it stands`, CARD_W / 2, 224, {
+      size: 40, weight: 700, color: TX_MID, align: 'center',
+    });
+    // Progress ring on the left, the cycle's numbers stacked beside it.
+    const cx = 268;
+    const cy = 470;
+    const r = 138;
+    c.lineWidth = 34;
+    c.strokeStyle = LINE;
+    c.beginPath();
+    c.arc(cx, cy, r, 0, Math.PI * 2);
+    c.stroke();
+    const done = Math.max(0, Math.min(1, (60 - d.daysLeft) / 60));
+    c.strokeStyle = brand(c, cx - r, cy - r, cx + r, cy + r);
+    c.lineCap = 'round';
+    c.beginPath();
+    c.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * done);
+    c.stroke();
+    c.lineCap = 'butt';
+    text(c, `${d.daysLeft}`, cx, cy + 12, { size: 84, weight: 800, align: 'center' });
+    text(c, 'DAYS LEFT', cx, cy + 52, {
+      size: 19, color: TX_DIM, align: 'center', font: MONO, spacing: 3,
+    });
+
+    const rx = 452;
+    const rw = CARD_W - PAD - rx;
+    statTile(c, [rx, 300, rw, 158], {
+      label: 'Coming in', value: `${d.inPct.toFixed(2)}%`,
+      sub: `of the pool, against the ${d.outPct.toFixed(2)}% it pays out`,
+      accent: d.inPct >= d.outPct ? UP : '#D83639',
+    });
+    statTile(c, [rx, 476, rw, 158], {
+      label: 'HEX waiting to be staked',
+      value: d.hexWaiting == null ? '—' : nf(d.hexWaiting),
+      sub: d.hexWaiting == null
+        ? 'bought by the 2%, held until the restake'
+        : `+${((d.hexWaiting / Math.max(d.stakeHex, 1)) * 100).toFixed(2)}% on top of the stake`,
+      accent: '#FB9438',
+    });
+    statTile(c, [PAD, 662, BOX_W, 150], {
+      label: 'Daily volume', value: money(d.actualPerDay),
+      sub: `it needs ${money(d.needPerDay)} a day to keep growing — running ${d.coverTimes.toFixed(1)}× that`,
+    });
+    text(c, 'At the end: 1% of the whole pool pays out, the rest restakes with the HEX above.',
+      CARD_W / 2, 890, { size: 24, color: TX_DIM, align: 'center' });
+  },
+
+  record(c, d) {
+    text(c, 'Every finished cycle', CARD_W / 2, 224, {
+      size: 40, weight: 700, color: TX_MID, align: 'center',
+    });
+    const g = grid(PAD, 262, BOX_W, 400, 2, 2);
+    statTile(c, g[0], {
+      label: 'Cycles completed', value: `${d.cyclesDone}`, sub: 'stake closed and reopened, each time',
+    });
+    statTile(c, g[1], {
+      label: 'Won by holding pSSH', value: `${d.psshWins} of ${d.cyclesDone}`,
+      sub: `at $${d.amount} in on each opening day`, accent: '#FB9438',
+    });
+    statTile(c, g[2], {
+      label: 'Cycles that paid their own way', value: `${d.covered} of ${d.coverage.length}`,
+      sub: 'took in more than the 1% they handed out', accent: UP,
+    });
+    statTile(c, g[3], {
+      label: 'Pool growth since launch', value: `${d.growthMultiple.toFixed(2)}×`,
+      sub: `${d.growthAllTime.toFixed(2)}% a cycle, never once smaller`,
+    });
+    text(c, 'WHO WON EACH CYCLE, 1 TO ' + d.cyclesDone, PAD, 712, {
+      size: 17, color: TX_DIM, font: MONO, spacing: 2,
+    });
+    winStrip(c, PAD, 730, BOX_W, 130, d.winnerStrip);
+    text(c,
+      d.streak > 1
+        ? `pSSH has come out ahead the last ${d.streak} cycles running.`
+        : 'Each entered on its own opening day and held that cycle.',
+      CARD_W / 2, 908, { size: 25, color: TX_MID, align: 'center' });
+  },
+
+  prices(c, d) {
+    text(c, 'At today’s prices', CARD_W / 2, 224, {
+      size: 40, weight: 700, color: TX_MID, align: 'center',
+    });
+    const g = grid(PAD, 262, BOX_W, 430, 2, 2);
+    statTile(c, g[0], { label: 'pSSH', value: `$${d.pSSH.toFixed(6)}`, size: 52, sub: 'live, PulseX' });
+    statTile(c, g[1], { label: 'HEX', value: `$${d.pHEX.toFixed(6)}`, size: 52, sub: 'live, PulseX' });
+    statTile(c, g[2], {
+      label: 'One S-share', value: d.sShareCost == null ? '—' : money(d.sShareCost),
+      sub: '5,555 pSSH — the qualifying holding', accent: '#AE176A',
+    });
+    statTile(c, g[3], {
+      label: 'HEX in the stake, in dollars', value: money(d.stakeHex * d.pHEX),
+      sub: `${compact(d.stakeHex)} HEX behind the token`, accent: '#FB9438',
+    });
+    // `psshYield` scores the cycle now running at today's rates — a projection,
+    // not something that has already happened. The label has to say so.
+    statTile(c, [PAD, 712, BOX_W, 150], {
+      label: `What $${d.amount} of pSSH earns over a cycle at today’s rates`,
+      value: `${nf(d.psshYield)} HEX`,
+      sub: `worth ${money(d.psshYield * d.pHEX)} — against ${nf(d.stakeYield)} HEX for staking the same`,
+      accent: UP,
+    });
+    text(c, 'Prices move. The HEX count behind the token only goes up.',
+      CARD_W / 2, 912, { size: 24, color: TX_DIM, align: 'center' });
+  },
+
+  proof(c, d) {
+    text(c, 'Four things the record shows', CARD_W / 2, 224, {
+      size: 40, weight: 700, color: TX_MID, align: 'center',
+    });
+    const rows: [string, string, string][] = [
+      [`${d.covered} of ${d.coverage.length}`, 'cycles covered their own payout',
+        'nothing has ever had to be topped up from outside'],
+      [`${d.psshWins} of ${d.cyclesDone}`, 'cycles were better to hold than to stake',
+        `same $${d.amount}, entered on each cycle’s opening day`],
+      [`${d.growthMultiple.toFixed(2)}×`, 'bigger than the stake it started with',
+        'and it has never once come back smaller'],
+      [nf(d.sSharesMinted - d.sSharesLeft), 'S-shares burned away for good',
+        `${nf(d.sSharesLeft)} left of ${nf(d.sSharesMinted)} — the count only falls`],
+    ];
+    rows.forEach(([big, claim, sub], i) => {
+      const y = 268 + i * 170;
+      panel(c, PAD, y, BOX_W, 152);
+      const g = brand(c, PAD, y, PAD + 320, y + 152);
+      text(c, big, PAD + 32, y + 78, { size: 54, weight: 800, color: g });
+      text(c, claim, PAD + 330, y + 68, { size: 28, weight: 700, color: TX });
+      text(c, sub, PAD + 330, y + 104, { size: 20, color: TX_DIM });
+    });
+  },
+
+  stakeboard(c, d) {
+    text(c, 'The stake behind the token', CARD_W / 2, 224, {
+      size: 40, weight: 700, color: TX_MID, align: 'center',
+    });
+    const g = grid(PAD, 262, BOX_W, 268, 2, 1);
+    statTile(c, g[0], {
+      label: 'HEX staked', value: compact(d.stakeHex), sub: `cycle ${d.cycleNo}, and never smaller`,
+      accent: '#FB9438', size: 76,
+    });
+    statTile(c, g[1], {
+      label: 'T-shares', value: d.tShares.toFixed(2), sub: 'earning every day the cycle runs',
+      size: 76,
+    });
+    const g2 = grid(PAD, 548, BOX_W, 130, 3, 1);
+    statTile(c, g2[0], {
+      label: 'All time', value: `${d.growthAllTime.toFixed(2)}%`, size: 40, sub: 'a cycle',
+    });
+    statTile(c, g2[1], {
+      label: `Last ${d.growthRecentN}`, value: `${d.growthRecent.toFixed(2)}%`, size: 40, sub: 'a cycle',
+    });
+    statTile(c, g2[2], {
+      label: 'Waiting', value: d.hexWaiting == null ? '—' : compact(d.hexWaiting),
+      size: 40, sub: 'HEX, unstaked',
+    });
+    areaChart(c, d.hexByCycle, PAD, 712, BOX_W, 168);
+    text(c, `${compact(d.hexByCycle[0] ?? 0)} at cycle 1  →  ${compact(d.stakeHex)} at cycle ${d.cycleNo}`,
+      CARD_W / 2, 920, { size: 24, color: TX_DIM, align: 'center' });
+  },
+
+  holder(c, d) {
+    const total = d.payouts + d.reflections;
+    text(c, `What $${d.amount} of pSSH actually pays`, CARD_W / 2, 224, {
+      size: 38, weight: 700, color: TX_MID, align: 'center',
+    });
+    // Donut on the left, the two taps broken out on the right.
+    const cx = 264;
+    const cy = 452;
+    const r = 118;
+    const pa = total > 0 ? d.payouts / total : 0;
+    c.lineWidth = 44;
+    c.strokeStyle = '#FB9438';
+    c.beginPath();
+    c.arc(cx, cy, r, 0, Math.PI * 2);
+    c.stroke();
+    c.strokeStyle = '#AE176A';
+    c.beginPath();
+    c.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pa);
+    c.stroke();
+    text(c, nf(total), cx, cy + 4, { size: 60, weight: 800, align: 'center' });
+    text(c, 'HEX', cx, cy + 42, { size: 20, color: TX_DIM, align: 'center', font: MONO, spacing: 3 });
+
+    const rx = 428;
+    const rw = CARD_W - PAD - rx;
+    statTile(c, [rx, 288, rw, 158], {
+      label: 'End-stake payout', value: `${nf(d.payouts)} HEX`,
+      sub: `${total > 0 ? ((d.payouts / total) * 100).toFixed(0) : 0}% — 1% of the whole pool, every 60 days`,
+      accent: '#AE176A',
+    });
+    statTile(c, [rx, 464, rw, 158], {
+      label: 'Reflections', value: `${nf(d.reflections)} HEX`,
+      sub: `${total > 0 ? ((d.reflections / total) * 100).toFixed(0) : 0}% — 2.5% of every trade, continuously`,
+      accent: '#FB9438',
+    });
+    statTile(c, [PAD, 650, BOX_W, 150], {
+      label: 'And the burn you never see', value: `${nf(d.sSharesMinted - d.sSharesLeft)} S-shares gone`,
+      size: 46,
+      sub: 'every trade burns pSSH, so your slice of the pool grows while you hold it',
+      accent: '#D83639',
+    });
+    text(c, 'Neither tap requires you to lock anything up.', CARD_W / 2, 872, {
+      size: 26, color: TX_MID, align: 'center',
+    });
+  },
+
+  ticket(c, d) {
+    const won = d.psshYield >= d.stakeYield;
+    const ratio = won
+      ? d.psshYield / Math.max(d.stakeYield, 1e-9)
+      : d.stakeYield / Math.max(d.psshYield, 1e-9);
+    // Everything on this stub is the running cycle scored at today's rates, so
+    // it stays in the conditional — nothing here has happened yet.
+    text(c, 'ONE CYCLE AT TODAY’S RATES', CARD_W / 2, 214, {
+      size: 20, color: TX_DIM, align: 'center', font: MONO, spacing: 4,
+    });
+    panel(c, PAD, 244, BOX_W, 620);
+    // The perforation: a stub down the left with the entry, the result to its right.
+    c.save();
+    c.setLineDash([12, 10]);
+    c.strokeStyle = LINE_2;
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(PAD + 300, 268);
+    c.lineTo(PAD + 300, 840);
+    c.stroke();
+    c.restore();
+
+    text(c, 'YOU PUT IN', PAD + 40, 316, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
+    text(c, `$${d.amount}`, PAD + 40, 396, {
+      size: 76, weight: 800, color: brand(c, PAD + 40, 330, PAD + 270, 400),
+    });
+    text(c, 'of pSSH', PAD + 40, 432, { size: 24, color: TX_MID });
+    text(c, 'THAT BUYS', PAD + 40, 520, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
+    text(c, d.sShareCost && d.sShareCost > 0 ? (d.amount / d.sShareCost).toFixed(2) : '—',
+      PAD + 40, 580, { size: 52, weight: 800 });
+    text(c, 'S-shares', PAD + 40, 612, { size: 22, color: TX_MID });
+    text(c, 'HELD FOR', PAD + 40, 690, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
+    text(c, '60 days', PAD + 40, 748, { size: 46, weight: 800 });
+    text(c, 'sell any time', PAD + 40, 782, { size: 22, color: TX_MID });
+
+    const rx = PAD + 344;
+    text(c, 'YOU’D GET BACK', rx, 316, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
+    text(c, `${nf(d.psshYield)} HEX`, rx, 400, {
+      size: 68, weight: 800, color: brand(c, rx, 330, CARD_W - PAD, 404),
+    });
+    text(c, `${nf(d.payouts)} from the end-stake payout`, rx, 446, { size: 23, color: TX_MID });
+    text(c, `${nf(d.reflections)} from reflections along the way`, rx, 480, { size: 23, color: TX_MID });
+
+    text(c, 'STAKING THE SAME $' + d.amount, rx, 566, {
+      size: 17, color: TX_DIM, font: MONO, spacing: 2,
+    });
+    text(c, `${nf(d.stakeYield)} HEX`, rx, 630, { size: 54, weight: 800, color: TX_MID });
+    text(c, 'locked the whole 60 days', rx, 664, { size: 23, color: TX_MID });
+
+    const rs = `${ratio.toFixed(2)}×`;
+    text(c, rs, rx, 760, { size: 58, weight: 800, color: won ? UP : '#D83639' });
+    text(c, won ? 'better to hold than to stake' : 'better to stake than to hold',
+      rx + measure(c, rs, 58, 800) + 22, 754, { size: 26, weight: 600, color: TX_MID });
+    text(c, `Cycle ${d.cycleNo} · ${d.daysLeft} days still to run`, CARD_W / 2, 912, {
+      size: 24, color: TX_DIM, align: 'center',
+    });
+  },
 };
 
 const KICKERS: Record<string, string> = {
@@ -558,6 +1037,16 @@ const KICKERS: Record<string, string> = {
   reflections: 'what pays you',
   growth: 'compounding',
   countdown: 'next end-stake',
+  board: 'the whole board',
+  versus: 'side by side',
+  supply: 'supply & burn',
+  thiscycle: `this cycle`,
+  record: 'the record',
+  prices: 'today’s prices',
+  proof: 'four facts',
+  stakeboard: 'the stake',
+  holder: 'what you get',
+  ticket: 'the ticket',
 };
 
 /** Paint one card. Returns false if the id isn't known. */
