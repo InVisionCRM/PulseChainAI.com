@@ -171,8 +171,9 @@ export default function SuperStakeHubPage() {
               every 60 days.
             </h1>
             <p className="relative mt-2.5 max-w-[46ch] text-[13.5px] leading-relaxed text-[var(--text-muted)]">
-              No presale, no emissions, no treasury. Trading pays for it, and across every cycle on
-              record the stake has never gotten smaller.
+              Nobody runs it. The contract has closed and reopened this same stake{' '}
+              {view ? `${view.per.length} times` : 'again and again'} — buying HEX and burning pSSH
+              the whole way — and the only thing that could stop it is HEX itself.
             </p>
 
             <dl className="relative mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-4">
