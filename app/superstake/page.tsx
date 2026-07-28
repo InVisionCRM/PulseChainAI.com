@@ -494,6 +494,13 @@ export default function SuperStakeHubPage() {
               coverage={view.coverageByCycle}
               amount={STAKE_AMOUNT}
               psshWins={view.psshWins}
+              running={view.running}
+              daysLeft={Math.max(
+                0,
+                Math.ceil(
+                  (Date.parse(`${dayToISO(view.running.d1)}T00:00:00Z`) - Date.now()) / 86_400_000,
+                ),
+              )}
             />
 
             <Link

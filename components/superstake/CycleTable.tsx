@@ -32,13 +32,16 @@ const usdShort = (v: number) =>
         : `$${v.toFixed(2)}`;
 
 export default function CycleTable({
-  rows, coverage, amount, psshWins,
+  rows, coverage, amount, psshWins, running, daysLeft,
 }: {
   rows: CycleRow[];
   /** Cycle number -> how many times over that cycle covered its own 1% payout. */
   coverage: Map<number, number>;
   amount: number;
   psshWins: number;
+  /** The cycle currently open, if any — listed but not scored. */
+  running?: SuperStakeCycle | null;
+  daysLeft?: number;
 }) {
   const [open, setOpen] = useState<number | null>(null);
 
@@ -46,7 +49,7 @@ export default function CycleTable({
     <div className="mt-3 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)]">
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--line)] px-4 py-3">
         <h3 className="text-sm font-bold tracking-tight text-[var(--text)]">
-          Every cycle, same ${amount}, same question
+          Every finished cycle, same ${amount}, same question
         </h3>
         <span className="text-xs text-[var(--text-faint)]">
           pSSH ahead in{' '}
@@ -91,6 +94,32 @@ export default function CycleTable({
                 />
               );
             })}
+
+            {/* The open cycle, listed so it never looks like a row is missing.
+                It can't be scored — it hasn't paid out yet. */}
+            {running && !running.done && (
+              <tr className="border-t border-[var(--line)] bg-[var(--app-bg)]/40">
+                <td className="px-4 py-2 tabular-nums text-[var(--text-muted)]">#{running.i}</td>
+                <td className="px-3 py-2 tabular-nums text-[var(--text-muted)]">
+                  {dayToISO(running.d0)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-[var(--text-faint)]">
+                  {usd(running.pH0)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-[var(--text-faint)]">
+                  {usdShort(running.vol)}
+                </td>
+                <td className="px-3 py-2 text-right text-[var(--text-faint)]">—</td>
+                <td className="px-3 py-2 text-right text-[var(--text-faint)]">—</td>
+                <td
+                  className="px-3 py-2 text-right text-[10px] uppercase tracking-[0.12em] text-[var(--text-faint)]"
+                  style={{ fontFamily: MONO }}
+                  colSpan={2}
+                >
+                  running{typeof daysLeft === 'number' ? ` · ${daysLeft}d left` : ''}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
