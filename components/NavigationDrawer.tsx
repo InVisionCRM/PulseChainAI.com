@@ -36,6 +36,11 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
       icon: <IconWallet className="h-8 w-8" />,
     },
     {
+      label: "SuperStake",
+      href: "/superstake",
+      icon: <IconChartBar className="h-8 w-8" />,
+    },
+    {
       label: "HEX Strategist",
       href: "/hex-strategist",
       // eslint-disable-next-line @next/next/no-img-element

@@ -125,6 +125,13 @@ export default function RootLayout({
       ),
     },
     {
+      label: "SuperStake",
+      href: "/superstake",
+      icon: (
+        <IconChartBar className="h-5 w-5 shrink-0 text-[var(--text)]" />
+      ),
+    },
+    {
       label: "HEX Strategist",
       href: "/hex-strategist",
       icon: (
