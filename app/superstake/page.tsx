@@ -24,6 +24,7 @@ import { pulsechainTokenUrl } from '@/lib/pulsechainExplorer';
 import MachineFlow from '@/components/superstake/MachineFlow';
 import CycleClock from '@/components/superstake/CycleClock';
 import CycleTable from '@/components/superstake/CycleTable';
+import PairVolume from '@/components/superstake/PairVolume';
 
 const PSSH = '0xb5c4ecef450fd36d0eba1420f6a19dbfbee5292e';
 /**
@@ -486,6 +487,11 @@ export default function SuperStakeHubPage() {
             </Link>
           </section>
         )}
+
+        {/* ─────────── every pair that funds it ─────────── */}
+        <section className="mt-9">
+          <PairVolume token={PSSH} />
+        </section>
 
         {/* ─────────── HEX in the stake ─────────── */}
         {view && (

@@ -56,7 +56,7 @@ async function pairVols(url: string, token: string): Promise<any[]> {
   return [...(d?.a ?? []), ...(d?.b ?? [])];
 }
 
-async function build(token: string) {
+async function build(token: string, pairLimit: number) {
   const dayRes = await Promise.all(PULSEX_SUBGRAPHS.map((u) => dayDatas(u, token)));
   const pairRes = await Promise.all(PULSEX_SUBGRAPHS.map((u) => pairVols(u, token)));
 
@@ -93,11 +93,18 @@ async function build(token: string) {
       pairMap.set(label, (pairMap.get(label) ?? 0) + cleanUsd(p.untrackedVolumeUSD));
     }
   }
-  const byPair: PairVol[] = [...pairMap.entries()]
+  const allPairs = [...pairMap.entries()]
     .map(([label, volumeUsd]) => ({ label, volumeUsd }))
     .filter((p) => p.volumeUsd > 0)
-    .sort((a, b) => b.volumeUsd - a.volumeUsd)
-    .slice(0, 8);
+    .sort((a, b) => b.volumeUsd - a.volumeUsd);
+  const byPair: PairVol[] = allPairs.slice(0, pairLimit);
+  // So a caller showing a truncated list can say how much it left out rather
+  // than implying the ones it shows are all of them.
+  const pairTotals = {
+    count: allPairs.length,
+    volumeUsd: allPairs.reduce((s, p) => s + p.volumeUsd, 0),
+    shownVolumeUsd: byPair.reduce((s, p) => s + p.volumeUsd, 0),
+  };
 
   const totalVol = daily.reduce((s, d) => s + d.volumeUsd, 0);
   const totalTxns = daily.reduce((s, d) => s + d.txns, 0);
@@ -108,6 +115,7 @@ async function build(token: string) {
     supported: true,
     daily,
     byPair,
+    pairTotals,
     allTime: {
       volumeUsd: totalVol,
       txns: totalTxns,
@@ -123,6 +131,9 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const network = (sp.get('network') || 'pulsechain').toLowerCase();
   const token = (sp.get('token') || '').toLowerCase();
+  // Default 8 keeps the geicko Volume tab as it was; callers wanting the full
+  // spread (the SuperStake page) ask for more.
+  const pairLimit = Math.min(50, Math.max(1, Number(sp.get('pairs')) || 8));
   if (network !== 'pulsechain') {
     return NextResponse.json({ supported: false, chain: network });
   }
@@ -132,9 +143,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const payload = await cached(
-      `volume:${token}`,
+      `volume:${token}:${pairLimit}`,
       300_000, // 5 min
-      () => build(token),
+      () => build(token, pairLimit),
       (v) => v.daily.length > 0,
     );
     return NextResponse.json(payload, {

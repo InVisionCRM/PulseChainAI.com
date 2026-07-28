@@ -20,6 +20,10 @@ const PULSEX_SUBGRAPHS = [
 const HEX_PLS = '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
 const PSSH = '0xb5c4ecef450fd36d0eba1420f6a19dbfbee5292e';
 
+// Two mirrors at a 9s timeout each is 18s worst case, which would blow through
+// Vercel's short default before the fallback ever gets to answer.
+export const maxDuration = 30;
+
 const WINDOWS = [30, 60, 90, 180, 365];
 const CACHE_TTL_MS = 5 * 60_000;
 
