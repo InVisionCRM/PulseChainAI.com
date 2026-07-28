@@ -142,7 +142,7 @@ function Picker({ data, onClose }: { data: ShareData; onClose: () => void }) {
       aria-label="Share a SuperStake card"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="my-auto w-full max-w-4xl overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)]">
+      <div className="my-auto w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)]">
         <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-3">
           <h2 className="text-sm font-bold text-[var(--text)]">Share a card</h2>
           <button
@@ -155,9 +155,10 @@ function Picker({ data, onClose }: { data: ShareData; onClose: () => void }) {
           </button>
         </div>
 
-        <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
-          {/* the ten designs */}
-          <div className="order-2 grid max-h-[46vh] grid-cols-2 gap-1.5 overflow-y-auto md:order-1 md:max-h-[60vh] md:grid-cols-1">
+        <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,430px)_minmax(0,1fr)]">
+          {/* Two columns even on desktop — a single column of twenty would be
+              mostly below the fold. */}
+          <div className="order-2 grid max-h-[46vh] grid-cols-2 gap-1.5 overflow-y-auto md:order-1 md:max-h-[64vh]">
             {CARDS.map((k) => {
               const on = k.id === id;
               return (

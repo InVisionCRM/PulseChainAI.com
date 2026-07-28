@@ -8,6 +8,7 @@
 // degrades the "as of" line rather than breaking the tools.
 
 import { NextResponse } from 'next/server';
+import { ethCall } from '@/lib/portfolio/evmRpc';
 
 // Verified live: `Codeakk/PulseX` no longer exists, and the current schema uses
 // `plsPrice` / `derivedUSD` / `dailyVolumeUSD` — not the `ethPrice` / `derivedETH`
@@ -19,6 +20,11 @@ const PULSEX_SUBGRAPHS = [
 
 const HEX_PLS = '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
 const PSSH = '0xb5c4ecef450fd36d0eba1420f6a19dbfbee5292e';
+/** The contract that holds the stake — same address the cycles route reads. */
+const SUPERSTAKE_STAKER = '0xdc48205df8af83c97de572241bb92db45402aa0e';
+/** `balanceOf(address)`, left-padded to 32 bytes. */
+const BALANCE_OF = `0x70a08231000000000000000000000000${SUPERSTAKE_STAKER.slice(2)}`;
+const HEX_DECIMALS = 1e8;
 
 // Two mirrors at a 9s timeout each is 18s worst case, which would blow through
 // Vercel's short default before the fallback ever gets to answer.
@@ -32,6 +38,13 @@ interface LivePayload {
   pSSH: number | null;
   /** Average daily pSSH volume (USD) per trailing window, keyed by day count. */
   wins: Record<string, number>;
+  /**
+   * HEX sitting liquid in the staking contract — what the 2% has bought so far
+   * this cycle, waiting to be added to the stake at the next end-stake. Read
+   * straight off chain, so it is independent of the subgraph above and stays
+   * populated even when that is down.
+   */
+  poolHexWaiting: number | null;
   source: 'pulsex-subgraph' | 'unavailable';
   fetchedAt: number;
 }
@@ -66,6 +79,20 @@ async function queryFirstThatAnswers(): Promise<any | null> {
   return null;
 }
 
+/**
+ * HEX the contract is holding but has not staked yet. Null rather than 0 when
+ * every RPC fails — a blank is honest, a zero would read as "nothing waiting".
+ */
+async function readWaitingHex(): Promise<number | null> {
+  const hex = await ethCall('pulsechain', HEX_PLS, BALANCE_OF);
+  if (!hex) return null;
+  try {
+    return Number(BigInt(hex)) / HEX_DECIMALS;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET() {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) {
     return NextResponse.json(cache.value, {
@@ -73,11 +100,19 @@ export async function GET() {
     });
   }
 
-  const data = await queryFirstThatAnswers();
+  // Independent sources, so run them together rather than paying for both in series.
+  const [data, waitingHex] = await Promise.all([
+    queryFirstThatAnswers(),
+    readWaitingHex(),
+  ]);
   let payload: LivePayload;
 
   if (!data) {
-    payload = { pHEX: null, pSSH: null, wins: {}, source: 'unavailable', fetchedAt: Date.now() };
+    payload = {
+      pHEX: null, pSSH: null, wins: {},
+      poolHexWaiting: waitingHex,
+      source: 'unavailable', fetchedAt: Date.now(),
+    };
   } else {
     const pHEX = parseFloat(data.hex?.derivedUSD ?? '0');
     const pSSH = parseFloat(data.pssh?.derivedUSD ?? '0');
@@ -96,6 +131,7 @@ export async function GET() {
       pHEX: pHEX > 0 ? pHEX : null,
       pSSH: pSSH > 0 ? pSSH : null,
       wins,
+      poolHexWaiting: waitingHex,
       source: 'pulsex-subgraph',
       fetchedAt: Date.now(),
     };
