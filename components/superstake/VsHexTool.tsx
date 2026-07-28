@@ -13,13 +13,6 @@ import {
 } from '@/lib/superstake/model';
 
 const AMOUNT_CHIPS = [1_000, 10_000, 50_000, 100_000];
-const RANGE_CHIPS: { label: string; days: number }[] = [
-  { label: '60d', days: 60 },
-  { label: '180d', days: 180 },
-  { label: '1y', days: 365 },
-  { label: '2y', days: 730 },
-  { label: 'launch', days: 0 },
-];
 
 const fmtHex = (n: number) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : n.toFixed(1);
@@ -60,8 +53,10 @@ export default function VsHexTool() {
       }
       if (!alive) return;
       setSnap(merged);
-      const lastDay = merged.series.d0 + merged.series.P.length - 1;
-      setStartISO(dayToISO(Math.max(merged.series.d0, lastDay - 364)));
+      // Always the full record. A selectable entry date made the result swing on
+      // the buy price rather than the structure, which read as a bug — the whole
+      // history is the one window nobody can accuse of being cherry-picked.
+      setStartISO(dayToISO(merged.series.d0));
       setStatus('ready');
     })();
     return () => {
@@ -85,11 +80,6 @@ export default function VsHexTool() {
     [snap, amount],
   );
 
-  const setRange = (days: number) => {
-    if (!bounds) return;
-    setStartISO(days === 0 ? bounds.minISO : dayToISO(Math.max(bounds.first, bounds.last - days + 1)));
-  };
-
   if (status === 'loading') {
     return <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--text-faint)]">Loading cycle history…</div>;
   }
@@ -101,61 +91,40 @@ export default function VsHexTool() {
 
   return (
     <div className="space-y-4">
-      {/* ---- Controls ---- */}
+      {/* ---- Controls — amount only; the window is always the full record ---- */}
       <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-        <div className="flex flex-wrap items-end gap-4">
-          <label className="min-w-[180px] flex-1">
-            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Amount</span>
-            <div className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2">
-              <span className="text-[var(--text-faint)]">$</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="min-w-[220px] flex-1">
+            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              Put in the same amount
+            </span>
+            <div className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2.5">
+              <span className="text-lg text-[var(--text-faint)]">$</span>
               <input
                 type="number"
                 min={1}
                 value={amount}
                 onChange={(e) => setAmount(Math.max(1, Number(e.target.value) || 0))}
-                className="w-full bg-transparent text-sm font-semibold tabular-nums text-[var(--text)] outline-none"
+                className="w-full bg-transparent text-lg font-bold tabular-nums text-[var(--text)] outline-none"
               />
             </div>
           </label>
-          <label className="min-w-[180px] flex-1">
-            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Entry date</span>
-            <input
-              type="date"
-              value={startISO}
-              min={bounds.minISO}
-              max={bounds.maxISO}
-              onChange={(e) => e.target.value && setStartISO(e.target.value)}
-              className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-sm font-semibold text-[var(--text)] outline-none"
-            />
-          </label>
-        </div>
-
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {AMOUNT_CHIPS.map((a) => (
-            <button
-              key={a}
-              type="button"
-              onClick={() => setAmount(a)}
-              className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                amount === a
-                  ? 'border-orange-500/60 bg-orange-500/15 text-orange-300'
-                  : 'border-[var(--line)] text-[var(--text-faint)] hover:text-[var(--text)]'
-              }`}
-            >
-              {a >= 1000 ? `$${a / 1000}k` : `$${a}`}
-            </button>
-          ))}
-          <span className="mx-1 w-px self-stretch bg-[var(--line)]" />
-          {RANGE_CHIPS.map((r) => (
-            <button
-              key={r.label}
-              type="button"
-              onClick={() => setRange(r.days)}
-              className="rounded-md border border-[var(--line)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-faint)] transition-colors hover:text-[var(--text)]"
-            >
-              {r.label}
-            </button>
-          ))}
+          <div className="flex flex-wrap gap-1.5 self-end pb-1">
+            {AMOUNT_CHIPS.map((a) => (
+              <button
+                key={a}
+                type="button"
+                onClick={() => setAmount(a)}
+                className={`rounded-md border px-3 py-1.5 text-xs font-bold transition-colors ${
+                  amount === a
+                    ? 'border-orange-500/60 bg-orange-500/15 text-orange-300'
+                    : 'border-[var(--line)] text-[var(--text-faint)] hover:text-[var(--text)]'
+                }`}
+              >
+                {a >= 1000 ? `$${a / 1000}k` : `$${a}`}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -177,14 +146,20 @@ export default function VsHexTool() {
             accent
             detail={`${fmtHex(result.payouts)} payouts + ${fmtHex(result.reflections)} reflections`}
           />
-          <div className="md:col-span-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--text-muted)]">
-            From <b className="text-[var(--text)]">{dayToISO(result.startDay)}</b> over{' '}
-            <b className="text-[var(--text)]">{result.days} days</b> — pHEX ${result.pHexStart.toFixed(5)}, pSSH $
-            {result.pSshStart.toFixed(6)} at entry.{' '}
-            <b className={result.winner === 'pssh' ? 'text-orange-300' : 'text-[var(--text)]'}>
-              {result.winner === 'pssh' ? 'pSSH' : 'The stake'} came out ahead by {result.ratio.toFixed(2)}×
-            </b>{' '}
-            in HEX terms.
+          <div className="md:col-span-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-4 text-center">
+            <div className="text-2xl font-bold text-[var(--text)] md:text-3xl">
+              <span className={result.winner === 'pssh' ? 'text-orange-300' : 'text-[var(--text)]'}>
+                {result.winner === 'pssh' ? 'pSSH' : 'The stake'}
+              </span>{' '}
+              came out ahead by{' '}
+              <span className={result.winner === 'pssh' ? 'text-orange-300' : 'text-[var(--text)]'}>
+                {result.ratio.toFixed(2)}×
+              </span>
+            </div>
+            <div className="mt-1 text-xs text-[var(--text-faint)]">
+              the whole record · {dayToISO(result.startDay)} → today · {result.days.toLocaleString()} days ·
+              pHEX ${result.pHexStart.toFixed(5)} · pSSH ${result.pSshStart.toFixed(6)} at entry
+            </div>
           </div>
         </div>
       )}
@@ -268,10 +243,10 @@ function Side({
         )}
       </div>
       <div className="mt-0.5 text-[11px] text-[var(--text-faint)]">{sub}</div>
-      <div className={`mt-2 text-2xl font-bold tabular-nums ${accent ? 'text-orange-300' : 'text-[var(--text)]'}`}>
-        +{fmtHex(hex)} <span className="text-sm font-semibold text-[var(--text-muted)]">HEX</span>
+      <div className={`mt-2 text-4xl font-bold tabular-nums md:text-5xl ${accent ? 'text-orange-300' : 'text-[var(--text)]'}`}>
+        +{fmtHex(hex)} <span className="text-base font-semibold text-[var(--text-muted)]">HEX</span>
       </div>
-      <div className="mt-1 text-[11px] tabular-nums text-[var(--text-faint)]">{detail}</div>
+      <div className="mt-1.5 text-[11px] tabular-nums text-[var(--text-faint)]">{detail}</div>
     </div>
   );
 }
