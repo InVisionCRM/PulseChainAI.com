@@ -673,20 +673,15 @@ function ShareCompare({
       s: `${nf(poolHex / leftS, 1)} HEX`,
     },
     {
-      k: 'HEX earned per day',
-      t: `${(perT / cycleDays).toFixed(4)} HEX`,
-      s: `${(perS / cycleDays).toFixed(4)} HEX`,
-      hero: true,
-    },
-    {
       k: `HEX earned per ${cycleDays}-day cycle`,
       t: `${perT.toFixed(2)} HEX`,
       s: `${perS.toFixed(2)} HEX`,
     },
     {
-      k: `HEX per $1 spent, per ${cycleDays} days`,
+      k: 'HEX earned per $1 spent',
       t: pHex > 0 ? `${(perT / (snap.meta.shareRate * pHex)).toFixed(2)} HEX` : '—',
       s: pSsh > 0 ? `${(perS / (S_SHARE * pSsh)).toFixed(2)} HEX` : '—',
+      hero: true,
     },
     {
       k: 'Where the count goes',
