@@ -7,8 +7,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   backtest,
-  backtestByCycle,
+  cycleHeadToHead,
   dayToISO,
+  inputsFromCycle,
+  type CycleResult,
+  type SuperStakeCycle,
   type SuperStakeSnapshot,
 } from '@/lib/superstake/model';
 
@@ -75,10 +78,23 @@ export default function VsHexTool() {
     () => (snap && startISO ? backtest(snap, amount, startISO) : null),
     [snap, amount, startISO],
   );
-  const perCycle = useMemo(
-    () => (snap ? backtestByCycle(snap, amount) : []),
-    [snap, amount],
-  );
+  // Scored one cycle at a time — the same method the /superstake table uses, so
+  // the two tables answer the same question at different amounts. Holding each
+  // entry to the end of the record instead (what this used to do) gave the stake
+  // side a +57% longer-pays-better bonus and piled every later cycle's payout
+  // onto the pSSH side, which made the same cycle read completely differently
+  // here than on the hub.
+  const perCycle = useMemo(() => {
+    if (!snap) return [];
+    return snap.cycles
+      .filter((c) => c.done)
+      .map((cycle) => {
+        const inputs = inputsFromCycle(snap, cycle);
+        const result = inputs ? cycleHeadToHead(amount, inputs) : null;
+        return result ? { cycle, result } : null;
+      })
+      .filter((x): x is { cycle: SuperStakeCycle; result: CycleResult } => x !== null);
+  }, [snap, amount]);
 
   if (status === 'loading') {
     return <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--text-faint)]">Loading cycle history…</div>;
@@ -175,7 +191,8 @@ export default function VsHexTool() {
           </span>
         </div>
         <p className="mb-3 text-xs text-[var(--text-faint)]">
-          Same {fmtUsd(amount)} in on each cycle&apos;s opening day, at that day&apos;s prices, held to the end of the record.
+          Same {fmtUsd(amount)} in on each cycle&apos;s opening day, at that day&apos;s prices, held for
+          that cycle&apos;s 60 days — the same scoring the SuperStake page uses, at your amount.
         </p>
         <div className="-mx-1 overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
