@@ -160,6 +160,9 @@ export function BubbleMap({ token, chain, symbol }: Props) {
   const reseedRef = useRef<(() => void) | null>(null);
   // Latest filter fn, so the async cluster fetch can call it after it resolves.
   const applyFilterRef = useRef<(() => void) | null>(null);
+  // Number of clusters found — the layout spaces that many gravity anchors
+  // around a ring, so the force accessors need it without re-running the effect.
+  const clusterCountRef = useRef(0);
   const viewRef = useRef({ scale: 0.92, ox: 0, oy: 0 });
 
   const load = useCallback(async () => {
@@ -201,6 +204,7 @@ export function BubbleMap({ token, chain, symbol }: Props) {
       });
       allNodesRef.current = nodes;
       rawEdgesRef.current = [];
+      clusterCountRef.current = 0; // stale K would misplace anchors on a re-load
       // Show everything until clusters are known — filtering now would just blank
       // the map while phase 2 is still running.
       dataRef.current = { nodes: [...nodes], edges: [] };
@@ -233,6 +237,7 @@ export function BubbleMap({ token, chain, symbol }: Props) {
             }
           });
           rawEdgesRef.current = g.edges ?? [];
+          clusterCountRef.current = clusters.length;
           applyFilterRef.current?.();
           setMeta((m) => ({ ...m, clusters: clusters.length, partial: !!g.partial, scanned: g.scannedHolders ?? 0 }));
           setEdgesStatus('done');
@@ -313,8 +318,24 @@ export function BubbleMap({ token, chain, symbol }: Props) {
       n.vx = 0; n.vy = 0;
     });
 
-    const fxF: ForceX<BNode> = forceX<BNode>(cx).strength(0.045);
-    const fyF: ForceY<BNode> = forceY<BNode>(cy).strength(0.045);
+    // Per-cluster gravity. A single global centre pulls every bubble to the same
+    // point, so with collision packing the map settles into one space-filling
+    // blob and clusters have no spatial identity — the handful of link springs
+    // can't reorganise hundreds of packed bodies. Instead each cluster gets its
+    // own anchor on a ring, and members are pulled to *their* anchor; unclustered
+    // holders keep a weak pull to the centre so they drift out of the way.
+    const clusterAnchor = (n: BNode) => {
+      const K = clusterCountRef.current;
+      if (n.cluster < 0 || K <= 0) return null;
+      // One cluster has nothing to separate from — leave it centred.
+      const R = K <= 1 ? 0 : Math.min(W, H) * 0.32;
+      const a = (n.cluster / K) * Math.PI * 2 - Math.PI / 2;
+      return { x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R };
+    };
+    const fxF: ForceX<BNode> = forceX<BNode>((n) => clusterAnchor(n)?.x ?? cx)
+      .strength((n) => (n.cluster >= 0 ? 0.3 : 0.015));
+    const fyF: ForceY<BNode> = forceY<BNode>((n) => clusterAnchor(n)?.y ?? cy)
+      .strength((n) => (n.cluster >= 0 ? 0.3 : 0.015));
     const sim = forceSimulation<BNode>(nodes)
       .alphaDecay(0.02)
       .velocityDecay(0.32)
@@ -326,12 +347,19 @@ export function BubbleMap({ token, chain, symbol }: Props) {
       .stop();
     simRef.current = sim;
 
+    // d3 caches each node's x/y target and strength when a force is initialised,
+    // so re-setting these is required after cluster assignments change (phase 2)
+    // or the canvas is resized — otherwise the anchors stay stale.
+    function applyPositionForces() {
+      sim.force('x', fxF).force('y', fyF);
+    }
+
     function applyLinks() {
       const links = data.edges.map((e) => ({ source: e.a, target: e.b }));
       sim.force('link', links.length ? forceLink(links).distance(46).strength(0.6) : null);
     }
     applyLinks(); // pick up edges if phase 2 already finished
-    applyLinksRef.current = () => { applyLinks(); sim.alpha(0.6); };
+    applyLinksRef.current = () => { applyPositionForces(); applyLinks(); sim.alpha(0.6); };
     // Called after the displayed node set changes (clusters-only toggle).
     reseedRef.current = () => {
       nodes.forEach((n, i) => {
@@ -341,6 +369,7 @@ export function BubbleMap({ token, chain, symbol }: Props) {
         }
       });
       sim.nodes(nodes);
+      applyPositionForces();
       applyLinks();
       sim.alpha(0.9).restart();
     };
@@ -496,7 +525,9 @@ export function BubbleMap({ token, chain, symbol }: Props) {
       sim.alpha(0.6).restart();
       setMeta((m) => ({ ...m, shown: nodes.length }));
     };
-    const onResize = () => { measure(); fxF.x(cx); fyF.y(cy); sim.alpha(0.4); };
+    // Re-init the position forces so cluster anchors recompute against the new
+    // canvas size (they're derived from W/H/cx/cy).
+    const onResize = () => { measure(); applyPositionForces(); sim.alpha(0.4); };
 
     cvs.addEventListener('mousemove', onMove);
     cvs.addEventListener('mousedown', onDown);
