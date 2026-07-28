@@ -32,19 +32,38 @@ export default function VsHexTool() {
   const [amount, setAmount] = useState(10_000);
   const [startISO, setStartISO] = useState('');
 
+  const [source, setSource] = useState<'live' | 'snapshot'>('snapshot');
+
   useEffect(() => {
     let alive = true;
-    fetch('/api/superstake/snapshot')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d: SuperStakeSnapshot) => {
-        if (!alive) return;
-        setSnap(d);
-        // Default to a one-year run, the most legible single view.
-        const lastDay = d.series.d0 + d.series.P.length - 1;
-        setStartISO(dayToISO(Math.max(d.series.d0, lastDay - 364)));
-        setStatus('ready');
-      })
-      .catch(() => alive && setStatus('error'));
+    (async () => {
+      // The baked snapshot is the floor — it always works and carries the
+      // supply/meta figures. The subgraph rebuild is layered on top when it
+      // answers, so a bad day upstream degrades freshness, not the tool.
+      const base: SuperStakeSnapshot | null = await fetch('/api/superstake/snapshot')
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+      if (!alive) return;
+      if (!base) {
+        setStatus('error');
+        return;
+      }
+      let merged = base;
+      try {
+        const live = await fetch('/api/superstake/cycles').then((r) => (r.ok ? r.json() : null));
+        if (live?.cycles?.length && live?.series?.P?.length) {
+          merged = { ...base, cycles: live.cycles, series: live.series };
+          if (alive) setSource('live');
+        }
+      } catch {
+        /* stay on the snapshot */
+      }
+      if (!alive) return;
+      setSnap(merged);
+      const lastDay = merged.series.d0 + merged.series.P.length - 1;
+      setStartISO(dayToISO(Math.max(merged.series.d0, lastDay - 364)));
+      setStatus('ready');
+    })();
     return () => {
       alive = false;
     };
@@ -214,8 +233,16 @@ export default function VsHexTool() {
       </div>
 
       <p className="text-[11px] leading-relaxed text-[var(--text-faint)]">
-        Replayed from a fixed on-chain record — HEX payouts, share rates, pHEX/pSSH prices and pSSH
-        volume per day, snapshotted <b className="text-[var(--text-muted)]">{snap.meta.asOf}</b>. Both
+        Replayed from the on-chain record — HEX payouts, share rates, pHEX/pSSH prices and pSSH
+        volume per day.{' '}
+        {source === 'live' ? (
+          <b className="text-[var(--up)]">Rebuilt live from the HEX and PulseX subgraphs.</b>
+        ) : (
+          <b className="text-[var(--text-muted)]">
+            Subgraphs unavailable — using the {snap.meta.asOf} snapshot.
+          </b>
+        )}{' '}
+        Both
         sides are measured in HEX, so this compares the two structures, not a HEX price call. Past
         cycles are not a forecast.
       </p>
