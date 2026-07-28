@@ -25,6 +25,7 @@ import MachineFlow from '@/components/superstake/MachineFlow';
 import CycleClock from '@/components/superstake/CycleClock';
 import CycleTable from '@/components/superstake/CycleTable';
 import PairVolume from '@/components/superstake/PairVolume';
+import GlanceStrip from '@/components/superstake/GlanceStrip';
 
 const PSSH = '0xb5c4ecef450fd36d0eba1420f6a19dbfbee5292e';
 /**
@@ -202,8 +203,25 @@ export default function SuperStakeHubPage() {
     const gapHex = Math.max(0, payout - expYield);
     const perDay = (gapHex * pHex) / 0.02 / days;
     const actual = live?.wins?.['60'] ?? snap.wins?.['60'] ?? 0;
-    return { days, expYield, payout, gapHex, perDay, actual, times: perDay > 0 ? actual / perDay : 0 };
+    // What the cycle is actually taking in — HEX's own yield plus the HEX the
+    // 2% buys at current volume — against the 1% it hands out, both as a share
+    // of the principal so they sit on one scale.
+    const boughtHex = (0.02 * actual * days) / pHex;
+    const inPct = running.hex > 0 ? ((expYield + boughtHex) / running.hex) * 100 : 0;
+    const outPct = running.hex > 0 ? (payout / running.hex) * 100 : 0;
+    return {
+      days, expYield, payout, gapHex, perDay, actual,
+      times: perDay > 0 ? actual / perDay : 0,
+      inPct, outPct,
+    };
   }, [view, snap, live]);
+
+  // Same countdown the clock shows, reused so the two never disagree.
+  const glanceDaysLeft = useMemo(() => {
+    if (!view) return 0;
+    const end = Date.parse(`${dayToISO(view.running.d1)}T00:00:00Z`);
+    return Math.max(0, Math.ceil((end - Date.now()) / 86_400_000));
+  }, [view]);
 
   const pSshPrice = live?.pSSH ?? snap?.meta.pSSH ?? null;
 
@@ -300,6 +318,29 @@ export default function SuperStakeHubPage() {
             )}
           </div>
         </div>
+
+        {/* ─────────── at a glance, no words ─────────── */}
+        {view && ahead && need && (
+          <div className="mt-3">
+            <GlanceStrip
+              perDollarRatio={
+                ahead.result.stakeYield > 0
+                  ? ahead.result.psshYield / ahead.result.stakeYield
+                  : 1
+              }
+              cycleFrac={
+                1 -
+                Math.max(0, Math.min(1, need.days > 0 ? glanceDaysLeft / need.days : 0))
+              }
+              daysLeft={glanceDaysLeft}
+              sharesLeft={snap ? snap.meta.supply / S_SHARE : 0}
+              sharesMinted={snap ? (snap.meta.supply + snap.meta.burned) / S_SHARE : 0}
+              coverTimes={need.times}
+              inPct={need.inPct}
+              outPct={need.outPct}
+            />
+          </div>
+        )}
 
         {/* ─────────── the machine ─────────── */}
         <section className="mt-9">
