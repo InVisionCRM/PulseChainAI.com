@@ -23,6 +23,7 @@ import {
 import { pulsechainTokenUrl } from '@/lib/pulsechainExplorer';
 import MachineFlow from '@/components/superstake/MachineFlow';
 import CycleClock from '@/components/superstake/CycleClock';
+import CycleTable from '@/components/superstake/CycleTable';
 
 const PSSH = '0xb5c4ecef450fd36d0eba1420f6a19dbfbee5292e';
 /**
@@ -137,6 +138,7 @@ export default function SuperStakeHubPage() {
 
     return {
       cycles, running, per, psshWins, streak, coverage, covered,
+      coverageByCycle: new Map(coverage.map((x) => [x.cycle.i, x.ratio])),
       neverShrank: cycles.every((c, i) => i === 0 || c.hex >= cycles[i - 1].hex),
     };
   }, [snap]);
@@ -467,81 +469,13 @@ export default function SuperStakeHubPage() {
               those moves. The table below is what actually happened, cycle by cycle.
             </p>
 
-            {/* every cycle, scored the same way */}
-            <div className="mt-3 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)]">
-              <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--line)] px-4 py-3">
-                <h3 className="text-sm font-bold tracking-tight text-[var(--text)]">
-                  Every cycle, same ${STAKE_AMOUNT}, same question
-                </h3>
-                <span className="text-xs text-[var(--text-faint)]">
-                  pSSH ahead in{' '}
-                  <b className="bg-clip-text text-transparent" style={{ backgroundImage: GRAD }}>
-                    {view.psshWins}
-                  </b>{' '}
-                  of {view.per.length}
-                </span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[620px] text-sm">
-                  <thead>
-                    <tr
-                      className="text-[9.5px] uppercase tracking-[0.12em] text-[var(--text-faint)]"
-                      style={{ fontFamily: MONO }}
-                    >
-                      <th className="px-4 py-2 text-left font-medium">Cycle</th>
-                      <th className="px-3 py-2 text-left font-medium">Opened</th>
-                      <th className="px-3 py-2 text-right font-medium">pHEX</th>
-                      <th className="px-3 py-2 text-right font-medium">Volume</th>
-                      <th className="px-3 py-2 text-right font-medium">Stake</th>
-                      <th className="px-3 py-2 text-right font-medium">pSSH</th>
-                      <th className="px-4 py-2 text-right font-medium">Winner</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {view.per.map(({ cycle, result }) => {
-                      const won = result.winner === 'pssh';
-                      return (
-                        <tr
-                          key={cycle.i}
-                          className="border-t border-[var(--line)] transition-colors hover:bg-[var(--surface)]"
-                        >
-                          <td className="px-4 py-2 tabular-nums text-[var(--text-muted)]">
-                            #{cycle.i}
-                          </td>
-                          <td className="px-3 py-2 tabular-nums text-[var(--text-muted)]">
-                            {dayToISO(cycle.d0)}
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-[var(--text-faint)]">
-                            {usd(cycle.pH0, 5)}
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-[var(--text-faint)]">
-                            {usdShort(cycle.vol)}
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-[var(--text)]">
-                            {Math.round(result.stakeYield).toLocaleString()}
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-[var(--text)]">
-                            {Math.round(result.psshYield).toLocaleString()}
-                          </td>
-                          <td className="px-4 py-2 text-right">
-                            <span
-                              className={`text-xs font-bold ${won ? '' : 'text-[var(--text-muted)]'}`}
-                              style={
-                                won
-                                  ? { backgroundImage: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
-                                  : undefined
-                              }
-                            >
-                              {won ? 'pSSH' : 'stake'} {result.ratio.toFixed(2)}×
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            {/* every cycle, scored the same way — each row opens up */}
+            <CycleTable
+              rows={view.per}
+              coverage={view.coverageByCycle}
+              amount={STAKE_AMOUNT}
+              psshWins={view.psshWins}
+            />
 
             <Link
               href="/superstake/vs-hex"
