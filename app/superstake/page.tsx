@@ -137,9 +137,28 @@ export default function SuperStakeHubPage() {
       else break;
     }
 
+    // Compound growth of the stake itself. Quoted per cycle and over the recent
+    // run as well as all-time, because the early cycles grew off a tiny base and
+    // the all-time figure alone would flatter the current rate.
+    const first = cycles[0];
+    const lastC = cycles[cycles.length - 1];
+    const spans = cycles.length - 1;
+    const recent = cycles.slice(-7);
+    const perCycleGrowth = (a: number, b: number, n: number) =>
+      a > 0 && n > 0 ? (Math.pow(b / a, 1 / n) - 1) * 100 : 0;
+    const growth = {
+      multiple: first.hex > 0 ? lastC.hex / first.hex : 0,
+      spans,
+      allTime: perCycleGrowth(first.hex, lastC.hex, spans),
+      recent: perCycleGrowth(recent[0].hex, recent[recent.length - 1].hex, recent.length - 1),
+      recentN: recent.length - 1,
+    };
+
     return {
-      cycles, running, per, psshWins, streak, coverage, covered,
-      coverageByCycle: new Map(coverage.map((x) => [x.cycle.i, x.ratio])),
+      cycles, running, per, psshWins, streak, coverage, covered, growth,
+      coverageByCycle: new Map(
+        coverage.map((x) => [x.cycle.i, { ratio: x.ratio, gained: x.gained, bought: x.bought }]),
+      ),
       neverShrank: cycles.every((c, i) => i === 0 || c.hex >= cycles[i - 1].hex),
     };
   }, [snap]);
@@ -307,6 +326,7 @@ export default function SuperStakeHubPage() {
               pHex={live?.pHEX ?? snap.meta.pHEX}
               pSsh={live?.pSSH ?? snap.meta.pSSH}
               globalTShares={globalTShares}
+              cyclesDone={view.per.length}
             />
           </section>
         )}
@@ -476,6 +496,14 @@ export default function SuperStakeHubPage() {
               coverage={view.coverageByCycle}
               amount={STAKE_AMOUNT}
               psshWins={view.psshWins}
+              series={snap?.series}
+              running={view.running}
+              daysLeft={Math.max(
+                0,
+                Math.ceil(
+                  (Date.parse(`${dayToISO(view.running.d1)}T00:00:00Z`) - Date.now()) / 86_400_000,
+                ),
+              )}
             />
 
             <Link
@@ -502,6 +530,29 @@ export default function SuperStakeHubPage() {
                 sub="every cycle since launch — it has never gone down"
                 tight
               />
+              <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
+                <Fig
+                  label="Growth all time"
+                  value={`${view.growth.multiple.toFixed(2)}×`}
+                  sub={`over ${view.growth.spans} cycles`}
+                />
+                <Fig
+                  label="Avg growth per cycle"
+                  value={`${view.growth.allTime.toFixed(2)}%`}
+                  sub="all time"
+                />
+                <Fig
+                  label={`Avg growth per cycle`}
+                  value={`${view.growth.recent.toFixed(2)}%`}
+                  sub={`last ${view.growth.recentN} cycles`}
+                  good
+                />
+              </div>
+              <p className="mt-2.5 text-[11px] leading-relaxed text-[var(--text-faint)]">
+                This is the pool compounding, not a holder&apos;s return — holders receive 1% of it
+                each cycle. The all-time rate is flattered by the early cycles growing off a small
+                base, which is why the recent run is shown beside it.
+              </p>
               <StakeChart cycles={view.cycles} />
             </div>
           </section>
@@ -568,7 +619,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub: string
  * while S-shares were fixed at exactly 10,000 by the supply and only ever burn.
  */
 function ShareCompare({
-  snap, poolHex, poolPayout, cycleDays, avgVol, pHex, pSsh, globalTShares,
+  snap, poolHex, poolPayout, cycleDays, avgVol, pHex, pSsh, globalTShares, cyclesDone,
 }: {
   snap: SuperStakeSnapshot;
   poolHex: number;
@@ -578,6 +629,8 @@ function ShareCompare({
   pHex: number;
   pSsh: number;
   globalTShares: number | null;
+  /** Finished cycles, so the burn can be quoted as a rate rather than a total. */
+  cyclesDone: number;
 }) {
   const total = snap.meta.supply + snap.meta.burned;
   const mintedS = total / S_SHARE;
@@ -608,20 +661,23 @@ function ShareCompare({
       s: `${nf(leftS, 1)} of ${nf(mintedS)}`,
     },
     {
+      // Priced as well as counted: 505 HEX reads as a lot until you notice it's
+      // under a dollar against a $16 S-share. It is not a redemption right —
+      // holders receive 1% of the pool per cycle, never the pool itself.
       k: 'HEX already staked behind it',
       t: 'you stake your own',
-      s: `${nf(poolHex / leftS, 1)} HEX`,
-    },
-    {
-      k: `HEX earned per ${cycleDays}-day cycle`,
-      t: `${perT.toFixed(2)} HEX`,
-      s: `${perS.toFixed(2)} HEX`,
+      s: `${nf(poolHex / leftS, 1)} HEX${pHex > 0 ? ` · $${((poolHex / leftS) * pHex).toFixed(2)}` : ''}`,
     },
     {
       k: 'HEX earned per $1 spent',
       t: pHex > 0 ? `${(perT / (snap.meta.shareRate * pHex)).toFixed(2)} HEX` : '—',
       s: pSsh > 0 ? `${(perS / (S_SHARE * pSsh)).toFixed(2)} HEX` : '—',
       hero: true,
+    },
+    {
+      k: 'If you want out',
+      t: 'locked for the term — ending early forfeits yield and pays a penalty',
+      s: 'sell any day · reflections already paid are yours',
     },
     {
       k: 'Where the count goes',
@@ -691,6 +747,12 @@ function ShareCompare({
           </span>
           <span className="text-[11.5px] text-[var(--text-muted)]">
             <b className="text-[var(--text)]">{nf(burnedS, 1)}</b> burned out of {nf(mintedS)}
+            {cyclesDone > 0 && (
+              <>
+                {' · '}
+                <b className="text-[var(--text)]">{(burnedS / cyclesDone).toFixed(1)}</b> a cycle
+              </>
+            )}
           </span>
         </div>
         <div className="mt-2 h-2 overflow-hidden rounded bg-[var(--line)]">
