@@ -15,6 +15,7 @@ import {
   cycleHeadToHead,
   dayToISO,
   inputsFromCycle,
+  REFLECTION_RATE,
   type CycleResult,
   type SuperStakeCycle,
   type SuperStakeSnapshot,
@@ -24,6 +25,14 @@ import MachineFlow from '@/components/superstake/MachineFlow';
 import CycleClock from '@/components/superstake/CycleClock';
 
 const PSSH = '0xb5c4ecef450fd36d0eba1420f6a19dbfbee5292e';
+/**
+ * The whitepaper sets 5,555 pSSH as the minimum holding that earns HEX rewards.
+ * We call that block an "S-share" — it is our name for the threshold, not a
+ * token or an on-chain primitive. It divides the 55,550,000 total supply into
+ * exactly 10,000, and because the 1% buy-and-burn only ever removes supply, the
+ * number that can exist only falls.
+ */
+const S_SHARE = 5_555;
 /** The head-to-head here is fixed at $100; /superstake/vs-hex takes any amount. */
 const STAKE_AMOUNT = 100;
 const MONO = 'var(--font-jetbrains-mono), ui-monospace, monospace';
@@ -35,6 +44,9 @@ interface Live {
   wins: Record<string, number>;
   source: string;
 }
+
+const nf = (n: number, dp = 0) =>
+  n.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp });
 
 const compact = (n: number) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : n.toFixed(0);
@@ -56,6 +68,7 @@ export default function SuperStakeHubPage() {
   const [snap, setSnap] = useState<SuperStakeSnapshot | null>(null);
   const [live, setLive] = useState<Live | null>(null);
   const [fresh, setFresh] = useState(false);
+  const [globalTShares, setGlobalTShares] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -70,6 +83,7 @@ export default function SuperStakeHubPage() {
         if (alive && rebuilt?.cycles?.length && rebuilt?.series?.P?.length) {
           setSnap({ ...base, cycles: rebuilt.cycles, series: rebuilt.series });
           setFresh(true);
+          if (rebuilt.globalTShares > 0) setGlobalTShares(rebuilt.globalTShares);
         }
       } catch {
         /* stay on the snapshot */
@@ -273,6 +287,26 @@ export default function SuperStakeHubPage() {
           />
           <MachineFlow />
         </section>
+
+        {/* ─────────── T-share vs S-share ─────────── */}
+        {view && snap && (
+          <section className="mt-9">
+            <SectionHead
+              title="HEX has the T-share. pSSH has the S-share."
+              sub="the unit each one sells you"
+            />
+            <ShareCompare
+              snap={snap}
+              poolHex={view.running.hex}
+              poolPayout={view.running.pay}
+              cycleDays={view.running.d1 - view.running.d0}
+              avgVol={live?.wins?.['60'] ?? snap.wins?.['60'] ?? 0}
+              pHex={live?.pHEX ?? snap.meta.pHEX}
+              pSsh={live?.pSSH ?? snap.meta.pSSH}
+              globalTShares={globalTShares}
+            />
+          </section>
+        )}
 
         {/* ─────────── the two engines ─────────── */}
         {view && (
@@ -584,6 +618,152 @@ function Stat({ label, value, sub }: { label: string; value: string; sub: string
         {value}
       </dd>
       <dd className="text-[10px] text-[var(--text-faint)]">{sub}</dd>
+    </div>
+  );
+}
+
+/**
+ * Side-by-side on the unit each system sells. The contrast that matters is the
+ * last row: T-shares are minted forever and get dearer as the share rate climbs,
+ * while S-shares were fixed at exactly 10,000 by the supply and only ever burn.
+ */
+function ShareCompare({
+  snap, poolHex, poolPayout, cycleDays, avgVol, pHex, pSsh, globalTShares,
+}: {
+  snap: SuperStakeSnapshot;
+  poolHex: number;
+  poolPayout: number;
+  cycleDays: number;
+  avgVol: number;
+  pHex: number;
+  pSsh: number;
+  globalTShares: number | null;
+}) {
+  const total = snap.meta.supply + snap.meta.burned;
+  const mintedS = total / S_SHARE;
+  const leftS = snap.meta.supply / S_SHARE;
+  const burnedS = snap.meta.burned / S_SHARE;
+  const pctLeft = mintedS > 0 ? (leftS / mintedS) * 100 : 0;
+  // An S-share earns twice: its slice of the 1% end-stake payout, plus its slice
+  // of the 2.5% reflections the cycle's volume funds. Counting only the payout
+  // would understate it against a T-share, which earns just the one way.
+  const reflHex = pHex > 0 ? (REFLECTION_RATE * avgVol * cycleDays) / pHex : 0;
+  const perS = leftS > 0 ? (poolPayout + reflHex) / leftS : 0;
+  const perT = snap.meta.payoutPerTshare * cycleDays;
+
+  const rows: { k: string; t: string; s: string; hero?: boolean }[] = [
+    {
+      k: 'What one unit is',
+      t: `${nf(snap.meta.shareRate)} HEX`,
+      s: `${nf(S_SHARE)} pSSH`,
+    },
+    {
+      k: 'What it costs today',
+      t: pHex > 0 ? `$${(snap.meta.shareRate * pHex).toFixed(2)}` : '—',
+      s: pSsh > 0 ? `$${(S_SHARE * pSsh).toFixed(2)}` : '—',
+    },
+    {
+      k: 'How many exist',
+      t: globalTShares ? `${nf(globalTShares)}` : '—',
+      s: `${nf(leftS, 1)} of ${nf(mintedS)}`,
+    },
+    {
+      k: 'HEX already staked behind it',
+      t: 'you stake your own',
+      s: `${nf(poolHex / leftS, 1)} HEX`,
+    },
+    {
+      k: `HEX earned per ${cycleDays}-day cycle`,
+      t: `${perT.toFixed(2)} HEX`,
+      s: `${perS.toFixed(2)} HEX`,
+    },
+    {
+      k: 'HEX earned per $1 spent',
+      t: pHex > 0 ? `${(perT / (snap.meta.shareRate * pHex)).toFixed(2)} HEX` : '—',
+      s: pSsh > 0 ? `${(perS / (S_SHARE * pSsh)).toFixed(2)} HEX` : '—',
+      hero: true,
+    },
+    {
+      k: 'Where the count goes',
+      t: 'up forever — new stakes mint more',
+      s: 'down only — the 1% burns them',
+    },
+  ];
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)]">
+      <div className="grid grid-cols-[1.1fr_1fr_1fr] items-end gap-2 border-b border-[var(--line)] px-4 py-3 sm:grid-cols-[1.4fr_1fr_1fr]">
+        <span
+          className="text-[9.5px] uppercase tracking-[0.14em] text-[var(--text-faint)]"
+          style={{ fontFamily: MONO }}
+        >
+          Per unit
+        </span>
+        <span className="text-right text-sm font-bold tracking-tight text-[var(--text)]">
+          T-share
+          <span className="ml-1 text-[10px] font-medium text-[var(--text-faint)]">HEX</span>
+        </span>
+        <span
+          className="text-right text-sm font-bold tracking-tight"
+          style={{ backgroundImage: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}
+        >
+          S-share
+          <span className="ml-1 text-[10px] font-medium text-[var(--text-faint)]">pSSH</span>
+        </span>
+      </div>
+
+      {rows.map((r) => (
+        <div
+          key={r.k}
+          className="grid grid-cols-[1.1fr_1fr_1fr] items-baseline gap-2 border-b border-[var(--line)] px-4 py-2.5 last:border-b-0 sm:grid-cols-[1.4fr_1fr_1fr]"
+        >
+          <span className="text-[12px] leading-snug text-[var(--text-muted)]">{r.k}</span>
+          <span
+            className={`text-right tabular-nums text-[var(--text)] ${
+              r.hero ? 'text-[17px] font-bold tracking-[-0.02em]' : 'text-[13px]'
+            }`}
+          >
+            {r.t}
+          </span>
+          <span
+            className={`text-right tabular-nums ${
+              r.hero ? 'text-[17px] font-bold tracking-[-0.02em]' : 'text-[13px]'
+            }`}
+            style={
+              r.hero
+                ? { backgroundImage: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
+                : { color: 'var(--text)' }
+            }
+          >
+            {r.s}
+          </span>
+        </div>
+      ))}
+
+      {/* how much of the fixed 10,000 is already gone */}
+      <div className="border-t border-[var(--line)] px-4 py-3.5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <span
+            className="text-[9.5px] uppercase tracking-[0.14em] text-[var(--text-faint)]"
+            style={{ fontFamily: MONO }}
+          >
+            S-shares remaining
+          </span>
+          <span className="text-[11.5px] text-[var(--text-muted)]">
+            <b className="text-[var(--text)]">{nf(burnedS, 1)}</b> burned out of {nf(mintedS)}
+          </span>
+        </div>
+        <div className="mt-2 h-2 overflow-hidden rounded bg-[var(--line)]">
+          <span className="block h-full rounded" style={{ width: `${pctLeft}%`, background: GRAD }} />
+        </div>
+        <p className="mt-2.5 text-[11px] leading-relaxed text-[var(--text-faint)]">
+          <b className="text-[var(--text-muted)]">S-share is our name for it, not a token.</b> The
+          pSSH whitepaper sets {nf(S_SHARE)} pSSH as the minimum holding that earns HEX rewards, and
+          that divides the {nf(total)} total supply into exactly {nf(mintedS)}. Every buy and sell
+          burns 1%, so the count only falls — a T-share is minted on demand and gets dearer as the
+          share rate climbs, an S-share can only get scarcer.
+        </p>
+      </div>
     </div>
   );
 }
