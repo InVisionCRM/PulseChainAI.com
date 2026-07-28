@@ -3,7 +3,6 @@ import Link from "next/link";
 import {
   IconBook,
   IconCurrencyDollar,
-  IconChartBar,
   IconPhoneOutgoing,
   IconWallet,
   IconX,
@@ -38,7 +37,8 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
     {
       label: "SuperStake",
       href: "/superstake",
-      icon: <IconChartBar className="h-8 w-8" />,
+      // eslint-disable-next-line @next/next/no-img-element
+      icon: <img src="/superstake-logo.png" alt="SuperStake" className="h-8 w-8 object-contain" />,
     },
     {
       label: "HEX Strategist",

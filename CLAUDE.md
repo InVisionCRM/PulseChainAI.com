@@ -123,7 +123,11 @@ token-transfers, balances, token metadata; an RPC CANNOT replace these)
   pair discovery, and the prices it already powers. **NEVER a source of
   transaction / transfer history**, and never reach for it as a fallback for
   transactions. It is not a general blockchain-data API.
-- **GeckoTerminal:** `api.geckoterminal.com/api/v2` (OHLCV candles).
+- **GeckoTerminal:** `api.geckoterminal.com/api/v2` (OHLCV candles). **This is the
+  second opinion on volume — not DexScreener.** DexScreener under-reports
+  PulseChain badly: for pSSH it listed 30 pairs where GeckoTerminal listed 100
+  (identical $ total, 70 pools simply missing). When sanity-checking a volume
+  number, check it against GeckoTerminal.
 - **CoinGecko:** key `COINGECKO_API_KEY`.
 - **Moralis** — ⛔ **DO NOT USE.** It is a paid/metered service; the owner is on
   the free tier only, so any real use just fails or bills them. Never add or
@@ -132,8 +136,23 @@ token-transfers, balances, token metadata; an RPC CANNOT replace these)
 ### Subgraphs / GraphQL
 - **PulseChain HEX:** `graph.pulsechain.com/subgraphs/name/Codeakk/Hex`
   (fallbacks: `.../hex/hex-staking`, `api.thegraph.com/subgraphs/name/pulsechain/hex-staking`).
-- **PulseX:** `graph.pulsechain.com/subgraphs/name/Codeakk/PulseX` and
-  `.../pulsechain/pulsex`, `.../pulsechain/pulsexv2`.
+- **PulseX:** `graph.pulsechain.com/subgraphs/name/pulsechain/pulsexv2` and
+  `.../pulsechain/pulsex`. (`Codeakk/PulseX` no longer exists — verified.)
+  Current schema is `plsPrice` / `derivedUSD` / `totalTransactions`; the old
+  `ethPrice` / `derivedETH` / `txCount` fields return schema errors.
+
+**The subgraph is the source of truth for volume — and volume means UNTRACKED.**
+PulseX only writes the `volumeUSD` / `tradeVolumeUSD` ("tracked") columns when it
+can price *both* sides of a pair against a whitelisted token (WPLS, HEX, DAI,
+PLSX…). Any pair of two non-whitelisted tokens books **$0 tracked** no matter how
+much it trades — pTGC/pSSH shows $0 across 6,610 swaps. Always read
+`untrackedVolumeUSD`, never `volumeUSD`, and never filter/sort on the tracked
+column (`where:{volumeUSD_gt:"0"}` silently deletes those pairs).
+For pSSH lifetime: tracked $1.39M vs untracked $1.67M — 17% of the record.
+`tokenDayDatas.dailyVolumeUSD` and `pairDayDatas.dailyVolumeUSD` are already the
+untracked/derived figures (verified: the pSSH day series sums to
+`untrackedVolumeUSD` and its `dailyTxns` match `totalTransactions` exactly), and
+per-day they match GeckoTerminal to 1.005× over 20 days. Those are safe to use.
 - **Ethereum HEX / hosted subgraphs:** `gateway.thegraph.com/api` (key `THEGRAPH_API_KEY`).
 - **Internal proxy** (client calls route through this to dodge CORS):
   `app/api/pulsechain-graphql-proxy`.
@@ -143,7 +162,10 @@ token-transfers, balances, token metadata; an RPC CANNOT replace these)
   Cost is never an acceptable default for an API here — the owner runs on free
   tiers. If the only solution costs money, STOP and say so; don't ship it.
 - **DexScreener for transaction/transfer history** — it's logos/prices/pairs
-  only, never a data or transaction fallback.
+  only, never a data or transaction fallback. Also **never as the check on a
+  volume number** — it misses most PulseChain pools. Use GeckoTerminal.
+- **The subgraph's tracked volume columns** (`volumeUSD`, `tradeVolumeUSD`) —
+  they zero out every non-whitelisted pair. Use `untrackedVolumeUSD`.
 - **`midgard.wtf`** as an explorer — use `lib/pulsechainExplorer.ts` (Otterscan).
 - **Any testnet RPC or explorer** in production/mainnet code.
 - Any RPC/explorer/subgraph host not already in this repo — research + verify,

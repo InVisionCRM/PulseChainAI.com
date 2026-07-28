@@ -8,7 +8,6 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import {
   IconHome,
-  IconChartBar,
   IconSearch,
   IconRocket,
   IconHexagon,
@@ -128,7 +127,8 @@ export default function RootLayout({
       label: "SuperStake",
       href: "/superstake",
       icon: (
-        <IconChartBar className="h-5 w-5 shrink-0 text-[var(--text)]" />
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/superstake-logo.png" alt="SuperStake" className="h-5 w-5 shrink-0 object-contain" />
       ),
     },
     {

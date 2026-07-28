@@ -127,7 +127,12 @@ async function fetchHexDailies(fromDay: number) {
     const rows = d?.rows ?? [];
     if (!rows.length) break;
     for (const r of rows) {
-      const day = Number(r.endDay);
+      // `endDay` is the day the update was *recorded*: HEX emits day N's payout
+      // at the start of day N+1, so endDay N+1 describes day N. Attributing it
+      // to endDay shifts the whole series a day late — invisible on flat days,
+      // but badly wrong across a payout jump. Verified: shifting back one day
+      // reproduces the published series exactly (0.000% diff over 1040 days).
+      const day = Number(r.endDay) - 1;
       // payout is in hearts, shares in raw share units — the ratio is HEX per T-share.
       const payout = heartsToHex(r.payout);
       const shares = sharesToTShares(r.shares);
