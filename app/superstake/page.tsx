@@ -12,9 +12,11 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { IconArrowRight, IconExternalLink } from '@tabler/icons-react';
 import {
-  backtest,
-  backtestByCycle,
+  cycleHeadToHead,
   dayToISO,
+  inputsFromCycle,
+  REFLECTION_RATE,
+  type CycleResult,
   type SuperStakeCycle,
   type SuperStakeSnapshot,
 } from '@/lib/superstake/model';
@@ -23,6 +25,14 @@ import MachineFlow from '@/components/superstake/MachineFlow';
 import CycleClock from '@/components/superstake/CycleClock';
 
 const PSSH = '0xb5c4ecef450fd36d0eba1420f6a19dbfbee5292e';
+/**
+ * The whitepaper sets 5,555 pSSH as the minimum holding that earns HEX rewards.
+ * We call that block an "S-share" — it is our name for the threshold, not a
+ * token or an on-chain primitive. It divides the 55,550,000 total supply into
+ * exactly 10,000, and because the 1% buy-and-burn only ever removes supply, the
+ * number that can exist only falls.
+ */
+const S_SHARE = 5_555;
 /** The head-to-head here is fixed at $100; /superstake/vs-hex takes any amount. */
 const STAKE_AMOUNT = 100;
 const MONO = 'var(--font-jetbrains-mono), ui-monospace, monospace';
@@ -34,6 +44,9 @@ interface Live {
   wins: Record<string, number>;
   source: string;
 }
+
+const nf = (n: number, dp = 0) =>
+  n.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp });
 
 const compact = (n: number) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : n.toFixed(0);
@@ -55,6 +68,7 @@ export default function SuperStakeHubPage() {
   const [snap, setSnap] = useState<SuperStakeSnapshot | null>(null);
   const [live, setLive] = useState<Live | null>(null);
   const [fresh, setFresh] = useState(false);
+  const [globalTShares, setGlobalTShares] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -69,6 +83,7 @@ export default function SuperStakeHubPage() {
         if (alive && rebuilt?.cycles?.length && rebuilt?.series?.P?.length) {
           setSnap({ ...base, cycles: rebuilt.cycles, series: rebuilt.series });
           setFresh(true);
+          if (rebuilt.globalTShares > 0) setGlobalTShares(rebuilt.globalTShares);
         }
       } catch {
         /* stay on the snapshot */
@@ -105,9 +120,14 @@ export default function SuperStakeHubPage() {
       .filter((x) => x.cycle.done);
     const covered = coverage.filter((x) => x.ratio >= 1).length;
 
-    // --- $100 in on day one -------------------------------------------------
-    const whole = backtest(snap, STAKE_AMOUNT, dayToISO(snap.series.d0));
-    const per = backtestByCycle(snap, STAKE_AMOUNT);
+    // --- the same $100 decision, scored one cycle at a time -----------------
+    const per = completed
+      .map((c) => {
+        const inputs = inputsFromCycle(snap, c);
+        const result = inputs ? cycleHeadToHead(STAKE_AMOUNT, inputs) : null;
+        return result ? { cycle: c, result } : null;
+      })
+      .filter((x): x is { cycle: SuperStakeCycle; result: CycleResult } => x !== null);
     const psshWins = per.filter((p) => p.result.winner === 'pssh').length;
     let streak = 0;
     for (let i = per.length - 1; i >= 0; i--) {
@@ -116,10 +136,34 @@ export default function SuperStakeHubPage() {
     }
 
     return {
-      cycles, running, per, psshWins, streak, whole, coverage, covered,
+      cycles, running, per, psshWins, streak, coverage, covered,
       neverShrank: cycles.every((c, i) => i === 0 || c.hex >= cycles[i - 1].hex),
     };
   }, [snap]);
+
+  // The cycle now running, scored on today's prices, payout rate and volume.
+  // A projection, not a record — it assumes the next 60 days look like today.
+  const ahead = useMemo(() => {
+    if (!view || !snap) return null;
+    const { running } = view;
+    const days = running.d1 - running.d0;
+    const pHex = live?.pHEX ?? snap.meta.pHEX;
+    const pSsh = live?.pSSH ?? snap.meta.pSSH;
+    const avgVol = live?.wins?.['60'] ?? snap.wins?.['60'] ?? 0;
+    const result = cycleHeadToHead(STAKE_AMOUNT, {
+      days,
+      pHex,
+      pSsh,
+      pHexAvg: pHex,
+      shareRate: snap.meta.shareRate,
+      payoutPerTshare: snap.meta.payoutPerTshare,
+      poolHex: running.hex,
+      poolYieldHex: running.tsh * snap.meta.payoutPerTshare * days,
+      volumeUsd: avgVol * days,
+      supply: snap.meta.supply,
+    });
+    return result ? { result, days, avgVol } : null;
+  }, [view, snap, live]);
 
   // How much daily volume the running cycle needs to cover its own payout.
   // Expected yield comes from the stake's T-shares at the current payout rate;
@@ -171,8 +215,9 @@ export default function SuperStakeHubPage() {
               every 60 days.
             </h1>
             <p className="relative mt-2.5 max-w-[46ch] text-[13.5px] leading-relaxed text-[var(--text-muted)]">
-              No presale, no emissions, no treasury. Trading pays for it, and across every cycle on
-              record the stake has never gotten smaller.
+              Nobody runs it. The contract has closed and reopened this same stake{' '}
+              {view ? `${view.per.length} times` : 'again and again'} — buying HEX and burning pSSH
+              the whole way — and the only thing that could stop it is HEX itself.
             </p>
 
             <dl className="relative mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-4">
@@ -242,6 +287,26 @@ export default function SuperStakeHubPage() {
           />
           <MachineFlow />
         </section>
+
+        {/* ─────────── T-share vs S-share ─────────── */}
+        {view && snap && (
+          <section className="mt-9">
+            <SectionHead
+              title="HEX has the T-share. pSSH has the S-share."
+              sub="the unit each one sells you"
+            />
+            <ShareCompare
+              snap={snap}
+              poolHex={view.running.hex}
+              poolPayout={view.running.pay}
+              cycleDays={view.running.d1 - view.running.d0}
+              avgVol={live?.wins?.['60'] ?? snap.wins?.['60'] ?? 0}
+              pHex={live?.pHEX ?? snap.meta.pHEX}
+              pSsh={live?.pSSH ?? snap.meta.pSSH}
+              globalTShares={globalTShares}
+            />
+          </section>
+        )}
 
         {/* ─────────── the two engines ─────────── */}
         {view && (
@@ -318,12 +383,12 @@ export default function SuperStakeHubPage() {
           </section>
         )}
 
-        {/* ─────────── $100 head-to-head ─────────── */}
-        {view?.whole && (
+        {/* ─────────── the next 60 days ─────────── */}
+        {view && ahead && (
           <section className="mt-9">
             <SectionHead
-              title={`$${STAKE_AMOUNT} in on day one — stake it, or hold it?`}
-              sub="both sides measured in HEX, so it isn't a price call"
+              title={`$${STAKE_AMOUNT} in today, held one ${ahead.days}-day cycle`}
+              sub="projected from today's prices, payout rate and volume"
             />
 
             <div className="grid overflow-hidden rounded-t-2xl border border-[var(--line)] md:grid-cols-2">
@@ -335,21 +400,20 @@ export default function SuperStakeHubPage() {
                   Stake the HEX yourself
                 </div>
                 <div className="mt-3 text-[clamp(34px,6.2vw,54px)] font-bold leading-none tracking-[-0.045em] tabular-nums text-[var(--text)]">
-                  +{Math.round(view.whole.stakeYield).toLocaleString()}
+                  +{Math.round(ahead.result.stakeYield).toLocaleString()}
                   <span className="ml-1.5 text-[0.3em] font-semibold text-[var(--text-faint)]">
                     HEX
                   </span>
                 </div>
                 <p className="mt-2 max-w-[34ch] text-[12.5px] leading-relaxed text-[var(--text-muted)]">
-                  Buy {Math.round(view.whole.hexAmount).toLocaleString()} HEX at{' '}
-                  {usd(view.whole.pHexStart, 5)} and lock it for the full{' '}
-                  {view.whole.days.toLocaleString()} days.
+                  Buy {Math.round(ahead.result.hexAmount).toLocaleString()} HEX at{' '}
+                  {usd(ahead.result.pHex, 6)} and lock it for {ahead.days} days.
                 </p>
                 <dl className="mt-auto grid gap-1.5 pt-4">
-                  <Row k="T-shares earned" v={view.whole.tShares.toFixed(3)} />
+                  <Row k="T-shares earned" v={ahead.result.tShares.toFixed(3)} />
                   <Row
                     k="Longer-pays-better bonus"
-                    v={`+${Math.round((view.whole.lpbMultiplier - 1) * 100)}%`}
+                    v={`+${((ahead.result.lpbMultiplier - 1) * 100).toFixed(1)}%`}
                   />
                 </dl>
               </div>
@@ -373,62 +437,109 @@ export default function SuperStakeHubPage() {
                   Buy pSSH and sit on it
                 </div>
                 <div className="mt-3 text-[clamp(34px,6.2vw,54px)] font-bold leading-none tracking-[-0.045em] tabular-nums">
-                  +{Math.round(view.whole.psshYield).toLocaleString()}
+                  +{Math.round(ahead.result.psshYield).toLocaleString()}
                   <span className="ml-1.5 text-[0.3em] font-semibold opacity-70">HEX</span>
                 </div>
                 <p className="mt-2 max-w-[34ch] text-[12.5px] leading-relaxed opacity-80">
-                  ${(STAKE_AMOUNT * 0.945).toFixed(2)} of pSSH after the 5.5% tax —{' '}
-                  {Math.round(view.whole.psshAmount).toLocaleString()} tokens, held and never sold.
+                  ${(STAKE_AMOUNT * (1 - 0.055)).toFixed(2)} of pSSH after the 5.5% tax —{' '}
+                  {Math.round(ahead.result.psshAmount).toLocaleString()} tokens, held through the
+                  end-stake.
                 </p>
                 <dl className="mt-auto grid gap-1.5 pt-4">
                   <Row
-                    k="From the 60-day payouts"
-                    v={`${Math.round(view.whole.payouts).toLocaleString()} HEX`}
+                    k="From the end-stake payout"
+                    v={`${Math.round(ahead.result.payouts).toLocaleString()} HEX`}
                     light
                   />
                   <Row
-                    k="From the 2.5% reflections"
-                    v={`${Math.round(view.whole.reflections).toLocaleString()} HEX`}
+                    k={`From reflections at ${usdShort(ahead.avgVol)}/day`}
+                    v={`${Math.round(ahead.result.reflections).toLocaleString()} HEX`}
                     light
                   />
                 </dl>
               </div>
             </div>
 
-            <div className="grid gap-3 rounded-b-2xl border border-t-0 border-[var(--line)] bg-[var(--panel)] p-4 sm:grid-cols-[auto_1fr] sm:items-center">
-              <p className="text-[13px] leading-snug text-[var(--text-muted)]">
-                Across all <b className="text-[var(--text)]">{view.per.length} finished cycles</b>,
-                entering on each one&apos;s opening day:
-                <br />
-                <b className="bg-clip-text text-transparent" style={{ backgroundImage: GRAD }}>
-                  pSSH won {view.psshWins}.
-                </b>{' '}
-                The stake won the early ones, when pSSH barely traded.
-              </p>
-              <div>
-                <div className="flex h-[38px] items-end gap-[3px]">
-                  {view.per.map(({ cycle, result }) => (
-                    <span
-                      key={cycle.i}
-                      title={`Cycle ${cycle.i} — ${
-                        result.winner === 'pssh' ? 'pSSH ahead' : 'stake ahead'
-                      } ${result.ratio.toFixed(2)}×`}
-                      className="flex-1 rounded-sm"
-                      style={
-                        result.winner === 'pssh'
-                          ? { background: GRAD, height: '100%' }
-                          : { background: 'var(--line-strong)', height: '58%' }
-                      }
-                    />
-                  ))}
-                </div>
-                <div
-                  className="mt-1.5 flex justify-between text-[9.5px] tracking-[0.08em] text-[var(--text-faint)]"
-                  style={{ fontFamily: MONO }}
-                >
-                  <span>CYCLE {view.per[0]?.cycle.i}</span>
-                  <span>CYCLE {view.per[view.per.length - 1]?.cycle.i}</span>
-                </div>
+            <p className="rounded-b-2xl border border-t-0 border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-[11.5px] leading-relaxed text-[var(--text-faint)]">
+              A projection, not a record: it holds today&apos;s pHEX and pSSH prices, the current
+              payout-per-T-share of {snap?.meta.payoutPerTshare.toFixed(4)}, and the trailing 60-day
+              average volume of {usdShort(ahead.avgVol)}/day steady for the whole cycle. Every one of
+              those moves. The table below is what actually happened, cycle by cycle.
+            </p>
+
+            {/* every cycle, scored the same way */}
+            <div className="mt-3 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)]">
+              <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--line)] px-4 py-3">
+                <h3 className="text-sm font-bold tracking-tight text-[var(--text)]">
+                  Every cycle, same ${STAKE_AMOUNT}, same question
+                </h3>
+                <span className="text-xs text-[var(--text-faint)]">
+                  pSSH ahead in{' '}
+                  <b className="bg-clip-text text-transparent" style={{ backgroundImage: GRAD }}>
+                    {view.psshWins}
+                  </b>{' '}
+                  of {view.per.length}
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[620px] text-sm">
+                  <thead>
+                    <tr
+                      className="text-[9.5px] uppercase tracking-[0.12em] text-[var(--text-faint)]"
+                      style={{ fontFamily: MONO }}
+                    >
+                      <th className="px-4 py-2 text-left font-medium">Cycle</th>
+                      <th className="px-3 py-2 text-left font-medium">Opened</th>
+                      <th className="px-3 py-2 text-right font-medium">pHEX</th>
+                      <th className="px-3 py-2 text-right font-medium">Volume</th>
+                      <th className="px-3 py-2 text-right font-medium">Stake</th>
+                      <th className="px-3 py-2 text-right font-medium">pSSH</th>
+                      <th className="px-4 py-2 text-right font-medium">Winner</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {view.per.map(({ cycle, result }) => {
+                      const won = result.winner === 'pssh';
+                      return (
+                        <tr
+                          key={cycle.i}
+                          className="border-t border-[var(--line)] transition-colors hover:bg-[var(--surface)]"
+                        >
+                          <td className="px-4 py-2 tabular-nums text-[var(--text-muted)]">
+                            #{cycle.i}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums text-[var(--text-muted)]">
+                            {dayToISO(cycle.d0)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-[var(--text-faint)]">
+                            {usd(cycle.pH0, 5)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-[var(--text-faint)]">
+                            {usdShort(cycle.vol)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-[var(--text)]">
+                            {Math.round(result.stakeYield).toLocaleString()}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-[var(--text)]">
+                            {Math.round(result.psshYield).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-2 text-right">
+                            <span
+                              className={`text-xs font-bold ${won ? '' : 'text-[var(--text-muted)]'}`}
+                              style={
+                                won
+                                  ? { backgroundImage: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
+                                  : undefined
+                              }
+                            >
+                              {won ? 'pSSH' : 'stake'} {result.ratio.toFixed(2)}×
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -436,7 +547,7 @@ export default function SuperStakeHubPage() {
               href="/superstake/vs-hex"
               className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-xs font-bold text-[var(--text)] transition-colors hover:bg-[var(--surface-2)]"
             >
-              Run it with your own amount
+              See the full history with your own amount
               <IconArrowRight className="h-3.5 w-3.5" />
             </Link>
           </section>
@@ -507,6 +618,152 @@ function Stat({ label, value, sub }: { label: string; value: string; sub: string
         {value}
       </dd>
       <dd className="text-[10px] text-[var(--text-faint)]">{sub}</dd>
+    </div>
+  );
+}
+
+/**
+ * Side-by-side on the unit each system sells. The contrast that matters is the
+ * last row: T-shares are minted forever and get dearer as the share rate climbs,
+ * while S-shares were fixed at exactly 10,000 by the supply and only ever burn.
+ */
+function ShareCompare({
+  snap, poolHex, poolPayout, cycleDays, avgVol, pHex, pSsh, globalTShares,
+}: {
+  snap: SuperStakeSnapshot;
+  poolHex: number;
+  poolPayout: number;
+  cycleDays: number;
+  avgVol: number;
+  pHex: number;
+  pSsh: number;
+  globalTShares: number | null;
+}) {
+  const total = snap.meta.supply + snap.meta.burned;
+  const mintedS = total / S_SHARE;
+  const leftS = snap.meta.supply / S_SHARE;
+  const burnedS = snap.meta.burned / S_SHARE;
+  const pctLeft = mintedS > 0 ? (leftS / mintedS) * 100 : 0;
+  // An S-share earns twice: its slice of the 1% end-stake payout, plus its slice
+  // of the 2.5% reflections the cycle's volume funds. Counting only the payout
+  // would understate it against a T-share, which earns just the one way.
+  const reflHex = pHex > 0 ? (REFLECTION_RATE * avgVol * cycleDays) / pHex : 0;
+  const perS = leftS > 0 ? (poolPayout + reflHex) / leftS : 0;
+  const perT = snap.meta.payoutPerTshare * cycleDays;
+
+  const rows: { k: string; t: string; s: string; hero?: boolean }[] = [
+    {
+      k: 'What one unit is',
+      t: `${nf(snap.meta.shareRate)} HEX`,
+      s: `${nf(S_SHARE)} pSSH`,
+    },
+    {
+      k: 'What it costs today',
+      t: pHex > 0 ? `$${(snap.meta.shareRate * pHex).toFixed(2)}` : '—',
+      s: pSsh > 0 ? `$${(S_SHARE * pSsh).toFixed(2)}` : '—',
+    },
+    {
+      k: 'How many exist',
+      t: globalTShares ? `${nf(globalTShares)}` : '—',
+      s: `${nf(leftS, 1)} of ${nf(mintedS)}`,
+    },
+    {
+      k: 'HEX already staked behind it',
+      t: 'you stake your own',
+      s: `${nf(poolHex / leftS, 1)} HEX`,
+    },
+    {
+      k: `HEX earned per ${cycleDays}-day cycle`,
+      t: `${perT.toFixed(2)} HEX`,
+      s: `${perS.toFixed(2)} HEX`,
+    },
+    {
+      k: 'HEX earned per $1 spent',
+      t: pHex > 0 ? `${(perT / (snap.meta.shareRate * pHex)).toFixed(2)} HEX` : '—',
+      s: pSsh > 0 ? `${(perS / (S_SHARE * pSsh)).toFixed(2)} HEX` : '—',
+      hero: true,
+    },
+    {
+      k: 'Where the count goes',
+      t: 'up forever — new stakes mint more',
+      s: 'down only — the 1% burns them',
+    },
+  ];
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)]">
+      <div className="grid grid-cols-[1.1fr_1fr_1fr] items-end gap-2 border-b border-[var(--line)] px-4 py-3 sm:grid-cols-[1.4fr_1fr_1fr]">
+        <span
+          className="text-[9.5px] uppercase tracking-[0.14em] text-[var(--text-faint)]"
+          style={{ fontFamily: MONO }}
+        >
+          Per unit
+        </span>
+        <span className="text-right text-sm font-bold tracking-tight text-[var(--text)]">
+          T-share
+          <span className="ml-1 text-[10px] font-medium text-[var(--text-faint)]">HEX</span>
+        </span>
+        <span
+          className="text-right text-sm font-bold tracking-tight"
+          style={{ backgroundImage: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}
+        >
+          S-share
+          <span className="ml-1 text-[10px] font-medium text-[var(--text-faint)]">pSSH</span>
+        </span>
+      </div>
+
+      {rows.map((r) => (
+        <div
+          key={r.k}
+          className="grid grid-cols-[1.1fr_1fr_1fr] items-baseline gap-2 border-b border-[var(--line)] px-4 py-2.5 last:border-b-0 sm:grid-cols-[1.4fr_1fr_1fr]"
+        >
+          <span className="text-[12px] leading-snug text-[var(--text-muted)]">{r.k}</span>
+          <span
+            className={`text-right tabular-nums text-[var(--text)] ${
+              r.hero ? 'text-[17px] font-bold tracking-[-0.02em]' : 'text-[13px]'
+            }`}
+          >
+            {r.t}
+          </span>
+          <span
+            className={`text-right tabular-nums ${
+              r.hero ? 'text-[17px] font-bold tracking-[-0.02em]' : 'text-[13px]'
+            }`}
+            style={
+              r.hero
+                ? { backgroundImage: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
+                : { color: 'var(--text)' }
+            }
+          >
+            {r.s}
+          </span>
+        </div>
+      ))}
+
+      {/* how much of the fixed 10,000 is already gone */}
+      <div className="border-t border-[var(--line)] px-4 py-3.5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <span
+            className="text-[9.5px] uppercase tracking-[0.14em] text-[var(--text-faint)]"
+            style={{ fontFamily: MONO }}
+          >
+            S-shares remaining
+          </span>
+          <span className="text-[11.5px] text-[var(--text-muted)]">
+            <b className="text-[var(--text)]">{nf(burnedS, 1)}</b> burned out of {nf(mintedS)}
+          </span>
+        </div>
+        <div className="mt-2 h-2 overflow-hidden rounded bg-[var(--line)]">
+          <span className="block h-full rounded" style={{ width: `${pctLeft}%`, background: GRAD }} />
+        </div>
+        <p className="mt-2.5 text-[11px] leading-relaxed text-[var(--text-faint)]">
+          <b className="text-[var(--text-muted)]">S-share is our name for it, not a token.</b> The
+          pSSH whitepaper sets {nf(S_SHARE)} pSSH as the minimum holding that earns HEX rewards, and
+          that divides the {nf(total)} total supply into exactly {nf(mintedS)}. Every buy and sell
+          burns 1%, so the count only falls — a T-share is minted on demand and gets dearer as the
+          share rate climbs, an S-share can only get scarcer.
+        </p>
+      </div>
     </div>
   );
 }

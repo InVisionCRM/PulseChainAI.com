@@ -207,6 +207,112 @@ export function backtest(
   };
 }
 
+/** Share of each end-stake paid out to holders. */
+export const HOLDER_PAYOUT_RATE = 0.01;
+
+/** Everything one 60-day cycle needs to be scored, from live stats or a record. */
+export interface CycleInputs {
+  /** Length of the cycle in days. */
+  days: number;
+  /** pHEX / pSSH price at entry, USD. */
+  pHex: number;
+  pSsh: number;
+  /** Average pHEX across the cycle — reflections are earned throughout, not at entry. */
+  pHexAvg: number;
+  shareRate: number;
+  /** HEX per T-share per day, for the user's own stake. */
+  payoutPerTshare: number;
+  /** The SuperStake pool's own principal and the HEX it earns over the cycle. */
+  poolHex: number;
+  poolYieldHex: number;
+  /** Total pSSH trade volume across the cycle, USD. */
+  volumeUsd: number;
+  /** pSSH circulating supply. */
+  supply: number;
+}
+
+export interface CycleResult {
+  days: number;
+  pHex: number;
+  pSsh: number;
+  hexAmount: number;
+  tShares: number;
+  lpbMultiplier: number;
+  stakeYield: number;
+  psshAmount: number;
+  supplyShare: number;
+  payouts: number;
+  reflections: number;
+  psshYield: number;
+  winner: 'pssh' | 'stake';
+  ratio: number;
+}
+
+/**
+ * Score one 60-day cycle: the same dollars either open a fresh native HEX stake
+ * for the cycle, or buy pSSH and hold it across the cycle's end-stake.
+ *
+ * Unlike `backtest`, which replays from a start date to the end of the record,
+ * this covers exactly one cycle — so it works identically on a finished cycle
+ * (fed its realised figures) and on the cycle now running (fed today's stats as
+ * a projection). Both sides are counted in HEX.
+ */
+export function cycleHeadToHead(amountUsd: number, c: CycleInputs): CycleResult | null {
+  if (!(amountUsd > 0) || !(c.days > 0) || !(c.pHex > 0) || !(c.pSsh > 0)) return null;
+  if (!(c.shareRate > 0) || !(c.supply > 0)) return null;
+
+  // --- Side A: open a native HEX stake for the cycle -------------------------
+  const hexAmount = amountUsd / c.pHex;
+  const lpbMultiplier = 1 + (Math.min(c.days, 3641) - 1) / 1820;
+  const tShares =
+    (hexAmount * lpbMultiplier + (hexAmount * Math.min(hexAmount, 150e6)) / 1.5e9) / c.shareRate;
+  const stakeYield = tShares * c.payoutPerTshare * c.days;
+
+  // --- Side B: buy pSSH (after the toll) and hold through the end-stake ------
+  const psshAmount = (amountUsd * (1 - TOLL)) / c.pSsh;
+  const supplyShare = psshAmount / c.supply;
+  const payouts = supplyShare * HOLDER_PAYOUT_RATE * (c.poolHex + c.poolYieldHex);
+  const priceForRefl = c.pHexAvg > 0 ? c.pHexAvg : c.pHex;
+  const reflections = (supplyShare * (REFLECTION_RATE * c.volumeUsd)) / priceForRefl;
+  const psshYield = payouts + reflections;
+
+  const winner: 'pssh' | 'stake' = psshYield >= stakeYield ? 'pssh' : 'stake';
+  return {
+    days: c.days, pHex: c.pHex, pSsh: c.pSsh,
+    hexAmount, tShares, lpbMultiplier, stakeYield,
+    psshAmount, supplyShare, payouts, reflections, psshYield,
+    winner,
+    ratio:
+      winner === 'pssh'
+        ? psshYield / Math.max(stakeYield, 1e-9)
+        : stakeYield / Math.max(psshYield, 1e-9),
+  };
+}
+
+/** Turn a finished cycle's record into inputs, so history is scored the same way. */
+export function inputsFromCycle(
+  snap: SuperStakeSnapshot,
+  c: SuperStakeCycle,
+): CycleInputs | null {
+  const days = c.d1 - c.d0;
+  if (!(days > 0) || !(c.tsh > 0)) return null;
+  const sr = snap.series.SR[c.d0 - snap.series.d0];
+  if (!(sr > 0)) return null;
+  return {
+    days,
+    pHex: c.pH0,
+    pSsh: c.pS0,
+    pHexAvg: c.pHavg,
+    shareRate: sr,
+    // The rate this cycle actually paid, rather than today's.
+    payoutPerTshare: c.nY / (c.tsh * days),
+    poolHex: c.hex,
+    poolYieldHex: c.nY,
+    volumeUsd: c.vol,
+    supply: snap.meta.supply,
+  };
+}
+
 /**
  * Run the same comparison for every completed cycle, entering on that cycle's
  * own opening day with its own prices — the "replay every cycle" view.

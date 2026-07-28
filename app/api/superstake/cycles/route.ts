@@ -39,6 +39,8 @@ const CACHE_TTL_MS = 60 * 60_000;
 interface CyclesPayload {
   cycles: SuperStakeCycle[];
   series: { d0: number; P: number[]; SR: number[]; PH: number[]; VV: number[]; PV: number[] };
+  /** Every T-share staked on the network, latest day — the denominator HEX itself uses. */
+  globalTShares: number | null;
   source: 'subgraph';
   fetchedAt: number;
   /** Days at the tail with no price/volume data yet — the client should treat them as partial. */
@@ -237,9 +239,14 @@ export async function GET() {
     const done = !!end || d1 <= currentDay;
     // Native yield: the realised payout when the stake has ended, otherwise the
     // series' payout-per-T-share accrued so far.
+    //
+    // StakeEnd.payout is the INTEREST only, not principal + interest — verified
+    // against stake 944998, whose payout of 1,215,877,344,551 hearts is 12,158
+    // HEX on a 4,511,144 HEX principal. Subtracting stakedHearts from it drove
+    // every finished cycle's yield negative, and the clamp turned that into 0.
     let nY = 0;
     if (end) {
-      nY = Math.max(0, heartsToHex(end.payout) - heartsToHex(end.stakedHearts));
+      nY = Math.max(0, heartsToHex(end.payout));
     } else {
       for (let d = d0; d <= Math.min(d1, lastDay); d++) nY += tsh * (P[d - firstDay] ?? 0);
     }
@@ -275,9 +282,13 @@ export async function GET() {
   if (!hexDaily.size) warnings.push('HEX daily data unavailable — payout series is flat.');
   if (!psshDays.length) warnings.push('pSSH day data unavailable — volume/reflections are zero.');
 
+  // The network's T-share total on the most recent day we have data for.
+  const latestDaily = [...hexDaily.keys()].sort((a, b) => b - a).find((d) => hexDaily.get(d)!.shares > 0);
+
   const payload: CyclesPayload = {
     cycles,
     series: { d0: firstDay, P, SR, PH, VV, PV },
+    globalTShares: latestDaily != null ? hexDaily.get(latestDaily)!.shares : null,
     source: 'subgraph',
     fetchedAt: Date.now(),
     warnings,
