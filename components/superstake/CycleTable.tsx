@@ -84,7 +84,7 @@ export default function CycleTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[660px] text-sm">
+        <table className="w-full min-w-[730px] text-sm">
           <thead>
             <tr
               className="text-[9.5px] uppercase tracking-[0.12em] text-[var(--text-faint)]"
@@ -95,6 +95,11 @@ export default function CycleTable({
               <th className="px-3 py-2 text-right font-medium">pHEX</th>
               <th className="px-3 py-2 text-right font-medium">Volume</th>
               <th className="px-3 py-2 text-right font-medium">Stake</th>
+              {/* The stake-funded slice of the pSSH column beside it — the 1%
+                  payout on its own, with reflections left out. Named "payout"
+                  rather than "stake" so it can't be read as the native-stake
+                  column two along. */}
+              <th className="px-3 py-2 text-right font-medium">Payout</th>
               <th className="px-3 py-2 text-right font-medium">pSSH</th>
               <th className="px-3 py-2 text-right font-medium">Winner</th>
               <th className="w-8 px-2 py-2" aria-label="expand" />
@@ -137,6 +142,7 @@ export default function CycleTable({
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-faint)]">
                   {usdShort(running.vol)}
                 </td>
+                <td className="px-3 py-2 text-right text-[var(--text-faint)]">—</td>
                 <td className="px-3 py-2 text-right text-[var(--text-faint)]">—</td>
                 <td className="px-3 py-2 text-right text-[var(--text-faint)]">—</td>
                 <td
@@ -198,6 +204,11 @@ function CycleRowPair({
         <td className="px-3 py-2 text-right tabular-nums text-[var(--text)]">
           {n0(result.stakeYield)}
         </td>
+        {/* One decimal: these run from ~3 to ~45 HEX, so rounding whole would
+            flatten the early cycles into each other. */}
+        <td className="px-3 py-2 text-right tabular-nums text-[var(--text-muted)]">
+          {result.payouts >= 100 ? n0(result.payouts) : result.payouts.toFixed(1)}
+        </td>
         <td className="px-3 py-2 text-right tabular-nums text-[var(--text)]">
           {n0(result.psshYield)}
         </td>
@@ -228,7 +239,7 @@ function CycleRowPair({
               the detail's right-aligned figures — the whole point of it — sit
               off-screen on a phone. Pinning it to the viewport keeps it visible
               no matter how far the table is scrolled. */}
-          <td colSpan={8} className="p-0">
+          <td colSpan={9} className="p-0">
             <div className="sticky left-0 w-[calc(100vw-2.5rem)] px-4 py-4 md:w-auto">
             {/* the facts that don't chart, kept to one quiet line */}
             <div

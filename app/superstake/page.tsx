@@ -25,6 +25,7 @@ import MachineFlow from '@/components/superstake/MachineFlow';
 import CycleClock from '@/components/superstake/CycleClock';
 import CycleTable from '@/components/superstake/CycleTable';
 import PairVolume from '@/components/superstake/PairVolume';
+import PayoutBars from '@/components/superstake/PayoutBars';
 import GlanceStrip from '@/components/superstake/GlanceStrip';
 import ShareCards from '@/components/superstake/ShareCards';
 import type { ShareData } from '@/lib/superstake/shareCard';
@@ -674,6 +675,13 @@ export default function SuperStakeHubPage() {
               See the full history with your own amount
               <IconArrowRight className="h-3.5 w-3.5" />
             </Link>
+          </section>
+        )}
+
+        {/* ─────────── what the stake alone paid, cycle by cycle ─────────── */}
+        {view && view.per.length > 0 && (
+          <section className="mt-9">
+            <PayoutBars rows={view.per} amount={STAKE_AMOUNT} />
           </section>
         )}
 
