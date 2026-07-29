@@ -282,10 +282,24 @@ export default function SuperStakeHubPage() {
       <div className="mx-auto w-full max-w-6xl px-4 pb-16 pt-5">
         {/* ─────────── live header ─────────── */}
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_290px]">
-          <header className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5 md:p-6">
+          {/* The panel carries the page. It used to sit at one flat tone with a
+              single soft wash, which read as low-contrast chrome — so the glow
+              is stronger now, a second one anchors the bottom-left, and a
+              gradient hairline rides the top edge to separate it from the page. */}
+          <header className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5 md:p-7">
             <div
               aria-hidden
-              className="pointer-events-none absolute -top-1/3 right-0 aspect-square w-2/3 opacity-20 blur-3xl"
+              className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-80"
+              style={{ background: GRAD }}
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -top-1/3 right-0 aspect-square w-2/3 opacity-[0.28] blur-3xl"
+              style={{ background: GRAD }}
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -bottom-1/2 -left-1/4 aspect-square w-1/2 opacity-[0.14] blur-3xl"
               style={{ background: GRAD }}
             />
             <div className="relative flex items-center gap-2.5">
@@ -299,51 +313,95 @@ export default function SuperStakeHubPage() {
               </span>
             </div>
 
-            <h1 className="relative mt-3.5 text-[clamp(25px,4.4vw,40px)] font-bold leading-[1.05] tracking-[-0.035em] text-[var(--text)]">
+            <h1 className="relative mt-4 text-[clamp(30px,5.4vw,54px)] font-bold leading-[1.02] tracking-[-0.04em] text-[var(--text)]">
               A HEX stake that{' '}
               <span className="bg-clip-text text-transparent" style={{ backgroundImage: GRAD }}>
                 restakes itself
               </span>{' '}
               every 60 days.
             </h1>
-            <p className="relative mt-2.5 max-w-[46ch] text-[13.5px] leading-relaxed text-[var(--text-muted)]">
-              Nobody runs it. The contract has closed and reopened this same stake{' '}
-              {view ? `${view.per.length} times` : 'again and again'} — buying HEX and burning pSSH
-              the whole way — and the only thing that could stop it is HEX itself.
+            {/* The cycle count and the "nobody runs it" line both moved into the
+                figures below, so the copy no longer repeats them. */}
+            <p className="relative mt-3 max-w-[48ch] text-[15px] leading-relaxed text-[var(--text-muted)]">
+              The same stake, closing and reopening on its own — buying HEX and burning pSSH the
+              whole way. The only thing that could stop it is HEX itself.
             </p>
 
-            <dl className="relative mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-4">
-              <Stat
-                label="In the stake"
-                value={view ? Math.round(view.running.hex).toLocaleString() : '—'}
-                sub={view ? `HEX · cycle ${view.running.i}` : ''}
-              />
-              <Stat
-                label="T-shares"
-                value={view ? view.running.tsh.toFixed(2) : '—'}
-                // Deliberately not "% of all HEX": the snapshot's `own` field is
-                // off by ~1000x against the subgraph's global share total, and
-                // the live rebuild doesn't compute it at all. Share rate is solid.
-                sub={snap ? `share rate ${Math.round(snap.meta.shareRate).toLocaleString()}` : ''}
-              />
-              <Stat
-                label="pSSH burned"
-                value={snap ? compact(snap.meta.burned) : '—'}
-                sub={
-                  snap
-                    ? `${((snap.meta.burned / (snap.meta.supply + snap.meta.burned)) * 100).toFixed(1)}% of supply`
-                    : ''
-                }
-              />
-              <Stat
-                label="pSSH price"
-                value={usd(pSshPrice)}
-                sub={
-                  live?.source === 'pulsex-subgraph'
-                    ? 'live · PulseX'
-                    : `snapshot · ${snap?.meta.asOf ?? '—'}`
-                }
-              />
+            {/* Four equal cells meant nothing led. The HEX pile is the machine's
+                whole substance — and the count of times it has closed and
+                reopened is the proof it runs unattended — so those take the
+                top line at display size and the rest support underneath. */}
+            <dl className="relative mt-5 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--line)]">
+              <div className="grid grid-cols-1 gap-px sm:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+                <div className="bg-[var(--panel)] px-4 py-4">
+                  <dt
+                    className="text-[9.5px] uppercase tracking-[0.16em] text-[var(--text-faint)]"
+                    style={{ fontFamily: MONO }}
+                  >
+                    HEX in the stake
+                  </dt>
+                  <dd className="mt-1 text-[clamp(34px,5.6vw,52px)] font-bold leading-[0.95] tracking-[-0.04em] tabular-nums text-[var(--text)]">
+                    {view ? Math.round(view.running.hex).toLocaleString() : '—'}
+                  </dd>
+                  <dd className="mt-1.5 text-[11px] text-[var(--text-muted)]">
+                    {view ? `cycle ${view.running.i} · running now` : ''}
+                  </dd>
+                </div>
+                <div className="bg-[var(--panel)] px-4 py-4">
+                  <dt
+                    className="text-[9.5px] uppercase tracking-[0.16em] text-[var(--text-faint)]"
+                    style={{ fontFamily: MONO }}
+                  >
+                    Closed and reopened
+                  </dt>
+                  <dd
+                    className="mt-1 text-[clamp(34px,5.6vw,52px)] font-bold leading-[0.95] tracking-[-0.04em] tabular-nums"
+                    style={{
+                      backgroundImage: GRAD,
+                      WebkitBackgroundClip: 'text',
+                      backgroundClip: 'text',
+                      color: 'transparent',
+                    }}
+                  >
+                    {view ? `${view.per.length}×` : '—'}
+                  </dd>
+                  <dd className="mt-1.5 text-[11px] text-[var(--text-muted)]">
+                    with nobody at the wheel
+                  </dd>
+                </div>
+              </div>
+
+              {/* Three-up at every width — these values are short, and stacking
+                  them on mobile made the block taller than the 2×2 it replaced,
+                  pushing the tools below the fold. */}
+              <div className="grid grid-cols-3 gap-px border-t border-[var(--line)]">
+                <Stat
+                  label="T-shares"
+                  value={view ? view.running.tsh.toFixed(2) : '—'}
+                  // Deliberately not "% of all HEX": the snapshot's `own` field is
+                  // off by ~1000x against the subgraph's global share total, and
+                  // the live rebuild doesn't compute it at all. Share rate is solid.
+                  sub={snap ? `share rate ${Math.round(snap.meta.shareRate).toLocaleString()}` : ''}
+                />
+                <Stat
+                  label="pSSH burned"
+                  value={snap ? compact(snap.meta.burned) : '—'}
+                  sub={
+                    snap
+                      ? `${((snap.meta.burned / (snap.meta.supply + snap.meta.burned)) * 100).toFixed(1)}% of supply`
+                      : ''
+                  }
+                />
+                <Stat
+                  label="pSSH price"
+                  value={usd(pSshPrice)}
+                  sub={
+                    live?.source === 'pulsex-subgraph'
+                      ? 'live · PulseX'
+                      : `snapshot · ${snap?.meta.asOf ?? '—'}`
+                  }
+                />
+              </div>
             </dl>
 
             {/* Tools and the card picker sit here rather than at the foot of the
