@@ -16,7 +16,8 @@ export type AddressCategory =
   | 'factory'
   | 'wrapped'
   | 'exchange'
-  | 'ofac';
+  | 'ofac'
+  | 'wallet';
 
 export interface KnownAddress {
   label: string;
@@ -87,6 +88,11 @@ const KNOWN_ADDRESSES: Record<string, KnownAddress> = {
   '0x0d0707963952f2fba59dd06f2b425ace40b492fe': { label: 'Gate.io 3', category: 'exchange' },
   '0xfbb1b73c4f0bda4f67dca266ce6ef42f520fbb98': { label: 'Bittrex 1', category: 'exchange' },
   '0xe94b5eec1fa96ceecbd33ef5baa8d00e4493f4f3': { label: 'Bittrex 2', category: 'exchange' },
+
+  // ── Named Wallets (EOAs) ─────────────────────────────────────
+  // Plain externally-owned accounts worth naming in the activity feed. Not
+  // badged — a hot wallet isn't a risk signal the way a CEX or locker is.
+  '0x8f6dc8fd8a5115fdec3ccbe36be6cf9b28635f2e': { label: 'Hot Wallet', category: 'wallet' },
 
   // ── OFAC Sanctioned ──────────────────────────────────────────
   '0x8589427373d6d84e98730d7795d8f6f8731fda16': { label: 'OFAC: Tornado Cash Router', category: 'ofac' },

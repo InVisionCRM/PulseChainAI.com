@@ -35,9 +35,11 @@ export const SELECTORS = {
 } as const;
 
 // Labelled categories map straight to a type. `wrapped` (WPLS/WETH) is an
-// ERC-20, so it reads as a token.
+// ERC-20, so it reads as a token; `wallet` is a named EOA, so it reads as one.
 function typeFromCategory(cat: AddressCategory): AddressType {
   switch (cat) {
+    case 'wallet':
+      return 'eoa';
     case 'exchange':
       return 'exchange';
     case 'router':

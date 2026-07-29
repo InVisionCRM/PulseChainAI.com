@@ -7,6 +7,7 @@
 // fallback already covers the long tail of contracts.
 
 import type { ChainId } from '@/services';
+import { getKnownAddressLabel } from '@/lib/gumshoe/address-labels';
 
 export type ProtocolKind =
   | 'dex'
@@ -68,8 +69,14 @@ export function protocolFor(
 
 const truncate = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
-// Best display label for a counterparty: curated project → Blockscout tag →
-// truncated address.
+// Best display label for a counterparty: curated project → known-address
+// directory → Blockscout tag → truncated address.
+//
+// The directory lookup has to happen here, not in the UI. This function always
+// returns *something* (a truncated address at worst), so the value lands in
+// `counterpartyLabel` on every row — and the feed reads that before it would
+// ever reach its own directory fallback. Without this line the curated labels
+// (exchange hot wallets, lockers, burn addresses) can never render.
 export function labelFor(
   chain: ChainId,
   address: string | null | undefined,
@@ -77,6 +84,8 @@ export function labelFor(
 ): string {
   const p = protocolFor(chain, address);
   if (p) return p.name;
+  const known = getKnownAddressLabel(address);
+  if (known) return known;
   if (fallbackName && fallbackName.trim()) return fallbackName.trim();
   return address ? truncate(address) : 'Unknown';
 }
