@@ -35,66 +35,76 @@ const gradText = {
 
 const hex1 = (v: number) => (v >= 100 ? Math.round(v).toLocaleString() : v.toFixed(2));
 
-/** Plays once when the element first scrolls into view; static if the visitor
- *  asked for reduced motion, since the whole point is legible either way. */
-function useRevealed<T extends HTMLElement>() {
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+/**
+ * Scroll-linked progress, 0 to 1, for the element the ref is on.
+ *
+ * Deliberately scroll-LINKED rather than scroll-triggered: the value is
+ * recomputed from the element's position every frame, so scrolling back up
+ * runs it backwards. A triggered animation fires once on a threshold and has
+ * no way to rewind, which is what the previous version did.
+ *
+ * The band runs from the chart's top crossing 88% of the viewport height
+ * (just as it appears) to it crossing 30% (comfortably read), which is enough
+ * runway for seventeen bars without demanding a long scroll. Returns 1 flat
+ * when motion is reduced, so the chart is simply complete.
+ */
+function useScrollProgress<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
-  const [on, setOn] = useState(false);
+  const [p, setP] = useState(0);
 
   useEffect(() => {
     const node = ref.current;
-    if (!node) return;
-    if (
-      typeof window === 'undefined' ||
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ||
-      !('IntersectionObserver' in window)
-    ) {
-      setOn(true);
+    if (!node || typeof window === 'undefined') return;
+
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setP(1);
       return;
     }
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setOn(true);
-          io.disconnect();
-        }
-      },
-      { threshold: 0.25 },
-    );
-    io.observe(node);
-    return () => io.disconnect();
+
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      const r = node.getBoundingClientRect();
+      const vh = window.innerHeight || 0;
+      if (vh === 0) return;
+      const start = vh * 0.88;
+      const end = vh * 0.3;
+      setP(clamp01((start - r.top) / Math.max(1, start - end)));
+    };
+    const onScroll = () => {
+      if (raf === 0) raf = requestAnimationFrame(measure);
+    };
+
+    measure();
+    // Capture phase on the document, NOT a window scroll listener: this app
+    // scrolls inside `<main class="overflow-y-auto">`, the document itself
+    // never scrolls, and scroll events don't bubble. A window listener sits
+    // silent here and the bars never move.
+    document.addEventListener('scroll', onScroll, { passive: true, capture: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      document.removeEventListener('scroll', onScroll, { capture: true });
+      window.removeEventListener('resize', onScroll);
+    };
   }, []);
 
-  return [ref, on] as const;
+  return [ref, p] as const;
 }
 
-/** Counts up to `to` once `run` flips, easing out. Returns `to` immediately
- *  when motion is reduced, so the figure is never wrong, only un-animated. */
-function useCountUp(to: number, run: boolean, ms = 1100) {
-  const [v, setV] = useState(0);
-
-  useEffect(() => {
-    if (!run) return;
-    if (
-      typeof window === 'undefined' ||
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    ) {
-      setV(to);
-      return;
-    }
-    let raf = 0;
-    let start: number | null = null;
-    const step = (t: number) => {
-      if (start === null) start = t;
-      const p = Math.min(1, (t - start) / ms);
-      setV(to * (1 - Math.pow(1 - p, 3)));
-      if (p < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [to, run, ms]);
-
-  return run ? v : 0;
+/**
+ * Turn overall progress into one bar's own 0-1, so the bars resolve in
+ * sequence rather than together. Each bar gets a slice of the runway and the
+ * slices overlap, which keeps the build continuous instead of steppy.
+ */
+function barProgress(p: number, index: number, count: number) {
+  const span = 1 / count;
+  const overlap = span * 1.9;
+  const raw = (p - index * span) / overlap;
+  // Ease out, so a bar settles into its final height rather than snapping.
+  return 1 - Math.pow(1 - clamp01(raw), 3);
 }
 
 export default function PayoutBars({
@@ -111,7 +121,7 @@ export default function PayoutBars({
   supply: number;
   amount: number;
 }) {
-  const [wrapRef, revealed] = useRevealed<HTMLDivElement>();
+  const [wrapRef, scroll] = useScrollProgress<HTMLDivElement>();
 
   const model = useMemo(() => {
     const done = cycles.filter((c) => c.done);
@@ -154,7 +164,16 @@ export default function PayoutBars({
     };
   }, [cycles, coverage, supply, amount]);
 
-  const total = useCountUp(model?.total ?? 0, revealed);
+  // The running total is the sum of what has actually been drawn, so the
+  // figure and the bars can never disagree mid-scroll — scroll halfway and it
+  // reads the total of the bars standing.
+  const total = useMemo(() => {
+    if (!model) return 0;
+    return model.pts.reduce(
+      (sum, p, k) => sum + p.v * barProgress(scroll, k, model.pts.length),
+      0,
+    );
+  }, [model, scroll]);
 
   if (!model) return null;
 
@@ -246,9 +265,10 @@ export default function PayoutBars({
             const h = Math.max(2, (p.v / max) * (BASE - TOP));
             const x = k * slot + (slot - bw) / 2;
             const y = BASE - h;
-            // Bars grow out of the baseline left to right, so the climb reads
-            // as a climb rather than as seventeen static columns.
-            const delay = `${k * 55}ms`;
+            // Scroll position drives this directly — no CSS transition, or the
+            // easing would fight the scrub and lag behind the wheel. Scrolling
+            // back up lowers it again for free.
+            const bp = barProgress(scroll, k, pts.length);
             return (
               <g key={p.i}>
                 <title>{`Cycle ${p.i}: ${hex1(p.v)} HEX`}</title>
@@ -262,8 +282,7 @@ export default function PayoutBars({
                   style={{
                     transformBox: 'fill-box',
                     transformOrigin: 'bottom',
-                    transform: revealed ? 'scaleY(1)' : 'scaleY(0)',
-                    transition: `transform 620ms cubic-bezier(.22,1,.36,1) ${delay}`,
+                    transform: `scaleY(${bp.toFixed(3)})`,
                   }}
                 />
                 <text
@@ -275,8 +294,8 @@ export default function PayoutBars({
                     fontFamily: MONO,
                     fontSize: 9,
                     fontWeight: k === pts.length - 1 ? 700 : 400,
-                    opacity: revealed ? 1 : 0,
-                    transition: `opacity 320ms ease ${k * 55 + 380}ms`,
+                    // Trails its bar, so a number never floats above a stub.
+                    opacity: clamp01((bp - 0.55) / 0.45),
                   }}
                 >
                   {hex1(p.v)}
