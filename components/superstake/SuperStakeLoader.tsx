@@ -25,7 +25,14 @@ const MIN_MS = 700;
 const MAX_MS = 8_000;
 
 const MONO = 'var(--font-jetbrains-mono), ui-monospace, monospace';
-const GRAD = 'linear-gradient(135deg,#7E089D,#AE176A 30%,#D83639 58%,#E96635 80%,#FB9438)';
+/**
+ * The page's ramp opens on a deep purple (#7E089D). On a dark panel that's
+ * fine; laid over this artwork it put the word "restakes" in magenta directly
+ * on top of the monolith's magenta face and the word disappeared. The loader
+ * therefore runs the bright half of the same ramp — recognisably the brand
+ * colours, but every stop light enough to hold against the picture behind it.
+ */
+const GRAD = 'linear-gradient(135deg,#FF5BA8,#FF6E58 38%,#FF9445 72%,#FFC94F)';
 
 export default function SuperStakeLoader({
   /** The page has enough to paint — everything after this is layering. */
@@ -90,25 +97,43 @@ export default function SuperStakeLoader({
       className="fixed inset-0 z-[100] cursor-pointer select-none overflow-hidden bg-[#0b1018] transition-opacity duration-[450ms]"
       style={{ opacity: fading ? 0 : 1 }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/superstake-loading.jpg"
-        alt=""
-        aria-hidden
-        // It is the first paint of the page — nothing else on the route should
-        // outrank it in the queue.
-        fetchPriority="high"
-        className="absolute inset-0 h-full w-full object-cover object-center animate-[ssload-zoom_14s_ease-out_forwards] motion-reduce:animate-none"
-      />
+      {/* Two crops of the same scene. A phone shown the landscape frame loses
+          the mountains either side and most of the path; `picture` picks one
+          and only that one is fetched. */}
+      <picture>
+        <source media="(max-width: 767px)" srcSet="/superstake-loading-portrait.jpg" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/superstake-loading.jpg"
+          alt=""
+          aria-hidden
+          // It is the first paint of the page — nothing else on the route should
+          // outrank it in the queue.
+          fetchPriority="high"
+          className="absolute inset-0 h-full w-full object-cover object-center animate-[ssload-zoom_14s_ease-out_forwards] motion-reduce:animate-none"
+        />
+      </picture>
 
-      {/* Scrims: the artwork's own sky is dark enough at the top, but the path
-          runs bright straight through where the copy sits. */}
+      {/* Scrims. The artwork's own sky is dark enough at the top, but the path
+          runs bright straight through the middle — and the monolith's magenta
+          sits exactly where the headline's magenta does. The linear pass
+          handles top and bottom; the radial one darkens the band the copy
+          actually occupies, at both crops, and fades out before it reads as a
+          box drawn on the picture. */}
       <div
         aria-hidden
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(180deg,rgba(6,8,14,0.72) 0%,rgba(6,8,14,0.18) 32%,rgba(6,8,14,0.62) 66%,rgba(6,8,14,0.94) 100%)',
+            'linear-gradient(180deg,rgba(6,8,14,0.70) 0%,rgba(6,8,14,0.18) 30%,rgba(6,8,14,0.52) 72%,rgba(6,8,14,0.90) 100%)',
+        }}
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(120% 40% at 50% 58%, rgba(3,5,11,0.74) 0%, rgba(3,5,11,0.58) 45%, rgba(3,5,11,0.20) 74%, transparent 92%)',
         }}
       />
 
