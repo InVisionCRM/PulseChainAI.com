@@ -35,76 +35,47 @@ const gradText = {
 
 const hex1 = (v: number) => (v >= 100 ? Math.round(v).toLocaleString() : v.toFixed(2));
 
-const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
-
 /**
- * Scroll-linked progress, 0 to 1, for the element the ref is on.
+ * Flips true the first time the element is seen, and stays true.
  *
- * Deliberately scroll-LINKED rather than scroll-triggered: the value is
- * recomputed from the element's position every frame, so scrolling back up
- * runs it backwards. A triggered animation fires once on a threshold and has
- * no way to rewind, which is what the previous version did.
- *
- * The band runs from the chart's top crossing 88% of the viewport height
- * (just as it appears) to it crossing 30% (comfortably read), which is enough
- * runway for seventeen bars without demanding a long scroll. Returns 1 flat
- * when motion is reduced, so the chart is simply complete.
+ * The animation is a plain CSS transition with a staggered delay rather than
+ * anything scroll-linked — it plays once, on arrival, and does not rewind or
+ * track the wheel. IntersectionObserver is used instead of a scroll listener
+ * on purpose: this app scrolls inside `<main class="overflow-y-auto">` and
+ * the document never scrolls, so a scroll listener on window hears nothing.
+ * The observer doesn't care which element does the scrolling.
  */
-function useScrollProgress<T extends HTMLElement>() {
+function useInView<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
-  const [p, setP] = useState(0);
+  const [seen, setSeen] = useState(false);
 
   useEffect(() => {
     const node = ref.current;
     if (!node || typeof window === 'undefined') return;
 
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      setP(1);
+    // Reduced motion, or no observer to hand: show the finished chart.
+    if (
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ||
+      !('IntersectionObserver' in window)
+    ) {
+      setSeen(true);
       return;
     }
 
-    let raf = 0;
-    const measure = () => {
-      raf = 0;
-      const r = node.getBoundingClientRect();
-      const vh = window.innerHeight || 0;
-      if (vh === 0) return;
-      const start = vh * 0.88;
-      const end = vh * 0.3;
-      setP(clamp01((start - r.top) / Math.max(1, start - end)));
-    };
-    const onScroll = () => {
-      if (raf === 0) raf = requestAnimationFrame(measure);
-    };
-
-    measure();
-    // Capture phase on the document, NOT a window scroll listener: this app
-    // scrolls inside `<main class="overflow-y-auto">`, the document itself
-    // never scrolls, and scroll events don't bubble. A window listener sits
-    // silent here and the bars never move.
-    document.addEventListener('scroll', onScroll, { passive: true, capture: true });
-    window.addEventListener('resize', onScroll, { passive: true });
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-      document.removeEventListener('scroll', onScroll, { capture: true });
-      window.removeEventListener('resize', onScroll);
-    };
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setSeen(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.2 },
+    );
+    io.observe(node);
+    return () => io.disconnect();
   }, []);
 
-  return [ref, p] as const;
-}
-
-/**
- * Turn overall progress into one bar's own 0-1, so the bars resolve in
- * sequence rather than together. Each bar gets a slice of the runway and the
- * slices overlap, which keeps the build continuous instead of steppy.
- */
-function barProgress(p: number, index: number, count: number) {
-  const span = 1 / count;
-  const overlap = span * 1.9;
-  const raw = (p - index * span) / overlap;
-  // Ease out, so a bar settles into its final height rather than snapping.
-  return 1 - Math.pow(1 - clamp01(raw), 3);
+  return [ref, seen] as const;
 }
 
 export default function PayoutBars({
@@ -121,7 +92,7 @@ export default function PayoutBars({
   supply: number;
   amount: number;
 }) {
-  const [wrapRef, scroll] = useScrollProgress<HTMLDivElement>();
+  const [wrapRef, shown] = useInView<HTMLDivElement>();
 
   const model = useMemo(() => {
     const done = cycles.filter((c) => c.done);
@@ -163,17 +134,6 @@ export default function PayoutBars({
       minRatio: ratios.length ? Math.min(...ratios) : null,
     };
   }, [cycles, coverage, supply, amount]);
-
-  // The running total is the sum of what has actually been drawn, so the
-  // figure and the bars can never disagree mid-scroll — scroll halfway and it
-  // reads the total of the bars standing.
-  const total = useMemo(() => {
-    if (!model) return 0;
-    return model.pts.reduce(
-      (sum, p, k) => sum + p.v * barProgress(scroll, k, model.pts.length),
-      0,
-    );
-  }, [model, scroll]);
 
   if (!model) return null;
 
@@ -222,7 +182,7 @@ export default function PayoutBars({
         <Fig label={`Cycle ${last.i}`} value={`${hex1(last.v)} HEX`} sub="the latest payout" grad />
         <Fig
           label="Collected so far"
-          value={`${hex1(total)} HEX`}
+          value={`${hex1(model.total)} HEX`}
           sub={`across ${pts.length} cycles`}
         />
       </div>
@@ -265,10 +225,10 @@ export default function PayoutBars({
             const h = Math.max(2, (p.v / max) * (BASE - TOP));
             const x = k * slot + (slot - bw) / 2;
             const y = BASE - h;
-            // Scroll position drives this directly — no CSS transition, or the
-            // easing would fight the scrub and lag behind the wheel. Scrolling
-            // back up lowers it again for free.
-            const bp = barProgress(scroll, k, pts.length);
+            // Staggered so the bars land left to right and the climb reads as
+            // a climb. The label waits out its own bar's rise before fading
+            // in, so a number never floats above a stub.
+            const delay = k * 60;
             return (
               <g key={p.i}>
                 <title>{`Cycle ${p.i}: ${hex1(p.v)} HEX`}</title>
@@ -279,23 +239,25 @@ export default function PayoutBars({
                   height={h}
                   rx="3"
                   fill="url(#ssp-hold)"
+                  className="origin-bottom transition-transform duration-700 ease-out [transform-box:fill-box]"
                   style={{
-                    transformBox: 'fill-box',
-                    transformOrigin: 'bottom',
-                    transform: `scaleY(${bp.toFixed(3)})`,
+                    transform: shown ? 'scaleY(1)' : 'scaleY(0)',
+                    transitionDelay: `${delay}ms`,
                   }}
                 />
                 <text
                   x={x + bw / 2}
                   y={y - 6}
                   textAnchor="middle"
-                  className={k === pts.length - 1 ? 'fill-[var(--text)]' : 'fill-[var(--text-muted)]'}
+                  className={`transition-opacity duration-300 ease-out ${
+                    k === pts.length - 1 ? 'fill-[var(--text)]' : 'fill-[var(--text-muted)]'
+                  }`}
                   style={{
                     fontFamily: MONO,
                     fontSize: 9,
                     fontWeight: k === pts.length - 1 ? 700 : 400,
-                    // Trails its bar, so a number never floats above a stub.
-                    opacity: clamp01((bp - 0.55) / 0.45),
+                    opacity: shown ? 1 : 0,
+                    transitionDelay: `${delay + 420}ms`,
                   }}
                 >
                   {hex1(p.v)}
