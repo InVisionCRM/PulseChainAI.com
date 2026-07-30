@@ -55,7 +55,15 @@ function readRates(rec: Rec | null, net: Network) {
 
 const rowPayout = (r: Rec, net: Network) => readRates(r, net).payout;
 
-export async function loadRates(net: Network): Promise<Rates> {
+/**
+ * Told which of the two feeds answered, as each one does. The entry loader
+ * shows a step per feed, and a step is only honest if it reports the request it
+ * actually names — the two settle independently, so they're reported that way.
+ */
+export type RatesSource = 'live' | 'daily';
+export type RatesSourceReporter = (source: RatesSource, ok: boolean) => void;
+
+export async function loadRates(net: Network, onSource?: RatesSourceReporter): Promise<Rates> {
   const dailyEndpoint = net === 'pulsechain' ? 'fulldatapulsechain' : 'fulldata';
   const [liveRes, dailyRes] = await Promise.allSettled([
     fetch('/api/hex-proxy?endpoint=livedata'),
@@ -66,6 +74,7 @@ export async function loadRates(net: Network): Promise<Rates> {
   if (liveRes.status === 'fulfilled' && liveRes.value.ok) {
     try { live = (await liveRes.value.json()) as Rec; } catch { live = null; }
   }
+  onSource?.('live', live !== null);
 
   // Daily series, newest-first (guard for either ordering by sorting on currentDay).
   let daily: Rec[] = [];
@@ -76,6 +85,7 @@ export async function loadRates(net: Network): Promise<Rates> {
       daily = [...arr].sort((a, b) => num(b.currentDay) - num(a.currentDay));
     } catch { daily = []; }
   }
+  onSource?.('daily', daily.length > 0);
   const latest = daily[0] ?? null;
 
   // For each field, take the first source (live → newest daily) that has it.

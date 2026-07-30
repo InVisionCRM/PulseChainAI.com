@@ -30,7 +30,7 @@ import PayoutBars from '@/components/superstake/PayoutBars';
 import { Sparkline } from '@/components/lab/charts';
 import GlanceStrip from '@/components/superstake/GlanceStrip';
 import ShareCards from '@/components/superstake/ShareCards';
-import SuperStakeLoader, { type LoadPhase } from '@/components/superstake/SuperStakeLoader';
+import EntryLoader, { type LoadPhase } from '@/components/EntryLoader';
 import StatBanner from '@/components/superstake/StatBanner';
 import ActionDock from '@/components/superstake/ActionDock';
 import { GeickoTabNavigation } from '@/components/geicko';
@@ -382,13 +382,22 @@ export default function SuperStakeHubPage() {
 
   return (
     <div className="min-h-screen w-full bg-[var(--app-bg)]">
-      <SuperStakeLoader
+      <EntryLoader
         ready={!!view}
         steps={[
           { label: 'Cycle record', phase: phases.snapshot },
           { label: 'Rebuilt from the subgraphs', phase: phases.cycles },
           { label: 'Live prices and volume', phase: phases.live },
         ]}
+        art={{
+          landscape: '/superstake-loading.jpg',
+          portrait: '/superstake-loading-portrait.jpg',
+        }}
+        markSrc="/superstake-logo.png"
+        markLabel="SuperStake · pSSH"
+        title={{ lead: 'A HEX stake that', accent: 'restakes itself' }}
+        sub="Replaying every cycle from the HEX and PulseX subgraphs."
+        ariaLabel="Loading SuperStake"
       />
       {/* ─────────── the live strip ───────────
           Every figure a returning holder opens the page for. It stays put, so

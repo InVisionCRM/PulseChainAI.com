@@ -30,9 +30,20 @@ import {
 } from '@/lib/hex/stakeMath';
 import { fmtHex, fmtTShares, fmtDuration, fmtHexDate, currentHexDay } from '@/lib/hex/hexDay';
 import { fmtUsd } from '@/lib/format';
-import { type Network, type Rates, num, loadRates } from '@/lib/hex/strategistData';
+import { type Network, type Rates, type RatesSourceReporter, num, loadRates } from '@/lib/hex/strategistData';
 
-export default function HexStrategist({ net }: { net: Network }) {
+export default function HexStrategist({
+  net,
+  onSource,
+}: {
+  net: Network;
+  /**
+   * Reports each of the two HEX feeds as it settles, so the entry loader over
+   * this page can show real progress rather than a timer. Optional — the
+   * Designer works identically without it.
+   */
+  onSource?: RatesSourceReporter;
+}) {
   const [rates, setRates] = useState<Rates | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [errMsg, setErrMsg] = useState<string | null>(null);
@@ -44,7 +55,7 @@ export default function HexStrategist({ net }: { net: Network }) {
     let alive = true;
     setStatus('loading');
     setErrMsg(null);
-    loadRates(net)
+    loadRates(net, onSource)
       .then((r) => {
         if (!alive) return;
         if (!r.tShareRateHex) {
@@ -63,7 +74,7 @@ export default function HexStrategist({ net }: { net: Network }) {
     return () => {
       alive = false;
     };
-  }, [net, reload]);
+  }, [net, reload, onSource]);
 
   const principal = Math.max(0, num(amount));
 

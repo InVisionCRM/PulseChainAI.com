@@ -1,12 +1,13 @@
 'use client';
 
-// The screen you land on when you open /superstake, held over the page while
-// its data lands.
+// The screen you land on when you open a page, held over it while its data
+// lands. Shared: /superstake and /hex-strategist both dress it, and anything
+// else with a slow first paint can.
 //
 // The progress here is real: each step is a fetch the page is actually waiting
 // on, and the bar fills as they settle. Nothing counts up on a timer. A step
 // that fails says so rather than sitting at "loading" forever — the page
-// degrades to the snapshot in that case, and the loader gets out of the way.
+// degrades to whatever it has and the loader gets out of the way.
 
 import { useEffect, useMemo, useState } from 'react';
 
@@ -26,22 +27,44 @@ const MAX_MS = 8_000;
 
 const MONO = 'var(--font-jetbrains-mono), ui-monospace, monospace';
 /**
- * The page's ramp opens on a deep purple (#7E089D). On a dark panel that's
- * fine; laid over this artwork it put the word "restakes" in magenta directly
- * on top of the monolith's magenta face and the word disappeared. The loader
- * therefore runs the bright half of the same ramp — recognisably the brand
- * colours, but every stop light enough to hold against the picture behind it.
+ * The default ramp is the bright half of the brand ramp. The full ramp opens on
+ * a deep purple (#7E089D) which, laid over artwork, put the word "restakes" in
+ * magenta directly on the monolith's magenta face and the word disappeared —
+ * every stop here is light enough to hold against a picture. A page whose
+ * artwork needs different colours passes its own.
  */
-const GRAD = 'linear-gradient(135deg,#FF5BA8,#FF6E58 38%,#FF9445 72%,#FFC94F)';
+const DEFAULT_GRAD = 'linear-gradient(135deg,#FF5BA8,#FF6E58 38%,#FF9445 72%,#FFC94F)';
 
-export default function SuperStakeLoader({
+export interface EntryLoaderProps {
   /** The page has enough to paint — everything after this is layering. */
-  ready,
-  steps,
-}: {
   ready: boolean;
   steps: LoaderStep[];
-}) {
+  /** Wide and tall crops of the same scene; only the one shown is fetched. */
+  art: { landscape: string; portrait: string };
+  /** Small mark and the label beside it, top-left. */
+  markSrc: string;
+  markLabel: string;
+  /** Headline. `accent` is the part that takes the gradient. */
+  title: { lead: string; accent: string; tail?: string };
+  sub: string;
+  /** Announced to screen readers, and the hook the tests grab. */
+  ariaLabel: string;
+  /** Override the headline/progress gradient when the artwork calls for it. */
+  gradient?: string;
+}
+
+export default function EntryLoader({
+  ready,
+  steps,
+  art,
+  markSrc,
+  markLabel,
+  title,
+  sub,
+  ariaLabel,
+  gradient,
+}: EntryLoaderProps) {
+  const GRAD = gradient ?? DEFAULT_GRAD;
   const [gone, setGone] = useState(false);
   const [fading, setFading] = useState(false);
   const [minPassed, setMinPassed] = useState(false);
@@ -92,7 +115,7 @@ export default function SuperStakeLoader({
     <div
       role="status"
       aria-live="polite"
-      aria-label="Loading SuperStake"
+      aria-label={ariaLabel}
       onClick={() => setFading(true)}
       className="fixed inset-0 z-[100] cursor-pointer select-none overflow-hidden bg-[#0b1018] transition-opacity duration-[450ms]"
       style={{ opacity: fading ? 0 : 1 }}
@@ -101,10 +124,10 @@ export default function SuperStakeLoader({
           the mountains either side and most of the path; `picture` picks one
           and only that one is fetched. */}
       <picture>
-        <source media="(max-width: 767px)" srcSet="/superstake-loading-portrait.jpg" />
+        <source media="(max-width: 767px)" srcSet={art.portrait} />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/superstake-loading.jpg"
+          src={art.landscape}
           alt=""
           aria-hidden
           // It is the first paint of the page — nothing else on the route should
@@ -114,12 +137,12 @@ export default function SuperStakeLoader({
         />
       </picture>
 
-      {/* Scrims. The artwork's own sky is dark enough at the top, but the path
-          runs bright straight through the middle — and the monolith's magenta
-          sits exactly where the headline's magenta does. The linear pass
-          handles top and bottom; the radial one darkens the band the copy
-          actually occupies, at both crops, and fades out before it reads as a
-          box drawn on the picture. */}
+      {/* Scrims. These crops share a shape — a dark sky, a bright path running
+          up the middle, a lit monolith where the headline sits — so one pair of
+          scrims serves both. The linear pass handles top and bottom; the radial
+          one darkens the band the copy actually occupies, and fades out before
+          it reads as a box drawn on the picture. Contrast was measured against
+          the artwork rather than eyeballed; see the loader's own PR. */}
       <div
         aria-hidden
         className="absolute inset-0"
@@ -141,26 +164,25 @@ export default function SuperStakeLoader({
         {/* ── mark ── */}
         <div className="flex items-center gap-2.5 animate-[ssload-rise_0.6s_ease-out_both] motion-reduce:animate-none">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/superstake-logo.png" alt="" className="h-8 w-8 object-contain drop-shadow-lg" />
+          <img src={markSrc} alt="" className="h-8 w-8 object-contain drop-shadow-lg" />
           <span
             className="text-[10px] uppercase tracking-[0.24em] text-white/70"
             style={{ fontFamily: MONO }}
           >
-            SuperStake · pSSH
+            {markLabel}
           </span>
         </div>
 
         {/* ── copy + real progress ── */}
         <div className="mx-auto w-full max-w-2xl animate-[ssload-rise_0.7s_ease-out_0.12s_both] motion-reduce:animate-none">
           <h1 className="text-[clamp(24px,5vw,42px)] font-bold leading-[1.05] tracking-[-0.035em] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
-            A HEX stake that{' '}
+            {title.lead}{' '}
             <span className="bg-clip-text text-transparent" style={{ backgroundImage: GRAD }}>
-              restakes itself
+              {title.accent}
             </span>
+            {title.tail ? ` ${title.tail}` : ''}
           </h1>
-          <p className="mt-2 max-w-[46ch] text-[13.5px] leading-relaxed text-white/70">
-            Replaying every cycle from the HEX and PulseX subgraphs.
-          </p>
+          <p className="mt-2 max-w-[46ch] text-[13.5px] leading-relaxed text-white/70">{sub}</p>
 
           {/* The bar is `done / steps`, nothing else. */}
           <div className="relative mt-5 h-1.5 overflow-hidden rounded-full bg-white/15">
@@ -182,7 +204,7 @@ export default function SuperStakeLoader({
                 className="flex items-center gap-2 text-[11.5px]"
                 style={{ fontFamily: MONO }}
               >
-                <Dot phase={s.phase} />
+                <Dot phase={s.phase} gradient={GRAD} />
                 <span className={s.phase === 'ok' ? 'text-white/85' : 'text-white/50'}>
                   {s.label}
                 </span>
@@ -208,10 +230,10 @@ export default function SuperStakeLoader({
   );
 }
 
-function Dot({ phase }: { phase: LoadPhase }) {
+function Dot({ phase, gradient }: { phase: LoadPhase; gradient: string }) {
   if (phase === 'ok') {
     return (
-      <span className="grid h-3.5 w-3.5 place-items-center rounded-full" style={{ background: GRAD }}>
+      <span className="grid h-3.5 w-3.5 place-items-center rounded-full" style={{ background: gradient }}>
         <svg viewBox="0 0 10 10" className="h-2 w-2" aria-hidden>
           <path
             d="M1.5 5.2 L4 7.5 L8.5 2.6"
