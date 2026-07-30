@@ -1,13 +1,24 @@
 import React from 'react';
-import { ActiveTab, TabConfig } from './types';
+import { ActiveTab } from './types';
 
-export interface GeickoTabNavigationProps {
+/**
+ * Generic in its tab id so pages outside geicko can share the bar rather than
+ * grow a second one that drifts from it. `T` defaults to geicko's own union, so
+ * every existing call site is unchanged.
+ */
+export interface GeickoTabNavigationProps<T extends string = ActiveTab> {
   /** Currently active tab */
-  activeTab: ActiveTab;
+  activeTab: T;
   /** Callback when tab is changed */
-  onTabChange: (tab: ActiveTab) => void;
-  /** Array of tab configurations */
-  tabs: TabConfig[];
+  onTabChange: (tab: T) => void;
+  /** Array of tab configurations — `TabConfig[]` satisfies this for geicko. */
+  tabs: readonly { id: T; label: string }[];
+  /**
+   * `stretch` (default) shares the row out evenly, which suits geicko's short
+   * one-word labels. `scroll` sizes each tab to its label and lets the row
+   * scroll instead — needed once a label is a phrase, or it wraps and clips.
+   */
+  fit?: 'stretch' | 'scroll';
 }
 
 // Unified brand-pure palette: every tab uses the same neutral surface +
@@ -21,11 +32,12 @@ const TAB_INACTIVE =
  * Tab navigation component for Geicko token analyzer
  * Displays tabs for Chart, Holders, Liquidity, Code, etc.
  */
-export default function GeickoTabNavigation({
+export default function GeickoTabNavigation<T extends string = ActiveTab>({
   activeTab,
   onTabChange,
   tabs,
-}: GeickoTabNavigationProps) {
+  fit = 'stretch',
+}: GeickoTabNavigationProps<T>) {
   return (
     <div className="px-2 md:px-3 relative z-30 -mb-1">
       <div className="flex h-8 bg-transparent overflow-x-auto scrollbar-hide">
@@ -35,9 +47,9 @@ export default function GeickoTabNavigation({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex-1 text-center text-xs font-semibold tracking-wide px-4 py-2 mx-1 rounded-t-lg border-t border-l border-r backdrop-blur-sm transition-all duration-200 ${
-                isActive ? TAB_ACTIVE : TAB_INACTIVE
-              }`}
+              className={`text-center text-xs font-semibold tracking-wide px-4 py-2 mx-1 rounded-t-lg border-t border-l border-r backdrop-blur-sm transition-all duration-200 ${
+                fit === 'scroll' ? 'flex-none whitespace-nowrap sm:flex-1' : 'flex-1'
+              } ${isActive ? TAB_ACTIVE : TAB_INACTIVE}`}
             >
               {tab.label}
             </button>

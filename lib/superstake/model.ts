@@ -210,6 +210,43 @@ export function backtest(
 /** Share of each end-stake paid out to holders. */
 export const HOLDER_PAYOUT_RATE = 0.01;
 
+/** The whitepaper's minimum holding that earns HEX rewards — 5,555 pSSH. */
+export const S_SHARE = 5_555;
+
+/**
+ * What a dollar buys on each side, in HEX per cycle. This is the comparison the
+ * whole page exists to make, so it lives here rather than being recomputed
+ * wherever it's shown.
+ *
+ * An S-share earns twice — its slice of the 1% end-stake payout, plus its slice
+ * of the 2.5% reflections the cycle's volume funds. A T-share earns the one way.
+ * Both are then divided by what the unit costs, so they land on one scale.
+ */
+export function hexPerDollar(c: {
+  /** HEX the pool pays out to holders this cycle (the 1%). */
+  poolPayout: number;
+  /** Cycle length in days. */
+  cycleDays: number;
+  /** Average daily pSSH trade volume, USD. */
+  avgVolUsd: number;
+  pHex: number;
+  pSsh: number;
+  /** pSSH circulating supply, which fixes how many S-shares are left. */
+  supply: number;
+  shareRate: number;
+  payoutPerTshare: number;
+}): { sShare: number; tShare: number; sSharesLeft: number } {
+  const sSharesLeft = c.supply / S_SHARE;
+  const reflHex = c.pHex > 0 ? (REFLECTION_RATE * c.avgVolUsd * c.cycleDays) / c.pHex : 0;
+  const perS = sSharesLeft > 0 ? (c.poolPayout + reflHex) / sSharesLeft : 0;
+  const perT = c.payoutPerTshare * c.cycleDays;
+  return {
+    sShare: c.pSsh > 0 ? perS / (S_SHARE * c.pSsh) : 0,
+    tShare: c.pHex > 0 ? perT / (c.shareRate * c.pHex) : 0,
+    sSharesLeft,
+  };
+}
+
 /** Everything one 60-day cycle needs to be scored, from live stats or a record. */
 export interface CycleInputs {
   /** Length of the cycle in days. */

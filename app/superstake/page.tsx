@@ -8,21 +8,22 @@
 // PulseX subgraphs) is layered on top when it answers, so a bad day upstream
 // costs freshness rather than the page.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { IconArrowRight, IconExternalLink } from '@tabler/icons-react';
 import {
   cycleHeadToHead,
   dayToISO,
+  hexPerDollar,
   inputsFromCycle,
   REFLECTION_RATE,
+  S_SHARE,
   type CycleResult,
   type SuperStakeCycle,
   type SuperStakeSnapshot,
 } from '@/lib/superstake/model';
 import { pulsechainTokenUrl } from '@/lib/pulsechainExplorer';
 import MachineFlow from '@/components/superstake/MachineFlow';
-import CycleClock from '@/components/superstake/CycleClock';
 import CycleTable from '@/components/superstake/CycleTable';
 import PairVolume from '@/components/superstake/PairVolume';
 import PayoutBars from '@/components/superstake/PayoutBars';
@@ -30,21 +31,37 @@ import { Sparkline } from '@/components/lab/charts';
 import GlanceStrip from '@/components/superstake/GlanceStrip';
 import ShareCards from '@/components/superstake/ShareCards';
 import SuperStakeLoader, { type LoadPhase } from '@/components/superstake/SuperStakeLoader';
+import StatBanner from '@/components/superstake/StatBanner';
+import ActionDock from '@/components/superstake/ActionDock';
+import { GeickoTabNavigation } from '@/components/geicko';
 import type { ShareData } from '@/lib/superstake/shareCard';
 
 const PSSH = '0xb5c4ecef450fd36d0eba1420f6a19dbfbee5292e';
-/**
- * The whitepaper sets 5,555 pSSH as the minimum holding that earns HEX rewards.
- * We call that block an "S-share" — it is our name for the threshold, not a
- * token or an on-chain primitive. It divides the 55,550,000 total supply into
- * exactly 10,000, and because the 1% buy-and-burn only ever removes supply, the
- * number that can exist only falls.
- */
-const S_SHARE = 5_555;
+// `S_SHARE` (5,555 pSSH) now comes from the model, so the banner and the
+// comparison table can't drift apart on it. The whitepaper sets it as the
+// minimum holding that earns HEX rewards; "S-share" is our name for that
+// threshold, not a token or an on-chain primitive. It divides the 55,550,000
+// total supply into exactly 10,000, and because the 1% buy-and-burn only ever
+// removes supply, the number that can exist only falls.
+
 /** The head-to-head here is fixed at $100; /superstake/vs-hex takes any amount. */
 const STAKE_AMOUNT = 100;
 const MONO = 'var(--font-jetbrains-mono), ui-monospace, monospace';
 const GRAD = 'linear-gradient(135deg,#7E089D,#AE176A 30%,#D83639 58%,#E96635 80%,#FB9438)';
+
+/**
+ * The page is an onboarding tool before it is a dashboard, so the tabs are the
+ * questions a newcomer asks, in the order they ask them — not a filing system
+ * for the sections that happen to exist.
+ */
+const TABS = [
+  { id: 'what', label: 'What happens' },
+  { id: 'own', label: 'What you own' },
+  { id: 'worked', label: 'Has it worked' },
+  { id: 'hundred', label: 'What $100 does' },
+  { id: 'alive', label: 'What keeps it alive' },
+] as const;
+type Tab = (typeof TABS)[number]['id'];
 
 interface Live {
   pHEX: number | null;
@@ -315,6 +332,52 @@ export default function SuperStakeHubPage() {
   /** What the stake is worth today, at the same HEX price the rest of the page quotes. */
   const stakeUsd = view && pHexPrice ? view.running.hex * pHexPrice : null;
 
+  /**
+   * What a dollar buys on each side. The banner leads on it because it is the
+   * one figure that answers "why bother" without any of the page's context.
+   */
+  const unit = useMemo(() => {
+    if (!snap || !view || !pHexPrice || !pSshPrice) return null;
+    return hexPerDollar({
+      poolPayout: view.running.pay,
+      cycleDays: view.running.d1 - view.running.d0,
+      avgVolUsd: live?.wins?.['60'] ?? snap.wins?.['60'] ?? 0,
+      pHex: pHexPrice,
+      pSsh: pSshPrice,
+      supply: snap.meta.supply,
+      shareRate: snap.meta.shareRate,
+      payoutPerTshare: snap.meta.payoutPerTshare,
+    });
+  }, [snap, view, live, pHexPrice, pSshPrice]);
+
+  // ── tabs ────────────────────────────────────────────────────────────────
+  // Read and written through `window.location` rather than `useSearchParams`,
+  // which would drag a Suspense boundary in for a value this page can happily
+  // resolve after mount.
+  const [tab, setTab] = useState<Tab>('what');
+  // The tab bar sticks directly under the banner, so it has to know how tall
+  // the banner actually is — measured rather than assumed, because the banner
+  // grows a line when a value wraps.
+  const bannerRef = useRef<HTMLDivElement | null>(null);
+  const [bannerH, setBannerH] = useState(0);
+  useEffect(() => {
+    const el = bannerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([e]) => setBannerH(e.contentRect.height));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('tab');
+    if (q && TABS.some((t) => t.id === q)) setTab(q as Tab);
+  }, []);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('tab') === tab) return;
+    url.searchParams.set('tab', tab);
+    window.history.replaceState(null, '', url);
+  }, [tab]);
+
   return (
     <div className="min-h-screen w-full bg-[var(--app-bg)]">
       <SuperStakeLoader
@@ -325,226 +388,132 @@ export default function SuperStakeHubPage() {
           { label: 'Live prices and volume', phase: phases.live },
         ]}
       />
-      <div className="mx-auto w-full max-w-6xl px-4 pb-16 pt-5">
-        {/* ─────────── live header ─────────── */}
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_290px]">
-          {/* The panel carries the page. It used to sit at one flat tone with a
-              single soft wash, which read as low-contrast chrome — so the glow
-              is stronger now, a second one anchors the bottom-left, and a
-              gradient hairline rides the top edge to separate it from the page. */}
-          <header className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5 md:p-7">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-80"
-              style={{ background: GRAD }}
-            />
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -top-1/3 right-0 aspect-square w-2/3 opacity-[0.28] blur-3xl"
-              style={{ background: GRAD }}
-            />
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -bottom-1/2 -left-1/4 aspect-square w-1/2 opacity-[0.14] blur-3xl"
-              style={{ background: GRAD }}
-            />
-            <div className="relative flex items-center gap-2.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/superstake-logo.png" alt="" className="h-7 w-7 object-contain" />
-              <span
-                className="text-[10px] uppercase tracking-[0.22em] text-[var(--text-muted)]"
-                style={{ fontFamily: MONO }}
-              >
-                SuperStake · pSSH
-              </span>
-            </div>
+      {/* ─────────── the live strip ───────────
+          Every figure a returning holder opens the page for. It stays put, so
+          the tabs below can explain rather than report. */}
+      <div ref={bannerRef} className="sticky top-0 z-30">
+        <StatBanner
+          cycleNo={view?.running.i ?? null}
+          daysLeft={daysLeft}
+          cycleDays={view ? view.running.d1 - view.running.d0 : 60}
+          endISO={view ? dayToISO(view.running.d1) : null}
+          pSsh={pSshPrice}
+          sShareCost={pSshPrice != null ? pSshPrice * S_SHARE : null}
+          hexPerDollar={unit?.sShare ?? null}
+          hexPerDollarStaking={unit?.tShare ?? null}
+          hexWaiting={live?.poolHexWaiting ?? null}
+          burned={snap?.meta.burned ?? null}
+          burnedPct={
+            snap ? (snap.meta.burned / (snap.meta.supply + snap.meta.burned)) * 100 : null
+          }
+          isLive={live?.source === 'pulsex-subgraph'}
+          asOf={snap?.meta.asOf}
+        />
+      </div>
 
-            <h1 className="relative mt-4 text-[clamp(30px,5.4vw,54px)] font-bold leading-[1.02] tracking-[-0.04em] text-[var(--text)]">
-              A HEX stake that{' '}
-              <span className="bg-clip-text text-transparent" style={{ backgroundImage: GRAD }}>
-                restakes itself
-              </span>{' '}
-              every 60 days.
-            </h1>
-            {/* The cycle count and the "nobody runs it" line both moved into the
-                figures below, so the copy no longer repeats them. */}
-            <p className="relative mt-3 max-w-[48ch] text-[15px] leading-relaxed text-[var(--text-muted)]">
-              The same stake, closing and reopening on its own — buying HEX and burning pSSH the
-              whole way. The only thing that could stop it is HEX itself.
-            </p>
-
-            {/* Four equal cells meant nothing led. The HEX pile is the machine's
-                whole substance — and the count of times it has closed and
-                reopened is the proof it runs unattended — so those take the
-                top line at display size and the rest support underneath. */}
-            <dl className="relative mt-5 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--line)]">
-              <div className="grid grid-cols-1 gap-px sm:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-                <div className="bg-[var(--panel)] px-4 py-4">
-                  <dt
-                    className="text-[9.5px] uppercase tracking-[0.16em] text-[var(--text-faint)]"
-                    style={{ fontFamily: MONO }}
-                  >
-                    HEX in the stake
-                  </dt>
-                  <dd className="mt-1 text-[clamp(34px,5.6vw,52px)] font-bold leading-[0.95] tracking-[-0.04em] tabular-nums text-[var(--text)]">
-                    {view ? Math.round(view.running.hex).toLocaleString() : '—'}
-                  </dd>
-                  {/* What that pile is worth today. The HEX count is the machine's
-                      substance, but it means nothing to a reader without the
-                      price beside it — so the dollars sit under the figure with
-                      the rate they were struck at. */}
-                  <dd className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                    <span className="text-[17px] font-bold tracking-[-0.025em] tabular-nums text-[var(--text)]">
-                      {stakeUsd != null ? `$${Math.round(stakeUsd).toLocaleString()}` : '—'}
-                    </span>
-                    <span className="text-[11px] text-[var(--text-faint)]">
-                      {pHexPrice != null ? `at ${usd(pHexPrice, 6)} / HEX` : ''}
-                    </span>
-                  </dd>
-                  <dd className="mt-1 text-[11px] text-[var(--text-muted)]">
-                    {view ? `cycle ${view.running.i} · running now` : ''}
-                  </dd>
-                  {/* The lead figure's own history — the pool at every cycle.
-                      A shape beside the number, not instead of it; the full
-                      series is charted further down the page. */}
-                  {view && view.cycles.length > 1 && (
-                    <dd className="mt-2 max-w-[260px]">
-                      <Sparkline data={view.cycles.map((c) => c.hex)} height={26} />
-                    </dd>
-                  )}
-                </div>
-                <div className="bg-[var(--panel)] px-4 py-4">
-                  <dt
-                    className="text-[9.5px] uppercase tracking-[0.16em] text-[var(--text-faint)]"
-                    style={{ fontFamily: MONO }}
-                  >
-                    Closed and reopened
-                  </dt>
-                  <dd
-                    className="mt-1 text-[clamp(34px,5.6vw,52px)] font-bold leading-[0.95] tracking-[-0.04em] tabular-nums"
-                    style={{
-                      backgroundImage: GRAD,
-                      WebkitBackgroundClip: 'text',
-                      backgroundClip: 'text',
-                      color: 'transparent',
-                    }}
-                  >
-                    {view ? `${view.per.length}×` : '—'}
-                  </dd>
-                  <dd className="mt-1.5 text-[11px] text-[var(--text-muted)]">
-                    with nobody at the wheel
-                  </dd>
-                </div>
-              </div>
-
-              {/* Three-up at every width — these values are short, and stacking
-                  them on mobile made the block taller than the 2×2 it replaced,
-                  pushing the tools below the fold. */}
-              <div className="grid grid-cols-3 gap-px border-t border-[var(--line)]">
-                <Stat
-                  label="T-shares"
-                  value={view ? view.running.tsh.toFixed(2) : '—'}
-                  // Deliberately not "% of all HEX": the snapshot's `own` field is
-                  // off by ~1000x against the subgraph's global share total, and
-                  // the live rebuild doesn't compute it at all. Share rate is solid.
-                  sub={snap ? `share rate ${Math.round(snap.meta.shareRate).toLocaleString()}` : ''}
-                />
-                <Stat
-                  label="pSSH burned"
-                  value={snap ? compact(snap.meta.burned) : '—'}
-                  sub={
-                    snap
-                      ? `${((snap.meta.burned / (snap.meta.supply + snap.meta.burned)) * 100).toFixed(1)}% of supply`
-                      : ''
-                  }
-                />
-                <Stat
-                  label="pSSH price"
-                  value={usd(pSshPrice)}
-                  sub={
-                    live?.source === 'pulsex-subgraph'
-                      ? 'live · PulseX'
-                      : `snapshot · ${snap?.meta.asOf ?? '—'}`
-                  }
-                />
-              </div>
-            </dl>
-
-            {/* Tools and the card picker sit here rather than at the foot of the
-                page — they're what people act on, and nobody scrolled past the
-                whole history to find them. */}
-            <div className="relative mt-3.5 flex flex-wrap items-center gap-2">
-              {shareData && <ShareCards data={shareData} />}
-              <Tool href={`/geicko?address=${PSSH}`} label="pSSH on the scanner" />
-              <Tool href={pulsechainTokenUrl(PSSH)} label="pSSH contract" external />
-              <Tool href="https://superstake.win" label="superstake.win" external />
-            </div>
-          </header>
-
-          <div className="flex flex-col gap-3">
-            {view ? (
-              <CycleClock
-                cycleNo={view.running.i}
-                startISO={dayToISO(view.running.d0)}
-                endISO={dayToISO(view.running.d1)}
-              />
-            ) : (
-              <div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-8 text-center text-xs text-[var(--text-faint)]">
-                Loading cycle…
-              </div>
-            )}
+      {/* Bottom padding clears the dock — the mobile bar is the taller of the two. */}
+      <div className="w-full px-2 pb-28 pt-4 md:px-3 md:pb-24">
+        {/* ─────────── the headline, and nothing else ───────────
+            The stat card that used to live here said "closed and reopened 17×",
+            which only means something once you already know what a cycle is.
+            Those figures are either in the banner now or inside the tab that
+            explains them. */}
+        <header className="relative mb-4 overflow-hidden rounded-xl px-3 py-5 md:px-5 md:py-7">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-1/2 right-0 aspect-square w-1/2 opacity-[0.18] blur-3xl"
+            style={{ background: GRAD }}
+          />
+          <h1 className="relative max-w-[15ch] text-balance text-[clamp(30px,5.4vw,54px)] font-bold leading-[1.02] tracking-[-0.04em] text-[var(--text)]">
+            A HEX stake that{' '}
+            <span className="bg-clip-text text-transparent" style={{ backgroundImage: GRAD }}>
+              restakes itself
+            </span>{' '}
+            every 60 days.
+          </h1>
+          <p className="relative mt-3 max-w-[52ch] text-[15px] leading-relaxed text-[var(--text-muted)]">
+            The same stake, closing and reopening on its own — buying HEX and burning pSSH the whole
+            way. The only thing that could stop it is HEX itself.
+          </p>
+          <div className="relative mt-4 flex flex-wrap items-center gap-2">
+            {shareData && <ShareCards data={shareData} />}
+            <Tool href={pulsechainTokenUrl(PSSH)} label="pSSH contract" external />
             {view && view.streak > 1 && (
-              <div
-                className="flex items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-bold text-white"
+              <span
+                className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold text-white"
                 style={{ background: GRAD }}
               >
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white motion-reduce:animate-none" />
                 pSSH ahead — last {view.streak} cycles
-              </div>
+              </span>
             )}
           </div>
+        </header>
+
+        {/* ─────────── the questions ─────────── */}
+        <div className="sticky z-30 bg-[var(--app-bg)] pt-1" style={{ top: bannerH }}>
+          <GeickoTabNavigation<Tab> activeTab={tab} tabs={TABS} onTabChange={setTab} fit="scroll" />
         </div>
+        <div className="px-2 md:px-3">
+          <div className="relative z-20 min-h-[420px] rounded-lg rounded-t-none border border-[var(--line)] bg-[var(--panel)] p-3 md:p-5">
+            {/* ── what happens ── */}
+            {tab === 'what' && (
+              <div className="flex flex-col gap-4">
+                <SectionHead
+                  title="Two things happen. That's the whole machine."
+                  sub="every trade, and every 60 days"
+                  tight
+                />
+                <MachineFlow />
+                <div className="grid gap-2.5 sm:grid-cols-3">
+                  <Fig
+                    label="Closed and reopened"
+                    value={view ? `${view.per.length}×` : '—'}
+                    sub="with nobody at the wheel"
+                  />
+                  <Fig
+                    label="HEX in the stake"
+                    value={view ? Math.round(view.running.hex).toLocaleString() : '—'}
+                    sub={
+                      stakeUsd != null && pHexPrice != null
+                        ? `$${Math.round(stakeUsd).toLocaleString()} at ${usd(pHexPrice, 6)} / HEX`
+                        : ''
+                    }
+                  />
+                  <Fig
+                    label="T-shares"
+                    value={view ? view.running.tsh.toFixed(2) : '—'}
+                    // Deliberately not "% of all HEX": the snapshot's `own` field is
+                    // off by ~1000x against the subgraph's global share total, and
+                    // the live rebuild doesn't compute it at all. Share rate is solid.
+                    sub={snap ? `share rate ${Math.round(snap.meta.shareRate).toLocaleString()}` : ''}
+                  />
+                </div>
+                {view && view.cycles.length > 1 && (
+                  <div className="rounded-xl border border-[var(--line)] bg-[var(--app-bg)] p-3">
+                    <div
+                      className="text-[9.5px] uppercase tracking-[0.13em] text-[var(--text-faint)]"
+                      style={{ fontFamily: MONO }}
+                    >
+                      HEX in the stake, every cycle
+                    </div>
+                    <div className="mt-2 max-w-[420px]">
+                      <Sparkline data={view.cycles.map((c) => c.hex)} height={30} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
-        {/* ─────────── at a glance, no words ─────────── */}
-        {view && ahead && need && (
-          <div className="mt-3">
-            <GlanceStrip
-              perDollarRatio={
-                ahead.result.stakeYield > 0
-                  ? ahead.result.psshYield / ahead.result.stakeYield
-                  : 1
-              }
-              sharesLeft={snap ? snap.meta.supply / S_SHARE : 0}
-              sharesMinted={snap ? (snap.meta.supply + snap.meta.burned) / S_SHARE : 0}
-              coverTimes={need.times}
-              inPct={need.inPct}
-              outPct={need.outPct}
-              daysLeft={daysLeft}
-              cycleDays={view.running.d1 - view.running.d0}
-              sShareCost={pSshPrice != null ? pSshPrice * S_SHARE : null}
-              hexWaiting={live?.poolHexWaiting ?? null}
-              stakeHex={view.running.hex}
-            />
-          </div>
-        )}
-
-        {/* ─────────── the machine ─────────── */}
-        <section className="mt-9">
-          <SectionHead
-            title="Two things happen. That's the whole machine."
-            sub="every trade, and every 60 days"
-          />
-          <MachineFlow />
-        </section>
-
-        {/* ─────────── T-share vs S-share ─────────── */}
-        {view && snap && (
-          <section className="mt-9">
-            <SectionHead
-              title="HEX has the T-share. pSSH has the S-share."
-              sub="the unit each one sells you"
-            />
-            <ShareCompare
+            {/* ── what you own ── */}
+            {tab === 'own' && view && snap && (
+              <div className="flex flex-col gap-4">
+                <SectionHead
+                  title="HEX has the T-share. pSSH has the S-share."
+                  sub="the unit each one sells you"
+                  tight
+                />
+                <ShareCompare
               snap={snap}
               poolHex={view.running.hex}
               poolPayout={view.running.pay}
@@ -552,96 +521,79 @@ export default function SuperStakeHubPage() {
               avgVol={live?.wins?.['60'] ?? snap.wins?.['60'] ?? 0}
               pHex={live?.pHEX ?? snap.meta.pHEX}
               pSsh={live?.pSSH ?? snap.meta.pSSH}
-              globalTShares={globalTShares}
-              cyclesDone={view.per.length}
-            />
-          </section>
-        )}
-
-        {/* ─────────── the two engines ─────────── */}
-        {view && (
-          <section className="mt-9">
-            <div
-              className="overflow-hidden rounded-2xl border border-[var(--line)] p-5 md:p-6"
-              style={{
-                background:
-                  'linear-gradient(180deg,rgba(126,8,157,0.14),transparent 60%), var(--panel)',
-              }}
-            >
-              <div
-                className="text-[9.5px] uppercase tracking-[0.16em] text-[var(--text-faint)]"
-                style={{ fontFamily: MONO }}
-              >
-                Why it keeps growing
-              </div>
-              <h2 className="mt-1.5 text-[clamp(18px,3vw,26px)] font-bold leading-tight tracking-[-0.03em] text-[var(--text)]">
-                {need ? (
-                  <>
-                    <span className="bg-clip-text text-transparent" style={{ backgroundImage: GRAD }}>
-                      {usdShort(need.perDay)} a day
-                    </span>{' '}
-                    keeps it growing. It&apos;s doing {usdShort(need.actual)}.
-                  </>
-                ) : (
-                  <>Every cycle has covered its own payout.</>
-                )}
-              </h2>
-              <p className="mt-2.5 max-w-[62ch] text-[13.5px] leading-relaxed text-[var(--text-muted)]">
-                Each cycle hands holders 1% of the pool, so the stake only shrinks if what comes in —
-                HEX&apos;s own yield plus the HEX the 2% buy-tax buys — falls short of that 1%.{' '}
-                {need && (
-                  <>
-                    Cycle {view.running.i} needs{' '}
-                    <b className="text-[var(--text)]">{compact(need.gapHex)} HEX</b> from the tax to
-                    break even, which takes{' '}
-                    <b className="text-[var(--text)]">{usdShort(need.perDay)} of daily volume</b>.
-                    Trading is currently running{' '}
-                    <b className="text-[var(--up)]">{need.times.toFixed(1)}× that</b>.{' '}
-                  </>
-                )}
-                {view.neverShrank && 'The principal has never once gone down.'}
-              </p>
-
-              <div className="mt-5 grid gap-2.5 sm:grid-cols-3">
-                <Fig
-                  label="Daily volume needed"
-                  value={usdShort(need?.perDay ?? 0)}
-                  sub={need ? `to cover cycle ${view.running.i}` : '—'}
-                />
-                <Fig
-                  label="Daily volume actual"
-                  value={usdShort(need?.actual ?? 0)}
-                  sub="trailing 60-day average"
-                  good
-                />
-                <Fig
-                  label="Cycles that covered it"
-                  value={`${view.covered} of ${view.coverage.length}`}
-                  sub="every finished cycle on record"
-                  good={view.covered === view.coverage.length}
+                  globalTShares={globalTShares}
+                  cyclesDone={view.per.length}
                 />
               </div>
+            )}
 
-              <CoverageBars rows={view.coverage} />
+            {/* ── has it worked ── */}
+            {tab === 'worked' && view && (
+              <div className="flex flex-col gap-4">
+                <SectionHead
+                  title="HEX in the stake"
+                  sub="every cycle since launch — it has never gone down"
+                  tight
+                />
+                <div className="grid gap-2.5 sm:grid-cols-3">
+                  <Fig
+                    label="Growth all time"
+                    value={`${view.growth.multiple.toFixed(2)}×`}
+                    sub={`over ${view.growth.spans} cycles`}
+                  />
+                  <Fig
+                    label="Avg growth per cycle"
+                    value={`${view.growth.allTime.toFixed(2)}%`}
+                    sub="all time"
+                  />
+                  <Fig
+                    label="Avg growth per cycle"
+                    value={`${view.growth.recent.toFixed(2)}%`}
+                    sub={`last ${view.growth.recentN} cycles`}
+                    good
+                  />
+                </div>
+                <p className="text-[11px] leading-relaxed text-[var(--text-faint)]">
+                  This is the pool compounding, not a holder&apos;s return — holders receive 1% of it
+                  each cycle. The all-time rate is flattered by the early cycles growing off a small
+                  base, which is why the recent run is shown beside it.
+                </p>
+                <StakeChart cycles={view.cycles} />
 
-              <p className="mt-3 text-[11px] leading-relaxed text-[var(--text-faint)]">
-                HEX&apos;s native yield alone stopped covering the payout around cycle 10 — it now
-                runs well under 1% a cycle. Every cycle since has been carried by the buy-tax, which
-                is why the volume figure above is the number that actually matters.
-              </p>
-            </div>
-          </section>
-        )}
+                <div className="border-t border-[var(--line)] pt-4">
+                  <SectionHead
+                    title="Every cycle covered its own payout"
+                    sub="what came in against the 1% that went out"
+                    tight
+                  />
+                  <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                    <Fig
+                      label="Cycles that covered it"
+                      value={`${view.covered} of ${view.coverage.length}`}
+                      sub="every finished cycle on record"
+                      good={view.covered === view.coverage.length}
+                    />
+                    <Fig
+                      label="Times the principal fell"
+                      value={view.neverShrank ? 'never' : 'see chart'}
+                      sub={`across ${view.cycles.length} cycles`}
+                      good={view.neverShrank}
+                    />
+                  </div>
+                  <CoverageBars rows={view.coverage} />
+                </div>
+              </div>
+            )}
 
-        {/* ─────────── the next 60 days ─────────── */}
-        {view && ahead && (
-          <section className="mt-9">
-            <SectionHead
-              title={`$${STAKE_AMOUNT} in today, held one ${ahead.days}-day cycle`}
-              sub="projected from today's prices, payout rate and volume"
-            />
-
-            <div className="grid overflow-hidden rounded-t-2xl border border-[var(--line)] md:grid-cols-2">
+            {/* ── what $100 does ── */}
+            {tab === 'hundred' && view && ahead && (
+              <div className="flex flex-col gap-4">
+                <SectionHead
+                  title={`$${STAKE_AMOUNT} in today, held one ${ahead.days}-day cycle`}
+                  sub="projected from today's prices, payout rate and volume"
+                  tight
+                />
+                <div className="grid overflow-hidden rounded-t-2xl border border-[var(--line)] md:grid-cols-2">
               <div className="flex flex-col bg-[var(--panel)] p-5 md:p-6">
                 <div
                   className="text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]"
@@ -733,72 +685,111 @@ export default function SuperStakeHubPage() {
               )}
             />
 
-            <Link
-              href="/superstake/vs-hex"
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-xs font-bold text-[var(--text)] transition-colors hover:bg-[var(--surface-2)]"
-            >
-              See the full history with your own amount
-              <IconArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </section>
-        )}
+                <Link
+                  href="/superstake/vs-hex"
+                  className="inline-flex items-center gap-1.5 self-start rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-xs font-bold text-[var(--text)] transition-colors hover:bg-[var(--surface-2)]"
+                >
+                  See the full history with your own amount
+                  <IconArrowRight className="h-3.5 w-3.5" />
+                </Link>
 
-        {/* ─────────── $100 on day one, held ─────────── */}
-        {view && snap && view.cycles.length > 0 && (
-          <section className="mt-9">
-            <PayoutBars
-              cycles={view.cycles}
-              coverage={view.coverageByCycle}
-              supply={snap.meta.supply}
-              amount={STAKE_AMOUNT}
-            />
-          </section>
-        )}
-
-        {/* ─────────── every pair that funds it ─────────── */}
-        <section className="mt-9">
-          <PairVolume token={PSSH} />
-        </section>
-
-        {/* ─────────── HEX in the stake ─────────── */}
-        {view && (
-          <section className="mt-9">
-            <div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4 md:p-5">
-              <SectionHead
-                title="HEX in the stake"
-                sub="every cycle since launch — it has never gone down"
-                tight
-              />
-              <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
-                <Fig
-                  label="Growth all time"
-                  value={`${view.growth.multiple.toFixed(2)}×`}
-                  sub={`over ${view.growth.spans} cycles`}
-                />
-                <Fig
-                  label="Avg growth per cycle"
-                  value={`${view.growth.allTime.toFixed(2)}%`}
-                  sub="all time"
-                />
-                <Fig
-                  label={`Avg growth per cycle`}
-                  value={`${view.growth.recent.toFixed(2)}%`}
-                  sub={`last ${view.growth.recentN} cycles`}
-                  good
-                />
+                {snap && view.cycles.length > 0 && (
+                  <div className="border-t border-[var(--line)] pt-4">
+                    <PayoutBars
+                      cycles={view.cycles}
+                      coverage={view.coverageByCycle}
+                      supply={snap.meta.supply}
+                      amount={STAKE_AMOUNT}
+                    />
+                  </div>
+                )}
               </div>
-              <p className="mt-2.5 text-[11px] leading-relaxed text-[var(--text-faint)]">
-                This is the pool compounding, not a holder&apos;s return — holders receive 1% of it
-                each cycle. The all-time rate is flattered by the early cycles growing off a small
-                base, which is why the recent run is shown beside it.
-              </p>
-              <StakeChart cycles={view.cycles} />
-            </div>
-          </section>
-        )}
+            )}
+
+            {/* ── what keeps it alive ── */}
+            {tab === 'alive' && (
+              <div className="flex flex-col gap-4">
+                {view && (
+                  <>
+                    <SectionHead
+                      title={
+                        need
+                          ? `${usdShort(need.perDay)} a day keeps it growing. It's doing ${usdShort(need.actual)}.`
+                          : 'Every cycle has covered its own payout.'
+                      }
+                      sub="the buy-tax, not HEX's own yield"
+                      tight
+                    />
+                    <p className="max-w-[62ch] text-[13.5px] leading-relaxed text-[var(--text-muted)]">
+                      Each cycle hands holders 1% of the pool, so the stake only shrinks if what comes
+                      in — HEX&apos;s own yield plus the HEX the 2% buy-tax buys — falls short of that
+                      1%.{' '}
+                      {need && (
+                        <>
+                          Cycle {view.running.i} needs{' '}
+                          <b className="text-[var(--text)]">{compact(need.gapHex)} HEX</b> from the
+                          tax to break even, which takes{' '}
+                          <b className="text-[var(--text)]">{usdShort(need.perDay)} of daily volume</b>
+                          . Trading is currently running{' '}
+                          <b className="text-[var(--up)]">{need.times.toFixed(1)}× that</b>.{' '}
+                        </>
+                      )}
+                      {view.neverShrank && 'The principal has never once gone down.'}
+                    </p>
+
+                    <div className="grid gap-2.5 sm:grid-cols-2">
+                      <Fig
+                        label="Daily volume needed"
+                        value={usdShort(need?.perDay ?? 0)}
+                        sub={need ? `to cover cycle ${view.running.i}` : '—'}
+                      />
+                      <Fig
+                        label="Daily volume actual"
+                        value={usdShort(need?.actual ?? 0)}
+                        sub="trailing 60-day average"
+                        good
+                      />
+                    </div>
+
+                    <p className="text-[11px] leading-relaxed text-[var(--text-faint)]">
+                      HEX&apos;s native yield alone stopped covering the payout around cycle 10 — it
+                      now runs well under 1% a cycle. Every cycle since has been carried by the
+                      buy-tax, which is why the volume figure above is the number that actually
+                      matters.
+                    </p>
+
+                    {ahead && need && (
+                      <GlanceStrip
+                        perDollarRatio={
+                          ahead.result.stakeYield > 0
+                            ? ahead.result.psshYield / ahead.result.stakeYield
+                            : 1
+                        }
+                        sharesLeft={snap ? snap.meta.supply / S_SHARE : 0}
+                        sharesMinted={snap ? (snap.meta.supply + snap.meta.burned) / S_SHARE : 0}
+                        coverTimes={need.times}
+                        inPct={need.inPct}
+                        outPct={need.outPct}
+                        daysLeft={daysLeft}
+                        cycleDays={view.running.d1 - view.running.d0}
+                        sShareCost={pSshPrice != null ? pSshPrice * S_SHARE : null}
+                        hexWaiting={live?.poolHexWaiting ?? null}
+                        stakeHex={view.running.hex}
+                      />
+                    )}
+                  </>
+                )}
+
+                <div className="border-t border-[var(--line)] pt-4">
+                  <PairVolume token={PSSH} />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* ─────────── provenance ─────────── */}
-        <p className="mt-8 border-t border-[var(--line)] pt-3.5 text-[11px] leading-relaxed text-[var(--text-faint)]">
+        <p className="mt-6 px-2 text-[11px] leading-relaxed text-[var(--text-faint)] md:px-3">
           <b className="text-[var(--text-muted)]">Where these come from.</b> Cycle history, share
           rates and payouts are replayed from the HEX subgraph; prices and pSSH volume from the
           PulseX subgraph, using untracked volume so the smaller pairs aren&apos;t dropped.{' '}
@@ -812,6 +803,10 @@ export default function SuperStakeHubPage() {
           Past cycles are a record, not a forecast, and none of this is financial advice.
         </p>
       </div>
+
+      {/* Buy and the project's links, held within reach at every scroll position
+          rather than only above the reasons to act on them. */}
+      <ActionDock token={PSSH} />
     </div>
   );
 }
@@ -829,22 +824,6 @@ function SectionHead({ title, sub, tight }: { title: string; sub: string; tight?
   );
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
-  return (
-    <div className="bg-[var(--panel)] px-3 py-2.5">
-      <dt
-        className="text-[9.5px] uppercase tracking-[0.16em] text-[var(--text-faint)]"
-        style={{ fontFamily: MONO }}
-      >
-        {label}
-      </dt>
-      <dd className="mt-0.5 text-[clamp(15px,2.1vw,19px)] font-bold tracking-[-0.025em] tabular-nums text-[var(--text)]">
-        {value}
-      </dd>
-      <dd className="text-[10px] text-[var(--text-faint)]">{sub}</dd>
-    </div>
-  );
-}
 
 /**
  * Side-by-side on the unit each system sells. The contrast that matters is the
