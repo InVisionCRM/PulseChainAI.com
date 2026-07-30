@@ -257,7 +257,11 @@ export default function PayoutBars({
                     fontSize: 9,
                     fontWeight: k === pts.length - 1 ? 700 : 400,
                     opacity: shown ? 1 : 0,
-                    transitionDelay: `${delay + 420}ms`,
+                    // Waits out its bar's full 700ms rise, not part of it. At
+                    // 420ms the number was legible while the bar was still
+                    // short — mid-build the last bar read 19.62 while standing
+                    // lower than the one before it, which looks like bad data.
+                    transitionDelay: `${delay + 700}ms`,
                   }}
                 >
                   {hex1(p.v)}
