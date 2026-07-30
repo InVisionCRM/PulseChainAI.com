@@ -29,6 +29,7 @@ import PayoutBars from '@/components/superstake/PayoutBars';
 import { Sparkline } from '@/components/lab/charts';
 import GlanceStrip from '@/components/superstake/GlanceStrip';
 import ShareCards from '@/components/superstake/ShareCards';
+import SuperStakeLoader, { type LoadPhase } from '@/components/superstake/SuperStakeLoader';
 import type { ShareData } from '@/lib/superstake/shareCard';
 
 const PSSH = '0xb5c4ecef450fd36d0eba1420f6a19dbfbee5292e';
@@ -78,30 +79,62 @@ export default function SuperStakeHubPage() {
   const [live, setLive] = useState<Live | null>(null);
   const [fresh, setFresh] = useState(false);
   const [globalTShares, setGlobalTShares] = useState<number | null>(null);
+  /**
+   * Which of the three fetches have answered. The entry loader reads this, so
+   * every step it shows is a request the page is genuinely waiting on — and a
+   * failure has to be recorded as `fail`, or the loader would sit on it.
+   */
+  const [phases, setPhases] = useState<Record<'snapshot' | 'cycles' | 'live', LoadPhase>>({
+    snapshot: 'wait',
+    cycles: 'wait',
+    live: 'wait',
+  });
 
   useEffect(() => {
     let alive = true;
+    const mark = (k: 'snapshot' | 'cycles' | 'live', p: LoadPhase) =>
+      alive && setPhases((prev) => ({ ...prev, [k]: p }));
+
     (async () => {
       const base: SuperStakeSnapshot | null = await fetch('/api/superstake/snapshot')
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);
-      if (!alive || !base) return;
+      if (!alive) return;
+      if (!base) {
+        // Nothing to layer onto, so the rebuild can't run either.
+        mark('snapshot', 'fail');
+        mark('cycles', 'fail');
+        return;
+      }
       setSnap(base);
+      mark('snapshot', 'ok');
       try {
         const rebuilt = await fetch('/api/superstake/cycles').then((r) => (r.ok ? r.json() : null));
         if (alive && rebuilt?.cycles?.length && rebuilt?.series?.P?.length) {
           setSnap({ ...base, cycles: rebuilt.cycles, series: rebuilt.series });
           setFresh(true);
           if (rebuilt.globalTShares > 0) setGlobalTShares(rebuilt.globalTShares);
+          mark('cycles', 'ok');
+        } else {
+          mark('cycles', 'fail');
         }
       } catch {
         /* stay on the snapshot */
+        mark('cycles', 'fail');
       }
     })();
     fetch('/api/superstake/live')
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => alive && d && setLive(d))
-      .catch(() => {});
+      .then((d) => {
+        if (!alive) return;
+        if (d) {
+          setLive(d);
+          mark('live', 'ok');
+        } else {
+          mark('live', 'fail');
+        }
+      })
+      .catch(() => mark('live', 'fail'));
     return () => {
       alive = false;
     };
@@ -278,9 +311,20 @@ export default function SuperStakeHubPage() {
   }, [snap, view, ahead, need, live, fresh, daysLeft]);
 
   const pSshPrice = live?.pSSH ?? snap?.meta.pSSH ?? null;
+  const pHexPrice = live?.pHEX ?? snap?.meta.pHEX ?? null;
+  /** What the stake is worth today, at the same HEX price the rest of the page quotes. */
+  const stakeUsd = view && pHexPrice ? view.running.hex * pHexPrice : null;
 
   return (
     <div className="min-h-screen w-full bg-[var(--app-bg)]">
+      <SuperStakeLoader
+        ready={!!view}
+        steps={[
+          { label: 'Cycle record', phase: phases.snapshot },
+          { label: 'Rebuilt from the subgraphs', phase: phases.cycles },
+          { label: 'Live prices and volume', phase: phases.live },
+        ]}
+      />
       <div className="mx-auto w-full max-w-6xl px-4 pb-16 pt-5">
         {/* ─────────── live header ─────────── */}
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_290px]">
@@ -345,7 +389,19 @@ export default function SuperStakeHubPage() {
                   <dd className="mt-1 text-[clamp(34px,5.6vw,52px)] font-bold leading-[0.95] tracking-[-0.04em] tabular-nums text-[var(--text)]">
                     {view ? Math.round(view.running.hex).toLocaleString() : '—'}
                   </dd>
-                  <dd className="mt-1.5 text-[11px] text-[var(--text-muted)]">
+                  {/* What that pile is worth today. The HEX count is the machine's
+                      substance, but it means nothing to a reader without the
+                      price beside it — so the dollars sit under the figure with
+                      the rate they were struck at. */}
+                  <dd className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <span className="text-[17px] font-bold tracking-[-0.025em] tabular-nums text-[var(--text)]">
+                      {stakeUsd != null ? `$${Math.round(stakeUsd).toLocaleString()}` : '—'}
+                    </span>
+                    <span className="text-[11px] text-[var(--text-faint)]">
+                      {pHexPrice != null ? `at ${usd(pHexPrice, 6)} / HEX` : ''}
+                    </span>
+                  </dd>
+                  <dd className="mt-1 text-[11px] text-[var(--text-muted)]">
                     {view ? `cycle ${view.running.i} · running now` : ''}
                   </dd>
                   {/* The lead figure's own history — the pool at every cycle.
