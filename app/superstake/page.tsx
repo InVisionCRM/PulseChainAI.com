@@ -26,6 +26,7 @@ import CycleClock from '@/components/superstake/CycleClock';
 import CycleTable from '@/components/superstake/CycleTable';
 import PairVolume from '@/components/superstake/PairVolume';
 import PayoutBars from '@/components/superstake/PayoutBars';
+import { Sparkline } from '@/components/lab/charts';
 import GlanceStrip from '@/components/superstake/GlanceStrip';
 import ShareCards from '@/components/superstake/ShareCards';
 import type { ShareData } from '@/lib/superstake/shareCard';
@@ -347,6 +348,14 @@ export default function SuperStakeHubPage() {
                   <dd className="mt-1.5 text-[11px] text-[var(--text-muted)]">
                     {view ? `cycle ${view.running.i} · running now` : ''}
                   </dd>
+                  {/* The lead figure's own history — the pool at every cycle.
+                      A shape beside the number, not instead of it; the full
+                      series is charted further down the page. */}
+                  {view && view.cycles.length > 1 && (
+                    <dd className="mt-2 max-w-[260px]">
+                      <Sparkline data={view.cycles.map((c) => c.hex)} height={26} />
+                    </dd>
+                  )}
                 </div>
                 <div className="bg-[var(--panel)] px-4 py-4">
                   <dt

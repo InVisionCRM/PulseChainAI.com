@@ -8,7 +8,7 @@
 // Every one takes plain numbers and animates in with a stroke or transform, so
 // they drop into a stat tile as easily as a number does.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 const MONO = 'var(--font-jetbrains-mono), ui-monospace, monospace';
 export const RAMP = ['#7E089D', '#D83639', '#FB9438'] as const;
@@ -40,7 +40,12 @@ function useInView<T extends HTMLElement>() {
 
 /**
  * Sparkline. A trend as a single glyph — put it beside a number, not instead
- * of one. Draws itself in by dash offset.
+ * of one. Wipes itself in left-to-right.
+ *
+ * The reveal is a clip rect rather than a dash offset: the box is stretched
+ * (`preserveAspectRatio="none"`), and under a non-uniform scale a
+ * `pathLength`-normalised dash no longer matches the path as drawn, so the
+ * stroke stops short of the right edge. Clipping is immune to that.
  */
 export function Sparkline({
   data,
@@ -54,6 +59,9 @@ export function Sparkline({
   color?: string;
 }) {
   const [ref, seen] = useInView<HTMLDivElement>();
+  // Unique per instance — a shared id would make every sparkline on the page
+  // paint the first one's fill, so a falling series would get a rising colour.
+  const uid = useId().replace(/:/g, '');
   const W = 200;
   const H = 48;
   const { line, area, up } = useMemo(() => {
@@ -79,25 +87,31 @@ export function Sparkline({
     <div ref={ref} style={{ height }} className="w-full">
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-full w-full overflow-visible">
         <defs>
-          <linearGradient id="lab-spark-fill" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={`spark-fill-${uid}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor={stroke} stopOpacity="0.3" />
             <stop offset="1" stopColor={stroke} stopOpacity="0" />
           </linearGradient>
+          <clipPath id={`spark-clip-${uid}`}>
+            <rect
+              x="0"
+              y="0"
+              height={H}
+              style={{ width: seen ? W : 0, transition: 'width 1.1s ease-out' }}
+            />
+          </clipPath>
         </defs>
-        {showArea && <path d={area} fill="url(#lab-spark-fill)" opacity={seen ? 1 : 0} className="transition-opacity duration-700 delay-300" />}
-        <path
-          d={line}
-          fill="none"
-          stroke={stroke}
-          strokeWidth="2"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          pathLength={1}
-          strokeDasharray={1}
-          strokeDashoffset={seen ? 0 : 1}
-          className="transition-[stroke-dashoffset] duration-[1100ms] ease-out"
-          vectorEffect="non-scaling-stroke"
-        />
+        <g clipPath={`url(#spark-clip-${uid})`}>
+          {showArea && <path d={area} fill={`url(#spark-fill-${uid})`} />}
+          <path
+            d={line}
+            fill="none"
+            stroke={stroke}
+            strokeWidth="2"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </g>
       </svg>
     </div>
   );

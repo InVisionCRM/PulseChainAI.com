@@ -22,8 +22,13 @@ const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
  * Plays the transition from zero on first paint, so a gauge sweeps up when the
  * page arrives rather than appearing already full. Skipped under reduced
  * motion — the gauge simply starts at its value.
+ *
+ * Exported because the bespoke dials elsewhere (SuperStake's GlanceStrip) have
+ * the transition but nothing to transition from: their fraction arrives at its
+ * final value, so the CSS never fires and the dial paints already full. They
+ * borrow this rather than growing a second copy of it.
  */
-function useSweep(value: number) {
+export function useSweep(value: number) {
   const [shown, setShown] = useState(false);
   useEffect(() => {
     if (
