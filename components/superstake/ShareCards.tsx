@@ -4,14 +4,26 @@
 // is that same canvas scaled down with CSS, so what you see is exactly what
 // downloads rather than an approximation of it.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconShare2, IconX, IconDownload, IconCopy, IconCheck } from '@tabler/icons-react';
 import { CARDS, CARD_H, CARD_W, drawCard, type ShareData } from '@/lib/superstake/shareCard';
 
 const MONO = 'var(--font-jetbrains-mono), ui-monospace, monospace';
 const GRAD = 'linear-gradient(135deg,#7E089D,#AE176A 30%,#D83639 58%,#E96635 80%,#FB9438)';
 
-export default function ShareCards({ data }: { data: ShareData }) {
+export interface ShareCardsProps {
+  data: ShareData;
+  /**
+   * Restrict the picker to these card ids. Without it the picker offers every
+   * card *except* the simulator's — those read `data.sim`, which only the
+   * simulator sets, so listing them anywhere else would offer a blank card.
+   */
+  only?: readonly string[];
+  /** Button copy, when "Share a card" isn't specific enough. */
+  label?: string;
+}
+
+export default function ShareCards({ data, only, label }: ShareCardsProps) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -22,15 +34,21 @@ export default function ShareCards({ data }: { data: ShareData }) {
         style={{ background: GRAD }}
       >
         <IconShare2 className="h-3.5 w-3.5" />
-        Share a card
+        {label ?? 'Share a card'}
       </button>
-      {open && <Picker data={data} onClose={() => setOpen(false)} />}
+      {open && <Picker data={data} only={only} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-function Picker({ data, onClose }: { data: ShareData; onClose: () => void }) {
-  const [id, setId] = useState(CARDS[0].id);
+function Picker({
+  data, only, onClose,
+}: { data: ShareData; only?: readonly string[]; onClose: () => void }) {
+  const cards = useMemo(
+    () => (only ? CARDS.filter((k) => only.includes(k.id)) : CARDS.filter((k) => !k.id.startsWith('sim-'))),
+    [only],
+  );
+  const [id, setId] = useState(cards[0].id);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -159,7 +177,7 @@ function Picker({ data, onClose }: { data: ShareData; onClose: () => void }) {
           {/* Two columns even on desktop — a single column of twenty would be
               mostly below the fold. */}
           <div className="order-2 grid max-h-[46vh] grid-cols-2 gap-1.5 overflow-y-auto md:order-1 md:max-h-[64vh]">
-            {CARDS.map((k) => {
+            {cards.map((k) => {
               const on = k.id === id;
               return (
                 <button
