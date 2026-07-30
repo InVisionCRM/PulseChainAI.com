@@ -62,6 +62,57 @@ export interface ShareData {
   hexWaiting: number | null;
   /** How many cycles running pSSH has come out ahead. */
   streak: number;
+  /**
+   * A projection's own figures. Only the simulator sets this, and only the
+   * `sim-` cards read it — every other card is drawn from the record above.
+   */
+  sim?: SimShare | null;
+}
+
+/**
+ * What the simulator produced, flattened for the painter. Everything here is
+ * `simulate()`'s output at the cycle the reader has the playhead on, so a shared
+ * card shows exactly what was on screen when it was made.
+ */
+export interface SimShare {
+  /** The dials that were set. */
+  amount: number;
+  cycles: number;
+  cycleDays: number;
+  dailyVolume: number;
+  compound: boolean;
+  /**
+   * The per-cycle drifts. A run at +8%/cycle on pSSH ends somewhere completely
+   * different from a flat one, so a card that showed the result without the
+   * assumption behind it would be the misleading half of the picture.
+   */
+  hexDriftPct: number;
+  psshDriftPct: number;
+  volumeDriftPct: number;
+  /** The holder's side. */
+  endValue: number;
+  multiple: number;
+  hexEarned: number;
+  hexEarnedUsd: number;
+  tokens: number;
+  sShares: number;
+  sharePct: number;
+  /** The same dollars, the two other ways. */
+  holdHex: number;
+  stakeHex: number;
+  /** The pool's side. */
+  poolStart: number;
+  poolEnd: number;
+  poolMultiple: number;
+  coverRatio: number;
+  breakEven: number;
+  sSharesLeft: number;
+  burned: number;
+  /** The curves, one point per cycle shown. */
+  valueByCycle: number[];
+  holdByCycle: number[];
+  stakeByCycle: number[];
+  poolByCycle: number[];
 }
 
 export interface CardDef {
@@ -92,7 +143,15 @@ export const CARDS: CardDef[] = [
   { id: 'stakeboard', name: 'The stake, in full', blurb: 'Size, shares, growth, chart' },
   { id: 'holder', name: 'What a holder gets', blurb: 'Payouts, reflections, the split' },
   { id: 'ticket', name: 'The $100 ticket', blurb: 'Stub-style, entry to result' },
+  // Simulator only — these read `d.sim`, which nothing else sets.
+  { id: 'sim-outcome', name: 'Your projection', blurb: 'What the dials you set end at' },
+  { id: 'sim-curve', name: 'Three curves', blurb: 'pSSH against holding and staking' },
+  { id: 'sim-pool', name: 'The stake, projected', blurb: 'Where the pool goes from here' },
+  { id: 'sim-plan', name: 'The assumptions', blurb: 'What you set, and what it gives' },
 ];
+
+/** The cards the simulator offers — the rest have nothing to draw from a run. */
+export const SIM_CARD_IDS = ['sim-outcome', 'sim-curve', 'sim-pool', 'sim-plan'] as const;
 
 /* ────────────────────────── canvas helpers ────────────────────────── */
 
@@ -227,6 +286,66 @@ function areaChart(
   c.beginPath();
   c.arc(last[0], last[1], 11, 0, Math.PI * 2);
   c.fill();
+}
+
+/**
+ * Several series on one set of axes, for the simulator's comparison cards.
+ * `areaChart` above is the single brand-coloured curve; this one has to keep
+ * three lines apart, so each carries its own colour and nothing is filled.
+ */
+function lineChart(
+  c: CanvasRenderingContext2D,
+  series: { values: number[]; color: string; width?: number }[],
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  fmt: (v: number) => string = money,
+) {
+  const all = series.flatMap((s) => s.values);
+  if (all.length < 2) return;
+  const hi = Math.max(...all, 1);
+  const lo = Math.min(...all, hi);
+  // Same reasoning as the on-page chart: all three lines start at the same
+  // dollar figure, so a zero floor would flatten them into the top strip. The
+  // floor lifts and both ends of the axis are printed beside it.
+  const floor = lo <= 0 ? 0 : Math.max(0, lo - (hi > lo ? (hi - lo) * 0.25 : lo * 0.05));
+  const top = hi * 1.04;
+  const span = Math.max(top - floor, 1e-9);
+  const n = Math.max(...series.map((s) => s.values.length), 2);
+  c.save();
+  c.strokeStyle = LINE;
+  c.lineWidth = 2;
+  for (const g of [0, 0.25, 0.5, 0.75, 1]) {
+    c.beginPath();
+    c.moveTo(x, y + h * g);
+    c.lineTo(x + w, y + h * g);
+    c.stroke();
+  }
+  c.restore();
+  for (const s of series) {
+    c.save();
+    c.beginPath();
+    s.values.forEach((v, i) => {
+      const px = x + (i / Math.max(1, n - 1)) * w;
+      const py = y + h - ((v - floor) / span) * h;
+      if (i) c.lineTo(px, py);
+      else c.moveTo(px, py);
+    });
+    c.strokeStyle = s.color;
+    c.lineWidth = s.width ?? 6;
+    c.lineJoin = 'round';
+    c.lineCap = 'round';
+    c.stroke();
+    c.restore();
+  }
+  text(c, fmt(top), x + 10, y + 26, { size: 19, color: TX_DIM, font: MONO, spacing: 1 });
+  text(c, fmt(floor), x + 10, y + h - 12, { size: 19, color: TX_DIM, font: MONO, spacing: 1 });
+}
+
+/** A gain or loss, signed rather than left to `money()`'s bare minus. */
+function signed(n: number): string {
+  return `${n >= 0 ? '+' : '−'}${money(Math.abs(n))}`;
 }
 
 /* ────────────────────────── shared chrome ────────────────────────── */
@@ -1024,7 +1143,205 @@ const paint: Record<string, Painter> = {
       size: 24, color: TX_DIM, align: 'center',
     });
   },
+
+  /* ─────────────── the simulator ─────────────── */
+
+  'sim-outcome'(c, d) {
+    const s = d.sim;
+    if (!s) return noRun(c);
+    const beats = s.endValue - s.holdHex;
+    text(c, `${money(s.amount)} in · ${s.cycles} cycles · ${years(s)}`, CARD_W / 2, 224, {
+      size: 34, weight: 700, color: TX_MID, align: 'center',
+    });
+    text(c, `${money(s.dailyVolume)}/day · ${drifts(s)}`, CARD_W / 2, 260, {
+      size: 21, color: TX_DIM, align: 'center',
+    });
+    headline(
+      c,
+      money(s.endValue),
+      `${s.multiple.toFixed(2)}× on what went in — ${s.compound ? 'earnings rebought' : 'earnings kept as HEX'}`,
+      396,
+    );
+    const g = grid(PAD, 500, BOX_W, 280, 2, 2);
+    statTile(c, g[0], {
+      label: 'HEX earned', value: compact(s.hexEarned),
+      sub: `worth ${money(s.hexEarnedUsd)} at the closing price`, accent: '#FB9438',
+    });
+    statTile(c, g[1], {
+      label: 'pSSH held', value: compact(s.tokens), sub: `${s.sShares.toFixed(2)} S-shares`,
+    });
+    statTile(c, g[2], {
+      label: 'Share of the supply', value: simPct(s.sharePct),
+      sub: 'the 1% burn lifts it every cycle',
+    });
+    statTile(c, g[3], {
+      label: 'Against holding HEX', value: signed(beats),
+      sub: `${money(s.holdHex)} if the same dollars sat in HEX`,
+      accent: beats >= 0 ? UP : '#D83639',
+    });
+    statTile(c, [PAD, 800, BOX_W, 120], {
+      label: 'Against rolling a HEX stake', value: money(s.stakeHex), size: 44,
+      sub: `restaked every ${s.cycleDays} days for the same run`,
+    });
+  },
+
+  'sim-curve'(c, d) {
+    const s = d.sim;
+    if (!s) return noRun(c);
+    text(c, 'The same dollars, three ways', CARD_W / 2, 224, {
+      size: 40, weight: 700, color: TX_MID, align: 'center',
+    });
+    text(c, `${money(s.amount)} over ${s.cycles} cycles · ${years(s)}`, CARD_W / 2, 264, {
+      size: 24, color: TX_DIM, align: 'center',
+    });
+    lineChart(
+      c,
+      [
+        { values: s.holdByCycle, color: '#5E7BA6', width: 5 },
+        { values: s.stakeByCycle, color: '#AE176A', width: 5 },
+        { values: s.valueByCycle, color: '#FB9438', width: 8 },
+      ],
+      PAD, 310, BOX_W, 330, money,
+    );
+    text(c, 'CYCLE 1', PAD, 678, { size: 18, color: TX_DIM, font: MONO, spacing: 2 });
+    text(c, `CYCLE ${s.cycles}`, CARD_W - PAD, 678, {
+      size: 18, color: TX_DIM, align: 'right', font: MONO, spacing: 2,
+    });
+    const g = grid(PAD, 706, BOX_W, 168, 3, 1);
+    statTile(c, g[0], {
+      label: 'Hold pSSH', value: money(s.endValue), size: 44,
+      sub: `${s.multiple.toFixed(2)}× in`, accent: '#FB9438',
+    });
+    statTile(c, g[1], {
+      label: 'Stake the HEX', value: money(s.stakeHex), size: 44,
+      sub: 'rolled every cycle', accent: '#AE176A',
+    });
+    statTile(c, g[2], {
+      label: 'Just hold HEX', value: money(s.holdHex), size: 44, sub: 'nothing done at all',
+    });
+    text(c, `${money(s.dailyVolume)}/day · ${drifts(s)} — arithmetic, not a forecast.`,
+      CARD_W / 2, 920, { size: 22, color: TX_DIM, align: 'center' });
+  },
+
+  'sim-pool'(c, d) {
+    const s = d.sim;
+    if (!s) return noRun(c);
+    text(c, 'What the stake itself does', CARD_W / 2, 224, {
+      size: 40, weight: 700, color: TX_MID, align: 'center',
+    });
+    headline(
+      c,
+      `${s.poolMultiple.toFixed(2)}×`,
+      `${compact(s.poolStart)} → ${compact(s.poolEnd)} HEX over ${s.cycles} cycles`,
+      380,
+    );
+    areaChart(c, s.poolByCycle, PAD, 470, BOX_W, 226);
+    const g = grid(PAD, 722, BOX_W, 190, 4, 1, 14);
+    statTile(c, g[0], {
+      label: 'Covers its 1%', value: `${s.coverRatio.toFixed(2)}×`, size: 40,
+      sub: s.coverRatio >= 1 ? 'so it grows' : 'so it shrinks',
+      accent: s.coverRatio >= 1 ? UP : '#D83639',
+    });
+    statTile(c, g[1], {
+      label: 'Volume a day', value: money(s.dailyVolume), size: 40,
+      sub: `needs ${money(s.breakEven)}`,
+    });
+    statTile(c, g[2], {
+      label: 'S-shares left', value: nf(s.sSharesLeft, 0), size: 40, sub: 'only ever fewer',
+    });
+    statTile(c, g[3], {
+      label: 'pSSH burned', value: compact(s.burned), size: 40, sub: 'over the run', accent: '#D83639',
+    });
+    text(c, `Assuming ${drifts(s)}.`, CARD_W / 2, 944, {
+      size: 20, color: TX_DIM, align: 'center',
+    });
+  },
+
+  'sim-plan'(c, d) {
+    const s = d.sim;
+    if (!s) return noRun(c);
+    text(c, 'WHAT I SET, AND WHAT IT GIVES', CARD_W / 2, 212, {
+      size: 20, color: TX_DIM, align: 'center', font: MONO, spacing: 4,
+    });
+    panel(c, PAD, 244, BOX_W, 648);
+    c.save();
+    c.setLineDash([12, 10]);
+    c.strokeStyle = LINE_2;
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(PAD + 400, 272);
+    c.lineTo(PAD + 400, 864);
+    c.stroke();
+    c.restore();
+
+    const lx = PAD + 40;
+    text(c, 'I PUT IN', lx, 318, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
+    text(c, `$${nf(s.amount)}`, lx, 392, {
+      size: 68, weight: 800, color: brand(c, lx, 330, lx + 300, 396),
+    });
+    text(c, 'of pSSH, after the 5.5%', lx, 428, { size: 22, color: TX_MID });
+
+    text(c, 'AND LEFT IT', lx, 506, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
+    text(c, `${s.cycles} cycles`, lx, 564, { size: 46, weight: 800 });
+    text(c, `${s.cycleDays} days each · ${years(s)}`, lx, 598, { size: 22, color: TX_MID });
+
+    text(c, 'ASSUMING VOLUME OF', lx, 676, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
+    text(c, `${money(s.dailyVolume)}/day`, lx, 734, { size: 42, weight: 800 });
+    text(c, `it breaks even at ${money(s.breakEven)}`, lx, 768, { size: 22, color: TX_MID });
+
+    text(c, 'HEX EARNINGS', lx, 816, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
+    text(c, s.compound ? 'Rebought' : 'Kept', lx, 862, { size: 40, weight: 800 });
+
+    const rx = PAD + 440;
+    text(c, 'IT ENDS AT', rx, 318, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
+    text(c, money(s.endValue), rx, 392, {
+      size: 64, weight: 800, color: brand(c, rx, 330, CARD_W - PAD, 396),
+    });
+    text(c, `${s.multiple.toFixed(2)}× on what went in`, rx, 428, { size: 22, color: TX_MID });
+
+    text(c, 'HEX EARNED', rx, 506, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
+    text(c, `${compact(s.hexEarned)} HEX`, rx, 564, { size: 46, weight: 800 });
+    text(c, `worth ${money(s.hexEarnedUsd)}`, rx, 598, { size: 22, color: TX_MID });
+
+    text(c, 'MY SHARE OF THE SUPPLY', rx, 676, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
+    text(c, simPct(s.sharePct), rx, 734, { size: 42, weight: 800 });
+    text(c, `${s.sShares.toFixed(2)} S-shares held`, rx, 768, { size: 22, color: TX_MID });
+
+    text(c, 'AND THE STAKE', rx, 816, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
+    text(c, `${s.poolMultiple.toFixed(2)}× bigger`, rx, 862, { size: 40, weight: 800, color: UP });
+
+    text(c, `Assuming ${drifts(s)}. A projection from figures I chose, not a forecast.`,
+      CARD_W / 2, 930, { size: 21, color: TX_DIM, align: 'center' });
+  },
 };
+
+/** 20.5817% is four digits of noise; 0.0042% needs all four. */
+function simPct(n: number): string {
+  return `${n.toFixed(n >= 1 ? 2 : 4)}%`;
+}
+
+/** The drifts in one line, so no card shows a result without its assumptions. */
+function drifts(s: SimShare): string {
+  const parts: string[] = [];
+  const add = (name: string, p: number) => p !== 0 && parts.push(`${name} ${p > 0 ? '+' : ''}${p}%/cycle`);
+  add('pSSH', s.psshDriftPct);
+  add('HEX', s.hexDriftPct);
+  add('volume', s.volumeDriftPct);
+  return parts.length ? parts.join(' · ') : 'prices and volume held flat';
+}
+
+/** How long the run covers, in years, for the simulator's subtitles. */
+function years(s: SimShare): string {
+  const y = (s.cycles * s.cycleDays) / 365.25;
+  return y >= 1 ? `~${y.toFixed(1)} years` : `~${Math.round(y * 12)} months`;
+}
+
+/** The sim cards are only offered when a run exists; this is the belt and braces. */
+function noRun(c: CanvasRenderingContext2D) {
+  text(c, 'No projection to draw', CARD_W / 2, CARD_H / 2, {
+    size: 40, weight: 700, color: TX_MID, align: 'center',
+  });
+}
 
 const KICKERS: Record<string, string> = {
   verdict: 'the head-to-head',
@@ -1047,6 +1364,10 @@ const KICKERS: Record<string, string> = {
   stakeboard: 'the stake',
   holder: 'what you get',
   ticket: 'the ticket',
+  'sim-outcome': 'simulated',
+  'sim-curve': 'simulated',
+  'sim-pool': 'simulated',
+  'sim-plan': 'simulated',
 };
 
 /** Paint one card. Returns false if the id isn't known. */

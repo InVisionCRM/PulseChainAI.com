@@ -33,6 +33,7 @@ import ShareCards from '@/components/superstake/ShareCards';
 import EntryLoader, { type LoadPhase } from '@/components/EntryLoader';
 import StatBanner from '@/components/superstake/StatBanner';
 import ActionDock from '@/components/superstake/ActionDock';
+import Simulator from '@/components/superstake/Simulator';
 import { GeickoTabNavigation } from '@/components/geicko';
 import type { ShareData } from '@/lib/superstake/shareCard';
 
@@ -59,6 +60,7 @@ const TABS = [
   { id: 'own', label: 'What you own' },
   { id: 'worked', label: 'Has it worked' },
   { id: 'hundred', label: 'What $100 does' },
+  { id: 'sim', label: 'Run the numbers' },
   { id: 'alive', label: 'What keeps it alive' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
@@ -716,6 +718,34 @@ export default function SuperStakeHubPage() {
                       amount={STAKE_AMOUNT}
                     />
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* ── run the numbers ── */}
+            {tab === 'sim' && (
+              <div className="flex flex-col gap-4">
+                <SectionHead
+                  title="Your amount, your assumptions, as many cycles as you like"
+                  sub="the $100 above, generalised — and it can come out badly"
+                  tight
+                />
+                {view && snap ? (
+                  <Simulator
+                    poolHex={view.running.hex}
+                    supply={snap.meta.supply}
+                    pHex={live?.pHEX ?? snap.meta.pHEX}
+                    pSsh={live?.pSSH ?? snap.meta.pSSH}
+                    shareRate={snap.meta.shareRate}
+                    payoutPerTshare={snap.meta.payoutPerTshare}
+                    cycleDays={view.running.d1 - view.running.d0}
+                    dailyVolumeUsd={live?.wins?.['60'] ?? snap.wins?.['60'] ?? 0}
+                    base={shareData}
+                  />
+                ) : (
+                  <p className="text-[12.5px] text-[var(--text-faint)]">
+                    Waiting for the live figures the projection starts from…
+                  </p>
                 )}
               </div>
             )}
