@@ -67,6 +67,8 @@ interface Live {
   pHEX: number | null;
   pSSH: number | null;
   wins: Record<string, number>;
+  /** pSSH move since the previous day's close, percent. */
+  psshChangePct?: number | null;
   /** HEX bought by the 2% and held unstaked, read off chain. */
   poolHexWaiting?: number | null;
   source: string;
@@ -398,6 +400,7 @@ export default function SuperStakeHubPage() {
           cycleDays={view ? view.running.d1 - view.running.d0 : 60}
           endISO={view ? dayToISO(view.running.d1) : null}
           pSsh={pSshPrice}
+          psshChangePct={live?.psshChangePct ?? null}
           sShareCost={pSshPrice != null ? pSshPrice * S_SHARE : null}
           hexPerDollar={unit?.sShare ?? null}
           hexPerDollarStaking={unit?.tShare ?? null}

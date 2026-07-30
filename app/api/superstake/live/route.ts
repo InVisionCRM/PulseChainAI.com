@@ -39,6 +39,13 @@ interface LivePayload {
   /** Average daily pSSH volume (USD) per trailing window, keyed by day count. */
   wins: Record<string, number>;
   /**
+   * pSSH price now against the previous day's close, as a percent. The PulseX
+   * subgraph has no hourly series, so this is "since yesterday's close" rather
+   * than a rolling 24 hours — named for what it actually measures. Null when
+   * there is no previous day to compare against.
+   */
+  psshChangePct: number | null;
+  /**
    * HEX sitting liquid in the staking contract — what the 2% has bought so far
    * this cycle, waiting to be added to the stake at the next end-stake. Read
    * straight off chain, so it is independent of the subgraph above and stays
@@ -51,11 +58,15 @@ interface LivePayload {
 
 let cache: { value: LivePayload; at: number } | null = null;
 
+// `priceUSD` rides along on the day series we already pull for volume, so the
+// price move costs no extra request and comes from the same source as the price
+// itself — mixing in a second provider would show a percentage that doesn't
+// match the number beside it.
 const QUERY = `{
   hex: token(id:"${HEX_PLS}"){ derivedUSD }
   pssh: token(id:"${PSSH}"){ derivedUSD }
   vol: tokenDayDatas(first:366, orderBy:date, orderDirection:desc, where:{token:"${PSSH}"}){
-    date dailyVolumeUSD
+    date dailyVolumeUSD priceUSD
   }
 }`;
 
@@ -110,14 +121,20 @@ export async function GET() {
   if (!data) {
     payload = {
       pHEX: null, pSSH: null, wins: {},
+      psshChangePct: null,
       poolHexWaiting: waitingHex,
       source: 'unavailable', fetchedAt: Date.now(),
     };
   } else {
     const pHEX = parseFloat(data.hex?.derivedUSD ?? '0');
     const pSSH = parseFloat(data.pssh?.derivedUSD ?? '0');
+    const days: any[] = data.vol ?? [];
+    // days[0] is today in progress, days[1] the last completed day.
+    const prevClose = parseFloat(days[1]?.priceUSD ?? '0');
+    const psshChangePct =
+      pSSH > 0 && prevClose > 0 ? ((pSSH / prevClose) - 1) * 100 : null;
     // Drop the first row: today is still in progress and would understate the average.
-    const rows: any[] = (data.vol ?? []).slice(1);
+    const rows: any[] = days.slice(1);
     const now = Date.now() / 1000;
     const wins: Record<string, number> = {};
     for (const w of WINDOWS) {
@@ -131,6 +148,7 @@ export async function GET() {
       pHEX: pHEX > 0 ? pHEX : null,
       pSSH: pSSH > 0 ? pSSH : null,
       wins,
+      psshChangePct,
       poolHexWaiting: waitingHex,
       source: 'pulsex-subgraph',
       fetchedAt: Date.now(),
