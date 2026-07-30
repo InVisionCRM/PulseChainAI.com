@@ -678,10 +678,15 @@ export default function SuperStakeHubPage() {
           </section>
         )}
 
-        {/* ─────────── what the stake alone paid, cycle by cycle ─────────── */}
-        {view && view.per.length > 0 && (
+        {/* ─────────── $100 on day one, held ─────────── */}
+        {view && snap && view.cycles.length > 0 && (
           <section className="mt-9">
-            <PayoutBars rows={view.per} amount={STAKE_AMOUNT} />
+            <PayoutBars
+              cycles={view.cycles}
+              coverage={view.coverageByCycle}
+              supply={snap.meta.supply}
+              amount={STAKE_AMOUNT}
+            />
           </section>
         )}
 
