@@ -167,24 +167,43 @@ export default function PayoutBars({
     };
   }, [cycles, coverage, supply, amount]);
 
-  // Only cycles that have closed have a burn step to show.
+  // Ownership, not the rate of change of ownership.
+  //
+  // The first cut plotted each cycle's own step, which descends — +1.31% at
+  // cycle 1 down to +0.14% — because a burn is a smaller slice of a float
+  // that has already shrunk. True, but it reads as the effect fading when
+  // what it actually shows is the second derivative. The holding's share of
+  // supply itself only ever rises, so that is what the bars carry: how much
+  // more of the float a balance that never moved owns, against cycle 1.
   const burnModel = useMemo(() => {
-    if (!burns) return null;
-    const pts = burns
-      .filter((b) => b.growthPct != null && b.growthPct > 0)
-      .map((b) => ({ i: b.i, v: b.growthPct as number, burned: b.burnedInCycle ?? 0 }));
-    if (pts.length === 0) return null;
-    const best = pts.reduce((a, b) => (b.v > a.v ? b : a));
+    if (!burns || burns.length < 2) return null;
     const firstSupply = burns[0].supply;
+    if (!(firstSupply > 0)) return null;
+
+    // Cycle 1 is the baseline and would draw a zero-height bar, so the series
+    // starts at the first cycle that has actually gained something.
+    const pts = burns
+      .slice(1)
+      .filter((b) => b.supply > 0)
+      .map((b) => ({
+        i: b.i,
+        v: (firstSupply / b.supply - 1) * 100,
+        burned: b.burnedAtOpen - burns[0].burnedAtOpen,
+      }));
+    if (pts.length === 0) return null;
+
     const lastSupply = burns[burns.length - 1].supply;
     return {
       pts,
-      best,
+      baseline: burns[0].i,
       last: pts[pts.length - 1],
       burnedAllTime: burns[burns.length - 1].burnedAtOpen,
+      supplyThen: firstSupply,
       supplyNow: lastSupply,
       allTimeGrowth: lastSupply > 0 ? (firstSupply / lastSupply - 1) * 100 : 0,
-      everyCycle: pts.length === burns.length - 1,
+      // Ownership can only fall if the float grows, which burning cannot do.
+      // Checked rather than asserted all the same.
+      everyCycle: pts.every((p, k) => k === 0 || p.v > pts[k - 1].v),
     };
   }, [burns]);
 
@@ -330,19 +349,19 @@ export default function PayoutBars({
               sub={`pSSH · float down to ${num0(burnModel.supplyNow)}`}
             />
             <Fig
-              label={`Best · cycle ${burnModel.best.i}`}
-              value={`+${pct2(burnModel.best.v)}`}
-              sub={`${num0(burnModel.best.burned)} pSSH burned`}
+              label={`Share at cycle ${burnModel.baseline}`}
+              value={`${((psshBought / burnModel.supplyThen) * 100).toFixed(6)}%`}
+              sub={`${num0(psshBought)} pSSH of the float`}
             />
             <Fig
-              label={`Cycle ${burnModel.last.i}`}
-              value={`+${pct2(burnModel.last.v)}`}
-              sub={`${num0(burnModel.last.burned)} pSSH burned`}
+              label={`Share at cycle ${burnModel.last.i}`}
+              value={`${((psshBought / burnModel.supplyNow) * 100).toFixed(6)}%`}
+              sub="same tokens, smaller float"
             />
             <Fig
-              label="Share growth all time"
+              label="Ownership gained"
               value={`+${pct2(burnModel.allTimeGrowth)}`}
-              sub={`across ${burnModel.pts.length} cycles`}
+              sub={`over ${burnModel.pts.length} cycles, never down`}
               burn
             />
           </div>
@@ -354,7 +373,7 @@ export default function PayoutBars({
             stops={['#DC2626', '#F97316', '#FBBF24']}
             fmt={(v) => v.toFixed(2)}
             unit="%"
-            ariaLabel={`Percentage growth in a fixed pSSH holding's share of supply each cycle, caused by the burn. The largest was cycle ${burnModel.best.i} at ${pct2(burnModel.best.v)} and the total across ${burnModel.pts.length} cycles is ${pct2(burnModel.allTimeGrowth)}.`}
+            ariaLabel={`How much more of the pSSH float a holding that never moved owns, cycle by cycle, against cycle ${burnModel.baseline}. It rises every cycle to ${pct2(burnModel.allTimeGrowth)} by cycle ${burnModel.last.i}.`}
           />
 
           <div className="border-t border-[var(--line)] px-4 py-3">
@@ -369,14 +388,16 @@ export default function PayoutBars({
               a bigger pool.
             </p>
             <p className="mt-2 text-[11.5px] leading-relaxed text-[var(--text-faint)]">
+              Each bar is how much more of the float that balance owns than it did at cycle{' '}
+              {burnModel.baseline} — the running total, not that cycle&apos;s step.{' '}
               {burnModel.everyCycle
-                ? 'Every cycle so far has burned something, so the float has only ever fallen. '
-                : 'The float falls in any cycle that burns. '}
-              Each bar is that cycle&apos;s gain in ownership for an untouched balance — read from
-              the dead address&apos;s pSSH balance at each cycle&apos;s opening block, not modelled.
-              Compounded, they come to{' '}
-              <b style={burnText}>+{pct2(burnModel.allTimeGrowth)}</b> since cycle{' '}
-              {burnModel.pts[0].i}.
+                ? 'It rises every cycle and has never fallen, because burning cannot put tokens back. '
+                : 'It falls only if the float grows. '}
+              The step itself does get smaller over time — the same burn is a thinner slice of a
+              float that has already shrunk — but it stays positive, so the line it draws only
+              goes one way:{' '}
+              <b style={burnText}>+{pct2(burnModel.allTimeGrowth)}</b> so far. Read from the dead
+              address&apos;s pSSH balance at each cycle&apos;s opening block, not modelled.
             </p>
           </div>
         </>
