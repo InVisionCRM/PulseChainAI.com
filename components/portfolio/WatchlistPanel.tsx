@@ -12,6 +12,8 @@ import {
   IconPlus,
   IconTrash,
   IconCheck,
+  IconChevronUp,
+  IconChevronDown,
 } from '@tabler/icons-react';
 import { useWatchlistStore } from '@/lib/stores/watchlistStore';
 import type { WatchedToken, WatchPriceEntry } from '@/lib/stores/watchlistStore';
@@ -159,7 +161,17 @@ function toInsightsToken(t: WatchedToken, p?: WatchPriceEntry): PortfolioToken {
   };
 }
 
-export function WatchlistPanel({ variant = 'card' }: { variant?: 'card' | 'rail' } = {}) {
+export function WatchlistPanel({
+  variant = 'card',
+  expanded,
+  onToggleExpanded,
+}: {
+  variant?: 'card' | 'rail';
+  /** Rail only: whether the nav above has been given over to this panel. */
+  expanded?: boolean;
+  /** Rail only: supplied by the sidebar, which owns the space being traded. */
+  onToggleExpanded?: () => void;
+} = {}) {
   // 'card' = the standalone rounded panel used inline on mobile.
   // 'rail'  = compact, chrome-less list that lives in the left nav column
   //           (desktop): no border/background, groups tucked behind a toggle.
@@ -242,25 +254,30 @@ export function WatchlistPanel({ variant = 'card' }: { variant?: 'card' | 'rail'
           : 'scroll-mt-20 rounded-2xl border border-[var(--line)] bg-[var(--surface)] backdrop-blur-xl p-4 lg:sticky lg:top-4 lg:flex lg:flex-col lg:max-h-[calc(100vh-2rem)]'
       }
     >
-      <div className={`flex items-center justify-between shrink-0 ${rail ? 'mb-2' : 'mb-3 lg:shrink-0'}`}>
-        <div className="flex items-center gap-2 text-orange-400/80 text-xs font-semibold uppercase tracking-wider">
-          <IconStar className="h-4 w-4" />
-          Watchlist
+      {/* The rail header runs tight — four controls in a 214px column. Gaps
+          are trimmed and "Groups" becomes its folder icon there, or the title
+          wraps its own count onto a second line. */}
+      <div className={`flex items-center justify-between shrink-0 ${rail ? 'mb-2 gap-1' : 'mb-3 lg:shrink-0'}`}>
+        <div
+          className={`flex min-w-0 items-center text-orange-400/80 text-xs font-semibold uppercase tracking-wider ${rail ? 'gap-1' : 'gap-2'}`}
+        >
+          <IconStar className="h-4 w-4 shrink-0" />
+          <span className="truncate">Watchlist</span>
           {tokens.length > 0 && (
-            <span className="text-[var(--text-faint)] normal-case font-normal">
+            <span className="shrink-0 text-[var(--text-faint)] normal-case font-normal">
               · {tokens.length}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className={`flex shrink-0 items-center ${rail ? 'gap-1.5' : 'gap-2'}`}>
           {rail && tokens.length > 0 && (
             <button
               type="button"
               onClick={() => setShowGroups((v) => !v)}
-              className={`text-[10px] font-semibold uppercase tracking-wider ${showGroups ? 'text-orange-300' : 'text-[var(--text-faint)] hover:text-[var(--text)]'}`}
+              className={showGroups ? 'text-orange-300' : 'text-[var(--text-faint)] hover:text-[var(--text)]'}
               title="Manage groups"
             >
-              Groups
+              <IconFolder className="h-4 w-4" />
             </button>
           )}
           <button
@@ -272,6 +289,27 @@ export function WatchlistPanel({ variant = 'card' }: { variant?: 'card' | 'rail'
           >
             <IconRefresh className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
+          {/* Takes the nav's half of the column and gives it to the list. The
+              sidebar owns that space, so it owns the state — this only asks. */}
+          {rail && onToggleExpanded && (
+            <button
+              type="button"
+              onClick={onToggleExpanded}
+              aria-expanded={!!expanded}
+              className={
+                expanded
+                  ? 'text-orange-300'
+                  : 'text-[var(--text-faint)] hover:text-[var(--text)]'
+              }
+              title={expanded ? 'Collapse — show the nav again' : 'Expand over the nav'}
+            >
+              {expanded ? (
+                <IconChevronDown className="h-4 w-4" />
+              ) : (
+                <IconChevronUp className="h-4 w-4" />
+              )}
+            </button>
+          )}
         </div>
       </div>
 

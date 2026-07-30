@@ -53,10 +53,10 @@ export function ThemeToggle({ variant = "rail" }: { variant?: "rail" | "bar" | "
     return (
       <button
         {...shared}
-        className="flex flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-orange-500/40 bg-orange-500/10 px-1 py-2 text-orange-300 transition-colors hover:bg-orange-500/20"
+        className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border border-orange-500/40 bg-orange-500/10 px-1.5 py-1 text-orange-300 transition-colors hover:bg-orange-500/20"
       >
-        <Icon className="h-4 w-4 shrink-0" />
-        <span className="text-[10px] font-semibold leading-none">Theme</span>
+        <Icon className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate text-[10px] font-semibold leading-none">Theme</span>
       </button>
     );
   }

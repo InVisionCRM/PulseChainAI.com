@@ -2,13 +2,15 @@
 import { cn } from "@/lib/utils";
 import React, { useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
-import { IconX } from "@tabler/icons-react";
+import { IconRocket, IconX } from "@tabler/icons-react";
 import Image from "next/image";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Message } from "@/types";
 import { useApiKey } from "@/lib/hooks/useApiKey";
 import { WatchlistPanel } from "@/components/portfolio/WatchlistPanel";
+import { InstallButton } from "@/components/pwa/InstallButton";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 interface Links {
   label: string;
@@ -28,6 +30,11 @@ export const SidebarBody = ({
   className?: string;
   children?: React.ReactNode;
 }) => {
+  // The nav and the watchlist split the column's free height. Expanding hands
+  // the nav's half over rather than overlaying it — same doubled list, without
+  // a floating layer that has to guess at z-index and its own scrolling.
+  const [watchlistExpanded, setWatchlistExpanded] = useState(false);
+
   return (
     <aside
       className={cn(
@@ -49,22 +56,60 @@ export const SidebarBody = ({
           while its real content overflows and paints over the watchlist
           below. Keeping this a plain block lets that flex-1 go inert so the
           content sizes naturally and this box scrolls it. */}
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide px-2 pb-2">
-        {children}
-      </div>
+      {!watchlistExpanded && (
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide px-2 pb-2">
+          {children}
+        </div>
+      )}
 
-      {/* Watchlist — bottom portion, always under the nav on every page. */}
+      {/* Watchlist — takes the whole column between header and utilities once
+          expanded, roughly double its usual height. */}
       <div className="flex flex-1 min-h-0 flex-col border-t border-[var(--line)] px-2 pt-2 pb-1">
-        <WatchlistPanel variant="rail" />
+        <WatchlistPanel
+          variant="rail"
+          expanded={watchlistExpanded}
+          onToggleExpanded={() => setWatchlistExpanded((v) => !v)}
+        />
       </div>
 
-      {/* Richard Heart chat — pinned to the very bottom. */}
+      {/* Utilities + chat — pinned to the very bottom, in that order. */}
+      <SidebarUtilityRow />
       <div className="shrink-0 border-t border-[var(--line)] px-2 py-2">
         <RichardHeartChat />
       </div>
     </aside>
   );
 };
+
+/**
+ * Get Morbius / Install / Theme, as three compact tiles above the chat button.
+ *
+ * Was a stacked icon-over-label row at the top of the nav, which cost about
+ * 46px of the column; laid out horizontally at half that. Labels truncate
+ * rather than wrap, so a narrower column degrades to icons on its own instead
+ * of growing a second line. Flex-1 rather than a 3-up grid so the row stays
+ * even when Install hides itself — already installed, or a browser with no
+ * install prompt.
+ */
+const SidebarUtilityRow = () => (
+  <div className="shrink-0 border-t border-[var(--line)] px-2 pt-2">
+    <div className="flex items-stretch gap-1">
+      <a
+        href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-1.5 py-1 text-[var(--text)] transition-colors hover:bg-[var(--surface-2)]"
+        title="Get Morbius"
+      >
+        <IconRocket className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
+        <span className="truncate text-[10px] font-semibold leading-none">Morbius</span>
+      </a>
+
+      <InstallButton variant="tile" />
+      <ThemeToggle variant="tile" />
+    </div>
+  </div>
+);
 
 export const SidebarLink = ({
   link,
