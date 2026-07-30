@@ -3,10 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 const HEX_API_BASE = 'https://hexdailystats.com';
 
 export async function GET(request: NextRequest) {
+  // Read outside the try: the catch block logs it, and a `const` scoped to the
+  // try threw a ReferenceError from inside the error handler — which turned
+  // every upstream failure into an opaque 500 with no diagnostic at all.
+  const endpoint = new URL(request.url).searchParams.get('endpoint');
+
   try {
-    const { searchParams } = new URL(request.url);
-    const endpoint = searchParams.get('endpoint');
-    
+
     if (!endpoint) {
       return NextResponse.json(
         { error: 'Endpoint parameter is required' },
@@ -60,29 +63,36 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error in HEX proxy:', {
       endpoint,
-      error: error.message,
-      stack: error.stack
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
     });
     
     // Return more specific error information
+    const detail = error instanceof Error ? error.message : String(error);
+    const name = error instanceof Error ? error.name : '';
     let errorMessage = 'Failed to fetch HEX data';
     let statusCode = 500;
-    
-    if (error.name === 'TimeoutError' || error.message.includes('timeout')) {
+
+    if (name === 'TimeoutError' || detail.includes('timeout')) {
       errorMessage = 'Request timeout - HEX API is slow to respond';
       statusCode = 504;
-    } else if (error.message.includes('Failed to fetch') || error.message.includes('network')) {
+    } else if (detail.includes('Failed to fetch') || detail.includes('network')) {
       errorMessage = 'Network error - Unable to connect to HEX API';
       statusCode = 502;
-    } else if (error.message.includes('CORS')) {
+    } else if (detail.includes('CORS')) {
       errorMessage = 'CORS error - API access restricted';
       statusCode = 403;
+    } else if (/HEX API error: 4\d\d/.test(detail)) {
+      // The upstream said no. Passing that through as a 500 read as our fault
+      // and hid the real cause — `livedata` currently 404s at hexdailystats.
+      errorMessage = 'HEX API rejected the request';
+      statusCode = 502;
     }
-    
+
     return NextResponse.json(
-      { 
-        error: errorMessage, 
-        details: error.message,
+      {
+        error: errorMessage,
+        details: detail,
         endpoint,
         timestamp: new Date().toISOString()
       },
