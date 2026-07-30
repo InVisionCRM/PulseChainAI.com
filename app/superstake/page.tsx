@@ -30,7 +30,7 @@ import PayoutBars from '@/components/superstake/PayoutBars';
 import { Sparkline } from '@/components/lab/charts';
 import GlanceStrip from '@/components/superstake/GlanceStrip';
 import ShareCards from '@/components/superstake/ShareCards';
-import SuperStakeLoader, { type LoadPhase } from '@/components/superstake/SuperStakeLoader';
+import EntryLoader, { type LoadPhase } from '@/components/EntryLoader';
 import StatBanner from '@/components/superstake/StatBanner';
 import ActionDock from '@/components/superstake/ActionDock';
 import { GeickoTabNavigation } from '@/components/geicko';
@@ -67,6 +67,8 @@ interface Live {
   pHEX: number | null;
   pSSH: number | null;
   wins: Record<string, number>;
+  /** pSSH move since the previous day's close, percent. */
+  psshChangePct?: number | null;
   /** HEX bought by the 2% and held unstaked, read off chain. */
   poolHexWaiting?: number | null;
   source: string;
@@ -380,13 +382,22 @@ export default function SuperStakeHubPage() {
 
   return (
     <div className="min-h-screen w-full bg-[var(--app-bg)]">
-      <SuperStakeLoader
+      <EntryLoader
         ready={!!view}
         steps={[
           { label: 'Cycle record', phase: phases.snapshot },
           { label: 'Rebuilt from the subgraphs', phase: phases.cycles },
           { label: 'Live prices and volume', phase: phases.live },
         ]}
+        art={{
+          landscape: '/superstake-loading.jpg',
+          portrait: '/superstake-loading-portrait.jpg',
+        }}
+        markSrc="/superstake-logo.png"
+        markLabel="SuperStake · pSSH"
+        title={{ lead: 'A HEX stake that', accent: 'restakes itself' }}
+        sub="Replaying every cycle from the HEX and PulseX subgraphs."
+        ariaLabel="Loading SuperStake"
       />
       {/* ─────────── the live strip ───────────
           Every figure a returning holder opens the page for. It stays put, so
@@ -398,6 +409,7 @@ export default function SuperStakeHubPage() {
           cycleDays={view ? view.running.d1 - view.running.d0 : 60}
           endISO={view ? dayToISO(view.running.d1) : null}
           pSsh={pSshPrice}
+          psshChangePct={live?.psshChangePct ?? null}
           sShareCost={pSshPrice != null ? pSshPrice * S_SHARE : null}
           hexPerDollar={unit?.sShare ?? null}
           hexPerDollarStaking={unit?.tShare ?? null}
@@ -411,8 +423,10 @@ export default function SuperStakeHubPage() {
         />
       </div>
 
-      {/* Bottom padding clears the dock — the mobile bar is the taller of the two. */}
-      <div className="w-full px-2 pb-28 pt-4 md:px-3 md:pb-24">
+      {/* Bottom padding clears what floats over the page. On a phone that's the
+          bottom nav (64px) plus the dock riding above it; on desktop just the
+          dock at 41px + its own height. */}
+      <div className="w-full px-2 pb-36 pt-4 md:px-3 md:pb-24">
         {/* ─────────── the headline, and nothing else ───────────
             The stat card that used to live here said "closed and reopened 17×",
             which only means something once you already know what a cycle is.

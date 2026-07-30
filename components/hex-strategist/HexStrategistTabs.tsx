@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { IconBolt, IconRadar2, IconTrophy } from '@tabler/icons-react';
-import type { Network } from '@/lib/hex/strategistData';
+import type { Network, RatesSource } from '@/lib/hex/strategistData';
+import EntryLoader, { type LoadPhase } from '@/components/EntryLoader';
 // Designer is the default tab — import it directly so it renders immediately
 // with no loading flash (lazy-loading the always-shown view buys nothing).
 import HexStrategist from './HexStrategist';
@@ -53,9 +54,46 @@ function ComingSoon() {
 export default function HexStrategistTabs() {
   const [net, setNet] = useState<Network>('pulsechain');
   const [mode, setMode] = useState<Mode>('designer');
+  /**
+   * The two HEX feeds the Designer waits on, reported as each settles. The
+   * entry loader shows one step per feed, so every step names a request the
+   * page is genuinely blocked on rather than counting up on a timer.
+   */
+  const [feeds, setFeeds] = useState<Record<RatesSource, LoadPhase>>({
+    live: 'wait',
+    daily: 'wait',
+  });
+  const onSource = useCallback(
+    (source: RatesSource, ok: boolean) =>
+      setFeeds((prev) => ({ ...prev, [source]: ok ? 'ok' : 'fail' })),
+    [],
+  );
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4 px-3 py-4">
+      {/* eHEX short-circuits to ComingSoon before any fetch, so there is
+          nothing to wait on and no loader to hold over it. */}
+      {net === 'pulsechain' && (
+        <EntryLoader
+          ready={feeds.live !== 'wait' || feeds.daily !== 'wait'}
+          steps={[
+            { label: 'Live HEX rates', phase: feeds.live },
+            { label: 'Daily series', phase: feeds.daily },
+          ]}
+          art={{
+            landscape: '/hex-strategist-loading.jpg',
+            portrait: '/hex-strategist-loading-portrait.jpg',
+          }}
+          markSrc="/hex-logo.svg"
+          markLabel="HEX · Stake Strategist"
+          title={{ lead: 'The math tells you', accent: 'the best length' }}
+          sub="Reading the live T-Share rate and the daily series off the HEX contract."
+          ariaLabel="Loading HEX Strategist"
+          // This artwork is molten orange where SuperStake's is magenta, so the
+          // ramp warms to sit with it rather than fight it.
+          gradient="linear-gradient(135deg,#FF9445,#FF7A3D 40%,#FF5E3A 75%,#FFC94F)"
+        />
+      )}
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -97,7 +135,7 @@ export default function HexStrategistTabs() {
       {net === 'ethereum' ? (
         <ComingSoon />
       ) : mode === 'designer' ? (
-        <HexStrategist net={net} />
+        <HexStrategist net={net} onSource={onSource} />
       ) : mode === 'radar' ? (
         <WhaleRadar net={net} />
       ) : (
