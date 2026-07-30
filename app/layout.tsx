@@ -9,7 +9,6 @@ import { SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import {
   IconHome,
   IconSearch,
-  IconRocket,
   IconHexagon,
   IconChevronDown,
   IconX,
@@ -24,10 +23,8 @@ import { useState, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { AddToGroupModal } from "@/components/portfolio/AddToGroupModal";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { PullChainOverlay } from "@/components/theme/PullChainOverlay";
 import { IntroSplash } from "@/components/IntroSplash";
-import { InstallButton } from "@/components/pwa/InstallButton";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -198,35 +195,14 @@ export default function RootLayout({
             <SidebarBody>
                 <div className="flex flex-1 flex-col overflow-x-hidden min-h-0">
                   <div className="mt-3 flex w-full flex-col gap-1 text-sm">
-                    {/* Utility row — Get Morbius / Install / Theme as three
-                        equal compact tiles. Flex-1 rather than grid-cols-3 so
-                        the row stays even when Install hides itself (already
-                        installed, or a browser with no install prompt). */}
-                    <div className="mb-2 flex items-stretch gap-1">
-                      <a
-                        href="https://pump.tires/token/0xB7d4eB5fDfE3d4d3B5C16a44A49948c6EC77c6F1"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-1 py-2 text-[var(--text)] transition-colors hover:bg-[var(--surface-2)]"
-                        title="Get Morbius"
-                      >
-                        <IconRocket className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-                        <span className="text-[10px] font-semibold leading-none">Morbius</span>
-                      </a>
-
-                      {/* Hidden when already installed / unsupported browser. */}
-                      <InstallButton variant="tile" />
-
-                      <ThemeToggle variant="tile" />
-                    </div>
-
+                    {/* Nav links only. Get Morbius / Install / Theme moved to
+                        the column's footer, above the chat button, so the
+                        scrolling region is links and nothing else. Community
+                        Builders, Sponsored and GOLD Badges Admin live in the
+                        global footer for the same reason. */}
                     {primaryLinks.map((link, idx) => (
                       <SidebarLink key={idx} link={link} />
                     ))}
-
-                    {/* Community Builders, Sponsored, and GOLD Badges Admin
-                        moved to the global footer to keep the nav lean.
-                        The theme toggle now lives in the utility row above. */}
                   </div>
                 </div>
               </SidebarBody>

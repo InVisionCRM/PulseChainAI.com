@@ -83,17 +83,17 @@ export function InstallButton({ variant = 'full' }: { variant?: 'full' | 'tile' 
         title="Install Morbius"
         className={
           variant === 'tile'
-            ? 'flex flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-1 py-2 text-[var(--text)] transition-colors hover:bg-[var(--surface-2)]'
+            ? 'flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-1.5 py-1 text-[var(--text)] transition-colors hover:bg-[var(--surface-2)]'
             : 'mb-2 flex items-center justify-center gap-2 rounded-lg border border-purple-500/40 bg-purple-500/15 px-3 py-2 transition duration-200 hover:bg-purple-500/25'
         }
       >
         <IconDeviceMobileDown
-          className={variant === 'tile' ? 'h-4 w-4 shrink-0 text-[var(--text-muted)]' : 'h-5 w-5 shrink-0 text-purple-300'}
+          className={variant === 'tile' ? 'h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]' : 'h-5 w-5 shrink-0 text-purple-300'}
         />
         <span
           className={
             variant === 'tile'
-              ? 'text-[10px] font-semibold leading-none text-[var(--text)]'
+              ? 'truncate text-[10px] font-semibold leading-none text-[var(--text)]'
               : 'inline-block whitespace-pre text-sm text-[var(--text)]'
           }
         >

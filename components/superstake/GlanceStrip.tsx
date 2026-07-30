@@ -8,6 +8,7 @@ import {
   IconFlame, IconActivity, IconArrowUp, IconArrowDown,
   IconClock, IconTag, IconHourglass,
 } from '@tabler/icons-react';
+import { useSweep } from '@/components/lab/gauges';
 
 const MONO = 'var(--font-jetbrains-mono), ui-monospace, monospace';
 const GRAD_STOPS = (
@@ -43,13 +44,19 @@ export function VersusGauge({ ratio }: { ratio: number }) {
   const CX = 80;
   const CY = 72;
   const LEN = Math.PI * R;
-  const frac =
+  const target =
     ratio > 0
       ? 0.5 + 0.5 * Math.max(-1, Math.min(1, Math.log(ratio) / Math.log(3)))
       : 0.5;
-  const ang = Math.PI * (1 - frac);
-  const nx = CX + Math.cos(ang) * (R - 13);
-  const ny = CY - Math.sin(ang) * (R - 13);
+  // Sweeps from the left stop on arrival. The transition below was already
+  // here but had nothing to travel from — the fraction landed final.
+  const frac = useSweep(target);
+  // The needle is drawn once, pointing at the left stop, and rotated into
+  // place — Chrome won't transition a line's x2/y2 (they aren't CSS
+  // properties, so animating the endpoints just snaps), but it will
+  // transition `transform`. Clockwise from the left stop: 0° = left,
+  // 90° = straight up, 180° = right.
+  const NEEDLE = R - 13;
   const psshAhead = ratio >= 1;
   return (
     <Tile title="HEX earned per $1">
@@ -75,7 +82,12 @@ export function VersusGauge({ ratio }: { ratio: number }) {
         {/* dead-centre tick: the two are level */}
         <line x1={CX} y1={CY - R - 6} x2={CX} y2={CY - R + 6}
               stroke="var(--text-faint)" strokeWidth="1.5" strokeDasharray="2 2" />
-        <line x1={CX} y1={CY} x2={nx} y2={ny} stroke="var(--text)" strokeWidth="2.5" strokeLinecap="round" />
+        <line x1={CX} y1={CY} x2={CX - NEEDLE} y2={CY} stroke="var(--text)" strokeWidth="2.5" strokeLinecap="round"
+              style={{
+                transform: `rotate(${frac * 180}deg)`,
+                transformOrigin: `${CX}px ${CY}px`,
+                transition: 'transform .6s ease',
+              }} />
         <circle cx={CX} cy={CY} r="3.5" fill="var(--text)" />
         {/* the two contenders, no words */}
         <image href="/hex-logo.svg" x={CX - R - 10} y={CY + 6} width="21" height="21" opacity={psshAhead ? 0.4 : 1} />
@@ -104,7 +116,7 @@ export function RingTile({
 }) {
   const R = 34;
   const C = 2 * Math.PI * R;
-  const f = Math.max(0, Math.min(1, frac));
+  const f = useSweep(Math.max(0, Math.min(1, frac)));
   return (
     <Tile title={label}>
       <div className="relative" title={title}>
@@ -178,6 +190,9 @@ export function ThresholdTile({ inPct, outPct }: { inPct: number; outPct: number
   const CAP = 6; // % of principal; comfortably above both the line and normal inflow
   const h = (v: number) => Math.max(2, Math.min(100, (v / CAP) * 100));
   const over = inPct >= outPct;
+  // Level fills up to the reading; the 1% line it has to clear stays put, so
+  // the bar visibly crosses it rather than starting on the far side.
+  const fill = useSweep(h(inPct));
   return (
     <Tile title="Coming in vs the 1% out">
       <div
@@ -188,7 +203,7 @@ export function ThresholdTile({ inPct, outPct }: { inPct: number; outPct: number
           <span
             className="absolute inset-x-0 bottom-0 rounded-md transition-[height] duration-500"
             style={{
-              height: `${h(inPct)}%`,
+              height: `${fill}%`,
               background: over
                 ? 'linear-gradient(180deg,var(--up),color-mix(in srgb,var(--up) 45%,transparent))'
                 : '#f87171',

@@ -579,3 +579,68 @@ img {
 .ai-tab-glow {
   animation: aiTabGlow 2.2s ease-in-out infinite;
 }
+
+/* ── Lab primitives (components/lab/*) ──────────────────────────────────────
+   Namespaced `lab-` so they can't collide with the page-specific keyframes
+   above. Each is referenced from a Tailwind arbitrary animation utility, e.g.
+   `animate-[lab-sheen_1.6s_infinite]`, and every caller pairs it with
+   `motion-reduce:animate-none`. */
+
+/* Marquee: the track is duplicated, so one pass is exactly -50%. */
+@keyframes lab-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Skeleton sheen, left to right across the placeholder. */
+@keyframes lab-sheen {
+  100% { transform: translateX(100%); }
+}
+
+/* Typewriter caret. */
+@keyframes lab-caret {
+  0%, 49%  { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* Pans a wide gradient across text or a border. */
+@keyframes lab-pan {
+  from { background-position: 0% 50%; }
+  to   { background-position: 200% 50%; }
+}
+
+/* Rotates a gradient border's hue without touching its geometry. */
+@keyframes lab-hue {
+  from { filter: hue-rotate(0deg); }
+  to   { filter: hue-rotate(360deg); }
+}
+
+/* Aurora blobs — slow, large, and never quite repeating on screen. */
+@keyframes lab-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33%      { transform: translate3d(6%, 8%, 0) scale(1.12); }
+  66%      { transform: translate3d(-5%, -6%, 0) scale(0.94); }
+}
+
+/* ── SuperStake entry loader (components/superstake/SuperStakeLoader.tsx) ────
+   Namespaced `ssload-`, same rule as the lab keyframes above: every caller
+   pairs the utility with `motion-reduce:animate-none`, so the loader still
+   reads correctly with animation off. */
+
+/* Slow push into the artwork while the page's data lands. */
+@keyframes ssload-zoom {
+  from { transform: scale(1); }
+  to   { transform: scale(1.07); }
+}
+
+/* Copy and step list arriving from below. */
+@keyframes ssload-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* A light travelling the path, under the real progress fill. */
+@keyframes ssload-travel {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
