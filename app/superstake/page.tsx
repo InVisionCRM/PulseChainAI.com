@@ -423,8 +423,10 @@ export default function SuperStakeHubPage() {
         />
       </div>
 
-      {/* Bottom padding clears the dock — the mobile bar is the taller of the two. */}
-      <div className="w-full px-2 pb-28 pt-4 md:px-3 md:pb-24">
+      {/* Bottom padding clears what floats over the page. On a phone that's the
+          bottom nav (64px) plus the dock riding above it; on desktop just the
+          dock at 41px + its own height. */}
+      <div className="w-full px-2 pb-36 pt-4 md:px-3 md:pb-24">
         {/* ─────────── the headline, and nothing else ───────────
             The stat card that used to live here said "closed and reopened 17×",
             which only means something once you already know what a cycle is.
