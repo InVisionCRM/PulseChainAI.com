@@ -1,14 +1,16 @@
 'use client';
 
-// "Liberty" tab for the Geicko token view (PulseChain only).
+// "Depth" tab for the Geicko token view (PulseChain only).
 //
-// Two things live here, and they answer different questions:
+// What a $100 / $1k / $10k trade would actually execute at, on both venues
+// that can be quoted on chain — and putting them under one another is the
+// point. The same table twice makes the comparison immediate: on PLSX a $10k
+// ticket costs ~1% on PulseX against ~84% on LibertySwap. Split across two
+// tabs, nobody would ever see that.
 //
-//   1. **Depth** — what a $100 / $1k / $10k trade in this token would actually
-//      execute at on LibertySwap, simulated on chain by its QuoterV2. This is
-//      the honest version of "how deep is this pool": not TVL, but the price
-//      you'd really get, and how much worse it gets as the ticket grows.
-//   2. **Bridge** — LibertySwap's USDC bridge between PulseChain and Ethereum.
+//   1. **PulseX** — the deep venue, quoted through its router.
+//   2. **LibertySwap** — the small one, quoted through its QuoterV2.
+//   3. **Bridge** — LibertySwap's USDC bridge between PulseChain and Ethereum.
 //      It cannot quote this (or any) PulseChain token; it moves USDC only, so
 //      it sits below the depth panel as a way to get funds here, clearly
 //      separated rather than dressed up as token data.
@@ -227,13 +229,17 @@ export default function GeickoLibertyTab({ token, symbol, priceUsd }: GeickoLibe
   return (
     <div className="w-full space-y-4 p-2 md:p-3">
       <div>
-        <h2 className="text-[15px] font-semibold text-[var(--text)]">LibertySwap</h2>
+        <h2 className="text-[15px] font-semibold text-[var(--text)]">Trade depth</h2>
         <p className="mt-0.5 text-[12px] text-[var(--text-muted)]">
-          Trade depth simulated on chain, plus the USDC bridge.
+          What a real ticket executes at on each venue, simulated on chain.
         </p>
       </div>
 
-      <TradeDepthPanel token={token} venue="liberty" symbol={sym} priceUsd={priceUsd} />
+      <TradeDepthPanel token={token} venue="pulsex" symbol={sym} priceUsd={priceUsd} heading />
+
+      <div className="border-t border-[var(--line)] pt-4">
+        <TradeDepthPanel token={token} venue="liberty" symbol={sym} priceUsd={priceUsd} heading />
+      </div>
 
       <BridgeSection />
 

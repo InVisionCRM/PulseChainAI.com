@@ -7,7 +7,6 @@ import { MobileSearchBar } from "@/components/MobileSearchBar";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import {
-  IconHome,
   IconSearch,
   IconHexagon,
   IconChevronDown,
@@ -15,6 +14,7 @@ import {
   IconCurrencyDollar,
   IconBook,
 } from "@tabler/icons-react";
+import { ArtIcon } from "@/components/ui/ArtIcon";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -116,33 +116,22 @@ export default function RootLayout({
     {
       label: "Home",
       href: "/",
-      icon: (
-        <IconHome className="h-5 w-5 shrink-0 text-[var(--text)]" />
-      ),
+      icon: <ArtIcon src="/home-icon.png" alt="Home" />,
     },
     {
       label: "Portfolio",
       href: "/portfolio",
-      icon: (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/wallet-icon.png" alt="Portfolio" className="h-5 w-5 shrink-0 object-contain" />
-      ),
+      icon: <ArtIcon src="/wallet-icon.png" alt="Portfolio" />,
     },
     {
       label: "SuperStake",
       href: "/superstake",
-      icon: (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/superstake-logo.png" alt="SuperStake" className="h-5 w-5 shrink-0 object-contain" />
-      ),
+      icon: <ArtIcon src="/superstake-logo.png" alt="SuperStake" />,
     },
     {
       label: "HEX Strategist",
       href: "/hex-strategist",
-      icon: (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/hex-logo.svg" alt="HEX" className="h-5 w-5 shrink-0 object-contain" />
-      ),
+      icon: <ArtIcon src="/hex-logo.svg" alt="HEX" />,
     },
     {
       label: "Learn AI",

@@ -47,7 +47,6 @@ import {
   GeickoLiquidityPanel,
   GeickoVolumePanel,
   GeickoLibertyTab,
-  TradeDepthPanel,
   GeickoPressurePanel,
   GeickoTradesTab,
   GeickoForensicsTab,
@@ -181,7 +180,7 @@ function GeickoPageContent() {
   const [network, setNetwork] = useState<ChainKey>(
     networkFromQuery && isChainKey(networkFromQuery) ? networkFromQuery : 'pulsechain',
   );
-  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'trades' | 'forensics' | 'holders' | 'bridge' | 'liquidity' | 'volume' | 'liberty' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
+  const [activeTab, setActiveTab] = useState<'gold' | 'chart' | 'trades' | 'forensics' | 'holders' | 'bridge' | 'liquidity' | 'volume' | 'depth' | 'contract' | 'switch' | 'website' | 'stats' | 'audit'>('chart');
   const tokenInfoTab: 'token' = 'token';
   const [apiTokenAddress, setApiTokenAddress] = useState<string>('');
   const [goldBadgeAddresses, setGoldBadgeAddresses] = useState<string[]>([]);
@@ -1285,9 +1284,12 @@ function GeickoPageContent() {
       setApiTokenAddress(addressFromQuery);
     }
     if (tabFromQuery) {
-      const validTabs = ['gold', 'chart', 'trades', 'forensics', 'holders', 'bridge', 'liquidity', 'volume', 'liberty', 'contract', 'switch', 'stats', 'website', 'audit'];
-      if (validTabs.includes(tabFromQuery)) {
-        setActiveTab(tabFromQuery as typeof activeTab);
+      const validTabs = ['gold', 'chart', 'trades', 'forensics', 'holders', 'bridge', 'liquidity', 'volume', 'depth', 'contract', 'switch', 'stats', 'website', 'audit'];
+      // 'liberty' was this tab's id before it grew a second venue; keep old
+      // links working rather than silently dropping them onto Chart.
+      const requested = tabFromQuery === 'liberty' ? 'depth' : tabFromQuery;
+      if (validTabs.includes(requested)) {
+        setActiveTab(requested as typeof activeTab);
       }
     }
   }, [addressFromQuery, tabFromQuery]);
@@ -1417,7 +1419,7 @@ function GeickoPageContent() {
   // If the active tab is PulseChain-only and we're now on another chain, fall
   // back to Chart so the user never lands on a hidden/empty tab.
   useEffect(() => {
-    if (network !== 'pulsechain' && ['forensics', 'bridge', 'switch', 'gold', 'volume', 'liberty'].includes(activeTab)) {
+    if (network !== 'pulsechain' && ['forensics', 'bridge', 'switch', 'gold', 'volume', 'depth'].includes(activeTab)) {
       setActiveTab('chart');
     }
   }, [network, activeTab]);
@@ -1693,7 +1695,7 @@ function GeickoPageContent() {
   const isGoldToken = Boolean(apiTokenAddress && goldBadgeAddresses.some((a) => a.toLowerCase() === apiTokenAddress.toLowerCase()));
   // Tabs backed by PulseChain-only sources (PulseX subgraph, PulseChain bridges,
   // PulseX swap widget, gold badges). Hidden on other chains — see plan.
-  const PULSECHAIN_ONLY_TABS = new Set<typeof activeTab>(['forensics', 'bridge', 'switch', 'gold', 'volume', 'liberty']);
+  const PULSECHAIN_ONLY_TABS = new Set<typeof activeTab>(['forensics', 'bridge', 'switch', 'gold', 'volume', 'depth']);
   const tabOptions: Array<{ id: typeof activeTab; label: string }> = [
     ...(isGoldToken ? [{ id: 'gold' as const, label: 'GOLD' }] : []),
     { id: 'chart', label: 'Chart' },
@@ -1703,7 +1705,7 @@ function GeickoPageContent() {
     { id: 'bridge', label: 'Bridge' },
     { id: 'liquidity', label: 'Liquidity' },
     { id: 'volume', label: 'Volume' },
-    { id: 'liberty', label: 'Liberty' },
+    { id: 'depth', label: 'Depth' },
     { id: 'contract', label: 'Code' },
     { id: 'switch', label: 'Swap' },
     { id: 'website', label: 'Website' },
@@ -2561,19 +2563,6 @@ function GeickoPageContent() {
               {/* Liquidity Tab — all liquidity UI lives here. Pairs from GeckoTerminal. */}
               {activeTab === 'liquidity' && (
                 <div className="space-y-4 p-2 md:p-3">
-                  {/* What a real trade would execute at, quoted on chain through
-                      the PulseX router. Sits above the pool list because "how
-                      much does $10k move the price" is the question TVL can't
-                      answer. PulseChain only — the router is chain-specific. */}
-                  {apiTokenAddress && network === 'pulsechain' && (
-                    <TradeDepthPanel
-                      token={apiTokenAddress}
-                      venue="pulsex"
-                      symbol={baseSymbol}
-                      priceUsd={priceUsd}
-                      heading
-                    />
-                  )}
                   {apiTokenAddress && (
                     <GeickoLiquidityPanel
                       network={displayPair?.chainId}
@@ -2589,8 +2578,9 @@ function GeickoPageContent() {
                 <GeickoVolumePanel token={apiTokenAddress} network={network} />
               )}
 
-              {/* Liberty Tab — LibertySwap trade depth (on-chain QuoterV2) + USDC bridge. */}
-              {activeTab === 'liberty' && apiTokenAddress && (
+              {/* Depth Tab — PulseX + LibertySwap trade depth, quoted on chain,
+                  plus LibertySwap's USDC bridge. */}
+              {activeTab === 'depth' && apiTokenAddress && (
                 <GeickoLibertyTab
                   token={apiTokenAddress}
                   symbol={baseSymbol}
