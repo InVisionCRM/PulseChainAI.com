@@ -110,6 +110,11 @@ async function fromBlockscout(
       isContract: !!it?.address?.is_contract,
     })),
     totalSupply: meta?.total_supply ?? null,
+    // Blockscout puts the token's decimals on every holder row. The page's
+    // separate token-info fetch can come back null (it does for pSSH), and
+    // without decimals a 9-decimal balance divided by 1e18 floors to zero —
+    // so hand them over from the payload that already carries them.
+    decimals: meta?.decimals != null ? Number(meta.decimals) : null,
     holdersCount: meta?.holders != null ? Number(meta.holders) : null,
     complete,
     nextCursor: moreExist && lastNextParams ? JSON.stringify(lastNextParams) : null,

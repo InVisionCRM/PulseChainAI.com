@@ -11,7 +11,7 @@
 // Slippage is measured against the $100 ticket rather than a mid-price,
 // because a mid-price is a number nobody can trade at.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
 
 export interface DepthStep {
@@ -184,11 +184,20 @@ export default function TradeDepthPanel({
   const [loading, setLoading] = useState(true);
   const sym = symbol || 'token';
 
+  // The price only scales the sell-side ticket sizes, so it rides in a ref
+  // rather than the dependency list. It used to be a dependency, and because
+  // it arrives late and then ticks with the live pair feed, every tick tore a
+  // loaded panel back down to "Simulating trades…" — on a cold call that takes
+  // tens of seconds, the spinner never cleared and the panel looked missing.
+  const priceRef = useRef(priceUsd);
+  priceRef.current = priceUsd;
+
   useEffect(() => {
     if (!token) return;
     let alive = true;
+    setData(null);
     setLoading(true);
-    const price = priceUsd && priceUsd > 0 ? `&price=${priceUsd}` : '';
+    const price = priceRef.current && priceRef.current > 0 ? `&price=${priceRef.current}` : '';
     fetch(`${v.endpoint}?token=${token}&network=pulsechain${price}`)
       .then((r) => r.json())
       .then((d) => alive && setData(d))
@@ -197,7 +206,7 @@ export default function TradeDepthPanel({
     return () => {
       alive = false;
     };
-  }, [token, priceUsd, v.endpoint]);
+  }, [token, v.endpoint]);
 
   const Head = heading ? (
     <div>
@@ -206,7 +215,7 @@ export default function TradeDepthPanel({
     </div>
   ) : null;
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="space-y-2">
         {Head}

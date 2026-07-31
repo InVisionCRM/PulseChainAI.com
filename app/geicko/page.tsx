@@ -316,6 +316,9 @@ function GeickoPageContent() {
   // Cursor-based lazy loading: the endpoint returns 100 holders + an opaque
   // cursor; "load more" fetches the next page and appends it.
   const [holdersNextCursor, setHoldersNextCursor] = useState<string | null>(null);
+  /** Token decimals + supply as reported alongside the holder list. Preferred
+   *  over the separate token-info fetch, which can resolve to null. */
+  const [holdersTokenMeta, setHoldersTokenMeta] = useState<{ decimals: number | null; totalSupply: string | null }>({ decimals: null, totalSupply: null });
   const [isLoadingMoreHolders, setIsLoadingMoreHolders] = useState<boolean>(false);
   // Estimated wallet value per holder (core + stablecoins basket). Fetched
   // lazily for each page of holders as it loads. `requestedValuesRef` tracks
@@ -566,6 +569,10 @@ function GeickoPageContent() {
         .filter((item) => item.address && item.value !== '0');
 
       setHolders(processedHolders);
+      setHoldersTokenMeta({
+        decimals: typeof data?.decimals === 'number' ? data.decimals : null,
+        totalSupply: typeof data?.totalSupply === 'string' ? data.totalSupply : null,
+      });
       setHoldersNextCursor(typeof data?.nextCursor === 'string' ? data.nextCursor : null);
       void fetchHolderValues(processedHolders.map((h) => h.address));
     } catch (error) {
@@ -2538,6 +2545,7 @@ function GeickoPageContent() {
                   holderStats={holderStats}
                   isLoadingHolders={isLoadingHolders}
                   tokenInfo={tokenInfo}
+                  tokenMeta={holdersTokenMeta}
                   lpAddressSet={lpAddressSet}
                   onViewHolder={handleOpenHolderTransfers}
                   hasMore={holdersNextCursor != null}
