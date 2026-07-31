@@ -66,6 +66,35 @@ interface HolderDetail {
 
 type DetailState = 'loading' | 'error' | HolderDetail;
 
+/** Payload of /api/geicko/holder-origin — a budgeted walk, see that route. */
+interface TraceNode {
+  address: string;
+  short: string;
+  label: string | null;
+  isContract: boolean;
+  tokens: number;
+  transfers: number;
+  origin:
+    | { kind: 'bought'; boughtTokens: number; boughtUsd: number; firstBuyTs: number | null; avgPriceUsd: number | null; coversSent: number }
+    | { kind: 'minted' } | { kind: 'router' } | { kind: 'known'; category: string | null }
+    | { kind: 'depth-capped' } | { kind: 'budget-capped' } | { kind: 'untraceable' }
+    | null;
+  upstream: TraceNode[] | null;
+}
+
+interface HolderOrigin {
+  supported: boolean;
+  hasData: boolean;
+  inboundTokens?: number;
+  routerDeliveredTokens?: number;
+  coveragePct?: number | null;
+  traces?: TraceNode[];
+  limits?: { truncated?: boolean };
+  note?: string;
+}
+
+type OriginState = 'loading' | 'error' | HolderOrigin;
+
 interface ClustersState {
   status: 'loading' | 'error' | 'done';
   /** shortened wallet → { funder, count } for every clustered wallet */
@@ -122,6 +151,7 @@ export default function GeickoHoldersTab({
 }: GeickoHoldersTabProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, DetailState>>({});
+  const [origins, setOrigins] = useState<Record<string, OriginState>>({});
   const [clusters, setClusters] = useState<ClustersState | null>(null);
   const canExpand = network === 'pulsechain' && !!tokenAddress;
 
@@ -147,6 +177,15 @@ export default function GeickoHoldersTab({
         setClusters({ status: d == null ? 'error' : 'done', byWallet });
       })
       .catch(() => setClusters({ status: 'error', byWallet: new Map() }));
+  };
+
+  const traceOrigin = (addr: string) => {
+    if (origins[addr]) return;
+    setOrigins((o) => ({ ...o, [addr]: 'loading' }));
+    fetch(`/api/geicko/holder-origin?token=${tokenAddress}&wallet=${addr}&network=pulsechain`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((d: HolderOrigin) => setOrigins((o) => ({ ...o, [addr]: d })))
+      .catch(() => setOrigins((o) => ({ ...o, [addr]: 'error' })));
   };
 
   const toggleExpand = (holder: Holder, balance: number) => {
@@ -395,6 +434,8 @@ export default function GeickoHoldersTab({
                   clusters={holder.isContract ? null : clusters}
                   addrLower={addrLower}
                   tokenSymbol={tokenInfo?.symbol ?? 'token'}
+                  origin={origins[addrLower]}
+                  onTrace={() => traceOrigin(addrLower)}
                 />
               )}
               </React.Fragment>
@@ -444,13 +485,15 @@ function Cell({ label, value, sub, tone }: { label: string; value: string; sub?:
 }
 
 function HolderDetailPanel({
-  detail, clusters, addrLower, tokenSymbol,
+  detail, clusters, addrLower, tokenSymbol, origin, onTrace,
 }: {
   detail: DetailState | undefined;
   /** Null hides the cluster slot entirely (contracts aren't wallets). */
   clusters: ClustersState | null;
   addrLower: string;
   tokenSymbol: string;
+  origin: OriginState | undefined;
+  onTrace: () => void;
 }) {
   if (!detail || detail === 'loading') {
     return (
@@ -488,6 +531,7 @@ function HolderDetailPanel({
           No PulseX swaps or liquidity from this wallet on {tokenSymbol}&apos;s pools — the tokens
           arrived by transfer, from another venue, or before the pools existed.
         </div>
+        <OriginSection origin={origin} onTrace={onTrace} tokenSymbol={tokenSymbol} />
         <ClusterLine clusters={clusters} hit={clusterHit} />
       </div>
     );
@@ -563,6 +607,8 @@ function HolderDetailPanel({
         </div>
       )}
 
+      <OriginSection origin={origin} onTrace={onTrace} tokenSymbol={tokenSymbol} />
+
       <ClusterLine clusters={clusters} hit={clusterHit} />
 
       {detail.note && <div className="text-[9px] text-[var(--text-faint)]">{detail.note}</div>}
@@ -591,6 +637,115 @@ function ClusterLine({
   ) : (
     <div className="text-[10px] text-[var(--text-faint)]">
       Not in any shared-funder cluster among the analyzed top holders.
+    </div>
+  );
+}
+
+/* ─────────────────── where transferred tokens came from ─────────────────── */
+
+function originLine(n: TraceNode, tokenSymbol: string): React.ReactNode {
+  const o = n.origin;
+  if (o?.kind === 'bought') {
+    return (
+      <span className="text-emerald-400">
+        bought on PulseX {o.firstBuyTs ? `${fmtDate(o.firstBuyTs)} ` : ''}
+        {o.avgPriceUsd != null && `@ avg $${o.avgPriceUsd.toPrecision(3)}`}
+        {o.coversSent < 0.95 && (
+          <span className="text-amber-400"> — covers {(o.coversSent * 100).toFixed(0)}% of what it sent</span>
+        )}
+      </span>
+    );
+  }
+  if (o?.kind === 'router') return <span className="text-[var(--text-muted)]">swap router — these are the holder&apos;s own buys, already counted above</span>;
+  if (o?.kind === 'minted') return <span className="text-[var(--text-muted)]">minted / burn address</span>;
+  if (o?.kind === 'known') return <span className="text-[var(--text-muted)]">{n.label ?? 'known address'}{o.category ? ` (${o.category})` : ''} — not traceable past it</span>;
+  if (o?.kind === 'depth-capped' || o?.kind === 'budget-capped') return <span className="text-[var(--text-faint)]">trail continues — trace budget reached</span>;
+  if (o?.kind === 'untraceable') return <span className="text-[var(--text-faint)]">no on-chain origin found (bridge, OTC or pre-pool)</span>;
+  return null;
+}
+
+function TraceRows({ nodes, tokenSymbol, depth = 0 }: { nodes: TraceNode[]; tokenSymbol: string; depth?: number }) {
+  return (
+    <>
+      {nodes.map((n) => (
+        <React.Fragment key={`${depth}-${n.address}`}>
+          <div className="flex flex-wrap items-baseline gap-x-1.5 text-[10.5px]" style={{ paddingLeft: depth * 14 }}>
+            {depth > 0 && <span className="text-[var(--text-faint)]">↳</span>}
+            <span className="font-mono text-[var(--text)]">{n.short}</span>
+            {n.isContract && <span className="text-[9px] text-purple-300">contract</span>}
+            <span className="tabular-nums text-[var(--text-muted)]">
+              {fmtAmount(Math.floor(n.tokens))} {tokenSymbol} · {n.transfers}×
+            </span>
+            {originLine(n, tokenSymbol)}
+          </div>
+          {n.upstream && <TraceRows nodes={n.upstream} tokenSymbol={tokenSymbol} depth={depth + 1} />}
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
+
+/**
+ * The transfer-origin trace: on demand rather than on expand, because it walks
+ * Blockscout and the subgraphs across several hops and can take tens of
+ * seconds cold. The result is a tree of senders ending, where the chain
+ * allows, at the original on-market buy.
+ */
+function OriginSection({
+  origin, onTrace, tokenSymbol,
+}: { origin: OriginState | undefined; onTrace: () => void; tokenSymbol: string }) {
+  if (!origin) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onTrace(); }}
+        className="inline-flex items-center gap-1 rounded border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-[10.5px] font-semibold text-cyan-300 transition-colors hover:bg-cyan-500/20"
+      >
+        Trace where transferred tokens came from →
+      </button>
+    );
+  }
+  if (origin === 'loading') {
+    return (
+      <div className="text-[10.5px] text-[var(--text-muted)]">
+        Walking inbound transfers back to their source — up to ~45s on a cold wallet…
+      </div>
+    );
+  }
+  if (origin === 'error' || !origin.supported || !origin.hasData) {
+    return (
+      <div className="text-[10.5px] text-[var(--text-faint)]">
+        Couldn&apos;t trace right now — the explorer didn&apos;t answer. Collapse and retry.
+      </div>
+    );
+  }
+
+  const inbound = origin.inboundTokens ?? 0;
+  const router = origin.routerDeliveredTokens ?? 0;
+  const traces = origin.traces ?? [];
+
+  return (
+    <div className="rounded border border-cyan-500/30 bg-cyan-500/5 px-2 py-1.5 space-y-1">
+      <div className="text-[9px] uppercase tracking-wider text-cyan-300">
+        Where the transfers came from
+      </div>
+      <div className="text-[10.5px] text-[var(--text-muted)] tabular-nums">
+        {inbound > 0
+          ? <>{fmtAmount(Math.floor(inbound))} {tokenSymbol} arrived by transfer{origin.coveragePct != null && <> — <b className="text-[var(--text)]">{origin.coveragePct.toFixed(0)}%</b> traced back to an on-market buy</>}.</>
+          : 'No genuine inbound transfers — everything came from this wallet’s own swaps.'}
+        {router > 0 && <> {fmtAmount(Math.floor(router))} more was delivered by swap routers (the holder&apos;s own buys).</>}
+      </div>
+      {traces.length > 0 && (
+        <div className="space-y-0.5">
+          <TraceRows nodes={traces.filter((n) => n.origin?.kind !== 'router')} tokenSymbol={tokenSymbol} />
+        </div>
+      )}
+      {origin.limits?.truncated && (
+        <div className="text-[9px] text-amber-400/90">
+          Partial: this wallet has more transfer history than the trace budget covers.
+        </div>
+      )}
+      {origin.note && <div className="text-[9px] text-[var(--text-faint)]">{origin.note}</div>}
     </div>
   );
 }
