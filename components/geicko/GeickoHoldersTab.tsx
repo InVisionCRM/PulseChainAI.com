@@ -140,7 +140,11 @@ export default function GeickoHoldersTab({
             if (typeof w === 'string') byWallet.set(w.toLowerCase(), { funder: c.sharedFunder, label: c.funderLabel ?? null, count: c.count });
           }
         }
-        setClusters({ status: d?.hasData ? 'done' : 'error', byWallet });
+        // Only a genuine fetch failure (`d === null`, from `!r.ok`) is an error.
+        // A successful `hasData:false` response means there were no real
+        // (non-contract) wallets to analyze — a legitimate empty state, which
+        // ClusterLine renders as "Not in any shared-funder cluster…".
+        setClusters({ status: d == null ? 'error' : 'done', byWallet });
       })
       .catch(() => setClusters({ status: 'error', byWallet: new Map() }));
   };
