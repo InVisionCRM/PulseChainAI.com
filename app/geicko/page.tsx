@@ -2541,6 +2541,8 @@ function GeickoPageContent() {
                   isLoadingMore={isLoadingMoreHolders}
                   onLoadMore={loadMoreHolders}
                   holderValues={holderValues}
+                  tokenAddress={apiTokenAddress}
+                  network={network}
                 />
                 </div>
               )}

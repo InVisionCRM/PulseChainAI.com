@@ -7,13 +7,21 @@
 // invented in this file; the component's whole job is controls in, projection
 // out. The playhead never fabricates intermediate states either — it steps
 // through the cycles the engine actually returned, and the smoothness comes
-// from CSS transitioning between them.
+// from tweening between them.
+//
+// The layout is an instrument, not a form: assumptions live in one column on
+// the left, the verdict fills the right, and it updates as the sliders move.
+// Scenario chips give a newcomer somewhere to start — each one is just a set
+// of dial positions, so the arithmetic underneath never changes.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { IconPlayerPlayFilled, IconPlayerPauseFilled, IconRotateClockwise2, IconChevronDown } from '@tabler/icons-react';
+import {
+  IconPlayerPlayFilled, IconPlayerPauseFilled, IconRotateClockwise2, IconChevronDown,
+} from '@tabler/icons-react';
 import {
   breakEvenDailyVolume,
   simulate,
+  tSharesFor,
   type SimCycle,
   type SimInputs,
   type SimResult,
@@ -68,13 +76,66 @@ export interface SimulatorProps {
 
 type View = 'you' | 'stake';
 
+/**
+ * A market scenario is nothing but dial positions — the engine never knows
+ * which chip was pressed. Personal choices (amount, horizon, compounding) are
+ * deliberately not part of a scenario; they belong to the reader.
+ */
+interface Scenario {
+  id: string;
+  name: string;
+  blurb: string;
+  volume: number;
+  yieldPct: number;
+  hexDrift: number;
+  psshDrift: number;
+  volDrift: number;
+}
+
 export default function Simulator(props: SimulatorProps) {
   const { poolHex, supply, pHex, pSsh, shareRate, payoutPerTshare, cycleDays } = props;
+
+  // What HEX actually pays this pool right now, as % of principal per cycle.
+  // This is the number the reader can reason about — nobody thinks in
+  // payout-per-T-share, so the dial speaks percent and converts underneath.
+  const liveTShares = useMemo(
+    () => tSharesFor(poolHex, cycleDays, shareRate),
+    [poolHex, cycleDays, shareRate],
+  );
+  const liveYieldPct = useMemo(
+    () => (poolHex > 0 ? ((liveTShares * payoutPerTshare * cycleDays) / poolHex) * 100 : 0),
+    [liveTShares, payoutPerTshare, cycleDays, poolHex],
+  );
+  const defVolume = Math.round(props.dailyVolumeUsd);
+  const defYield = Math.round(liveYieldPct * 100) / 100;
+
+  const scenarios: Scenario[] = useMemo(
+    () => [
+      {
+        id: 'today', name: 'As it runs today', blurb: 'live volume, live yield, flat prices',
+        volume: defVolume, yieldPct: defYield, hexDrift: 0, psshDrift: 0, volDrift: 0,
+      },
+      {
+        id: 'recover', name: 'HEX recovers', blurb: 'stake yield back to 1%/cycle',
+        volume: defVolume, yieldPct: 1.0, hexDrift: 0, psshDrift: 0, volDrift: 0,
+      },
+      {
+        id: 'vol10', name: 'Volume ×10', blurb: "trading ten times today's pace",
+        volume: defVolume * 10, yieldPct: defYield, hexDrift: 0, psshDrift: 0, volDrift: 0,
+      },
+      {
+        id: 'quiet', name: 'Dead quiet', blurb: 'no trading at all — the stress test',
+        volume: 0, yieldPct: defYield, hexDrift: 0, psshDrift: 0, volDrift: 0,
+      },
+    ],
+    [defVolume, defYield],
+  );
 
   // ── the dials ──────────────────────────────────────────────────────────
   const [amount, setAmount] = useState(1000);
   const [cycles, setCycles] = useState(12);
-  const [volume, setVolume] = useState(Math.round(props.dailyVolumeUsd));
+  const [volume, setVolume] = useState(defVolume);
+  const [yieldPct, setYieldPct] = useState(defYield);
   const [compound, setCompound] = useState(true);
   const [hexDrift, setHexDrift] = useState(0);
   const [psshDrift, setPsshDrift] = useState(0);
@@ -82,6 +143,32 @@ export default function Simulator(props: SimulatorProps) {
   const [srDrift, setSrDrift] = useState(0.6);
   const [advanced, setAdvanced] = useState(false);
   const [view, setView] = useState<View>('you');
+  const [scenario, setScenario] = useState<string | null>('today');
+
+  const applyScenario = (s: Scenario) => {
+    setScenario(s.id);
+    setVolume(s.volume);
+    setYieldPct(s.yieldPct);
+    setHexDrift(s.hexDrift);
+    setPsshDrift(s.psshDrift);
+    setVolDrift(s.volDrift);
+  };
+  /** Any hand-moved market dial makes the run custom — the chip would lie otherwise. */
+  const custom = <T,>(set: (v: T) => void) => (v: T) => {
+    setScenario(null);
+    set(v);
+  };
+
+  // The yield dial back in the engine's native unit. Derived from the opening
+  // pool's T-shares; at this pool size T-shares scale near-linearly with HEX,
+  // so the chosen percent holds as the pool compounds.
+  const ppt = useMemo(
+    () =>
+      liveTShares > 0 && cycleDays > 0
+        ? ((yieldPct / 100) * poolHex) / (liveTShares * cycleDays)
+        : payoutPerTshare,
+    [yieldPct, poolHex, liveTShares, cycleDays, payoutPerTshare],
+  );
 
   const inputs: SimInputs = useMemo(
     () => ({
@@ -98,17 +185,17 @@ export default function Simulator(props: SimulatorProps) {
       supply,
       shareRate,
       shareRateDriftPct: srDrift,
-      payoutPerTshare,
+      payoutPerTshare: ppt,
       compound,
     }),
     [amount, cycles, cycleDays, volume, volDrift, pHex, pSsh, hexDrift, psshDrift,
-     poolHex, supply, shareRate, srDrift, payoutPerTshare, compound],
+     poolHex, supply, shareRate, srDrift, ppt, compound],
   );
 
   const sim: SimResult | null = useMemo(() => simulate(inputs), [inputs]);
   const breakEven = useMemo(
-    () => breakEvenDailyVolume(poolHex, cycleDays, shareRate, payoutPerTshare, pHex),
-    [poolHex, cycleDays, shareRate, payoutPerTshare, pHex],
+    () => breakEvenDailyVolume(poolHex, cycleDays, shareRate, ppt, pHex),
+    [poolHex, cycleDays, shareRate, ppt, pHex],
   );
 
   // ── the playhead ───────────────────────────────────────────────────────
@@ -141,12 +228,9 @@ export default function Simulator(props: SimulatorProps) {
   const reset = () => {
     setAmount(1000);
     setCycles(12);
-    setVolume(Math.round(props.dailyVolumeUsd));
     setCompound(true);
-    setHexDrift(0);
-    setPsshDrift(0);
-    setVolDrift(0);
     setSrDrift(0.6);
+    applyScenario(scenarios[0]);
   };
 
   // Card data — the page's live figures with this run hung off them, so a shared
@@ -166,6 +250,7 @@ export default function Simulator(props: SimulatorProps) {
         hexDriftPct: hexDrift,
         psshDriftPct: psshDrift,
         volumeDriftPct: volDrift,
+        yieldPct,
         endValue: now.holderValueUsd,
         multiple: amount > 0 ? now.holderValueUsd / amount : 0,
         hexEarned: now.holderHexCumulative,
@@ -189,7 +274,7 @@ export default function Simulator(props: SimulatorProps) {
       },
     };
   }, [sim, now, shown, base, amount, cycleDays, breakEven, volume, compound, poolHex,
-      hexDrift, psshDrift, volDrift]);
+      hexDrift, psshDrift, volDrift, yieldPct]);
 
   if (!sim || !now) {
     return (
@@ -200,242 +285,258 @@ export default function Simulator(props: SimulatorProps) {
   }
 
   const coverOk = now.coverRatio >= 1;
+  const activeScenario = scenarios.find((s) => s.id === scenario) ?? null;
+  const years = (cycles * cycleDays) / 365.25;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* ─────────── controls ─────────── */}
-      <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3 md:p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <div
-              className="text-[9.5px] uppercase tracking-[0.16em] text-[var(--text-faint)]"
-              style={{ fontFamily: MONO }}
-            >
-              Set the assumptions
-            </div>
-            <p className="mt-0.5 text-[11.5px] text-[var(--text-muted)]">
-              Starts from today&apos;s real pool, supply and prices. Everything below is a
-              projection, not a forecast.
-            </p>
-          </div>
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
+      {/* ═══════════ the assumptions, one column ═══════════ */}
+      <aside className="flex flex-col gap-3 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span
+            className="text-[9.5px] uppercase tracking-[0.16em] text-[var(--text-faint)]"
+            style={{ fontFamily: MONO }}
+          >
+            Set the scene
+          </span>
           <button
             type="button"
             onClick={reset}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[10.5px] font-semibold text-[var(--text-faint)] transition-colors hover:text-[var(--text)]"
           >
-            <IconRotateClockwise2 className="h-3.5 w-3.5" />
+            <IconRotateClockwise2 className="h-3 w-3" />
             Reset
           </button>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Dial
-            label="You put in"
-            value={money(amount)}
-            min={100}
-            max={100_000}
-            step={100}
-            v={amount}
-            onChange={setAmount}
-            hint="after the 5.5% entry tax"
-          />
-          <Dial
-            label="Cycles ahead"
-            value={`${cycles} · ${Math.round((cycles * cycleDays) / 365.25 * 10) / 10} yr`}
-            min={1}
-            max={30}
-            step={1}
-            v={cycles}
-            onChange={setCycles}
-            hint={`${cycleDays} days each`}
-          />
-          <Dial
-            label="Volume a day"
-            value={money(volume)}
-            min={0}
-            max={Math.max(5000, Math.round(props.dailyVolumeUsd * 12))}
-            step={10}
-            v={volume}
-            onChange={setVolume}
-            hint={`break-even is ${money(breakEven)}`}
-            marker={
-              breakEven > 0
-                ? breakEven / Math.max(5000, Math.round(props.dailyVolumeUsd * 12))
-                : undefined
-            }
-          />
-          <div className="flex flex-col justify-between rounded-lg border border-[var(--line)] bg-[var(--app-bg)] px-3 py-2.5">
-            <span
-              className="text-[9px] uppercase tracking-[0.14em] text-[var(--text-faint)]"
-              style={{ fontFamily: MONO }}
-            >
-              Your HEX earnings
-            </span>
-            <div className="mt-1.5 grid grid-cols-2 gap-1">
-              {([
-                [true, 'Buy more pSSH'],
-                [false, 'Keep as HEX'],
-              ] as const).map(([on, label]) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => setCompound(on)}
-                  className={`rounded-md border px-2 py-1.5 text-[10.5px] font-semibold transition-colors ${
-                    compound === on
-                      ? 'border-brand-orange/50 bg-[var(--surface)] text-brand-orange'
-                      : 'border-[var(--line)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <span className="mt-1.5 text-[9.5px] text-[var(--text-faint)]">
-              {compound ? 'compounding — pays the 5.5% each time' : 'banked, and not re-taxed'}
-            </span>
+        {/* ── scenarios: a place to start, not a different calculator ── */}
+        <div className="grid grid-cols-2 gap-1.5">
+          {scenarios.map((s) => {
+            const on = scenario === s.id;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => applyScenario(s)}
+                aria-pressed={on}
+                className={`rounded-lg border px-2.5 py-2 text-left transition-colors ${
+                  on
+                    ? 'border-transparent text-white'
+                    : 'border-[var(--line)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                }`}
+                style={on ? { background: GRAD } : undefined}
+              >
+                <span className="block text-[11px] font-bold leading-tight">{s.name}</span>
+                <span className={`block text-[9px] leading-snug ${on ? 'opacity-85' : 'text-[var(--text-faint)]'}`}>
+                  {s.blurb}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {!activeScenario && (
+          <p className="-mt-1 text-[9.5px] text-[var(--text-faint)]">
+            Custom — you&apos;ve moved the market dials yourself.
+          </p>
+        )}
+
+        <div className="h-px bg-[var(--line)]" />
+
+        {/* ── yours: amount, horizon, what to do with earnings ── */}
+        <Slider
+          label="You put in"
+          display={money(amount)}
+          min={100} max={100_000} step={100}
+          v={amount} onChange={setAmount}
+          hint="after the 5.5% entry tax"
+        />
+        <Slider
+          label="How long"
+          display={`${cycles} cycles`}
+          min={1} max={30} step={1}
+          v={cycles} onChange={setCycles}
+          hint={`${cycleDays} days each · ${years >= 1 ? `~${years.toFixed(1)} years` : `~${Math.round(years * 12)} months`}`}
+        />
+        <div>
+          <span className="text-[10.5px] font-semibold text-[var(--text-muted)]">Your HEX earnings</span>
+          <div className="mt-1.5 grid grid-cols-2 gap-1">
+            {([[true, 'Buy more pSSH'], [false, 'Keep as HEX']] as const).map(([on, label]) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => setCompound(on)}
+                aria-pressed={compound === on}
+                className={`rounded-md border px-2 py-1.5 text-[10.5px] font-semibold transition-colors ${
+                  compound === on
+                    ? 'border-brand-orange/60 bg-[var(--surface)] text-brand-orange'
+                    : 'border-[var(--line)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
+          <p className="mt-1 text-[9.5px] text-[var(--text-faint)]">
+            {compound ? 'compounding — pays the 5.5% each time' : 'banked, and not re-taxed'}
+          </p>
         </div>
 
-        {/* ── advanced ── */}
+        <div className="h-px bg-[var(--line)]" />
+
+        {/* ── the market: what the world does while you hold ── */}
+        <Slider
+          label="Trading per day"
+          display={money(volume)}
+          min={0} max={Math.max(5000, defVolume * 12)} step={10}
+          v={volume} onChange={custom(setVolume)}
+          hint={`break-even is ${money(breakEven)}`}
+          marker={breakEven > 0 ? breakEven / Math.max(5000, defVolume * 12) : undefined}
+        />
+        <Slider
+          label="HEX stake yield"
+          display={`${yieldPct.toFixed(2)}%`}
+          min={0} max={2} step={0.01}
+          v={yieldPct} onChange={custom(setYieldPct)}
+          hint={`per cycle, % of the pool — HEX pays ${liveYieldPct.toFixed(2)}% today · moves both sides`}
+          marker={liveYieldPct > 0 && liveYieldPct < 2 ? liveYieldPct / 2 : undefined}
+        />
+
+        {/* ── drifts, folded away ── */}
         <button
           type="button"
           onClick={() => setAdvanced((a) => !a)}
-          className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+          className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
         >
-          <IconChevronDown
-            className={`h-3.5 w-3.5 transition-transform ${advanced ? 'rotate-180' : ''}`}
-          />
-          {advanced ? 'Hide' : 'Show'} the drifts — prices, volume and share rate over time
+          <IconChevronDown className={`h-3.5 w-3.5 transition-transform ${advanced ? 'rotate-180' : ''}`} />
+          {advanced ? 'Hide' : 'Show'} the drifts — prices and volume over time
         </button>
         {advanced && (
-          <div className="mt-2.5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Dial label="HEX price" value={`${hexDrift >= 0 ? '+' : ''}${hexDrift}% / cycle`}
-              min={-20} max={40} step={1} v={hexDrift} onChange={setHexDrift}
-              hint="compounding, each cycle" signed />
-            <Dial label="pSSH price" value={`${psshDrift >= 0 ? '+' : ''}${psshDrift}% / cycle`}
-              min={-20} max={40} step={1} v={psshDrift} onChange={setPsshDrift}
-              hint="compounding, each cycle" signed />
-            <Dial label="Volume" value={`${volDrift >= 0 ? '+' : ''}${volDrift}% / cycle`}
-              min={-30} max={50} step={1} v={volDrift} onChange={setVolDrift}
-              hint="how trading trends" signed />
-            <Dial label="Share rate" value={`+${srDrift}% / cycle`}
+          <div className="flex flex-col gap-3">
+            <Slider label="HEX price" display={`${hexDrift >= 0 ? '+' : ''}${hexDrift}%/cycle`}
+              min={-20} max={40} step={1} v={hexDrift} onChange={custom(setHexDrift)}
+              hint={hexDrift === 0 ? 'flat — no drift' : 'compounding, each cycle'} />
+            <Slider label="pSSH price" display={`${psshDrift >= 0 ? '+' : ''}${psshDrift}%/cycle`}
+              min={-20} max={40} step={1} v={psshDrift} onChange={custom(setPsshDrift)}
+              hint={psshDrift === 0 ? 'flat — no drift' : 'compounding, each cycle'} />
+            <Slider label="Volume trend" display={`${volDrift >= 0 ? '+' : ''}${volDrift}%/cycle`}
+              min={-30} max={50} step={1} v={volDrift} onChange={custom(setVolDrift)}
+              hint={volDrift === 0 ? 'flat — no drift' : 'how trading trends'} />
+            <Slider label="Share rate" display={`+${srDrift}%/cycle`}
               min={0} max={5} step={0.1} v={srDrift} onChange={setSrDrift}
-              hint="HEX's rate only ever climbs" />
+              hint="HEX's rate only ever climbs — makes new T-shares dearer" />
           </div>
         )}
-      </div>
+      </aside>
 
-      {/* ─────────── playhead ─────────── */}
-      {/* On a phone the slider drops to its own row — sharing the row with the
-          play button and the share button squeezed the cycle counter into two
-          columns of two words each. */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2.5">
-        <button
-          type="button"
-          onClick={() => (playing ? setPlaying(false) : play())}
-          aria-label={playing ? 'Pause' : 'Play the projection'}
-          className="grid h-8 w-8 flex-none place-items-center rounded-full text-white transition-transform hover:scale-105 motion-reduce:transition-none"
-          style={{ background: GRAD }}
-        >
-          {playing ? (
-            <IconPlayerPauseFilled className="h-3.5 w-3.5" />
-          ) : (
-            <IconPlayerPlayFilled className="h-3.5 w-3.5" />
-          )}
-        </button>
-        <div className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <span
-              className="text-[9px] uppercase tracking-[0.14em] text-[var(--text-faint)]"
-              style={{ fontFamily: MONO }}
-            >
-              Cycle {head} of {cycles}
-            </span>
-            <span className="text-[10px] tabular-nums text-[var(--text-muted)]">
-              {Math.round((head * cycleDays) / 30.4)} months in
-            </span>
-          </div>
-          <input
-            type="range"
-            min={1}
-            max={cycles}
-            step={1}
-            value={head}
-            onChange={(e) => {
-              setPlaying(false);
-              setHead(Number(e.target.value));
-            }}
-            aria-label="Cycle"
-            className="mt-1 w-full accent-[#FB9438]"
-          />
-        </div>
-        {shareData && (
-          <span className="ml-auto">
-            <ShareCards data={shareData} only={SIM_CARD_IDS} label="Share this run" />
-          </span>
-        )}
-      </div>
-
-      {/* ─────────── view switch ─────────── */}
-      <div className="flex gap-1.5">
-        {(
-          [
-            ['you', 'What you get'],
-            ['stake', 'What the stake does'],
-          ] as const
-        ).map(([id, label]) => (
+      {/* ═══════════ the verdict ═══════════ */}
+      <div className="flex min-w-0 flex-col gap-3">
+        {/* ── playhead ── */}
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2">
           <button
-            key={id}
             type="button"
-            onClick={() => setView(id)}
-            className={`flex-1 rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${
-              view === id
-                ? 'border-brand-orange/50 bg-[var(--surface)] text-brand-orange'
-                : 'border-[var(--line)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
-            }`}
+            onClick={() => (playing ? setPlaying(false) : play())}
+            aria-label={playing ? 'Pause' : 'Play the projection'}
+            className="grid h-8 w-8 flex-none place-items-center rounded-full text-white transition-transform hover:scale-105 motion-reduce:transition-none"
+            style={{ background: GRAD }}
           >
-            {label}
+            {playing ? <IconPlayerPauseFilled className="h-3.5 w-3.5" /> : <IconPlayerPlayFilled className="h-3.5 w-3.5" />}
           </button>
-        ))}
+          <div className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-[9px] uppercase tracking-[0.14em] text-[var(--text-faint)]" style={{ fontFamily: MONO }}>
+                Cycle {head} of {cycles}
+              </span>
+              <span className="text-[10px] tabular-nums text-[var(--text-muted)]">
+                {Math.round((head * cycleDays) / 30.4)} months in
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1} max={cycles} step={1} value={head}
+              onChange={(e) => { setPlaying(false); setHead(Number(e.target.value)); }}
+              aria-label="Cycle"
+              className={RANGE_CLS}
+              style={rangeFill(head, 1, cycles)}
+            />
+          </div>
+          {shareData && (
+            <span className="ml-auto">
+              <ShareCards data={shareData} only={SIM_CARD_IDS} label="Share this run" />
+            </span>
+          )}
+        </div>
+
+        {/* ── view switch ── */}
+        <div className="grid grid-cols-2 gap-1.5">
+          {([['you', 'What you get'], ['stake', 'What the stake does']] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setView(id)}
+              aria-pressed={view === id}
+              className={`rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${
+                view === id
+                  ? 'border-brand-orange/50 bg-[var(--surface)] text-brand-orange'
+                  : 'border-[var(--line)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {view === 'you' ? (
+          <HolderView
+            now={now}
+            shown={shown}
+            amount={amount}
+            compound={compound}
+            sim={sim}
+            psshDrift={psshDrift}
+            assumptions={assumptionLine(volume, yieldPct, hexDrift, psshDrift, volDrift)}
+            onOpenDrifts={() => setAdvanced(true)}
+          />
+        ) : (
+          <StakeView
+            now={now}
+            shown={shown}
+            openingPool={poolHex}
+            breakEven={breakEven}
+            volume={volume}
+            coverOk={coverOk}
+            yieldPct={yieldPct}
+            liveYieldPct={liveYieldPct}
+          />
+        )}
+
+        <p className="text-[11px] leading-relaxed text-[var(--text-faint)]">
+          <b className="text-[var(--text-muted)]">How this is built.</b> Each cycle&apos;s ending
+          state opens the next: the stake earns at the yield you set, hands holders 1%, and the 2%
+          buy-tax adds what the volume can buy. The 1% burn shrinks supply, which is what lifts your
+          share of it. Entry and every compound pay the 5.5% toll. The same formulas the rest of the
+          page uses — the pool&apos;s T-shares here reproduce its recorded 107.55 to within 0.003%.
+          Nothing here is a prediction, and none of it is financial advice.
+        </p>
       </div>
-
-      {view === 'you' ? (
-        <HolderView
-          now={now}
-          shown={shown}
-          amount={amount}
-          compound={compound}
-          sim={sim}
-          psshDrift={psshDrift}
-          onOpenDrifts={() => setAdvanced(true)}
-        />
-      ) : (
-        <StakeView
-          now={now}
-          shown={shown}
-          openingPool={poolHex}
-          breakEven={breakEven}
-          volume={volume}
-          coverOk={coverOk}
-        />
-      )}
-
-      <p className="text-[11px] leading-relaxed text-[var(--text-faint)]">
-        <b className="text-[var(--text-muted)]">How this is built.</b> Each cycle&apos;s ending
-        state opens the next: the stake earns at the payout rate, hands holders 1%, and the 2%
-        buy-tax adds what the volume you set can buy. The 1% burn shrinks supply, which is what
-        lifts your share of it. Entry and every compound pay the 5.5% toll. The same formulas the
-        rest of the page uses — the pool&apos;s T-shares here reproduce its recorded 107.55 to
-        within 0.003%. Nothing here is a prediction, and none of it is financial advice.
-      </p>
     </div>
   );
+}
+
+/** The run's market assumptions in one line, printed under the verdict. */
+function assumptionLine(volume: number, yieldPct: number, hexDrift: number, psshDrift: number, volDrift: number): string {
+  const parts = [`${money(volume)}/day`, `yield ${yieldPct.toFixed(2)}%/cycle`];
+  const drifts: string[] = [];
+  if (psshDrift) drifts.push(`pSSH ${psshDrift > 0 ? '+' : ''}${psshDrift}%`);
+  if (hexDrift) drifts.push(`HEX ${hexDrift > 0 ? '+' : ''}${hexDrift}%`);
+  if (volDrift) drifts.push(`volume ${volDrift > 0 ? '+' : ''}${volDrift}%`);
+  parts.push(drifts.length ? `${drifts.join(', ')} a cycle` : 'prices flat');
+  return parts.join(' · ');
 }
 
 /* ────────────────────────── the two views ────────────────────────── */
 
 function HolderView({
-  now, shown, amount, compound, sim, psshDrift, onOpenDrifts,
+  now, shown, amount, compound, sim, psshDrift, assumptions, onOpenDrifts,
 }: {
   now: SimCycle;
   shown: SimCycle[];
@@ -443,6 +544,7 @@ function HolderView({
   compound: boolean;
   sim: SimResult;
   psshDrift: number;
+  assumptions: string;
   onOpenDrifts: () => void;
 }) {
   const multiple = amount > 0 ? now.holderValueUsd / amount : 0;
@@ -456,48 +558,51 @@ function HolderView({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* headline */}
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      {/* ── the verdict ── */}
+      <div
+        className="relative overflow-hidden rounded-2xl border border-[var(--line)] p-4 md:p-5"
+        style={{ background: 'linear-gradient(130deg,rgba(126,8,157,0.20),rgba(216,54,57,0.08) 45%,transparent 70%), var(--panel)' }}
+      >
         <div
-          className="relative overflow-hidden rounded-xl border border-[var(--line)] p-4 md:p-5"
-          style={{ background: 'linear-gradient(180deg,rgba(126,8,157,0.16),transparent 60%), var(--panel)' }}
-        >
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full opacity-25 blur-3xl"
+          style={{ background: GRAD }}
+        />
+        <span className="relative text-[9.5px] uppercase tracking-[0.16em] text-[var(--text-faint)]" style={{ fontFamily: MONO }}>
+          Your position, cycle {now.n}
+        </span>
+        <div className="relative mt-1 flex flex-wrap items-end gap-x-3 gap-y-1.5">
+          <Anim
+            value={now.holderValueUsd}
+            fmt={money}
+            className="text-[clamp(36px,6vw,56px)] font-bold leading-[0.95] tracking-[-0.045em] tabular-nums text-[var(--text)]"
+          />
           <span
-            className="text-[9.5px] uppercase tracking-[0.16em] text-[var(--text-faint)]"
-            style={{ fontFamily: MONO }}
+            className="mb-1 rounded-full px-2.5 py-1 text-[13px] font-bold tabular-nums text-white"
+            style={{ background: GRAD }}
           >
-            Your position, cycle {now.n}
+            <Anim value={multiple} fmt={(v) => `${v.toFixed(2)}×`} className="" inline />
           </span>
-          <Big value={money(now.holderValueUsd)} />
-          <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span
-              className="text-[15px] font-bold tabular-nums"
-              style={{
-                backgroundImage: GRAD,
-                WebkitBackgroundClip: 'text',
-                backgroundClip: 'text',
-                color: 'transparent',
-              }}
-            >
-              {multiple.toFixed(2)}×
-            </span>
-            <span className="text-[11px] text-[var(--text-muted)]">on {money(amount)} in</span>
-            <span
-              className={`text-[11px] font-semibold tabular-nums ${
-                beatsHold >= 0 ? 'text-[var(--up)]' : 'text-red-400'
-              }`}
-            >
-              {signedMoney(beatsHold)} vs just holding HEX
-            </span>
-          </div>
+          <span
+            className={`mb-1 rounded-full border px-2.5 py-1 text-[11px] font-bold tabular-nums ${
+              beatsHold >= 0
+                ? 'border-[color-mix(in_srgb,var(--up)_45%,transparent)] text-[var(--up)]'
+                : 'border-red-400/40 text-red-400'
+            }`}
+          >
+            {signedMoney(beatsHold)} vs holding HEX
+          </span>
         </div>
+        <p className="relative mt-2 text-[11px] tabular-nums text-[var(--text-muted)]">
+          on {money(amount)} in · assumes {assumptions}
+        </p>
+      </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Tile label="HEX earned" value={compact(now.holderHexCumulative)} sub={`${money(now.holderHexCumulative * now.pHex)} at cycle-${now.n} price`} good />
-          <Tile label="pSSH held" value={compact(now.tokens + now.compoundedTokens)} sub={compound ? 'compounding each cycle' : 'unchanged — earnings banked'} />
-          <Tile label="S-shares" value={((now.tokens + now.compoundedTokens) / S_SHARE).toFixed(2)} sub={`of ${nf(now.sSharesLeft, 0)} left`} />
-          <Tile label="Share of supply" value={pctOf(now.supplyShare * 100)} sub="rises as the 1% burns" />
-        </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Tile label="HEX earned" value={compact(now.holderHexCumulative)} sub={`${money(now.holderHexCumulative * now.pHex)} at cycle-${now.n} price`} good />
+        <Tile label="pSSH held" value={compact(now.tokens + now.compoundedTokens)} sub={compound ? 'compounding each cycle' : 'unchanged — earnings banked'} />
+        <Tile label="S-shares" value={((now.tokens + now.compoundedTokens) / S_SHARE).toFixed(2)} sub={`of ${nf(now.sSharesLeft, 0)} left`} />
+        <Tile label="Share of supply" value={pctOf(now.supplyShare * 100)} sub="rises as the 1% burns" />
       </div>
 
       {/* the three lines */}
@@ -517,11 +622,7 @@ function HolderView({
               behind the token can grow several times over without that line moving, because nothing
               forces the price to follow the backing — so this curve is what the payouts and
               reflections alone are worth.{' '}
-              <button
-                type="button"
-                onClick={onOpenDrifts}
-                className="font-semibold text-brand-orange underline underline-offset-2"
-              >
+              <button type="button" onClick={onOpenDrifts} className="font-semibold text-brand-orange underline underline-offset-2">
                 Set a price drift
               </button>{' '}
               to see it another way.
@@ -529,15 +630,10 @@ function HolderView({
           ) : (
             <>
               <b className="text-[var(--text-muted)]">
-                This run assumes pSSH moves {psshDrift > 0 ? '+' : ''}
-                {psshDrift}% a cycle.
+                This run assumes pSSH moves {psshDrift > 0 ? '+' : ''}{psshDrift}% a cycle.
               </b>{' '}
               Most of the curve above is that assumption compounding, not the payouts —{' '}
-              <button
-                type="button"
-                onClick={onOpenDrifts}
-                className="font-semibold text-brand-orange underline underline-offset-2"
-              >
+              <button type="button" onClick={onOpenDrifts} className="font-semibold text-brand-orange underline underline-offset-2">
                 set it back to flat
               </button>{' '}
               to see what the machine alone pays.
@@ -579,12 +675,12 @@ function HolderView({
 
         <Panel title="HEX earned, cycle by cycle" sub="the 1% and the 2.5%, stacked">
           <StackBars
-            rows={shown.map((c) => ({
-              a: c.holderPayoutHex,
-              b: c.holderReflectionHex,
-              label: c.n,
-            }))}
+            rows={shown.map((c) => ({ a: c.holderPayoutHex, b: c.holderReflectionHex, label: c.n }))}
           />
+          <div className="mt-2 flex gap-4 text-[10px] text-[var(--text-muted)]">
+            <Legend color="#7E089D" label="end-stake payout" />
+            <Legend color="#FB9438" label="reflections" />
+          </div>
         </Panel>
       </div>
 
@@ -599,7 +695,7 @@ function HolderView({
 }
 
 function StakeView({
-  now, shown, openingPool, breakEven, volume, coverOk,
+  now, shown, openingPool, breakEven, volume, coverOk, yieldPct, liveYieldPct,
 }: {
   now: SimCycle;
   shown: SimCycle[];
@@ -607,51 +703,59 @@ function StakeView({
   breakEven: number;
   volume: number;
   coverOk: boolean;
+  yieldPct: number;
+  liveYieldPct: number;
 }) {
   const growth = openingPool > 0 ? now.poolHexNext / openingPool : 0;
   const burnedSoFar = shown.reduce((s, c) => s + c.burnedTokens, 0);
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      <div
+        className="relative overflow-hidden rounded-2xl border border-[var(--line)] p-4 md:p-5"
+        style={{ background: 'linear-gradient(130deg,rgba(216,54,57,0.16),rgba(126,8,157,0.07) 45%,transparent 70%), var(--panel)' }}
+      >
         <div
-          className="relative overflow-hidden rounded-xl border border-[var(--line)] p-4 md:p-5"
-          style={{ background: 'linear-gradient(180deg,rgba(216,54,57,0.14),transparent 60%), var(--panel)' }}
-        >
-          <span
-            className="text-[9.5px] uppercase tracking-[0.16em] text-[var(--text-faint)]"
-            style={{ fontFamily: MONO }}
-          >
-            HEX in the stake, cycle {now.n}
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full opacity-20 blur-3xl"
+          style={{ background: GRAD }}
+        />
+        <span className="relative text-[9.5px] uppercase tracking-[0.16em] text-[var(--text-faint)]" style={{ fontFamily: MONO }}>
+          HEX in the stake, cycle {now.n}
+        </span>
+        <div className="relative mt-1 flex flex-wrap items-end gap-x-3 gap-y-1.5">
+          <Anim
+            value={now.poolHexNext}
+            fmt={(v) => nf(Math.round(v))}
+            className="text-[clamp(34px,5.4vw,52px)] font-bold leading-[0.95] tracking-[-0.045em] tabular-nums text-[var(--text)]"
+          />
+          <span className="mb-1 rounded-full px-2.5 py-1 text-[13px] font-bold tabular-nums text-white" style={{ background: GRAD }}>
+            <Anim value={growth} fmt={(v) => `${v.toFixed(2)}×`} className="" inline />
           </span>
-          <Big value={nf(Math.round(now.poolHexNext))} />
-          <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span
-              className="text-[15px] font-bold tabular-nums"
-              style={{
-                backgroundImage: GRAD,
-                WebkitBackgroundClip: 'text',
-                backgroundClip: 'text',
-                color: 'transparent',
-              }}
-            >
-              {growth.toFixed(2)}×
-            </span>
-            <span className="text-[11px] text-[var(--text-muted)]">
-              from {compact(openingPool)} today
-            </span>
-            <span className="text-[11px] text-[var(--text-muted)]">
-              {money(now.poolHexNext * now.pHex)}
-            </span>
-          </div>
+          <span
+            className={`mb-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${
+              coverOk
+                ? 'border-[color-mix(in_srgb,var(--up)_45%,transparent)] text-[var(--up)]'
+                : 'border-red-400/40 text-red-400'
+            }`}
+          >
+            {coverOk ? 'growing' : 'shrinking'}
+          </span>
         </div>
+        <p className="relative mt-2 text-[11px] tabular-nums text-[var(--text-muted)]">
+          from {compact(openingPool)} today · worth {money(now.poolHexNext * now.pHex)} at cycle-{now.n} price
+        </p>
+      </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Tile label="Covers its payout" value={`${now.coverRatio.toFixed(2)}×`} sub={coverOk ? 'the pool grows' : 'the pool shrinks'} good={coverOk} bad={!coverOk} />
-          <Tile label="T-shares" value={now.poolTShares.toFixed(1)} sub="what the stake earns on" />
-          <Tile label="S-shares left" value={nf(now.sSharesLeft, 0)} sub={`${compact(burnedSoFar)} pSSH burned in the run`} />
-          <Tile label="Volume needed" value={money(breakEven)} sub={`you set ${money(volume)}`} good={volume >= breakEven} bad={volume < breakEven} />
-        </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Tile label="Covers its payout" value={`${now.coverRatio.toFixed(2)}×`} sub={coverOk ? 'the pool grows' : 'the pool shrinks'} good={coverOk} bad={!coverOk} />
+        <Tile
+          label="Stake yield set to"
+          value={`${yieldPct.toFixed(2)}%`}
+          sub={Math.abs(yieldPct - liveYieldPct) < 0.005 ? 'a cycle — the live rate' : `a cycle — HEX pays ${liveYieldPct.toFixed(2)}% today`}
+        />
+        <Tile label="S-shares left" value={nf(now.sSharesLeft, 0)} sub={`${compact(burnedSoFar)} pSSH burned in the run`} />
+        <Tile label="Volume needed" value={money(breakEven)} sub={`you set ${money(volume)}`} good={volume >= breakEven} bad={volume < breakEven} />
       </div>
 
       <Panel title="The pool, cycle by cycle" sub="principal at each restake">
@@ -681,12 +785,41 @@ function StakeView({
 
 /* ────────────────────────── pieces ────────────────────────── */
 
-function Big({ value }: { value: string }) {
-  return (
-    <div className="mt-1 text-[clamp(30px,5.6vw,46px)] font-bold leading-[0.98] tracking-[-0.04em] tabular-nums text-[var(--text)] transition-all duration-300">
-      {value}
-    </div>
-  );
+/**
+ * A number that glides to its new value instead of snapping — dragging a
+ * slider reads as one motion rather than a flipbook. Reduced motion, or a
+ * finished tween, is just the value itself.
+ */
+function Anim({
+  value, fmt, className, inline,
+}: { value: number; fmt: (v: number) => string; className: string; inline?: boolean }) {
+  const [v, setV] = useState(value);
+  const from = useRef(value);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      from.current = value;
+      setV(value);
+      return;
+    }
+    const start = from.current;
+    if (start === value) return;
+    const t0 = performance.now();
+    const MS = 380;
+    let raf = 0;
+    const step = (t: number) => {
+      const k = Math.min(1, (t - t0) / MS);
+      const eased = 1 - Math.pow(1 - k, 3);
+      const cur = start + (value - start) * eased;
+      from.current = cur;
+      setV(cur);
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  const Tag = inline ? 'span' : 'div';
+  return <Tag className={className}>{fmt(v)}</Tag>;
 }
 
 function Tile({
@@ -694,10 +827,7 @@ function Tile({
 }: { label: string; value: string; sub: string; good?: boolean; bad?: boolean }) {
   return (
     <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2.5">
-      <div
-        className="text-[9px] uppercase tracking-[0.14em] text-[var(--text-faint)]"
-        style={{ fontFamily: MONO }}
-      >
+      <div className="text-[9px] uppercase tracking-[0.14em] text-[var(--text-faint)]" style={{ fontFamily: MONO }}>
         {label}
       </div>
       <div
@@ -736,14 +866,33 @@ function Legend({ color, label }: { color: string; label: string }) {
 }
 
 /**
- * A slider that shows the value it's set to and, optionally, a marker for a
- * threshold worth seeing on the track itself.
+ * One range input, restyled: the track fills with the brand ramp up to the
+ * thumb, so the slider itself shows where in its range the value sits. The
+ * default UA widget gave no such cue, which is half of why the old controls
+ * read as a wall of identical boxes.
  */
-function Dial({
-  label, value, min, max, step, v, onChange, hint, marker, signed,
+const RANGE_CLS =
+  'mt-1 h-[5px] w-full cursor-pointer appearance-none rounded-full outline-none ' +
+  'focus-visible:ring-2 focus-visible:ring-white/30 ' +
+  '[&::-webkit-slider-thumb]:h-[15px] [&::-webkit-slider-thumb]:w-[15px] [&::-webkit-slider-thumb]:appearance-none ' +
+  '[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white ' +
+  '[&::-webkit-slider-thumb]:bg-[#FB9438] [&::-webkit-slider-thumb]:shadow-[0_1px_5px_rgba(0,0,0,0.6)] ' +
+  '[&::-moz-range-thumb]:h-[15px] [&::-moz-range-thumb]:w-[15px] [&::-moz-range-thumb]:rounded-full ' +
+  '[&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-[#FB9438] ' +
+  '[&::-moz-range-track]:bg-transparent';
+
+function rangeFill(v: number, min: number, max: number) {
+  const pct = max > min ? ((v - min) / (max - min)) * 100 : 0;
+  return {
+    background: `linear-gradient(90deg,#AE176A,#FB9438 ${pct}%,var(--line-strong) ${pct}%,var(--line-strong) 100%)`,
+  };
+}
+
+function Slider({
+  label, display, min, max, step, v, onChange, hint, marker,
 }: {
   label: string;
-  value: string;
+  display: string;
   min: number;
   max: number;
   step: number;
@@ -751,43 +900,31 @@ function Dial({
   onChange: (n: number) => void;
   hint?: string;
   marker?: number;
-  signed?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-[var(--line)] bg-[var(--app-bg)] px-3 py-2.5">
+    <div>
       <div className="flex items-baseline justify-between gap-2">
-        <span
-          className="text-[9px] uppercase tracking-[0.14em] text-[var(--text-faint)]"
-          style={{ fontFamily: MONO }}
-        >
-          {label}
-        </span>
-        <span className="text-[12.5px] font-bold tabular-nums text-[var(--text)]">{value}</span>
+        <span className="text-[10.5px] font-semibold text-[var(--text-muted)]">{label}</span>
+        <span className="text-[14px] font-bold tabular-nums text-[var(--text)]">{display}</span>
       </div>
-      <div className="relative mt-2">
+      <div className="relative">
         <input
           type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={v}
+          min={min} max={max} step={step} value={v}
           onChange={(e) => onChange(Number(e.target.value))}
           aria-label={label}
-          className="w-full accent-[#FB9438]"
+          className={RANGE_CLS}
+          style={rangeFill(v, min, max)}
         />
         {marker !== undefined && marker > 0 && marker < 1 && (
           <span
             aria-hidden
-            className="pointer-events-none absolute top-1/2 h-3 w-px -translate-y-1/2 bg-[var(--up)]"
+            className="pointer-events-none absolute top-1/2 mt-0.5 h-3 w-px -translate-y-1/2 bg-[var(--up)]"
             style={{ left: `${marker * 100}%` }}
           />
         )}
       </div>
-      {hint && (
-        <div className="mt-0.5 text-[9.5px] text-[var(--text-faint)]">
-          {signed && v === 0 ? 'flat — no drift' : hint}
-        </div>
-      )}
+      {hint && <div className="mt-1 text-[9.5px] leading-snug text-[var(--text-faint)]">{hint}</div>}
     </div>
   );
 }

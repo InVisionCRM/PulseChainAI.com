@@ -519,7 +519,16 @@ function Velocity({
   const peak = days.indexOf(max);
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="block h-[74px] w-full" role="img"
+      {/* The height is fixed and the width is fluid, so the viewBox's own
+          aspect ratio can't be honoured — under the default `xMidYMid meet`
+          the whole chart was drawn at 160px and *centred*, leaving it floating
+          in the middle of a panel three times that wide with the day 1 / day 60
+          labels pointing at empty gutters. `none` lets the x-axis stretch to
+          the panel, which is what a 60-day series wants anyway;
+          `non-scaling-stroke` keeps the line a constant weight rather than
+          smearing it out with the horizontal scale. */}
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
+           className="block h-[74px] w-full" role="img"
            aria-label={`Daily pSSH volume across the cycle, peaking at ${usdShort(max)}.`}>
         <defs>
           <linearGradient id="ss-vel" x1="0" y1="0" x2="1" y2="0">
@@ -531,11 +540,21 @@ function Velocity({
           </linearGradient>
         </defs>
         <path d={`${line} L${W} ${H} L0 ${H} Z`} fill="url(#ss-velf)" />
-        <path d={line} fill="none" stroke="url(#ss-vel)" strokeWidth="1.8" strokeLinejoin="round" />
-        {peak >= 0 && (
-          <circle cx={(peak * step).toFixed(1)} cy={(H - (max / max) * (H - 6)).toFixed(1)} r="2.5" fill="#FB9438" />
-        )}
+        <path d={line} fill="none" stroke="url(#ss-vel)" strokeWidth="1.8"
+              strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       </svg>
+      {/* The peak marker is HTML rather than an SVG circle: a circle in a
+          non-uniformly scaled viewBox renders as an ellipse. Positioned as a
+          percentage, it lands on the peak at any width. The peak's y is always
+          6 of H by construction, since it is the value the scale tops out at. */}
+      {peak >= 0 && days.length > 1 && (
+        <div className="pointer-events-none relative h-0" aria-hidden>
+          <span
+            className="absolute h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#FB9438]"
+            style={{ left: `${(peak / (days.length - 1)) * 100}%`, top: `${-H + 6}px` }}
+          />
+        </div>
+      )}
       <div
         className="flex justify-between text-[9px] uppercase tracking-[0.1em] text-[var(--text-faint)]"
         style={{ fontFamily: MONO }}

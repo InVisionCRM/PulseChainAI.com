@@ -1,4 +1,4 @@
-// Live SuperStake cycle history, rebuilt from the subgraphs on demand.
+// Live SuperStake cycle history.
 //
 // Everything the head-to-head needs turns out to be queryable — no separate
 // indexer required:
@@ -9,299 +9,77 @@
 //   • holder payout     — 1% of (pool + yield), verified against the published
 //                        record for cycles #1 and #18
 //
-// Reuses lib/hex/subgraph.ts (the same helper the HEX dashboard/Strategist uses)
-// rather than opening a second path to the same data.
-//
-// This is heavy (1000+ days of series across two subgraphs), so it is cached
-// hard in-process. The baked snapshot stays the fallback: if either subgraph is
-// unavailable the client keeps using it rather than showing a broken page.
+// The rebuild itself lives in lib/superstake/rebuildCycles.ts, which settles
+// the days that can no longer change into Postgres and asks the subgraphs only
+// for the tail. This file is the HTTP wrapper around it: a short in-process
+// cache for the concurrent-burst case, and the baked snapshot as the floor —
+// if the rebuild can't run at all the client keeps using the snapshot rather
+// than showing a broken page.
 
-import { NextResponse } from 'next/server';
-import { hexSubgraphQuery } from '@/lib/hex/subgraph';
-import { heartsToHex, sharesToTShares } from '@/lib/hex/hexDay';
-import { HEX_LAUNCH_TS, type SuperStakeCycle } from '@/lib/superstake/model';
+import { NextResponse, type NextRequest } from 'next/server';
+import { sql } from '@/lib/db/connection';
+import { rebuildCycles, type CyclesPayload } from '@/lib/superstake/rebuildCycles';
+import type { SqlClient } from '@/lib/db/superstakeHistory';
 
-/** The contract that actually holds the SuperStake HEX stake. */
-const SUPERSTAKE_STAKER = '0xdc48205df8af83c97de572241bb92db45402aa0e';
-const HEX_PLS = '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39';
-const PSSH = '0xb5c4ecef450fd36d0eba1420f6a19dbfbee5292e';
-
-const PULSEX_SUBGRAPHS = [
-  'https://graph.pulsechain.com/subgraphs/name/pulsechain/pulsexv2',
-  'https://graph.pulsechain.com/subgraphs/name/pulsechain/pulsex',
-];
-
-// A cold rebuild paginates both subgraphs and takes ~10s. Without this the
-// route inherits Vercel's short default, gets cut off, and the page silently
-// falls back to the baked snapshot — which is exactly how it went stale after
-// cycle 17 closed. 60s leaves real headroom on a slow upstream day.
+// A cold rebuild with an empty store still paginates both subgraphs and takes
+// ~15s. Without this the route inherits Vercel's short default, gets cut off,
+// and the page silently falls back to the baked snapshot — which is exactly how
+// it went stale after cycle 17 closed. 60s leaves real headroom.
 export const maxDuration = 60;
 
-/** Holders are paid 1% of the pool each time a cycle closes. */
-const HOLDER_PAYOUT_RATE = 0.01;
-/** Rebuilding touches both subgraphs, so keep it cached for an hour. */
-const CACHE_TTL_MS = 60 * 60_000;
-
-interface CyclesPayload {
-  cycles: SuperStakeCycle[];
-  series: { d0: number; P: number[]; SR: number[]; PH: number[]; VV: number[]; PV: number[] };
-  /** Every T-share staked on the network, latest day — the denominator HEX itself uses. */
-  globalTShares: number | null;
-  source: 'subgraph';
-  fetchedAt: number;
-  /** Days at the tail with no price/volume data yet — the client should treat them as partial. */
-  warnings: string[];
-}
+/**
+ * Short now, not an hour. The database is what stops us hammering the
+ * subgraphs; this only coalesces the burst of requests a single page load can
+ * produce on one instance, and a long TTL here just delays a new cycle showing
+ * up. Postgres is shared across every instance, which the old in-process hour
+ * never was.
+ */
+const CACHE_TTL_MS = 5 * 60_000;
 
 let cache: { value: CyclesPayload; at: number } | null = null;
+let inflight: Promise<CyclesPayload | null> | null = null;
 
-const dayFromTs = (ts: number) => Math.floor((ts - HEX_LAUNCH_TS) / 86_400) + 1;
+const HEADERS = { 'Cache-Control': 'public, max-age=900, stale-while-revalidate=3600' };
 
-async function pulsexQuery<T>(query: string): Promise<T | null> {
-  for (const url of PULSEX_SUBGRAPHS) {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
-        signal: AbortSignal.timeout(15_000),
-      });
-      if (!res.ok) continue;
-      const json = await res.json();
-      if (json?.errors || !json?.data) continue;
-      return json.data as T;
-    } catch {
-      /* next mirror */
-    }
+export async function GET(request: NextRequest) {
+  // `?refresh=full` re-reads every day from the subgraphs and overwrites the
+  // store. The routine drift check only covers the last few days, so this is
+  // the way to repair a day that went wrong outside that window. It costs the
+  // full ~15s sweep, which is why it is opt-in and bypasses the cache.
+  const force = new URL(request.url).searchParams.get('refresh') === 'full';
+
+  if (!force && cache && Date.now() - cache.at < CACHE_TTL_MS) {
+    return NextResponse.json(cache.value, { headers: HEADERS });
   }
-  return null;
-}
 
-/** tokenDayDatas is capped at 1000 rows per query, so page by ascending date. */
-async function fetchTokenDays(token: string, sinceTs: number) {
-  const out: { date: number; priceUSD: number; volUSD: number }[] = [];
-  let cursor = sinceTs - 1;
-  for (let page = 0; page < 6; page++) {
-    const data = await pulsexQuery<{ rows: any[] }>(
-      `{ rows: tokenDayDatas(first:1000, orderBy:date, orderDirection:asc,
-           where:{ token:"${token}", date_gt:${cursor} }){ date priceUSD dailyVolumeUSD } }`,
-    );
-    const rows = data?.rows ?? [];
-    if (!rows.length) break;
-    for (const r of rows) {
-      out.push({
-        date: Number(r.date),
-        priceUSD: parseFloat(r.priceUSD) || 0,
-        volUSD: parseFloat(r.dailyVolumeUSD) || 0,
-      });
-    }
-    cursor = Number(rows[rows.length - 1].date);
-    if (rows.length < 1000) break;
-  }
-  return out;
-}
-
-/**
- * Share rate per HEX day, from shareRateChanges. The subgraph stores it raw
- * (463511); HEX quotes it a decimal place down (46351.1), which is the scale
- * the stake maths expects — verified against the published snapshot.
- */
-async function fetchShareRates(fromDay: number) {
-  const byDay = new Map<number, number>();
-  let cursor = HEX_LAUNCH_TS + (fromDay - 1) * 86_400 - 1;
-  for (let page = 0; page < 8; page++) {
-    const d = await hexSubgraphQuery<{ rows: { shareRate: string; timestamp: string }[] }>(
-      'pulsechain',
-      `{ rows: shareRateChanges(first:1000, orderBy:timestamp, orderDirection:asc, where:{ timestamp_gt:${cursor} }){ shareRate timestamp } }`,
-    ).catch(() => null);
-    const rows = d?.rows ?? [];
-    if (!rows.length) break;
-    for (const r of rows) byDay.set(dayFromTs(Number(r.timestamp)), Number(r.shareRate) / 10);
-    cursor = Number(rows[rows.length - 1].timestamp);
-    if (rows.length < 1000) break;
-  }
-  return byDay;
-}
-
-/** dailyDataUpdates is also capped, so page by ascending endDay. */
-async function fetchHexDailies(fromDay: number) {
-  const byDay = new Map<number, { payout: number; shares: number }>();
-  let cursor = fromDay - 1;
-  for (let page = 0; page < 6; page++) {
-    const d = await hexSubgraphQuery<{ rows: { endDay: string; payout: string; shares: string }[] }>(
-      'pulsechain',
-      `{ rows: dailyDataUpdates(first:1000, orderBy:endDay, orderDirection:asc, where:{ endDay_gt:${cursor} }){ endDay payout shares } }`,
-    ).catch(() => null);
-    const rows = d?.rows ?? [];
-    if (!rows.length) break;
-    for (const r of rows) {
-      // `endDay` is the day the update was *recorded*: HEX emits day N's payout
-      // at the start of day N+1, so endDay N+1 describes day N. Attributing it
-      // to endDay shifts the whole series a day late — invisible on flat days,
-      // but badly wrong across a payout jump. Verified: shifting back one day
-      // reproduces the published series exactly (0.000% diff over 1040 days).
-      const day = Number(r.endDay) - 1;
-      // payout is in hearts, shares in raw share units — the ratio is HEX per T-share.
-      const payout = heartsToHex(r.payout);
-      const shares = sharesToTShares(r.shares);
-      if (shares > 0) byDay.set(day, { payout, shares });
-    }
-    cursor = Number(rows[rows.length - 1].endDay);
-    if (rows.length < 1000) break;
-  }
-  return byDay;
-}
-
-export async function GET() {
-  if (cache && Date.now() - cache.at < CACHE_TTL_MS) {
-    return NextResponse.json(cache.value, {
-      headers: { 'Cache-Control': 'public, max-age=900, stale-while-revalidate=3600' },
+  // Concurrent callers share one rebuild rather than each starting their own.
+  if (force) {
+    inflight = rebuildCycles({ db: (sql as SqlClient | null) ?? null, force: true }).finally(() => {
+      inflight = null;
+    });
+  } else if (!inflight) {
+    inflight = rebuildCycles({ db: (sql as SqlClient | null) ?? null }).finally(() => {
+      inflight = null;
     });
   }
 
-  // --- 1. Every stake the SuperStake contract has opened ---------------------
-  const stakes = await hexSubgraphQuery<{
-    stakeStarts: { stakeId: string; stakedHearts: string; stakeShares: string; stakedDays: string; startDay: string; timestamp: string }[];
-    stakeEnds: { stakeId: string; payout: string; stakedHearts: string; timestamp: string }[];
-  }>(
-    'pulsechain',
-    `{
-       stakeStarts(where:{ stakerAddr:"${SUPERSTAKE_STAKER}" }, orderBy:startDay, orderDirection:asc, first:500){
-         stakeId stakedHearts stakeShares stakedDays startDay timestamp
-       }
-       stakeEnds(where:{ stakerAddr:"${SUPERSTAKE_STAKER}" }, first:500){
-         stakeId payout stakedHearts timestamp
-       }
-     }`,
-  ).catch(() => null);
+  let payload: CyclesPayload | null = null;
+  try {
+    payload = await inflight;
+  } catch (e) {
+    console.error('[superstake/cycles] rebuild failed:', e);
+  }
 
-  if (!stakes?.stakeStarts?.length) {
+  if (!payload) {
+    // Serving a stale rebuild beats serving nothing: the client's alternative
+    // is the baked snapshot, which is older still.
+    if (cache) return NextResponse.json(cache.value, { headers: HEADERS });
     return NextResponse.json(
       { error: 'HEX subgraph unavailable', source: 'unavailable' },
       { status: 503 },
     );
   }
 
-  const endsById = new Map(stakes.stakeEnds.map((e) => [e.stakeId, e]));
-  const starts = stakes.stakeStarts;
-  const firstDay = Number(starts[0].startDay);
-
-  // --- 2. Daily series -------------------------------------------------------
-  const sinceTs = HEX_LAUNCH_TS + (firstDay - 1) * 86_400;
-  const [hexDaily, shareRates, hexDays, psshDays] = await Promise.all([
-    fetchHexDailies(firstDay),
-    fetchShareRates(firstDay),
-    fetchTokenDays(HEX_PLS, sinceTs),
-    fetchTokenDays(PSSH, sinceTs),
-  ]);
-
-  const priceByDay = (rows: { date: number; priceUSD: number; volUSD: number }[]) => {
-    const m = new Map<number, { price: number; vol: number }>();
-    for (const r of rows) m.set(dayFromTs(r.date), { price: r.priceUSD, vol: r.volUSD });
-    return m;
-  };
-  const hexPx = priceByDay(hexDays);
-  const psshPx = priceByDay(psshDays);
-
-  const lastDay = Math.max(
-    firstDay,
-    ...[...hexDaily.keys(), ...hexPx.keys(), ...psshPx.keys(), ...shareRates.keys()].filter(Number.isFinite),
-  );
-
-  const P: number[] = [];
-  const SR: number[] = [];
-  const PH: number[] = [];
-  const VV: number[] = [];
-  const PV: number[] = [];
-  // Carry the last known value forward across gaps so the series stays dense —
-  // a missing day must not read as a zero price.
-  let lastP = 0, lastSR = 0, lastPH = 0, lastPV = 0;
-  for (let day = firstDay; day <= lastDay; day++) {
-    const hd = hexDaily.get(day);
-    // payout is that day's HEX distributed; shares the network T-share total —
-    // their ratio is the day's payout per T-share.
-    if (hd) lastP = hd.payout / hd.shares;
-    const sr = shareRates.get(day);
-    if (sr) lastSR = sr;
-    const hx = hexPx.get(day);
-    const ps = psshPx.get(day);
-    if (hx?.price) lastPH = hx.price;
-    if (ps?.price) lastPV = ps.price;
-    P.push(lastP);
-    SR.push(lastSR);
-    PH.push(lastPH);
-    PV.push(lastPV);
-    VV.push(ps?.vol ?? 0);
-  }
-
-  // --- 3. Cycles -------------------------------------------------------------
-  const currentDay = dayFromTs(Math.floor(Date.now() / 1000));
-  const cycles: SuperStakeCycle[] = starts.map((s, idx) => {
-    const d0 = Number(s.startDay);
-    const d1 = d0 + Number(s.stakedDays);
-    const hex = heartsToHex(s.stakedHearts);
-    const tsh = sharesToTShares(s.stakeShares);
-    const end = endsById.get(s.stakeId);
-    const done = !!end || d1 <= currentDay;
-    // Native yield: the realised payout when the stake has ended, otherwise the
-    // series' payout-per-T-share accrued so far.
-    //
-    // StakeEnd.payout is the INTEREST only, not principal + interest — verified
-    // against stake 944998, whose payout of 1,215,877,344,551 hearts is 12,158
-    // HEX on a 4,511,144 HEX principal. Subtracting stakedHearts from it drove
-    // every finished cycle's yield negative, and the clamp turned that into 0.
-    let nY = 0;
-    if (end) {
-      nY = Math.max(0, heartsToHex(end.payout));
-    } else {
-      for (let d = d0; d <= Math.min(d1, lastDay); d++) nY += tsh * (P[d - firstDay] ?? 0);
-    }
-    const idxAt = (d: number) => Math.min(Math.max(d - firstDay, 0), P.length - 1);
-    let vol = 0;
-    for (let d = d0; d < Math.min(d1, lastDay + 1); d++) vol += VV[idxAt(d)] ?? 0;
-    const pH0 = PH[idxAt(d0)] ?? 0;
-    let pHsum = 0, pHn = 0;
-    for (let d = d0; d < Math.min(d1, lastDay + 1); d++) { const v = PH[idxAt(d)]; if (v > 0) { pHsum += v; pHn++; } }
-    return {
-      i: idx + 1,
-      id: Number(s.stakeId),
-      d0,
-      d1,
-      ts: Number(s.timestamp),
-      hex,
-      tsh,
-      own: 0,
-      nY,
-      pay: HOLDER_PAYOUT_RATE * (hex + nY),
-      vol,
-      refl: 0.025 * vol,
-      pH0,
-      pHavg: pHn ? pHsum / pHn : pH0,
-      pS0: PV[idxAt(d0)] ?? 0,
-      hexU: 0,
-      psshU: 0,
-      done,
-    };
-  });
-
-  const warnings: string[] = [];
-  if (!hexDaily.size) warnings.push('HEX daily data unavailable — payout series is flat.');
-  if (!psshDays.length) warnings.push('pSSH day data unavailable — volume/reflections are zero.');
-
-  // The network's T-share total on the most recent day we have data for.
-  const latestDaily = [...hexDaily.keys()].sort((a, b) => b - a).find((d) => hexDaily.get(d)!.shares > 0);
-
-  const payload: CyclesPayload = {
-    cycles,
-    series: { d0: firstDay, P, SR, PH, VV, PV },
-    globalTShares: latestDaily != null ? hexDaily.get(latestDaily)!.shares : null,
-    source: 'subgraph',
-    fetchedAt: Date.now(),
-    warnings,
-  };
   cache = { value: payload, at: Date.now() };
-
-  return NextResponse.json(payload, {
-    headers: { 'Cache-Control': 'public, max-age=900, stale-while-revalidate=3600' },
-  });
+  return NextResponse.json(payload, { headers: HEADERS });
 }
