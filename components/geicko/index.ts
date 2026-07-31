@@ -28,6 +28,8 @@ export { default as GeickoPerformancePanel } from './GeickoPerformancePanel';
 export { default as GeickoAdBanner } from '../ads/AdBanner';
 export { default as GeickoLiquidityPanel } from './GeickoLiquidityPanel';
 export { default as GeickoVolumePanel } from './GeickoVolumePanel';
+export { default as GeickoLibertyTab } from './GeickoLibertyTab';
+export { default as TradeDepthPanel } from './TradeDepthPanel';
 export { default as GeickoPressurePanel } from './GeickoPressurePanel';
 export { default as GeickoTradesTab } from './GeickoTradesTab';
 export { default as GeickoForensicsTab } from './GeickoForensicsTab';
