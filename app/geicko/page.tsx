@@ -62,6 +62,7 @@ import type { ChainKey } from '@/lib/chains/types';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import { useScreenerWatchlist } from '@/components/Screener/watchlist';
 import dynamic from 'next/dynamic';
+import { bsFetchJsonOrThrow } from '@/lib/blockscout';
 
 // The bubble map pulls in d3-force and only renders inside the Holders tab, so
 // load it on demand instead of in the page's initial bundle.
@@ -1135,11 +1136,8 @@ function GeickoPageContent() {
     let cancelled = false;
     const base = 'https://api.scan.pulsechain.com/api/v2';
 
-    const fetchJson = async (url: string) => {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    };
+    // Retries transient explorer failures instead of throwing on the first 500.
+    const fetchJson = async (url: string) => bsFetchJsonOrThrow(url);
 
     const loadMetrics = async () => {
       try {

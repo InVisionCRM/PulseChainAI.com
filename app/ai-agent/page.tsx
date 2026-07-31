@@ -31,6 +31,7 @@ import DexScreenerChart from '@/components/DexScreenerChart';
 import { BackgroundGradient } from '@/components/ui/background-gradient';
 import { StickyBanner } from '@/components/ui/sticky-banner';
 import TransactionModal from '@/components/TransactionModal';
+import { bsFetchJsonOrThrow } from '@/lib/blockscout';
 
 // Note: API key is handled server-side in API routes
 
@@ -443,11 +444,8 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
       );
     };
     let cancelled = false;
-    const fetchJson = async (url: string) => {
-      const res = await fetch(url, { headers: { Accept: 'application/json' } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    };
+    // Retries transient explorer failures instead of throwing on the first 500.
+    const fetchJson = async (url: string) => bsFetchJsonOrThrow(url);
     const load = async () => {
       try {
         if (!contractAddress) return;

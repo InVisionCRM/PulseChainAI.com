@@ -5,6 +5,7 @@ import { isBurnAddress } from './utils';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import { fmtAmount, fmtNum } from '@/lib/format';
 import TransferOriginFlow from './TransferOriginFlow';
+import { gradeHolder, fmtDrawdown, TIER_STYLE, type DiamondGrade, type PricePoint } from '@/lib/geicko/diamond';
 
 // Compact USD for the holder value column: "$1.2M", "$3.4k", "$12", "<$1", "$0".
 function fmtUsd(v: number): string {
@@ -66,6 +67,38 @@ interface HolderDetail {
 }
 
 type DetailState = 'loading' | 'error' | HolderDetail;
+
+/**
+ * The diamond-hands grade for one row, or null when there is nothing to grade.
+ *
+ * Needs both halves: the wallet's swap record, and the token's daily price
+ * series to measure the drawdown it sat through. Without the prices every
+ * wallet would fail the drawdown test and quietly land a tier lower than it
+ * earned, so no series means no badge rather than a wrong one.
+ */
+function gradeFor(
+  state: DetailState | undefined,
+  daily: PricePoint[] | null,
+  balanceTokens: number | null,
+): DiamondGrade | null {
+  if (!daily || daily.length < 2) return null;
+  if (!state || state === 'loading' || state === 'error') return null;
+  if (!state.supported || !state.hasData || !state.trades) return null;
+  const t = state.trades;
+  return gradeHolder(
+    {
+      firstBuyTs: t.firstBuyTs,
+      lastSellTs: t.lastSellTs,
+      buyCount: t.buyCount,
+      sellCount: t.sellCount,
+      buyTokens: t.buyTokens,
+      sellTokens: t.sellTokens,
+      basisComplete: state.pnl?.basisComplete ?? false,
+      balanceTokens,
+    },
+    daily,
+  );
+}
 
 /** Payload of /api/geicko/holder-origin — a budgeted walk, see that route. */
 interface TraceNode {
@@ -158,7 +191,33 @@ export default function GeickoHoldersTab({
   const [details, setDetails] = useState<Record<string, DetailState>>({});
   const [origins, setOrigins] = useState<Record<string, OriginState>>({});
   const [clusters, setClusters] = useState<ClustersState | null>(null);
+  const [daily, setDaily] = useState<PricePoint[] | null>(null);
   const canExpand = network === 'pulsechain' && !!tokenAddress;
+
+  // The token's daily price series, for the drawdown half of the holder grade.
+  // Same endpoint and same cache key the Volume tab already uses (no `pairs`
+  // override), so on a token whose Volume tab has been opened this is free.
+  useEffect(() => {
+    if (!canExpand) return;
+    let alive = true;
+    setDaily(null);
+    fetch(`/api/geicko/volume?token=${tokenAddress}&network=pulsechain`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!alive) return;
+        const rows: PricePoint[] = (Array.isArray(d?.daily) ? d.daily : [])
+          .map((r: { date: unknown; priceUsd: unknown }) => ({
+            date: Number(r.date),
+            priceUsd: Number(r.priceUsd) || 0,
+          }))
+          .filter((p: PricePoint) => p.date > 0);
+        setDaily(rows);
+      })
+      .catch(() => alive && setDaily([]));
+    return () => {
+      alive = false;
+    };
+  }, [canExpand, tokenAddress]);
 
   // The cluster analysis covers the top holders as a set, so one fetch serves
   // every row. It can take a while server-side (funding-graph walks); it loads
@@ -324,6 +383,19 @@ export default function GeickoHoldersTab({
           Showing top {holders.length} holders{hasMore ? ' — scroll for more' : ''}
           {canExpand ? ' · tap a row for its trade record' : ''}
         </p>
+        {/* What the glyph on each row means. Held-through-a-crash is the whole
+            idea, so the legend says so rather than leaving four symbols to
+            guess at. Only shown once the price series makes grading possible. */}
+        {canExpand && daily && daily.length > 1 && (
+          <p className="mt-0.5 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--text-muted)]">
+            <span className="text-[var(--text-faint)]">Held through the crash:</span>
+            <span><span className={`${TIER_STYLE.diamond.cls} drop-shadow-[0_0_4px_rgba(103,232,249,0.9)]`}>◆</span> Diamond — never sold</span>
+            <span><span className={TIER_STYLE.steel.cls}>◆</span> Steel</span>
+            <span><span className={TIER_STYLE.held.cls}>●</span> Held</span>
+            <span><span className={TIER_STYLE.trimmed.cls}>◐</span> Trimmed</span>
+            <span><span className={TIER_STYLE.exited.cls}>○</span> Exited</span>
+          </p>
+        )}
       </div>
 
       {/* Holders Table */}
@@ -357,6 +429,12 @@ export default function GeickoHoldersTab({
             const isBurn = isBurnAddress(holder.address);
             const expandable = canExpand && !!holder.address && !isBurn;
             const isOpen = expanded === addrLower;
+            // Contracts, LPs and burn addresses aren't people holding a bag —
+            // grading them "Diamond" for never selling would be meaningless.
+            const gradable = expandable && !holder.isContract && !isLpHolder;
+            const grade = gradable
+              ? gradeFor(details[addrLower], daily, decimals == null ? null : balance)
+              : null;
 
             return (
               <React.Fragment key={holder.address || i}>
@@ -391,6 +469,20 @@ export default function GeickoHoldersTab({
 
                 {/* Address & Tags */}
                 <div className="flex-[1.5] min-w-[90px] flex items-center gap-1 truncate">
+                  {/* The grade, as one glyph. The full sentence behind it is in
+                      the expanded panel; here it only has to rank the row at a
+                      glance — a bright gem next to a row of faint circles. */}
+                  {grade && (
+                    <span
+                      aria-label={grade.label}
+                      title={`${grade.label} — ${grade.because}`}
+                      className={`text-[12px] leading-none ${TIER_STYLE[grade.tier].cls} ${
+                        grade.tier === 'diamond' ? 'drop-shadow-[0_0_4px_rgba(103,232,249,0.9)]' : ''
+                      }`}
+                    >
+                      {TIER_STYLE[grade.tier].glyph}
+                    </span>
+                  )}
                   <span className="text-[var(--text)] font-mono truncate text-left">
                     {formattedAddress}
                   </span>
@@ -491,6 +583,7 @@ export default function GeickoHoldersTab({
                   tokenSymbol={tokenInfo?.symbol ?? 'token'}
                   origin={origins[addrLower]}
                   onTrace={() => traceOrigin(addrLower)}
+                  grade={grade}
                 />
               )}
               </React.Fragment>
@@ -539,8 +632,49 @@ function Cell({ label, value, sub, tone }: { label: string; value: string; sub?:
   );
 }
 
+/**
+ * The grade, spelled out.
+ *
+ * The row shows a glyph; this is where the claim behind it gets stated, with
+ * the three numbers it was decided on. Nothing here is a weighted score — a
+ * holder can check every part of it against the chain, which is the point.
+ */
+function GradeLine({ grade }: { grade: DiamondGrade }) {
+  const style = TIER_STYLE[grade.tier];
+  const proud = grade.tier === 'diamond' || grade.tier === 'steel';
+  return (
+    <div
+      className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded border px-2 py-1.5 ${
+        proud ? 'border-cyan-500/40 bg-cyan-500/[0.07]' : 'border-[var(--line)] bg-[var(--panel)]'
+      }`}
+    >
+      <span
+        className={`text-[15px] leading-none ${style.cls} ${
+          grade.tier === 'diamond' ? 'drop-shadow-[0_0_5px_rgba(103,232,249,0.9)]' : ''
+        }`}
+      >
+        {style.glyph}
+      </span>
+      <span className={`text-[13px] font-bold ${proud ? 'text-cyan-300' : 'text-[var(--text)]'}`}>
+        {grade.label}
+      </span>
+      <span className="text-[12px] text-[var(--text-muted)]">{grade.because}</span>
+      <span className="text-[10px] tabular-nums text-[var(--text-faint)]">
+        {grade.daysHeld != null && `${fmtNum(grade.daysHeld)}d held`}
+        {grade.retention != null && ` · ${(grade.retention * 100).toFixed(0)}% kept`}
+        {grade.drawdownPct != null && ` · −${fmtDrawdown(grade.drawdownPct)}% worst drawdown since entry`}
+      </span>
+      {grade.provisional && (
+        <span className="text-[10px] text-amber-400/90">
+          Transfers in and out mean the swap record is only part of this position.
+        </span>
+      )}
+    </div>
+  );
+}
+
 function HolderDetailPanel({
-  detail, clusters, addrLower, tokenSymbol, origin, onTrace,
+  detail, clusters, addrLower, tokenSymbol, origin, onTrace, grade,
 }: {
   detail: DetailState | undefined;
   /** Null hides the cluster slot entirely (contracts aren't wallets). */
@@ -549,6 +683,8 @@ function HolderDetailPanel({
   tokenSymbol: string;
   origin: OriginState | undefined;
   onTrace: () => void;
+  /** Null when this row isn't gradable, or the price series hasn't loaded. */
+  grade: DiamondGrade | null;
 }) {
   if (!detail || detail === 'loading') {
     return (
@@ -594,6 +730,8 @@ function HolderDetailPanel({
 
   return (
     <div className="px-2 py-2 bg-[var(--surface)]/60 space-y-1.5">
+      {grade && <GradeLine grade={grade} />}
+
       {/* trading record */}
       {t && t.swaps > 0 ? (
         <>

@@ -4,6 +4,7 @@ import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/stateful-button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import { ProgressiveBlur } from '@/components/ui/progressive-blur';
+import { bsFetchJsonOrThrow } from '@/lib/blockscout';
 
 const MAX_SNIPPET_CHARS = 400;
 
@@ -214,12 +215,9 @@ const useFetchLogger = () => {
   return { logs, clearLogs };
 };
 
+// Retries transient explorer failures instead of throwing on the first 500.
 const fetchJson = async (url: string, options?: RequestInit) => {
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-  return await response.json();
+  return bsFetchJsonOrThrow(url, options);
 };
 
 const formatNumber2 = (val: number | string | null | undefined): string => {

@@ -10,6 +10,7 @@ import { ProgressiveBlur } from '@/components/ui/progressive-blur';
 import { BackgroundGradient } from '@/components/ui/background-gradient';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import RichardHeartChatCard from '@/components/RichardHeartChatCard';
+import { bsFetchJsonOrThrow } from '@/lib/blockscout';
 
 type TransferItem = {
   timestamp?: string;
@@ -126,10 +127,10 @@ export default function AdminStatsPage(): JSX.Element {
     return d.toISOString();
   }, []);
 
+  // Retries transient explorer failures instead of throwing on the first 500.
+  // Matters most for getHoldersPaged below, which chains up to 50 page fetches.
   const fetchJson = async (url: string): Promise<unknown> => {
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    return bsFetchJsonOrThrow(url);
   };
 
   // formatting helpers
