@@ -5,7 +5,7 @@
 // (no animation) keeps it easy to spot without being distracting.
 
 import React, { useState } from 'react';
-import { IconSearch } from '@tabler/icons-react';
+import { ArtIcon } from '@/components/ui/ArtIcon';
 import SearchModal from '@/components/Screener/SearchModal';
 import { useScreenerWatchlist } from '@/components/Screener/watchlist';
 
@@ -21,7 +21,7 @@ export default function HomeSearchBar() {
         aria-label="Search tokens"
         className="flex w-full items-center gap-3 rounded-xl border border-orange-500/40 bg-[var(--surface-2)] px-4 py-3.5 text-left transition-colors hover:border-orange-500/70 hover:bg-[var(--surface-3)]"
       >
-        <IconSearch className="h-5 w-5 shrink-0 text-orange-400" />
+        <ArtIcon src="/search-icon.png" alt="" className="h-5 w-5" />
         <span className="flex-1 truncate text-sm font-medium text-[var(--text-muted)] sm:text-base">
           Search any token, pair, or paste an address…
         </span>

@@ -4,6 +4,7 @@ import { Holder, HolderStats, TokenInfo } from './types';
 import { isBurnAddress } from './utils';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import { fmtAmount, fmtNum } from '@/lib/format';
+import TransferOriginFlow from './TransferOriginFlow';
 
 // Compact USD for the holder value column: "$1.2M", "$3.4k", "$12", "<$1", "$0".
 function fmtUsd(v: number): string {
@@ -77,7 +78,8 @@ interface TraceNode {
   origin:
     | { kind: 'bought'; boughtTokens: number; boughtUsd: number; firstBuyTs: number | null; avgPriceUsd: number | null; coversSent: number }
     | { kind: 'minted' } | { kind: 'router' } | { kind: 'known'; category: string | null }
-    | { kind: 'depth-capped' } | { kind: 'budget-capped' } | { kind: 'untraceable' }
+    | { kind: 'depth-capped' } | { kind: 'budget-capped' } | { kind: 'time-capped' }
+    | { kind: 'untraceable' }
     | null;
   upstream: TraceNode[] | null;
 }
@@ -89,7 +91,7 @@ interface HolderOrigin {
   routerDeliveredTokens?: number;
   coveragePct?: number | null;
   traces?: TraceNode[];
-  limits?: { truncated?: boolean };
+  limits?: { truncated?: boolean; nodesUsed?: number; maxDepth?: number; timedOut?: boolean };
   note?: string;
 }
 
@@ -643,48 +645,6 @@ function ClusterLine({
 
 /* ─────────────────── where transferred tokens came from ─────────────────── */
 
-function originLine(n: TraceNode, tokenSymbol: string): React.ReactNode {
-  const o = n.origin;
-  if (o?.kind === 'bought') {
-    return (
-      <span className="text-emerald-400">
-        bought on PulseX {o.firstBuyTs ? `${fmtDate(o.firstBuyTs)} ` : ''}
-        {o.avgPriceUsd != null && `@ avg $${o.avgPriceUsd.toPrecision(3)}`}
-        {o.coversSent < 0.95 && (
-          <span className="text-amber-400"> — covers {(o.coversSent * 100).toFixed(0)}% of what it sent</span>
-        )}
-      </span>
-    );
-  }
-  if (o?.kind === 'router') return <span className="text-[var(--text-muted)]">swap router — these are the holder&apos;s own buys, already counted above</span>;
-  if (o?.kind === 'minted') return <span className="text-[var(--text-muted)]">minted / burn address</span>;
-  if (o?.kind === 'known') return <span className="text-[var(--text-muted)]">{n.label ?? 'known address'}{o.category ? ` (${o.category})` : ''} — not traceable past it</span>;
-  if (o?.kind === 'depth-capped' || o?.kind === 'budget-capped') return <span className="text-[var(--text-faint)]">trail continues — trace budget reached</span>;
-  if (o?.kind === 'untraceable') return <span className="text-[var(--text-faint)]">no on-chain origin found (bridge, OTC or pre-pool)</span>;
-  return null;
-}
-
-function TraceRows({ nodes, tokenSymbol, depth = 0 }: { nodes: TraceNode[]; tokenSymbol: string; depth?: number }) {
-  return (
-    <>
-      {nodes.map((n) => (
-        <React.Fragment key={`${depth}-${n.address}`}>
-          <div className="flex flex-wrap items-baseline gap-x-1.5 text-[10.5px]" style={{ paddingLeft: depth * 14 }}>
-            {depth > 0 && <span className="text-[var(--text-faint)]">↳</span>}
-            <span className="font-mono text-[var(--text)]">{n.short}</span>
-            {n.isContract && <span className="text-[9px] text-purple-300">contract</span>}
-            <span className="tabular-nums text-[var(--text-muted)]">
-              {fmtAmount(Math.floor(n.tokens))} {tokenSymbol} · {n.transfers}×
-            </span>
-            {originLine(n, tokenSymbol)}
-          </div>
-          {n.upstream && <TraceRows nodes={n.upstream} tokenSymbol={tokenSymbol} depth={depth + 1} />}
-        </React.Fragment>
-      ))}
-    </>
-  );
-}
-
 /**
  * The transfer-origin trace: on demand rather than on expand, because it walks
  * Blockscout and the subgraphs across several hops and can take tens of
@@ -720,32 +680,5 @@ function OriginSection({
     );
   }
 
-  const inbound = origin.inboundTokens ?? 0;
-  const router = origin.routerDeliveredTokens ?? 0;
-  const traces = origin.traces ?? [];
-
-  return (
-    <div className="rounded border border-cyan-500/30 bg-cyan-500/5 px-2 py-1.5 space-y-1">
-      <div className="text-[9px] uppercase tracking-wider text-cyan-300">
-        Where the transfers came from
-      </div>
-      <div className="text-[10.5px] text-[var(--text-muted)] tabular-nums">
-        {inbound > 0
-          ? <>{fmtAmount(Math.floor(inbound))} {tokenSymbol} arrived by transfer{origin.coveragePct != null && <> — <b className="text-[var(--text)]">{origin.coveragePct.toFixed(0)}%</b> traced back to an on-market buy</>}.</>
-          : 'No genuine inbound transfers — everything came from this wallet’s own swaps.'}
-        {router > 0 && <> {fmtAmount(Math.floor(router))} more was delivered by swap routers (the holder&apos;s own buys).</>}
-      </div>
-      {traces.length > 0 && (
-        <div className="space-y-0.5">
-          <TraceRows nodes={traces.filter((n) => n.origin?.kind !== 'router')} tokenSymbol={tokenSymbol} />
-        </div>
-      )}
-      {origin.limits?.truncated && (
-        <div className="text-[9px] text-amber-400/90">
-          Partial: this wallet has more transfer history than the trace budget covers.
-        </div>
-      )}
-      {origin.note && <div className="text-[9px] text-[var(--text-faint)]">{origin.note}</div>}
-    </div>
-  );
+  return <TransferOriginFlow origin={origin} tokenSymbol={tokenSymbol} />;
 }

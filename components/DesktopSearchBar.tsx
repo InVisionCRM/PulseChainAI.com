@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { IconSearch } from "@tabler/icons-react";
+import { ArtIcon } from "@/components/ui/ArtIcon";
 import SearchModal from "./Screener/SearchModal";
 import { useScreenerWatchlist } from "./Screener/watchlist";
 
@@ -38,7 +38,7 @@ export const DesktopSearchBar = () => {
         aria-label="Search pairs"
         className="flex h-8 w-full items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--panel)] px-3 text-sm text-[var(--text-faint)] transition-colors hover:border-[var(--line-strong)] hover:text-[var(--text-muted)]"
       >
-        <IconSearch className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+        <ArtIcon src="/search-icon.png" alt="" className="h-4 w-4" />
         <span className="flex-1 truncate text-left">Search pairs…</span>
         <kbd className="shrink-0 rounded border border-[var(--line)] bg-[var(--surface)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-faint)]">
           /

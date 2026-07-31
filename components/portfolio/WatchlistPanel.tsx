@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePollingEffect } from '@/hooks/usePollingEffect';
 import {
   IconSearch,
-  IconStar,
   IconX,
   IconRefresh,
   IconFolder,
@@ -15,6 +14,7 @@ import {
   IconChevronUp,
   IconChevronDown,
 } from '@tabler/icons-react';
+import { ArtIcon } from '@/components/ui/ArtIcon';
 import { useWatchlistStore } from '@/lib/stores/watchlistStore';
 import type { WatchedToken, WatchPriceEntry } from '@/lib/stores/watchlistStore';
 import {
@@ -261,7 +261,7 @@ export function WatchlistPanel({
         <div
           className={`flex min-w-0 items-center text-orange-400/80 text-xs font-semibold uppercase tracking-wider ${rail ? 'gap-1' : 'gap-2'}`}
         >
-          <IconStar className="h-4 w-4 shrink-0" />
+          <ArtIcon src="/watchlist-eye.png" alt="" className="h-4 w-4" mask />
           <span className="truncate">Watchlist</span>
           {tokens.length > 0 && (
             <span className="shrink-0 text-[var(--text-faint)] normal-case font-normal">

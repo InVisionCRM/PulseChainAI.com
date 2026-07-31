@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconHome, IconSearch, IconWallet, IconDots, IconStar } from "@tabler/icons-react";
+import { ArtIcon } from "@/components/ui/ArtIcon";
 import { NavigationDrawer } from "./NavigationDrawer";
 import SearchModal from "./Screener/SearchModal";
 import WatchlistModal from "./WatchlistModal";
@@ -28,18 +28,18 @@ export const MobileBottomNav = () => {
     {
       label: "Home",
       href: "/",
-      icon: <IconHome className="h-5 w-5" />,
+      icon: <ArtIcon src="/home-icon.png" alt="Home" />,
     },
     {
       label: "Search",
       onClick: () => setIsSearchOpen(true),
-      icon: <IconSearch className="h-5 w-5" />,
+      icon: <ArtIcon src="/search-icon.png" alt="Search" />,
       isAction: true,
     },
     {
       label: "Portfolio",
       href: "/portfolio",
-      icon: <IconWallet className="h-5 w-5" />,
+      icon: <ArtIcon src="/wallet-icon.png" alt="Portfolio" />,
     },
     {
       label: "HEX",
@@ -52,7 +52,7 @@ export const MobileBottomNav = () => {
     {
       label: "Watchlist",
       onClick: () => setIsWatchlistOpen(true),
-      icon: <IconStar className="h-5 w-5" />,
+      icon: <ArtIcon src="/watchlist-eye.png" alt="Watchlist" mask />,
       isAction: true,
     },
   ];
@@ -60,19 +60,22 @@ export const MobileBottomNav = () => {
   return (
     <>
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[var(--panel)] border-t border-[var(--line)] backdrop-blur-xl">
-        <div className="flex items-center justify-around h-16 px-2">
+        {/* Six equal columns. Left to size themselves, the labels needed 436px
+            against a 390px phone and pushed "More" clean off the right edge —
+            rendered, clickable in the DOM, and unreachable with a thumb. */}
+        <div className="grid grid-cols-6 items-center h-16 px-1">
           {navItems.map((item) => {
             const isActive = item.href ? pathname === item.href : false;
             const content = (
               <div
-                className={`flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors ${
+                className={`flex w-full min-w-0 flex-col items-center justify-center gap-1 px-0.5 py-2 rounded-lg transition-colors ${
                   isActive
                     ? "text-orange-500"
                     : "text-[var(--text-muted)] hover:text-[var(--text)]"
                 }`}
               >
                 {item.icon}
-                <span className="text-xs font-medium">{item.label}</span>
+                <span className="max-w-full truncate text-[11px] font-medium">{item.label}</span>
               </div>
             );
 
@@ -82,7 +85,7 @@ export const MobileBottomNav = () => {
                 <button
                   key={item.label}
                   onClick={item.onClick}
-                  className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+                  className="flex min-w-0 justify-center"
                 >
                   {content}
                 </button>
@@ -96,6 +99,7 @@ export const MobileBottomNav = () => {
                   href={item.href}
                   target="_blank"
                   rel="noopener noreferrer"
+                  className="flex min-w-0 justify-center"
                 >
                   {content}
                 </a>
@@ -103,7 +107,7 @@ export const MobileBottomNav = () => {
             }
 
             return (
-              <Link key={item.label} href={item.href}>
+              <Link key={item.label} href={item.href} className="flex min-w-0 justify-center">
                 {content}
               </Link>
             );
@@ -112,10 +116,10 @@ export const MobileBottomNav = () => {
           {/* More Button */}
           <button
             onClick={() => setIsDrawerOpen(true)}
-            className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+            className="flex w-full min-w-0 flex-col items-center justify-center gap-1 px-0.5 py-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
           >
-            <IconDots className="h-5 w-5" />
-            <span className="text-xs font-medium">More</span>
+            <ArtIcon src="/more-icon.png" alt="More" />
+            <span className="max-w-full truncate text-[11px] font-medium">More</span>
           </button>
         </div>
       </nav>
