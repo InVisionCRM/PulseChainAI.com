@@ -34,7 +34,12 @@ const MAX_ROOT_SENDERS = 5;
 const MAX_CHILD_SENDERS = 3;
 const MAX_DEPTH = 3;
 const MAX_NODES = 12;
+/** Explorer pages walked per node. The root needs full coverage of the
+ *  holder's own inbound history; a deeper hop only needs its dominant
+ *  senders, and halving its page cost is what buys the walk another hop
+ *  inside the same wall clock. */
 const MAX_TRANSFER_PAGES = 2;
+const MAX_TRANSFER_PAGES_DEEP = 1;
 /** Hard wall-clock stop. Whatever hasn't resolved by then reports as capped —
  *  a slower upstream must degrade the trace's depth, never hang the request. */
 const DEADLINE_MS = 45_000;
@@ -53,14 +58,30 @@ const STATIC_ROUTERS = new Set<string>([
   '0xda9aba4eacf54e0273f56dffee6b8f1e20b23bba', // aggregator (verified swap sender)
 ]);
 
-/** Does this address execute swaps (i.e. is it a router/aggregator)? */
+/**
+ * Does this address execute swaps (i.e. is it a router/aggregator)?
+ *
+ * Both subgraphs are asked at once rather than in sequence, and the verdict is
+ * memoised for an hour: whether an address is a router does not change, and
+ * the same handful of aggregators shows up as a sender on nearly every wallet.
+ * Sequential-and-uncached, this was one of the things eating the trace's
+ * wall-clock budget before it could reach a second hop.
+ */
 async function isSwapRouter(pairsByGraph: { url: string; pairIds: string[] }[], addr: string): Promise<boolean> {
   if (STATIC_ROUTERS.has(addr)) return true;
-  for (const g of pairsByGraph) {
-    const d = await gql(g.url, `{ swaps(first:1, where:{sender:"${addr}"}){ id } }`);
-    if ((d?.swaps ?? []).length) return true;
-  }
-  return false;
+  return cached(
+    `origin:isRouter:${addr}`,
+    60 * 60_000,
+    async () => {
+      const hits = await Promise.all(
+        pairsByGraph.map(async (g) => {
+          const d = await gql(g.url, `{ swaps(first:1, where:{sender:"${addr}"}){ id } }`);
+          return (d?.swaps ?? []).length > 0;
+        }),
+      );
+      return hits.some(Boolean);
+    },
+  );
 }
 
 interface Inbound {
@@ -81,6 +102,7 @@ async function inboundBySender(
   token: string,
   wallet: string,
   excludePairs: Set<string>,
+  maxPages: number = MAX_TRANSFER_PAGES,
 ): Promise<{ senders: Inbound[]; totalTokens: number; truncated: boolean } | null> {
   const bySender = new Map<string, Inbound>();
   let totalTokens = 0;
@@ -88,10 +110,10 @@ async function inboundBySender(
   let params = '';
   let sawAny = false;
 
-  for (let page = 0; page < MAX_TRANSFER_PAGES; page++) {
+  for (let page = 0; page < maxPages; page++) {
     const d = await blockscoutJson(
       `/addresses/${wallet}/token-transfers?token=${token}&filter=to${params}`,
-      { timeoutMs: 15_000 },
+      { timeoutMs: 8_000 },
     );
     if (!d) return sawAny ? { senders: [...bySender.values()], totalTokens, truncated: true } : null;
     sawAny = true;
@@ -99,6 +121,10 @@ async function inboundBySender(
       const from = (it?.from?.hash ?? '').toLowerCase();
       const to = (it?.to?.hash ?? '').toLowerCase();
       if (to !== wallet || !ADDR_RX.test(from)) continue;
+      // A wallet sending to itself is not an origin. Left in, it became its
+      // own upstream node — cycle detection then marked that phantom hop
+      // "untraceable", which reads exactly like the trail going cold.
+      if (from === wallet) continue;
       // Transfers from the token's own pairs are the wallet's swap receipts —
       // already counted as buys in holder-detail, not "transfers in".
       if (excludePairs.has(from)) continue;
@@ -125,7 +151,7 @@ async function inboundBySender(
     }
     const next = d.next_page_params;
     if (!next) break;
-    if (page === MAX_TRANSFER_PAGES - 1) {
+    if (page === maxPages - 1) {
       truncated = true;
       break;
     }
@@ -144,19 +170,30 @@ interface BuyRecord {
   avgPriceUsd: number | null;
 }
 
-/** Did this wallet buy the token on PulseX, and at what average price? */
+/**
+ * Did this wallet buy the token on PulseX, and at what average price?
+ *
+ * Both subgraphs in parallel, memoised per wallet — a hub address that fed
+ * several of the holders being traced was otherwise re-queried from scratch
+ * every time it appeared.
+ */
 async function buysFor(pairsByGraph: { url: string; pairIds: string[] }[], token: string, wallet: string): Promise<BuyRecord> {
-  let boughtTokens = 0, boughtUsd = 0;
-  let firstBuyTs: number | null = null;
-  for (const g of pairsByGraph) {
-    if (!g.pairIds.length) continue;
-    const inList = g.pairIds.map((id) => `"${id}"`).join(',');
-    const d = await gql(
-      g.url,
-      `{ swaps(first:1000, orderBy:timestamp, orderDirection:asc, where:{pair_in:[${inList}], from:"${wallet}"})
-         { timestamp amountUSD amount0In amount1In amount0Out amount1Out pair{ token0{ id } } } }`,
+  return cached(`origin:buys:${token}:${wallet}`, CACHE_MS, async () => {
+    let boughtTokens = 0, boughtUsd = 0;
+    let firstBuyTs: number | null = null;
+    const perGraph = await Promise.all(
+      pairsByGraph.map(async (g) => {
+        if (!g.pairIds.length) return [];
+        const inList = g.pairIds.map((id) => `"${id}"`).join(',');
+        const d = await gql(
+          g.url,
+          `{ swaps(first:1000, orderBy:timestamp, orderDirection:asc, where:{pair_in:[${inList}], from:"${wallet}"})
+             { timestamp amountUSD amount0In amount1In amount0Out amount1Out pair{ token0{ id } } } }`,
+        );
+        return (d?.swaps ?? []) as any[];
+      }),
     );
-    for (const s of d?.swaps ?? []) {
+    for (const s of perGraph.flat()) {
       const isTok0 = (s.pair?.token0?.id ?? '').toLowerCase() === token;
       const out = isTok0 ? num(s.amount0Out) : num(s.amount1Out);
       const inn = isTok0 ? num(s.amount0In) : num(s.amount1In);
@@ -167,13 +204,13 @@ async function buysFor(pairsByGraph: { url: string; pairIds: string[] }[], token
         if (firstBuyTs == null || ts < firstBuyTs) firstBuyTs = ts;
       }
     }
-  }
-  return {
-    boughtTokens,
-    boughtUsd,
-    firstBuyTs,
-    avgPriceUsd: boughtTokens > 0 ? boughtUsd / boughtTokens : null,
-  };
+    return {
+      boughtTokens,
+      boughtUsd,
+      firstBuyTs,
+      avgPriceUsd: boughtTokens > 0 ? boughtUsd / boughtTokens : null,
+    };
+  });
 }
 
 /** One resolved hop in a trace. */
@@ -195,6 +232,7 @@ interface TraceNode {
     | { kind: 'known'; category: string | null }
     | { kind: 'depth-capped' }
     | { kind: 'budget-capped' }
+    | { kind: 'time-capped' }
     | { kind: 'untraceable' }
     | null;
   /** Where THIS hop's tokens came from, when we kept walking. */
@@ -218,7 +256,10 @@ async function trace(
   depth: number,
   ctx: TraceCtx,
 ): Promise<{ nodes: TraceNode[]; totalTokens: number; truncated: boolean } | null> {
-  const inbound = await inboundBySender(token, wallet, pairSet);
+  const inbound = await inboundBySender(
+    token, wallet, pairSet,
+    depth === 0 ? MAX_TRANSFER_PAGES : MAX_TRANSFER_PAGES_DEEP,
+  );
   if (!inbound) return null;
 
   const cap = depth === 0 ? MAX_ROOT_SENDERS : MAX_CHILD_SENDERS;
@@ -262,7 +303,14 @@ async function trace(
       node.origin = { kind: 'untraceable' };
       return node;
     }
-    if (ctx.nodes <= 0 || Date.now() > ctx.deadline) {
+    // Two different ceilings that used to report as one. The node budget means
+    // "this wallet has more branches than we walk"; the deadline means "the
+    // upstream was slow today". Only the first is about the data.
+    if (Date.now() > ctx.deadline) {
+      node.origin = { kind: 'time-capped' };
+      return node;
+    }
+    if (ctx.nodes <= 0) {
       node.origin = { kind: 'budget-capped' };
       return node;
     }
@@ -368,6 +416,8 @@ async function build(token: string, wallet: string) {
       truncated: result.truncated,
       nodesUsed: MAX_NODES - ctx.nodes,
       maxDepth: MAX_DEPTH,
+      /** True when the wall clock, not the data, ended the walk. */
+      timedOut: Date.now() > ctx.deadline,
     },
     note:
       'A heuristic walk of inbound transfers. Tokens are fungible, so when a sender both bought and received, both sources are shown — nothing here is folded into PnL.',
