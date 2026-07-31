@@ -2,7 +2,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconHome, IconSearch, IconDots, IconStar } from "@tabler/icons-react";
+import { IconHome, IconDots } from "@tabler/icons-react";
+import { ArtIcon } from "@/components/ui/ArtIcon";
 import { NavigationDrawer } from "./NavigationDrawer";
 import SearchModal from "./Screener/SearchModal";
 import WatchlistModal from "./WatchlistModal";
@@ -33,16 +34,13 @@ export const MobileBottomNav = () => {
     {
       label: "Search",
       onClick: () => setIsSearchOpen(true),
-      icon: <IconSearch className="h-5 w-5" />,
+      icon: <ArtIcon src="/search-icon.png" alt="Search" />,
       isAction: true,
     },
     {
       label: "Portfolio",
       href: "/portfolio",
-      icon: (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/wallet-icon.png" alt="Portfolio" className="h-5 w-5 object-contain" />
-      ),
+      icon: <ArtIcon src="/wallet-icon.png" alt="Portfolio" />,
     },
     {
       label: "HEX",
@@ -55,7 +53,7 @@ export const MobileBottomNav = () => {
     {
       label: "Watchlist",
       onClick: () => setIsWatchlistOpen(true),
-      icon: <IconStar className="h-5 w-5" />,
+      icon: <ArtIcon src="/watchlist-eye.png" alt="Watchlist" mask />,
       isAction: true,
     },
   ];
