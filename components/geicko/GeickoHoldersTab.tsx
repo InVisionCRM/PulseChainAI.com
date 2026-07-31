@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { LoaderThree } from '@/components/ui/loader';
 import { Holder, HolderStats, TokenInfo } from './types';
 import { isBurnAddress } from './utils';
@@ -110,6 +110,8 @@ export interface GeickoHoldersTabProps {
   holderStats: HolderStats;
   /** Is the initial load in flight */
   isLoadingHolders: boolean;
+  /** Token decimals + supply from the holder list itself — the reliable source. */
+  tokenMeta?: { decimals: number | null; totalSupply: string | null } | null;
   /** Token information for decimals and total supply */
   tokenInfo: TokenInfo | null;
   /** Set of LP addresses for tagging */
@@ -142,6 +144,7 @@ export default function GeickoHoldersTab({
   holderStats,
   isLoadingHolders,
   tokenInfo,
+  tokenMeta,
   lpAddressSet,
   onViewHolder,
   hasMore,
@@ -190,6 +193,25 @@ export default function GeickoHoldersTab({
       .catch(() => setOrigins((o) => ({ ...o, [addr]: 'error' })));
   };
 
+  // One fetch path for both the collapsed row's buy/sell counter and the
+  // expanded panel — they want the same record, so the row counter warms the
+  // cache the expand would otherwise wait on.
+  const detailsRef = useRef(details);
+  detailsRef.current = details;
+  const loadDetail = useCallback(
+    (addr: string, balance: number) => {
+      if (!addr || !canExpand || detailsRef.current[addr]) return;
+      setDetails((d) => (d[addr] ? d : { ...d, [addr]: 'loading' }));
+      fetch(
+        `/api/geicko/holder-detail?token=${tokenAddress}&wallet=${addr}&network=pulsechain&balance=${encodeURIComponent(balance)}`,
+      )
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then((d: HolderDetail) => setDetails((prev) => ({ ...prev, [addr]: d })))
+        .catch(() => setDetails((prev) => ({ ...prev, [addr]: 'error' })));
+    },
+    [canExpand, tokenAddress],
+  );
+
   const toggleExpand = (holder: Holder, balance: number) => {
     const addr = (holder.address || '').toLowerCase();
     if (!addr || !canExpand) return;
@@ -199,14 +221,7 @@ export default function GeickoHoldersTab({
     }
     setExpanded(addr);
     fetchClusters();
-    if (details[addr]) return;
-    setDetails((d) => ({ ...d, [addr]: 'loading' }));
-    fetch(
-      `/api/geicko/holder-detail?token=${tokenAddress}&wallet=${addr}&network=pulsechain&balance=${encodeURIComponent(balance)}`,
-    )
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d: HolderDetail) => setDetails((prev) => ({ ...prev, [addr]: d })))
-      .catch(() => setDetails((prev) => ({ ...prev, [addr]: 'error' })));
+    loadDetail(addr, balance);
   };
 
   // Auto-load the next page when the sentinel scrolls into view (infinite
@@ -253,8 +268,17 @@ export default function GeickoHoldersTab({
     );
   }
 
-  const decimals = tokenInfo?.decimals ? Number(tokenInfo.decimals) : 18;
-  const totalSupply = tokenInfo?.total_supply ? Number(tokenInfo.total_supply) : 0;
+  // The holder list carries the token's own decimals and supply; the separate
+  // token-info fetch is the flakier source and resolves to null often enough
+  // that trusting it alone rendered every pSSH balance as "0". When neither
+  // knows the scale we show "—" rather than a number that is off by 10^9.
+  const decimals =
+    tokenMeta?.decimals != null
+      ? tokenMeta.decimals
+      : tokenInfo?.decimals != null
+        ? Number(tokenInfo.decimals)
+        : null;
+  const totalSupply = Number(tokenMeta?.totalSupply ?? tokenInfo?.total_supply ?? 0) || 0;
 
   // Holders accumulate in the parent and are lazily fetched a page at a time, so
   // render everything loaded so far; the footer/sentinel pulls the next page.
@@ -311,6 +335,11 @@ export default function GeickoHoldersTab({
           <div className="flex-[1.6] min-w-[64px]">Balance</div>
           <div className="flex-[1.3] min-w-[52px]" title="Estimated wallet value from native coin, wrapped native, core majors and pegged stablecoins">Wallet $</div>
           <div className="flex-[1.1] min-w-[48px]">% Total</div>
+          {canExpand && (
+            <div className="flex-[0.9] min-w-[46px]" title="Buys / sells this wallet sent on PulseX">
+              B/S
+            </div>
+          )}
           <div className="flex-[0.8] min-w-[64px]">View</div>
         </div>
 
@@ -318,7 +347,7 @@ export default function GeickoHoldersTab({
         <div className="divide-y divide-[var(--line)]">
           {visibleHolders.map((holder, i) => {
             const globalIndex = startIndex + i + 1;
-            const balance = Number(holder.value) / Math.pow(10, decimals);
+            const balance = decimals == null ? 0 : Number(holder.value) / Math.pow(10, decimals);
             const percentage = totalSupply > 0 ? (Number(holder.value) / totalSupply) * 100 : 0;
             const formattedAddress = holder.address
               ? holder.address.slice(-4)
@@ -333,9 +362,19 @@ export default function GeickoHoldersTab({
               <React.Fragment key={holder.address || i}>
               <div
                 onClick={expandable ? () => toggleExpand(holder, balance) : undefined}
-                className={`flex items-center px-2 py-1 text-sm hover:bg-[var(--surface)] transition-colors ${
+                /* With a row open, everything else fades back so the record you
+                   opened is the only thing competing for attention. Opacity and
+                   a grayscale pass rather than an overlay: an overlay would sit
+                   above the table and swallow the clicks that close the row. */
+                className={`flex items-center px-2 py-1 text-sm transition-all duration-200 ${
                   expandable ? 'cursor-pointer' : ''
-                } ${isOpen ? 'bg-[var(--surface)]' : ''}`}
+                } ${
+                  isOpen
+                    ? 'bg-[var(--surface)] ring-1 ring-inset ring-cyan-500/40'
+                    : expanded
+                      ? 'opacity-30 grayscale hover:opacity-60'
+                      : 'hover:bg-[var(--surface)]'
+                }`}
               >
                 {/* Rank (with the expand cue folded in) */}
                 <div className="flex-[0.6] min-w-[30px] flex items-center gap-1 text-[var(--text)] font-medium">
@@ -376,7 +415,9 @@ export default function GeickoHoldersTab({
 
                 {/* Balance */}
                 <div className="flex-[1.6] min-w-[64px] text-[var(--text)] truncate font-semibold">
-                  {fmtAmount(Math.floor(balance))}
+                  {decimals == null
+                    ? <span className="text-[var(--text-faint)]" title="Token decimals unknown">—</span>
+                    : fmtAmount(Math.floor(balance))}
                 </div>
 
                 {/* Estimated wallet value (core + stablecoins). '—' while its
@@ -397,6 +438,18 @@ export default function GeickoHoldersTab({
                 <div className="flex-[1.1] min-w-[48px] text-[var(--text)] font-semibold">
                   {percentage.toFixed(1)}%
                 </div>
+
+                {/* Buys / sells, without having to open the row. */}
+                {canExpand && (
+                  <div className="flex-[0.9] min-w-[46px] text-[11px] font-semibold">
+                    <TradeCounter
+                      address={addrLower}
+                      balance={balance}
+                      state={details[addrLower]}
+                      onNeed={loadDetail}
+                    />
+                  </div>
+                )}
 
                 {/* View / Save Buttons */}
                 <div
@@ -641,6 +694,64 @@ function ClusterLine({
       Not in any shared-funder cluster among the analyzed top holders.
     </div>
   );
+}
+
+/* ───────────────────────── collapsed-row trade counter ───────────────────── */
+
+/**
+ * Buys/sells for one holder, shown without expanding the row.
+ *
+ * The count is exact per wallet but there is no cheap way to get it in bulk:
+ * batching the subgraph by `from_in` hits the 1000-row page cap on a handful
+ * of wallets alone (one pSSH holder has ~4,000 swaps), and a truncated count
+ * is worse than none. So each row asks for its own record, and only once it
+ * has actually been scrolled into view — the table stays cheap when nobody
+ * looks past the first screen, and the fetch warms the cache the expanded
+ * panel would otherwise wait on.
+ */
+function TradeCounter({
+  address,
+  balance,
+  state,
+  onNeed,
+}: {
+  address: string;
+  balance: number;
+  state: DetailState | undefined;
+  onNeed: (addr: string, balance: number) => void;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || state || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          io.disconnect();
+          onNeed(address, balance);
+        }
+      },
+      { rootMargin: '120px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [address, balance, state, onNeed]);
+
+  let body: React.ReactNode = <span className="text-[var(--text-faint)]">—</span>;
+  if (state && state !== 'loading' && state !== 'error' && state.hasData) {
+    const t = state.trades;
+    body = (
+      <span className="tabular-nums" title={`${t.buyCount} buys · ${t.sellCount} sells on PulseX`}>
+        <span className="text-emerald-400">{fmtNum(t.buyCount)}</span>
+        <span className="text-[var(--text-faint)]">/</span>
+        <span className="text-red-400">{fmtNum(t.sellCount)}</span>
+      </span>
+    );
+  } else if (state && state !== 'loading' && state !== 'error') {
+    // Resolved, but this wallet never swapped on PulseX.
+    body = <span className="text-[var(--text-faint)]" title="No PulseX swaps — received by transfer">0/0</span>;
+  }
+  return <div ref={ref}>{body}</div>;
 }
 
 /* ─────────────────── where transferred tokens came from ─────────────────── */

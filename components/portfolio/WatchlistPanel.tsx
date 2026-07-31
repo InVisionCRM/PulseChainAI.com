@@ -308,7 +308,16 @@ export function WatchlistPanel({
           className="w-full rounded-lg bg-[var(--surface-2)] border border-[var(--line)] pl-8 pr-2 py-2 text-sm text-[var(--text)] placeholder-[var(--text-faint)] focus:outline-none focus:border-orange-500/60"
         />
         {open && query.trim().length >= 2 && (
-          <div className="absolute z-20 left-0 right-0 mt-1 rounded-lg border border-[var(--line)] bg-[var(--surface-2)] shadow-2xl max-h-72 overflow-y-auto">
+          <div
+            /* 80% ground with a blur behind it. Mixed off --panel, which is
+               opaque in both themes (#fff / #0C2340) — mixing off --surface-2
+               compounds instead, because that token is already ~10% white, so
+               "80%" of it computed out at 8% and looked like no change at all.
+               Tailwind's /80 modifier can't touch a CSS variable, hence the
+               explicit mix. */
+            style={{ backgroundColor: 'color-mix(in srgb, var(--panel) 80%, transparent)' }}
+            className="absolute z-20 left-0 right-0 mt-1 rounded-lg border border-[var(--line)] shadow-2xl backdrop-blur-md max-h-72 overflow-y-auto"
+          >
             {searching && hits.length === 0 && (
               <div className="px-3 py-2 text-xs text-[var(--text-faint)]">Searching…</div>
             )}
