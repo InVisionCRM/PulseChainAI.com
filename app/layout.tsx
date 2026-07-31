@@ -15,6 +15,7 @@ import {
   IconBook,
 } from "@tabler/icons-react";
 import { ArtIcon } from "@/components/ui/ArtIcon";
+import { DesktopSearchBar } from "@/components/DesktopSearchBar";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -183,7 +184,15 @@ export default function RootLayout({
           <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
             <SidebarBody>
                 <div className="flex flex-1 flex-col overflow-x-hidden min-h-0">
-                  <div className="mt-3 flex w-full flex-col gap-1 text-sm">
+                  {/* Search sits above the links because it is the most-used
+                      control in the column. Click-only on purpose: the pages
+                      that want "/" and Ctrl+K already bind them (the screener
+                      on home, the bar on geicko), and a second listener here
+                      opened two modals on one keypress. */}
+                  <div className="mt-3 px-1">
+                    <DesktopSearchBar neon bindShortcuts={false} />
+                  </div>
+                  <div className="mt-2 flex w-full flex-col gap-1 text-sm">
                     {/* Nav links only. Get Morbius / Install / Theme moved to
                         the column's footer, above the chat button, so the
                         scrolling region is links and nothing else. Community
