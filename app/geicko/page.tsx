@@ -47,6 +47,7 @@ import {
   GeickoLiquidityPanel,
   GeickoVolumePanel,
   GeickoLibertyTab,
+  TradeDepthPanel,
   GeickoPressurePanel,
   GeickoTradesTab,
   GeickoForensicsTab,
@@ -2551,7 +2552,20 @@ function GeickoPageContent() {
 
               {/* Liquidity Tab — all liquidity UI lives here. Pairs from GeckoTerminal. */}
               {activeTab === 'liquidity' && (
-                <div className="p-2 md:p-3">
+                <div className="space-y-4 p-2 md:p-3">
+                  {/* What a real trade would execute at, quoted on chain through
+                      the PulseX router. Sits above the pool list because "how
+                      much does $10k move the price" is the question TVL can't
+                      answer. PulseChain only — the router is chain-specific. */}
+                  {apiTokenAddress && network === 'pulsechain' && (
+                    <TradeDepthPanel
+                      token={apiTokenAddress}
+                      venue="pulsex"
+                      symbol={baseSymbol}
+                      priceUsd={priceUsd}
+                      heading
+                    />
+                  )}
                   {apiTokenAddress && (
                     <GeickoLiquidityPanel
                       network={displayPair?.chainId}

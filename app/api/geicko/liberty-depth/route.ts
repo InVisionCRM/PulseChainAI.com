@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethCall } from '@/lib/portfolio/evmRpc';
 import { cached } from '@/lib/geicko/serverCache';
-import { PULSEX_SUBGRAPHS, gql, num } from '@/lib/geicko/pulsex';
+import {
+  ADDR_RX, NOTIONALS_USD, pad, word, toUnits, fromUnits,
+  pulsexTokenMeta, onChainDecimals, buySteps, sellSteps, vsMarket,
+  type RawBuy, type RawSell,
+} from '@/lib/dex/depth';
 import {
   LIBERTY_FACTORY,
   LIBERTY_QUOTER_V2,
@@ -29,22 +33,7 @@ import {
 export const revalidate = 0;
 export const maxDuration = 60;
 
-const ADDR_RX = /^0x[a-fA-F0-9]{40}$/;
 const CACHE_MS = 60_000;
-/** Trade sizes probed, in USD. Small enough to read spot, large enough to bite. */
-const NOTIONALS_USD = [100, 1_000, 10_000] as const;
-
-const pad = (a: string) => a.toLowerCase().replace(/^0x/, '').padStart(64, '0');
-const word = (n: bigint | number) => BigInt(n).toString(16).padStart(64, '0');
-
-/** Decimal amount → integer token units, without going through a float. */
-function toUnits(amount: number, decimals: number): bigint {
-  if (!Number.isFinite(amount) || amount <= 0) return 0n;
-  const [whole, frac = ''] = amount.toFixed(Math.min(decimals, 18)).split('.');
-  return BigInt(whole + frac.padEnd(decimals, '0').slice(0, decimals));
-}
-
-const fromUnits = (v: bigint, decimals: number) => Number(v) / 10 ** decimals;
 
 /**
  * `QuoterV2.quoteExactInputSingle`. Returns null when the call reverts, which
@@ -55,16 +44,14 @@ async function quote(
   tokenOut: string,
   amountIn: bigint,
   fee: number,
-): Promise<{ out: bigint; gas: number } | null> {
+): Promise<bigint | null> {
   if (amountIn <= 0n) return null;
   const data =
     '0xc6a5026a' + pad(tokenIn) + pad(tokenOut) + word(amountIn) + word(fee) + word(0);
   const res = await ethCall('pulsechain', LIBERTY_QUOTER_V2, data);
   if (!res || res.length < 2 + 64 * 4) return null;
-  const hex = res.slice(2);
-  const out = BigInt('0x' + hex.slice(0, 64));
-  if (out <= 0n) return null;
-  return { out, gas: Number(BigInt('0x' + hex.slice(192, 256))) };
+  const out = BigInt('0x' + res.slice(2).slice(0, 64));
+  return out > 0n ? out : null;
 }
 
 async function poolAddress(tokenA: string, tokenB: string, fee: number): Promise<string | null> {
@@ -78,63 +65,9 @@ async function poolAddress(tokenA: string, tokenB: string, fee: number): Promise
   return /^0x0{40}$/.test(addr) ? null : addr;
 }
 
-interface TokenMeta {
-  symbol: string | null;
-  decimals: number | null;
-  priceUsd: number;
-}
-
-/** Symbol, decimals and USD price for a batch of tokens, from PulseX. */
-async function pulsexMeta(addresses: string[]): Promise<Record<string, TokenMeta>> {
-  const out: Record<string, TokenMeta> = {};
-  for (const url of PULSEX_SUBGRAPHS) {
-    const missing = addresses.filter((a) => !out[a] || out[a].priceUsd <= 0);
-    if (!missing.length) break;
-    const fields = missing
-      .map((a, i) => `t${i}: token(id:"${a}"){ symbol decimals derivedUSD }`)
-      .join(' ');
-    const d = await gql(url, `{ ${fields} }`);
-    if (!d) continue;
-    missing.forEach((a, i) => {
-      const t = d[`t${i}`];
-      if (!t) return;
-      const price = num(t.derivedUSD);
-      const prev = out[a];
-      if (prev && prev.priceUsd > 0 && price <= 0) return;
-      out[a] = {
-        symbol: t.symbol ?? prev?.symbol ?? null,
-        decimals: t.decimals != null ? Number(t.decimals) : (prev?.decimals ?? null),
-        priceUsd: price > 0 ? price : (prev?.priceUsd ?? 0),
-      };
-    });
-  }
-  return out;
-}
-
-/** ERC-20 `decimals()`, for a token PulseX has never indexed. */
-async function onChainDecimals(token: string): Promise<number | null> {
-  const res = await ethCall('pulsechain', token, '0x313ce567');
-  if (!res) return null;
-  const d = Number(BigInt(res));
-  return d >= 0 && d <= 36 ? d : null;
-}
-
-interface Step {
-  usd: number;
-  /** Tokens received (buy) or spent (sell). */
-  tokens: number;
-  /** USD paid (buy) or received (sell). */
-  usdOther: number;
-  /** USD per token this trade actually executes at. */
-  effectivePrice: number;
-  /** How much worse than the smallest probed size, in percent. */
-  impactPct: number;
-  gas: number;
-}
-
 async function build(token: string, priceHint: number) {
   const hubAddrs = LIBERTY_HUBS.map((h) => h.address);
-  const meta = await pulsexMeta([token, ...hubAddrs]);
+  const meta = await pulsexTokenMeta([token, ...hubAddrs]);
 
   const tokenDecimals = meta[token]?.decimals ?? (await onChainDecimals(token));
   if (tokenDecimals == null) {
@@ -153,9 +86,9 @@ async function build(token: string, priceHint: number) {
       const hubPrice = meta[hub.address]?.priceUsd ?? 0;
       if (hubPrice <= 0) return null;
       const amountIn = toUnits(probeUsd / hubPrice, hub.decimals);
-      const q = await quote(hub.address, token, amountIn, fee);
-      if (!q) return null;
-      return { hub, fee, hubPrice, tokensOut: fromUnits(q.out, tokenDecimals) };
+      const out = await quote(hub.address, token, amountIn, fee);
+      if (out == null) return null;
+      return { hub, fee, hubPrice, tokensOut: fromUnits(out, tokenDecimals) };
     }),
   );
 
@@ -177,51 +110,25 @@ async function build(token: string, priceHint: number) {
   const [buyRaw, sellRaw, pool] = await Promise.all([
     Promise.all(
       NOTIONALS_USD.map(async (usd) => {
-        const q = await quote(hub.address, token, toUnits(usd / hubPrice, hub.decimals), fee);
-        return q ? { usd, tokens: fromUnits(q.out, tokenDecimals), gas: q.gas } : null;
+        const out = await quote(hub.address, token, toUnits(usd / hubPrice, hub.decimals), fee);
+        return out == null ? null : { usd, tokens: fromUnits(out, tokenDecimals) };
       }),
     ),
     Promise.all(
       NOTIONALS_USD.map(async (usd) => {
         if (marketPrice <= 0) return null;
-        const q = await quote(token, hub.address, toUnits(usd / marketPrice, tokenDecimals), fee);
-        return q
-          ? { usd, tokens: usd / marketPrice, hubOut: fromUnits(q.out, hub.decimals), gas: q.gas }
-          : null;
+        const out = await quote(token, hub.address, toUnits(usd / marketPrice, tokenDecimals), fee);
+        return out == null
+          ? null
+          : { usd, tokens: usd / marketPrice, usdOut: fromUnits(out, hub.decimals) * hubPrice };
       }),
     ),
     poolAddress(hub.address, token, fee),
   ]);
 
-  const buys = buyRaw.filter((b): b is NonNullable<typeof b> => b != null && b.tokens > 0);
-  const sells = sellRaw.filter((s): s is NonNullable<typeof s> => s != null && s.hubOut > 0);
-
-  const buyBase = buys.length ? buys[0].usd / buys[0].tokens : 0;
-  const buySteps: Step[] = buys.map((b) => {
-    const eff = b.usd / b.tokens;
-    return {
-      usd: b.usd,
-      tokens: b.tokens,
-      usdOther: b.usd,
-      effectivePrice: eff,
-      impactPct: buyBase > 0 ? (eff / buyBase - 1) * 100 : 0,
-      gas: b.gas,
-    };
-  });
-
-  const sellBase = sells.length ? (sells[0].hubOut * hubPrice) / sells[0].tokens : 0;
-  const sellSteps: Step[] = sells.map((s) => {
-    const usdOut = s.hubOut * hubPrice;
-    const eff = usdOut / s.tokens;
-    return {
-      usd: s.usd,
-      tokens: s.tokens,
-      usdOther: usdOut,
-      effectivePrice: eff,
-      impactPct: sellBase > 0 ? (1 - eff / sellBase) * 100 : 0,
-      gas: s.gas,
-    };
-  });
+  const buys: RawBuy[] = buyRaw.filter((b): b is RawBuy => b != null && b.tokens > 0);
+  const sells: RawSell[] = sellRaw.filter((s): s is RawSell => s != null && s.usdOut > 0);
+  const buy = buySteps(buys);
 
   return {
     supported: true,
@@ -244,13 +151,13 @@ async function build(token: string, priceHint: number) {
         .map((l) => l.fee)
         .sort((a, b) => a - b),
     },
-    buy: buySteps,
-    sell: sellSteps,
+    buy,
+    sell: sellSteps(sells),
     /**
      * LibertySwap's small-trade price against the token's market price.
      * Positive means buying here costs more than it should.
      */
-    vsMarketPct: marketPrice > 0 && buyBase > 0 ? (buyBase / marketPrice - 1) * 100 : null,
+    vsMarketPct: vsMarket(buy, marketPrice),
     note: 'Simulated on chain with LibertySwap QuoterV2. Read-only — no transaction data is produced here.',
   };
 }

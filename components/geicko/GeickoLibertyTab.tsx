@@ -18,8 +18,9 @@
 // browser, so a compromised upstream can mislead a reader but cannot move
 // anyone's money. The actual swap or bridge happens on LibertySwap.
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
+import TradeDepthPanel from './TradeDepthPanel';
 import {
   LIBERTY_FACTORY,
   LIBERTY_SWAP_ROUTER,
@@ -29,34 +30,6 @@ import {
   LIBERTY_BRIDGE_MAX_UNITS,
 } from '@/lib/dex/libertyswap';
 
-interface Step {
-  usd: number;
-  tokens: number;
-  usdOther: number;
-  effectivePrice: number;
-  impactPct: number;
-  gas: number;
-}
-interface DepthResp {
-  supported?: boolean;
-  hasRoute?: boolean;
-  reason?: string;
-  symbol?: string | null;
-  marketPriceUsd?: number;
-  route?: {
-    hub: string;
-    hubAddress: string;
-    feeTier: number;
-    feePct: number;
-    pool: string | null;
-    tiersWithLiquidity: number[];
-  };
-  buy?: Step[];
-  sell?: Step[];
-  vsMarketPct?: number | null;
-  hubsChecked?: string[];
-  error?: string;
-}
 interface BridgeResp {
   ok?: boolean;
   direction?: 'in' | 'out';
@@ -67,31 +40,6 @@ interface BridgeResp {
   feePct?: number;
   feeAmount?: number;
   error?: string;
-}
-
-const fmtUsd = (v: number) => {
-  const a = Math.abs(v);
-  const s = v < 0 ? '-' : '';
-  if (a >= 1e3) return `${s}$${a.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-  if (a >= 1) return `${s}$${a.toFixed(2)}`;
-  return `${s}$${a.toFixed(4)}`;
-};
-/** Prices here run from cents to 1e-9, so significant digits beat fixed ones. */
-const fmtPrice = (v: number) => (v > 0 ? `$${v.toPrecision(5)}` : '—');
-const fmtTokens = (v: number) => {
-  if (v >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
-  if (v >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
-  if (v >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
-  return v.toFixed(v >= 1 ? 2 : 6);
-};
-const pct = (v: number, digits = 2) => `${v >= 0 ? '' : '-'}${Math.abs(v).toFixed(digits)}%`;
-
-/** Impact is only alarming past a point; colour it rather than make people read. */
-function impactClass(p: number): string {
-  if (p < 1) return 'text-[var(--up)]';
-  if (p < 5) return 'text-[var(--text)]';
-  if (p < 20) return 'text-amber-400';
-  return 'text-red-400';
 }
 
 function Addr({ label, address }: { label: string; address: string }) {
@@ -107,169 +55,6 @@ function Addr({ label, address }: { label: string; address: string }) {
         {address.slice(0, 6)}…{address.slice(-4)}
       </span>
     </a>
-  );
-}
-
-// ── depth ───────────────────────────────────────────────────────────────────
-
-/**
- * Four columns a side, so both tables fit next to each other without a
- * horizontal scrollbar swallowing the slippage figure. The buy side's answer
- * is "how many tokens", the sell side's is "how many dollars back"; the other
- * leg of each trade is the ticket, and the exact amount is on hover.
- */
-function DepthTable({ side, steps, symbol }: { side: 'buy' | 'sell'; steps: Step[]; symbol: string }) {
-  const buying = side === 'buy';
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[300px] text-left text-[12px]">
-        <thead>
-          <tr className="border-b border-[var(--line)] text-[10px] uppercase tracking-wider text-[var(--text-faint)]">
-            <th className="py-1.5 pr-2 font-medium">Ticket</th>
-            <th className="py-1.5 pr-2 font-medium">You get</th>
-            <th className="py-1.5 pr-2 font-medium">Price</th>
-            <th className="py-1.5 font-medium">Slippage</th>
-          </tr>
-        </thead>
-        <tbody>
-          {steps.map((s) => (
-            <tr key={s.usd} className="border-b border-[var(--line)]/50 last:border-0">
-              <td
-                className="py-1.5 pr-2 font-semibold text-[var(--text)]"
-                title={buying ? undefined : `${fmtTokens(s.tokens)} ${symbol} in`}
-              >
-                {fmtUsd(s.usd)}
-              </td>
-              <td className="py-1.5 pr-2 text-[var(--text)]">
-                {buying ? `${fmtTokens(s.tokens)} ${symbol}` : fmtUsd(s.usdOther)}
-              </td>
-              <td className="py-1.5 pr-2 font-mono text-[11px] text-[var(--text)]">
-                {fmtPrice(s.effectivePrice)}
-              </td>
-              <td className={`py-1.5 font-semibold ${impactClass(s.impactPct)}`}>
-                {s.impactPct <= 0.005 ? '—' : pct(s.impactPct)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function DepthSection({ token, priceUsd, symbol }: { token: string; priceUsd?: number; symbol: string }) {
-  const [data, setData] = useState<DepthResp | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!token) return;
-    let alive = true;
-    setLoading(true);
-    const price = priceUsd && priceUsd > 0 ? `&price=${priceUsd}` : '';
-    fetch(`/api/geicko/liberty-depth?token=${token}&network=pulsechain${price}`)
-      .then((r) => r.json())
-      .then((d) => alive && setData(d))
-      .catch(() => alive && setData({ error: 'Could not reach the quoter' }))
-      .finally(() => alive && setLoading(false));
-    return () => {
-      alive = false;
-    };
-  }, [token, priceUsd]);
-
-  if (loading) {
-    return (
-      <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4 text-[13px] text-[var(--text-muted)]">
-        Simulating trades through LibertySwap…
-      </div>
-    );
-  }
-  if (!data || data.error) {
-    return (
-      <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4 text-[13px] text-[var(--text-muted)]">
-        {data?.error ?? 'No response from the quoter.'}
-      </div>
-    );
-  }
-  if (!data.hasRoute) {
-    return (
-      <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4">
-        <div className="text-[13px] font-semibold text-[var(--text)]">No LibertySwap pool</div>
-        <p className="mt-1 text-[12px] leading-relaxed text-[var(--text-muted)]">
-          {data.reason === 'unknown-decimals'
-            ? 'This contract did not answer decimals(), so a quote cannot be scaled correctly.'
-            : `LibertySwap has no pool for this token against ${(data.hubsChecked ?? []).join(', ')} on any of its four fee tiers. That is normal — it is a small venue with a few hundred pools, not a mirror of PulseX.`}
-        </p>
-      </div>
-    );
-  }
-
-  const r = data.route!;
-  const vs = data.vsMarketPct;
-
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-md border border-[var(--line-strong)] bg-[var(--surface)] px-2 py-1 text-[11px] font-semibold text-[var(--text)]">
-          via {r.hub}
-        </span>
-        <span className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-2 py-1 text-[11px] text-[var(--text-muted)]">
-          {r.feePct}% fee tier
-        </span>
-        {r.tiersWithLiquidity.length > 1 && (
-          <span className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-2 py-1 text-[11px] text-[var(--text-faint)]">
-            best of {r.tiersWithLiquidity.map((t) => `${t / 10_000}%`).join(', ')}
-          </span>
-        )}
-        {r.pool && (
-          <a
-            href={pulsechainAddressUrl(r.pool)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-2 py-1 font-mono text-[11px] text-[var(--text-muted)] transition-colors hover:border-[var(--line-strong)] hover:text-[var(--text)]"
-          >
-            pool {r.pool.slice(0, 6)}…{r.pool.slice(-4)}
-          </a>
-        )}
-        {vs != null && (
-          <span
-            className={`rounded-md border border-[var(--line)] bg-[var(--surface)] px-2 py-1 text-[11px] font-semibold ${
-              Math.abs(vs) < 2 ? 'text-[var(--up)]' : 'text-amber-400'
-            }`}
-            title="LibertySwap's small-trade price against this token's market price. Near zero means the pool is well arbitraged."
-          >
-            {pct(vs)} vs market
-          </span>
-        )}
-      </div>
-
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3">
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--up)]">
-            Buying {symbol}
-          </div>
-          <DepthTable side="buy" steps={data.buy ?? []} symbol={symbol} />
-        </div>
-        <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3">
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-red-400">
-            Selling {symbol}
-          </div>
-          {data.sell?.length ? (
-            <DepthTable side="sell" steps={data.sell} symbol={symbol} />
-          ) : (
-            <p className="py-3 text-[12px] text-[var(--text-muted)]">
-              No sell quote — the market price needed to size the trade is unknown.
-            </p>
-          )}
-        </div>
-      </div>
-
-      <p className="text-[11px] leading-relaxed text-[var(--text-faint)]">
-        Slippage is measured against the $100 ticket, the closest thing to spot this pool can
-        quote. Every figure is a live <span className="font-mono">eth_call</span> to LibertySwap&apos;s
-        QuoterV2, so it includes the pool&apos;s real curve — not a mid-price estimate — but it is a
-        simulation, not a guaranteed fill.
-      </p>
-    </div>
   );
 }
 
@@ -448,7 +233,7 @@ export default function GeickoLibertyTab({ token, symbol, priceUsd }: GeickoLibe
         </p>
       </div>
 
-      <DepthSection token={token} priceUsd={priceUsd} symbol={sym} />
+      <TradeDepthPanel token={token} venue="liberty" symbol={sym} priceUsd={priceUsd} />
 
       <BridgeSection />
 
