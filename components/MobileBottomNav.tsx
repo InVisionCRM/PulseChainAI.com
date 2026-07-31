@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconHome, IconSearch, IconWallet, IconDots, IconStar } from "@tabler/icons-react";
+import { IconHome, IconSearch, IconDots, IconStar } from "@tabler/icons-react";
 import { NavigationDrawer } from "./NavigationDrawer";
 import SearchModal from "./Screener/SearchModal";
 import WatchlistModal from "./WatchlistModal";
@@ -39,7 +39,10 @@ export const MobileBottomNav = () => {
     {
       label: "Portfolio",
       href: "/portfolio",
-      icon: <IconWallet className="h-5 w-5" />,
+      icon: (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/wallet-icon.png" alt="Portfolio" className="h-5 w-5 object-contain" />
+      ),
     },
     {
       label: "HEX",

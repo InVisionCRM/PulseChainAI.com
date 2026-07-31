@@ -4,7 +4,6 @@ import {
   IconBook,
   IconCurrencyDollar,
   IconPhoneOutgoing,
-  IconWallet,
   IconX,
 } from "@tabler/icons-react";
 import {
@@ -32,7 +31,8 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
     {
       label: "Portfolio",
       href: "/portfolio",
-      icon: <IconWallet className="h-8 w-8" />,
+      // eslint-disable-next-line @next/next/no-img-element
+      icon: <img src="/wallet-icon.png" alt="Portfolio" className="h-8 w-8 object-contain" />,
     },
     {
       label: "SuperStake",

@@ -14,7 +14,6 @@ import {
   IconX,
   IconCurrencyDollar,
   IconBook,
-  IconWallet,
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -125,7 +124,8 @@ export default function RootLayout({
       label: "Portfolio",
       href: "/portfolio",
       icon: (
-        <IconWallet className="h-5 w-5 shrink-0 text-[var(--text)]" />
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/wallet-icon.png" alt="Portfolio" className="h-5 w-5 shrink-0 object-contain" />
       ),
     },
     {
