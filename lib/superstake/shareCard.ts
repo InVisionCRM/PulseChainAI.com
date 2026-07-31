@@ -89,6 +89,8 @@ export interface SimShare {
   hexDriftPct: number;
   psshDriftPct: number;
   volumeDriftPct: number;
+  /** HEX stake yield the run assumed, % of the pool per cycle. */
+  yieldPct: number;
   /** The holder's side. */
   endValue: number;
   multiple: number;
@@ -1320,14 +1322,15 @@ function simPct(n: number): string {
   return `${n.toFixed(n >= 1 ? 2 : 4)}%`;
 }
 
-/** The drifts in one line, so no card shows a result without its assumptions. */
+/** The assumptions in one line, so no card shows a result without them. */
 function drifts(s: SimShare): string {
-  const parts: string[] = [];
+  const parts: string[] = [`yield ${s.yieldPct.toFixed(2)}%/cycle`];
   const add = (name: string, p: number) => p !== 0 && parts.push(`${name} ${p > 0 ? '+' : ''}${p}%/cycle`);
   add('pSSH', s.psshDriftPct);
   add('HEX', s.hexDriftPct);
   add('volume', s.volumeDriftPct);
-  return parts.length ? parts.join(' · ') : 'prices and volume held flat';
+  if (parts.length === 1) parts.push('prices flat');
+  return parts.join(' · ');
 }
 
 /** How long the run covers, in years, for the simulator's subtitles. */
