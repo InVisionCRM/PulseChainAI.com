@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconHome, IconDots } from "@tabler/icons-react";
+import { IconDots } from "@tabler/icons-react";
 import { ArtIcon } from "@/components/ui/ArtIcon";
 import { NavigationDrawer } from "./NavigationDrawer";
 import SearchModal from "./Screener/SearchModal";
@@ -29,7 +29,7 @@ export const MobileBottomNav = () => {
     {
       label: "Home",
       href: "/",
-      icon: <IconHome className="h-5 w-5" />,
+      icon: <ArtIcon src="/home-icon.png" alt="Home" />,
     },
     {
       label: "Search",
