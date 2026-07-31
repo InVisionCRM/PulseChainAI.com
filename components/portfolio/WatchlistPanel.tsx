@@ -33,6 +33,7 @@ import {
 import { geickoHref } from '@/lib/geicko/link';
 import type { ChainId } from '@/services';
 import { fmtPrice, fmtPct } from '@/lib/format';
+import { bsFetchJson } from '@/lib/blockscout';
 
 const ADDRESS_RX = /^0x[a-fA-F0-9]{40}$/;
 
@@ -78,9 +79,11 @@ async function searchCrossChain(query: string): Promise<SearchHit[]> {
     const results = await Promise.all(
       (['pulsechain', 'ethereum', 'robinhood'] as ChainId[]).map(async (chain) => {
         try {
-          const r = await fetch(`${BLOCKSCOUT_BASE[chain]}/tokens/${q}`);
-          if (!r.ok) return null;
-          const d = await r.json();
+          const d = await bsFetchJson(
+            `${BLOCKSCOUT_BASE[chain]}/tokens/${q}`,
+            { headers: { Accept: 'application/json' } },
+            12_000,
+          );
           if (!d?.symbol || !d?.name) return null;
           return {
             address: q.toLowerCase(),
@@ -101,11 +104,11 @@ async function searchCrossChain(query: string): Promise<SearchHit[]> {
   const lists = await Promise.all(
     (['pulsechain', 'ethereum', 'robinhood'] as ChainId[]).map(async (chain) => {
       try {
-        const r = await fetch(
+        const d = await bsFetchJson(
           `${BLOCKSCOUT_BASE[chain]}/search?q=${encodeURIComponent(q)}`,
+          { headers: { Accept: 'application/json' } },
+          12_000,
         );
-        if (!r.ok) return [] as SearchHit[];
-        const d = await r.json();
         const items: any[] = d?.items || [];
         return items
           .filter((i) => i.type === 'token')

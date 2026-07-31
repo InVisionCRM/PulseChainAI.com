@@ -4,6 +4,7 @@ import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import { pulsechainApi, fetchDexScreenerData, search, type TokenInfoDetailed } from '@/services';
 import { Button } from '@/components/ui/stateful-button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
+import { bsFetchJsonOrThrow } from '@/lib/blockscout';
 
 const MAX_SNIPPET_CHARS = 400;
 
@@ -467,13 +468,12 @@ export default function AdminStatsPanel({
     return d.toISOString();
   }, []);
 
+  // Retries transient explorer failures instead of throwing on the first 500.
   const fetchJson = async (url: string, options?: { method?: string }): Promise<unknown> => {
-    const res = await fetch(url, { 
+    return bsFetchJsonOrThrow(url, {
       method: options?.method || 'GET',
-      headers: { Accept: 'application/json' } 
+      headers: { Accept: 'application/json' },
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
   };
 
   // formatting helpers

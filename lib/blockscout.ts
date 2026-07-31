@@ -75,6 +75,32 @@ export async function blockscoutJson(
   return null;
 }
 
+/**
+ * Client-safe wrapper around `bsFetchJson` for browser code.
+ *
+ * Client components historically called `fetch()` directly and threw on the
+ * first non-OK response. Against a primary that fails intermittently (measured:
+ * 8 of 30 concurrent requests returning HTTP 500) a no-retry call breaks the UI
+ * constantly, while server routes sail through on `bsFetchJson`'s retries. This
+ * shares that one retry policy with the browser.
+ *
+ * Throws (rather than returning null) so existing client `try/catch` paths keep
+ * working unchanged.
+ */
+export async function bsFetchJsonOrThrow(
+  url: string,
+  init?: RequestInit,
+  timeoutMs = 12_000,
+): Promise<any> {
+  const data = await bsFetchJson(
+    url,
+    init ?? { headers: { Accept: 'application/json' } },
+    timeoutMs,
+  );
+  if (data == null) throw new Error(`Blockscout request failed: ${url}`);
+  return data;
+}
+
 export interface BlockscoutHolderItem {
   address: { hash: string; is_contract?: boolean; name?: string | null };
   value: string;
