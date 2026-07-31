@@ -1,4 +1,5 @@
 'use client';
+import { geickoHref } from '@/lib/geicko/link';
 
 // Mobile watchlist — a bottom sheet listing the user's starred tokens with live
 // price / 24h change / liquidity from /api/watchlist (same source the screener
@@ -20,10 +21,6 @@ import type { ScreenerRow } from '@/lib/screener/types';
 import type { WatchedToken } from '@/lib/stores/watchlistStore';
 
 const CHAIN_TAG: Record<string, string> = { pulsechain: 'PLS', robinhood: 'RH', ethereum: 'ETH' };
-
-function geickoHref(address: string, chain: string): string {
-  return chain === 'pulsechain' ? `/geicko?address=${address}` : `/geicko?address=${address}&network=${chain}`;
-}
 
 function RowLogo({ url, symbol }: { url?: string | null; symbol: string }) {
   const [failed, setFailed] = useState(false);

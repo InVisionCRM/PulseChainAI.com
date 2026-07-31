@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePollingEffect } from '@/hooks/usePollingEffect';
@@ -29,8 +30,8 @@ import {
   GROUP_COLORS,
   GROUP_COLOR_KEYS,
 } from '@/lib/stores/groupsStore';
-import { useInsightsStore } from '@/lib/stores/insightsStore';
-import type { ChainId, PortfolioToken } from '@/services';
+import { geickoHref } from '@/lib/geicko/link';
+import type { ChainId } from '@/services';
 import { fmtPrice, fmtPct } from '@/lib/format';
 
 const ADDRESS_RX = /^0x[a-fA-F0-9]{40}$/;
@@ -139,28 +140,6 @@ async function searchCrossChain(query: string): Promise<SearchHit[]> {
   return out;
 }
 
-// The insights modal takes a PortfolioToken, but a watched token has no
-// balance — it's price-only. Synthesize a zero-balance token so a watchlist
-// row can open the same modal a portfolio holding does; the modal only reads
-// address/chain (for its fetch) plus symbol/name/logo/price for the header.
-function toInsightsToken(t: WatchedToken, p?: WatchPriceEntry): PortfolioToken {
-  return {
-    address: t.address,
-    chain: t.chain,
-    name: p?.name || t.name,
-    symbol: p?.symbol || t.symbol,
-    decimals: 18,
-    balance: '0',
-    balanceFormatted: 0,
-    logoURI: p?.logoURI || t.logoURI,
-    priceUsd: p?.priceUsd ?? undefined,
-    priceChange24h: p?.priceChange24h ?? undefined,
-    valueUsd: 0,
-    isNative: false,
-    isLp: false,
-  };
-}
-
 export function WatchlistPanel({
   variant = 'card',
   expanded,
@@ -182,7 +161,6 @@ export function WatchlistPanel({
   const remove = useWatchlistStore((s) => s.remove);
   const refresh = useWatchlistStore((s) => s.refresh);
   const isLoading = useWatchlistStore((s) => s.isLoading);
-  const openInsights = useInsightsStore((s) => s.openInsights);
 
   const groups = useWatchlistGroupsStore((s) => s.groups);
   const assignments = useWatchlistGroupsStore((s) => s.assignments);
@@ -387,7 +365,6 @@ export function WatchlistPanel({
                     t.address,
                   )}
                   showGroupPicker={false}
-                  onOpenInsights={openInsights}
                   onRemove={remove}
                 />
               ))}
@@ -409,7 +386,6 @@ export function WatchlistPanel({
                         groups={orderedGroups}
                         currentGroupId={g.id}
                         showGroupPicker
-                        onOpenInsights={openInsights}
                         onRemove={remove}
                       />
                     ))}
@@ -642,7 +618,6 @@ function TokenRow({
   groups,
   currentGroupId,
   showGroupPicker,
-  onOpenInsights,
   onRemove,
 }: {
   token: WatchedToken;
@@ -650,7 +625,6 @@ function TokenRow({
   groups: WatchlistGroup[];
   currentGroupId: string;
   showGroupPicker: boolean;
-  onOpenInsights: (token: PortfolioToken) => void;
   onRemove: (address: string, chain: ChainId) => void;
 }) {
   const priceUsd = p?.priceUsd;
@@ -662,11 +636,15 @@ function TokenRow({
 
   return (
     <li className="group relative flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--surface)]">
-      <button
-        type="button"
-        onClick={() => onOpenInsights(toInsightsToken(t, p))}
+      {/* A real link, not a button: the row is navigation, so middle-click,
+          cmd-click and "open in new tab" should all work. It used to open the
+          insights modal, but that modal is only mounted on / and /portfolio
+          while this panel lives in the sidebar on every page — so everywhere
+          else the click set state that nothing rendered, and read as dead. */}
+      <Link
+        href={geickoHref(t.address, t.chain)}
         className="flex items-center gap-2 min-w-0 flex-1 text-left"
-        title={`Open insights — ${sym}`}
+        title={`Analyze ${sym}`}
       >
         <Icon32 logoURI={logo} symbol={sym} chain={t.chain} />
         <div className="min-w-0 flex-1">
@@ -691,7 +669,7 @@ function TokenRow({
             {changeTxt ?? '—'}
           </div>
         </div>
-      </button>
+      </Link>
 
       {showGroupPicker && (
         <GroupPicker token={t} groups={groups} currentGroupId={currentGroupId} />
