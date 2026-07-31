@@ -42,12 +42,11 @@ export const MobileBottomNav = () => {
       icon: <ArtIcon src="/wallet-icon.png" alt="Portfolio" />,
     },
     {
-      label: "HEX",
-      href: "/hex-strategist",
-      icon: (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/hex-logo.svg" alt="HEX" className="h-5 w-5 object-contain" />
-      ),
+      // "SuperStake" measured wider than its column and truncated at 360 and
+      // 390px; the logo beside it already carries the brand.
+      label: "Stake",
+      href: "/superstake",
+      icon: <ArtIcon src="/superstake-logo.png" alt="SuperStake" />,
     },
     {
       label: "Watchlist",

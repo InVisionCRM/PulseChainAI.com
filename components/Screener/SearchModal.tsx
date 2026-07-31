@@ -1,4 +1,5 @@
 'use client';
+import { geickoHref } from '@/lib/geicko/link';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -12,12 +13,6 @@ import { resolveTokenIcon } from '@/lib/services/token-icon-resolver';
 
 const RECENT_KEY = 'screener.recent';
 const MAX_RECENT = 8;
-
-// Open a token in the analyzer on its own chain. PulseChain is the analyzer's
-// default (no param); every other chain is passed through as `?network=` — the
-// same convention the Screener rows and launchpad chips use.
-const geickoHref = (address: string, chain: string) =>
-  `/geicko?address=${address}${chain === 'pulsechain' ? '' : `&network=${chain}`}`;
 
 function readRecent(): string[] {
   try {
