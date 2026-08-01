@@ -284,14 +284,24 @@ export default function GeickoHoldersTab({
     [canExpand, tokenAddress],
   );
 
+  /**
+   * Any row with an address can open, on every chain.
+   *
+   * The row's View / save controls live in the expanded panel, so gating expand
+   * on `canExpand` (PulseChain only) would make them unreachable on Ethereum and
+   * Robinhood entirely, and on burn rows. Where there's no trade record to
+   * fetch — another chain, or a burn address — the panel opens straight onto its
+   * explanatory state and the actions come with it.
+   */
   const toggleExpand = (holder: Holder, balance: number) => {
     const addr = (holder.address || '').toLowerCase();
-    if (!addr || !canExpand) return;
+    if (!addr) return;
     if (expanded === addr) {
       setExpanded(null);
       return;
     }
     setExpanded(addr);
+    if (!canExpand || isBurnAddress(holder.address)) return;
     fetchClusters();
     loadDetail(addr, balance);
   };
@@ -439,11 +449,14 @@ export default function GeickoHoldersTab({
             const addrLower = (holder.address || '').toLowerCase();
             const isLpHolder = lpAddressSet.has(addrLower);
             const isBurn = isBurnAddress(holder.address);
-            const expandable = canExpand && !!holder.address && !isBurn;
+            // Openable on every chain — the row's actions live in the panel.
+            const expandable = !!holder.address;
+            // …but a trade record only exists for a real wallet on PulseChain.
+            const hasRecord = canExpand && !isBurn;
             const isOpen = expanded === addrLower;
             // Contracts, LPs and burn addresses aren't people holding a bag —
             // grading them "Diamond" for never selling would be meaningless.
-            const gradable = expandable && !holder.isContract && !isLpHolder;
+            const gradable = hasRecord && !holder.isContract && !isLpHolder;
             const grade = gradable
               ? gradeFor(details[addrLower], daily, decimals == null ? null : balance)
               : null;
@@ -563,7 +576,17 @@ export default function GeickoHoldersTab({
 
               {isOpen && (
                 <HolderDetailPanel
-                  detail={details[addrLower]}
+                  /* No record to fetch off PulseChain, or for a burn address —
+                     hand the panel a settled state so it renders its
+                     explanation immediately instead of spinning forever on a
+                     fetch that never fires. `supported:false` prints the
+                     chain note; `supported:true, hasData:false` prints the
+                     no-swaps note, which is what a burn address is. */
+                  detail={
+                    hasRecord
+                      ? details[addrLower]
+                      : { supported: canExpand, hasData: false }
+                  }
                   clusters={holder.isContract ? null : clusters}
                   addrLower={addrLower}
                   tokenSymbol={tokenInfo?.symbol ?? 'token'}
