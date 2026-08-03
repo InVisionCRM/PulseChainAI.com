@@ -315,15 +315,34 @@ export async function listPairs(p: ListParams): Promise<DbScreenerRow[]> {
   }
 
   params.push(p.pageSize, p.page * p.pageSize);
-  const rows = await sql().query(
-    `SELECT pair_address, dex_id, label, base_address, base_symbol, base_name,
+
+  // One row per TOKEN, not per pair.
+  //
+  // `screener_pairs` holds a row per trading pair, so a token listed on several
+  // DEXes and quote assets took several slots in the list: HEX alone occupied
+  // four of the first ten rows (v1/v2/v3 against WPLS and USDC), and WPLS
+  // another four. Between them a handful of multi-pair majors filled the whole
+  // first page and nothing else could surface.
+  //
+  // `DISTINCT ON (base_address)` collapses each token to a single
+  // representative pair, chosen by deepest liquidity — the pair a trader would
+  // actually route through, and the one whose price and market cap are most
+  // trustworthy. The tab's ranking is then applied to the deduped set in the
+  // outer query, so ordering semantics are unchanged; there are simply no
+  // longer duplicate tokens competing for slots.
+  const cols = `pair_address, dex_id, label, base_address, base_symbol, base_name,
             quote_symbol, image_url, price_usd, market_cap, fdv, liquidity_usd,
             pair_created_at,
             txns_m5, txns_h1, txns_h6, txns_h24,
             vol_m5, vol_h1, vol_h6, vol_h24,
-            chg_m5, chg_h1, chg_h6, chg_h24
-     FROM screener_pairs
-     WHERE ${where.join(' AND ')}
+            chg_m5, chg_h1, chg_h6, chg_h24`;
+  const rows = await sql().query(
+    `SELECT ${cols} FROM (
+       SELECT DISTINCT ON (base_address) ${cols}
+       FROM screener_pairs
+       WHERE ${where.join(' AND ')}
+       ORDER BY base_address, liquidity_usd DESC NULLS LAST, pair_address
+     ) AS one_per_token
      ORDER BY ${order}
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params,
