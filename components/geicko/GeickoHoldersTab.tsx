@@ -557,20 +557,37 @@ export default function GeickoHoldersTab({
                   <span className="text-[var(--text)] font-mono text-[12px] truncate">
                     {formattedAddress}
                   </span>
+                  {/* Tags. On a phone these are single letters — "CONTRACT"
+                      spelled out ate most of the address column and pushed the
+                      row out of line. The full word returns at `sm`, where
+                      there's room for it. */}
                   <div className="flex items-center gap-1 flex-none">
                     {isLpHolder && (
-                      <span className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-sky-300 border border-sky-400/30 rounded-sm leading-[1.4]">
+                      <span
+                        title="Liquidity pool"
+                        className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-sky-300 border border-sky-400/30 rounded-sm leading-[1.4]"
+                      >
                         LP
                       </span>
                     )}
                     {holder.isContract && (
-                      <span className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-purple-300 border border-purple-400/30 rounded-sm leading-[1.4]">
-                        {holder.isVerified ? 'Verified' : 'Contract'}
+                      <span
+                        title={holder.isVerified ? 'Verified contract' : 'Contract'}
+                        className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-purple-300 border border-purple-400/30 rounded-sm leading-[1.4]"
+                      >
+                        <span className="sm:hidden">{holder.isVerified ? 'V' : 'C'}</span>
+                        <span className="hidden sm:inline">
+                          {holder.isVerified ? 'Verified' : 'Contract'}
+                        </span>
                       </span>
                     )}
                     {isBurn && (
-                      <span className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-red-400 border border-red-400/30 rounded-sm leading-[1.4]">
-                        Burn
+                      <span
+                        title="Burn address"
+                        className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-red-400 border border-red-400/30 rounded-sm leading-[1.4]"
+                      >
+                        <span className="sm:hidden">B</span>
+                        <span className="hidden sm:inline">Burn</span>
                       </span>
                     )}
                   </div>
