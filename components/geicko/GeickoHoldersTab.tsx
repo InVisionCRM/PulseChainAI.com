@@ -34,6 +34,19 @@ function fmtDate(ts: number | null | undefined): string {
 /** The same shortening the connections endpoint applies to cluster wallets. */
 const shortAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
+/**
+ * One grid template shared by the header and every row, so a column can never
+ * drift out of alignment with its heading.
+ *
+ * The `Wallet $` cell is `hidden sm:block`, so on phones it is removed from
+ * flow entirely and the remaining five cells land in the five mobile tracks;
+ * at `sm` it reappears and fills the six-track version. Both templates are
+ * sized to fit inside 390px without a horizontal scrollbar.
+ */
+const ROW_GRID =
+  'grid gap-x-2 grid-cols-[27px_minmax(0,1fr)_auto_38px_38px] ' +
+  'sm:grid-cols-[34px_minmax(0,1fr)_auto_auto_48px_46px]';
+
 /** Payload of /api/geicko/holder-detail — see that route for field semantics. */
 interface HolderDetail {
   supported: boolean;
@@ -271,14 +284,24 @@ export default function GeickoHoldersTab({
     [canExpand, tokenAddress],
   );
 
+  /**
+   * Any row with an address can open, on every chain.
+   *
+   * The row's View / save controls live in the expanded panel, so gating expand
+   * on `canExpand` (PulseChain only) would make them unreachable on Ethereum and
+   * Robinhood entirely, and on burn rows. Where there's no trade record to
+   * fetch — another chain, or a burn address — the panel opens straight onto its
+   * explanatory state and the actions come with it.
+   */
   const toggleExpand = (holder: Holder, balance: number) => {
     const addr = (holder.address || '').toLowerCase();
-    if (!addr || !canExpand) return;
+    if (!addr) return;
     if (expanded === addr) {
       setExpanded(null);
       return;
     }
     setExpanded(addr);
+    if (!canExpand || isBurnAddress(holder.address)) return;
     fetchClusters();
     loadDetail(addr, balance);
   };
@@ -346,35 +369,24 @@ export default function GeickoHoldersTab({
 
   return (
     <div className="space-y-1.5">
-      {/* Holder Stats Cards */}
-      <div className="grid grid-cols-3 gap-1">
-        {/* Total Holders */}
-        <div className="border border-[var(--line-strong)] px-2 py-1.5">
-          <div className="text-sm text-center justify-center uppercase tracking-wider text-cyan-500">
-            Total Holders
+      {/* Holder stats. One hairline strip rather than three bordered cards —
+          the labels used to wrap to two lines inside their boxes at phone
+          width, which was most of what made the top of this tab look untidy. */}
+      <div className="flex items-stretch border border-[var(--line-strong)] divide-x divide-[var(--line-strong)]">
+        {[
+          { label: 'Holders', value: holderStats.totalHolders ? fmtNum(holderStats.totalHolders) : '—' },
+          { label: 'LP', value: String(holderStats.lpCount) },
+          { label: 'Contracts', value: String(holderStats.contractCount) },
+        ].map((s) => (
+          <div key={s.label} className="flex-1 px-2.5 py-1.5">
+            <div className="text-[9px] uppercase tracking-[0.14em] text-[var(--text-faint)]">
+              {s.label}
+            </div>
+            <div className="text-[15px] font-semibold tabular-nums leading-tight text-[var(--text)]">
+              {s.value}
+            </div>
           </div>
-          <div className="text-sm font-medium text-center justify-center text-[var(--text)]">
-            {holderStats.totalHolders ? fmtNum(holderStats.totalHolders) : '—'}
-          </div>
-        </div>
-
-        {/* LP Addresses */}
-        <div className="border border-[var(--line-strong)] px-2 py-1.5">
-          <div className="text-sm text-center justify-center uppercase tracking-wider text-cyan-500">
-            LP Addresses
-          </div>
-          <div className="text-sm font-medium text-center justify-center text-[var(--text)]">{holderStats.lpCount}</div>
-        </div>
-
-        {/* Contracts */}
-        <div className="border border-[var(--line-strong)] px-2 py-1.5">
-          <div className="text-sm text-center justify-center uppercase tracking-wider text-cyan-500">
-            Contracts
-          </div>
-          <div className="text-sm font-medium text-center justify-center text-[var(--text)]">
-            {holderStats.contractCount}
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Holders list header */}
@@ -400,19 +412,29 @@ export default function GeickoHoldersTab({
 
       {/* Holders Table */}
       <div className="border border-[var(--line-strong)] overflow-hidden">
-        {/* Table Header */}
-        <div className="flex items-center px-2 py-1 text-[10px] uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--line-strong)] bg-[var(--surface)]">
-          <div className="flex-[0.6] min-w-[30px]">#</div>
-          <div className="flex-[1.5] min-w-[90px]">Address & Tags</div>
-          <div className="flex-[1.6] min-w-[64px]">Balance</div>
-          <div className="flex-[1.3] min-w-[52px]" title="Estimated wallet value from native coin, wrapped native, core majors and pegged stablecoins">Wallet $</div>
-          <div className="flex-[1.1] min-w-[48px]">% Total</div>
+        {/* Table Header.
+            Header and rows share ROW_GRID so the columns can never drift apart.
+            The old layout was flex with per-column min-widths whose sum
+            exceeded a 390px viewport, so the table overflowed sideways and the
+            last two headings collided into "% TOTALB/S". Wallet $ is the least
+            load-bearing column and the most often unknown, so it's the one that
+            drops on narrow screens. */}
+        <div className={`${ROW_GRID} items-center px-2 py-1.5 text-[9px] uppercase tracking-[0.12em] text-[var(--text-faint)] border-b border-[var(--line-strong)] bg-[var(--surface)]`}>
+          <div>#</div>
+          <div>Address</div>
+          <div className="text-right">Balance</div>
+          <div
+            className="hidden sm:block text-right"
+            title="Estimated wallet value from native coin, wrapped native, core majors and pegged stablecoins"
+          >
+            Wallet $
+          </div>
+          <div className="text-right">%</div>
           {canExpand && (
-            <div className="flex-[0.9] min-w-[46px]" title="Buys / sells this wallet sent on PulseX">
+            <div className="text-right" title="Buys / sells this wallet sent on PulseX">
               B/S
             </div>
           )}
-          <div className="flex-[0.8] min-w-[64px]">View</div>
         </div>
 
         {/* Table Rows */}
@@ -427,11 +449,14 @@ export default function GeickoHoldersTab({
             const addrLower = (holder.address || '').toLowerCase();
             const isLpHolder = lpAddressSet.has(addrLower);
             const isBurn = isBurnAddress(holder.address);
-            const expandable = canExpand && !!holder.address && !isBurn;
+            // Openable on every chain — the row's actions live in the panel.
+            const expandable = !!holder.address;
+            // …but a trade record only exists for a real wallet on PulseChain.
+            const hasRecord = canExpand && !isBurn;
             const isOpen = expanded === addrLower;
             // Contracts, LPs and burn addresses aren't people holding a bag —
             // grading them "Diamond" for never selling would be meaningless.
-            const gradable = expandable && !holder.isContract && !isLpHolder;
+            const gradable = hasRecord && !holder.isContract && !isLpHolder;
             const grade = gradable
               ? gradeFor(details[addrLower], daily, decimals == null ? null : balance)
               : null;
@@ -444,7 +469,7 @@ export default function GeickoHoldersTab({
                    opened is the only thing competing for attention. Opacity and
                    a grayscale pass rather than an overlay: an overlay would sit
                    above the table and swallow the clicks that close the row. */
-                className={`flex items-center px-2 py-1 text-sm transition-all duration-200 ${
+                className={`${ROW_GRID} items-center px-2 h-9 text-[13px] transition-all duration-200 ${
                   expandable ? 'cursor-pointer' : ''
                 } ${
                   isOpen
@@ -454,21 +479,26 @@ export default function GeickoHoldersTab({
                       : 'hover:bg-[var(--surface)]'
                 }`}
               >
-                {/* Rank (with the expand cue folded in) */}
-                <div className="flex-[0.6] min-w-[30px] flex items-center gap-1 text-[var(--text)] font-medium">
-                  {expandable && (
-                    <span
-                      aria-hidden
-                      className={`inline-block text-[9px] text-[var(--text-faint)] transition-transform ${isOpen ? 'rotate-90' : ''}`}
-                    >
-                      ▶
-                    </span>
-                  )}
-                  {globalIndex}
+                {/* Rank, with the expand cue inline. The caret sits in its own
+                    fixed-width slot so a 1-digit and a 3-digit rank still line
+                    their numerals up, and it can't be clipped by the table edge. */}
+                <div className="flex items-center gap-[3px] text-[var(--text-muted)] tabular-nums text-[11px] leading-none">
+                  <span
+                    aria-hidden
+                    className={`w-[5px] flex-none text-[7px] text-[var(--text-faint)] transition-transform ${
+                      isOpen ? 'rotate-90' : ''
+                    } ${expandable ? '' : 'invisible'}`}
+                  >
+                    ▶
+                  </span>
+                  <span className="flex-1 text-right">{globalIndex}</span>
                 </div>
 
-                {/* Address & Tags */}
-                <div className="flex-[1.5] min-w-[90px] flex items-center gap-1 truncate">
+                {/* Address & tags. `min-w-0` + `flex-none` on the chips keeps
+                    the row exactly one line tall: previously the chips could
+                    wrap onto a second line and only some rows grew, which is
+                    what made the list look ragged. */}
+                <div className="flex items-center gap-1.5 min-w-0">
                   {/* The grade, as one glyph. The full sentence behind it is in
                       the expanded panel; here it only has to rank the row at a
                       glance — a bright gem next to a row of faint circles. */}
@@ -483,22 +513,22 @@ export default function GeickoHoldersTab({
                       {TIER_STYLE[grade.tier].glyph}
                     </span>
                   )}
-                  <span className="text-[var(--text)] font-mono truncate text-left">
+                  <span className="text-[var(--text)] font-mono text-[12px] truncate">
                     {formattedAddress}
                   </span>
-                  <div className="flex items-center gap-0.5 flex-wrap">
+                  <div className="flex items-center gap-1 flex-none">
                     {isLpHolder && (
-                      <span className="px-1 py-0.5 text-[11px] font-bold text-blue-300">
+                      <span className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-sky-300 border border-sky-400/30 rounded-sm leading-[1.4]">
                         LP
                       </span>
                     )}
                     {holder.isContract && (
-                      <span className="px-1 py-0.5 text-[9px] bg-purple-500/20 text-purple-300 rounded border border-purple-500/30">
+                      <span className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-purple-300 border border-purple-400/30 rounded-sm leading-[1.4]">
                         {holder.isVerified ? 'Verified' : 'Contract'}
                       </span>
                     )}
                     {isBurn && (
-                      <span className="px-1 py-0.5 text-[11px] font-bold text-red-500">
+                      <span className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-red-400 border border-red-400/30 rounded-sm leading-[1.4]">
                         Burn
                       </span>
                     )}
@@ -506,7 +536,7 @@ export default function GeickoHoldersTab({
                 </div>
 
                 {/* Balance */}
-                <div className="flex-[1.6] min-w-[64px] text-[var(--text)] truncate font-semibold">
+                <div className="text-right text-[var(--text)] font-semibold tabular-nums whitespace-nowrap">
                   {decimals == null
                     ? <span className="text-[var(--text-faint)]" title="Token decimals unknown">—</span>
                     : fmtAmount(Math.floor(balance))}
@@ -514,7 +544,7 @@ export default function GeickoHoldersTab({
 
                 {/* Estimated wallet value (core + stablecoins). '—' while its
                     page of values is still loading; '$0' once known to be empty. */}
-                <div className="flex-[1.3] min-w-[52px] font-semibold">
+                <div className="hidden sm:block text-right font-semibold tabular-nums whitespace-nowrap">
                   {(() => {
                     const v = holderValues[addrLower];
                     if (!v) return <span className="text-[var(--text-faint)]">—</span>;
@@ -527,13 +557,13 @@ export default function GeickoHoldersTab({
                 </div>
 
                 {/* Percentage */}
-                <div className="flex-[1.1] min-w-[48px] text-[var(--text)] font-semibold">
-                  {percentage.toFixed(1)}%
+                <div className="text-right text-[var(--text-muted)] tabular-nums whitespace-nowrap">
+                  {percentage.toFixed(1)}<span className="text-[var(--text-faint)]">%</span>
                 </div>
 
                 {/* Buys / sells, without having to open the row. */}
                 {canExpand && (
-                  <div className="flex-[0.9] min-w-[46px] text-[11px] font-semibold">
+                  <div className="text-right text-[10.5px] font-semibold tabular-nums whitespace-nowrap">
                     <TradeCounter
                       address={addrLower}
                       balance={balance}
@@ -542,48 +572,31 @@ export default function GeickoHoldersTab({
                     />
                   </div>
                 )}
-
-                {/* View / Save Buttons */}
-                <div
-                  className="flex-[0.8] min-w-[64px] flex items-center gap-1.5"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {holder.address && (
-                    <>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onViewHolder(holder.address);
-                        }}
-                        className="inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-semibold bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded border border-blue-500/30 transition-colors"
-                      >
-                        View
-                      </button>
-                      <AddToGroupButton
-                        address={holder.address}
-                        source="holder"
-                        chain="pulsechain"
-                        context={{
-                          tokenSymbol: tokenInfo?.symbol,
-                          tokenName: tokenInfo?.name,
-                          rank: globalIndex,
-                        }}
-                        size={15}
-                      />
-                    </>
-                  )}
-                </div>
               </div>
 
               {isOpen && (
                 <HolderDetailPanel
-                  detail={details[addrLower]}
+                  /* No record to fetch off PulseChain, or for a burn address —
+                     hand the panel a settled state so it renders its
+                     explanation immediately instead of spinning forever on a
+                     fetch that never fires. `supported:false` prints the
+                     chain note; `supported:true, hasData:false` prints the
+                     no-swaps note, which is what a burn address is. */
+                  detail={
+                    hasRecord
+                      ? details[addrLower]
+                      : { supported: canExpand, hasData: false }
+                  }
                   clusters={holder.isContract ? null : clusters}
                   addrLower={addrLower}
                   tokenSymbol={tokenInfo?.symbol ?? 'token'}
                   origin={origins[addrLower]}
                   onTrace={() => traceOrigin(addrLower)}
                   grade={grade}
+                  address={holder.address}
+                  rank={globalIndex}
+                  tokenInfo={tokenInfo}
+                  onViewHolder={onViewHolder}
                 />
               )}
               </React.Fragment>
@@ -616,18 +629,48 @@ export default function GeickoHoldersTab({
 
 /* ─────────────────── the expanded row ─────────────────── */
 
-function Cell({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: 'up' | 'down' }) {
+/**
+ * A label over a figure, with no container of its own.
+ *
+ * This panel used to be ten identical bordered boxes in two grids, which gave
+ * every number the same visual weight and read like a debug dump. Weight now
+ * comes from type size and the sections are separated by hairlines, so nothing
+ * is a box inside a box.
+ */
+function Metric({
+  label, value, sub, tone, size = 'sm',
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: 'up' | 'down';
+  size?: 'sm' | 'lg';
+}) {
   return (
-    <div className="rounded border border-[var(--line)] bg-[var(--panel)] px-2 py-1.5">
-      <div className="text-[9px] uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
+    <div className="min-w-0">
+      <div className="text-[8.5px] uppercase tracking-[0.14em] text-[var(--text-faint)]">{label}</div>
       <div
-        className={`text-[12px] font-bold tabular-nums ${
+        className={`${size === 'lg' ? 'text-[19px]' : 'text-[12.5px]'} font-semibold tabular-nums leading-tight ${
           tone === 'up' ? 'text-emerald-400' : tone === 'down' ? 'text-red-400' : 'text-[var(--text)]'
         }`}
       >
         {value}
       </div>
-      {sub && <div className="text-[9px] text-[var(--text-muted)]">{sub}</div>}
+      {sub && <div className="mt-px text-[9.5px] text-[var(--text-muted)] truncate">{sub}</div>}
+    </div>
+  );
+}
+
+/** A titled band inside the panel, separated by a hairline rather than a border box. */
+function Band({ title, children }: { title?: string; children: React.ReactNode }) {
+  return (
+    <div className="pt-2.5 mt-2.5 border-t border-[var(--line)]">
+      {title && (
+        <div className="mb-1.5 text-[8.5px] uppercase tracking-[0.14em] text-[var(--text-faint)]">
+          {title}
+        </div>
+      )}
+      {children}
     </div>
   );
 }
@@ -673,8 +716,45 @@ function GradeLine({ grade }: { grade: DiamondGrade }) {
   );
 }
 
+/** The row's actions. These used to sit in a column on every row, which cost
+ *  ~64px of width on a 390px screen and pushed the table into a sideways
+ *  scroll. They belong to the wallet you've actually opened, so they live
+ *  here now. */
+function PanelActions({
+  address, rank, tokenInfo, onViewHolder,
+}: {
+  address: string | undefined;
+  rank: number;
+  tokenInfo: TokenInfo | null;
+  onViewHolder: (address: string) => void;
+}) {
+  if (!address) return null;
+  return (
+    <div className="flex items-center gap-2 flex-none self-start" onClick={(e) => e.stopPropagation()}>
+      <button
+        onClick={(e) => { e.stopPropagation(); onViewHolder(address); }}
+        className="inline-flex items-center gap-1 px-2.5 py-1 text-[10.5px] font-semibold text-cyan-300 border border-cyan-400/40 rounded hover:bg-cyan-400/10 transition-colors"
+      >
+        View wallet
+      </button>
+      <AddToGroupButton
+        address={address}
+        source="holder"
+        chain="pulsechain"
+        context={{
+          tokenSymbol: tokenInfo?.symbol,
+          tokenName: tokenInfo?.name,
+          rank,
+        }}
+        size={16}
+      />
+    </div>
+  );
+}
+
 function HolderDetailPanel({
   detail, clusters, addrLower, tokenSymbol, origin, onTrace, grade,
+  address, rank, tokenInfo, onViewHolder,
 }: {
   detail: DetailState | undefined;
   /** Null hides the cluster slot entirely (contracts aren't wallets). */
@@ -685,27 +765,32 @@ function HolderDetailPanel({
   onTrace: () => void;
   /** Null when this row isn't gradable, or the price series hasn't loaded. */
   grade: DiamondGrade | null;
+  address: string | undefined;
+  rank: number;
+  tokenInfo: TokenInfo | null;
+  onViewHolder: (address: string) => void;
 }) {
+  const actions = (
+    <PanelActions address={address} rank={rank} tokenInfo={tokenInfo} onViewHolder={onViewHolder} />
+  );
+  /** Every state keeps the actions reachable — the wallet is open either way. */
+  const shell = (body: React.ReactNode, tone?: 'error') => (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3 px-3 py-2.5 bg-[var(--surface)]/60 border-l-2 border-cyan-500/50">
+      <p className={`text-[11px] ${tone === 'error' ? 'text-red-400' : 'text-[var(--text-muted)]'}`}>
+        {body}
+      </p>
+      {actions}
+    </div>
+  );
+
   if (!detail || detail === 'loading') {
-    return (
-      <div className="px-3 py-2.5 text-[11px] text-[var(--text-muted)] bg-[var(--surface)]/60">
-        Reading this wallet&apos;s PulseX record…
-      </div>
-    );
+    return shell('Reading this wallet’s PulseX record…');
   }
   if (detail === 'error') {
-    return (
-      <div className="px-3 py-2.5 text-[11px] text-red-400 bg-[var(--surface)]/60">
-        Couldn&apos;t load the trade record — the subgraph didn&apos;t answer. Collapse and retry.
-      </div>
-    );
+    return shell('Couldn’t load the trade record — the subgraph didn’t answer. Collapse and retry.', 'error');
   }
   if (!detail.supported) {
-    return (
-      <div className="px-3 py-2.5 text-[11px] text-[var(--text-muted)] bg-[var(--surface)]/60">
-        Per-holder trade history is PulseChain-only for now.
-      </div>
-    );
+    return shell('Per-holder trade history is PulseChain-only for now.');
   }
 
   const t = detail.trades;
@@ -717,67 +802,138 @@ function HolderDetailPanel({
 
   if (!detail.hasData) {
     return (
-      <div className="px-3 py-2.5 bg-[var(--surface)]/60 space-y-1">
-        <div className="text-[11px] text-[var(--text-muted)]">
-          No PulseX swaps or liquidity from this wallet on {tokenSymbol}&apos;s pools — the tokens
-          arrived by transfer, from another venue, or before the pools existed.
+      <div className="px-3 py-2.5 bg-[var(--surface)]/60 border-l-2 border-cyan-500/50">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+          <p className="text-[11px] text-[var(--text-muted)]">
+            No PulseX swaps or liquidity from this wallet on {tokenSymbol}&apos;s pools — the tokens
+            arrived by transfer, from another venue, or before the pools existed.
+          </p>
+          {actions}
         </div>
-        <OriginSection origin={origin} onTrace={onTrace} tokenSymbol={tokenSymbol} />
-        <ClusterLine clusters={clusters} hit={clusterHit} />
+        <Band>
+          <OriginSection origin={origin} onTrace={onTrace} tokenSymbol={tokenSymbol} />
+          <ClusterLine clusters={clusters} hit={clusterHit} />
+        </Band>
       </div>
     );
   }
 
-  return (
-    <div className="px-2 py-2 bg-[var(--surface)]/60 space-y-1.5">
-      {grade && <GradeLine grade={grade} />}
+  // How the position splits between bought and sold, for the ratio bar. Sized
+  // off USD because that's what the two numbers beside it are quoted in.
+  const flowTotal = t ? t.buyUsd + t.sellUsd : 0;
+  const buyShare = flowTotal > 0 && t ? (t.buyUsd / flowTotal) * 100 : 0;
 
-      {/* trading record */}
+  return (
+    <div className="px-3 py-2.5 bg-[var(--surface)]/60 border-l-2 border-cyan-500/50">
+      {/* Grade leads, actions sit opposite it. */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+        <div className="min-w-0 flex-1">{grade && <GradeLine grade={grade} />}</div>
+        {actions}
+      </div>
+
       {t && t.swaps > 0 ? (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
-            <Cell label="Buys" value={`${fmtNum(t.buyCount)} · ${fmtUsd(t.buyUsd)}`} sub={`${fmtAmount(Math.floor(t.buyTokens))} ${tokenSymbol}`} />
-            <Cell label="Sells" value={`${fmtNum(t.sellCount)} · ${fmtUsd(t.sellUsd)}`} sub={`${fmtAmount(Math.floor(t.sellTokens))} ${tokenSymbol}`} />
-            <Cell label="Biggest buy" value={t.biggestBuy ? fmtUsd(t.biggestBuy.usd) : '—'} sub={t.biggestBuy ? fmtDate(t.biggestBuy.ts) : undefined} />
-            <Cell label="Biggest sell" value={t.biggestSell ? fmtUsd(t.biggestSell.usd) : '—'} sub={t.biggestSell ? fmtDate(t.biggestSell.ts) : undefined} />
-          </div>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1">
-            <Cell label="First buy" value={fmtDate(t.firstBuyTs)} />
-            <Cell label="Last buy" value={fmtDate(t.lastBuyTs)} />
-            <Cell label="Last sell" value={fmtDate(t.lastSellTs)} />
-            {pnl && (
-              <>
-                <Cell label="Realized PnL" value={fmtPnl(pnl.realizedUsd)} tone={pnl.realizedUsd >= 0 ? 'up' : 'down'} />
-                <Cell
-                  label="Unrealized"
-                  value={pnl.unrealizedUsd != null ? fmtPnl(pnl.unrealizedUsd) : '—'}
-                  sub={pnl.avgCostUsd != null ? `avg cost $${pnl.avgCostUsd.toPrecision(3)}` : undefined}
-                  tone={pnl.unrealizedUsd != null ? (pnl.unrealizedUsd >= 0 ? 'up' : 'down') : undefined}
+          {/* The headline. Net P&L is the one figure worth setting large; the
+              two that compose it sit under it at supporting size. */}
+          {pnl && (
+            <Band>
+              <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+                <Metric
+                  label="Net P&L"
+                  size="lg"
+                  value={fmtPnl(pnl.netUsd)}
+                  tone={pnl.netUsd >= 0 ? 'up' : 'down'}
                 />
-                <Cell label="Net PnL" value={fmtPnl(pnl.netUsd)} tone={pnl.netUsd >= 0 ? 'up' : 'down'} />
-              </>
-            )}
-          </div>
-          {pnl && !pnl.basisComplete && (
-            <div className="text-[9.5px] text-amber-400/90">
-              Partial: this wallet also moved {tokenSymbol} outside PulseX swaps (transfers or other
-              venues), so PnL only covers what traded here.
-            </div>
+                <div className="flex gap-6">
+                  <Metric
+                    label="Realised"
+                    value={fmtPnl(pnl.realizedUsd)}
+                    tone={pnl.realizedUsd >= 0 ? 'up' : 'down'}
+                  />
+                  <Metric
+                    label="Unrealised"
+                    value={pnl.unrealizedUsd != null ? fmtPnl(pnl.unrealizedUsd) : '—'}
+                    sub={pnl.avgCostUsd != null ? `avg cost $${pnl.avgCostUsd.toPrecision(3)}` : undefined}
+                    tone={pnl.unrealizedUsd != null ? (pnl.unrealizedUsd >= 0 ? 'up' : 'down') : undefined}
+                  />
+                </div>
+              </div>
+              {!pnl.basisComplete && (
+                <p className="mt-1.5 text-[9.5px] leading-snug text-amber-400/90">
+                  Partial — this wallet also moved {tokenSymbol} outside PulseX swaps, so P&amp;L only
+                  covers what traded here.
+                </p>
+              )}
+            </Band>
           )}
+
+          {/* Buys against sells, with the split drawn rather than left to be
+              inferred from two numbers. */}
+          <Band title="Flow">
+            <div className="flex items-start justify-between gap-6">
+              <Metric
+                label={`Buys · ${fmtNum(t.buyCount)}`}
+                value={fmtUsd(t.buyUsd)}
+                sub={`${fmtAmount(Math.floor(t.buyTokens))} ${tokenSymbol}`}
+                tone="up"
+              />
+              <div className="text-right">
+                <Metric
+                  label={`Sells · ${fmtNum(t.sellCount)}`}
+                  value={fmtUsd(t.sellUsd)}
+                  sub={`${fmtAmount(Math.floor(t.sellTokens))} ${tokenSymbol}`}
+                  tone={t.sellCount > 0 ? 'down' : undefined}
+                />
+              </div>
+            </div>
+            {flowTotal > 0 && (
+              <div
+                className="mt-2 flex h-1 overflow-hidden rounded-full bg-[var(--line)]"
+                role="img"
+                aria-label={`${buyShare.toFixed(0)}% of this wallet's traded value was buying`}
+              >
+                <div className="bg-emerald-400/80" style={{ width: `${buyShare}%` }} />
+                <div className="bg-red-400/70" style={{ width: `${100 - buyShare}%` }} />
+              </div>
+            )}
+            <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1.5">
+              <Metric
+                label="Biggest buy"
+                value={t.biggestBuy ? fmtUsd(t.biggestBuy.usd) : '—'}
+                sub={t.biggestBuy ? fmtDate(t.biggestBuy.ts) : undefined}
+              />
+              <Metric
+                label="Biggest sell"
+                value={t.biggestSell ? fmtUsd(t.biggestSell.usd) : '—'}
+                sub={t.biggestSell ? fmtDate(t.biggestSell.ts) : undefined}
+              />
+            </div>
+          </Band>
+
+          {/* Dates read as a sequence, so they're set as one line rather than
+              three equally-weighted boxes. */}
+          <Band title="Timeline">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] tabular-nums text-[var(--text-muted)]">
+              <span>First buy <b className="font-semibold text-[var(--text)]">{fmtDate(t.firstBuyTs)}</b></span>
+              <span className="text-[var(--text-faint)]">→</span>
+              <span>Last buy <b className="font-semibold text-[var(--text)]">{fmtDate(t.lastBuyTs)}</b></span>
+              <span className="text-[var(--text-faint)]">→</span>
+              <span>Last sell <b className="font-semibold text-[var(--text)]">{fmtDate(t.lastSellTs)}</b></span>
+            </div>
+          </Band>
         </>
       ) : (
-        <div className="text-[11px] text-[var(--text-muted)]">
-          No swaps from this wallet on {tokenSymbol}&apos;s PulseX pools.
-        </div>
+        <Band>
+          <p className="text-[11px] text-[var(--text-muted)]">
+            No swaps from this wallet on {tokenSymbol}&apos;s PulseX pools.
+          </p>
+        </Band>
       )}
 
       {/* liquidity */}
       {lp && lp.everProvided ? (
-        <div className="rounded border border-blue-500/30 bg-blue-500/5 px-2 py-1.5">
-          <div className="text-[9px] uppercase tracking-wider text-blue-300">
-            Liquidity provider {lp.isProvider ? '· active' : '· exited'}
-          </div>
-          <div className="mt-0.5 space-y-0.5">
+        <Band title={`Liquidity provider · ${lp.isProvider ? 'active' : 'exited'}`}>
+          <div className="space-y-1">
             {lp.positions.map((p) => (
               <div key={p.pair} className="flex flex-wrap items-baseline gap-x-2 text-[11px] tabular-nums">
                 <span className="font-semibold text-[var(--text)]">{p.label}</span>
@@ -793,18 +949,22 @@ function HolderDetailPanel({
               </div>
             ))}
           </div>
-        </div>
+        </Band>
       ) : (
-        <div className="text-[10px] text-[var(--text-faint)]">
-          No liquidity provided on {tokenSymbol}&apos;s pools from this wallet.
-        </div>
+        <Band>
+          <p className="text-[10px] text-[var(--text-faint)]">
+            No liquidity provided on {tokenSymbol}&apos;s pools from this wallet.
+          </p>
+        </Band>
       )}
 
-      <OriginSection origin={origin} onTrace={onTrace} tokenSymbol={tokenSymbol} />
-
-      <ClusterLine clusters={clusters} hit={clusterHit} />
-
-      {detail.note && <div className="text-[9px] text-[var(--text-faint)]">{detail.note}</div>}
+      <Band>
+        <OriginSection origin={origin} onTrace={onTrace} tokenSymbol={tokenSymbol} />
+        <ClusterLine clusters={clusters} hit={clusterHit} />
+        {detail.note && (
+          <p className="mt-1.5 text-[9px] leading-snug text-[var(--text-faint)]">{detail.note}</p>
+        )}
+      </Band>
     </div>
   );
 }
