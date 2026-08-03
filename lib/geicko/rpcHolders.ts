@@ -145,19 +145,42 @@ export async function findDeploymentBlock(
   return lo;
 }
 
+/** Signed net movement per address over a block range. */
+export interface NetTransferSet {
+  /** address → net change in raw units. Negative means the address sent more
+   *  than it received over the range. */
+  net: Map<string, bigint>;
+  /** True when the walk reached `latest` within budget. */
+  complete: boolean;
+  fromBlock: number;
+  toBlock: number;
+  calls: number;
+}
+
 /**
- * Walk `Transfer` logs from `fromBlock` to the chain head, netting balances.
- * Stops early (complete:false) if the call or time budget is exhausted — the
- * caller then reports the data as unavailable rather than partial/wrong.
+ * Walk `Transfer` logs over a block range and net each address's movement.
+ *
+ * This is the shared engine behind two different questions:
+ *   • from the deployment block → every address's *balance* (reconstructHolders)
+ *   • over the last ~24h        → every address's *position change*
+ *
+ * Mints and burns move through the zero address, which is not a holder, so it
+ * is excluded from both sides — otherwise a mint reads as the zero address
+ * "selling" its entire supply.
+ *
+ * Stops early (complete:false) when the call or time budget is exhausted; the
+ * caller reports the data as unavailable rather than partial and wrong. A
+ * partial walk over a full history gives net *flow*, not a balance, and a
+ * partial 24h walk understates movement — neither is safe to show.
  */
-export async function reconstructHolders(
+export async function netTransfers(
   token: string,
   opts: {
     fromBlock: number;
     latest: number;
     budget?: Partial<WalkBudget>;
   },
-): Promise<RpcHolderSet> {
+): Promise<NetTransferSet> {
   const tok = token.toLowerCase();
   const budget: WalkBudget = {
     maxCalls: opts.budget?.maxCalls ?? 150,
@@ -216,8 +239,34 @@ export async function reconstructHolders(
     cursor = to + 1;
   }
 
+  return {
+    net: balances,
+    complete,
+    fromBlock: opts.fromBlock,
+    toBlock: opts.latest,
+    calls,
+  };
+}
+
+/**
+ * Reconstruct the holder set from the token's full `Transfer` history.
+ *
+ * Netting from the deployment block turns the signed movement into a balance,
+ * so only positive entries are holders. MUST cover the whole history: a partial
+ * window gives net flow rather than a balance and would undercount.
+ */
+export async function reconstructHolders(
+  token: string,
+  opts: {
+    fromBlock: number;
+    latest: number;
+    budget?: Partial<WalkBudget>;
+  },
+): Promise<RpcHolderSet> {
+  const walk = await netTransfers(token, opts);
+
   const holders: RpcHolder[] = [];
-  for (const [address, bal] of balances) {
+  for (const [address, bal] of walk.net) {
     if (bal > BigInt(0)) holders.push({ address, value: bal.toString() });
   }
   holders.sort((a, b) => (BigInt(a.value) < BigInt(b.value) ? 1 : -1));
@@ -225,9 +274,9 @@ export async function reconstructHolders(
   return {
     holders,
     holdersCount: holders.length,
-    complete,
-    fromBlock: opts.fromBlock,
-    toBlock: opts.latest,
-    calls,
+    complete: walk.complete,
+    fromBlock: walk.fromBlock,
+    toBlock: walk.toBlock,
+    calls: walk.calls,
   };
 }
