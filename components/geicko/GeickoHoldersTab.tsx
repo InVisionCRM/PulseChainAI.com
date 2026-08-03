@@ -251,8 +251,15 @@ export default function GeickoHoldersTab({
    */
   useEffect(() => {
     let alive = true;
+    // Off PulseChain no scan runs, so settle to an empty map rather than
+    // leaving `deltas` null — null is the loading state, and the column would
+    // otherwise sit on a dot that never resolves. The column itself is also
+    // gated on `canExpand` below, so this is belt-and-braces.
+    if (!canExpand || !tokenAddress) {
+      setDeltas({});
+      return;
+    }
     setDeltas(null);
-    if (!canExpand || !tokenAddress) return;
     fetch(`/api/geicko/holder-deltas?token=${tokenAddress}&network=pulsechain`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -465,12 +472,17 @@ export default function GeickoHoldersTab({
             Wallet $
           </div>
           <div className="text-right">%</div>
-          <div
-            className="text-right"
-            title="Change in this wallet's position over the last 24 hours, from on-chain transfers — includes every venue, not just PulseX"
-          >
-            24h
-          </div>
+          {/* PulseChain only: the delta scan is a PulseChain RPC walk. On other
+              chains the column is absent rather than a row of dashes, which
+              would read as "nobody moved" instead of "not measured here". */}
+          {canExpand && (
+            <div
+              className="text-right"
+              title="Change in this wallet's position over the last 24 hours, from on-chain transfers — includes every venue, not just PulseX"
+            >
+              24h
+            </div>
+          )}
           {canExpand && (
             <div className="hidden sm:block text-right" title="Buys / sells this wallet sent on PulseX">
               B/S
@@ -619,14 +631,16 @@ export default function GeickoHoldersTab({
                   {percentage.toFixed(1)}<span className="text-[var(--text-faint)]">%</span>
                 </div>
 
-                {/* 24h position change */}
-                <div className="text-right text-[10.5px] font-semibold tabular-nums whitespace-nowrap">
-                  <DeltaCell
-                    raw={deltas ? deltas[addrLower] : undefined}
-                    loading={deltas === null}
-                    balanceRaw={holder.value}
-                  />
-                </div>
+                {/* 24h position change — PulseChain only, see the header. */}
+                {canExpand && (
+                  <div className="text-right text-[10.5px] font-semibold tabular-nums whitespace-nowrap">
+                    <DeltaCell
+                      raw={deltas ? deltas[addrLower] : undefined}
+                      loading={deltas === null}
+                      balanceRaw={holder.value}
+                    />
+                  </div>
+                )}
 
                 {/* Buys / sells, without having to open the row. */}
                 {canExpand && (
