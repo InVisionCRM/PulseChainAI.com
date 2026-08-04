@@ -36,6 +36,28 @@ const FETCH_TIMEOUT_MS = 10_000;
 /** A token logo is a few hundred KB at most; anything larger isn't one. */
 const MAX_BYTES = 4 * 1024 * 1024;
 
+/**
+ * Redirects are followed BY HAND, re-checking the allow-list at every hop.
+ *
+ * `fetch()` follows 3xx automatically, which would quietly defeat the check
+ * above: an allow-listed CDN answering `302 -> http://169.254.169.254/…` would
+ * have us fetch the metadata endpoint and hand back its bytes. Only the first
+ * URL was ever validated.
+ *
+ * Refusing redirects outright isn't an option — they're load-bearing here.
+ * `dd.dexscreener.com/ds-data/tokens/…` answers `301` to
+ * `cdn.dexscreener.com/tokens/…` (verified), so a legitimate logo can and does
+ * hop hosts. Two hops covers that with room to spare.
+ */
+const MAX_REDIRECTS = 2;
+
+/** https + allow-listed host, applied to the initial URL and every hop. */
+function checkTarget(u: URL): string | null {
+  if (u.protocol !== 'https:') return 'https only';
+  if (!ALLOWED_HOSTS.has(u.hostname)) return `host not allowed: ${u.hostname}`;
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get('url');
   if (!raw) return NextResponse.json({ error: 'url required' }, { status: 400 });
@@ -47,18 +69,42 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'malformed url' }, { status: 400 });
   }
 
-  if (target.protocol !== 'https:') {
-    return NextResponse.json({ error: 'https only' }, { status: 400 });
-  }
-  if (!ALLOWED_HOSTS.has(target.hostname)) {
-    return NextResponse.json({ error: `host not allowed: ${target.hostname}` }, { status: 400 });
-  }
+  const bad = checkTarget(target);
+  if (bad) return NextResponse.json({ error: bad }, { status: 400 });
 
   try {
-    const upstream = await fetch(target.toString(), {
-      headers: { Accept: 'image/*' },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
+    let upstream: Response;
+    let url = target;
+    for (let hop = 0; ; hop++) {
+      upstream = await fetch(url.toString(), {
+        headers: { Accept: 'image/*' },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        // Do NOT let fetch chase these itself — see MAX_REDIRECTS above.
+        redirect: 'manual',
+      });
+
+      if (upstream.status < 300 || upstream.status >= 400) break;
+
+      const loc = upstream.headers.get('location');
+      if (!loc) return NextResponse.json({ error: 'redirect without location' }, { status: 502 });
+      if (hop >= MAX_REDIRECTS) {
+        return NextResponse.json({ error: 'too many redirects' }, { status: 502 });
+      }
+
+      // Resolve relative Location values against the URL that issued them.
+      let next: URL;
+      try {
+        next = new URL(loc, url);
+      } catch {
+        return NextResponse.json({ error: 'malformed redirect' }, { status: 502 });
+      }
+      const badHop = checkTarget(next);
+      if (badHop) {
+        return NextResponse.json({ error: `redirect blocked — ${badHop}` }, { status: 400 });
+      }
+      url = next;
+    }
+
     if (!upstream.ok) {
       return NextResponse.json({ error: `upstream ${upstream.status}` }, { status: 502 });
     }
