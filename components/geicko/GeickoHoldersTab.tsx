@@ -50,19 +50,32 @@ const shortAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 // only, so it reads "—" for any wallet that traded on 9mm or LibertySwap, while
 // the 24h change is reconstructed from Transfer logs and is therefore complete
 // whichever venue was used. Given one slot, the complete number wins.
+//
+// Every numeric track is a FIXED width, and its value is centred inside it.
+// Balance and Wallet $ used to be `auto`, which sizes a track to whatever the
+// widest value in it happens to be: the column edges moved from token to token,
+// and a short value sat right against its neighbour ("104m $13", the headings
+// colliding into "BALANCE WALLET $"). Fixed tracks put a constant, visible lane
+// around each number regardless of how long it is. Address keeps the `1fr` and
+// absorbs whatever the numbers don't use.
+//
+// The widths are the longest value each column actually renders plus a little
+// slack, MEASURED across pSSH and HEX at 390/640/1024/1440 — balance "970.09m"
+// is 64px, wallet "$6.4M" 45px, % 33px, 24h 38px. Wider lanes than that are not
+// free: at 1024px the page carries both the nav and the right panel, leaving
+// the table only ~496px, and every pixel a number doesn't need comes straight
+// out of Address, which then clips its LP/Contract tags. Rank is 30px because
+// "▶100" needs 29 (at 27 the hundredth row clipped).
 const ROW_GRID =
-  'grid gap-x-1.5 sm:gap-x-2 grid-cols-[27px_minmax(0,1fr)_auto_38px_46px] ' +
-  'sm:grid-cols-[34px_minmax(0,1fr)_auto_auto_48px_54px_46px]';
+  'grid gap-x-1.5 sm:gap-x-2 grid-cols-[30px_minmax(0,1fr)_72px_44px_50px] ' +
+  'sm:grid-cols-[34px_minmax(0,1fr)_78px_60px_46px_52px_56px]';
 
-/**
- * Balance and Wallet $ are the only two neighbouring columns that are both
- * right-aligned AND content-sized, so the shared 8px gap is the entire space
- * between them — a short value ran straight into its neighbour ("104m $13",
- * "BALANCE WALLET $"). Padding this cell widens its own track, which separates
- * that one boundary without loosening every other column. Header and rows use
- * the same constant so they can't drift.
- */
-const WALLET_CELL = 'hidden sm:block text-right pl-4 lg:pl-6';
+/** Numeric cell: centred in its own fixed lane, digits non-jumping. */
+const NUM_CELL = 'text-center tabular-nums whitespace-nowrap';
+
+/** Wallet $ additionally drops below `sm` — it's the least load-bearing column
+ *  and the most often unknown, so it's the one a phone gives up. */
+const WALLET_CELL = `hidden sm:block ${NUM_CELL}`;
 
 /** Payload of /api/geicko/holder-detail — see that route for field semantics. */
 interface HolderDetail {
@@ -474,27 +487,27 @@ export default function GeickoHoldersTab({
         <div className={`${ROW_GRID} items-center px-2 py-1.5 text-[9px] uppercase tracking-[0.12em] text-[var(--text-faint)] border-b border-[var(--line-strong)] bg-[var(--surface)]`}>
           <div>#</div>
           <div>Address</div>
-          <div className="text-right">Balance</div>
+          <div className="text-center">Balance</div>
           <div
             className={WALLET_CELL}
             title="Estimated wallet value from native coin, wrapped native, core majors and pegged stablecoins"
           >
             Wallet $
           </div>
-          <div className="text-right">%</div>
+          <div className="text-center">%</div>
           {/* PulseChain only: the delta scan is a PulseChain RPC walk. On other
               chains the column is absent rather than a row of dashes, which
               would read as "nobody moved" instead of "not measured here". */}
           {canExpand && (
             <div
-              className="text-right"
+              className="text-center"
               title="Change in this wallet's position over the last 24 hours, from on-chain transfers — includes every venue, not just PulseX"
             >
               24h
             </div>
           )}
           {canExpand && (
-            <div className="hidden sm:block text-right" title="Buys / sells this wallet sent on PulseX">
+            <div className="hidden sm:block text-center" title="Buys / sells this wallet sent on PulseX">
               B/S
             </div>
           )}
@@ -616,7 +629,7 @@ export default function GeickoHoldersTab({
                 </div>
 
                 {/* Balance */}
-                <div className="text-right text-[var(--text)] font-semibold tabular-nums whitespace-nowrap">
+                <div className={`${NUM_CELL} text-[var(--text)] font-semibold`}>
                   {decimals == null
                     ? <span className="text-[var(--text-faint)]" title="Token decimals unknown">—</span>
                     : fmtAmount(Math.floor(balance))}
@@ -624,7 +637,7 @@ export default function GeickoHoldersTab({
 
                 {/* Estimated wallet value (core + stablecoins). '—' while its
                     page of values is still loading; '$0' once known to be empty. */}
-                <div className={`${WALLET_CELL} font-semibold tabular-nums whitespace-nowrap`}>
+                <div className={`${WALLET_CELL} font-semibold`}>
                   {(() => {
                     const v = holderValues[addrLower];
                     if (!v) return <span className="text-[var(--text-faint)]">—</span>;
@@ -637,13 +650,13 @@ export default function GeickoHoldersTab({
                 </div>
 
                 {/* Percentage */}
-                <div className="text-right text-[var(--text-muted)] tabular-nums whitespace-nowrap">
+                <div className={`${NUM_CELL} text-[var(--text-muted)]`}>
                   {percentage.toFixed(1)}<span className="text-[var(--text-faint)]">%</span>
                 </div>
 
                 {/* 24h position change — PulseChain only, see the header. */}
                 {canExpand && (
-                  <div className="text-right text-[10.5px] font-semibold tabular-nums whitespace-nowrap">
+                  <div className={`${NUM_CELL} text-[10.5px] font-semibold`}>
                     <DeltaCell
                       raw={deltas ? deltas[addrLower] : undefined}
                       loading={deltas === null}
@@ -654,7 +667,7 @@ export default function GeickoHoldersTab({
 
                 {/* Buys / sells, without having to open the row. */}
                 {canExpand && (
-                  <div className="hidden sm:block text-right text-[10.5px] font-semibold tabular-nums whitespace-nowrap">
+                  <div className={`hidden sm:block ${NUM_CELL} text-[10.5px] font-semibold`}>
                     <TradeCounter
                       address={addrLower}
                       balance={balance}
