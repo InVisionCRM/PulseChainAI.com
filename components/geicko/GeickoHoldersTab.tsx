@@ -43,9 +43,16 @@ const shortAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
  * at `sm` it reappears and fills the six-track version. Both templates are
  * sized to fit inside 390px without a horizontal scrollbar.
  */
+// Mobile shows five cells: rank | address | balance | % | 24h.
+// Desktop adds Wallet $ and B/S for seven.
+//
+// B/S is the cell that drops on a phone rather than 24h. It counts PulseX swaps
+// only, so it reads "—" for any wallet that traded on 9mm or LibertySwap, while
+// the 24h change is reconstructed from Transfer logs and is therefore complete
+// whichever venue was used. Given one slot, the complete number wins.
 const ROW_GRID =
-  'grid gap-x-2 grid-cols-[27px_minmax(0,1fr)_auto_38px_38px] ' +
-  'sm:grid-cols-[34px_minmax(0,1fr)_auto_auto_48px_46px]';
+  'grid gap-x-1.5 sm:gap-x-2 grid-cols-[27px_minmax(0,1fr)_auto_38px_46px] ' +
+  'sm:grid-cols-[34px_minmax(0,1fr)_auto_auto_48px_54px_46px]';
 
 /** Payload of /api/geicko/holder-detail — see that route for field semantics. */
 interface HolderDetail {
@@ -205,6 +212,8 @@ export default function GeickoHoldersTab({
   const [origins, setOrigins] = useState<Record<string, OriginState>>({});
   const [clusters, setClusters] = useState<ClustersState | null>(null);
   const [daily, setDaily] = useState<PricePoint[] | null>(null);
+  /** address → signed 24h change in raw units. Null while loading. */
+  const [deltas, setDeltas] = useState<Record<string, string> | null>(null);
   const canExpand = network === 'pulsechain' && !!tokenAddress;
 
   // The token's daily price series, for the drawdown half of the holder grade.
@@ -227,6 +236,39 @@ export default function GeickoHoldersTab({
         setDaily(rows);
       })
       .catch(() => alive && setDaily([]));
+    return () => {
+      alive = false;
+    };
+  }, [canExpand, tokenAddress]);
+
+  /**
+   * 24h position change for every holder, from one Transfer-log scan.
+   *
+   * The cost is per token, not per holder, so this covers the whole list rather
+   * than a top-N slice. Unlike the B/S counters it is venue-agnostic — a token
+   * emits Transfer whichever DEX the trade happened on — so it also reflects
+   * 9mm and LibertySwap activity the PulseX-backed figures can't see.
+   */
+  useEffect(() => {
+    let alive = true;
+    // Off PulseChain no scan runs, so settle to an empty map rather than
+    // leaving `deltas` null — null is the loading state, and the column would
+    // otherwise sit on a dot that never resolves. The column itself is also
+    // gated on `canExpand` below, so this is belt-and-braces.
+    if (!canExpand || !tokenAddress) {
+      setDeltas({});
+      return;
+    }
+    setDeltas(null);
+    fetch(`/api/geicko/holder-deltas?token=${tokenAddress}&network=pulsechain`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!alive) return;
+        // A truncated walk understates movement, so the route reports
+        // complete:false and we show nothing rather than a wrong figure.
+        setDeltas(d?.complete && d?.deltas ? d.deltas : {});
+      })
+      .catch(() => alive && setDeltas({}));
     return () => {
       alive = false;
     };
@@ -430,8 +472,19 @@ export default function GeickoHoldersTab({
             Wallet $
           </div>
           <div className="text-right">%</div>
+          {/* PulseChain only: the delta scan is a PulseChain RPC walk. On other
+              chains the column is absent rather than a row of dashes, which
+              would read as "nobody moved" instead of "not measured here". */}
           {canExpand && (
-            <div className="text-right" title="Buys / sells this wallet sent on PulseX">
+            <div
+              className="text-right"
+              title="Change in this wallet's position over the last 24 hours, from on-chain transfers — includes every venue, not just PulseX"
+            >
+              24h
+            </div>
+          )}
+          {canExpand && (
+            <div className="hidden sm:block text-right" title="Buys / sells this wallet sent on PulseX">
               B/S
             </div>
           )}
@@ -516,20 +569,37 @@ export default function GeickoHoldersTab({
                   <span className="text-[var(--text)] font-mono text-[12px] truncate">
                     {formattedAddress}
                   </span>
+                  {/* Tags. On a phone these are single letters — "CONTRACT"
+                      spelled out ate most of the address column and pushed the
+                      row out of line. The full word returns at `sm`, where
+                      there's room for it. */}
                   <div className="flex items-center gap-1 flex-none">
                     {isLpHolder && (
-                      <span className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-sky-300 border border-sky-400/30 rounded-sm leading-[1.4]">
+                      <span
+                        title="Liquidity pool"
+                        className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-sky-300 border border-sky-400/30 rounded-sm leading-[1.4]"
+                      >
                         LP
                       </span>
                     )}
                     {holder.isContract && (
-                      <span className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-purple-300 border border-purple-400/30 rounded-sm leading-[1.4]">
-                        {holder.isVerified ? 'Verified' : 'Contract'}
+                      <span
+                        title={holder.isVerified ? 'Verified contract' : 'Contract'}
+                        className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-purple-300 border border-purple-400/30 rounded-sm leading-[1.4]"
+                      >
+                        <span className="sm:hidden">{holder.isVerified ? 'V' : 'C'}</span>
+                        <span className="hidden sm:inline">
+                          {holder.isVerified ? 'Verified' : 'Contract'}
+                        </span>
                       </span>
                     )}
                     {isBurn && (
-                      <span className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-red-400 border border-red-400/30 rounded-sm leading-[1.4]">
-                        Burn
+                      <span
+                        title="Burn address"
+                        className="px-1 py-px text-[8.5px] font-semibold uppercase tracking-wide text-red-400 border border-red-400/30 rounded-sm leading-[1.4]"
+                      >
+                        <span className="sm:hidden">B</span>
+                        <span className="hidden sm:inline">Burn</span>
                       </span>
                     )}
                   </div>
@@ -561,9 +631,20 @@ export default function GeickoHoldersTab({
                   {percentage.toFixed(1)}<span className="text-[var(--text-faint)]">%</span>
                 </div>
 
-                {/* Buys / sells, without having to open the row. */}
+                {/* 24h position change — PulseChain only, see the header. */}
                 {canExpand && (
                   <div className="text-right text-[10.5px] font-semibold tabular-nums whitespace-nowrap">
+                    <DeltaCell
+                      raw={deltas ? deltas[addrLower] : undefined}
+                      loading={deltas === null}
+                      balanceRaw={holder.value}
+                    />
+                  </div>
+                )}
+
+                {/* Buys / sells, without having to open the row. */}
+                {canExpand && (
+                  <div className="hidden sm:block text-right text-[10.5px] font-semibold tabular-nums whitespace-nowrap">
                     <TradeCounter
                       address={addrLower}
                       balance={balance}
@@ -624,6 +705,64 @@ export default function GeickoHoldersTab({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * One holder's 24h position change.
+ *
+ * The endpoint gives the signed change; the row already knows the current
+ * balance, so the position 24h ago is `balance − change`. Percentages are
+ * against that starting position, which is what "up 12%" means to a reader.
+ *
+ * Two cases can't be a percentage and get a word instead: a wallet that started
+ * from nothing (any percentage of zero is meaningless) and one that has left.
+ *
+ * Absent from the map means the wallet didn't move at all — a flat dash, not a
+ * zero, so "didn't trade" reads differently from "traded to a wash".
+ */
+function DeltaCell({
+  raw, loading, balanceRaw,
+}: {
+  raw: string | undefined;
+  loading: boolean;
+  balanceRaw: string;
+}) {
+  if (loading) return <span className="text-[var(--text-faint)]">·</span>;
+  if (!raw) return <span className="text-[var(--text-faint)]">—</span>;
+
+  let change: bigint;
+  let now: bigint;
+  try {
+    change = BigInt(raw);
+    now = BigInt(balanceRaw);
+  } catch {
+    return <span className="text-[var(--text-faint)]">—</span>;
+  }
+  if (change === BigInt(0)) return <span className="text-[var(--text-faint)]">—</span>;
+
+  const before = now - change;
+
+  if (now === BigInt(0)) {
+    return <span className="text-red-400" title="Position closed in the last 24h">exited</span>;
+  }
+  if (before <= BigInt(0)) {
+    return <span className="text-emerald-400" title="Position opened in the last 24h">new</span>;
+  }
+
+  // Percent of the starting position. Number() on a ratio of same-scale bigints
+  // is safe — both sides carry the token's decimals, which cancel.
+  const pct = (Number(change) / Number(before)) * 100;
+  const up = change > BigInt(0);
+  const shown = Math.abs(pct) >= 999 ? '999+' : Math.abs(pct).toFixed(Math.abs(pct) < 10 ? 1 : 0);
+
+  return (
+    <span
+      className={up ? 'text-emerald-400' : 'text-red-400'}
+      title={`${up ? 'Added' : 'Reduced'} ${Math.abs(pct).toFixed(2)}% over 24h`}
+    >
+      {up ? '+' : '−'}{shown}%
+    </span>
   );
 }
 
