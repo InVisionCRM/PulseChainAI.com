@@ -54,6 +54,16 @@ const ROW_GRID =
   'grid gap-x-1.5 sm:gap-x-2 grid-cols-[27px_minmax(0,1fr)_auto_38px_46px] ' +
   'sm:grid-cols-[34px_minmax(0,1fr)_auto_auto_48px_54px_46px]';
 
+/**
+ * Balance and Wallet $ are the only two neighbouring columns that are both
+ * right-aligned AND content-sized, so the shared 8px gap is the entire space
+ * between them — a short value ran straight into its neighbour ("104m $13",
+ * "BALANCE WALLET $"). Padding this cell widens its own track, which separates
+ * that one boundary without loosening every other column. Header and rows use
+ * the same constant so they can't drift.
+ */
+const WALLET_CELL = 'hidden sm:block text-right pl-4 lg:pl-6';
+
 /** Payload of /api/geicko/holder-detail — see that route for field semantics. */
 interface HolderDetail {
   supported: boolean;
@@ -466,7 +476,7 @@ export default function GeickoHoldersTab({
           <div>Address</div>
           <div className="text-right">Balance</div>
           <div
-            className="hidden sm:block text-right"
+            className={WALLET_CELL}
             title="Estimated wallet value from native coin, wrapped native, core majors and pegged stablecoins"
           >
             Wallet $
@@ -614,7 +624,7 @@ export default function GeickoHoldersTab({
 
                 {/* Estimated wallet value (core + stablecoins). '—' while its
                     page of values is still loading; '$0' once known to be empty. */}
-                <div className="hidden sm:block text-right font-semibold tabular-nums whitespace-nowrap">
+                <div className={`${WALLET_CELL} font-semibold tabular-nums whitespace-nowrap`}>
                   {(() => {
                     const v = holderValues[addrLower];
                     if (!v) return <span className="text-[var(--text-faint)]">—</span>;
