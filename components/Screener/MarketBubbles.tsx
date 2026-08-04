@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { IconRefresh, IconMaximize, IconMinimize, IconShare2, IconCheck } from '@tabler/icons-react';
+import { IconRefresh, IconMaximize, IconMinimize, IconShare2, IconX } from '@tabler/icons-react';
 import type { ScreenerRow, ScreenerUiTab, ScreenerFilters } from '@/lib/screener/types';
 import { fetchPinnedRows } from '@/lib/screener/pinned';
 import { fmtUsd } from '@/lib/format';
@@ -329,6 +329,8 @@ const SHARE_W = 1600;
 /** Brand strip under the field. Scaled with SHARE_W. */
 const SHARE_FOOTER_H = 104;
 const BRAND = 'scan.Morbius.io';
+/** Whole-batch deadline for fetching logos into the share render. */
+const SHARE_LOGO_BUDGET_MS = 6000;
 
 /**
  * Load a logo through our own origin so the share canvas stays exportable.
@@ -390,7 +392,7 @@ async function renderShareImage(
   // live canvas already holds a GENERATED fallback sprite, which is untainted
   // and can be reused as-is.
   const sprites = new Map<MNode, HTMLCanvasElement | null>();
-  await Promise.all(
+  const loads = Promise.all(
     frozen.map(async ({ n, r }) => {
       if (r < 7) return; // renders as a dot; no sprite needed
       if (!n.imgOk || !n.row.imageUrl) {
@@ -405,10 +407,18 @@ async function renderShareImage(
     }),
   );
 
+  // A hundred bubbles means a hundred proxied logo fetches. Waiting for the
+  // slowest is how the button ends up appearing to do nothing, so the whole
+  // batch gets one deadline and stragglers fall back to their generated
+  // identity — a card that's a little plainer beats a card that never arrives.
+  await Promise.race([loads, new Promise((r) => setTimeout(r, SHARE_LOGO_BUDGET_MS))]);
+
   paintBackdrop(ctx, SHARE_W, fieldH);
   const glass = getGlassSprite();
   for (const { n, x, y, r } of frozen) {
-    paintBubble(ctx, n, x, y, r, sprites.get(n) ?? null, metric, glass);
+    let sprite = sprites.get(n);
+    if (sprite === undefined && r >= 7) sprite = buildFallbackSprite(n.symbol, n.address);
+    paintBubble(ctx, n, x, y, r, sprite ?? null, metric, glass);
   }
 
   // Brand strip.
@@ -447,6 +457,101 @@ interface MNode {
   sprite: HTMLCanvasElement | null;
 }
 
+/**
+ * Preview of the rendered card, with the hand-off actions as their own buttons.
+ *
+ * Each action runs from its own click, which is what makes `navigator.share()`
+ * work: Web Share requires transient user activation, and the render that
+ * precedes this dialog is far too slow to keep the original click's activation
+ * alive.
+ */
+function SharePreview({
+  url, blob, onClose,
+}: {
+  url: string;
+  blob: Blob;
+  onClose: () => void;
+}) {
+  const [note, setNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const file = new File([blob], 'morbius-bubbles.png', { type: 'image/png' });
+  type ShareData_ = { files?: File[]; title?: string; text?: string };
+  const nav = typeof navigator === 'undefined'
+    ? null
+    : (navigator as Navigator & { canShare?: (d: ShareData_) => boolean });
+  const canShareFiles = !!nav?.canShare?.({ files: [file] });
+
+  const download = () => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'morbius-bubbles.png';
+    a.click();
+    setNote('Saved');
+  };
+
+  const doShare = async () => {
+    try {
+      await navigator.share({ files: [file], title: BRAND, text: BRAND } as ShareData_);
+    } catch (e) {
+      // Dismissing the sheet rejects with AbortError — that's not a failure.
+      // Anything else is, and used to vanish silently.
+      if ((e as Error)?.name !== 'AbortError') setNote("Sharing didn't work — saving instead");
+      if ((e as Error)?.name !== 'AbortError') download();
+    }
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      setNote('Copied');
+    } catch {
+      // Image writes are blocked in some browsers; a download always works.
+      download();
+    }
+  };
+
+  const btn =
+    'rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs font-semibold transition-colors ' +
+    'text-[var(--text)] hover:bg-[var(--surface-2)]';
+
+  return (
+    <div
+      className="fixed inset-0 z-[140] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Share the bubble map"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full max-w-3xl overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)]">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-2.5">
+          <h2 className="text-sm font-bold text-[var(--text)]">Share this view</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-[var(--text-faint)] hover:text-[var(--text)]">
+            <IconX className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="max-h-[60vh] overflow-auto bg-[var(--surface)] p-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt="Bubble map preview" className="mx-auto block w-full rounded-lg" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--line)] px-4 py-3">
+          {canShareFiles && (
+            <button type="button" onClick={() => void doShare()} className={btn}>Share…</button>
+          )}
+          <button type="button" onClick={download} className={btn}>Save image</button>
+          <button type="button" onClick={() => void copy()} className={btn}>Copy</button>
+          <span className="ml-auto text-[11px] text-[var(--text-faint)]">{note ?? BRAND}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface Props {
   tab: ScreenerUiTab;
   dexId: string | null;
@@ -464,9 +569,14 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
   const [error, setError] = useState<string | null>(null);
   const [simKey, setSimKey] = useState(0);
   const [fs, setFs] = useState(false);
-  const [shareState, setShareState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
+  const [shareState, setShareState] = useState<'idle' | 'rendering' | 'error'>('idle');
+  /** The rendered PNG awaiting the user's choice (share / save / copy). */
+  const [share_, setShare] = useState<{ blob: Blob; url: string } | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  /** Mirrors `share_` so unmount cleanup can revoke without re-running. */
+  const shareRef = useRef<{ blob: Blob; url: string } | null>(null);
+  shareRef.current = share_;
   const tipRef = useRef<HTMLDivElement | null>(null);
   const dataRef = useRef<{ nodes: MNode[] } | null>(null);
   const metricRef = useRef<Metric>(metric);
@@ -594,13 +704,25 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
     retargetRef.current?.();
   }, [metric]);
 
-  // Snapshot the field as a PNG and hand it to the OS share sheet, falling back
-  // to a download where sharing files isn't supported (most desktop browsers).
+  /**
+   * Render the field, then SHOW it. The button used to render and immediately
+   * hand off, which produced nothing visible either way:
+   *
+   *  • Where the browser can't share files (most desktop browsers) it triggered
+   *    a silent programmatic download — no window, no confirmation.
+   *  • Where it can, `navigator.share()` was called only AFTER awaiting every
+   *    logo fetch. Web Share needs transient user activation, which expires a
+   *    few seconds after the click, so a slow render made share() reject with
+   *    NotAllowedError — and that rejection was swallowed by a bare `.catch()`.
+   *
+   * Showing a preview fixes both: the user always sees something, and Share now
+   * fires from its own fresh click inside the dialog, with activation intact.
+   */
   const share = useCallback(async () => {
     const cvs = canvasRef.current;
     const nodes = dataRef.current?.nodes;
     if (!cvs || !nodes?.length) return;
-    setShareState('busy');
+    setShareState('rendering');
     try {
       const box = cvs.getBoundingClientRect();
       const metricLabel = METRICS.find((m) => m.id === metricRef.current)?.label ?? '';
@@ -616,27 +738,22 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       const blob = await new Promise<Blob | null>((res) => out.toBlob(res, 'image/png'));
       if (!blob) throw new Error('encode failed');
 
-      const file = new File([blob], 'morbius-bubbles.png', { type: 'image/png' });
-      type ShareData_ = { files?: File[]; title?: string; text?: string };
-      const nav = navigator as Navigator & { canShare?: (d: ShareData_) => boolean };
-      if (nav.canShare?.({ files: [file] })) {
-        // A user cancelling the share sheet rejects — that isn't a failure.
-        await navigator.share({ files: [file], title: BRAND, text: BRAND } as ShareData_).catch(() => {});
-      } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'morbius-bubbles.png';
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-      setShareState('done');
-      setTimeout(() => setShareState('idle'), 1600);
+      setShare({ blob, url: URL.createObjectURL(blob) });
+      setShareState('idle');
     } catch {
       setShareState('error');
-      setTimeout(() => setShareState('idle'), 2400);
+      setTimeout(() => setShareState('idle'), 2600);
     }
   }, []);
+
+  /** Free the object URL whenever the preview closes or the view unmounts. */
+  const closeShare = useCallback(() => {
+    setShare((s) => {
+      if (s) URL.revokeObjectURL(s.url);
+      return null;
+    });
+  }, []);
+  useEffect(() => () => { if (shareRef.current) URL.revokeObjectURL(shareRef.current.url); }, []);
 
   // Track phone vs desktop; clamp count to the mobile set (≤100) on a phone.
   useEffect(() => {
@@ -947,28 +1064,20 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
           <button
             type="button"
             onClick={() => void share()}
-            disabled={status !== 'ready' || shareState === 'busy'}
+            disabled={status !== 'ready' || shareState === 'rendering'}
             className={`transition-colors disabled:opacity-40 ${
-              shareState === 'error'
-                ? 'text-red-400'
-                : shareState === 'done'
-                  ? 'text-emerald-400'
-                  : 'text-[var(--text-faint)] hover:text-[var(--text)]'
+              shareState === 'error' ? 'text-red-400' : 'text-[var(--text-faint)] hover:text-[var(--text)]'
             }`}
             title={
               shareState === 'error'
                 ? "Couldn't build the image"
-                : shareState === 'done'
-                  ? 'Image ready'
-                  : `Share this view as an image (${BRAND})`
+                : `Share this view as an image (${BRAND})`
             }
             aria-label="Share bubbles as an image"
           >
-            {shareState === 'busy'
+            {shareState === 'rendering'
               ? <IconRefresh className="h-4 w-4 animate-spin" />
-              : shareState === 'done'
-                ? <IconCheck className="h-4 w-4" />
-                : <IconShare2 className="h-4 w-4" />}
+              : <IconShare2 className="h-4 w-4" />}
           </button>
           <button
             type="button"
@@ -1018,6 +1127,8 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
           </div>
         </>
       )}
+
+      {share_ && <SharePreview url={share_.url} blob={share_.blob} onClose={closeShare} />}
     </div>
   );
 }
