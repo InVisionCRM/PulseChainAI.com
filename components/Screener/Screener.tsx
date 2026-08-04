@@ -65,7 +65,9 @@ export default function Screener() {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [view, setView] = useState<'table' | 'bubbles'>('table');
+  // Bubbles lead: the live field is what the homepage is meant to open on. The
+  // table is one click away on the same toggle.
+  const [view, setView] = useState<'table' | 'bubbles'>('bubbles');
   const abortRef = useRef<AbortController | null>(null);
   const watchlist = useScreenerWatchlist();
 

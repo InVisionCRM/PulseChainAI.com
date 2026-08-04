@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { IconRefresh, IconMaximize, IconMinimize } from '@tabler/icons-react';
+import { IconRefresh, IconMaximize, IconMinimize, IconShare2, IconCheck } from '@tabler/icons-react';
 import type { ScreenerRow, ScreenerUiTab, ScreenerFilters } from '@/lib/screener/types';
 import { fetchPinnedRows } from '@/lib/screener/pinned';
 import { fmtUsd } from '@/lib/format';
@@ -161,29 +161,32 @@ function getGlassSprite(): HTMLCanvasElement | null {
   return c;
 }
 
-// Bake a token's bubble face ONCE: circular-clipped logo (cover) + a magnified
-// refraction band at the rim + the glass highlight overlay. Drawn per frame as a
-// single scaled image, so no expensive clipping happens in the animation loop.
-function buildNodeSprite(img: HTMLImageElement): HTMLCanvasElement | null {
+// Bake a token's bubble face ONCE: circular-clipped logo (cover) + the glass
+// highlight overlay. Drawn per frame as a single scaled image, so no expensive
+// clipping happens in the animation loop.
+//
+// There used to be a "refraction band" here — the logo redrawn at 1.34x, clipped
+// to the ring between 0.78r and r, meant to read as glass bending the image at
+// the rim. It doesn't: a magnified copy of the SAME logo lands in that ring, so
+// every mark near the edge appears twice, offset. On the HEX logo the hexagon
+// outline is visibly doubled. The effect scales with the bubble, so the biggest
+// bubbles — the ones people actually look at — ghosted the worst. The glass
+// sprite's rim sheen and inset shadow already carry the 3D read on their own.
+// `size` is the baked resolution: 240 is plenty on screen, but the share image
+// renders bubbles far larger than they ever appear live, so it bakes at 512.
+function buildNodeSprite(img: HTMLImageElement, size = 240): HTMLCanvasElement | null {
   if (typeof document === 'undefined') return null;
-  const S = 240, c = document.createElement('canvas');
+  const S = size, c = document.createElement('canvas');
   c.width = S; c.height = S;
   const g = c.getContext('2d');
   if (!g) return null;
   const cx = S / 2, cy = S / 2, r = S / 2, TAU = Math.PI * 2;
-  const cover = (scale: number) => {
-    const iw = img.naturalWidth || 1, ih = img.naturalHeight || 1;
-    const sc = Math.max((r * 2 * scale) / iw, (r * 2 * scale) / ih);
-    const dw = iw * sc, dh = ih * sc;
-    try { g.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh); } catch { /* tainted */ }
-  };
   g.save();
   g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.clip();
-  cover(1);
-  // Refraction band — magnified redraw in the outer ring bends the logo at the rim.
-  g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.arc(cx, cy, r * 0.78, 0, TAU, true);
-  g.clip('evenodd');
-  cover(1.34);
+  const iw = img.naturalWidth || 1, ih = img.naturalHeight || 1;
+  const sc = Math.max((r * 2) / iw, (r * 2) / ih);
+  const dw = iw * sc, dh = ih * sc;
+  try { g.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh); } catch { /* tainted */ }
   g.restore();
   const glass = getGlassSprite();
   if (glass) g.drawImage(glass, 0, 0, S, S);
@@ -235,6 +238,200 @@ function buildFallbackSprite(symbol: string, address: string | null): HTMLCanvas
   return c;
 }
 
+const TAU = 6.2831853;
+
+/**
+ * Paint one bubble at an arbitrary position/size onto an arbitrary context.
+ *
+ * Shared by the live animation loop and the share-image renderer so the two can
+ * never drift — the exported PNG is the same bubble the user was looking at,
+ * just bigger. Position and radius are passed in rather than read off the node
+ * because the share render draws the same field at a different scale.
+ */
+function paintBubble(
+  ctx: CanvasRenderingContext2D,
+  n: MNode,
+  x: number,
+  y: number,
+  r: number,
+  sprite: HTMLCanvasElement | null,
+  metric: Metric,
+  glass: HTMLCanvasElement | null,
+) {
+  const chg = n.row.chg.h24;
+  // Performance ring colour — green up / red down (grey when unknown).
+  const ring: RGB = chg == null ? [120, 140, 160] : chg >= 0 ? [34, 230, 156] : [245, 70, 92];
+
+  // Dust fast-path: tiny bubbles render as a single coloured dot.
+  if (r < 7) {
+    ctx.fillStyle = rgbStr(ring, 0.95);
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+    return;
+  }
+
+  // Body: the pre-baked circular logo + glass sprite — one draw, no clipping.
+  // Fallback to a tinted disc + symbol until the sprite is ready / for no logo.
+  if (sprite) {
+    ctx.drawImage(sprite, x - r, y - r, r * 2, r * 2);
+  } else {
+    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.34, r * 0.1, x, y, r);
+    g.addColorStop(0, rgbStr([n.col[0] + 55, n.col[1] + 55, n.col[2] + 55] as RGB, 0.95));
+    g.addColorStop(1, rgbStr(n.col, 0.92));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+    if (r >= 13) {
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.font = `700 ${Math.min(15, Math.max(9, r * 0.4))}px ui-sans-serif,system-ui,sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(n.symbol.slice(0, 6), x, y);
+    }
+    // Give fallback discs the same glass + inset-shadow treatment as logos.
+    if (glass) ctx.drawImage(glass, x - r, y - r, r * 2, r * 2);
+  }
+
+  // Performance ring — green up / red down, hugging the bubble edge.
+  ctx.lineWidth = Math.max(2, r * 0.08);
+  ctx.strokeStyle = rgbStr(ring, 0.95);
+  ctx.beginPath(); ctx.arc(x, y, r - ctx.lineWidth / 2, 0, TAU); ctx.stroke();
+
+  // Value chip near the bottom for big bubbles, so the logo stays clear.
+  // Font scales with bubble size (capped) so large bubbles read clearly.
+  if (r >= 30) {
+    const txt = valLabel(n.row, metric);
+    const fs = Math.max(11, Math.min(30, r * 0.26));
+    ctx.font = `800 ${fs}px ui-sans-serif,system-ui,sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(txt).width, ch = fs + 7, yy = y + r * 0.5;
+    ctx.fillStyle = 'rgba(6,14,26,0.72)';
+    ctx.fillRect(x - tw / 2 - 6, yy - ch / 2, tw + 12, ch);
+    ctx.fillStyle = 'rgba(255,255,255,0.98)';
+    ctx.fillText(txt, x, yy);
+  }
+}
+
+/** Field backdrop — same two layers the live canvas paints. */
+function paintBackdrop(ctx: CanvasRenderingContext2D, W: number, H: number) {
+  ctx.fillStyle = '#0a1525';
+  ctx.fillRect(0, 0, W, H);
+  const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.1, W / 2, H / 2, Math.max(W, H) * 0.7);
+  g.addColorStop(0, 'rgba(120,160,210,0.05)');
+  g.addColorStop(1, 'rgba(0,0,0,0.32)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// ---------------------------------------------------------------------------
+// Share image
+// ---------------------------------------------------------------------------
+
+/** Output width of the shared PNG; height follows the field's aspect ratio. */
+const SHARE_W = 1600;
+/** Brand strip under the field. Scaled with SHARE_W. */
+const SHARE_FOOTER_H = 104;
+const BRAND = 'scan.Morbius.io';
+
+/**
+ * Load a logo through our own origin so the share canvas stays exportable.
+ *
+ * The CDNs the screener points at send no `Access-Control-Allow-Origin`, so an
+ * image loaded straight from them taints the canvas and `toBlob()` throws. The
+ * live field doesn't care (it never exports), but the share render does — hence
+ * the round trip through /api/token-logo, which adds the CORS header.
+ *
+ * Resolves null rather than rejecting: one missing logo should cost that bubble
+ * its artwork, not sink the whole image.
+ */
+function loadShareLogo(url: string, timeoutMs = 8000): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    const done = (v: HTMLImageElement | null) => {
+      clearTimeout(timer);
+      img.onload = null;
+      img.onerror = null;
+      resolve(v);
+    };
+    const timer = setTimeout(() => done(null), timeoutMs);
+    img.onload = () => done(img);
+    img.onerror = () => done(null);
+    img.src = `/api/token-logo?url=${encodeURIComponent(url)}`;
+  });
+}
+
+/**
+ * Render the CURRENT bubble field to an offscreen canvas, watermarked.
+ *
+ * Positions are taken live from the nodes and scaled up, so the picture is the
+ * arrangement on screen at the moment the button was pressed.
+ */
+async function renderShareImage(
+  nodes: MNode[],
+  W: number,
+  H: number,
+  metric: Metric,
+  subtitle: string,
+): Promise<HTMLCanvasElement | null> {
+  if (typeof document === 'undefined' || W <= 0 || H <= 0) return null;
+
+  const scale = SHARE_W / W;
+  const fieldH = Math.round(H * scale);
+  const cvs = document.createElement('canvas');
+  cvs.width = SHARE_W;
+  cvs.height = fieldH + SHARE_FOOTER_H;
+  const ctx = cvs.getContext('2d');
+  if (!ctx) return null;
+
+  // Freeze the layout NOW. Fetching logos takes a moment and the field never
+  // stops drifting, so painting from live coordinates would export a slightly
+  // different arrangement than the one on screen when the button was pressed.
+  const frozen = nodes.map((n) => ({ n, x: n.x * scale, y: n.y * scale, r: n.r * scale }));
+
+  // Re-bake every visible logo from the proxy. A node whose logo failed on the
+  // live canvas already holds a GENERATED fallback sprite, which is untainted
+  // and can be reused as-is.
+  const sprites = new Map<MNode, HTMLCanvasElement | null>();
+  await Promise.all(
+    frozen.map(async ({ n, r }) => {
+      if (r < 7) return; // renders as a dot; no sprite needed
+      if (!n.imgOk || !n.row.imageUrl) {
+        sprites.set(n, n.sprite ?? buildFallbackSprite(n.symbol, n.address));
+        return;
+      }
+      const img = await loadShareLogo(n.row.imageUrl);
+      sprites.set(
+        n,
+        img ? buildNodeSprite(img, 512) : buildFallbackSprite(n.symbol, n.address),
+      );
+    }),
+  );
+
+  paintBackdrop(ctx, SHARE_W, fieldH);
+  const glass = getGlassSprite();
+  for (const { n, x, y, r } of frozen) {
+    paintBubble(ctx, n, x, y, r, sprites.get(n) ?? null, metric, glass);
+  }
+
+  // Brand strip.
+  const fy = fieldH;
+  ctx.fillStyle = '#060f1c';
+  ctx.fillRect(0, fy, SHARE_W, SHARE_FOOTER_H);
+  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+  ctx.fillRect(0, fy, SHARE_W, 1);
+
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.font = '800 42px ui-sans-serif,system-ui,sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.97)';
+  ctx.fillText(BRAND, 44, fy + SHARE_FOOTER_H / 2);
+
+  ctx.textAlign = 'right';
+  ctx.font = '600 26px ui-sans-serif,system-ui,sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillText(subtitle, SHARE_W - 44, fy + SHARE_FOOTER_H / 2);
+
+  return cvs;
+}
+
 interface MNode {
   address: string | null;
   symbol: string;
@@ -267,6 +464,7 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
   const [error, setError] = useState<string | null>(null);
   const [simKey, setSimKey] = useState(0);
   const [fs, setFs] = useState(false);
+  const [shareState, setShareState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const tipRef = useRef<HTMLDivElement | null>(null);
@@ -395,6 +593,50 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
     metricRef.current = metric;
     retargetRef.current?.();
   }, [metric]);
+
+  // Snapshot the field as a PNG and hand it to the OS share sheet, falling back
+  // to a download where sharing files isn't supported (most desktop browsers).
+  const share = useCallback(async () => {
+    const cvs = canvasRef.current;
+    const nodes = dataRef.current?.nodes;
+    if (!cvs || !nodes?.length) return;
+    setShareState('busy');
+    try {
+      const box = cvs.getBoundingClientRect();
+      const metricLabel = METRICS.find((m) => m.id === metricRef.current)?.label ?? '';
+      const out = await renderShareImage(
+        nodes,
+        box.width,
+        box.height,
+        metricRef.current,
+        `${nodes.length} tokens · sized by ${metricLabel}`,
+      );
+      if (!out) throw new Error('render failed');
+
+      const blob = await new Promise<Blob | null>((res) => out.toBlob(res, 'image/png'));
+      if (!blob) throw new Error('encode failed');
+
+      const file = new File([blob], 'morbius-bubbles.png', { type: 'image/png' });
+      type ShareData_ = { files?: File[]; title?: string; text?: string };
+      const nav = navigator as Navigator & { canShare?: (d: ShareData_) => boolean };
+      if (nav.canShare?.({ files: [file] })) {
+        // A user cancelling the share sheet rejects — that isn't a failure.
+        await navigator.share({ files: [file], title: BRAND, text: BRAND } as ShareData_).catch(() => {});
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'morbius-bubbles.png';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+      setShareState('done');
+      setTimeout(() => setShareState('idle'), 1600);
+    } catch {
+      setShareState('error');
+      setTimeout(() => setShareState('idle'), 2400);
+    }
+  }, []);
 
   // Track phone vs desktop; clamp count to the mobile set (≤100) on a phone.
   useEffect(() => {
@@ -545,73 +787,19 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       }
     }
 
-    const TAU = 6.2831853;
     const glass = getGlassSprite(); // shared overlay for fallback discs (logos bake their own)
 
     function drawNode(n: MNode) {
-      const r = n.r;
-      const chg = n.row.chg.h24;
-      // Performance ring colour — green up / red down (grey when unknown).
-      const ring: RGB = chg == null ? [120, 140, 160] : chg >= 0 ? [34, 230, 156] : [245, 70, 92];
-
-      // Dust fast-path: tiny bubbles render as a single coloured dot.
-      if (r < 7) {
-        ctx.fillStyle = rgbStr(ring, 0.95);
-        ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, TAU); ctx.fill();
-        return;
-      }
-
-      // Body: the pre-baked circular logo + glass sprite — one draw, no clipping.
-      // Fallback to a tinted disc + symbol until the sprite is ready / for no logo.
-      if (n.sprite) {
-        ctx.drawImage(n.sprite, n.x - r, n.y - r, r * 2, r * 2);
-      } else {
-        const g = ctx.createRadialGradient(n.x - r * 0.3, n.y - r * 0.34, r * 0.1, n.x, n.y, r);
-        g.addColorStop(0, rgbStr([n.col[0] + 55, n.col[1] + 55, n.col[2] + 55] as RGB, 0.95));
-        g.addColorStop(1, rgbStr(n.col, 0.92));
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, TAU); ctx.fill();
-        if (r >= 13) {
-          ctx.fillStyle = 'rgba(255,255,255,0.95)';
-          ctx.font = `700 ${Math.min(15, Math.max(9, r * 0.4))}px ui-sans-serif,system-ui,sans-serif`;
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(n.symbol.slice(0, 6), n.x, n.y);
-        }
-        // Give fallback discs the same glass + inset-shadow treatment as logos.
-        if (glass) ctx.drawImage(glass, n.x - r, n.y - r, r * 2, r * 2);
-      }
-
-      // Performance ring — green up / red down, hugging the bubble edge.
-      ctx.lineWidth = Math.max(2, r * 0.08);
-      ctx.strokeStyle = rgbStr(ring, 0.95);
-      ctx.beginPath(); ctx.arc(n.x, n.y, r - ctx.lineWidth / 2, 0, TAU); ctx.stroke();
-
+      paintBubble(ctx, n, n.x, n.y, n.r, n.sprite, metricRef.current, glass);
       if (n === hover) {
         ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-        ctx.beginPath(); ctx.arc(n.x, n.y, r + 2.5, 0, TAU); ctx.stroke();
-      }
-
-      // Value chip near the bottom for big bubbles, so the logo stays clear.
-      // Font scales with bubble size (capped) so large bubbles read clearly.
-      if (r >= 30) {
-        const txt = valLabel(n.row, metricRef.current);
-        const fs = Math.max(11, Math.min(30, r * 0.26));
-        ctx.font = `800 ${fs}px ui-sans-serif,system-ui,sans-serif`;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        const tw = ctx.measureText(txt).width, ch = fs + 7, yy = n.y + r * 0.5;
-        ctx.fillStyle = 'rgba(6,14,26,0.72)';
-        ctx.fillRect(n.x - tw / 2 - 6, yy - ch / 2, tw + 12, ch);
-        ctx.fillStyle = 'rgba(255,255,255,0.98)';
-        ctx.fillText(txt, n.x, yy);
+        ctx.beginPath(); ctx.arc(n.x, n.y, n.r + 2.5, 0, TAU); ctx.stroke();
       }
     }
 
     function draw() {
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-      ctx.fillStyle = '#0a1525'; ctx.fillRect(0, 0, W, H);
-      const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.1, W / 2, H / 2, Math.max(W, H) * 0.7);
-      g.addColorStop(0, 'rgba(120,160,210,0.05)'); g.addColorStop(1, 'rgba(0,0,0,0.32)');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      paintBackdrop(ctx, W, H);
       for (const n of nodes) drawNode(n);
     }
 
@@ -756,6 +944,32 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={() => void share()}
+            disabled={status !== 'ready' || shareState === 'busy'}
+            className={`transition-colors disabled:opacity-40 ${
+              shareState === 'error'
+                ? 'text-red-400'
+                : shareState === 'done'
+                  ? 'text-emerald-400'
+                  : 'text-[var(--text-faint)] hover:text-[var(--text)]'
+            }`}
+            title={
+              shareState === 'error'
+                ? "Couldn't build the image"
+                : shareState === 'done'
+                  ? 'Image ready'
+                  : `Share this view as an image (${BRAND})`
+            }
+            aria-label="Share bubbles as an image"
+          >
+            {shareState === 'busy'
+              ? <IconRefresh className="h-4 w-4 animate-spin" />
+              : shareState === 'done'
+                ? <IconCheck className="h-4 w-4" />
+                : <IconShare2 className="h-4 w-4" />}
+          </button>
           <button
             type="button"
             onClick={() => void load()}
