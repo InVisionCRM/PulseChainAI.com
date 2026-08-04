@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconShare2, IconX, IconDownload, IconCopy, IconCheck } from '@tabler/icons-react';
-import { CARDS, CARD_H, CARD_W, drawCard, type ShareData } from '@/lib/superstake/shareCard';
+import { BRAND_URL, CARDS, CARD_H, CARD_W, drawCard, type ShareData } from '@/lib/superstake/shareCard';
 
 const MONO = 'var(--font-jetbrains-mono), ui-monospace, monospace';
 const GRAD = 'linear-gradient(135deg,#7E089D,#AE176A 30%,#D83639 58%,#E96635 80%,#FB9438)';
@@ -141,7 +141,7 @@ function Picker({
     type ShareData_ = { files?: File[]; title?: string; text?: string };
     if (nav.canShare?.({ files: [file] })) {
       await navigator
-        .share({ files: [file], title: 'SuperStake', text: 'morbius.io/superstake' } as ShareData_)
+        .share({ files: [file], title: 'SuperStake', text: BRAND_URL } as ShareData_)
         .catch(() => {});
     } else {
       await download();
