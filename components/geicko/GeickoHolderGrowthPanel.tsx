@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { SkeletonChart } from '@/components/ui/skeleton';
 
 export interface GeickoHolderGrowthPanelProps {
   token: string;
@@ -103,7 +104,7 @@ export default function GeickoHolderGrowthPanel({ token }: GeickoHolderGrowthPan
       </div>
 
       {loading ? (
-        <div className="grid h-32 place-items-center text-sm text-[var(--text-faint)]">Loading…</div>
+        <SkeletonChart height={128} bars={20} />
       ) : (
         <>
           <div className="rounded-lg border border-[var(--line)] bg-white/[0.02] p-4 text-center">

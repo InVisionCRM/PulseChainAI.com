@@ -30,7 +30,7 @@ import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
 import { useToast } from '@/components/ui/toast-provider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, SkeletonChart } from '@/components/ui/skeleton';
 import GeickoRating from '@/components/geicko/GeickoRating';
 import GeickoComments from '@/components/geicko/GeickoComments';
 import {
@@ -82,7 +82,19 @@ const BubbleMap = dynamic(
 // pull heavy deps (syntax highlighter, markdown, audit logic). Loading them on
 // demand keeps the initial /geicko bundle lean.
 const TabLoading = () => (
-  <div className="grid h-48 place-items-center text-sm text-[var(--text-faint)]">Loading…</div>
+  // Lazy tab chunks land in well under a second on a warm cache, but on a cold
+  // one this is the whole panel — so reserve its shape instead of a bare word.
+  <div className="space-y-3 p-3" aria-busy="true">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-2">
+          <Skeleton className="h-2.5 w-16" />
+          <Skeleton className="mt-2 h-5 w-20" />
+        </div>
+      ))}
+    </div>
+    <SkeletonChart height={150} bars={26} />
+  </div>
 );
 const AdminStatsPanel = dynamic(() => import('@/components/AdminStatsPanel'), { loading: TabLoading });
 const TokenAIChat = dynamic(() => import('@/components/TokenAIChat'), { ssr: false, loading: TabLoading });
@@ -1969,7 +1981,7 @@ function GeickoPageContent() {
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                   <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Ownership</div>
                   {ownershipData.isLoading ? (
-                    <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
+                    <div className="flex justify-center"><Skeleton className="h-5 w-16" /></div>
                   ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
                     <div className="text-center">
                       <div className="text-xs text-[var(--up)] font-semibold">Renounced</div>
@@ -2107,7 +2119,7 @@ function GeickoPageContent() {
                     </Tooltip>
                   </div>
                   {supplyHeld.isLoading ? (
-                    <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
+                    <div className="flex justify-center"><Skeleton className="h-5 w-16" /></div>
                   ) : (
                     <div className="space-y-0.5">
                       <div className="flex items-center justify-between">
@@ -2175,7 +2187,7 @@ function GeickoPageContent() {
                     </Tooltip>
                   </div>
                   {smartContractHolderShare.isLoading ? (
-                    <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
+                    <div className="flex justify-center"><Skeleton className="h-5 w-16" /></div>
                   ) : (
                     <div className="space-y-0.5">
                       <div className="flex items-center justify-between">
@@ -2201,7 +2213,7 @@ function GeickoPageContent() {
                 <div className="bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                   <div className="text-xs text-[var(--text-muted)] mb-2 font-medium uppercase tracking-wider text-center">Total Liquidity</div>
                   {totalLiquidity.isLoading ? (
-                    <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
+                    <div className="flex justify-center"><Skeleton className="h-5 w-16" /></div>
                   ) : (
                     <div className="text-center text-base text-[var(--text)] font-semibold">
                       <Tooltip>
@@ -2442,11 +2454,13 @@ function GeickoPageContent() {
                   )}
                   <div className="flex-1 min-h-[420px] flex flex-col">
                     {isLoadingData ? (
-                      <div className="flex-1 flex items-center justify-center min-h-[360px]">
-                        <div className="text-center">
-                          <LoaderThree />
-                          <p className="text-[var(--text-muted)] text-xs mt-2">Loading chart...</p>
+                      <div className="flex-1 min-h-[360px] flex flex-col gap-3 p-2" aria-busy="true">
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-6 w-28" />
+                          <Skeleton className="h-6 w-20" />
+                          <Skeleton className="ml-auto h-6 w-24" />
                         </div>
+                        <SkeletonChart height={280} bars={40} className="flex-1" />
                       </div>
                     ) : displayPair?.pairAddress ? (
                       <div className="w-full flex-1 min-h-[420px]">
@@ -3048,7 +3062,7 @@ function GeickoPageContent() {
                       <div className="relative h-16 bg-gradient-to-br from-cyan-500/[0.04] via-transparent to-blue-500/[0.04] rounded-lg shadow-[inset_0_0_0_1px_rgba(34,211,238,0.15),inset_2px_2px_4px_rgba(0,0,0,0.3)] p-3">
                         <div className="absolute left-1/2 -translate-x-1/2 top-2 text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Ownership</div>
                         {ownershipData.isLoading ? (
-                          <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
+                          <div className="flex justify-center"><Skeleton className="h-5 w-16" /></div>
                         ) : (ownershipData.isRenounced || ownershipData.creatorAddress?.toLowerCase() === PUMP_TIRES_CREATOR.toLowerCase()) ? (
                           <div className="absolute bottom-2 right-1/2 translate-x-1/2 text-center">
                             <div className="text-xs text-[var(--up)] font-semibold">Renounced</div>
@@ -3186,7 +3200,7 @@ function GeickoPageContent() {
                           </Tooltip>
                         </div>
                         {supplyHeld.isLoading ? (
-                          <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
+                          <div className="flex justify-center"><Skeleton className="h-5 w-16" /></div>
                         ) : (
                           <div className="space-y-0.5">
                             <div className="flex items-center justify-between">
@@ -3254,7 +3268,7 @@ function GeickoPageContent() {
                           </Tooltip>
                         </div>
                         {smartContractHolderShare.isLoading ? (
-                          <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
+                          <div className="flex justify-center"><Skeleton className="h-5 w-16" /></div>
                         ) : (
                           <div className="space-y-0.5">
                             <div className="flex items-center justify-between">
@@ -3332,7 +3346,7 @@ function GeickoPageContent() {
                       <div className="relative bg-gradient-to-br from-white/5 via-blue-500/5 to-white/5 rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-1px_-1px_2px_rgba(255,255,255,0.1)] border border-[var(--line-soft)] py-0 px-3 min-h-[80px] flex items-center justify-center">
                         <div className="absolute top-2 right-1/2 translate-x-1/2 whitespace-nowrap text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">Total Liquidity</div>
                         {totalLiquidity.isLoading ? (
-                          <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
+                          <div className="flex justify-center"><Skeleton className="h-5 w-16" /></div>
                         ) : totalLiquidity.usd > 0 ? (
                           <div className="absolute bottom-6 right-1/2 translate-x-1/2 text-base text-[var(--text)] font-semibold">
                             <Tooltip>

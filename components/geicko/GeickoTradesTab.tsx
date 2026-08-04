@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { SkeletonRows } from '@/components/ui/skeleton';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import { txUrl, addressUrl } from '@/lib/pulsechain/explorer';
 
@@ -98,7 +99,7 @@ export default function GeickoTradesTab({
   }, [network, token]);
 
   if (status === 'loading' || status === 'idle') {
-    return <div className="py-10 text-center text-sm text-[var(--text-muted)]">Loading trades…</div>;
+    return <SkeletonRows rows={10} cols={['w-12', 'w-16', 'flex-1', 'w-16', 'w-14']} className="py-1" />;
   }
   if (status === 'error' || status === 'empty') {
     return <div className="py-10 text-center text-sm text-[var(--text-muted)]">No recent trade activity for this token.</div>;

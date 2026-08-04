@@ -18,6 +18,7 @@ import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingServ
 import { HexLoader } from '@/components/ui/hex-loader';
 import { NumberTicker } from './magicui/number-ticker';
 import { FlickeringGrid } from './magicui/flickering-grid';
+import { SkeletonRows } from '@/components/ui/skeleton';
 
 // Stronger types for dashboard data
 type HexRow = HexDataPoint & {
@@ -3888,7 +3889,7 @@ const HEXDataDashboard = () => {
               </div>
               <div className="max-h-[70vh] overflow-y-auto p-4">
                 {isLoadingDexPairs && (
-                  <div className="text-center text-[var(--text-muted)] py-1">Loading pairs…</div>
+                  <SkeletonRows rows={5} cols={['w-24', 'flex-1', 'w-20']} className="py-1" />
                 )}
                 {dexPairsError && (
                   <div className="text-center text-red-300 py-1">{dexPairsError}</div>

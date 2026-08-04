@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { SkeletonChart, SkeletonRows } from '@/components/ui/skeleton';
 import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
 import { txUrl, addressUrl } from '@/lib/pulsechain/explorer';
@@ -111,7 +112,7 @@ export default function GeickoLiquidityPanel({
       </div>
 
       {status === 'loading' && (
-        <div className="py-6 text-center text-xs text-[var(--text-muted)]">Loading liquidity activity…</div>
+        <div className="py-2"><SkeletonChart height={120} bars={22} className="mb-3" /><SkeletonRows rows={4} cols={['w-14', 'flex-1', 'w-16']} /></div>
       )}
 
       {status === 'ready' && data?.totals && (

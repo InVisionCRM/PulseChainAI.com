@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { Skeleton, SkeletonChart } from '@/components/ui/skeleton';
 
 // "Price Performance" section for the Geicko token view: 7d/30d/1y change,
 // all-time high/low, and since-launch — in USD or priced vs WPLS. Sourced from
@@ -147,7 +148,14 @@ export default function GeickoPerformancePanel({
       </div>
 
       {status === 'loading' && (
-        <div className={`text-center text-xs text-[var(--text-muted)] ${compact ? 'py-4' : 'py-6'}`}>Loading price history…</div>
+        <div className={compact ? 'py-1' : 'py-2'}>
+          <div className={`grid grid-cols-3 ${compact ? 'mb-1.5 gap-1' : 'mb-2 gap-2'}`}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className={compact ? 'h-8' : 'h-10'} />
+            ))}
+          </div>
+          <SkeletonChart height={compact ? 90 : 140} bars={compact ? 16 : 26} />
+        </div>
       )}
       {status === 'error' && (
         <div className={`text-center text-xs text-[var(--text-muted)] ${compact ? 'py-4' : 'py-6'}`}>Price history isn’t available for this token yet.</div>

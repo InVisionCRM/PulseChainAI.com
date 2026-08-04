@@ -5,6 +5,7 @@
 // price — it isolates which structure accrues more HEX over the window.
 
 import { useEffect, useMemo, useState } from 'react';
+import { SkeletonRows } from '@/components/ui/skeleton';
 import {
   backtest,
   cycleHeadToHead,
@@ -97,7 +98,11 @@ export default function VsHexTool() {
   }, [snap, amount]);
 
   if (status === 'loading') {
-    return <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--text-faint)]">Loading cycle history…</div>;
+    return (
+      <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-6">
+        <SkeletonRows rows={6} cols={['w-16', 'flex-1', 'w-20', 'w-16']} />
+      </div>
+    );
   }
   if (status === 'error' || !snap || !bounds) {
     return <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-6 text-center text-sm text-red-200">Couldn&apos;t load the SuperStake history.</div>;

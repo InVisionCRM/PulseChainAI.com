@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { LoaderThree } from '@/components/ui/loader';
+import { IconRefresh } from '@tabler/icons-react';
+import { Skeleton, SkeletonRows } from '@/components/ui/skeleton';
 import { Holder, HolderStats, TokenInfo } from './types';
 import { isBurnAddress } from './utils';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
@@ -393,12 +394,36 @@ export default function GeickoHoldersTab({
     return () => io.disconnect();
   }, [hasMore, isLoadingMore, onLoadMore]);
 
+  // Skeleton rows on the REAL grid rather than a centred spinner: the table's
+  // own shape shows up immediately and nothing shifts when the data lands.
   if (isLoadingHolders) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-center">
-          <LoaderThree />
-          <p className="text-[var(--text-muted)] text-xs mt-2">Loading holders...</p>
+      <div className="border border-[var(--line-strong)] overflow-hidden" aria-busy="true">
+        <div className={`${ROW_GRID} items-center px-2 py-1.5 border-b border-[var(--line-strong)] bg-[var(--surface)]`}>
+          <Skeleton className="h-2 w-3" />
+          <Skeleton className="h-2 w-14" />
+          <Skeleton className="h-2 w-10 justify-self-center" />
+          <Skeleton className={`${WALLET_CELL} h-2 w-10 justify-self-center`} />
+          <Skeleton className="h-2 w-4 justify-self-center" />
+          {canExpand && <Skeleton className="h-2 w-6 justify-self-center" />}
+          {canExpand && <Skeleton className="hidden sm:block h-2 w-6 justify-self-center" />}
+        </div>
+        <div className="divide-y divide-[var(--line)]">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div
+              key={i}
+              className={`${ROW_GRID} items-center px-2 h-9`}
+              style={{ opacity: 1 - i * 0.055 }}
+            >
+              <Skeleton className="h-3 w-4" />
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-3 w-12 justify-self-center" />
+              <Skeleton className={`${WALLET_CELL} h-3 w-10 justify-self-center`} />
+              <Skeleton className="h-3 w-8 justify-self-center" />
+              {canExpand && <Skeleton className="h-3 w-9 justify-self-center" />}
+              {canExpand && <Skeleton className="hidden sm:block h-3 w-8 justify-self-center" />}
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -946,7 +971,12 @@ function HolderDetailPanel({
   );
 
   if (!detail || detail === 'loading') {
-    return shell('Reading this wallet’s PulseX record…');
+    return shell(
+      <span className="inline-flex items-center gap-1.5">
+        <IconRefresh className="h-3 w-3 animate-spin" aria-hidden="true" />
+        Reading this wallet’s PulseX record…
+      </span>,
+    );
   }
   if (detail === 'error') {
     return shell('Couldn’t load the trade record — the subgraph didn’t answer. Collapse and retry.', 'error');
@@ -1139,7 +1169,12 @@ function ClusterLine({
 }) {
   if (!clusters) return null;
   if (clusters.status === 'loading') {
-    return <div className="text-[10px] text-[var(--text-faint)]">Checking funding clusters among the top holders…</div>;
+    return (
+      <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-faint)]">
+        <IconRefresh className="h-2.5 w-2.5 shrink-0 animate-spin" aria-hidden="true" />
+        Checking funding clusters among the top holders…
+      </div>
+    );
   }
   if (clusters.status === 'error') {
     return <div className="text-[10px] text-[var(--text-faint)]">Cluster check unavailable right now.</div>;
@@ -1236,10 +1271,15 @@ function OriginSection({
       </button>
     );
   }
+  // Up to ~45s cold, so this one needs to visibly tick over.
   if (origin === 'loading') {
     return (
-      <div className="text-[10.5px] text-[var(--text-muted)]">
-        Walking inbound transfers back to their source — up to ~45s on a cold wallet…
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-1.5 text-[10.5px] text-[var(--text-muted)]">
+          <IconRefresh className="h-3 w-3 shrink-0 animate-spin" aria-hidden="true" />
+          Walking inbound transfers back to their source — up to ~45s on a cold wallet…
+        </div>
+        <SkeletonRows rows={3} cols={['w-5', 'flex-1', 'w-14']} rowClassName="px-0 py-1.5" />
       </div>
     );
   }

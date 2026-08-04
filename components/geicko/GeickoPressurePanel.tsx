@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { SkeletonChart } from '@/components/ui/skeleton';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 // "Buy / Sell Pressure" section for the Geicko token view: real directional USD
@@ -120,7 +121,7 @@ export default function GeickoPressurePanel({
       </div>
 
       {status === 'loading' && (
-        <div className="py-6 text-center text-xs text-[var(--text-muted)]">Loading trade flow…</div>
+        <SkeletonChart height={140} bars={24} className="py-2" />
       )}
 
       {status === 'ready' && w && (
