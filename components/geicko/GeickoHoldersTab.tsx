@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { LoaderThree } from '@/components/ui/loader';
+import { IconRefresh } from '@tabler/icons-react';
+import { Skeleton, SkeletonRows } from '@/components/ui/skeleton';
 import { Holder, HolderStats, TokenInfo } from './types';
 import { isBurnAddress } from './utils';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
@@ -50,9 +51,32 @@ const shortAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 // only, so it reads "—" for any wallet that traded on 9mm or LibertySwap, while
 // the 24h change is reconstructed from Transfer logs and is therefore complete
 // whichever venue was used. Given one slot, the complete number wins.
+//
+// Every numeric track is a FIXED width, and its value is centred inside it.
+// Balance and Wallet $ used to be `auto`, which sizes a track to whatever the
+// widest value in it happens to be: the column edges moved from token to token,
+// and a short value sat right against its neighbour ("104m $13", the headings
+// colliding into "BALANCE WALLET $"). Fixed tracks put a constant, visible lane
+// around each number regardless of how long it is. Address keeps the `1fr` and
+// absorbs whatever the numbers don't use.
+//
+// The widths are the longest value each column actually renders plus a little
+// slack, MEASURED across pSSH and HEX at 390/640/1024/1440 — balance "970.09m"
+// is 64px, wallet "$6.4M" 45px, % 33px, 24h 38px. Wider lanes than that are not
+// free: at 1024px the page carries both the nav and the right panel, leaving
+// the table only ~496px, and every pixel a number doesn't need comes straight
+// out of Address, which then clips its LP/Contract tags. Rank is 30px because
+// "▶100" needs 29 (at 27 the hundredth row clipped).
 const ROW_GRID =
-  'grid gap-x-1.5 sm:gap-x-2 grid-cols-[27px_minmax(0,1fr)_auto_38px_46px] ' +
-  'sm:grid-cols-[34px_minmax(0,1fr)_auto_auto_48px_54px_46px]';
+  'grid gap-x-1.5 sm:gap-x-2 grid-cols-[30px_minmax(0,1fr)_72px_44px_50px] ' +
+  'sm:grid-cols-[34px_minmax(0,1fr)_78px_60px_46px_52px_56px]';
+
+/** Numeric cell: centred in its own fixed lane, digits non-jumping. */
+const NUM_CELL = 'text-center tabular-nums whitespace-nowrap';
+
+/** Wallet $ additionally drops below `sm` — it's the least load-bearing column
+ *  and the most often unknown, so it's the one a phone gives up. */
+const WALLET_CELL = `hidden sm:block ${NUM_CELL}`;
 
 /** Payload of /api/geicko/holder-detail — see that route for field semantics. */
 interface HolderDetail {
@@ -370,12 +394,36 @@ export default function GeickoHoldersTab({
     return () => io.disconnect();
   }, [hasMore, isLoadingMore, onLoadMore]);
 
+  // Skeleton rows on the REAL grid rather than a centred spinner: the table's
+  // own shape shows up immediately and nothing shifts when the data lands.
   if (isLoadingHolders) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-center">
-          <LoaderThree />
-          <p className="text-[var(--text-muted)] text-xs mt-2">Loading holders...</p>
+      <div className="border border-[var(--line-strong)] overflow-hidden" aria-busy="true">
+        <div className={`${ROW_GRID} items-center px-2 py-1.5 border-b border-[var(--line-strong)] bg-[var(--surface)]`}>
+          <Skeleton className="h-2 w-3" />
+          <Skeleton className="h-2 w-14" />
+          <Skeleton className="h-2 w-10 justify-self-center" />
+          <Skeleton className={`${WALLET_CELL} h-2 w-10 justify-self-center`} />
+          <Skeleton className="h-2 w-4 justify-self-center" />
+          {canExpand && <Skeleton className="h-2 w-6 justify-self-center" />}
+          {canExpand && <Skeleton className="hidden sm:block h-2 w-6 justify-self-center" />}
+        </div>
+        <div className="divide-y divide-[var(--line)]">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div
+              key={i}
+              className={`${ROW_GRID} items-center px-2 h-9`}
+              style={{ opacity: 1 - i * 0.055 }}
+            >
+              <Skeleton className="h-3 w-4" />
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-3 w-12 justify-self-center" />
+              <Skeleton className={`${WALLET_CELL} h-3 w-10 justify-self-center`} />
+              <Skeleton className="h-3 w-8 justify-self-center" />
+              {canExpand && <Skeleton className="h-3 w-9 justify-self-center" />}
+              {canExpand && <Skeleton className="hidden sm:block h-3 w-8 justify-self-center" />}
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -464,27 +512,27 @@ export default function GeickoHoldersTab({
         <div className={`${ROW_GRID} items-center px-2 py-1.5 text-[9px] uppercase tracking-[0.12em] text-[var(--text-faint)] border-b border-[var(--line-strong)] bg-[var(--surface)]`}>
           <div>#</div>
           <div>Address</div>
-          <div className="text-right">Balance</div>
+          <div className="text-center">Balance</div>
           <div
-            className="hidden sm:block text-right"
+            className={WALLET_CELL}
             title="Estimated wallet value from native coin, wrapped native, core majors and pegged stablecoins"
           >
             Wallet $
           </div>
-          <div className="text-right">%</div>
+          <div className="text-center">%</div>
           {/* PulseChain only: the delta scan is a PulseChain RPC walk. On other
               chains the column is absent rather than a row of dashes, which
               would read as "nobody moved" instead of "not measured here". */}
           {canExpand && (
             <div
-              className="text-right"
+              className="text-center"
               title="Change in this wallet's position over the last 24 hours, from on-chain transfers — includes every venue, not just PulseX"
             >
               24h
             </div>
           )}
           {canExpand && (
-            <div className="hidden sm:block text-right" title="Buys / sells this wallet sent on PulseX">
+            <div className="hidden sm:block text-center" title="Buys / sells this wallet sent on PulseX">
               B/S
             </div>
           )}
@@ -606,7 +654,7 @@ export default function GeickoHoldersTab({
                 </div>
 
                 {/* Balance */}
-                <div className="text-right text-[var(--text)] font-semibold tabular-nums whitespace-nowrap">
+                <div className={`${NUM_CELL} text-[var(--text)] font-semibold`}>
                   {decimals == null
                     ? <span className="text-[var(--text-faint)]" title="Token decimals unknown">—</span>
                     : fmtAmount(Math.floor(balance))}
@@ -614,7 +662,7 @@ export default function GeickoHoldersTab({
 
                 {/* Estimated wallet value (core + stablecoins). '—' while its
                     page of values is still loading; '$0' once known to be empty. */}
-                <div className="hidden sm:block text-right font-semibold tabular-nums whitespace-nowrap">
+                <div className={`${WALLET_CELL} font-semibold`}>
                   {(() => {
                     const v = holderValues[addrLower];
                     if (!v) return <span className="text-[var(--text-faint)]">—</span>;
@@ -627,13 +675,13 @@ export default function GeickoHoldersTab({
                 </div>
 
                 {/* Percentage */}
-                <div className="text-right text-[var(--text-muted)] tabular-nums whitespace-nowrap">
+                <div className={`${NUM_CELL} text-[var(--text-muted)]`}>
                   {percentage.toFixed(1)}<span className="text-[var(--text-faint)]">%</span>
                 </div>
 
                 {/* 24h position change — PulseChain only, see the header. */}
                 {canExpand && (
-                  <div className="text-right text-[10.5px] font-semibold tabular-nums whitespace-nowrap">
+                  <div className={`${NUM_CELL} text-[10.5px] font-semibold`}>
                     <DeltaCell
                       raw={deltas ? deltas[addrLower] : undefined}
                       loading={deltas === null}
@@ -644,7 +692,7 @@ export default function GeickoHoldersTab({
 
                 {/* Buys / sells, without having to open the row. */}
                 {canExpand && (
-                  <div className="hidden sm:block text-right text-[10.5px] font-semibold tabular-nums whitespace-nowrap">
+                  <div className={`hidden sm:block ${NUM_CELL} text-[10.5px] font-semibold`}>
                     <TradeCounter
                       address={addrLower}
                       balance={balance}
@@ -923,7 +971,12 @@ function HolderDetailPanel({
   );
 
   if (!detail || detail === 'loading') {
-    return shell('Reading this wallet’s PulseX record…');
+    return shell(
+      <span className="inline-flex items-center gap-1.5">
+        <IconRefresh className="h-3 w-3 animate-spin" aria-hidden="true" />
+        Reading this wallet’s PulseX record…
+      </span>,
+    );
   }
   if (detail === 'error') {
     return shell('Couldn’t load the trade record — the subgraph didn’t answer. Collapse and retry.', 'error');
@@ -1116,7 +1169,12 @@ function ClusterLine({
 }) {
   if (!clusters) return null;
   if (clusters.status === 'loading') {
-    return <div className="text-[10px] text-[var(--text-faint)]">Checking funding clusters among the top holders…</div>;
+    return (
+      <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-faint)]">
+        <IconRefresh className="h-2.5 w-2.5 shrink-0 animate-spin" aria-hidden="true" />
+        Checking funding clusters among the top holders…
+      </div>
+    );
   }
   if (clusters.status === 'error') {
     return <div className="text-[10px] text-[var(--text-faint)]">Cluster check unavailable right now.</div>;
@@ -1213,10 +1271,15 @@ function OriginSection({
       </button>
     );
   }
+  // Up to ~45s cold, so this one needs to visibly tick over.
   if (origin === 'loading') {
     return (
-      <div className="text-[10.5px] text-[var(--text-muted)]">
-        Walking inbound transfers back to their source — up to ~45s on a cold wallet…
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-1.5 text-[10.5px] text-[var(--text-muted)]">
+          <IconRefresh className="h-3 w-3 shrink-0 animate-spin" aria-hidden="true" />
+          Walking inbound transfers back to their source — up to ~45s on a cold wallet…
+        </div>
+        <SkeletonRows rows={3} cols={['w-5', 'flex-1', 'w-14']} rowClassName="px-0 py-1.5" />
       </div>
     );
   }

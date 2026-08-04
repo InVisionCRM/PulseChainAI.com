@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GripVertical, Trash2, Plus, ArrowUp, ArrowDown, Lock, LogOut, FileText, Link as LinkIcon, Upload } from 'lucide-react';
 import { useVercelBlob } from '@/hooks/useVercelBlob';
+import { SkeletonRows, SkeletonText } from '@/components/ui/skeleton';
 
 const API = '/api/gold-badges';
 const PROFILE_API = '/api/token-profile';
@@ -425,7 +426,7 @@ export default function AdminGoldBadgesPage() {
             <p className="text-amber-200/90 text-xs mb-2">Change position number or use ↑↓ then click Save order to apply.</p>
           )}
           {loading ? (
-            <p className="text-[var(--text-muted)]">Loading…</p>
+            <SkeletonRows rows={5} cols={['w-6', 'flex-1', 'w-20', 'w-16']} />
           ) : list.length === 0 ? (
             <p className="text-[var(--text-muted)]">No GOLD badges yet. Add one above or seed defaults.</p>
           ) : (
@@ -531,7 +532,7 @@ export default function AdminGoldBadgesPage() {
               </div>
               <form onSubmit={saveProfile} className="p-4 overflow-y-auto flex-1 space-y-4">
                 {profileLoading ? (
-                  <p className="text-[var(--text-muted)]">Loading…</p>
+                  <SkeletonText lines={5} />
                 ) : (
                   <>
                     <div>

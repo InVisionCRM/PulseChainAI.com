@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
+import { Skeleton, SkeletonText, SkeletonRows, LoadingNote } from '@/components/ui/skeleton';
 import { txUrl, addressUrl } from '@/lib/pulsechain/explorer';
 
 // "Forensics" tab for the Geicko token view — who is behind this token:
@@ -111,10 +112,39 @@ export default function GeickoForensicsTab({
   }, [network, token]);
 
   if (status === 'idle') return null;
+  // This is the longest wait in the app — a cold trace walks the creator, their
+  // funding and the first buyers, up to ~30s on a busy token. A single line of
+  // static text for that long reads as a hung tab, so lay out the shape of what
+  // is coming (chips, creator card, buyer rows) and keep the spinner moving.
   if (status === 'loading') {
     return (
-      <div className="p-6 text-center text-sm text-[var(--text-muted)]">
-        Tracing creator, funding and first buyers on-chain… <span className="text-[var(--text-faint)]">(can take ~30s on busy tokens, then cached)</span>
+      <div className="space-y-3 p-2 md:p-3">
+        <LoadingNote hint="(can take ~30s on busy tokens, then cached)" className="pb-1 text-xs">
+          Tracing creator, funding and first buyers on-chain…
+        </LoadingNote>
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-2">
+              <Skeleton className="h-2.5 w-20" />
+              <Skeleton className="mt-2 h-5 w-14" />
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-5 w-20" />
+          </div>
+          <SkeletonText lines={2} />
+        </div>
+
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-3">
+          <Skeleton className="mb-2 h-3 w-24" />
+          <SkeletonRows rows={6} cols={['w-6', 'flex-1', 'w-16', 'w-12']} />
+        </div>
       </div>
     );
   }

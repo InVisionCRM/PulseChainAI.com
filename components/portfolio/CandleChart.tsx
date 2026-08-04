@@ -12,6 +12,7 @@ import {
 } from 'lightweight-charts';
 import { IconChartCandle, IconChartLine } from '@tabler/icons-react';
 import type { PortfolioToken } from '@/services';
+import { LoadingNote } from '@/components/ui/skeleton';
 
 // Native candlestick chart (GeckoTerminal OHLCV) with a custom "aurora" theme.
 //
@@ -365,7 +366,7 @@ export default function CandleChart({
 
         {showLoading && (
           <div className="absolute inset-0 z-[5] grid place-items-center" style={{ background: 'rgba(11,19,34,0.55)' }}>
-            <div className="text-xs text-[var(--text-faint)]">Loading candles…</div>
+            <LoadingNote className="text-xs">Loading candles…</LoadingNote>
           </div>
         )}
 

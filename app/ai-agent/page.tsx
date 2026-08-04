@@ -32,6 +32,7 @@ import { BackgroundGradient } from '@/components/ui/background-gradient';
 import { StickyBanner } from '@/components/ui/sticky-banner';
 import TransactionModal from '@/components/TransactionModal';
 import { bsFetchJsonOrThrow } from '@/lib/blockscout';
+import { LoadingNote } from '@/components/ui/skeleton';
 
 // Note: API key is handled server-side in API routes
 
@@ -2150,7 +2151,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
                                 {/* Loading overlay */}
                                 <div className="absolute inset-0 flex items-center justify-center bg-[var(--app-bg)] rounded-lg" id="analytics-loading">
                                   <div className="text-center">
-                                    <div className="text-[var(--text)] text-lg mb-2">Loading Analytics Dashboard...</div>
+                                    <LoadingNote className="mb-2 text-lg">Loading Analytics Dashboard…</LoadingNote>
                                     <div className="text-[var(--text-muted)] text-sm">Fetching token data and statistics</div>
                                   </div>
                                 </div>
@@ -2803,7 +2804,7 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
 
 export default function AICodeReaderPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<LoadingNote className="py-16">Loading…</LoadingNote>}>
       <AppWithSearchParams />
     </Suspense>
   );

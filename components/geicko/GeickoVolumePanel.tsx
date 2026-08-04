@@ -9,6 +9,7 @@
 // numbers always agree with each other.
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { Skeleton, SkeletonChart } from '@/components/ui/skeleton';
 import {
   AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -270,9 +271,20 @@ export default function GeickoVolumePanel({
   }, [data]);
 
   if (status === 'idle' || status === 'loading') {
+    // `idle` deliberately shows nothing — no request is in flight yet, and a
+    // skeleton would promise data that isn't coming.
+    if (status === 'idle') return <div className="py-10" />;
     return (
-      <div className="py-10 text-center text-sm text-[var(--text-muted)]">
-        {status === 'loading' ? 'Loading volume history…' : ''}
+      <div className="space-y-3 py-2" aria-busy="true">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-2">
+              <Skeleton className="h-2.5 w-16" />
+              <Skeleton className="mt-2 h-5 w-20" />
+            </div>
+          ))}
+        </div>
+        <SkeletonChart height={180} bars={30} />
       </div>
     );
   }

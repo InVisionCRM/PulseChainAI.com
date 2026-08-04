@@ -1,4 +1,5 @@
 import React from 'react';
+import { SkeletonText } from '@/components/ui/skeleton';
 import { OwnershipData } from './types';
 import { PUMP_TIRES_CREATOR } from './utils';
 
@@ -31,7 +32,7 @@ export default function GeickoOwnershipPanel({
       </div>
 
       {ownershipData.isLoading ? (
-        <div className="text-center text-[var(--text-muted)] text-sm">Loading...</div>
+        <SkeletonText lines={2} className="py-1" />
       ) : isRenounced ? (
         <div className="text-center">
           <div className="text-base text-[var(--up)] font-semibold">Renounced ✓</div>

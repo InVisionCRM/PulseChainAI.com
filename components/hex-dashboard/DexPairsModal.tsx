@@ -1,5 +1,6 @@
 import React from 'react';
 import type { DexScreenerData } from '@/services/core/types';
+import { SkeletonRows } from '@/components/ui/skeleton';
 
 interface DexPairsModalProps {
   isOpen: boolean;
@@ -35,7 +36,7 @@ const DexPairsModal: React.FC<DexPairsModalProps> = ({
         </div>
         <div className="max-h-[70vh] overflow-y-auto p-4">
           {isLoading && (
-            <div className="text-center text-[var(--text-muted)] py-6">Loading pairs…</div>
+            <SkeletonRows rows={6} cols={['w-24', 'flex-1', 'w-20', 'w-16']} className="py-2" />
           )}
           {error && (
             <div className="text-center text-red-300 py-6">{error}</div>
