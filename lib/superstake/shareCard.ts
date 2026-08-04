@@ -9,6 +9,10 @@
 export const CARD_W = 1080;
 export const CARD_H = 1080;
 
+/** Stamped on every card's footer and reused as the share-sheet text, so the
+ *  picture and the message it travels with can't drift apart. */
+export const BRAND_URL = 'scan.Morbius.io/superstake';
+
 const INK = '#06182E';
 const PANEL = '#0C2340';
 const LINE = 'rgba(255,255,255,0.12)';
@@ -376,7 +380,7 @@ function chrome(c: CanvasRenderingContext2D, d: ShareData, logo: HTMLImageElemen
   // footer
   c.fillStyle = LINE;
   c.fillRect(64, CARD_H - 116, CARD_W - 128, 2);
-  text(c, 'morbius.io/superstake', 64, CARD_H - 62, { size: 24, weight: 700, color: TX_MID });
+  text(c, BRAND_URL, 64, CARD_H - 62, { size: 24, weight: 700, color: TX_MID });
   text(c, `AS OF ${d.asOf.toUpperCase()}`, CARD_W - 64, CARD_H - 62, {
     size: 18, weight: 500, color: TX_DIM, align: 'right', font: MONO, spacing: 2,
   });
