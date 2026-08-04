@@ -53,8 +53,16 @@ export default function PortfolioDrawer({
 
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<Record<string, WalletValue>>({});
-  const [balances, setBalances] = useState<Record<string, string | null>>({});
-  const [decimals, setDecimals] = useState<number | null>(null);
+  // Balances are stored WITH the token they were fetched for, and only render
+  // when that token is still the one on screen. Anything looser shows token
+  // A's amounts labeled and priced as token B while navigating: an eager reset
+  // in the effect isn't enough, because effects run after paint and the stale
+  // frame still flashes. Tagging the data makes staleness unrepresentable.
+  const [tokenBal, setTokenBal] = useState<{
+    token: string;
+    decimals: number | null;
+    balances: Record<string, string | null>;
+  } | null>(null);
 
   // Reopen state survives tab-to-tab navigation within the session.
   useEffect(() => {
@@ -103,31 +111,40 @@ export default function PortfolioDrawer({
 
   // Your balance of THE CURRENT token, per wallet.
   useEffect(() => {
-    if (!token || walletAddrs.length === 0) { setBalances({}); setDecimals(null); return; }
+    if (!token || walletAddrs.length === 0) { setTokenBal(null); return; }
     let alive = true;
+    const fetchedFor = token.toLowerCase();
     fetch('/api/geicko/token-balances', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, addresses: walletAddrs }),
+      body: JSON.stringify({ token: fetchedFor, addresses: walletAddrs }),
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!alive || !d?.supported) return;
-        setBalances(d.balances ?? {});
-        setDecimals(typeof d.decimals === 'number' ? d.decimals : null);
+        setTokenBal({
+          token: fetchedFor,
+          decimals: typeof d.decimals === 'number' ? d.decimals : null,
+          balances: d.balances ?? {},
+        });
       })
       .catch(() => { /* strip just doesn't render */ });
     return () => { alive = false; };
   }, [token, walletAddrs]);
 
+  // Only the data fetched for the token on screen is usable.
+  const current = token && tokenBal?.token === token.toLowerCase() ? tokenBal : null;
+  const decimals = current?.decimals ?? null;
+
   const holding = useMemo(() => {
-    if (decimals == null) return [];
+    if (!current || current.decimals == null) return [];
+    const d = current.decimals;
     return walletAddrs
-      .map((a) => ({ address: a, raw: balances[a] }))
+      .map((a) => ({ address: a, raw: current.balances[a] }))
       .filter((x): x is { address: string; raw: string } => !!x.raw && x.raw !== '0')
-      .map((x) => ({ address: x.address, amount: Number(x.raw) / Math.pow(10, decimals) }))
+      .map((x) => ({ address: x.address, amount: Number(x.raw) / Math.pow(10, d) }))
       .sort((a, b) => b.amount - a.amount);
-  }, [walletAddrs, balances, decimals]);
+  }, [walletAddrs, current]);
 
   const totalUsd = useMemo(
     () => walletAddrs.reduce((s, a) => s + (values[a]?.usd ?? 0), 0),
