@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { IconRefresh } from '@tabler/icons-react';
+import { IconPinned, IconRefresh } from '@tabler/icons-react';
 import { Skeleton, SkeletonRows } from '@/components/ui/skeleton';
+import { useInvestigateStore } from '@/lib/stores/investigateStore';
 import { Holder, HolderStats, TokenInfo } from './types';
 import { isBurnAddress } from './utils';
 import { AddToGroupButton } from '@/components/portfolio/AddToGroupButton';
@@ -915,6 +916,12 @@ function PanelActions({
   tokenInfo: TokenInfo | null;
   onViewHolder: (address: string) => void;
 }) {
+  // Pin = scratch state for the portfolio drawer's Investigating tray, so a
+  // wallet you're curious about survives tab and token changes. Distinct from
+  // AddToGroup, which is durable portfolio curation.
+  const pinned = useInvestigateStore((s) => s.isPinned(address));
+  const pin = useInvestigateStore((s) => s.pin);
+  const unpin = useInvestigateStore((s) => s.unpin);
   if (!address) return null;
   return (
     <div className="flex items-center gap-2 flex-none self-start" onClick={(e) => e.stopPropagation()}>
@@ -923,6 +930,22 @@ function PanelActions({
         className="inline-flex items-center gap-1 px-2.5 py-1 text-[10.5px] font-semibold text-cyan-300 border border-cyan-400/40 rounded hover:bg-cyan-400/10 transition-colors"
       >
         View wallet
+      </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (pinned) unpin(address);
+          else pin({ address, symbol: tokenInfo?.symbol ?? null, token: tokenInfo?.address ?? null, rank });
+        }}
+        title={pinned ? 'Remove from the Investigating tray' : 'Keep this wallet in the portfolio drawer while you browse'}
+        className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10.5px] font-semibold rounded border transition-colors ${
+          pinned
+            ? 'text-amber-300 border-amber-400/50 bg-amber-400/10 hover:bg-amber-400/20'
+            : 'text-[var(--text-muted)] border-[var(--line-strong)] hover:text-amber-300 hover:border-amber-400/50'
+        }`}
+      >
+        <IconPinned className="h-3 w-3" />
+        {pinned ? 'Pinned' : 'Pin'}
       </button>
       <AddToGroupButton
         address={address}

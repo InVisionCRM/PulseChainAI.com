@@ -74,6 +74,21 @@ export default function GumshoeChat({
   // Reset the thread when the token changes — a new subject is a new case.
   useEffect(() => { setMsgs([]); }, [token]);
 
+  // Other surfaces (the portfolio drawer's "Ask Sleuth") can open the widget
+  // with a prepared question. Prefill rather than auto-send: the user should
+  // see what's being asked, and the key-setup flow still applies if no BYOK.
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const prompt = (e as CustomEvent<{ prompt?: string }>).detail?.prompt;
+      if (typeof prompt !== 'string' || !prompt.trim()) return;
+      setOpen(true);
+      setInput(prompt);
+      setTimeout(() => inputRef.current?.focus(), 300);
+    };
+    window.addEventListener('sleuth-ask', onAsk);
+    return () => window.removeEventListener('sleuth-ask', onAsk);
+  }, []);
+
   const send = useCallback(async (text: string) => {
     const q = text.trim();
     if (!q || loading) return;

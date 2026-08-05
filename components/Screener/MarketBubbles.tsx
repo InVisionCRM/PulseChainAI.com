@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import { IconRefresh, IconMaximize, IconMinimize, IconShare2, IconX } from '@tabler/icons-react';
 import type { ScreenerRow, ScreenerUiTab, ScreenerFilters } from '@/lib/screener/types';
 import { fetchPinnedRows } from '@/lib/screener/pinned';
+import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { fmtUsd } from '@/lib/format';
 
 // Counts above 100 look cramped on a phone, so mobile gets a lighter set.
@@ -257,6 +258,8 @@ function paintBubble(
   sprite: HTMLCanvasElement | null,
   metric: Metric,
   glass: HTMLCanvasElement | null,
+  /** True when one of the viewer's portfolio wallets holds this token. */
+  held = false,
 ) {
   const chg = n.row.chg.h24;
   // Performance ring colour — green up / red down (grey when unknown).
@@ -294,6 +297,14 @@ function paintBubble(
   ctx.strokeStyle = rgbStr(ring, 0.95);
   ctx.beginPath(); ctx.arc(x, y, r - ctx.lineWidth / 2, 0, TAU); ctx.stroke();
 
+  // Ownership ring — a gold halo OUTSIDE the performance ring, so "you hold
+  // this" reads at a glance without hiding whether it's up or down today.
+  if (held) {
+    ctx.lineWidth = Math.max(1.5, r * 0.05);
+    ctx.strokeStyle = 'rgba(245,158,11,0.92)';
+    ctx.beginPath(); ctx.arc(x, y, r + ctx.lineWidth / 2 + 1.5, 0, TAU); ctx.stroke();
+  }
+
   // Value chip near the bottom for big bubbles, so the logo stays clear.
   // Font scales with bubble size (capped) so large bubbles read clearly.
   if (r >= 30) {
@@ -307,6 +318,13 @@ function paintBubble(
     ctx.fillStyle = 'rgba(255,255,255,0.98)';
     ctx.fillText(txt, x, yy);
   }
+}
+
+/** Held = the viewer's wallet holds it. PulseChain rows only — the holdings
+ *  set is built from PulseChain wallet enumeration, so ringing a same-address
+ *  token on another chain would be a lie. (PulseChain rows omit chainId.) */
+function isHeld(n: MNode, held: ReadonlySet<string>): boolean {
+  return !!n.address && (!n.row.chainId || n.row.chainId === 'pulsechain') && held.has(n.address.toLowerCase());
 }
 
 /** Field backdrop — same two layers the live canvas paints. */
@@ -372,6 +390,7 @@ async function renderShareImage(
   H: number,
   metric: Metric,
   subtitle: string,
+  held: ReadonlySet<string>,
 ): Promise<HTMLCanvasElement | null> {
   if (typeof document === 'undefined' || W <= 0 || H <= 0) return null;
 
@@ -418,7 +437,7 @@ async function renderShareImage(
   for (const { n, x, y, r } of frozen) {
     let sprite = sprites.get(n);
     if (sprite === undefined && r >= 7) sprite = buildFallbackSprite(n.symbol, n.address);
-    paintBubble(ctx, n, x, y, r, sprite ?? null, metric, glass);
+    paintBubble(ctx, n, x, y, r, sprite ?? null, metric, glass, isHeld(n, held));
   }
 
   // Brand strip.
@@ -561,6 +580,7 @@ interface Props {
 
 export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: Props) {
   const router = useRouter();
+  const wallets = usePortfolioStore((st) => st.wallets);
   const mobileInit = typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
   const [isMobile, setIsMobile] = useState(mobileInit);
   const [count, setCount] = useState<number>(mobileInit ? DEFAULT_COUNT_MOBILE : DEFAULT_COUNT);
@@ -573,6 +593,10 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
   /** The rendered PNG awaiting the user's choice (share / save / copy). */
   const [share_, setShare] = useState<{ blob: Blob; url: string } | null>(null);
 
+  // Tokens any of the user's wallets hold, for the gold ownership ring. A ref
+  // (not state) because the rAF loop repaints every frame anyway — the ring
+  // shows up on the next frame after the fetch lands, no re-render needed.
+  const heldRef = useRef<Set<string>>(new Set());
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   /** Mirrors `share_` so unmount cleanup can revoke without re-running. */
   const shareRef = useRef<{ blob: Blob; url: string } | null>(null);
@@ -699,6 +723,31 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
 
   useEffect(() => { void load(); }, [load]);
 
+  // Build the held-token set: ONE /api/portfolio/balances call per wallet
+  // (Blockscout enumerates everything the wallet holds), not a per-token fan
+  // out — this is what makes ringing 500 bubbles affordable. PulseChain only.
+  useEffect(() => {
+    if (wallets.length === 0) { heldRef.current = new Set(); return; }
+    let alive = true;
+    Promise.all(
+      wallets.map(async (w) => {
+        try {
+          const r = await fetch('/api/portfolio/balances', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address: w.address, chain: 'pulsechain' }),
+          });
+          const d = r.ok ? await r.json() : null;
+          return (d?.tokens ?? []).map((t: { address: string }) => String(t.address).toLowerCase());
+        } catch { return []; }
+      }),
+    ).then((lists) => {
+      if (!alive) return;
+      heldRef.current = new Set<string>(lists.flat());
+    });
+    return () => { alive = false; };
+  }, [wallets]);
+
   useEffect(() => {
     metricRef.current = metric;
     retargetRef.current?.();
@@ -732,6 +781,7 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
         box.height,
         metricRef.current,
         `${nodes.length} tokens · sized by ${metricLabel}`,
+        heldRef.current,
       );
       if (!out) throw new Error('render failed');
 
@@ -907,7 +957,7 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
     const glass = getGlassSprite(); // shared overlay for fallback discs (logos bake their own)
 
     function drawNode(n: MNode) {
-      paintBubble(ctx, n, n.x, n.y, n.r, n.sprite, metricRef.current, glass);
+      paintBubble(ctx, n, n.x, n.y, n.r, n.sprite, metricRef.current, glass, isHeld(n, heldRef.current));
       if (n === hover) {
         ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.95)';
         ctx.beginPath(); ctx.arc(n.x, n.y, n.r + 2.5, 0, TAU); ctx.stroke();
@@ -956,6 +1006,9 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       html += `<div style="${row}"><span>Vol 24h</span><span>${fmtUsd(r.vol.h24)}</span></div>`;
       html += `<div style="${row}"><span>Mkt cap</span><span>${fmtUsd(r.marketCap)}</span></div>`;
       html += `<div style="${row}"><span>Liq (main)</span><span>${fmtUsd(r.liquidityUsd)}</span></div>`;
+      if (isHeld(n, heldRef.current)) {
+        html += `<div style="font-size:11px;color:#fbbf24;margin-top:4px;font-weight:600">◉ You hold this</div>`;
+      }
       html += `<div style="${sub};margin-top:5px">Click to open in analyzer →</div>`;
       tip.innerHTML = html; tip.style.opacity = '1';
       let tx = n.x + 16; if (tx > W - 184) tx = n.x - 184;

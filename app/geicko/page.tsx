@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import DexScreenerChart from '@/components/DexScreenerChart';
+import PortfolioDrawer from '@/components/geicko/PortfolioDrawer';
 import { LoaderThree } from "@/components/ui/loader";
 import { Copy, Download, Info, ChevronDown, Star, Rocket } from 'lucide-react';
 import { launchpadByAddress } from '@/lib/launchpads';
@@ -3614,6 +3615,17 @@ function GeickoPageContent() {
         tokenPriceUsd={priceUsd || null}
         onClose={handleCloseHolderTransfers}
       />
+
+      {/* My-portfolio dock + drawer — PulseChain only: balances come from the
+          PulseChain RPC pool and values from the PulseChain basket. */}
+      {network === 'pulsechain' && (
+        <PortfolioDrawer
+          token={apiTokenAddress || null}
+          symbol={baseSymbol}
+          priceUsd={priceUsd || null}
+          onViewHolder={handleOpenHolderTransfers}
+        />
+      )}
 
       <GeickoPairModal
         isOpen={pairModalOpen}
