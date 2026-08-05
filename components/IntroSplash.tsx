@@ -12,6 +12,19 @@ const SESSION_KEY = 'morbius-intro-seen-v1';
 const MAX_MS = 6000;
 const FADE_MS = 500;
 
+/** Fired once the splash has finished fading out. */
+export const INTRO_DONE_EVENT = 'morbius-intro-done';
+
+/**
+ * Whether the splash is currently on screen. Anything that wants to raise UI on
+ * a cold open (the devlog pop-up) has to wait its turn — the splash is z-100
+ * and a higher layer would otherwise land on top of it.
+ */
+let introActive = false;
+export function isIntroActive() {
+  return introActive;
+}
+
 export function IntroSplash() {
   const [show, setShow] = useState(false);
   const [fading, setFading] = useState(false);
@@ -32,7 +45,14 @@ export function IntroSplash() {
     } catch {
       /* ignore */
     }
+    introActive = true;
     setShow(true);
+
+    // If we're torn down mid-splash, release the claim so nothing waits on an
+    // event that will never fire.
+    return () => {
+      introActive = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -44,7 +64,11 @@ export function IntroSplash() {
 
   function dismiss() {
     setFading(true);
-    setTimeout(() => setShow(false), FADE_MS);
+    setTimeout(() => {
+      setShow(false);
+      introActive = false;
+      window.dispatchEvent(new Event(INTRO_DONE_EVENT));
+    }, FADE_MS);
   }
 
   if (!show) return null;

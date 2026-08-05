@@ -4,6 +4,7 @@ import {
   IconBook,
   IconCurrencyDollar,
   IconPhoneOutgoing,
+  IconSparkles,
   IconX,
 } from "@tabler/icons-react";
 import {
@@ -14,6 +15,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { ThemeToggle } from "./theme/ThemeToggle";
+import { openDevlog, useDevlogUnseen } from "./devlog/DevlogModal";
 
 interface NavigationDrawerProps {
   isOpen: boolean;
@@ -21,6 +23,8 @@ interface NavigationDrawerProps {
 }
 
 export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => {
+  const devlogUnseen = useDevlogUnseen();
+
   const handleOpenChange = (open: boolean) => {
     if (!open && onClose) {
       onClose();
@@ -78,6 +82,26 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
 
         <div className="p-6 overflow-y-auto max-h-[60vh]">
           <div className="grid grid-cols-3 gap-4">
+            {/* Opens the devlog instead of navigating, so it's rendered here
+                rather than added to moreNavItems (which are all links). */}
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                openDevlog();
+              }}
+              className="flex flex-col items-center justify-center gap-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4 transition-colors hover:bg-[var(--surface-2)]"
+            >
+              <span className="relative text-orange-500">
+                <IconSparkles className="h-8 w-8" />
+                {devlogUnseen && (
+                  <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-orange-500 ring-2 ring-[var(--surface)]" />
+                )}
+              </span>
+              <span className="text-center text-xs font-medium text-[var(--text)]">
+                What&apos;s New
+              </span>
+            </button>
             {moreNavItems.map((item) => {
               const content = (
                 <div className="flex flex-col items-center justify-center gap-3 p-4 rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-2)] border border-[var(--line)] transition-colors">

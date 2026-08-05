@@ -25,6 +25,8 @@ import { ToastProvider } from "@/components/ui/toast-provider";
 import { AddToGroupModal } from "@/components/portfolio/AddToGroupModal";
 import { PullChainOverlay } from "@/components/theme/PullChainOverlay";
 import { IntroSplash } from "@/components/IntroSplash";
+import DevlogModal from "@/components/devlog/DevlogModal";
+import DevlogNavButton from "@/components/devlog/DevlogNavButton";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -201,6 +203,9 @@ export default function RootLayout({
                     {primaryLinks.map((link, idx) => (
                       <SidebarLink key={idx} link={link} />
                     ))}
+                    {/* Opens the devlog rather than navigating, so it sits with
+                        the links but isn't one. */}
+                    <DevlogNavButton />
                   </div>
                 </div>
               </SidebarBody>
@@ -217,6 +222,7 @@ export default function RootLayout({
         <AddToGroupModal />
         <PullChainOverlay />
         <IntroSplash />
+        <DevlogModal />
         <Analytics />
       </body>
     </html>
