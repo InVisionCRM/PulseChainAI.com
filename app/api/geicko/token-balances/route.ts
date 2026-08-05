@@ -81,6 +81,9 @@ export async function POST(req: NextRequest) {
       token,
       decimals: meta?.decimals != null ? Number(meta.decimals) : null,
       symbol: meta?.symbol ?? null,
+      /** Raw units — lets callers turn a balance into a share of supply
+       *  (league tiers) without another request. */
+      totalSupply: meta?.total_supply ?? null,
       /** Raw on-chain units as decimal strings; null = the call failed. */
       balances,
     });

@@ -27,7 +27,8 @@ interface League {
   glow: string; // row gradient tint (from-…)
   bar: string; // population bar fill
 }
-const LEAGUES: League[] = [
+// Exported so the portfolio drawer can name a wallet's tier the same way.
+export const LEAGUES: League[] = [
   { pct: 0.1,       label: '10%',      name: 'Tsunami', beast: '🌊', text: 'text-amber-300',   ring: 'ring-amber-400/50',   glow: 'from-amber-500/[0.10]',   bar: 'bg-amber-400/70' },
   { pct: 0.01,      label: '1%',       name: 'Whale',   beast: '🐋', text: 'text-rose-300',    ring: 'ring-rose-400/50',    glow: 'from-rose-500/[0.10]',    bar: 'bg-rose-400/70' },
   { pct: 0.001,     label: '0.1%',     name: 'Shark',   beast: '🦈', text: 'text-violet-300',  ring: 'ring-violet-400/50',  glow: 'from-violet-500/[0.10]',  bar: 'bg-violet-400/70' },
