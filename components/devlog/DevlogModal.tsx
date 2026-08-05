@@ -14,6 +14,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { IconX, IconArrowRight } from '@tabler/icons-react';
+import { INTRO_DONE_EVENT, isIntroActive } from '@/components/IntroSplash';
 import {
   DEVLOG_ENTRIES,
   DEVLOG_PERIOD,
@@ -25,6 +26,35 @@ import {
 
 export const DEVLOG_EVENT = 'open-devlog';
 const SEEN_KEY = 'morbius-devlog-seen';
+/** Breathing room after the splash clears before the devlog slides in. */
+const AFTER_INTRO_MS = 450;
+/** Same, when there was no splash to wait for. */
+const COLD_OPEN_MS = 900;
+/**
+ * If the splash claims the screen but never announces it's done (torn down
+ * mid-fade, a stray error), don't sit on the devlog forever. Comfortably past
+ * the splash's own 6s cap plus its fade.
+ */
+const INTRO_WAIT_CEILING_MS = 9000;
+
+/** Mark the current devlog as read and let the nav dots know. */
+function markSeen() {
+  try {
+    localStorage.setItem(SEEN_KEY, DEVLOG_VERSION);
+    window.dispatchEvent(new Event('devlog-seen'));
+  } catch {
+    /* private mode — the dot just stays, which is harmless */
+  }
+}
+
+function alreadySeen(): boolean {
+  try {
+    return localStorage.getItem(SEEN_KEY) === DEVLOG_VERSION;
+  } catch {
+    // Can't tell, so don't pop up uninvited.
+    return true;
+  }
+}
 
 /** Raise the devlog from anywhere (nav tiles, sidebar, a link). */
 export function openDevlog() {
@@ -167,15 +197,67 @@ export default function DevlogModal() {
       setOpen(true);
       // Opening is what counts as reading it; clear the dot immediately so the
       // nav stops nagging even if they close it a second later.
-      try {
-        localStorage.setItem(SEEN_KEY, DEVLOG_VERSION);
-        window.dispatchEvent(new Event('devlog-seen'));
-      } catch {
-        /* private mode — the dot just stays, which is harmless */
-      }
+      markSeen();
     };
     window.addEventListener(DEVLOG_EVENT, onOpen);
     return () => window.removeEventListener(DEVLOG_EVENT, onOpen);
+  }, []);
+
+  /**
+   * Pop up by itself on a cold open, once per DEVLOG_VERSION — a returning
+   * visitor should be told what changed without having to go looking for it.
+   *
+   * The wait matters: the intro splash owns the screen for up to 6s on a fresh
+   * session at z-100, and this modal is z-200, so opening straight away would
+   * drop the devlog on top of the splash. Ask the splash whether it's up, and
+   * if it is, go after it finishes.
+   */
+  useEffect(() => {
+    if (alreadySeen()) return;
+
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let unbind = () => {};
+
+    const show = () => {
+      if (cancelled) return;
+      setOpen(true);
+      markSeen();
+    };
+
+    // One tick before asking, so IntroSplash's own effect has certainly run and
+    // staked its claim — that removes any dependency on sibling effect order.
+    timers.push(
+      setTimeout(() => {
+        if (cancelled) return;
+
+        if (!isIntroActive()) {
+          timers.push(setTimeout(show, COLD_OPEN_MS));
+          return;
+        }
+
+        const onIntroDone = () => {
+          unbind();
+          timers.push(setTimeout(show, AFTER_INTRO_MS));
+        };
+        window.addEventListener(INTRO_DONE_EVENT, onIntroDone);
+        const ceiling = setTimeout(() => {
+          unbind();
+          show();
+        }, INTRO_WAIT_CEILING_MS);
+        timers.push(ceiling);
+        unbind = () => {
+          window.removeEventListener(INTRO_DONE_EVENT, onIntroDone);
+          clearTimeout(ceiling);
+        };
+      }, 200),
+    );
+
+    return () => {
+      cancelled = true;
+      unbind();
+      timers.forEach(clearTimeout);
+    };
   }, []);
 
   useEffect(() => {
@@ -281,6 +363,9 @@ export default function DevlogModal() {
 
               <p className="px-1 pb-1 pt-2 text-center text-[11px] leading-relaxed text-[var(--text-faint)]">
                 Every screenshot above is the real app reading live PulseChain data.
+                <br />
+                This only pops up once — reopen it any time from{' '}
+                <span className="text-[var(--text-muted)]">What&apos;s New</span> in the menu.
                 <br className="hidden sm:block" /> scan.Morbius.io
               </p>
             </div>
