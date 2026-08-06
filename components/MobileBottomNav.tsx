@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArtIcon } from "@/components/ui/ArtIcon";
+import { HomeGlyph, WalletGlyph } from "@/components/nav/NavGlyphs";
 import { NavigationDrawer } from "./NavigationDrawer";
 import SearchModal from "./Screener/SearchModal";
 import WatchlistModal from "./WatchlistModal";
@@ -28,7 +29,7 @@ export const MobileBottomNav = () => {
     {
       label: "Home",
       href: "/",
-      icon: <ArtIcon src="/home-icon.png" alt="Home" />,
+      icon: <HomeGlyph />,
     },
     {
       label: "Search",
@@ -39,7 +40,7 @@ export const MobileBottomNav = () => {
     {
       label: "Portfolio",
       href: "/portfolio",
-      icon: <ArtIcon src="/wallet-icon.png" alt="Portfolio" />,
+      icon: <WalletGlyph />,
     },
     {
       // "SuperStake" measured wider than its column and truncated at 360 and

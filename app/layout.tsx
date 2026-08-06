@@ -11,7 +11,6 @@ import {
   IconHexagon,
   IconChevronDown,
   IconX,
-  IconCurrencyDollar,
   IconBook,
 } from "@tabler/icons-react";
 import { ArtIcon } from "@/components/ui/ArtIcon";
@@ -27,6 +26,7 @@ import { PullChainOverlay } from "@/components/theme/PullChainOverlay";
 import { IntroSplash } from "@/components/IntroSplash";
 import DevlogModal from "@/components/devlog/DevlogModal";
 import DevlogNavButton from "@/components/devlog/DevlogNavButton";
+import { HomeGlyph, WalletGlyph, CardsGlyph } from "@/components/nav/NavGlyphs";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -119,12 +119,12 @@ export default function RootLayout({
     {
       label: "Home",
       href: "/",
-      icon: <ArtIcon src="/home-icon.png" alt="Home" />,
+      icon: <HomeGlyph />,
     },
     {
       label: "Portfolio",
       href: "/portfolio",
-      icon: <ArtIcon src="/wallet-icon.png" alt="Portfolio" />,
+      icon: <WalletGlyph />,
     },
     {
       label: "SuperStake",
@@ -144,11 +144,9 @@ export default function RootLayout({
       ),
     },
     {
-      label: "Gaming",
+      label: "Casino",
       href: "https://win.morbius.io",
-      icon: (
-        <IconCurrencyDollar className="h-5 w-5 shrink-0 text-[var(--text)]" />
-      ),
+      icon: <CardsGlyph />,
     },
   ];
 

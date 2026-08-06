@@ -2,11 +2,11 @@
 import Link from "next/link";
 import {
   IconBook,
-  IconCurrencyDollar,
   IconPhoneOutgoing,
   IconSparkles,
   IconX,
 } from "@tabler/icons-react";
+import { WalletGlyph, CardsGlyph } from "@/components/nav/NavGlyphs";
 import {
   Drawer,
   DrawerClose,
@@ -35,8 +35,7 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
     {
       label: "Portfolio",
       href: "/portfolio",
-      // eslint-disable-next-line @next/next/no-img-element
-      icon: <img src="/wallet-icon.png" alt="Portfolio" className="h-8 w-8 object-contain" />,
+      icon: <WalletGlyph className="h-8 w-8" />,
     },
     {
       label: "SuperStake",
@@ -58,7 +57,7 @@ export const NavigationDrawer = ({ isOpen, onClose }: NavigationDrawerProps) => 
     {
       label: "Casino",
       href: "https://win.morbius.io",
-      icon: <IconCurrencyDollar className="h-8 w-8" />,
+      icon: <CardsGlyph className="h-8 w-8" />,
       external: true,
     },
     {
