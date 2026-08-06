@@ -44,6 +44,29 @@ export function PullChainOverlay() {
   const stageRef = useRef<HTMLDivElement>(null);
   const busyRef = useRef(false);
 
+  // Re-assert the stored theme once React has mounted.
+  //
+  // The pre-paint script in the layout sets `class="dark"` on <html>
+  // imperatively, which React knows nothing about. So any hydration mismatch —
+  // anywhere in the tree — makes React regenerate from the root and silently
+  // drop that class, and the whole site falls back to light. That is exactly
+  // what a viewport-seeded useState in the homepage bubbles was doing to every
+  // phone visitor. The mismatch is fixed, but the theme should not be one
+  // stray mismatch away from breaking again, so put the class back after mount.
+  useEffect(() => {
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(THEME_STORAGE_KEY);
+    } catch {
+      /* private mode — fall through to the dark default */
+    }
+    const wanted = stored === "light" ? "light" : "dark";
+    const root = document.documentElement;
+    if (root.classList.contains("dark") !== (wanted === "dark")) {
+      root.classList.toggle("dark", wanted === "dark");
+    }
+  }, []);
+
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 

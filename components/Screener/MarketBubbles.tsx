@@ -581,9 +581,16 @@ interface Props {
 export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: Props) {
   const router = useRouter();
   const wallets = usePortfolioStore((st) => st.wallets);
-  const mobileInit = typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
-  const [isMobile, setIsMobile] = useState(mobileInit);
-  const [count, setCount] = useState<number>(mobileInit ? DEFAULT_COUNT_MOBILE : DEFAULT_COUNT);
+  // These MUST start at their server values. Seeding them from matchMedia gave
+  // a phone a first client render that disagreed with the SSR'd HTML (the count
+  // buttons read 25/50/100 against the server's 100/250/500), which is a
+  // hydration mismatch — and React's recovery is to throw the tree away and
+  // re-render from the root. That took `<html class="dark">` with it, because
+  // the pre-paint theme script sets that class imperatively and React has no
+  // idea it exists, so the whole site silently loaded in light mode. The phone
+  // set is applied just below, in an effect, once mounted.
+  const [isMobile, setIsMobile] = useState(false);
+  const [count, setCount] = useState<number>(DEFAULT_COUNT);
   const [metric, setMetric] = useState<Metric>('chg24');
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -806,9 +813,21 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
   useEffect(() => () => { if (shareRef.current) URL.revokeObjectURL(shareRef.current.url); }, []);
 
   // Track phone vs desktop; clamp count to the mobile set (≤100) on a phone.
+  // This runs after mount, which is the only safe place to read the viewport —
+  // see the note on the isMobile/count initial state above.
+  const tookMobileDefault = useRef(false);
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 640px)');
-    const apply = () => setIsMobile(mq.matches);
+    const apply = () => {
+      setIsMobile(mq.matches);
+      // The first time we learn this is a phone, drop to the lighter default.
+      // Only once, and only if the count is still the untouched desktop
+      // default — past that the count is the reader's choice, not ours.
+      if (mq.matches && !tookMobileDefault.current) {
+        tookMobileDefault.current = true;
+        setCount((c) => (c === DEFAULT_COUNT ? DEFAULT_COUNT_MOBILE : c));
+      }
+    };
     apply();
     mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
