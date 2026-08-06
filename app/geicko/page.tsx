@@ -3300,7 +3300,14 @@ function GeickoPageContent() {
                               <span>
                                 {(() => {
                                   const priceNative = Number(displayPair.priceNative || 0);
-                                  return priceNative > 0 ? priceNative.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 }) : '—';
+                                  if (!(priceNative > 0)) return '—';
+                                  // A price quoted in the hundreds of WPLS doesn't need eight
+                                  // decimals — "344.85196002" is noise where "345" is the number.
+                                  // Below 1 the decimals ARE the number, so they stay. Either way
+                                  // the exact figure is one hover away in the tooltip.
+                                  return priceNative >= 1
+                                    ? Math.round(priceNative).toLocaleString()
+                                    : priceNative.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 });
                                 })()}
                               </span>
                             </TooltipTrigger>
