@@ -99,6 +99,32 @@ async function fromBlockscout(
   }
   if (items.length === 0) return null;
 
+  // PulseChain's Blockscout embeds a `token` object on every holder row, and
+  // that's where decimals / total_supply / holders came from. Robinhood's (and
+  // Ethereum's) holder rows are bare `{address, token_id, value}` — verified by
+  // request — which left meta empty, so the UI divided raw balances by an
+  // unknown decimals and rendered every holder as "—" / 0.0%. When the rows
+  // don't carry the meta, one extra fetch of the token-info endpoint does.
+  if (meta?.decimals == null || meta?.total_supply == null) {
+    for (let attempt = 0; attempt < 2 && (meta?.decimals == null || meta?.total_supply == null); attempt++) {
+      const res = await fetch(`${base}/tokens/${token}`, {
+        headers: { Accept: 'application/json' },
+        next: { revalidate: 300 },
+      }).catch(() => null);
+      const info = res && res.ok ? await res.json().catch(() => null) : null;
+      if (info && typeof info === 'object') {
+        meta = {
+          ...meta,
+          decimals: meta?.decimals ?? info.decimals ?? null,
+          total_supply: meta?.total_supply ?? info.total_supply ?? null,
+          holders: meta?.holders ?? info.holders_count ?? info.holders ?? null,
+        };
+        break;
+      }
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 200));
+    }
+  }
+
   const trimmed = items.slice(0, pageSize);
   // If we trimmed mid-upstream-page there are definitely more holders; keep the
   // cursor. Otherwise the cursor is whatever the last upstream page reported.
@@ -110,10 +136,6 @@ async function fromBlockscout(
       isContract: !!it?.address?.is_contract,
     })),
     totalSupply: meta?.total_supply ?? null,
-    // Blockscout puts the token's decimals on every holder row. The page's
-    // separate token-info fetch can come back null (it does for pSSH), and
-    // without decimals a 9-decimal balance divided by 1e18 floors to zero —
-    // so hand them over from the payload that already carries them.
     decimals: meta?.decimals != null ? Number(meta.decimals) : null,
     holdersCount: meta?.holders != null ? Number(meta.holders) : null,
     complete,

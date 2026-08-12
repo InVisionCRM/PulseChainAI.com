@@ -5,7 +5,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { IconSearch, IconStar, IconStarFilled, IconX } from '@tabler/icons-react';
 import type { SearchPair } from '@/lib/screener/types';
-import { dexLogo, dexName, fmtAge, fmtPct, fmtPrice, fmtUsd, pctClass, shortAddr } from './format';
+import { dexName, fmtAge, fmtPct, fmtPrice, fmtUsd, pctClass, shortAddr } from './format';
+import { DexGlyph } from './DexGlyph';
 import type { ScreenerWatchlist } from './watchlist';
 import { ChainLogo } from '@/components/ui/ChainLogo';
 import { useWatchlistStore } from '@/lib/stores/watchlistStore';
@@ -330,17 +331,13 @@ function SearchRow({
   onOpen: (p: SearchPair) => void;
   onStar: (p: SearchPair, e: React.MouseEvent) => void;
 }) {
-  const [dexFailed, setDexFailed] = useState(false);
   return (
     <div
       onClick={() => onOpen(p)}
       className="flex cursor-pointer items-center gap-3 border-t border-[var(--line)] px-4 py-2.5 transition-colors hover:bg-[var(--surface)]"
     >
       <div className="flex w-12 shrink-0 items-center gap-1">
-        {p.dexId && !dexFailed ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={dexLogo(p.dexId)} alt={dexName(p.dexId)} className="h-4 w-4 rounded-full" onError={() => setDexFailed(true)} />
-        ) : null}
+        {p.dexId ? <DexGlyph dexId={p.dexId} /> : null}
         {p.label ? (
           <span className="rounded border border-[var(--line-strong)] px-1 tabular-nums text-[9px] uppercase text-[var(--text-faint)]">{p.label}</span>
         ) : null}

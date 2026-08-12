@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { IconStar, IconStarFilled, IconArrowUp, IconArrowDown } from '@tabler/icons-react';
 import type { ScreenerRow, ScreenerWindow } from '@/lib/screener/types';
 import type { SortKey } from '@/lib/screener/db';
-import { dexLogo, fmtAge, fmtNum, fmtPct, fmtPrice, fmtUsd, pctClass } from './format';
+import { fmtAge, fmtNum, fmtPct, fmtPrice, fmtUsd, pctClass } from './format';
+import { DexGlyph } from './DexGlyph';
 import type { ScreenerWatchlist } from './watchlist';
 import { ChainLogo } from '@/components/ui/ChainLogo';
 import { isChainKey } from '@/lib/chains/registry';
@@ -55,13 +56,9 @@ function TokenLogo({ row }: { row: ScreenerRow }) {
 }
 
 function DexBadge({ row }: { row: ScreenerRow }) {
-  const [failed, setFailed] = React.useState(false);
   return (
     <div className="flex shrink-0 items-center gap-1">
-      {row.dexId && !failed ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={dexLogo(row.dexId)} alt={row.dexId} className="h-4 w-4 rounded-full" onError={() => setFailed(true)} loading="lazy" />
-      ) : null}
+      {row.dexId ? <DexGlyph dexId={row.dexId} /> : null}
       {row.label ? (
         <span className="rounded border border-[var(--line-strong)] px-1 text-[9px] uppercase text-[var(--text-faint)]">{row.label}</span>
       ) : null}

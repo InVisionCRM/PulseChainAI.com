@@ -27,7 +27,7 @@ const REFRESH_MS = 60000;
 // universe (/api/screener); every other chain is served live from GeckoTerminal
 // (/api/screener/live). Add a new EVM here + give it a geckoterminalSlug in the
 // chain registry and it lights up — no other wiring.
-type ScreenerChain = { key: 'pulsechain' | 'robinhood'; name: string; source: 'indexed' | 'live' };
+export type ScreenerChain = { key: 'pulsechain' | 'robinhood'; name: string; source: 'indexed' | 'live' };
 const SCREENER_CHAINS: ScreenerChain[] = [
   { key: 'pulsechain', name: 'PulseChain', source: 'indexed' },
   { key: 'robinhood', name: 'Robinhood', source: 'live' },
@@ -250,7 +250,7 @@ export default function Screener() {
       />
 
       {view === 'bubbles' ? (
-        <MarketBubbles tab={tab} dexId={dexId} filters={filters} watchlistParam={watchlistParam} />
+        <MarketBubbles chain={chain} tab={tab} dexId={dexId} filters={filters} watchlistParam={watchlistParam} />
       ) : (
         <>
           <PairsTable

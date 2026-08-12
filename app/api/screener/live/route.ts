@@ -24,7 +24,15 @@ export const maxDuration = 30;
 
 const GT = 'https://api.geckoterminal.com/api/v2';
 const PAGE_SIZE = 30;
-const MAX_GT_PAGES = 7; // GeckoTerminal free tier caps pool pagination here.
+// GeckoTerminal rejects page 11 with "exceeds the allowed max number for page
+// (10)" — verified by request — so 10 pages × 20 pools is the whole universe
+// the free tier will give us. Fetch all of it.
+const MAX_GT_PAGES = 10;
+// Trending has its own endpoint but it's shallow (verified: pages 1–2 return
+// 20 pools each). On a small chain that starved the home bubble field, which
+// asks for up to 100 tokens. So trending pulls its own pages first and then
+// falls through to the volume-sorted pool list for depth.
+const TRENDING_PAGES = 2;
 
 type Tab = 'trending' | 'top' | 'gainers' | 'new' | 'gold';
 
@@ -104,6 +112,37 @@ function mapPool(
   };
 }
 
+/**
+ * Latest block for the stats bar, straight from the chain's own RPC. The
+ * indexed PulseChain screener gets this from its database; here it's one
+ * eth_blockNumber against the registry's RPC (Robinhood: the public sequencer
+ * endpoint). Null on any failure — the UI already renders that as "—".
+ */
+async function latestBlock(chainKey: string): Promise<number | null> {
+  const url = getChain(chainKey).rpcUrls?.[0];
+  if (!url) return null;
+  return cached(
+    `screener-live:block:${chainKey}`,
+    15_000,
+    async () => {
+      try {
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_blockNumber', params: [] }),
+          signal: AbortSignal.timeout(3000),
+        });
+        const j = r.ok ? await r.json() : null;
+        const n = j?.result ? parseInt(j.result, 16) : NaN;
+        return Number.isFinite(n) ? n : null;
+      } catch {
+        return null;
+      }
+    },
+    (v) => v != null,
+  );
+}
+
 // Fetch + map the chain's pool universe for a tab. Cached briefly so sorting,
 // filtering and pagination are served from memory without re-hitting GT.
 async function loadUniverse(chainKey: string, net: string, tab: Tab): Promise<ScreenerRow[]> {
@@ -111,18 +150,29 @@ async function loadUniverse(chainKey: string, net: string, tab: Tab): Promise<Sc
     `screener-live:${net}:${tab}`,
     60_000,
     async () => {
-      // Trending / new have dedicated endpoints (one page each). The rest sort
-      // the full pool list by 24h volume and page through it.
+      // New has a dedicated endpoint (one page). Everything else pages through
+      // the full volume-sorted pool list. Trending ALSO prepends its dedicated
+      // endpoint's pages: GT's trending list is only ~40 pools deep, and the
+      // dedupe below keeps trending order first, so the tab reads "trending,
+      // then everything else by volume" instead of stopping at 20 rows.
+      const poolPages = Array.from(
+        { length: MAX_GT_PAGES },
+        (_, i) =>
+          `${GT}/networks/${net}/pools?include=base_token,quote_token,dex&sort=h24_volume_usd_desc&page=${i + 1}`,
+      );
       const endpoints: string[] =
         tab === 'trending'
-          ? [`${GT}/networks/${net}/trending_pools?include=base_token,quote_token,dex&page=1`]
+          ? [
+              ...Array.from(
+                { length: TRENDING_PAGES },
+                (_, i) =>
+                  `${GT}/networks/${net}/trending_pools?include=base_token,quote_token,dex&page=${i + 1}`,
+              ),
+              ...poolPages,
+            ]
           : tab === 'new'
             ? [`${GT}/networks/${net}/new_pools?include=base_token,quote_token,dex&page=1`]
-            : Array.from(
-                { length: MAX_GT_PAGES },
-                (_, i) =>
-                  `${GT}/networks/${net}/pools?include=base_token,quote_token,dex&sort=h24_volume_usd_desc&page=${i + 1}`,
-              );
+            : poolPages;
 
       const pages = await Promise.all(endpoints.map(getJson));
       const tokens = new Map<string, { address: string; symbol: string; name: string; image: string | null }>();
@@ -198,7 +248,10 @@ export async function GET(req: NextRequest) {
   const maxAgeH = numOrNull(sp.get('maxAgeH'));
 
   try {
-    const universe = await loadUniverse(chainKey, net, tab);
+    const [universe, block] = await Promise.all([
+      loadUniverse(chainKey, net, tab),
+      latestBlock(chainKey),
+    ]);
 
     // Dex facets are computed over the whole (pre-dex-filter) universe.
     const dexCounts = new Map<string, number>();
@@ -239,7 +292,7 @@ export async function GET(req: NextRequest) {
       vol24: filtered.reduce((s, r) => s + (r.vol.h24 ?? 0), 0),
       txns24: filtered.reduce((s, r) => s + (r.txns.h24 ?? 0), 0),
       pairs: filtered.length,
-      block: null,
+      block,
     };
 
     const start = page * PAGE_SIZE;

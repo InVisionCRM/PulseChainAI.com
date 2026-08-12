@@ -6,7 +6,8 @@ import { resolveTokenIcon } from '@/lib/services/token-icon-resolver';
 import { formatCurrencyCompact } from '@/components/geicko/utils';
 import { fmtAmount } from '@/lib/format';
 import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
-import { dexLogo, dexName } from '@/components/Screener/format';
+import { dexName } from '@/components/Screener/format';
+import { DexGlyph } from '@/components/Screener/DexGlyph';
 
 // A trading-pair to render. Fields are optional because the list can come from
 // either GeckoTerminal or DexScreener (already normalised by the page).
@@ -110,19 +111,9 @@ function TokenLogo({
   );
 }
 
-// ── DEX logo (DexScreener per-dex icon, falls back to nothing on 404) ─────────
+// ── DEX icon: real art where DexScreener has it, letter badge otherwise ──────
 function DexLogo({ dexId }: { dexId: string }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return null;
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={dexLogo(dexId)}
-      alt=""
-      onError={() => setFailed(true)}
-      className="h-3.5 w-3.5 shrink-0 rounded-full bg-[var(--surface-2)] object-cover"
-    />
-  );
+  return <DexGlyph dexId={dexId} className="h-3.5 w-3.5" />;
 }
 
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {

@@ -26,7 +26,7 @@ import {
   formatWebsiteDisplay,
   PUMP_TIRES_CREATOR,
 } from '@/components/geicko/utils';
-import { dexLogo } from '@/components/Screener/format';
+import { DexGlyph } from '@/components/Screener/DexGlyph';
 import { pulsechainApiService } from '../../services/pulsechainApiService';
 import { dexscreenerApi } from '../../services/blockchain/dexscreenerApi';
 import { useToast } from '@/components/ui/toast-provider';
@@ -105,23 +105,15 @@ const LiquidityTab = dynamic(() => import('@/components/LiquidityTab'), { loadin
 const ContractAuditPanel = dynamic(() => import('@/components/ContractAuditPanel'), { ssr: false, loading: TabLoading });
 
 // One row in the "Top Pairs" stat card: DEX icon + BASE/QUOTE + $ liquidity.
-// DexScreener's per-dex logo can 404, so fall back to the base symbol's initial.
 function TopPairRow({ pair }: { pair: any }) {
-  const [logoFailed, setLogoFailed] = useState(false);
   const dexId = pair?.dexId as string | undefined;
   const base = pair?.baseToken?.symbol || '?';
   const quote = pair?.quoteToken?.symbol || '?';
   const liq = Number(pair?.liquidity?.usd || 0);
   return (
     <div className="flex items-center gap-2">
-      {dexId && !logoFailed ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={dexLogo(dexId)}
-          alt=""
-          onError={() => setLogoFailed(true)}
-          className="h-5 w-5 shrink-0 rounded-full bg-[var(--surface-2)] object-cover"
-        />
+      {dexId ? (
+        <DexGlyph dexId={dexId} className="h-5 w-5" />
       ) : (
         <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--surface-2)] text-[8px] font-semibold text-[var(--text-muted)]">
           {base.slice(0, 1).toUpperCase()}
@@ -538,6 +530,13 @@ function GeickoPageContent() {
           if (vals && typeof vals === 'object') {
             setHolderValues((prev) => ({ ...prev, ...vals }));
             merged = true;
+            // The endpoint now leaves out any wallet whose RPC reads were
+            // refused (rate-limited chains) instead of fabricating $0 for it.
+            // Unmark those so a later trigger retries them once the RPC cools
+            // down, rather than pinning "—" for the rest of the session.
+            chunk.forEach((a) => {
+              if (!(a in vals)) requestedValuesRef.current.delete(a);
+            });
           }
         } catch {
           /* fall through to retry */

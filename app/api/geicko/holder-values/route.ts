@@ -69,13 +69,51 @@ async function rpcBatch(url: string, reqs: Array<{ method: string; params: unkno
   }
 }
 
-// Run a batch against the RPC pool, first node that answers wins.
-async function batchWithPool(urls: string[], reqs: Array<{ method: string; params: unknown[] }>): Promise<(string | null)[]> {
+// Run a batch against the RPC pool, first node that answers wins. Returns null
+// when EVERY node refused — which is not the same thing as a call returning
+// empty. Robinhood has a single public sequencer RPC that 429s heavy eth_call
+// batches (verified by request), and before this distinction existed those
+// refusals were coerced to $0 balances and then cached, so the holders tab
+// showed "Wallet $0" for every whale on the page.
+async function batchWithPool(urls: string[], reqs: Array<{ method: string; params: unknown[] }>): Promise<(string | null)[] | null> {
   for (const url of urls) {
     const r = await rpcBatch(url, reqs);
     if (r) return r;
   }
-  return new Array(reqs.length).fill(null);
+  return null;
+}
+
+/**
+ * Run all request slices, retrying refused slices once in smaller pieces after
+ * a short backoff (rate limiters usually want less per request, not more
+ * retries). Requests whose every attempt was refused end up as FAILED — the
+ * caller must leave those holders out of the response entirely rather than
+ * report a fabricated zero.
+ */
+const FAILED = Symbol('rpc-failed');
+async function runBatches(
+  urls: string[],
+  reqs: Array<{ method: string; params: unknown[] }>,
+): Promise<(string | null | typeof FAILED)[]> {
+  const out: (string | null | typeof FAILED)[] = new Array(reqs.length).fill(FAILED);
+  const RETRY_CHUNK = 30;
+  for (let i = 0; i < reqs.length; i += BATCH_CHUNK) {
+    const slice = reqs.slice(i, i + BATCH_CHUNK);
+    let r = await batchWithPool(urls, slice);
+    if (r) {
+      r.forEach((v, j) => { out[i + j] = v; });
+      continue;
+    }
+    // Refused. Back off, then retry this slice in smaller chunks.
+    await new Promise((res) => setTimeout(res, 700));
+    for (let k = 0; k < slice.length; k += RETRY_CHUNK) {
+      const sub = slice.slice(k, k + RETRY_CHUNK);
+      r = await batchWithPool(urls, sub);
+      if (r) r.forEach((v, j) => { out[i + k + j] = v; });
+      // Still refused → stays FAILED for these indexes.
+    }
+  }
+  return out;
 }
 
 export async function POST(req: NextRequest) {
@@ -124,22 +162,24 @@ export async function POST(req: NextRequest) {
         reqs.push({ method: 'eth_call', params: [{ to: t.address, data: BALANCE_OF + pad(holder) }, 'latest'] });
       }
     }
-    const results: (string | null)[] = [];
-    for (let i = 0; i < reqs.length; i += BATCH_CHUNK) {
-      const slice = reqs.slice(i, i + BATCH_CHUNK);
-      results.push(...(await batchWithPool(rpcUrls, slice)));
-    }
+    const results = await runBatches(rpcUrls, reqs);
 
     toFetch.forEach((holder, hIdx) => {
       const off = hIdx * perHolder;
+      // If any of this holder's reads were refused by every RPC, we don't know
+      // the wallet's value — leave the holder out (the UI shows "—" and its
+      // retry logic asks again) instead of caching a fake $0.
+      for (let k = 0; k < perHolder; k++) {
+        if (results[off + k] === FAILED) return;
+      }
       // Native.
-      const nativeRaw = hexToBigInt(results[off]);
+      const nativeRaw = hexToBigInt(results[off] as string | null);
       const nativeAmt = nativeRaw != null ? toUnits(nativeRaw, 18) : 0;
       const nativeUsd = nativeAmt * nativePrice;
       let coreUsd = 0;
       let stableUsd = 0;
       basket.tokens.forEach((t, tIdx) => {
-        const raw = hexToBigInt(results[off + 1 + tIdx]);
+        const raw = hexToBigInt(results[off + 1 + tIdx] as string | null);
         if (raw == null || raw === 0n) return;
         const amt = toUnits(raw, t.decimals);
         const usd = amt * priceOf(t.address, t.peggedUsd);
