@@ -74,8 +74,11 @@ export function dexName(dexId: string | null): string {
  * returns null and the caller draws a letter badge instead.
  */
 const DEX_ART_SLUGS = new Set([
-  'pulsex', 'uniswap', 'sushiswap', 'pancakeswap', 'ekubo', 'ramses',
-  'robinswap', '9mm', '9inch',
+  // PulseChain — the indexed screener's ids come straight from DexScreener, so
+  // these are DexScreener's own dex ids (every one fetched and confirmed real).
+  'pulsex', '9mm', '9inch', 'liberty-swap', 'switchx', 'pulse-rate', 'dextop',
+  // Cross-chain brands.
+  'uniswap', 'sushiswap', 'pancakeswap', 'ekubo', 'ramses', 'robinswap',
 ]);
 
 /** Ids whose brand doesn't fall out of a version-suffix strip. */

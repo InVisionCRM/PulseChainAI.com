@@ -23,15 +23,16 @@ export const revalidate = 0;
 export const maxDuration = 30;
 
 const GT = 'https://api.geckoterminal.com/api/v2';
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 50;
 // GeckoTerminal rejects page 11 with "exceeds the allowed max number for page
-// (10)" — verified by request — so 10 pages × 20 pools is the whole universe
-// the free tier will give us. Fetch all of it.
+// (10)" — verified by request — so 10 pages × 20 pools is as deep as any ONE
+// ordering goes. But each ORDERING is its own 200-pool window: the volume sort
+// and the tx-count sort overlap only partially, and new_pools paginates to 10
+// as well (verified). Unioning them roughly triples the universe on a chain
+// like Robinhood, which is the difference between a bubble field of 20 and a
+// screener that actually covers the chain.
 const MAX_GT_PAGES = 10;
-// Trending has its own endpoint but it's shallow (verified: pages 1–2 return
-// 20 pools each). On a small chain that starved the home bubble field, which
-// asks for up to 100 tokens. So trending pulls its own pages first and then
-// falls through to the volume-sorted pool list for depth.
+// Trending's dedicated endpoint is shallow — pages 1–2 return 20 each.
 const TRENDING_PAGES = 2;
 
 type Tab = 'trending' | 'top' | 'gainers' | 'new' | 'gold';
@@ -143,70 +144,85 @@ async function latestBlock(chainKey: string): Promise<number | null> {
   );
 }
 
-// Fetch + map the chain's pool universe for a tab. Cached briefly so sorting,
-// filtering and pagination are served from memory without re-hitting GT.
+/** Fetch a list of GT page URLs and map them into deduped screener rows. */
+async function fetchAndMap(chainKey: string, urls: string[]): Promise<ScreenerRow[]> {
+  const pages = await Promise.all(urls.map(getJson));
+  const tokens = new Map<string, { address: string; symbol: string; name: string; image: string | null }>();
+  const rawPools: any[] = [];
+  for (const j of pages) {
+    if (!j) continue;
+    for (const inc of (j.included ?? []) as any[]) {
+      if (inc.type === 'token') {
+        tokens.set(inc.id, {
+          address: String(inc.attributes?.address ?? stripNet(inc.id)).toLowerCase(),
+          symbol: inc.attributes?.symbol ?? '?',
+          name: inc.attributes?.name ?? inc.attributes?.symbol ?? '',
+          image:
+            inc.attributes?.image_url && inc.attributes.image_url !== 'missing.png'
+              ? inc.attributes.image_url
+              : null,
+        });
+      }
+    }
+    rawPools.push(...((j.data ?? []) as any[]));
+  }
+  const seen = new Set<string>();
+  const rows: ScreenerRow[] = [];
+  for (const p of rawPools) {
+    const row = mapPool(chainKey, p, tokens);
+    if (!row || seen.has(row.pairAddress)) continue;
+    seen.add(row.pairAddress);
+    rows.push(row);
+  }
+  return rows;
+}
+
+const INCLUDE = 'include=base_token,quote_token,dex';
+
+/**
+ * Each GT ordering is fetched and cached as its own SOURCE, and tabs compose
+ * from the sources. Two reasons: tab switches reuse pages already fetched
+ * instead of re-pulling them, and a cold burst stays inside GT's ~30 req/min
+ * free budget (a naive per-tab fetch of every ordering would blow through it
+ * the moment someone flipped Trending → Top).
+ */
+function source(chainKey: string, net: string, kind: 'vol' | 'tx' | 'new' | 'trending'): Promise<ScreenerRow[]> {
+  const urls =
+    kind === 'trending'
+      ? Array.from({ length: TRENDING_PAGES }, (_, i) => `${GT}/networks/${net}/trending_pools?${INCLUDE}&page=${i + 1}`)
+      : kind === 'new'
+        ? Array.from({ length: MAX_GT_PAGES }, (_, i) => `${GT}/networks/${net}/new_pools?${INCLUDE}&page=${i + 1}`)
+        : Array.from(
+            { length: MAX_GT_PAGES },
+            (_, i) =>
+              `${GT}/networks/${net}/pools?${INCLUDE}&sort=${kind === 'vol' ? 'h24_volume_usd_desc' : 'h24_tx_count_desc'}&page=${i + 1}`,
+          );
+  return cached(`screener-live:src:${net}:${kind}`, 60_000, () => fetchAndMap(chainKey, urls), (r) => r.length > 0);
+}
+
+// Compose the tab's universe from cached sources, deduped by pair with the
+// first source's ordering winning. Trending reads "genuinely trending, then
+// everything else" — that's what makes a 100-token bubble field fillable on a
+// small chain.
 async function loadUniverse(chainKey: string, net: string, tab: Tab): Promise<ScreenerRow[]> {
-  return cached(
-    `screener-live:${net}:${tab}`,
-    60_000,
-    async () => {
-      // New has a dedicated endpoint (one page). Everything else pages through
-      // the full volume-sorted pool list. Trending ALSO prepends its dedicated
-      // endpoint's pages: GT's trending list is only ~40 pools deep, and the
-      // dedupe below keeps trending order first, so the tab reads "trending,
-      // then everything else by volume" instead of stopping at 20 rows.
-      const poolPages = Array.from(
-        { length: MAX_GT_PAGES },
-        (_, i) =>
-          `${GT}/networks/${net}/pools?include=base_token,quote_token,dex&sort=h24_volume_usd_desc&page=${i + 1}`,
-      );
-      const endpoints: string[] =
-        tab === 'trending'
-          ? [
-              ...Array.from(
-                { length: TRENDING_PAGES },
-                (_, i) =>
-                  `${GT}/networks/${net}/trending_pools?include=base_token,quote_token,dex&page=${i + 1}`,
-              ),
-              ...poolPages,
-            ]
-          : tab === 'new'
-            ? [`${GT}/networks/${net}/new_pools?include=base_token,quote_token,dex&page=1`]
-            : poolPages;
-
-      const pages = await Promise.all(endpoints.map(getJson));
-      const tokens = new Map<string, { address: string; symbol: string; name: string; image: string | null }>();
-      const rawPools: any[] = [];
-      for (const j of pages) {
-        if (!j) continue;
-        for (const inc of (j.included ?? []) as any[]) {
-          if (inc.type === 'token') {
-            tokens.set(inc.id, {
-              address: String(inc.attributes?.address ?? stripNet(inc.id)).toLowerCase(),
-              symbol: inc.attributes?.symbol ?? '?',
-              name: inc.attributes?.name ?? inc.attributes?.symbol ?? '',
-              image:
-                inc.attributes?.image_url && inc.attributes.image_url !== 'missing.png'
-                  ? inc.attributes.image_url
-                  : null,
-            });
-          }
-        }
-        rawPools.push(...((j.data ?? []) as any[]));
-      }
-
-      const seen = new Set<string>();
-      const rows: ScreenerRow[] = [];
-      for (const p of rawPools) {
-        const row = mapPool(chainKey, p, tokens);
-        if (!row || seen.has(row.pairAddress)) continue;
-        seen.add(row.pairAddress);
-        rows.push(row);
-      }
-      return rows;
-    },
-    (rows) => rows.length > 0,
-  );
+  // 'new' stays its own tab rather than joining the unions: a new pool with
+  // real volume is already in the vol/tx windows, and keeping the cold-burst
+  // at ≤22 requests stays inside GT's free budget.
+  const kinds: Array<'vol' | 'tx' | 'new' | 'trending'> =
+    tab === 'trending' ? ['trending', 'vol', 'tx'] :
+    tab === 'new' ? ['new'] :
+    ['vol', 'tx'];
+  const lists = await Promise.all(kinds.map((k) => source(chainKey, net, k)));
+  const seen = new Set<string>();
+  const rows: ScreenerRow[] = [];
+  for (const list of lists) {
+    for (const row of list) {
+      if (seen.has(row.pairAddress)) continue;
+      seen.add(row.pairAddress);
+      rows.push(row);
+    }
+  }
+  return rows;
 }
 
 function sortValue(row: ScreenerRow, key: SortKey, w: ScreenerWindow): number {
