@@ -18,6 +18,7 @@ import { IconRefresh, IconMaximize, IconMinimize, IconShare2, IconX } from '@tab
 import type { ScreenerRow, ScreenerUiTab, ScreenerFilters } from '@/lib/screener/types';
 import type { ScreenerChain } from './Screener';
 import { fetchPinnedRows } from '@/lib/screener/pinned';
+import { geickoHref } from '@/lib/geicko/link';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { fmtUsd } from '@/lib/format';
 
@@ -1073,7 +1074,9 @@ export default function MarketBubbles({ chain, tab, dexId, filters, watchlistPar
         // fling velocity is already on n.vx/vy from the last move
         const sp = Math.hypot(n.vx, n.vy);
         if (sp > MAX_V * 2.5) { n.vx = (n.vx / sp) * MAX_V * 2.5; n.vy = (n.vy / sp) * MAX_V * 2.5; }
-        if (!moved && n.address) router.push(`/geicko?address=${n.address}`);
+        // Chain-aware: a Robinhood bubble must open the analyzer on Robinhood.
+        // The bare `?address=` form silently opened every bubble as PulseChain.
+        if (!moved && n.address) router.push(geickoHref(n.address, n.row.chainId ?? chain.key));
       }
     };
     const onLeave = () => { if (!drag) { hover = null; hideTip(); } };
