@@ -12,7 +12,8 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import type { DexInfo, ScreenerFilters, ScreenerUiTab, ScreenerWindow } from '@/lib/screener/types';
-import { dexLogo, dexName } from './format';
+import { dexName } from './format';
+import { DexGlyph } from './DexGlyph';
 
 interface Props {
   dexes: DexInfo[];
@@ -48,12 +49,7 @@ const CHIP_ACTIVE = 'bg-orange-500 text-[var(--text)]';
 const CHIP_IDLE = 'border border-[var(--line)] text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]';
 
 function DexIcon({ dexId }: { dexId: string }) {
-  const [failed, setFailed] = React.useState(false);
-  if (failed) return null;
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={dexLogo(dexId)} alt="" className="h-4 w-4 rounded-full" onError={() => setFailed(true)} />
-  );
+  return <DexGlyph dexId={dexId} />;
 }
 
 function FiltersPopover({

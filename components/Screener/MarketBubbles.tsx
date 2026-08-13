@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { IconRefresh, IconMaximize, IconMinimize, IconShare2, IconX } from '@tabler/icons-react';
 import type { ScreenerRow, ScreenerUiTab, ScreenerFilters } from '@/lib/screener/types';
+import type { ScreenerChain } from './Screener';
 import { fetchPinnedRows } from '@/lib/screener/pinned';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import { fmtUsd } from '@/lib/format';
@@ -572,13 +573,18 @@ function SharePreview({
 }
 
 interface Props {
+  /** Which chain's universe to draw — the bubbles must follow the chain
+   *  selector exactly like the table does. This component used to hardcode
+   *  the PulseChain endpoint, which left the Robinhood tab's bubble field
+   *  showing pinned PulseChain tokens and nothing else. */
+  chain: ScreenerChain;
   tab: ScreenerUiTab;
   dexId: string | null;
   filters: ScreenerFilters;
   watchlistParam: string;
 }
 
-export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: Props) {
+export default function MarketBubbles({ chain, tab, dexId, filters, watchlistParam }: Props) {
   const router = useRouter();
   const wallets = usePortfolioStore((st) => st.wallets);
   // These MUST start at their server values. Seeding them from matchMedia gave
@@ -643,9 +649,12 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       [...byToken.values()].slice(0, count).map((e) => ({ ...e.rep, liquidityUsd: e.mainLiq }));
 
     // Pinned tokens (e.g. Morbius) go in first so they always get a bubble and
-    // survive the `count` slice, on every tab.
-    const pinned = await fetchPinnedRows();
-    pinned.forEach(addPair);
+    // survive the `count` slice, on every tab. They're PulseChain tokens, so
+    // they only belong in the PulseChain field.
+    if (chain.key === 'pulsechain') {
+      const pinned = await fetchPinnedRows();
+      pinned.forEach(addPair);
+    }
 
     if (tab === 'watchlist') {
       if (!watchlistParam) return [];
@@ -665,7 +674,13 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       if (filters.minAgeH !== null) qs.set('minAgeH', String(filters.minAgeH));
       if (filters.maxAgeH !== null) qs.set('maxAgeH', String(filters.maxAgeH));
       try {
-        const res = await fetch(`/api/screener?${qs}`);
+        // Same source split the table uses: the indexed PulseChain universe or
+        // the live GeckoTerminal route for every other chain.
+        const url =
+          chain.source === 'indexed'
+            ? `/api/screener?${qs}`
+            : `/api/screener/live?chain=${chain.key}&${qs}`;
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`screener ${res.status}`);
         const json = await res.json();
         const rows: ScreenerRow[] = json.rows ?? [];
@@ -679,7 +694,7 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       }
     }
     return finalize();
-  }, [tab, dexId, filters, watchlistParam, count]);
+  }, [chain, tab, dexId, filters, watchlistParam, count]);
 
   const load = useCallback(async () => {
     setStatus('loading');
@@ -732,9 +747,12 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
 
   // Build the held-token set: ONE /api/portfolio/balances call per wallet
   // (Blockscout enumerates everything the wallet holds), not a per-token fan
-  // out — this is what makes ringing 500 bubbles affordable. PulseChain only.
+  // out — this is what makes ringing 500 bubbles affordable. PulseChain only —
+  // isHeld() already refuses to ring non-PulseChain rows, so on other chains
+  // skip the wallet enumeration entirely instead of fetching a set nothing
+  // will read.
   useEffect(() => {
-    if (wallets.length === 0) { heldRef.current = new Set(); return; }
+    if (wallets.length === 0 || chain.key !== 'pulsechain') { heldRef.current = new Set(); return; }
     let alive = true;
     Promise.all(
       wallets.map(async (w) => {
@@ -753,7 +771,7 @@ export default function MarketBubbles({ tab, dexId, filters, watchlistParam }: P
       heldRef.current = new Set<string>(lists.flat());
     });
     return () => { alive = false; };
-  }, [wallets]);
+  }, [wallets, chain.key]);
 
   useEffect(() => {
     metricRef.current = metric;
