@@ -208,6 +208,10 @@ export interface GeickoHoldersTabProps {
   tokenAddress: string;
   /** Chain key; the per-holder detail is PulseX-backed, so PulseChain only. */
   network: string;
+  /** Empty because the EXPLORER refused the read, not because nobody holds it. */
+  holdersUnavailable?: boolean;
+  /** Manual retry for the unavailable state. */
+  onRetryHolders?: () => void;
 }
 
 /**
@@ -231,6 +235,8 @@ export default function GeickoHoldersTab({
   holderValues,
   tokenAddress,
   network,
+  holdersUnavailable,
+  onRetryHolders,
 }: GeickoHoldersTabProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, DetailState>>({});
@@ -431,6 +437,34 @@ export default function GeickoHoldersTab({
   }
 
   if (holders.length === 0) {
+    // Two different empty states. "No holders found" was shown for both, which
+    // presented a transient explorer outage as a fact about the token — a token
+    // whose bubble map was drawing 500+ holders read "No holders found" one
+    // panel below it.
+    if (holdersUnavailable) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center text-[var(--text-muted)]">
+            <div className="text-xl mb-1">📡</div>
+            <div className="text-xs">
+              Holder list temporarily unavailable — the block explorer refused the read.
+            </div>
+            <div className="mt-0.5 text-[11px] text-[var(--text-faint)]">
+              Retrying automatically; it usually clears in seconds.
+            </div>
+            {onRetryHolders && (
+              <button
+                type="button"
+                onClick={onRetryHolders}
+                className="mt-2 rounded-lg border border-[var(--line-strong)] px-3 py-1 text-xs text-[var(--text)] transition-colors hover:bg-[var(--surface-2)]"
+              >
+                Retry now
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex items-center justify-center py-8">
         <div className="text-center text-[var(--text-muted)]">

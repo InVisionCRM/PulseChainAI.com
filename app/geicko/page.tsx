@@ -315,6 +315,8 @@ function GeickoPageContent() {
 
   // Holders state
   const [holders, setHolders] = useState<Array<{ address: string; value: string; isContract?: boolean; isVerified?: boolean }>>([]);
+  /** True when the empty list means "explorer refused the read", not "no holders". */
+  const [holdersUnavailable, setHoldersUnavailable] = useState(false);
   const [isLoadingHolders, setIsLoadingHolders] = useState<boolean>(false);
   const [holdersPage, setHoldersPage] = useState<number>(1);
   const holdersPerPage = 25;
@@ -549,7 +551,15 @@ function GeickoPageContent() {
     }
   }, [network]);
 
-  // Load holders function
+  // Load holders function.
+  //
+  // "No data" has two very different meanings here: the token genuinely has no
+  // holders, or the explorer refused/hung this particular read (Blockscout does
+  // this in windows — WENCAT's list failed while its bubble map, served by a
+  // different route against the same explorer, loaded fine). The second case is
+  // tracked in `holdersUnavailable` so the tab can say "explorer is busy" and
+  // retry, instead of presenting a transient outage as a fact about the token.
+  const holdersRetryRef = useRef<{ address: string; tries: number }>({ address: '', tries: 0 });
   const loadHolders = useCallback(async (address: string) => {
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
       return;
@@ -580,6 +590,23 @@ function GeickoPageContent() {
         }))
         .filter((item) => item.address && item.value !== '0');
 
+      // Explorer refused this read (route reports source:'unavailable'), or
+      // the request itself failed. The route doesn't cache failures, so a
+      // retry hits the explorer fresh — do a couple automatically, spaced out.
+      const unavailable =
+        !data || (processedHolders.length === 0 && data.source !== 'blockscout' && data.source !== 'rpc-logs');
+      setHoldersUnavailable(unavailable && processedHolders.length === 0);
+      if (unavailable) {
+        const r = holdersRetryRef.current;
+        if (r.address !== address) holdersRetryRef.current = { address, tries: 0 };
+        if (holdersRetryRef.current.tries < 2) {
+          holdersRetryRef.current.tries += 1;
+          setTimeout(() => void loadHolders(address), 5000);
+        }
+      } else {
+        holdersRetryRef.current = { address, tries: 0 };
+      }
+
       setHolders(processedHolders);
       setHoldersTokenMeta({
         decimals: typeof data?.decimals === 'number' ? data.decimals : null,
@@ -591,6 +618,7 @@ function GeickoPageContent() {
       console.error('Failed to load holders:', error);
       setHolders([]);
       setHoldersNextCursor(null);
+      setHoldersUnavailable(true);
     } finally {
       setIsLoadingHolders(false);
     }
@@ -2556,6 +2584,8 @@ function GeickoPageContent() {
                   )}
                   <GeickoHoldersTab
                   holders={holders}
+                  holdersUnavailable={holdersUnavailable}
+                  onRetryHolders={() => { if (apiTokenAddress) void loadHolders(apiTokenAddress); }}
                   holderStats={holderStats}
                   isLoadingHolders={isLoadingHolders}
                   tokenInfo={tokenInfo}

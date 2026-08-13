@@ -72,19 +72,25 @@ async function fromBlockscout(
 
   for (let page = 0; page < maxUpstreamPages && items.length < pageSize; page++) {
     if (Date.now() - start > PAGE_DEADLINE_MS) break; // partial; complete stays false
-    // PulseScan intermittently 500s on paginated holder reads (same request
-    // succeeds on a retry), so give each upstream page one quick second attempt.
+    // Blockscout instances intermittently 500 or hang on paginated holder
+    // reads (the same request succeeds moments later — WENCAT's list failed
+    // while its bubble map, reading the same explorer through another route,
+    // loaded fine). Three attempts with growing backoff, still bounded by the
+    // page deadline, ride out most of those windows.
     let data: any = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       const res = await fetch(url, {
         headers: { Accept: 'application/json' },
         next: { revalidate: 120 },
-      }).catch(() => null);
+      }).catch((e) => { console.error('[holders] fetch threw', url, e?.cause?.code || e?.message || e); return null; });
       if (res && res.ok) {
         const parsed = await res.json().catch(() => null);
         if (parsed && Array.isArray(parsed.items)) { data = parsed; break; }
+      } else if (res) {
+        console.error('[holders] upstream status', res.status, url);
       }
-      if (attempt === 0) await new Promise((r) => setTimeout(r, 200));
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+      if (Date.now() - start > PAGE_DEADLINE_MS) break;
     }
     if (!data) break; // page failed after retry; partial, complete stays false
     const pageItems: any[] = Array.isArray(data?.items) ? data.items : [];
