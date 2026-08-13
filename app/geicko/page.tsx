@@ -315,6 +315,16 @@ function GeickoPageContent() {
 
   // Holders state
   const [holders, setHolders] = useState<Array<{ address: string; value: string; isContract?: boolean; isVerified?: boolean }>>([]);
+  /** True when the empty list means "explorer refused the read", not "no holders". */
+  const [holdersUnavailable, setHoldersUnavailable] = useState(false);
+  /**
+   * Robinhood only: the bubble map waits for a tap instead of auto-loading.
+   * Its holder + funding-graph walks hit the same rate-limited explorer the
+   * holders table reads, and racing them on tab-open is how the table lost to
+   * the map on WENCAT. The list is the primary content — it loads first; the
+   * map loads when asked for.
+   */
+  const [bubbleMapOpen, setBubbleMapOpen] = useState(false);
   const [isLoadingHolders, setIsLoadingHolders] = useState<boolean>(false);
   const [holdersPage, setHoldersPage] = useState<number>(1);
   const holdersPerPage = 25;
@@ -549,7 +559,15 @@ function GeickoPageContent() {
     }
   }, [network]);
 
-  // Load holders function
+  // Load holders function.
+  //
+  // "No data" has two very different meanings here: the token genuinely has no
+  // holders, or the explorer refused/hung this particular read (Blockscout does
+  // this in windows — WENCAT's list failed while its bubble map, served by a
+  // different route against the same explorer, loaded fine). The second case is
+  // tracked in `holdersUnavailable` so the tab can say "explorer is busy" and
+  // retry, instead of presenting a transient outage as a fact about the token.
+  const holdersRetryRef = useRef<{ address: string; tries: number }>({ address: '', tries: 0 });
   const loadHolders = useCallback(async (address: string) => {
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
       return;
@@ -580,6 +598,23 @@ function GeickoPageContent() {
         }))
         .filter((item) => item.address && item.value !== '0');
 
+      // Explorer refused this read (route reports source:'unavailable'), or
+      // the request itself failed. The route doesn't cache failures, so a
+      // retry hits the explorer fresh — do a couple automatically, spaced out.
+      const unavailable =
+        !data || (processedHolders.length === 0 && data.source !== 'blockscout' && data.source !== 'rpc-logs');
+      setHoldersUnavailable(unavailable && processedHolders.length === 0);
+      if (unavailable) {
+        const r = holdersRetryRef.current;
+        if (r.address !== address) holdersRetryRef.current = { address, tries: 0 };
+        if (holdersRetryRef.current.tries < 2) {
+          holdersRetryRef.current.tries += 1;
+          setTimeout(() => void loadHolders(address), 5000);
+        }
+      } else {
+        holdersRetryRef.current = { address, tries: 0 };
+      }
+
       setHolders(processedHolders);
       setHoldersTokenMeta({
         decimals: typeof data?.decimals === 'number' ? data.decimals : null,
@@ -591,6 +626,7 @@ function GeickoPageContent() {
       console.error('Failed to load holders:', error);
       setHolders([]);
       setHoldersNextCursor(null);
+      setHoldersUnavailable(true);
     } finally {
       setIsLoadingHolders(false);
     }
@@ -968,6 +1004,8 @@ function GeickoPageContent() {
     setProfileData(null);
     setHolders([]);
     setHoldersNextCursor(null);
+    setHoldersUnavailable(false);
+    setBubbleMapOpen(false);
     setHolderValues({});
     requestedValuesRef.current = new Set();
     setTransactions([]);
@@ -2547,15 +2585,36 @@ function GeickoPageContent() {
                   {apiTokenAddress && (
                     <GeickoTokenLeaguesPanel token={apiTokenAddress} totalSupply={totalSupply} priceUsd={priceUsd} symbol={baseSymbol} />
                   )}
-                  {apiTokenAddress && (
+                  {apiTokenAddress && (network !== 'robinhood' || bubbleMapOpen ? (
                     <BubbleMap
                       token={apiTokenAddress}
                       chain={network}
                       symbol={tokenInfo?.symbol}
                     />
-                  )}
+                  ) : (
+                    // Collapsed stand-in styled like the map's own panel header.
+                    <button
+                      type="button"
+                      onClick={() => setBubbleMapOpen(true)}
+                      className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-left transition-colors hover:border-[var(--line-strong)]"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                          Holder bubble map
+                          <span className="font-normal normal-case text-[var(--text-faint)]">
+                            tap to load — draws the top holders and their funding links
+                          </span>
+                        </div>
+                        <span className="shrink-0 rounded-lg border border-[var(--line-strong)] px-2.5 py-1 text-xs text-[var(--text)]">
+                          Show map
+                        </span>
+                      </div>
+                    </button>
+                  ))}
                   <GeickoHoldersTab
                   holders={holders}
+                  holdersUnavailable={holdersUnavailable}
+                  onRetryHolders={() => { if (apiTokenAddress) void loadHolders(apiTokenAddress); }}
                   holderStats={holderStats}
                   isLoadingHolders={isLoadingHolders}
                   tokenInfo={tokenInfo}
