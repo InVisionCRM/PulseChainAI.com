@@ -317,6 +317,14 @@ function GeickoPageContent() {
   const [holders, setHolders] = useState<Array<{ address: string; value: string; isContract?: boolean; isVerified?: boolean }>>([]);
   /** True when the empty list means "explorer refused the read", not "no holders". */
   const [holdersUnavailable, setHoldersUnavailable] = useState(false);
+  /**
+   * Robinhood only: the bubble map waits for a tap instead of auto-loading.
+   * Its holder + funding-graph walks hit the same rate-limited explorer the
+   * holders table reads, and racing them on tab-open is how the table lost to
+   * the map on WENCAT. The list is the primary content — it loads first; the
+   * map loads when asked for.
+   */
+  const [bubbleMapOpen, setBubbleMapOpen] = useState(false);
   const [isLoadingHolders, setIsLoadingHolders] = useState<boolean>(false);
   const [holdersPage, setHoldersPage] = useState<number>(1);
   const holdersPerPage = 25;
@@ -996,6 +1004,8 @@ function GeickoPageContent() {
     setProfileData(null);
     setHolders([]);
     setHoldersNextCursor(null);
+    setHoldersUnavailable(false);
+    setBubbleMapOpen(false);
     setHolderValues({});
     requestedValuesRef.current = new Set();
     setTransactions([]);
@@ -2575,13 +2585,32 @@ function GeickoPageContent() {
                   {apiTokenAddress && (
                     <GeickoTokenLeaguesPanel token={apiTokenAddress} totalSupply={totalSupply} priceUsd={priceUsd} symbol={baseSymbol} />
                   )}
-                  {apiTokenAddress && (
+                  {apiTokenAddress && (network !== 'robinhood' || bubbleMapOpen ? (
                     <BubbleMap
                       token={apiTokenAddress}
                       chain={network}
                       symbol={tokenInfo?.symbol}
                     />
-                  )}
+                  ) : (
+                    // Collapsed stand-in styled like the map's own panel header.
+                    <button
+                      type="button"
+                      onClick={() => setBubbleMapOpen(true)}
+                      className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-left transition-colors hover:border-[var(--line-strong)]"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                          Holder bubble map
+                          <span className="font-normal normal-case text-[var(--text-faint)]">
+                            tap to load — draws the top holders and their funding links
+                          </span>
+                        </div>
+                        <span className="shrink-0 rounded-lg border border-[var(--line-strong)] px-2.5 py-1 text-xs text-[var(--text)]">
+                          Show map
+                        </span>
+                      </div>
+                    </button>
+                  ))}
                   <GeickoHoldersTab
                   holders={holders}
                   holdersUnavailable={holdersUnavailable}
