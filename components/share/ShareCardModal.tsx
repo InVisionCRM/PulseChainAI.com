@@ -9,6 +9,7 @@
 // of category tabs (the token pages split cards into All time / Short term).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { IconX, IconDownload, IconCopy, IconCheck, IconShare2 } from '@tabler/icons-react';
 
 export const SHARE_GRAD =
@@ -67,6 +68,8 @@ export default function ShareCardModal({
   height = 1080,
   onClose,
 }: ShareCardModalProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const [group, setGroup] = useState(groups?.[0]?.key ?? null);
   const visible = useMemo(
     () => (group ? cards.filter((k) => k.group === group) : cards),
@@ -195,16 +198,20 @@ export default function ShareCardModal({
     typeof navigator !== 'undefined' &&
     typeof (navigator as Navigator & { canShare?: unknown }).canShare === 'function';
 
-  return (
+  // z-order on a token page: the portfolio chip is z-[110], the Sleuth FAB
+  // z-[120] and the portfolio drawer z-[125] — at z-[100] all three floated over
+  // this dialog and swallowed taps on the cards nearest the bottom. Above them,
+  // below the devlog (z-[200]).
+  const dialog = (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm md:items-center"
+      className="fixed inset-0 z-[130] flex items-start justify-center overflow-y-auto overscroll-contain bg-black/70 p-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:items-center md:pb-3"
       role="dialog"
       aria-modal="true"
       aria-label={title}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="my-auto w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)]">
-        <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-3">
+      <div className="w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)] md:my-auto">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-4 py-3">
           <h2 className="text-sm font-bold text-[var(--text)]">{title}</h2>
           <button
             type="button"
@@ -216,7 +223,7 @@ export default function ShareCardModal({
           </button>
         </div>
 
-        <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,430px)_minmax(0,1fr)]">
+        <div className="grid gap-4 p-4 pb-8 md:grid-cols-[minmax(0,430px)_minmax(0,1fr)] md:pb-4">
           <div className="order-2 md:order-1">
             {groups && groups.length > 1 && (
               <div className="mb-2 flex gap-1.5">
@@ -243,7 +250,7 @@ export default function ShareCardModal({
             )}
             {/* Two columns even on desktop — a single long column would be
                 mostly below the fold. */}
-            <div className="grid max-h-[46vh] grid-cols-2 gap-1.5 overflow-y-auto md:max-h-[58vh]">
+            <div className="grid grid-cols-2 gap-1.5 md:max-h-[58vh] md:overflow-y-auto md:overscroll-contain md:pr-1">
               {visible.map((k) => {
                 const on = k.id === id;
                 return (
@@ -327,4 +334,6 @@ export default function ShareCardModal({
       </div>
     </div>
   );
+
+  return mounted ? createPortal(dialog, document.body) : null;
 }
