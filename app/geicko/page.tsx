@@ -1925,10 +1925,8 @@ function GeickoPageContent() {
         {effectivePair && (
           <div className="block mb-1 px-1">
             {apiTokenAddress && (
-              <div className="mb-1 flex items-center gap-2">
-                <div className="min-w-0 flex-1">
-                  <GeickoRating token={apiTokenAddress} chain={network} />
-                </div>
+              <div className="mb-1 space-y-1.5">
+                <GeickoRating token={apiTokenAddress} chain={network} />
                 <GeickoShareCards
                   token={apiTokenAddress}
                   chain={network}
@@ -1944,7 +1942,7 @@ function GeickoPageContent() {
                   smartContractHolderShare={smartContractHolderShare}
                   ownershipData={ownershipData}
                   creationDate={creationDate}
-                  compact
+                  full
                 />
               </div>
             )}
@@ -3046,10 +3044,8 @@ function GeickoPageContent() {
               {displayPair && (
                 <div className="block mb-2 px-0">
                   {apiTokenAddress && (
-                    <div className="mb-1 flex items-center gap-2">
-                      <div className="min-w-0 flex-1">
-                        <GeickoRating token={apiTokenAddress} chain={network} />
-                      </div>
+                    <div className="mb-1 space-y-1.5">
+                      <GeickoRating token={apiTokenAddress} chain={network} />
                       <GeickoShareCards
                         token={apiTokenAddress}
                         chain={network}
@@ -3065,7 +3061,7 @@ function GeickoPageContent() {
                         smartContractHolderShare={smartContractHolderShare}
                         ownershipData={ownershipData}
                         creationDate={creationDate}
-                        compact
+                        full
                       />
                     </div>
                   )}
