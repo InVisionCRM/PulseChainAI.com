@@ -1925,8 +1925,27 @@ function GeickoPageContent() {
         {effectivePair && (
           <div className="block mb-1 px-1">
             {apiTokenAddress && (
-              <div className="mb-1">
-                <GeickoRating token={apiTokenAddress} chain={network} />
+              <div className="mb-1 flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <GeickoRating token={apiTokenAddress} chain={network} />
+                </div>
+                <GeickoShareCards
+                  token={apiTokenAddress}
+                  chain={network}
+                  symbol={baseSymbol}
+                  name={tokenNameDisplay}
+                  logoUrl={tokenLogoSrc}
+                  dexScreenerData={dexScreenerData}
+                  totalLiquidity={totalLiquidity}
+                  totalSupply={totalSupply}
+                  burnedTokens={burnedTokens}
+                  holdersCount={holdersCount}
+                  supplyHeld={supplyHeld}
+                  smartContractHolderShare={smartContractHolderShare}
+                  ownershipData={ownershipData}
+                  creationDate={creationDate}
+                  compact
+                />
               </div>
             )}
             <div className="grid grid-cols-2 gap-1">
