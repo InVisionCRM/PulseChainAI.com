@@ -47,8 +47,8 @@ export interface GeickoShareCardsProps {
   smartContractHolderShare: SmartContractHolderData;
   ownershipData: OwnershipData;
   creationDate: string | null;
-  /** Compact trigger for the mobile header. */
-  compact?: boolean;
+  /** Full-width block trigger, for sitting under the rating row. */
+  full?: boolean;
 }
 
 interface Sources {
@@ -128,13 +128,13 @@ export default function GeickoShareCards(props: GeickoShareCardsProps) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Share a card for this token"
-        className={`inline-flex items-center gap-1.5 rounded-lg font-bold text-white transition-transform hover:-translate-y-px ${
-          props.compact ? 'px-2.5 py-1.5 text-[11px]' : 'px-3.5 py-2 text-xs'
+        className={`inline-flex items-center justify-center gap-2 rounded-xl font-bold text-white transition-transform hover:-translate-y-px ${
+          props.full ? 'w-full px-4 py-3 text-sm' : 'px-3.5 py-2 text-xs'
         }`}
         style={{ background: SHARE_GRAD }}
       >
-        <IconShare2 className="h-3.5 w-3.5" />
-        {props.compact ? 'Share' : 'Share a card'}
+        <IconShare2 className={props.full ? 'h-4 w-4' : 'h-3.5 w-3.5'} />
+        Share a card
       </button>
       {open && <Cards {...props} onClose={() => setOpen(false)} />}
     </>
