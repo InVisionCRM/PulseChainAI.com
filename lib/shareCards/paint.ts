@@ -27,6 +27,35 @@ export const DOWN = '#f87171';
 export const SANS = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
 export const MONO = '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
 
+/**
+ * A card's colour scheme. The eleven fixed cards and SuperStake's all draw in
+ * Midnight, which is why the constants above stay exported and unchanged; the
+ * builder passes one of these to the helpers that take a palette so a custom
+ * card can be carbon or light without touching anything else.
+ */
+export interface Pal {
+  ink: string; panel: string; line: string; line2: string;
+  tx: string; txMid: string; txDim: string;
+}
+
+export const PALETTES = {
+  midnight: { ink: INK, panel: PANEL, line: LINE, line2: LINE_2, tx: TX, txMid: TX_MID, txDim: TX_DIM },
+  carbon: {
+    ink: '#08090C', panel: '#131519', line: 'rgba(255,255,255,0.10)', line2: 'rgba(255,255,255,0.22)',
+    tx: '#ffffff', txMid: 'rgba(233,236,242,0.70)', txDim: 'rgba(233,236,242,0.42)',
+  },
+  paper: {
+    ink: '#F5F3EE', panel: '#FFFFFF', line: 'rgba(16,24,40,0.10)', line2: 'rgba(16,24,40,0.22)',
+    tx: '#0D1424', txMid: 'rgba(13,20,36,0.68)', txDim: 'rgba(13,20,36,0.45)',
+  },
+  wash: {
+    ink: '#160A24', panel: 'rgba(255,255,255,0.06)', line: 'rgba(255,255,255,0.16)', line2: 'rgba(255,255,255,0.30)',
+    tx: '#ffffff', txMid: 'rgba(240,235,250,0.76)', txDim: 'rgba(240,235,250,0.50)',
+  },
+} satisfies Record<string, Pal>;
+
+export type PaletteName = keyof typeof PALETTES;
+
 /** Accents the collages reach for, named so cards don't sprinkle hex codes. */
 export const ACCENT = {
   amber: '#FB9438',
@@ -316,11 +345,12 @@ export function bars(
 
 export function panel(
   c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number,
+  pal: Pal = PALETTES.midnight, radius = 28,
 ) {
-  c.fillStyle = PANEL;
-  rr(c, x, y, w, h, 28);
+  c.fillStyle = pal.panel;
+  rr(c, x, y, w, h, radius);
   c.fill();
-  c.strokeStyle = LINE;
+  c.strokeStyle = pal.line;
   c.lineWidth = 2;
   c.stroke();
 }
@@ -361,8 +391,10 @@ export interface TileSpec {
 }
 
 /** One labelled block of a collage. */
-export function statTile(c: CanvasRenderingContext2D, [x, y, w, h]: Box, t: TileSpec) {
-  panel(c, x, y, w, h);
+export function statTile(
+  c: CanvasRenderingContext2D, [x, y, w, h]: Box, t: TileSpec, pal: Pal = PALETTES.midnight,
+) {
+  panel(c, x, y, w, h, pal);
   if (t.accent) {
     c.save();
     rr(c, x, y, w, h, 28);
@@ -381,19 +413,32 @@ export function statTile(c: CanvasRenderingContext2D, [x, y, w, h]: Box, t: Tile
   const blockH = 16 + 16 + vs + (t.sub ? 12 + 19 : 0);
   const top = y + Math.max(20, (h - blockH) / 2);
   text(c, t.label.toUpperCase(), x + 26, top + 16, {
-    size: 16, color: TX_DIM, font: MONO, spacing: 2,
+    size: 16, color: pal.txDim, font: MONO, spacing: 2,
   });
   const vy = top + 32 + vs;
   text(c, t.value, x + 26, vy, {
-    size: vs, weight: 800, color: missing ? TX_DIM : (t.accent ?? TX),
+    size: vs, weight: 800, color: missing ? pal.txDim : (t.accent ?? pal.tx),
   });
   if (t.sub) {
-    text(c, t.sub, x + 26, vy + 31, { size: fitText(c, t.sub, w - 52, 19, 400), color: TX_MID });
+    text(c, t.sub, x + 26, vy + 31, { size: fitText(c, t.sub, w - 52, 19, 400), color: pal.txMid });
   }
 }
 
+/** How the token's mark is cut. Token art is rarely square and rarely round. */
+export type LogoStyle = 'round' | 'square' | 'ring' | 'plain' | 'none';
+
+/** What to do with the wide DexScreener banner, when the token has one. */
+export type HeaderStyle = 'off' | 'band' | 'full';
+
 export interface ChromeSpec {
   logo: HTMLImageElement | null;
+  /** Palette; defaults to Midnight, which every fixed card uses. */
+  pal?: Pal;
+  /** Defaults to `round` when `roundLogo` is set, else `plain`. */
+  logoStyle?: LogoStyle;
+  /** The token's DexScreener banner, already loaded (and same-origin). */
+  header?: HTMLImageElement | null;
+  headerStyle?: HeaderStyle;
   /** Big left-hand wordmark — the product, or the token's symbol. */
   title: string;
   /** The line under it: the ticker, or the chain. */
@@ -406,53 +451,107 @@ export interface ChromeSpec {
   roundLogo?: boolean;
 }
 
+/**
+ * Draw an image to cover a box, cropping the overflow rather than squashing it
+ * — the banners are 3:1 and the slots they go in are not.
+ */
+function cover(
+  c: CanvasRenderingContext2D, img: HTMLImageElement,
+  x: number, y: number, w: number, h: number,
+) {
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+  if (!iw || !ih) return;
+  const scale = Math.max(w / iw, h / ih);
+  const dw = iw * scale;
+  const dh = ih * scale;
+  c.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+
 /** Background, bloom, header and footer: the frame every card shares. */
 export function chrome(c: CanvasRenderingContext2D, o: ChromeSpec) {
-  c.fillStyle = INK;
+  const pal = o.pal ?? PALETTES.midnight;
+  const light = pal === PALETTES.paper;
+  c.fillStyle = pal.ink;
   c.fillRect(0, 0, CARD_W, CARD_H);
-  const bloom = c.createRadialGradient(CARD_W * 0.92, -60, 0, CARD_W * 0.92, -60, 720);
-  bloom.addColorStop(0, 'rgba(174,23,106,0.42)');
-  bloom.addColorStop(0.55, 'rgba(126,8,157,0.14)');
-  bloom.addColorStop(1, 'rgba(6,24,46,0)');
-  c.fillStyle = bloom;
-  c.fillRect(0, 0, CARD_W, CARD_H);
+  if (!light) {
+    const bloom = c.createRadialGradient(CARD_W * 0.92, -60, 0, CARD_W * 0.92, -60, 720);
+    bloom.addColorStop(0, 'rgba(174,23,106,0.42)');
+    bloom.addColorStop(0.55, 'rgba(126,8,157,0.14)');
+    bloom.addColorStop(1, 'rgba(6,24,46,0)');
+    c.fillStyle = bloom;
+    c.fillRect(0, 0, CARD_W, CARD_H);
+  }
 
-  if (o.logo) {
-    if (o.roundLogo) {
-      c.save();
+  // The banner goes down before anything else, under a scrim heavy enough that
+  // white type stays readable over whatever art the token happens to have.
+  const hs = o.headerStyle ?? 'off';
+  if (o.header && hs !== 'off') {
+    const h = hs === 'full' ? CARD_H : 300;
+    c.save();
+    cover(c, o.header, 0, 0, CARD_W, h);
+    const scrim = c.createLinearGradient(0, 0, 0, h);
+    if (hs === 'full') {
+      // Dark enough for type to sit on, light enough that the art is still art.
+      scrim.addColorStop(0, light ? 'rgba(245,243,238,0.70)' : 'rgba(6,24,46,0.62)');
+      scrim.addColorStop(1, light ? 'rgba(245,243,238,0.92)' : 'rgba(6,24,46,0.90)');
+    } else {
+      scrim.addColorStop(0, light ? 'rgba(245,243,238,0.45)' : 'rgba(6,24,46,0.45)');
+      scrim.addColorStop(0.6, light ? 'rgba(245,243,238,0.72)' : 'rgba(6,24,46,0.72)');
+      scrim.addColorStop(1, pal.ink);
+    }
+    c.fillStyle = scrim;
+    c.fillRect(0, 0, CARD_W, h);
+    c.restore();
+  }
+
+  const style: LogoStyle = o.logoStyle ?? (o.roundLogo ? 'round' : 'plain');
+  if (o.logo && style !== 'none') {
+    c.save();
+    if (style === 'round' || style === 'ring') {
       c.beginPath();
       c.arc(94, 86, 30, 0, Math.PI * 2);
       c.clip();
-      c.drawImage(o.logo, 64, 56, 60, 60);
+    } else if (style === 'square') {
+      rr(c, 64, 56, 60, 60, 14);
+      c.clip();
+    }
+    c.drawImage(o.logo, 64, 56, 60, 60);
+    c.restore();
+    if (style === 'ring') {
+      c.save();
+      c.lineWidth = 4;
+      c.strokeStyle = brand(c, 64, 56, 124, 116);
+      c.beginPath();
+      c.arc(94, 86, 32, 0, Math.PI * 2);
+      c.stroke();
       c.restore();
-    } else {
-      c.drawImage(o.logo, 64, 56, 60, 60);
     }
   }
-  const titleX = o.logo ? 140 : 64;
+  const titleX = o.logo && style !== 'none' ? 140 : 64;
   text(c, o.title.toUpperCase(), titleX, 88, {
-    size: fitText(c, o.title.toUpperCase(), 560, 27, 800), weight: 800, spacing: 5,
+    size: fitText(c, o.title.toUpperCase(), 560, 27, 800), weight: 800, spacing: 5, color: pal.tx,
   });
   if (o.subtitle) {
     text(c, o.subtitle, titleX, 118, {
-      size: 20, weight: 500, color: TX_DIM, font: MONO, spacing: 3,
+      size: 20, weight: 500, color: pal.txDim, font: MONO, spacing: 3,
     });
   }
   if (o.kicker) {
     text(c, o.kicker.toUpperCase(), CARD_W - 64, 96, {
-      size: 19, weight: 500, color: TX_DIM, align: 'right', font: MONO, spacing: 3,
+      size: 19, weight: 500, color: pal.txDim, align: 'right', font: MONO, spacing: 3,
     });
   }
 
-  c.fillStyle = LINE;
+  c.fillStyle = pal.line;
   c.fillRect(64, 150, CARD_W - 128, 2);
 
-  c.fillStyle = LINE;
+  c.fillStyle = pal.line;
   c.fillRect(64, CARD_H - 116, CARD_W - 128, 2);
-  text(c, o.footerLeft, 64, CARD_H - 62, { size: 24, weight: 700, color: TX_MID });
+  text(c, o.footerLeft, 64, CARD_H - 62, { size: 24, weight: 700, color: pal.txMid });
   if (o.footerRight) {
     text(c, o.footerRight.toUpperCase(), CARD_W - 64, CARD_H - 62, {
-      size: 18, weight: 500, color: TX_DIM, align: 'right', font: MONO, spacing: 2,
+      size: 18, weight: 500, color: pal.txDim, align: 'right', font: MONO, spacing: 2,
     });
   }
 }

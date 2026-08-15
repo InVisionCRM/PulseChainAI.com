@@ -13,11 +13,12 @@
 // the card says what's missing; nothing is invented to fill a gap.
 
 import {
-  ACCENT, BOX_W, CARD_H, CARD_W, DOWN, LINE, LINE_2, MONO, PAD, TX, TX_DIM, TX_MID, UP,
+  ACCENT, BOX_W, CARD_H, CARD_W, DOWN, LINE, LINE_2, MONO, PAD, PALETTES, TX, TX_DIM, TX_MID, UP,
   areaChart, bars, brand, chrome as frame, compact, fitText, grid, headline, measure,
   MISSING, money, nf, nothingToDraw, panel, price as fmtPrice, rr, ring, signedPct, statTile, text,
-  type Box,
+  type Box, type HeaderStyle, type LogoStyle, type Pal, type PaletteName,
 } from '@/lib/shareCards/paint';
+import { METRIC_BY_ID } from '@/lib/geicko/metrics';
 
 export { CARD_W, CARD_H };
 
@@ -138,6 +139,56 @@ export interface TokenShareData {
   leagues?: LeaguesSource | null;
   deltas?: DeltasSource | null;
   pressure?: PressureSource | null;
+}
+
+/** Accents the builder offers for the hero figure and tile rules. */
+export const ACCENTS = {
+  brand: null,
+  amber: ACCENT.amber,
+  magenta: ACCENT.magenta,
+  green: UP,
+  mono: null,
+} as const;
+export type AccentName = keyof typeof ACCENTS;
+
+/** A card the reader assembled: which figures, in what order, dressed how. */
+export interface CustomSpec {
+  /** Up to nine metric ids, in the order they were picked. */
+  metrics: string[];
+  /** Draw the first metric as the headline rather than a tile. */
+  hero: boolean;
+  palette: PaletteName;
+  accent: AccentName;
+  tiles: 'panel' | 'bare';
+  logo: LogoStyle;
+  header: HeaderStyle;
+  /** A line of the reader's own text under the title. */
+  caption: string;
+  chart: 'none' | 'volume' | 'price';
+}
+
+export const MAX_METRICS = 9;
+
+/** The id the builder's card draws under. */
+export const CUSTOM_CARD_ID = 'custom';
+
+export const DEFAULT_SPEC: CustomSpec = {
+  metrics: ['price', 'chg24', 'mcap', 'vol24', 'liq', 'holders'],
+  hero: true,
+  palette: 'midnight',
+  accent: 'brand',
+  tiles: 'panel',
+  logo: 'round',
+  header: 'off',
+  caption: '',
+  chart: 'none',
+};
+
+/** Everything the painter needs beyond the token's figures. */
+export interface DrawOptions {
+  custom?: CustomSpec;
+  /** The token's DexScreener banner, already loaded same-origin. */
+  header?: HTMLImageElement | null;
 }
 
 export interface TokenCardDef {
@@ -763,27 +814,172 @@ const paint: Record<string, Painter> = {
   },
 };
 
+/* ───────────────────────── the built card ───────────────────────── */
+
+/** How many rows each count lays out in. */
+const ROWS: Record<number, number> = { 1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 3, 7: 3, 8: 4, 9: 3 };
+
+/** A tile taller than this looks stretched rather than generous. */
+const MAX_TILE_H = 300;
+
+/**
+ * Tile boxes for n metrics, hero taken out of the count.
+ *
+ * The block is centred in whatever room is left and capped in height, so two
+ * figures don't stretch into two half-empty slabs the way filling the column
+ * would make them.
+ */
+function customLayout(n: number, top: number, bottom: number): Box[] {
+  if (n <= 0) return [];
+  const rows = ROWS[n] ?? 3;
+  const room = bottom - top;
+  const h = Math.min(room, rows * MAX_TILE_H + (rows - 1) * 18);
+  const y = top + (room - h) / 2;
+  if (n === 1) return grid(PAD, y, BOX_W, h, 1, 1);
+  if (n === 2) return grid(PAD, y, BOX_W, h, 2, 1);
+  if (n === 3) return grid(PAD, y, BOX_W, h, 3, 1);
+  if (n === 4) return grid(PAD, y, BOX_W, h, 2, 2);
+  // Five reads better as a wide pair over a row of three than as a ragged grid.
+  if (n === 5) {
+    const topRow = grid(PAD, y, BOX_W, h * 0.46, 2, 1);
+    const botRow = grid(PAD, y + h * 0.46 + 18, BOX_W, h * 0.54 - 18, 3, 1);
+    return [...topRow, ...botRow];
+  }
+  if (n === 6) return grid(PAD, y, BOX_W, h, 2, 3);
+  if (n === 7) {
+    const topRow = grid(PAD, y, BOX_W, h * 0.3, 1, 1);
+    const rest = grid(PAD, y + h * 0.3 + 18, BOX_W, h * 0.7 - 18, 3, 2);
+    return [...topRow, ...rest];
+  }
+  if (n === 8) return grid(PAD, y, BOX_W, h, 2, 4);
+  return grid(PAD, y, BOX_W, h, 3, 3);
+}
+
+/** A tile without the panel behind it — figures on hairlines. */
+function bareTile(c: CanvasRenderingContext2D, [x, y, w, h]: Box, t: {
+  label: string; value: string; sub?: string; accent?: string;
+}, pal: Pal) {
+  c.fillStyle = pal.line;
+  c.fillRect(x, y + h - 1, w, 1);
+  const missing = t.value === MISSING;
+  const vs = missing ? 34 : fitText(c, t.value, w - 12, Math.min(64, h * 0.4), 800);
+  const top = y + Math.max(8, (h - (32 + vs + (t.sub ? 30 : 0))) / 2);
+  text(c, t.label.toUpperCase(), x, top + 14, { size: 15, color: pal.txDim, font: MONO, spacing: 2 });
+  text(c, t.value, x, top + 30 + vs, {
+    size: vs, weight: 800, color: missing ? pal.txDim : (t.accent ?? pal.tx),
+  });
+  if (t.sub) {
+    text(c, t.sub, x, top + 30 + vs + 28, { size: fitText(c, t.sub, w - 12, 18, 400), color: pal.txMid });
+  }
+}
+
+/**
+ * The up/down/amber accents are tuned for a dark card and go pale on cream, so
+ * the light theme swaps them for readable equivalents rather than shipping a
+ * figure you have to squint at.
+ */
+const ON_LIGHT: Record<string, string> = {
+  [UP]: '#15803D',
+  [DOWN]: '#B91C1C',
+  [ACCENT.amber]: '#B45309',
+  [ACCENT.magenta]: '#9D174D',
+};
+
+function paintCustom(c: CanvasRenderingContext2D, d: TokenShareData, spec: CustomSpec) {
+  const pal = PALETTES[spec.palette] ?? PALETTES.midnight;
+  const onLight = spec.palette === 'paper';
+  const ink = (col?: string) => (onLight && col && ON_LIGHT[col]) || col;
+  const accent = ink(ACCENTS[spec.accent] ?? undefined) ?? null;
+  const ids = spec.metrics.slice(0, MAX_METRICS);
+  if (!ids.length) return nothingToDraw(c, 'Pick a figure or two to build a card');
+
+  let top = 200;
+  if (spec.caption.trim()) {
+    const cap = spec.caption.trim().slice(0, 80);
+    text(c, cap, CARD_W / 2, top + 28, {
+      size: fitText(c, cap, BOX_W, 40, 700), weight: 700, color: pal.txMid, align: 'center',
+    });
+    top += 62;
+  }
+
+  // The hero is the first pick, drawn big; the rest tile underneath it.
+  let rest = ids;
+  if (spec.hero) {
+    const m = METRIC_BY_ID.get(ids[0]);
+    const v = m?.read(d);
+    if (m && v) {
+      const missing = v.value === MISSING;
+      const size = missing ? 56 : fitText(c, v.value, BOX_W - 40, 132, 800);
+      const colour = missing
+        ? pal.txDim
+        : accent ?? (spec.accent === 'mono' ? pal.tx : brand(c, 180, top, CARD_W - 180, top + 120));
+      text(c, v.value, CARD_W / 2, top + 118, { size, weight: 800, color: colour, align: 'center' });
+      text(c, v.sub ? `${m.label} · ${v.sub}` : m.label, CARD_W / 2, top + 166, {
+        size: 27, weight: 500, color: pal.txMid, align: 'center',
+      });
+      top += 214;
+      rest = ids.slice(1);
+    }
+  }
+
+  const chartH = spec.chart === 'none' ? 0 : 190;
+  const bottom = 946 - chartH;
+  const boxes = customLayout(rest.length, top, bottom);
+  rest.forEach((id, i) => {
+    const m = METRIC_BY_ID.get(id);
+    const box = boxes[i];
+    if (!m || !box) return;
+    const v = m.read(d);
+    const tile = { label: m.label, value: v.value, sub: v.sub, accent: accent ?? ink(v.accent) };
+    if (spec.tiles === 'bare') bareTile(c, box, tile, pal);
+    else statTile(c, box, tile, pal);
+  });
+
+  if (spec.chart !== 'none') {
+    const series = spec.chart === 'volume'
+      ? (d.volumeAll?.daily ?? []).map((x) => x.volumeUsd)
+      : (d.volumeAll?.daily ?? []).map((x) => x.priceUsd ?? 0).filter((n) => n > 0);
+    if (series.length > 1) {
+      areaChart(c, series, PAD, bottom + 20, BOX_W, chartH - 40);
+      text(c, spec.chart === 'volume' ? 'DAILY VOLUME SINCE LAUNCH' : 'PRICE SINCE LAUNCH', PAD, bottom + 14, {
+        size: 15, color: pal.txDim, font: MONO, spacing: 2,
+      });
+    } else {
+      text(c, 'No history indexed for this token', CARD_W / 2, bottom + chartH / 2, {
+        size: 24, color: pal.txDim, align: 'center',
+      });
+    }
+  }
+}
+
 /** Paint one card. Returns false if the id isn't known. */
 export function drawTokenCard(
   ctx: CanvasRenderingContext2D,
   id: string,
   d: TokenShareData,
   logo: HTMLImageElement | null,
+  opts: DrawOptions = {},
 ): boolean {
-  const p = paint[id];
-  if (!p) return false;
+  const custom = id === CUSTOM_CARD_ID ? (opts.custom ?? DEFAULT_SPEC) : null;
+  const p = custom ? null : paint[id];
+  if (!custom && !p) return false;
   const def = TOKEN_CARDS.find((k) => k.id === id);
   ctx.save();
   frame(ctx, {
     logo,
+    pal: custom ? PALETTES[custom.palette] : undefined,
+    logoStyle: custom ? custom.logo : 'round',
+    header: opts.header ?? null,
+    headerStyle: custom ? custom.header : 'off',
     roundLogo: true,
     title: d.symbol,
     subtitle: d.chainLabel,
-    kicker: def?.kicker ?? '',
+    kicker: custom ? 'built by hand' : (def?.kicker ?? ''),
     footerLeft: BRAND_URL,
     footerRight: `AS OF ${d.asOf}`,
   });
-  p(ctx, d);
+  if (custom) paintCustom(ctx, d, custom);
+  else p!(ctx, d);
   ctx.restore();
   return true;
 }

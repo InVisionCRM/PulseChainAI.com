@@ -8,7 +8,7 @@
 // drawing. Callers pass a card list and a `draw` function, and optionally a set
 // of category tabs (the token pages split cards into All time / Short term).
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IconX, IconDownload, IconCopy, IconCheck, IconShare2 } from '@tabler/icons-react';
 
@@ -29,8 +29,11 @@ export interface ShareCardModalProps {
   /** Dialog heading. */
   title?: string;
   cards: ShareCardOption[];
-  /** Tab bar over the card list. Omit for a single flat list. */
-  groups?: { key: string; label: string }[];
+  /**
+   * Tab bar over the card list. A group may bring its own `panel` — the builder
+   * tab replaces the card list with its controls and always draws `cardId`.
+   */
+  groups?: { key: string; label: string; panel?: React.ReactNode; cardId?: string }[];
   /** Paint the chosen card. The logo is loaded here and handed back. */
   draw: (ctx: CanvasRenderingContext2D, id: string, logo: HTMLImageElement | null) => void;
   /** Bump to force a repaint — new data arriving, for instance. */
@@ -82,11 +85,17 @@ export default function ShareCardModal({
   const logoRef = useRef<HTMLImageElement | null>(null);
   const [logoReady, setLogoReady] = useState(false);
 
+  const activeGroup = groups?.find((g) => g.key === group) ?? null;
+
   // Switching tabs lands on that tab's first card rather than leaving the
-  // preview on a card the list no longer shows.
+  // preview on a card the list no longer shows. A panel group draws its own.
   useEffect(() => {
+    if (activeGroup?.cardId) {
+      setId(activeGroup.cardId);
+      return;
+    }
     if (visible.length && !visible.some((k) => k.id === id)) setId(visible[0].id);
-  }, [visible, id]);
+  }, [visible, id, activeGroup]);
 
   useEffect(() => {
     if (id) onSelect?.(id);
@@ -248,9 +257,12 @@ export default function ShareCardModal({
                 })}
               </div>
             )}
+            {activeGroup?.panel}
             {/* Two columns even on desktop — a single long column would be
                 mostly below the fold. */}
-            <div className="grid grid-cols-2 gap-1.5 md:max-h-[58vh] md:overflow-y-auto md:overscroll-contain md:pr-1">
+            <div className={`grid grid-cols-2 gap-1.5 md:max-h-[58vh] md:overflow-y-auto md:overscroll-contain md:pr-1 ${
+              activeGroup?.panel ? 'hidden' : ''
+            }`}>
               {visible.map((k) => {
                 const on = k.id === id;
                 return (

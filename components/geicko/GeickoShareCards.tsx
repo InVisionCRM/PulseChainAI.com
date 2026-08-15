@@ -12,11 +12,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconShare2 } from '@tabler/icons-react';
 import ShareCardModal, { SHARE_GRAD } from '@/components/share/ShareCardModal';
+import CardBuilder from '@/components/share/CardBuilder';
 import {
-  BRAND_URL, CARD_H, CARD_W, TOKEN_CARDS, cardsForChain, drawTokenCard, sourceSupported,
-  type ChainKey, type DeltasSource, type ForensicsSource, type LeaguesSource,
+  BRAND_URL, CARD_H, CARD_W, CUSTOM_CARD_ID, DEFAULT_SPEC, TOKEN_CARDS, cardsForChain,
+  drawTokenCard, sourceSupported,
+  type ChainKey, type CustomSpec, type DeltasSource, type ForensicsSource, type LeaguesSource,
   type PressureSource, type SourceKey, type TokenShareData, type VolumeSource,
 } from '@/lib/geicko/shareCard';
+import { sourcesFor } from '@/lib/geicko/metrics';
 import type { DexScreenerData, LiquidityData, OwnershipData, SmartContractHolderData, SupplyHeldData } from './types';
 import { dexName } from '@/components/Screener/format';
 
@@ -25,6 +28,21 @@ const CHAIN_LABEL: Record<ChainKey, string> = {
   ethereum: 'Ethereum',
   robinhood: 'Robinhood Chain',
 };
+
+/** The built card's spec, kept so one layout serves every token you open. */
+const SPEC_KEY = 'morbius-cardbuilder-v1';
+
+function loadSpec(): CustomSpec {
+  if (typeof window === 'undefined') return DEFAULT_SPEC;
+  try {
+    const raw = window.localStorage.getItem(SPEC_KEY);
+    if (!raw) return DEFAULT_SPEC;
+    // Merged over the default so a spec saved before a field existed still opens.
+    return { ...DEFAULT_SPEC, ...(JSON.parse(raw) as Partial<CustomSpec>) };
+  } catch {
+    return DEFAULT_SPEC;
+  }
+}
 
 /** Addresses that hold supply but aren't holders — never counted as wallets. */
 const BURNS = new Set([
@@ -145,9 +163,50 @@ function Cards({ onClose, ...p }: GeickoShareCardsProps & { onClose: () => void 
   const [sources, setSources] = useState<Sources>({});
   const [pending, setPending] = useState<SourceKey | null>(null);
   const asked = useRef<Set<SourceKey>>(new Set());
+  const [spec, setSpec] = useState<CustomSpec>(loadSpec);
+  const headerRef = useRef<HTMLImageElement | null>(null);
+  const [headerReady, setHeaderReady] = useState(0);
 
   const decimals = p.totalSupply?.decimals ?? 18;
   const pairs = p.dexScreenerData?.pairs ?? [];
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SPEC_KEY, JSON.stringify(spec));
+    } catch {
+      // A full or blocked store just means the layout won't persist.
+    }
+  }, [spec]);
+
+  // The DexScreener banner, if the token has one. Same proxy as the logo — art
+  // straight from the CDN would taint the canvas and break the export.
+  const bannerUrl = useMemo(
+    () => (pairs.find((x: any) => x?.info?.header)?.info?.header as string | undefined) ?? null,
+    [pairs],
+  );
+  useEffect(() => {
+    if (!bannerUrl) {
+      headerRef.current = null;
+      return;
+    }
+    let alive = true;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      if (!alive) return;
+      headerRef.current = img;
+      setHeaderReady((n) => n + 1);
+    };
+    img.onerror = () => {
+      if (!alive) return;
+      headerRef.current = null;
+      setHeaderReady((n) => n + 1);
+    };
+    img.src = `/api/token-logo?url=${encodeURIComponent(bannerUrl)}`;
+    return () => {
+      alive = false;
+    };
+  }, [bannerUrl]);
 
   /** Pool addresses, so holder movement can exclude them. */
   const poolAddresses = useMemo(() => {
@@ -239,12 +298,19 @@ function Cards({ onClose, ...p }: GeickoShareCardsProps & { onClose: () => void 
   const onSelect = useCallback(
     (id: string) => {
       setCardId(id);
+      if (id === CUSTOM_CARD_ID) return; // its sources follow the chosen metrics
       const def = TOKEN_CARDS.find((k) => k.id === id);
       const want = def?.needs ?? def?.wants;
       if (want) void load(want);
     },
     [load],
   );
+
+  // Whatever the built card's figures need, fetched as they're picked.
+  useEffect(() => {
+    if (cardId !== CUSTOM_CARD_ID) return;
+    for (const src of sourcesFor(spec.metrics)) void load(src);
+  }, [cardId, spec.metrics, load]);
 
   const data: TokenShareData = useMemo(() => {
     const primary = pairs[0];
@@ -333,9 +399,9 @@ function Cards({ onClose, ...p }: GeickoShareCardsProps & { onClose: () => void 
 
   const draw = useCallback(
     (ctx: CanvasRenderingContext2D, id: string, logo: HTMLImageElement | null) => {
-      drawTokenCard(ctx, id, data, logo);
+      drawTokenCard(ctx, id, data, logo, { custom: spec, header: headerRef.current });
     },
-    [data],
+    [data, spec],
   );
 
   // Token art is cross-origin and would taint the export canvas, so it comes
@@ -343,7 +409,11 @@ function Cards({ onClose, ...p }: GeickoShareCardsProps & { onClose: () => void 
   const logoSrc = p.logoUrl ? `/api/token-logo?url=${encodeURIComponent(p.logoUrl)}` : '';
 
   const def = cardId ? TOKEN_CARDS.find((k) => k.id === cardId) : null;
-  const busy = !!pending && !!def && (def.needs === pending || def.wants === pending);
+  const busy = !!pending && (
+    cardId === CUSTOM_CARD_ID
+      ? sourcesFor(spec.metrics).includes(pending)
+      : !!def && (def.needs === pending || def.wants === pending)
+  );
 
   return (
     <ShareCardModal
@@ -352,9 +422,15 @@ function Cards({ onClose, ...p }: GeickoShareCardsProps & { onClose: () => void 
       groups={[
         { key: 'short', label: 'Short term' },
         { key: 'alltime', label: 'All time' },
+        {
+          key: 'build',
+          label: 'Build',
+          cardId: CUSTOM_CARD_ID,
+          panel: <CardBuilder chain={p.chain} spec={spec} onChange={setSpec} />,
+        },
       ]}
       draw={draw}
-      drawKey={data}
+      drawKey={`${headerReady}:${JSON.stringify(spec)}:${data.asOf}:${data.priceUsd}:${!!data.volumeAll}:${!!data.leagues}:${!!data.deltas}:${!!data.pressure}:${!!data.forensics}`}
       logoSrc={logoSrc}
       filePrefix={`${(p.symbol || 'token').toLowerCase()}`}
       shareTitle={`${p.symbol} on Morbius`}
