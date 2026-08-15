@@ -33,7 +33,16 @@ export interface ShareCardModalProps {
    * Tab bar over the card list. A group may bring its own `panel` — the builder
    * tab replaces the card list with its controls and always draws `cardId`.
    */
-  groups?: { key: string; label: string; panel?: React.ReactNode; cardId?: string }[];
+  groups?: {
+    key: string;
+    label: string;
+    /** Extra controls above this tab's card list. */
+    panel?: React.ReactNode;
+    /** The panel replaces the list rather than sitting over it. */
+    hideCards?: boolean;
+    /** Always draw this card while the tab is open. */
+    cardId?: string;
+  }[];
   /** Paint the chosen card. The logo is loaded here and handed back. */
   draw: (ctx: CanvasRenderingContext2D, id: string, logo: HTMLImageElement | null) => void;
   /** Bump to force a repaint — new data arriving, for instance. */
@@ -261,7 +270,7 @@ export default function ShareCardModal({
             {/* Two columns even on desktop — a single long column would be
                 mostly below the fold. */}
             <div className={`grid grid-cols-2 gap-1.5 md:max-h-[58vh] md:overflow-y-auto md:overscroll-contain md:pr-1 ${
-              activeGroup?.panel ? 'hidden' : ''
+              activeGroup?.hideCards ? 'hidden' : ''
             }`}>
               {visible.map((k) => {
                 const on = k.id === id;

@@ -13,13 +13,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconShare2 } from '@tabler/icons-react';
 import ShareCardModal, { SHARE_GRAD } from '@/components/share/ShareCardModal';
 import CardBuilder from '@/components/share/CardBuilder';
+import ComparePicker from '@/components/share/ComparePicker';
 import {
-  BRAND_URL, CARD_H, CARD_W, CUSTOM_CARD_ID, DEFAULT_SPEC, TOKEN_CARDS, cardsForChain,
-  drawTokenCard, sourceSupported,
+  BRAND_URL, CARD_H, CARD_W, COMPARE_CARDS, CUSTOM_CARD_ID, DEFAULT_SPEC, TOKEN_CARDS,
+  cardsForChain, drawTokenCard, sourceSupported,
   type ChainKey, type CustomSpec, type DeltasSource, type ForensicsSource, type LeaguesSource,
   type PressureSource, type SourceKey, type TokenShareData, type VolumeSource,
 } from '@/lib/geicko/shareCard';
 import { sourcesFor } from '@/lib/geicko/metrics';
+import {
+  loadOverlap, loadSide, type CompareSide, type OverlapResult, type SearchHit,
+} from '@/lib/geicko/compare';
 import type { DexScreenerData, LiquidityData, OwnershipData, SmartContractHolderData, SupplyHeldData } from './types';
 import { dexName } from '@/components/Screener/format';
 
@@ -164,6 +168,12 @@ function Cards({ onClose, ...p }: GeickoShareCardsProps & { onClose: () => void 
   const [pending, setPending] = useState<SourceKey | null>(null);
   const asked = useRef<Set<SourceKey>>(new Set());
   const [spec, setSpec] = useState<CustomSpec>(loadSpec);
+  const [rival, setRival] = useState<SearchHit | null>(null);
+  const [sides, setSides] = useState<{ a: CompareSide | null; b: CompareSide | null }>({ a: null, b: null });
+  const [overlap, setOverlap] = useState<OverlapResult | null>(null);
+  const [comparing, setComparing] = useState(false);
+  const rivalLogoRef = useRef<HTMLImageElement | null>(null);
+  const [logosReady, setLogosReady] = useState(0);
   const headerRef = useRef<HTMLImageElement | null>(null);
   const [headerReady, setHeaderReady] = useState(0);
 
@@ -207,6 +217,56 @@ function Cards({ onClose, ...p }: GeickoShareCardsProps & { onClose: () => void 
       alive = false;
     };
   }, [bannerUrl]);
+
+  // Both sides come from /api/search and are folded by the same arithmetic, so
+  // the comparison isn't two different measurements dressed as a result.
+  useEffect(() => {
+    if (!rival) {
+      setSides({ a: null, b: null });
+      setOverlap(null);
+      return;
+    }
+    let alive = true;
+    setComparing(true);
+    (async () => {
+      const [a, b] = await Promise.all([loadSide(p.token), loadSide(rival.baseAddress)]);
+      if (!alive) return;
+      setSides({ a, b });
+      setComparing(false);
+      // Overlap is the slow one (a balance read per wallet), so it lands after.
+      const o = await loadOverlap(p.token, rival.baseAddress, p.chain);
+      if (alive) setOverlap(o);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [rival, p.token, p.chain]);
+
+  useEffect(() => {
+    const url = rival?.imageUrl;
+    if (!url) {
+      rivalLogoRef.current = null;
+      setLogosReady((n) => n + 1);
+      return;
+    }
+    let alive = true;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      if (!alive) return;
+      rivalLogoRef.current = img;
+      setLogosReady((n) => n + 1);
+    };
+    img.onerror = () => {
+      if (!alive) return;
+      rivalLogoRef.current = null;
+      setLogosReady((n) => n + 1);
+    };
+    img.src = `/api/token-logo?url=${encodeURIComponent(url)}`;
+    return () => {
+      alive = false;
+    };
+  }, [rival?.imageUrl]);
 
   /** Pool addresses, so holder movement can exclude them. */
   const poolAddresses = useMemo(() => {
@@ -393,15 +453,23 @@ function Cards({ onClose, ...p }: GeickoShareCardsProps & { onClose: () => void 
   }, [p, pairs, sources]);
 
   const cards = useMemo(
-    () => cardsForChain(p.chain).map((k) => ({ id: k.id, name: k.name, blurb: k.blurb, group: k.group })),
+    () => [
+      ...cardsForChain(p.chain).map((k) => ({ id: k.id, name: k.name, blurb: k.blurb, group: k.group as string })),
+      ...COMPARE_CARDS.map((k) => ({ id: k.id, name: k.name, blurb: k.blurb, group: 'compare' })),
+    ],
     [p.chain],
   );
 
   const draw = useCallback(
     (ctx: CanvasRenderingContext2D, id: string, logo: HTMLImageElement | null) => {
-      drawTokenCard(ctx, id, data, logo, { custom: spec, header: headerRef.current });
+      drawTokenCard(ctx, id, data, logo, {
+        custom: spec,
+        header: headerRef.current,
+        compare: { a: sides.a, b: sides.b, overlap },
+        compareLogos: { a: logo, b: rivalLogoRef.current },
+      });
     },
-    [data, spec],
+    [data, spec, sides, overlap],
   );
 
   // Token art is cross-origin and would taint the export canvas, so it comes
@@ -409,11 +477,11 @@ function Cards({ onClose, ...p }: GeickoShareCardsProps & { onClose: () => void 
   const logoSrc = p.logoUrl ? `/api/token-logo?url=${encodeURIComponent(p.logoUrl)}` : '';
 
   const def = cardId ? TOKEN_CARDS.find((k) => k.id === cardId) : null;
-  const busy = !!pending && (
+  const busy = comparing || (!!pending && (
     cardId === CUSTOM_CARD_ID
       ? sourcesFor(spec.metrics).includes(pending)
       : !!def && (def.needs === pending || def.wants === pending)
-  );
+  ));
 
   return (
     <ShareCardModal
@@ -426,11 +494,24 @@ function Cards({ onClose, ...p }: GeickoShareCardsProps & { onClose: () => void 
           key: 'build',
           label: 'Build',
           cardId: CUSTOM_CARD_ID,
+          hideCards: true,
           panel: <CardBuilder chain={p.chain} spec={spec} onChange={setSpec} />,
+        },
+        {
+          key: 'compare',
+          label: 'Compare',
+          panel: (
+            <ComparePicker
+              selfAddress={p.token}
+              selfSymbol={p.symbol}
+              picked={rival}
+              onPick={setRival}
+            />
+          ),
         },
       ]}
       draw={draw}
-      drawKey={`${headerReady}:${JSON.stringify(spec)}:${data.asOf}:${data.priceUsd}:${!!data.volumeAll}:${!!data.leagues}:${!!data.deltas}:${!!data.pressure}:${!!data.forensics}`}
+      drawKey={`${headerReady}:${logosReady}:${rival?.baseAddress ?? ''}:${!!sides.b}:${!!overlap}:${JSON.stringify(spec)}:${data.asOf}:${data.priceUsd}:${!!data.volumeAll}:${!!data.leagues}:${!!data.deltas}:${!!data.pressure}:${!!data.forensics}`}
       logoSrc={logoSrc}
       filePrefix={`${(p.symbol || 'token').toLowerCase()}`}
       shareTitle={`${p.symbol} on Morbius`}

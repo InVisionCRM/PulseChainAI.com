@@ -19,6 +19,7 @@ import {
   type Box, type HeaderStyle, type LogoStyle, type Pal, type PaletteName,
 } from '@/lib/shareCards/paint';
 import { METRIC_BY_ID } from '@/lib/geicko/metrics';
+import type { CompareSide, OverlapResult } from '@/lib/geicko/compare';
 
 export { CARD_W, CARD_H };
 
@@ -184,12 +185,30 @@ export const DEFAULT_SPEC: CustomSpec = {
   chart: 'none',
 };
 
+/** Two tokens measured the same way, plus their holder overlap. */
+export interface CompareData {
+  a: CompareSide | null;
+  b: CompareSide | null;
+  overlap?: OverlapResult | null;
+}
+
 /** Everything the painter needs beyond the token's figures. */
 export interface DrawOptions {
   custom?: CustomSpec;
   /** The token's DexScreener banner, already loaded same-origin. */
   header?: HTMLImageElement | null;
+  compare?: CompareData;
+  /** Token art for each side of a comparison, already same-origin. */
+  compareLogos?: { a: HTMLImageElement | null; b: HTMLImageElement | null };
 }
+
+export const COMPARE_CARD_IDS = ['cmp-h2h', 'cmp-ratios', 'cmp-overlap'] as const;
+
+export const COMPARE_CARDS: { id: string; name: string; blurb: string; kicker: string }[] = [
+  { id: 'cmp-h2h', name: 'Head to head', blurb: 'Six rows, a winner lit on each', kicker: 'head to head' },
+  { id: 'cmp-ratios', name: 'The fair fight', blurb: 'Ratios, so size alone can\u2019t win', kicker: 'like for like' },
+  { id: 'cmp-overlap', name: 'Shared holders', blurb: 'How many of yours also hold theirs', kicker: 'shared holders' },
+];
 
 export interface TokenCardDef {
   id: string;
@@ -952,6 +971,184 @@ function paintCustom(c: CanvasRenderingContext2D, d: TokenShareData, spec: Custo
   }
 }
 
+/* ───────────────────────── the compare cards ───────────────────────── */
+
+const CMP_A = ACCENT.amber;
+const CMP_B = '#38BDF8';
+
+/** Both sides' marks and tickers across the top of a comparison. */
+function versusHead(
+  c: CanvasRenderingContext2D, a: CompareSide, b: CompareSide,
+  logos: { a: HTMLImageElement | null; b: HTMLImageElement | null } | undefined,
+  y: number,
+) {
+  const half = BOX_W / 2;
+  const draw = (side: CompareSide, img: HTMLImageElement | null, cx: number, col: string) => {
+    if (img) {
+      c.save();
+      c.beginPath();
+      c.arc(cx, y + 26, 26, 0, Math.PI * 2);
+      c.clip();
+      c.drawImage(img, cx - 26, y, 52, 52);
+      c.restore();
+    }
+    const sym = side.symbol.toUpperCase();
+    text(c, sym, cx, y + 92, {
+      size: fitText(c, sym, half - 40, 34, 800), weight: 800, color: col, align: 'center',
+    });
+  };
+  draw(a, logos?.a ?? null, PAD + half / 2, CMP_A);
+  draw(b, logos?.b ?? null, PAD + half + half / 2, CMP_B);
+  text(c, 'VS', CARD_W / 2, y + 40, { size: 22, color: TX_DIM, align: 'center', font: MONO, spacing: 3 });
+}
+
+/** One comparison row: label in the middle, a figure each side, winner lit. */
+function versusRow(
+  c: CanvasRenderingContext2D, y: number, label: string,
+  left: string, right: string, winner: 'a' | 'b' | null,
+) {
+  text(c, label.toUpperCase(), CARD_W / 2, y, {
+    size: 17, color: TX_DIM, align: 'center', font: MONO, spacing: 2,
+  });
+  const lw = winner === 'a' ? 800 : 600;
+  const rw = winner === 'b' ? 800 : 600;
+  text(c, left, PAD + 8, y + 2, {
+    size: fitText(c, left, BOX_W / 2 - 120, 40, lw), weight: lw,
+    color: winner === 'a' ? CMP_A : TX_MID,
+  });
+  text(c, right, CARD_W - PAD - 8, y + 2, {
+    size: fitText(c, right, BOX_W / 2 - 120, 40, rw), weight: rw,
+    color: winner === 'b' ? CMP_B : TX_MID, align: 'right',
+  });
+  c.fillStyle = LINE;
+  c.fillRect(PAD, y + 26, BOX_W, 1);
+}
+
+const cmpWin = (x: number | null, y: number | null): 'a' | 'b' | null => {
+  if (x == null || y == null || x === y) return null;
+  return x > y ? 'a' : 'b';
+};
+
+function needBoth(c: CanvasRenderingContext2D, d: CompareData | undefined): d is CompareData {
+  if (!d?.a || !d?.b) {
+    nothingToDraw(c, 'Pick a token to compare against');
+    return false;
+  }
+  return true;
+}
+
+const cmpPaint: Record<string, (c: CanvasRenderingContext2D, cmp: CompareData, opts: DrawOptions) => void> = {
+  'cmp-h2h'(c, cmp, opts) {
+    const a = cmp.a!;
+    const b = cmp.b!;
+    versusHead(c, a, b, opts.compareLogos, 186);
+    const rows: [string, string, string, 'a' | 'b' | null][] = [
+      ['24h change',
+        a.chg24 == null ? dash : signedPct(a.chg24), b.chg24 == null ? dash : signedPct(b.chg24),
+        cmpWin(a.chg24, b.chg24)],
+      ['Market cap', moneyOr(a.marketCap), moneyOr(b.marketCap), cmpWin(a.marketCap, b.marketCap)],
+      ['24h volume', moneyOr(a.vol24), moneyOr(b.vol24), cmpWin(a.vol24, b.vol24)],
+      ['Liquidity', moneyOr(a.liquidityUsd), moneyOr(b.liquidityUsd), cmpWin(a.liquidityUsd, b.liquidityUsd)],
+      ['Pools listed', nf(a.pools), nf(b.pools), cmpWin(a.pools, b.pools)],
+      ['Age',
+        a.ageDays == null ? dash : `${nf(a.ageDays)}d`, b.ageDays == null ? dash : `${nf(b.ageDays)}d`,
+        cmpWin(a.ageDays, b.ageDays)],
+    ];
+    rows.forEach(([label, l, r, w], i) => versusRow(c, 366 + i * 96, label, l, r, w));
+    text(c, 'Both sides measured the same way — summed across the pools DexScreener lists for each.',
+      CARD_W / 2, 936, { size: 20, color: TX_DIM, align: 'center' });
+  },
+
+  'cmp-ratios'(c, cmp, opts) {
+    const a = cmp.a!;
+    const b = cmp.b!;
+    versusHead(c, a, b, opts.compareLogos, 186);
+    const ratio = (x: CompareSide, top: (s: CompareSide) => number | null, bot: (s: CompareSide) => number | null) => {
+      const t = top(x);
+      const u = bot(x);
+      return t == null || !u ? null : t / u;
+    };
+    const turn = (x: CompareSide) => ratio(x, (s) => s.vol24, (s) => s.liquidityUsd);
+    const volMc = (x: CompareSide) => ratio(x, (s) => s.vol24, (s) => s.marketCap);
+    const liqMc = (x: CompareSide) => ratio(x, (s) => s.liquidityUsd, (s) => s.marketCap);
+    // A quiet token rounds to 0.00x, which reads as "none" rather than "small".
+    const times = (n: number) => (n > 0 && n < 0.01 ? '<0.01×' : `${n.toFixed(2)}×`);
+    const percent = (n: number) => {
+      const v = n * 100;
+      return v > 0 && v < 0.1 ? '<0.1%' : `${v.toFixed(1)}%`;
+    };
+    const rows: [string, (x: CompareSide) => number | null, (n: number) => string][] = [
+      ['Turnover · volume over liquidity', turn, times],
+      ['Volume against market cap', volMc, percent],
+      ['Liquidity against market cap', liqMc, percent],
+    ];
+    rows.forEach(([label, fn, fmt], i) => {
+      const x = fn(a);
+      const y = fn(b);
+      versusRow(c, 392 + i * 120, label,
+        x == null ? dash : fmt(x), y == null ? dash : fmt(y), cmpWin(x, y));
+    });
+    statTile(c, [PAD, 726, BOX_W, 160], {
+      label: 'Why these three',
+      value: 'Size can’t win here', size: 42,
+      sub: 'a small token can out-trade a large one on every row above',
+    });
+    text(c, 'Ratios, not totals — the same figures divided by what they should be measured against.',
+      CARD_W / 2, 946, { size: 20, color: TX_DIM, align: 'center' });
+  },
+
+  'cmp-overlap'(c, cmp, opts) {
+    const a = cmp.a!;
+    const b = cmp.b!;
+    const o = cmp.overlap;
+    versusHead(c, a, b, opts.compareLogos, 186);
+    if (!o?.hasData) {
+      text(c, 'Holder overlap could not be read for this pair', CARD_W / 2, 520, {
+        size: 30, weight: 700, color: TX_MID, align: 'center',
+      });
+      text(c, 'The explorer holder list is what this counts from.', CARD_W / 2, 562, {
+        size: 24, color: TX_DIM, align: 'center',
+      });
+      return;
+    }
+    headline(c, `${nf(o.overlapCount)} of ${nf(o.holdersChecked)}`,
+      `${a.symbol} wallets also hold ${b.symbol}`, 420);
+
+    // The share, as a bar rather than a second number to read.
+    const frac = o.holdersChecked ? o.overlapCount / o.holdersChecked : 0;
+    const barY = 520;
+    c.fillStyle = LINE_2;
+    rr(c, PAD, barY, BOX_W, 54, 27);
+    c.fill();
+    if (frac > 0) {
+      c.save();
+      rr(c, PAD, barY, BOX_W, 54, 27);
+      c.clip();
+      c.fillStyle = brand(c, PAD, barY, PAD + BOX_W, barY);
+      c.fillRect(PAD, barY, BOX_W * Math.min(1, frac), 54);
+      c.restore();
+    }
+    text(c, `${(frac * 100).toFixed(1)}%`, CARD_W / 2, barY + 36, {
+      size: 30, weight: 800, color: TX, align: 'center',
+    });
+
+    const g = grid(PAD, 620, BOX_W, 170, 2, 1, 16);
+    statTile(c, g[0], {
+      label: `${a.symbol} wallets checked`, value: nf(o.holdersChecked), size: 46,
+      sub: o.contractsExcluded ? `${nf(o.contractsExcluded)} pools and contracts excluded` : 'real wallets only',
+      accent: CMP_A,
+    });
+    statTile(c, g[1], {
+      label: `Also holding ${b.symbol}`, value: nf(o.overlapCount), size: 46,
+      sub: 'any balance counts', accent: CMP_B,
+    });
+    text(c, `From ${a.symbol}'s largest holders on the explorer — LP pools and contracts excluded.`,
+      CARD_W / 2, 862, { size: 22, color: TX_DIM, align: 'center' });
+    text(c, 'A wallet holding both was checked on chain, not matched between two lists.',
+      CARD_W / 2, 898, { size: 20, color: TX_DIM, align: 'center' });
+  },
+};
+
 /** Paint one card. Returns false if the id isn't known. */
 export function drawTokenCard(
   ctx: CanvasRenderingContext2D,
@@ -961,9 +1158,11 @@ export function drawTokenCard(
   opts: DrawOptions = {},
 ): boolean {
   const custom = id === CUSTOM_CARD_ID ? (opts.custom ?? DEFAULT_SPEC) : null;
-  const p = custom ? null : paint[id];
-  if (!custom && !p) return false;
+  const cmp = cmpPaint[id] ?? null;
+  const p = custom || cmp ? null : paint[id];
+  if (!custom && !cmp && !p) return false;
   const def = TOKEN_CARDS.find((k) => k.id === id);
+  const cmpDef = COMPARE_CARDS.find((k) => k.id === id);
   ctx.save();
   frame(ctx, {
     logo,
@@ -974,12 +1173,14 @@ export function drawTokenCard(
     roundLogo: true,
     title: d.symbol,
     subtitle: d.chainLabel,
-    kicker: custom ? 'built by hand' : (def?.kicker ?? ''),
+    kicker: custom ? 'built by hand' : (cmpDef?.kicker ?? def?.kicker ?? ''),
     footerLeft: BRAND_URL,
     footerRight: `AS OF ${d.asOf}`,
   });
   if (custom) paintCustom(ctx, d, custom);
-  else p!(ctx, d);
+  else if (cmp) {
+    if (needBoth(ctx, opts.compare)) cmp(ctx, opts.compare, opts);
+  } else p!(ctx, d);
   ctx.restore();
   return true;
 }
