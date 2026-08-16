@@ -141,8 +141,31 @@ function sparkline(series: Point[], n = 72): number[] {
   return Array.from({ length: n }, (_, i) => v[Math.min(v.length - 1, Math.floor(i * step))]);
 }
 
+/**
+ * The last `days` of a series, downsampled.
+ *
+ * Comparing two tokens needs both to answer for the SAME window — each one's
+ * own `spark` covers its own whole life, so overlaying two of them would plot a
+ * 400-day history against a 90-day one and call the shapes comparable. This
+ * reports how many days it actually found, so a token younger than the window
+ * can be labelled instead of silently padded.
+ */
+function windowOf(series: Point[], days: number) {
+  const cut = Math.floor(Date.now() / 1000) - days * DAY;
+  const inWindow = series.filter((s) => s.t >= cut);
+  const use = inWindow.length >= 2 ? inWindow : series.slice(-2);
+  if (use.length < 2) return null;
+  return {
+    days,
+    /** Days of history actually available inside the window. */
+    covers: Math.max(1, Math.round((use[use.length - 1].t - use[0].t) / DAY)),
+    from: use[0].t,
+    points: sparkline(use, 90),
+  };
+}
+
 /** Compute one performance "view" (USD or a ratio series) from a daily series. */
-function computeView(raw: Point[], coverage: 'full' | 'partial', live: number) {
+function computeView(raw: Point[], coverage: 'full' | 'partial', live: number, windowDays = 0) {
   // Subgraph/DEX derived prices can spike to near-zero (or huge) on illiquid
   // days — a $31-volume day priced 8 orders of magnitude off wrecks ATL/ATH.
   // Drop points more than 1000× from the median (keeps all real volatility).
@@ -175,6 +198,8 @@ function computeView(raw: Point[], coverage: 'full' | 'partial', live: number) {
     atl: { price: atl, date: atlTs, fromPct: atl > 0 ? (current / atl - 1) * 100 : null },
     launch: { price: first.p, date: first.t, pct: first.p > 0 ? (current / first.p - 1) * 100 : null },
     spark: sparkline(series),
+    /** Only present when the caller asked for a window, e.g. `?days=30`. */
+    window: windowDays > 0 ? windowOf(series, windowDays) : null,
     dataDays: Math.round((series[series.length - 1].t - first.t) / DAY),
   };
 }
@@ -185,6 +210,9 @@ export async function GET(req: NextRequest) {
   const token = (sp.get('token') || '').toLowerCase();
   const pool = (sp.get('pool') || '').toLowerCase();
   const livePrice = num(sp.get('price'));
+  // A window makes two tokens' series comparable; capped so it can't ask for
+  // more history than the series ever holds.
+  const windowDays = Math.min(3650, Math.max(0, Math.floor(num(sp.get('days')) || 0)));
 
   if (!token && !pool) return NextResponse.json({ error: 'token or pool required' }, { status: 400 });
 
@@ -220,7 +248,7 @@ export async function GET(req: NextRequest) {
       coverage = 'partial';
     }
 
-    const usd = computeView(usdSeries, coverage, livePrice);
+    const usd = computeView(usdSeries, coverage, livePrice, windowDays);
     if (!usd) return NextResponse.json({ error: 'no price history' }, { status: 404 });
 
     // "vs WPLS": the token priced in WPLS (token USD ÷ WPLS USD), aligned by day.

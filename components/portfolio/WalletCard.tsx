@@ -17,6 +17,8 @@ import LpPositionRow from '@/components/portfolio/LpPositionRow';
 import { WalletActionsMenu } from '@/components/portfolio/WalletActionsMenu';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
 import { ProtocolPositions } from '@/components/portfolio/ProtocolPositions';
+import { LpPositions, type V2LpRow } from '@/components/portfolio/LpPositions';
+import NftPositions from '@/components/portfolio/NftPositions';
 import { HexStakes } from '@/components/portfolio/HexStakes';
 import { WalletConnections } from '@/components/portfolio/WalletConnections';
 import { WalletRelated } from '@/components/portfolio/WalletRelated';
@@ -88,7 +90,7 @@ export function WalletCard({ wallet }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(wallet.label ?? '');
-  const [view, setView] = useState<'tokens' | 'activity' | 'defi' | 'staking' | 'connections' | 'funding' | 'bridge'>('tokens');
+  const [view, setView] = useState<'tokens' | 'lp' | 'nfts' | 'activity' | 'defi' | 'staking' | 'connections' | 'funding' | 'bridge'>('tokens');
   const [connView, setConnView] = useState<'list' | 'graph'>('list');
   const [sortKey, setSortKey] = useState<SortKey>('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -148,8 +150,27 @@ export function WalletCard({ wallet }: Props) {
   );
   const showStaking = wallet.chains.includes('pulsechain');
 
+  /** The wallet's V2-style LP tokens — shown under LP, not among the holdings. */
+  const lpTokens = useMemo<V2LpRow[]>(
+    () =>
+      filteredTokens
+        .filter((t) => t.isLp)
+        .map((t) => ({
+          chain: t.chain,
+          address: t.address,
+          symbol: t.symbol,
+          balanceFormatted: t.balanceFormatted,
+          valueUsd: t.valueUsd,
+          lp: t.lp as V2LpRow['lp'],
+        }))
+        .sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0)),
+    [filteredTokens],
+  );
+
   const sortedTokens = useMemo(() => {
-    const copy = [...filteredTokens];
+    // Liquidity has its own tab; leaving it here too would double-count the
+    // wallet's value to anyone reading the table.
+    const copy = filteredTokens.filter((t) => !t.isLp);
     const dir = sortDir === 'asc' ? 1 : -1;
     copy.sort((a, b) => {
       let cmp = 0;
@@ -384,6 +405,27 @@ export function WalletCard({ wallet }: Props) {
             </button>
             <button
               type="button"
+              onClick={() => setView('lp')}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                view === 'lp' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              LP
+              {lpTokens.length > 0 && (
+                <span className="ml-1 text-[10px] text-[var(--text-faint)]">{lpTokens.length}</span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('nfts')}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                view === 'nfts' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              NFTs
+            </button>
+            <button
+              type="button"
               onClick={() => setView('activity')}
               className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
                 view === 'activity' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
@@ -442,6 +484,10 @@ export function WalletCard({ wallet }: Props) {
 
           {view === 'activity' ? (
             <ActivityFeed walletAddress={wallet.address} chains={wallet.chains} />
+          ) : view === 'lp' ? (
+            <LpPositions walletAddress={wallet.address} chains={wallet.chains} v2={lpTokens} />
+          ) : view === 'nfts' ? (
+            <NftPositions walletAddress={wallet.address} chains={wallet.chains} />
           ) : view === 'defi' ? (
             <ProtocolPositions walletAddress={wallet.address} chains={wallet.chains} />
           ) : view === 'staking' ? (
@@ -535,7 +581,7 @@ export function WalletCard({ wallet }: Props) {
                     ? 'No tokens found at this address.'
                     : 'Tap refresh to load this wallet.'}
                 </div>
-              ) : filteredTokens.length === 0 ? (
+              ) : sortedTokens.length === 0 ? (
                 <div className="text-sm text-[var(--text-faint)] text-center py-8">
                   No tokens visible — toggle a chain badge above to show them.
                 </div>

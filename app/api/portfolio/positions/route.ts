@@ -107,11 +107,17 @@ async function hexStakePosition(address: string): Promise<ProtocolPosition | nul
   };
 }
 
-/** Drop duplicate positions (same kind + address), in place. */
+/**
+ * Drop duplicate positions (same kind + address + id), in place.
+ *
+ * The id matters: a wallet's V3 positions are all minted by the same position
+ * manager, so keying on the address alone folded every one of them into a
+ * single row — 29 live positions were arriving and 1 was being kept.
+ */
 function dedupePositions(positions: ProtocolPosition[]): void {
   const seen = new Set<string>();
   for (let i = positions.length - 1; i >= 0; i--) {
-    const key = `${positions[i].kind}:${positions[i].address.toLowerCase()}`;
+    const key = `${positions[i].kind}:${positions[i].address.toLowerCase()}:${positions[i].id ?? ''}`;
     if (seen.has(key)) positions.splice(i, 1);
     else seen.add(key);
   }

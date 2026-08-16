@@ -22,7 +22,7 @@ import {
 } from '@/lib/geicko/shareCard';
 import { sourcesFor } from '@/lib/geicko/metrics';
 import {
-  loadOverlap, loadSide, type CompareSide, type OverlapResult, type SearchHit,
+  MAX_SIDES, loadSide, type CompareSide, type SearchHit, type WindowDays,
 } from '@/lib/geicko/compare';
 import type { DexScreenerData, LiquidityData, OwnershipData, SmartContractHolderData, SupplyHeldData } from './types';
 import { dexName } from '@/components/Screener/format';
@@ -168,11 +168,11 @@ function Cards({ onClose, ...p }: GeickoShareCardsProps & { onClose: () => void 
   const [pending, setPending] = useState<SourceKey | null>(null);
   const asked = useRef<Set<SourceKey>>(new Set());
   const [spec, setSpec] = useState<CustomSpec>(loadSpec);
-  const [rival, setRival] = useState<SearchHit | null>(null);
-  const [sides, setSides] = useState<{ a: CompareSide | null; b: CompareSide | null }>({ a: null, b: null });
-  const [overlap, setOverlap] = useState<OverlapResult | null>(null);
+  const [rivals, setRivals] = useState<SearchHit[]>([]);
+  const [windowDays, setWindowDays] = useState<WindowDays>(30);
+  const [sides, setSides] = useState<CompareSide[]>([]);
   const [comparing, setComparing] = useState(false);
-  const rivalLogoRef = useRef<HTMLImageElement | null>(null);
+  const rivalLogosRef = useRef<(HTMLImageElement | null)[]>([]);
   const [logosReady, setLogosReady] = useState(0);
   const headerRef = useRef<HTMLImageElement | null>(null);
   const [headerReady, setHeaderReady] = useState(0);
@@ -218,55 +218,51 @@ function Cards({ onClose, ...p }: GeickoShareCardsProps & { onClose: () => void 
     };
   }, [bannerUrl]);
 
-  // Both sides come from /api/search and are folded by the same arithmetic, so
-  // the comparison isn't two different measurements dressed as a result.
+  // Every side comes from /api/search and the same window of the performance
+  // route, folded by the same arithmetic — otherwise the comparison would be
+  // several different measurements dressed as a result.
   useEffect(() => {
-    if (!rival) {
-      setSides({ a: null, b: null });
-      setOverlap(null);
+    if (!rivals.length) {
+      setSides([]);
       return;
     }
     let alive = true;
     setComparing(true);
     (async () => {
-      const [a, b] = await Promise.all([loadSide(p.token), loadSide(rival.baseAddress)]);
+      const loaded = await Promise.all(
+        [p.token, ...rivals.map((r) => r.baseAddress)].map((a) => loadSide(a, windowDays)),
+      );
       if (!alive) return;
-      setSides({ a, b });
+      setSides(loaded.filter((x): x is CompareSide => !!x));
       setComparing(false);
-      // Overlap is the slow one (a balance read per wallet), so it lands after.
-      const o = await loadOverlap(p.token, rival.baseAddress, p.chain);
-      if (alive) setOverlap(o);
     })();
     return () => {
       alive = false;
     };
-  }, [rival, p.token, p.chain]);
+  }, [rivals, windowDays, p.token]);
 
+  // Each rival's art, through the proxy so the export canvas stays clean.
   useEffect(() => {
-    const url = rival?.imageUrl;
-    if (!url) {
-      rivalLogoRef.current = null;
-      setLogosReady((n) => n + 1);
-      return;
-    }
     let alive = true;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      if (!alive) return;
-      rivalLogoRef.current = img;
-      setLogosReady((n) => n + 1);
-    };
-    img.onerror = () => {
-      if (!alive) return;
-      rivalLogoRef.current = null;
-      setLogosReady((n) => n + 1);
-    };
-    img.src = `/api/token-logo?url=${encodeURIComponent(url)}`;
+    const imgs: (HTMLImageElement | null)[] = rivals.map(() => null);
+    rivalLogosRef.current = imgs;
+    rivals.forEach((r, i) => {
+      if (!r.imageUrl) return;
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        if (!alive) return;
+        imgs[i] = img;
+        setLogosReady((n) => n + 1);
+      };
+      img.onerror = () => alive && setLogosReady((n) => n + 1);
+      img.src = `/api/token-logo?url=${encodeURIComponent(r.imageUrl)}`;
+    });
+    setLogosReady((n) => n + 1);
     return () => {
       alive = false;
     };
-  }, [rival?.imageUrl]);
+  }, [rivals]);
 
   /** Pool addresses, so holder movement can exclude them. */
   const poolAddresses = useMemo(() => {
@@ -465,11 +461,12 @@ function Cards({ onClose, ...p }: GeickoShareCardsProps & { onClose: () => void 
       drawTokenCard(ctx, id, data, logo, {
         custom: spec,
         header: headerRef.current,
-        compare: { a: sides.a, b: sides.b, overlap },
-        compareLogos: { a: logo, b: rivalLogoRef.current },
+        compare: { sides, windowDays },
+        // The token on screen is always the first side, so its mark leads.
+        compareLogos: [logo, ...rivalLogosRef.current],
       });
     },
-    [data, spec, sides, overlap],
+    [data, spec, sides, windowDays, logosReady],
   );
 
   // Token art is cross-origin and would taint the export canvas, so it comes
@@ -504,14 +501,17 @@ function Cards({ onClose, ...p }: GeickoShareCardsProps & { onClose: () => void 
             <ComparePicker
               selfAddress={p.token}
               selfSymbol={p.symbol}
-              picked={rival}
-              onPick={setRival}
+              selfChain={p.chain}
+              picked={rivals}
+              onChange={setRivals}
+              windowDays={windowDays}
+              onWindow={setWindowDays}
             />
           ),
         },
       ]}
       draw={draw}
-      drawKey={`${headerReady}:${logosReady}:${rival?.baseAddress ?? ''}:${!!sides.b}:${!!overlap}:${JSON.stringify(spec)}:${data.asOf}:${data.priceUsd}:${!!data.volumeAll}:${!!data.leagues}:${!!data.deltas}:${!!data.pressure}:${!!data.forensics}`}
+      drawKey={`${headerReady}:${logosReady}:${windowDays}:${sides.map((x) => x.symbol).join(',')}:${JSON.stringify(spec)}:${data.asOf}:${data.priceUsd}:${!!data.volumeAll}:${!!data.leagues}:${!!data.deltas}:${!!data.pressure}:${!!data.forensics}`}
       logoSrc={logoSrc}
       filePrefix={`${(p.symbol || 'token').toLowerCase()}`}
       shareTitle={`${p.symbol} on Morbius`}
