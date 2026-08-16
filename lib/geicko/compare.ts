@@ -6,6 +6,13 @@
 // and the other's from a search would compare two different measurements and
 // call the difference a result.
 
+/** How many tokens a comparison can hold, the one on screen included. */
+export const MAX_SIDES = 4;
+
+/** The windows the chart cards offer. */
+export const WINDOWS = [7, 30, 90] as const;
+export type WindowDays = (typeof WINDOWS)[number];
+
 export interface CompareSide {
   address: string;
   chain: string;
@@ -21,6 +28,13 @@ export interface CompareSide {
   marketCap: number | null;
   pools: number;
   ageDays: number | null;
+  /** Daily prices over the requested window, same window for every side. */
+  series?: number[] | null;
+  /** Days of history actually inside that window — a young token has fewer. */
+  covers?: number | null;
+  /** 7d / 30d changes, when the performance route answers for the chain. */
+  d7?: number | null;
+  d30?: number | null;
 }
 
 export interface SearchHit {
@@ -83,24 +97,81 @@ export function foldPairs(pairs: SearchHit[], address: string): CompareSide | nu
   };
 }
 
-/** Search once and fold — used for both the token on screen and its rival. */
-export async function loadSide(address: string): Promise<CompareSide | null> {
+/**
+ * The price history every side is plotted on. Asking the performance route for
+ * an explicit window is what makes two tokens' curves comparable — each one's
+ * default series covers its own whole life, which is a different span per token.
+ */
+async function loadSeries(address: string, chain: string, days: number, attempt = 0): Promise<{
+  series: number[] | null; covers: number | null; d7: number | null; d30: number | null;
+} | null> {
+  try {
+    const r = await fetch(
+      `/api/geicko/performance?token=${address}&network=${chain}&days=${days}`,
+    );
+    // Several sides load at once and the series is the slow half; one retry
+    // turns a momentary miss into a line rather than a permanent "no history".
+    if (!r.ok) {
+      if (attempt === 0) {
+        await new Promise((res) => setTimeout(res, 700));
+        return loadSeries(address, chain, days, 1);
+      }
+      return null;
+    }
+    const j = await r.json();
+    const usd = j?.views?.usd;
+    if (!usd) {
+      if (attempt === 0) {
+        await new Promise((res) => setTimeout(res, 700));
+        return loadSeries(address, chain, days, 1);
+      }
+      return null;
+    }
+    return {
+      series: (usd.window?.points as number[] | undefined) ?? null,
+      covers: (usd.window?.covers as number | undefined) ?? null,
+      d7: usd.changes?.d7 ?? null,
+      d30: usd.changes?.d30 ?? null,
+    };
+  } catch {
+    if (attempt === 0) {
+      await new Promise((res) => setTimeout(res, 700));
+      return loadSeries(address, chain, days, 1);
+    }
+    return null;
+  }
+}
+
+/** Search once and fold — used for every side of a comparison. */
+export async function loadSide(address: string, windowDays = 30): Promise<CompareSide | null> {
   try {
     const r = await fetch(`/api/search?q=${encodeURIComponent(address)}`);
     if (!r.ok) return null;
     const j = (await r.json()) as { pairs?: SearchHit[] };
-    return foldPairs(j.pairs ?? [], address);
+    const side = foldPairs(j.pairs ?? [], address);
+    if (!side) return null;
+    // History is a second call and not every chain has it; the side is useful
+    // without it, so a miss leaves the chart cards empty rather than the row.
+    const hist = await loadSeries(address, side.chain, windowDays);
+    return hist ? { ...side, ...hist } : side;
   } catch {
     return null;
   }
 }
 
-export async function searchTokens(q: string): Promise<SearchHit[]> {
+/**
+ * One row per token, most relevant first.
+ *
+ * Ranking by liquidity alone picks the wrong token: searching "INC" returns a
+ * dead Ethereum listing holding $7.7M of parked liquidity on $0.01 of daily
+ * volume ahead of the PulseChain INC that actually trades. So the chain being
+ * looked at wins first, then real activity, and only then depth.
+ */
+export async function searchTokens(q: string, preferChain?: string): Promise<SearchHit[]> {
   try {
     const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
     if (!r.ok) return [];
     const j = (await r.json()) as { pairs?: SearchHit[] };
-    // One row per token, deepest pool first.
     const best = new Map<string, SearchHit>();
     for (const p of j.pairs ?? []) {
       const k = p.baseAddress?.toLowerCase();
@@ -108,39 +179,20 @@ export async function searchTokens(q: string): Promise<SearchHit[]> {
       const cur = best.get(k);
       if (!cur || (p.liquidityUsd ?? 0) > (cur.liquidityUsd ?? 0)) best.set(k, p);
     }
-    return [...best.values()].sort((a, b) => (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0)).slice(0, 12);
+    const rank = (h: SearchHit) => [
+      preferChain && h.chain === preferChain ? 1 : 0,
+      h.vol24 ?? 0,
+      h.liquidityUsd ?? 0,
+    ];
+    return [...best.values()]
+      .sort((a, b) => {
+        const ra = rank(a);
+        const rb = rank(b);
+        for (let i = 0; i < ra.length; i++) if (rb[i] !== ra[i]) return rb[i] - ra[i];
+        return 0;
+      })
+      .slice(0, 12);
   } catch {
     return [];
-  }
-}
-
-/** How many of A's holders also hold B, from the overlap endpoint. */
-export interface OverlapResult {
-  hasData: boolean;
-  holdersChecked: number;
-  overlapCount: number;
-  overlapPercent: number | null;
-  contractsExcluded: number;
-}
-
-export async function loadOverlap(
-  tokenA: string, tokenB: string, network: string,
-): Promise<OverlapResult | null> {
-  try {
-    const r = await fetch(
-      `/api/geicko/holder-overlap?tokenA=${tokenA}&tokenB=${tokenB}&network=${network}`,
-    );
-    if (!r.ok) return null;
-    const j = await r.json();
-    if (!j?.supported || !j?.hasData) return null;
-    return {
-      hasData: true,
-      holdersChecked: j.holdersChecked ?? 0,
-      overlapCount: j.overlapCount ?? 0,
-      overlapPercent: j.overlapPercent ?? null,
-      contractsExcluded: j.contractsExcluded ?? 0,
-    };
-  } catch {
-    return null;
   }
 }

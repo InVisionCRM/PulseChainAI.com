@@ -343,6 +343,133 @@ export function bars(
   });
 }
 
+/**
+ * A radar over `axes` spokes, one closed shape per series. Values are 0..1 —
+ * the caller normalises, because what "big" means differs per axis.
+ */
+export function radar(
+  c: CanvasRenderingContext2D,
+  cx: number, cy: number, r: number,
+  axes: string[],
+  series: { values: number[]; color: string }[],
+  pal: Pal = PALETTES.midnight,
+) {
+  const n = axes.length;
+  if (n < 3) return;
+  const at = (i: number, f: number): [number, number] => {
+    const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
+    return [cx + Math.cos(a) * r * f, cy + Math.sin(a) * r * f];
+  };
+  c.save();
+  // rings and spokes
+  c.strokeStyle = pal.line;
+  c.lineWidth = 2;
+  for (const ring of [0.25, 0.5, 0.75, 1]) {
+    c.beginPath();
+    for (let i = 0; i < n; i++) {
+      const [x, y] = at(i, ring);
+      if (i) c.lineTo(x, y);
+      else c.moveTo(x, y);
+    }
+    c.closePath();
+    c.stroke();
+  }
+  for (let i = 0; i < n; i++) {
+    const [x, y] = at(i, 1);
+    c.beginPath();
+    c.moveTo(cx, cy);
+    c.lineTo(x, y);
+    c.stroke();
+  }
+  for (const s of series) {
+    c.beginPath();
+    s.values.forEach((v, i) => {
+      const [x, y] = at(i, Math.max(0.02, Math.min(1, v)));
+      if (i) c.lineTo(x, y);
+      else c.moveTo(x, y);
+    });
+    c.closePath();
+    c.globalAlpha = 0.16;
+    c.fillStyle = s.color;
+    c.fill();
+    c.globalAlpha = 1;
+    c.strokeStyle = s.color;
+    c.lineWidth = 4;
+    c.lineJoin = 'round';
+    c.stroke();
+  }
+  c.restore();
+  axes.forEach((label, i) => {
+    const [x, y] = at(i, 1.16);
+    text(c, label.toUpperCase(), x, y + 6, {
+      size: 16, color: pal.txDim, align: 'center', font: MONO, spacing: 1,
+    });
+  });
+}
+
+/** Grouped bars: one cluster per label, one bar per series. */
+export function groupedBars(
+  c: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  labels: string[],
+  series: { values: number[]; color: string }[],
+  fmt: (n: number) => string,
+  pal: Pal = PALETTES.midnight,
+) {
+  const groups = labels.length;
+  if (!groups) return;
+  const max = Math.max(...series.flatMap((s) => s.values), 1);
+  const gap = 26;
+  const gw = (w - gap * (groups - 1)) / groups;
+  const bw = Math.min(64, (gw - 8 * (series.length - 1)) / series.length);
+  labels.forEach((label, g) => {
+    const gx = x + g * (gw + gap);
+    series.forEach((s, i) => {
+      const v = s.values[g] ?? 0;
+      const bh = Math.max(3, (v / max) * (h - 54));
+      const bx = gx + (gw - (bw * series.length + 8 * (series.length - 1))) / 2 + i * (bw + 8);
+      c.fillStyle = s.color;
+      rr(c, bx, y + h - 32 - bh, bw, bh, 8);
+      c.fill();
+      text(c, fmt(v), bx + bw / 2, y + h - 40 - bh, {
+        size: 17, weight: 700, color: pal.txMid, align: 'center',
+      });
+    });
+    text(c, label.toUpperCase(), gx + gw / 2, y + h - 6, {
+      size: 17, color: pal.txDim, align: 'center', font: MONO, spacing: 1,
+    });
+  });
+}
+
+/** A donut of shares, drawn clockwise from twelve. */
+export function donut(
+  c: CanvasRenderingContext2D,
+  cx: number, cy: number, r: number, width: number,
+  slices: { value: number; color: string }[],
+  pal: Pal = PALETTES.midnight,
+) {
+  const total = slices.reduce((t, s) => t + Math.max(0, s.value), 0);
+  c.save();
+  c.lineWidth = width;
+  c.strokeStyle = pal.line;
+  c.beginPath();
+  c.arc(cx, cy, r, 0, Math.PI * 2);
+  c.stroke();
+  if (total > 0) {
+    let a = -Math.PI / 2;
+    for (const s of slices) {
+      const frac = Math.max(0, s.value) / total;
+      if (frac <= 0) continue;
+      c.strokeStyle = s.color;
+      c.beginPath();
+      c.arc(cx, cy, r, a, a + frac * Math.PI * 2);
+      c.stroke();
+      a += frac * Math.PI * 2;
+    }
+  }
+  c.restore();
+}
+
 export function panel(
   c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number,
   pal: Pal = PALETTES.midnight, radius = 28,

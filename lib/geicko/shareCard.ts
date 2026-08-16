@@ -14,12 +14,13 @@
 
 import {
   ACCENT, BOX_W, CARD_H, CARD_W, DOWN, LINE, LINE_2, MONO, PAD, PALETTES, TX, TX_DIM, TX_MID, UP,
-  areaChart, bars, brand, chrome as frame, compact, fitText, grid, headline, measure,
+  areaChart, bars, brand, chrome as frame, compact, donut, fitText, grid, groupedBars, headline,
+  lineChart, measure, radar,
   MISSING, money, nf, nothingToDraw, panel, price as fmtPrice, rr, ring, signedPct, statTile, text,
   type Box, type HeaderStyle, type LogoStyle, type Pal, type PaletteName,
 } from '@/lib/shareCards/paint';
 import { METRIC_BY_ID } from '@/lib/geicko/metrics';
-import type { CompareSide, OverlapResult } from '@/lib/geicko/compare';
+import type { CompareSide } from '@/lib/geicko/compare';
 
 export { CARD_W, CARD_H };
 
@@ -185,11 +186,11 @@ export const DEFAULT_SPEC: CustomSpec = {
   chart: 'none',
 };
 
-/** Two tokens measured the same way, plus their holder overlap. */
+/** Up to four tokens, each measured the same way. */
 export interface CompareData {
-  a: CompareSide | null;
-  b: CompareSide | null;
-  overlap?: OverlapResult | null;
+  sides: CompareSide[];
+  /** The window the chart cards were loaded for, in days. */
+  windowDays: number;
 }
 
 /** Everything the painter needs beyond the token's figures. */
@@ -198,16 +199,19 @@ export interface DrawOptions {
   /** The token's DexScreener banner, already loaded same-origin. */
   header?: HTMLImageElement | null;
   compare?: CompareData;
-  /** Token art for each side of a comparison, already same-origin. */
-  compareLogos?: { a: HTMLImageElement | null; b: HTMLImageElement | null };
+  /** Token art per side, already same-origin, indexed like `compare.sides`. */
+  compareLogos?: (HTMLImageElement | null)[];
 }
 
-export const COMPARE_CARD_IDS = ['cmp-h2h', 'cmp-ratios', 'cmp-overlap'] as const;
-
 export const COMPARE_CARDS: { id: string; name: string; blurb: string; kicker: string }[] = [
-  { id: 'cmp-h2h', name: 'Head to head', blurb: 'Six rows, a winner lit on each', kicker: 'head to head' },
+  { id: 'cmp-h2h', name: 'Head to head', blurb: 'Every figure, a winner lit on each row', kicker: 'head to head' },
   { id: 'cmp-ratios', name: 'The fair fight', blurb: 'Ratios, so size alone can\u2019t win', kicker: 'like for like' },
-  { id: 'cmp-overlap', name: 'Shared holders', blurb: 'How many of yours also hold theirs', kicker: 'shared holders' },
+  { id: 'cmp-lines', name: 'Since then', blurb: 'Rebased to 100 — who actually moved', kicker: 'rebased' },
+  { id: 'cmp-money', name: 'Same $1,000', blurb: 'The same money into each, back then', kicker: 'same money' },
+  { id: 'cmp-radar', name: 'The shape', blurb: 'Five axes at once, one shape each', kicker: 'the shape' },
+  { id: 'cmp-bars', name: 'Depth and flow', blurb: 'Liquidity against 24h volume', kicker: 'depth & flow' },
+  { id: 'cmp-share', name: 'Share of the group', blurb: 'Who owns the volume between them', kicker: 'share' },
+  { id: 'cmp-windows', name: 'Over three windows', blurb: '24h, 7d and 30d side by side', kicker: 'windows' },
 ];
 
 export interface TokenCardDef {
@@ -973,179 +977,417 @@ function paintCustom(c: CanvasRenderingContext2D, d: TokenShareData, spec: Custo
 
 /* ───────────────────────── the compare cards ───────────────────────── */
 
-const CMP_A = ACCENT.amber;
-const CMP_B = '#38BDF8';
+/** One colour per side, in pick order — used by every chart and legend. */
+const SIDE_COLORS = [ACCENT.amber, '#38BDF8', UP, '#E879F9'];
 
-/** Both sides' marks and tickers across the top of a comparison. */
-function versusHead(
-  c: CanvasRenderingContext2D, a: CompareSide, b: CompareSide,
-  logos: { a: HTMLImageElement | null; b: HTMLImageElement | null } | undefined,
-  y: number,
+/** Marks and tickers across the top, one column per token. */
+function sidesHead(
+  c: CanvasRenderingContext2D, sides: CompareSide[],
+  logos: (HTMLImageElement | null)[] | undefined, y: number,
 ) {
-  const half = BOX_W / 2;
-  const draw = (side: CompareSide, img: HTMLImageElement | null, cx: number, col: string) => {
+  const n = sides.length;
+  const colW = BOX_W / n;
+  sides.forEach((side, i) => {
+    const cx = PAD + colW * i + colW / 2;
+    const img = logos?.[i] ?? null;
     if (img) {
       c.save();
       c.beginPath();
-      c.arc(cx, y + 26, 26, 0, Math.PI * 2);
+      c.arc(cx, y + 24, 24, 0, Math.PI * 2);
       c.clip();
-      c.drawImage(img, cx - 26, y, 52, 52);
+      c.drawImage(img, cx - 24, y, 48, 48);
       c.restore();
     }
     const sym = side.symbol.toUpperCase();
-    text(c, sym, cx, y + 92, {
-      size: fitText(c, sym, half - 40, 34, 800), weight: 800, color: col, align: 'center',
+    text(c, sym, cx, y + 86, {
+      size: fitText(c, sym, colW - 16, n > 2 ? 28 : 34, 800),
+      weight: 800, color: SIDE_COLORS[i], align: 'center',
     });
-  };
-  draw(a, logos?.a ?? null, PAD + half / 2, CMP_A);
-  draw(b, logos?.b ?? null, PAD + half + half / 2, CMP_B);
-  text(c, 'VS', CARD_W / 2, y + 40, { size: 22, color: TX_DIM, align: 'center', font: MONO, spacing: 3 });
+  });
 }
 
-/** One comparison row: label in the middle, a figure each side, winner lit. */
-function versusRow(
+/** A legend row, for the cards where the shapes need naming. */
+function sidesLegend(c: CanvasRenderingContext2D, sides: CompareSide[], y: number) {
+  const n = sides.length;
+  const colW = BOX_W / n;
+  sides.forEach((side, i) => {
+    const x = PAD + colW * i + 12;
+    c.fillStyle = SIDE_COLORS[i];
+    rr(c, x, y - 14, 18, 18, 5);
+    c.fill();
+    const sym = side.symbol.toUpperCase();
+    text(c, sym, x + 26, y + 2, {
+      size: fitText(c, sym, colW - 48, 22, 700), weight: 700, color: TX_MID,
+    });
+  });
+}
+
+/** One comparison row: a label, then a figure per side, winner lit. */
+function compareRow(
   c: CanvasRenderingContext2D, y: number, label: string,
-  left: string, right: string, winner: 'a' | 'b' | null,
+  values: (string | null)[], winner: number | null, n: number,
 ) {
-  text(c, label.toUpperCase(), CARD_W / 2, y, {
-    size: 17, color: TX_DIM, align: 'center', font: MONO, spacing: 2,
+  text(c, label.toUpperCase(), PAD, y - 26, {
+    size: 16, color: TX_DIM, font: MONO, spacing: 2,
   });
-  const lw = winner === 'a' ? 800 : 600;
-  const rw = winner === 'b' ? 800 : 600;
-  text(c, left, PAD + 8, y + 2, {
-    size: fitText(c, left, BOX_W / 2 - 120, 40, lw), weight: lw,
-    color: winner === 'a' ? CMP_A : TX_MID,
-  });
-  text(c, right, CARD_W - PAD - 8, y + 2, {
-    size: fitText(c, right, BOX_W / 2 - 120, 40, rw), weight: rw,
-    color: winner === 'b' ? CMP_B : TX_MID, align: 'right',
+  const colW = BOX_W / n;
+  values.forEach((v, i) => {
+    const cx = PAD + colW * i + colW / 2;
+    const won = winner === i;
+    const str = v ?? dash;
+    text(c, str, cx, y + 8, {
+      size: fitText(c, str, colW - 14, n > 2 ? 34 : 42, won ? 800 : 600),
+      weight: won ? 800 : 600,
+      color: won ? SIDE_COLORS[i] : TX_MID,
+      align: 'center',
+    });
   });
   c.fillStyle = LINE;
-  c.fillRect(PAD, y + 26, BOX_W, 1);
+  c.fillRect(PAD, y + 30, BOX_W, 1);
 }
 
-const cmpWin = (x: number | null, y: number | null): 'a' | 'b' | null => {
-  if (x == null || y == null || x === y) return null;
-  return x > y ? 'a' : 'b';
-};
+/** Index of the largest value, or null when nothing separates them. */
+function bestOf(values: (number | null | undefined)[]): number | null {
+  let best: number | null = null;
+  let bestI: number | null = null;
+  let tie = false;
+  values.forEach((v, i) => {
+    if (v == null || !Number.isFinite(v)) return;
+    if (best == null || v > best) { best = v; bestI = i; tie = false; }
+    else if (v === best) tie = true;
+  });
+  return tie ? null : bestI;
+}
 
-function needBoth(c: CanvasRenderingContext2D, d: CompareData | undefined): d is CompareData {
-  if (!d?.a || !d?.b) {
-    nothingToDraw(c, 'Pick a token to compare against');
+function needSides(c: CanvasRenderingContext2D, d: CompareData | undefined): d is CompareData {
+  if (!d?.sides || d.sides.length < 2) {
+    nothingToDraw(c, 'Add a token to compare against');
     return false;
   }
   return true;
 }
 
+/** Rebase a price series to 100 at its first point. */
+function rebase(series: number[] | null | undefined): number[] | null {
+  if (!series || series.length < 2) return null;
+  const base = series.find((v) => v > 0);
+  if (!base) return null;
+  return series.map((v) => (v > 0 ? (v / base) * 100 : 100));
+}
+
+/** The shortest history any side actually has, for an honest window label. */
+function windowNote(sides: CompareSide[], want: number): string | null {
+  const covers = sides.map((s) => s.covers ?? 0).filter((n) => n > 0);
+  if (!covers.length) return null;
+  const shortest = Math.min(...covers);
+  if (shortest >= want - 1) return null;
+  const who = sides.find((s) => (s.covers ?? 0) === shortest);
+  return `${who?.symbol ?? 'One token'} only has ${shortest} days of history — the window starts there.`;
+}
+
 const cmpPaint: Record<string, (c: CanvasRenderingContext2D, cmp: CompareData, opts: DrawOptions) => void> = {
   'cmp-h2h'(c, cmp, opts) {
-    const a = cmp.a!;
-    const b = cmp.b!;
-    versusHead(c, a, b, opts.compareLogos, 186);
-    const rows: [string, string, string, 'a' | 'b' | null][] = [
-      ['24h change',
-        a.chg24 == null ? dash : signedPct(a.chg24), b.chg24 == null ? dash : signedPct(b.chg24),
-        cmpWin(a.chg24, b.chg24)],
-      ['Market cap', moneyOr(a.marketCap), moneyOr(b.marketCap), cmpWin(a.marketCap, b.marketCap)],
-      ['24h volume', moneyOr(a.vol24), moneyOr(b.vol24), cmpWin(a.vol24, b.vol24)],
-      ['Liquidity', moneyOr(a.liquidityUsd), moneyOr(b.liquidityUsd), cmpWin(a.liquidityUsd, b.liquidityUsd)],
-      ['Pools listed', nf(a.pools), nf(b.pools), cmpWin(a.pools, b.pools)],
-      ['Age',
-        a.ageDays == null ? dash : `${nf(a.ageDays)}d`, b.ageDays == null ? dash : `${nf(b.ageDays)}d`,
-        cmpWin(a.ageDays, b.ageDays)],
+    const sides = cmp.sides;
+    const n = sides.length;
+    sidesHead(c, sides, opts.compareLogos, 180);
+    const rows: [string, (s: CompareSide) => number | null, (s: CompareSide) => string][] = [
+      ['24h change', (s) => s.chg24, (s) => (s.chg24 == null ? dash : signedPct(s.chg24))],
+      ['Market cap', (s) => s.marketCap, (s) => moneyOr(s.marketCap)],
+      ['24h volume', (s) => s.vol24, (s) => moneyOr(s.vol24)],
+      ['Liquidity', (s) => s.liquidityUsd, (s) => moneyOr(s.liquidityUsd)],
+      ['Pools listed', (s) => s.pools, (s) => nf(s.pools)],
+      ['Age', (s) => s.ageDays, (s) => (s.ageDays == null ? dash : `${nf(s.ageDays)}d`)],
     ];
-    rows.forEach(([label, l, r, w], i) => versusRow(c, 366 + i * 96, label, l, r, w));
-    text(c, 'Both sides measured the same way — summed across the pools DexScreener lists for each.',
-      CARD_W / 2, 936, { size: 20, color: TX_DIM, align: 'center' });
+    rows.forEach(([label, pick, fmt], i) => {
+      compareRow(c, 352 + i * 100, label, sides.map(fmt), bestOf(sides.map(pick)), n);
+    });
+    text(c, 'Every side measured the same way — summed across the pools DexScreener lists.',
+      CARD_W / 2, 936, { size: 19, color: TX_DIM, align: 'center' });
   },
 
   'cmp-ratios'(c, cmp, opts) {
-    const a = cmp.a!;
-    const b = cmp.b!;
-    versusHead(c, a, b, opts.compareLogos, 186);
-    const ratio = (x: CompareSide, top: (s: CompareSide) => number | null, bot: (s: CompareSide) => number | null) => {
-      const t = top(x);
-      const u = bot(x);
-      return t == null || !u ? null : t / u;
+    const sides = cmp.sides;
+    const n = sides.length;
+    sidesHead(c, sides, opts.compareLogos, 180);
+    const times = (v: number) => (v > 0 && v < 0.01 ? '<0.01×' : `${v.toFixed(2)}×`);
+    const percent = (v: number) => {
+      const p = v * 100;
+      return p > 0 && p < 0.1 ? '<0.1%' : `${p.toFixed(1)}%`;
     };
-    const turn = (x: CompareSide) => ratio(x, (s) => s.vol24, (s) => s.liquidityUsd);
-    const volMc = (x: CompareSide) => ratio(x, (s) => s.vol24, (s) => s.marketCap);
-    const liqMc = (x: CompareSide) => ratio(x, (s) => s.liquidityUsd, (s) => s.marketCap);
-    // A quiet token rounds to 0.00x, which reads as "none" rather than "small".
-    const times = (n: number) => (n > 0 && n < 0.01 ? '<0.01×' : `${n.toFixed(2)}×`);
-    const percent = (n: number) => {
-      const v = n * 100;
-      return v > 0 && v < 0.1 ? '<0.1%' : `${v.toFixed(1)}%`;
-    };
-    const rows: [string, (x: CompareSide) => number | null, (n: number) => string][] = [
-      ['Turnover · volume over liquidity', turn, times],
-      ['Volume against market cap', volMc, percent],
-      ['Liquidity against market cap', liqMc, percent],
+    const div = (a: number | null, b: number | null) => (a == null || !b ? null : a / b);
+    const rows: [string, (s: CompareSide) => number | null, (v: number) => string][] = [
+      ['Turnover · volume over liquidity', (s) => div(s.vol24, s.liquidityUsd), times],
+      ['Volume against market cap', (s) => div(s.vol24, s.marketCap), percent],
+      ['Liquidity against market cap', (s) => div(s.liquidityUsd, s.marketCap), percent],
     ];
-    rows.forEach(([label, fn, fmt], i) => {
-      const x = fn(a);
-      const y = fn(b);
-      versusRow(c, 392 + i * 120, label,
-        x == null ? dash : fmt(x), y == null ? dash : fmt(y), cmpWin(x, y));
+    rows.forEach(([label, pick, fmt], i) => {
+      const vals = sides.map(pick);
+      compareRow(c, 372 + i * 128, label, vals.map((v) => (v == null ? null : fmt(v))), bestOf(vals), n);
     });
-    statTile(c, [PAD, 726, BOX_W, 160], {
-      label: 'Why these three',
-      value: 'Size can’t win here', size: 42,
+    statTile(c, [PAD, 748, BOX_W, 160], {
+      label: 'Why these three', value: 'Size can’t win here', size: 42,
       sub: 'a small token can out-trade a large one on every row above',
     });
-    text(c, 'Ratios, not totals — the same figures divided by what they should be measured against.',
-      CARD_W / 2, 946, { size: 20, color: TX_DIM, align: 'center' });
+    text(c, 'Ratios, not totals — each figure divided by what it should be measured against.',
+      CARD_W / 2, 950, { size: 19, color: TX_DIM, align: 'center' });
   },
 
-  'cmp-overlap'(c, cmp, opts) {
-    const a = cmp.a!;
-    const b = cmp.b!;
-    const o = cmp.overlap;
-    versusHead(c, a, b, opts.compareLogos, 186);
-    if (!o?.hasData) {
-      text(c, 'Holder overlap could not be read for this pair', CARD_W / 2, 520, {
+  'cmp-lines'(c, cmp, opts) {
+    const sides = cmp.sides;
+    const curves = sides.map((s) => rebase(s.series));
+    if (!curves.some(Boolean)) {
+      return nothingToDraw(c, 'No price history indexed for these tokens');
+    }
+    text(c, `The last ${cmp.windowDays} days, rebased to 100`, CARD_W / 2, 214, {
+      size: 38, weight: 700, color: TX_MID, align: 'center',
+    });
+    sidesLegend(c, sides, 268);
+    lineChart(
+      c,
+      curves.map((values, i) => ({ values: values ?? [], color: SIDE_COLORS[i], width: 6 }))
+        .filter((s) => s.values.length > 1),
+      PAD, 310, BOX_W, 420,
+      (v) => v.toFixed(0),
+    );
+    // Where each one ended, since the lines cross and colour alone is work.
+    const g = grid(PAD, 770, BOX_W, 140, sides.length, 1, 14);
+    sides.forEach((side, i) => {
+      const cv = curves[i];
+      const end = cv ? cv[cv.length - 1] : null;
+      statTile(c, g[i], {
+        label: side.symbol, value: end == null ? dash : `${end.toFixed(0)}`,
+        size: 40, sub: end == null ? 'no history' : `from 100 · ${signedPct(end - 100)}`,
+        accent: SIDE_COLORS[i],
+      });
+    });
+    const note = windowNote(sides, cmp.windowDays);
+    text(c, note ?? 'Every line starts at 100 on the same day, so only the shape is being compared.',
+      CARD_W / 2, 950, { size: 19, color: TX_DIM, align: 'center' });
+  },
+
+  'cmp-money'(c, cmp, opts) {
+    const sides = cmp.sides;
+    const curves = sides.map((s) => rebase(s.series));
+    if (!curves.some(Boolean)) {
+      return nothingToDraw(c, 'No price history indexed for these tokens');
+    }
+    const ends = curves.map((cv) => (cv ? (cv[cv.length - 1] / 100) * 1000 : null));
+    const best = bestOf(ends);
+    text(c, `$1,000 into each, ${cmp.windowDays} days ago`, CARD_W / 2, 214, {
+      size: 38, weight: 700, color: TX_MID, align: 'center',
+    });
+    const winner = best == null ? null : sides[best];
+    headline(
+      c,
+      best == null || ends[best] == null ? dash : money(ends[best]!),
+      winner ? `${winner.symbol} came out ahead` : 'nothing separates them',
+      346,
+    );
+    // Bars from a $1,000 baseline, so above/below the line is the whole story.
+    const top = 420;
+    const h = 330;
+    const maxV = Math.max(...ends.map((e) => e ?? 0), 1000) * 1.1;
+    const colW = BOX_W / sides.length;
+    const zeroY = top + h - (1000 / maxV) * h;
+    sides.forEach((side, i) => {
+      const v = ends[i];
+      const cx = PAD + colW * i + colW / 2;
+      const bw = Math.min(120, colW - 40);
+      if (v != null) {
+        const bh = (v / maxV) * h;
+        c.fillStyle = SIDE_COLORS[i];
+        rr(c, cx - bw / 2, top + h - bh, bw, bh, 10);
+        c.fill();
+        text(c, money(v), cx, top + h - bh - 16, {
+          size: 26, weight: 800, color: SIDE_COLORS[i], align: 'center',
+        });
+      }
+      text(c, side.symbol.toUpperCase(), cx, top + h + 30, {
+        size: fitText(c, side.symbol.toUpperCase(), colW - 12, 22, 700),
+        weight: 700, color: TX_MID, align: 'center',
+      });
+    });
+    c.save();
+    c.setLineDash([10, 8]);
+    c.strokeStyle = LINE_2;
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(PAD, zeroY);
+    c.lineTo(CARD_W - PAD, zeroY);
+    c.stroke();
+    c.restore();
+    // The baseline is labelled underneath rather than on the line itself — at
+    // four tokens there is a bar across every part of it.
+    const note = windowNote(sides, cmp.windowDays);
+    text(c, note ?? 'Price only — fees, slippage and anything you did in between are not in this.',
+      CARD_W / 2, 862, { size: 20, color: TX_DIM, align: 'center' });
+    text(c, 'Dashed line is the $1,000 that went in · daily closes, same window for every token.',
+      CARD_W / 2, 900, { size: 20, color: TX_DIM, align: 'center' });
+  },
+
+  'cmp-radar'(c, cmp, opts) {
+    const sides = cmp.sides;
+    const axes = ['cap', 'volume', 'liquidity', 'turnover', 'age'];
+    const raw = sides.map((s) => [
+      s.marketCap ?? 0,
+      s.vol24 ?? 0,
+      s.liquidityUsd ?? 0,
+      s.liquidityUsd ? (s.vol24 ?? 0) / s.liquidityUsd : 0,
+      s.ageDays ?? 0,
+    ]);
+    // Each axis is scaled to the biggest token on it — the shape shows relative
+    // standing, which is the only thing five different units can share. The
+    // scale is logarithmic: a $26M token beside a $166k one flattens every
+    // smaller shape onto the centre point when the axis is linear, and a shape
+    // you can't see compares nothing.
+    const maxima = axes.map((_, a) => Math.max(...raw.map((r) => r[a]), 0));
+    const norm = (v: number, max: number) =>
+      max > 0 && v > 0 ? Math.log10(1 + (v / max) * 9) : 0;
+    const shapes = raw.map((r, i) => ({
+      values: r.map((v, a) => norm(v, maxima[a])),
+      color: SIDE_COLORS[i],
+    }));
+    text(c, 'Five measures at once', CARD_W / 2, 214, {
+      size: 38, weight: 700, color: TX_MID, align: 'center',
+    });
+    sidesLegend(c, sides, 268);
+    radar(c, CARD_W / 2, 570, 210, axes, shapes);
+    text(c, 'Each axis is scaled to whichever token leads it — the shape shows standing, not size.',
+      CARD_W / 2, 862, { size: 20, color: TX_DIM, align: 'center' });
+    text(c, 'Log scale, so a token a hundred times smaller is still visible on the shape.',
+      CARD_W / 2, 900, { size: 20, color: TX_DIM, align: 'center' });
+  },
+
+  'cmp-bars'(c, cmp, opts) {
+    const sides = cmp.sides;
+    text(c, 'Depth against flow', CARD_W / 2, 214, {
+      size: 38, weight: 700, color: TX_MID, align: 'center',
+    });
+    text(c, 'Liquidity pooled, and what actually traded in 24 hours', CARD_W / 2, 254, {
+      size: 24, color: TX_DIM, align: 'center',
+    });
+    groupedBars(
+      c, PAD, 300, BOX_W, 420,
+      sides.map((s) => s.symbol),
+      [
+        { values: sides.map((s) => s.liquidityUsd ?? 0), color: '#38BDF8' },
+        { values: sides.map((s) => s.vol24 ?? 0), color: ACCENT.amber },
+      ],
+      money,
+    );
+    c.fillStyle = '#38BDF8';
+    rr(c, PAD, 748, 18, 18, 5);
+    c.fill();
+    text(c, 'Liquidity', PAD + 28, 764, { size: 22, weight: 700, color: TX_MID });
+    c.fillStyle = ACCENT.amber;
+    rr(c, PAD + 200, 748, 18, 18, 5);
+    c.fill();
+    text(c, '24h volume', PAD + 228, 764, { size: 22, weight: 700, color: TX_MID });
+
+    const turns = sides.map((s) => (s.liquidityUsd ? (s.vol24 ?? 0) / s.liquidityUsd : null));
+    const lead = bestOf(turns);
+    statTile(c, [PAD, 796, BOX_W, 130], {
+      label: 'Trading hardest against its own depth',
+      value: lead == null ? dash : sides[lead].symbol, size: 44,
+      sub: lead == null || turns[lead] == null
+        ? 'no turnover to compare'
+        : `${turns[lead]!.toFixed(2)}× its liquidity in a day`,
+      accent: lead == null ? undefined : SIDE_COLORS[lead],
+    });
+  },
+
+  'cmp-share'(c, cmp, opts) {
+    const sides = cmp.sides;
+    const vols = sides.map((s) => s.vol24 ?? 0);
+    const total = vols.reduce((t, v) => t + v, 0);
+    if (total <= 0) return nothingToDraw(c, 'No 24h volume reported for these tokens');
+    text(c, 'Who owns the volume between them', CARD_W / 2, 214, {
+      size: 36, weight: 700, color: TX_MID, align: 'center',
+    });
+    donut(c, CARD_W / 2, 470, 170, 62, vols.map((v, i) => ({ value: v, color: SIDE_COLORS[i] })));
+    text(c, money(total), CARD_W / 2, 478, { size: 52, weight: 800, align: 'center' });
+    text(c, '24H, COMBINED', CARD_W / 2, 516, {
+      size: 18, color: TX_DIM, align: 'center', font: MONO, spacing: 3,
+    });
+    const rows = sides
+      .map((s, i) => ({ s, i, v: vols[i] }))
+      .sort((x, y) => y.v - x.v);
+    rows.forEach(({ s, i, v }, r) => {
+      const y = 700 + r * 60;
+      c.fillStyle = SIDE_COLORS[i];
+      rr(c, PAD, y - 18, 20, 20, 6);
+      c.fill();
+      text(c, s.symbol.toUpperCase(), PAD + 32, y, { size: 26, weight: 700, color: TX });
+      // 0.012% of the group rounds to "0.0%", which reads as none at all.
+      const share = (v / total) * 100;
+      text(c, share > 0 && share < 0.1 ? '<0.1%' : `${share.toFixed(1)}%`, CARD_W - PAD - 160, y, {
+        size: 26, weight: 800, color: SIDE_COLORS[i], align: 'right',
+      });
+      text(c, money(v), CARD_W - PAD, y, { size: 24, color: TX_MID, align: 'right' });
+    });
+    text(c, 'Shares of these tokens only — not of the chain.', CARD_W / 2, 952, {
+      size: 19, color: TX_DIM, align: 'center',
+    });
+  },
+
+  'cmp-windows'(c, cmp, opts) {
+    const sides = cmp.sides;
+    const have = sides.some((s) => s.d7 != null || s.d30 != null);
+    text(c, 'How each has moved', CARD_W / 2, 214, {
+      size: 38, weight: 700, color: TX_MID, align: 'center',
+    });
+    sidesLegend(c, sides, 268);
+    if (!have) {
+      text(c, 'Only 24h change is reported for these tokens', CARD_W / 2, 500, {
         size: 30, weight: 700, color: TX_MID, align: 'center',
       });
-      text(c, 'The explorer holder list is what this counts from.', CARD_W / 2, 562, {
-        size: 24, color: TX_DIM, align: 'center',
-      });
-      return;
+      text(c, 'The 7-day and 30-day series come from a source this chain isn’t in.',
+        CARD_W / 2, 544, { size: 22, color: TX_DIM, align: 'center' });
     }
-    headline(c, `${nf(o.overlapCount)} of ${nf(o.holdersChecked)}`,
-      `${a.symbol} wallets also hold ${b.symbol}`, 420);
-
-    // The share, as a bar rather than a second number to read.
-    const frac = o.holdersChecked ? o.overlapCount / o.holdersChecked : 0;
-    const barY = 520;
+    // Bars run from a zero line: losses hang below it rather than being hidden.
+    const windows: [string, (s: CompareSide) => number | null][] = [
+      ['24h', (s) => s.chg24],
+      ['7d', (s) => s.d7 ?? null],
+      ['30d', (s) => s.d30 ?? null],
+    ];
+    const top = 320;
+    const h = 430;
+    const all = windows.flatMap(([, pick]) => sides.map(pick)).filter((v): v is number => v != null);
+    // The zero line goes where the numbers put it. Pinning it to the middle
+    // wasted half the card whenever everything moved the same way — and it did.
+    const maxV = Math.max(0, ...all) * 1.12;
+    const minV = Math.min(0, ...all) * 1.12;
+    const range = maxV - minV || 1;
+    const zeroY = top + (maxV / range) * h;
+    const span = range;
     c.fillStyle = LINE_2;
-    rr(c, PAD, barY, BOX_W, 54, 27);
-    c.fill();
-    if (frac > 0) {
-      c.save();
-      rr(c, PAD, barY, BOX_W, 54, 27);
-      c.clip();
-      c.fillStyle = brand(c, PAD, barY, PAD + BOX_W, barY);
-      c.fillRect(PAD, barY, BOX_W * Math.min(1, frac), 54);
-      c.restore();
-    }
-    text(c, `${(frac * 100).toFixed(1)}%`, CARD_W / 2, barY + 36, {
-      size: 30, weight: 800, color: TX, align: 'center',
+    c.fillRect(PAD, zeroY, BOX_W, 2);
+    const gw = BOX_W / windows.length;
+    windows.forEach(([label, pick], w) => {
+      const gx = PAD + w * gw;
+      const bw = Math.min(56, (gw - 40) / sides.length - 8);
+      sides.forEach((side, i) => {
+        const v = pick(side);
+        const bx = gx + (gw - (bw * sides.length + 8 * (sides.length - 1))) / 2 + i * (bw + 8);
+        if (v == null) return;
+        const bh = Math.max(2, (Math.abs(v) / span) * h);
+        c.fillStyle = SIDE_COLORS[i];
+        if (v >= 0) { rr(c, bx, zeroY - bh, bw, bh, 6); } else { rr(c, bx, zeroY, bw, bh, 6); }
+        c.fill();
+        text(c, signedPct(v), bx + bw / 2, v >= 0 ? zeroY - bh - 12 : zeroY + bh + 26, {
+          size: 16, weight: 700, color: TX_MID, align: 'center',
+        });
+      });
+      text(c, label.toUpperCase(), gx + gw / 2, top + h + 42, {
+        size: 22, color: TX_DIM, align: 'center', font: MONO, spacing: 2,
+      });
     });
-
-    const g = grid(PAD, 620, BOX_W, 170, 2, 1, 16);
-    statTile(c, g[0], {
-      label: `${a.symbol} wallets checked`, value: nf(o.holdersChecked), size: 46,
-      sub: o.contractsExcluded ? `${nf(o.contractsExcluded)} pools and contracts excluded` : 'real wallets only',
-      accent: CMP_A,
+    text(c, 'Percentage change over each window, from daily closes.', CARD_W / 2, 862, {
+      size: 20, color: TX_DIM, align: 'center',
     });
-    statTile(c, g[1], {
-      label: `Also holding ${b.symbol}`, value: nf(o.overlapCount), size: 46,
-      sub: 'any balance counts', accent: CMP_B,
+    text(c, 'Bars share one scale, so the three windows are comparable.', CARD_W / 2, 900, {
+      size: 20, color: TX_DIM, align: 'center',
     });
-    text(c, `From ${a.symbol}'s largest holders on the explorer — LP pools and contracts excluded.`,
-      CARD_W / 2, 862, { size: 22, color: TX_DIM, align: 'center' });
-    text(c, 'A wallet holding both was checked on chain, not matched between two lists.',
-      CARD_W / 2, 898, { size: 20, color: TX_DIM, align: 'center' });
   },
 };
 
@@ -1179,7 +1421,7 @@ export function drawTokenCard(
   });
   if (custom) paintCustom(ctx, d, custom);
   else if (cmp) {
-    if (needBoth(ctx, opts.compare)) cmp(ctx, opts.compare, opts);
+    if (needSides(ctx, opts.compare)) cmp(ctx, opts.compare, opts);
   } else p!(ctx, d);
   ctx.restore();
   return true;
