@@ -73,6 +73,12 @@ export interface ProtocolPosition {
   kind: PositionKind;
   /** The token held / position contract. */
   address: string;
+  /**
+   * Distinguishes positions that share a contract. Every V3 position is minted
+   * by the same position manager, so without this they all look like one
+   * position and get deduped down to a single row.
+   */
+  id?: string;
   symbol: string;
   /** Best-effort protocol name (from the receipt token's symbol prefix). */
   protocol?: string;
@@ -80,6 +86,16 @@ export interface ProtocolPosition {
   valueUsd?: number;
   /** Extra label, e.g. "Supplied", "Staked LP". */
   note?: string;
+  /** Which DEX this liquidity sits in, when it can be told from the factory. */
+  dex?: string;
+  /**
+   * Fees this position can collect, kept apart from the principal — folding
+   * them into `underlying` would quietly inflate the position's size.
+   * Absent means "couldn't be read", which is not the same as zero.
+   */
+  fees?: UnderlyingAsset[];
+  /** V3 range state, for showing whether the position is still earning. */
+  range?: { inRange: boolean; tickLower: number; tickUpper: number };
 }
 
 const fmt = (raw: bigint, decimals: number) => Number(raw) / 10 ** decimals;
