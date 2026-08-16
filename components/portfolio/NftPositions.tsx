@@ -21,7 +21,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IconRefresh, IconPhoto, IconLock, IconExternalLink, IconChevronDown, IconX } from '@tabler/icons-react';
 import type { ChainId } from '@/services';
-import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
+import { pulsechainAddressUrl, pulsechainWriteContractUrl } from '@/lib/pulsechainExplorer';
+import { identicon } from '@/lib/identicon';
 
 interface Kind {
   erc721: boolean;
@@ -37,6 +38,8 @@ interface Locked {
   amount: string;
   unlocksAt: number | null;
   unlockedNow: number;
+  claimableAmount: string;
+  claim: { method: string; burnsNft: boolean; writeUrl: string } | null;
   read: number;
   complete: boolean;
 }
@@ -69,6 +72,7 @@ interface Meta {
   name: string | null;
   description: string | null;
   image: string | null;
+  externalUrl: string | null;
   traits: { type: string; value: string }[];
 }
 
@@ -108,6 +112,44 @@ function whenUnlocks(ts: number): string {
   const days = Math.round((d.getTime() - Date.now()) / 86_400_000);
   const date = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
   return days > 0 ? `${date} · in ${days.toLocaleString()} day${days === 1 ? '' : 's'}` : date;
+}
+
+/**
+ * Stand-in art for an NFT whose own artwork can't be fetched.
+ *
+ * Drawn from the contract address and token id, so a given NFT always gets the
+ * same picture and two of them never collide. It replaces a grid of identical
+ * grey placeholders, which looked broken and made a wallet's tokens impossible
+ * to tell apart.
+ *
+ * It is always labelled. Generated art that isn't marked would be mistaken for
+ * the real thing, and telling someone their NFT looks like something it does
+ * not is worse than showing them nothing.
+ */
+function GeneratedArt({ seed, rounded = false }: { seed: string; rounded?: boolean }) {
+  const { cells, size, colors } = useMemo(() => identicon(seed), [seed]);
+  return (
+    <svg
+      viewBox={`0 0 ${size} ${size}`}
+      className={`h-full w-full ${rounded ? 'rounded-xl' : ''}`}
+      // Nearest-neighbour keeps the squares square instead of smearing them.
+      style={{ imageRendering: 'pixelated', background: colors[0] }}
+      aria-hidden
+    >
+      {Array.from(cells).map((v, i) =>
+        v === 0 ? null : (
+          <rect
+            key={i}
+            x={i % size}
+            y={Math.floor(i / size)}
+            width={1}
+            height={1}
+            fill={colors[v]}
+          />
+        ),
+      )}
+    </svg>
+  );
 }
 
 /**
@@ -190,12 +232,17 @@ function NftDetail({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={src} alt={title} className="h-full w-full object-contain" />
             ) : (
-              <div className="flex flex-col items-center gap-1.5">
-                <IconPhoto className="h-7 w-7 text-[var(--text-faint)]" />
-                <span className="text-[11px] text-[var(--text-faint)]">no artwork found</span>
-              </div>
+              <GeneratedArt seed={`${collection}:${instance.id}`} rounded />
             )}
           </div>
+
+          {!src && (
+            <p className="mt-2 text-[11px] text-[var(--text-faint)]">
+              This one&apos;s artwork couldn&apos;t be fetched — its metadata is unreachable or
+              unpinned. The picture above is generated from the token&apos;s address and id, not the
+              collection&apos;s art.
+            </p>
+          )}
 
           {meta?.description && (
             <p className="mt-3 text-[12px] leading-relaxed text-[var(--text-muted)]">{meta.description}</p>
@@ -230,6 +277,23 @@ function NftDetail({
 
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--line)] pt-3 text-[11px] text-[var(--text-muted)]">
             <span>Token #{instance.id}</span>
+            {/*
+              The project's own link, only when the metadata publishes one.
+              `external_url` is the single website that can be established
+              without a curated list, since the collection authors it itself —
+              most PulseChain collections leave it blank, and a missing link is
+              better than an invented one.
+            */}
+            {meta?.externalUrl && (
+              <a
+                href={meta.externalUrl}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="inline-flex items-center gap-1 text-[var(--text-faint)] hover:text-[var(--text)]"
+              >
+                project site <IconExternalLink className="h-3 w-3" />
+              </a>
+            )}
             <a
               href={explorer(chain, collection)}
               target="_blank"
@@ -261,8 +325,29 @@ function Tile({
   // Set once the <img> itself fails, so the tile drops to its placeholder
   // instead of re-rendering the same broken source forever.
   const [broken, setBroken] = useState(false);
+  const [box, setBox] = useState<HTMLElement | null>(null);
+  const [near, setNear] = useState(false);
+
+  // Art shows without being asked for now, which means a wallet can put many
+  // hundreds of tiles on the page at once. Fetching for all of them would
+  // rebuild the fan-out problem the media proxy was just fixed for, so a tile
+  // only asks for its metadata once it is near the viewport.
+  useEffect(() => {
+    if (!box || near) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setNear(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => entries.some((e) => e.isIntersecting) && setNear(true),
+      { rootMargin: '300px' },
+    );
+    io.observe(box);
+    return () => io.disconnect();
+  }, [box, near]);
 
   useEffect(() => {
+    if (!near) return;
     // Always fetched, even when Blockscout already has a cached image: the
     // image is only part of it, and skipping this when a thumbnail happened to
     // exist was silently costing every such tile its name and its traits.
@@ -283,7 +368,7 @@ function Tile({
     return () => {
       alive = false;
     };
-  }, [chain, collection, instance.id, instance.imageUrl]);
+  }, [chain, collection, instance.id, instance.imageUrl, near]);
 
   // Artwork goes through our proxy so a dead gateway can be retried server-side.
   // Inline (data:) art is already here and needs no fetch at all.
@@ -298,6 +383,7 @@ function Tile({
   return (
     <button
       type="button"
+      ref={setBox}
       onClick={() => onOpen(instance, meta)}
       aria-label={`Open ${title}`}
       className="group relative block w-full overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)] text-left transition-transform duration-150 hover:-translate-y-0.5 hover:border-[var(--text-faint)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-faint)]">
@@ -311,31 +397,47 @@ function Tile({
             className="h-full w-full object-cover"
             onError={() => setBroken(true)}
           />
-        ) : (
+        ) : state === 'loading' && !broken ? (
           <div className="flex flex-col items-center gap-1 px-2 text-center">
             <IconPhoto className="h-5 w-5 text-[var(--text-faint)]" />
-            <span className="text-[9px] leading-tight text-[var(--text-faint)]">
-              {state === 'loading' && !broken ? 'loading…' : 'no artwork found'}
+            <span className="text-[9px] leading-tight text-[var(--text-faint)]">loading…</span>
+          </div>
+        ) : (
+          <div className="relative h-full w-full">
+            <GeneratedArt seed={`${collection}:${instance.id}`} />
+            {/* Never unmarked — see GeneratedArt. */}
+            <span
+              className="absolute bottom-1 right-1 rounded bg-black/60 px-1 py-px text-[8px] font-semibold uppercase tracking-wider text-white/80"
+              title="Artwork couldn't be fetched; this picture is generated from the token id"
+            >
+              generated
             </span>
           </div>
         )}
       </div>
       <div className="px-2 py-1.5">
         <p className="truncate text-[11px] font-semibold text-[var(--text)]">{title}</p>
+        {/*
+          The id only earns a second line when the title isn't already it —
+          without a name the title falls back to "#2113", and printing the id
+          underneath said the same thing twice.
+        */}
         {meta?.traits?.length ? (
           <p className="truncate text-[10px] text-[var(--text-faint)]">
             {meta.traits.length} trait{meta.traits.length === 1 ? '' : 's'}
           </p>
-        ) : (
+        ) : meta?.name ? (
           <p className="truncate text-[10px] text-[var(--text-faint)]">#{instance.id}</p>
-        )}
+        ) : null}
       </div>
     </button>
   );
 }
 
 function CollectionCard({ chain, c }: { chain: ChainId; c: Collection }) {
-  const [open, setOpen] = useState(false);
+  // Open by default — the art is the point of the tab, and making people click
+  // to see it hid the one thing they came for.
+  const [open, setOpen] = useState(true);
   const [opened, setOpened] = useState<{ instance: Instance; meta: Meta | null } | null>(null);
   const name = c.name ?? c.symbol ?? 'Unnamed collection';
   const share =
@@ -386,6 +488,38 @@ function CollectionCard({ chain, c }: { chain: ChainId; c: Collection }) {
                 ? ''
                 : 'no unlock date published'}
           </p>
+          {c.locked.claim && Number(c.locked.claimableAmount) > 0 && (
+            <div className="mt-2 rounded-lg border border-emerald-400/40 bg-emerald-400/10 p-2">
+              <p className="text-[12px] font-bold text-emerald-200">
+                {prettyAmount(c.locked.claimableAmount)} {c.locked.symbol ?? ''} can be taken out now
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
+                Call{' '}
+                <code className="rounded bg-black/30 px-1 py-0.5 text-[10px] text-[var(--text)]">
+                  {c.locked.claim.method}
+                </code>{' '}
+                on the contract, once per NFT.
+                {/*
+                  Said outright, because it is the cost of the action and the
+                  contract does not warn anyone: the override transfers the
+                  tokens and then destroys the token that held them.
+                */}
+                {c.locked.claim.burnsNft && (
+                  <> This <span className="font-semibold text-amber-300">destroys the NFT</span> — the
+                  tokens come back, the collectible does not.</>
+                )}
+              </p>
+              <a
+                href={c.locked.claim.writeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-300 hover:underline"
+              >
+                Open the contract to do it <IconExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          )}
+
           {!c.locked.complete && (
             // Never let a partial sum read as a balance.
             <p className="mt-1 text-[10px] text-amber-300">
@@ -436,7 +570,7 @@ function CollectionCard({ chain, c }: { chain: ChainId; c: Collection }) {
             className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)]"
           >
             <IconChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
-            {open ? 'Hide' : `Show ${Math.min(c.instances.length, c.count)}`}
+            {open ? 'Hide art' : `Show ${Math.min(c.instances.length, c.count)}`}
           </button>
           {open && (
             <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">

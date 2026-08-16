@@ -60,6 +60,17 @@ export interface NftMeta {
   description: string | null;
   /** Already normalised to something a browser can load. */
   image: string | null;
+  /**
+   * The project's own link, when the metadata publishes one.
+   *
+   * `external_url` is part of the metadata standard and is the only project
+   * website that can be established without a curated list — it is authored by
+   * the collection itself and reached through its tokenURI. Most PulseChain
+   * collections leave it out or set it empty (checked: Aruharts has the key but
+   * blank, PulseBitcoinLockNFT omits it), so absence is the normal case and
+   * never worth inventing a link to fill.
+   */
+  externalUrl: string | null;
   traits: NftTrait[];
 }
 
@@ -209,10 +220,16 @@ export function readMeta(json: unknown): NftMeta {
     const value = o.value == null ? null : String(o.value);
     if (type && value) traits.push({ type, value });
   }
+  // Only http(s) — a metadata file is untrusted input, and javascript:/data:
+  // in an href is a script-injection vector, not a website.
+  const ext = str(j.external_url) ?? str(j.external_link) ?? str(j.website);
+  const externalUrl = ext && /^https?:\/\//i.test(ext) ? ext : null;
+
   return {
     name: str(j.name),
     description: str(j.description),
     image: rawImage ? toLoadable(rawImage) : null,
+    externalUrl,
     traits,
   };
 }

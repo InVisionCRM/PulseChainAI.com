@@ -6,6 +6,7 @@ import { detectV3Positions } from '@/lib/portfolio/positionsV3';
 import { discoverStakedPositions, type Candidate } from '@/lib/portfolio/positionDiscovery';
 import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingService';
 import { HEX_ADDRESS, heartsToHex } from '@/lib/hex/hexDay';
+import { fetchUsdPrices } from '@/lib/portfolio/dexPrices';
 
 export const revalidate = 0;
 export const maxDuration = 60;
@@ -34,21 +35,30 @@ async function fetchJson(url: string, headers?: Record<string, string>): Promise
   }
 }
 
-/** DexScreener USD price per token address (chunked, best-effort). */
-async function priceMap(addresses: string[]): Promise<Map<string, number>> {
-  const uniq = [...new Set(addresses.map((a) => a.toLowerCase()))];
-  const map = new Map<string, number>();
-  for (let i = 0; i < uniq.length; i += 30) {
-    const chunk = uniq.slice(i, i + 30);
-    const data = await fetchJson(`https://api.dexscreener.com/latest/dex/tokens/${chunk.join(',')}`, DEX_HEADERS);
-    const pairs: any[] = data?.pairs ?? [];
-    for (const p of pairs) {
-      const addr = String(p?.baseToken?.address ?? '').toLowerCase();
-      const price = Number(p?.priceUsd);
-      if (addr && Number.isFinite(price) && price > 0 && !map.has(addr)) map.set(addr, price);
-    }
-  }
-  return map;
+/**
+ * USD price per token address, scoped to the chain.
+ *
+ * Delegates to lib/portfolio/dexPrices.ts rather than querying DexScreener
+ * here. That helper already does the three things this needs and the local
+ * version got wrong:
+ *
+ *   • It scopes to the chain. The same address is a different token on
+ *     PulseChain and Ethereum. The wallet measured here holds an "LPT" whose
+ *     address is Livepeer's: $1.18 on Ethereum, $0.0001454 on PulseChain. Priced
+ *     unscoped, one position read as $80,862 instead of about ten dollars.
+ *   • It reads the quote side, so tokens that mostly sit on the other half of a
+ *     pair — WPLS, BSV — get a price at all. Without it, 0 of 29 V3 positions
+ *     had both sides priced and the whole value landed on one side.
+ *   • It asks per token instead of batching thirty into one URL. A batched
+ *     request comes back with only the deepest pairs overall, so a PulseChain
+ *     token whose pools are small simply had no pairs in the response — which
+ *     is how the local version still missed prices after being chain-scoped.
+ *
+ * Its liquidity floor also applies, so a token whose only pools are worth tens
+ * of dollars returns no price rather than a number nobody could trade at.
+ */
+async function priceMap(addresses: string[], chain: ChainId): Promise<Map<string, number>> {
+  return fetchUsdPrices(addresses, chain);
 }
 
 function priceAll(positions: ProtocolPosition[], prices: Map<string, number>) {
@@ -189,7 +199,7 @@ export async function POST(req: NextRequest) {
     dedupePositions(positions);
 
     // Price the underlying assets, then sum per position.
-    const prices = await priceMap(positions.flatMap((p) => p.underlying.map((u) => u.address)));
+    const prices = await priceMap(positions.flatMap((p) => p.underlying.map((u) => u.address)), chain);
     priceAll(positions, prices);
 
     // Group by category, sorted by USD desc within each.

@@ -29,3 +29,21 @@ export const pulsechainExplorerUrl = (path: string) =>
 
 // Display label for the explorer link text.
 export const PULSECHAIN_EXPLORER_NAME = 'Otterscan';
+
+// ── Writing to a contract ───────────────────────────────────────────────────
+//
+// Otterscan is a read-only explorer: it has no form for sending a transaction,
+// so a "do this now" link cannot point at it. Blockscout's UI does have one,
+// on the same host family as the API we already use
+// (api.scan.pulsechain.com → scan.pulsechain.com), and its `write_contract`
+// tab connects a wallet and calls a verified contract's methods directly.
+//
+// Verified: `?tab=write_contract` on a verified contract answers 200 and the
+// page carries the write-contract tab. It only works for verified contracts —
+// callers should check before offering the link, since sending a reader to an
+// empty tab is worse than not linking at all.
+const BLOCKSCOUT_UI = 'https://scan.pulsechain.com';
+
+/** Blockscout's write-contract tab — the one place a user can call a method. */
+export const pulsechainWriteContractUrl = (addr: string) =>
+  `${BLOCKSCOUT_UI}/address/${addr}?tab=write_contract`;

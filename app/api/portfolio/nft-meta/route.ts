@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
 
   // Some contracts point tokenURI straight at the artwork instead of at JSON.
   if (got.kind === 'image') {
-    const meta: NftMeta = { name: null, description: null, image: toLoadable(target), traits: [] };
+    const meta: NftMeta = { name: null, description: null, image: toLoadable(target), externalUrl: null, traits: [] };
     return NextResponse.json({ meta, source: got.source, uri: toLoadable(target) });
   }
 

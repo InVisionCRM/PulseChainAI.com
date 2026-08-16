@@ -16,10 +16,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ChainId } from '@/services';
 import { getCode, ethCall } from '@/lib/portfolio/evmRpc';
-import { nftKind, lockedValue, SEL } from '@/lib/portfolio/nftKinds';
+import { nftKind, lockedValue, claimRoute, SEL } from '@/lib/portfolio/nftKinds';
 import { mintraFloors } from '@/lib/portfolio/nftFloors';
 import { fetchUsdPrices } from '@/lib/portfolio/dexPrices';
 import { getChain } from '@/lib/chains/registry';
+import { pulsechainWriteContractUrl } from '@/lib/pulsechainExplorer';
 
 export const revalidate = 0;
 export const maxDuration = 60;
@@ -180,6 +181,19 @@ export interface NftCollection {
     unlocksAt: number | null;
     /** How many of the instances read have passed their unlock already. */
     unlockedNow: number;
+    /**
+     * The part of `amount` sitting in already-unlocked NFTs — what could be
+     * taken out today. Kept separate from the total because "you hold 377,001"
+     * and "you can take 210,000 right now" are different facts and a holder
+     * acts on the second one.
+     */
+    claimableAmount: string;
+    /**
+     * How to get it out, when the contract is verified and says so plainly.
+     * Null means we could not establish a route from its ABI — better silent
+     * than sending someone to a call that reverts.
+     */
+    claim: { method: string; burnsNft: boolean; writeUrl: string } | null;
     /** How many of the wallet's instances went into `amount`. */
     read: number;
     /**
@@ -284,17 +298,33 @@ export async function GET(req: NextRequest) {
           .sort((x, y) => x - y);
         const unlockedNow = ends.filter((t) => t <= now).length;
         const nextUnlock = ends.find((t) => t > now) ?? null;
+        // A lock with no end date has nothing holding it, so it counts as out.
+        const claimableRaw = amounts.reduce(
+          (sum, a) => (a && (a.unlocksAt == null || a.unlocksAt <= now) ? sum + a.amount : sum),
+          0n,
+        );
+        // The route comes from the contract's own ABI, and only when verified.
+        const verified = await fetchJson(`${base}/smart-contracts/${addr}`);
+        const route = Array.isArray(verified?.abi) ? claimRoute(verified.abi) : null;
 
         const scale = 10n ** BigInt(decimals);
-        const whole = total / scale;
-        const frac = (total % scale).toString().padStart(decimals, '0').slice(0, 6).replace(/0+$/, '');
+        const fmt = (v: bigint) => {
+          const whole = v / scale;
+          const frac = (v % scale).toString().padStart(decimals, '0').slice(0, 6).replace(/0+$/, '');
+          return frac ? `${whole}.${frac}` : String(whole);
+        };
         locked = {
           token: lv.token,
           symbol: decodeString(symHex),
           decimals,
-          amount: frac ? `${whole}.${frac}` : String(whole),
+          amount: fmt(total),
           unlocksAt: nextUnlock,
           unlockedNow,
+          claimableAmount: fmt(claimableRaw),
+          claim:
+            route && chain === 'pulsechain'
+              ? { ...route, writeUrl: pulsechainWriteContractUrl(addr) }
+              : null,
           read: ids.length,
           // Only claim completeness against a held count we actually know.
           // Defaulting an unknown count to 0 would make `ids.length >= 0` true
