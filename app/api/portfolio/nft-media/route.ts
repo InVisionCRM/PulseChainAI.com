@@ -35,6 +35,35 @@ const FETCH_TIMEOUT_MS = 20_000;
 const MAX_BYTES = 12 * 1024 * 1024;
 
 /**
+ * How many gateways to race per image.
+ *
+ * Kept low on purpose. A gallery opens a dozen tiles at once, and six gateways
+ * each turned that into ~72 simultaneous outbound requests — enough to saturate
+ * the server's egress and wedge the dev server outright, with individual images
+ * taking 13-20s. Three is plenty: the winner is almost always the collection's
+ * own host or the first public gateway, and the rest were only ever insurance.
+ */
+const RACE_WIDTH = 3;
+
+/**
+ * Successful artwork, kept in memory for the life of the process.
+ *
+ * The bytes behind a CID never change, so a hit is permanently valid. Bounded
+ * because a wallet with hundreds of NFTs would otherwise pin every image it has
+ * ever shown.
+ */
+const hits = new Map<string, { bytes: Uint8Array; type: string }>();
+const MAX_CACHED = 120;
+
+/**
+ * Fetches already running, keyed by URI.
+ *
+ * A grid re-rendering asks for the same image several times in quick
+ * succession; without this each of those starts its own race.
+ */
+const inFlight = new Map<string, Promise<{ bytes: Uint8Array; type: string } | null>>();
+
+/**
  * Hostnames that must never be fetched, whatever the URI says.
  *
  * Link-local covers the cloud metadata endpoint (169.254.169.254); the private
@@ -56,18 +85,29 @@ function isInternal(host: string): boolean {
   );
 }
 
+/**
+ * Where to look for this image, best bet first.
+ *
+ * The URI's own host goes first whenever it has one. An earlier version handed
+ * back only public gateways as soon as the path contained `/ipfs/`, which threw
+ * away the collection's own pinning host — and that host is usually the one
+ * place the content is actually pinned. Rare Ghost Club serves its art from
+ * `nervous.mypinata.cloud` in ~1.3s while the public gateways 404 on the same
+ * CID, so dropping it turned working artwork into a missing tile.
+ */
 function candidates(uri: string): string[] {
-  const cid = cidOf(uri);
-  if (cid) return GATEWAYS.map((g) => g + cid);
+  const out: string[] = [];
   if (/^https:\/\//i.test(uri)) {
     try {
       const u = new URL(uri);
-      if (!isInternal(u.hostname)) return [uri];
+      if (!isInternal(u.hostname)) out.push(uri);
     } catch {
-      /* fall through */
+      /* not a usable URL — the CID path below may still work */
     }
   }
-  return [];
+  const cid = cidOf(uri);
+  if (cid) out.push(...GATEWAYS.map((g) => g + cid));
+  return out;
 }
 
 /** First response that is actually an image wins; parking pages lose. */
@@ -112,10 +152,28 @@ export async function GET(req: NextRequest) {
   // Inline artwork never leaves the chain — hand it straight back.
   if (uri.startsWith('data:')) return NextResponse.redirect(uri);
 
-  const urls = candidates(uri);
+  const cached = hits.get(uri);
+  if (cached) {
+    return new NextResponse(Buffer.from(cached.bytes), {
+      headers: { 'Content-Type': cached.type, 'Cache-Control': CACHE },
+    });
+  }
+
+  const urls = candidates(uri).slice(0, RACE_WIDTH);
   if (urls.length === 0) return NextResponse.json({ error: 'unsupported uri' }, { status: 400 });
 
-  const got = await race(urls);
+  let job = inFlight.get(uri);
+  if (!job) {
+    job = race(urls).finally(() => inFlight.delete(uri));
+    inFlight.set(uri, job);
+  }
+  const got = await job;
+  if (got) {
+    // Cheap eviction: drop the oldest insertion. Map preserves insertion order,
+    // and any hit is as good as any other once it is in hand.
+    if (hits.size >= MAX_CACHED) hits.delete(hits.keys().next().value as string);
+    hits.set(uri, got);
+  }
   if (!got) {
     // 404, not 500: the artwork is genuinely not retrievable, and the tile
     // should settle into its placeholder rather than retry forever.
