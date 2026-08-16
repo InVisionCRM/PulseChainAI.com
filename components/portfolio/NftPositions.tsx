@@ -37,6 +37,8 @@ interface Locked {
   amount: string;
   unlocksAt: number | null;
   unlockedNow: number;
+  claimableAmount: string;
+  claim: { method: string; burnsNft: boolean; writeUrl: string } | null;
   read: number;
   complete: boolean;
 }
@@ -69,6 +71,7 @@ interface Meta {
   name: string | null;
   description: string | null;
   image: string | null;
+  externalUrl: string | null;
   traits: { type: string; value: string }[];
 }
 
@@ -230,6 +233,23 @@ function NftDetail({
 
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--line)] pt-3 text-[11px] text-[var(--text-muted)]">
             <span>Token #{instance.id}</span>
+            {/*
+              The project's own link, only when the metadata publishes one.
+              `external_url` is the single website that can be established
+              without a curated list, since the collection authors it itself —
+              most PulseChain collections leave it blank, and a missing link is
+              better than an invented one.
+            */}
+            {meta?.externalUrl && (
+              <a
+                href={meta.externalUrl}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="inline-flex items-center gap-1 text-[var(--text-faint)] hover:text-[var(--text)]"
+              >
+                project site <IconExternalLink className="h-3 w-3" />
+              </a>
+            )}
             <a
               href={explorer(chain, collection)}
               target="_blank"
@@ -261,8 +281,29 @@ function Tile({
   // Set once the <img> itself fails, so the tile drops to its placeholder
   // instead of re-rendering the same broken source forever.
   const [broken, setBroken] = useState(false);
+  const [box, setBox] = useState<HTMLElement | null>(null);
+  const [near, setNear] = useState(false);
+
+  // Art shows without being asked for now, which means a wallet can put many
+  // hundreds of tiles on the page at once. Fetching for all of them would
+  // rebuild the fan-out problem the media proxy was just fixed for, so a tile
+  // only asks for its metadata once it is near the viewport.
+  useEffect(() => {
+    if (!box || near) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setNear(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => entries.some((e) => e.isIntersecting) && setNear(true),
+      { rootMargin: '300px' },
+    );
+    io.observe(box);
+    return () => io.disconnect();
+  }, [box, near]);
 
   useEffect(() => {
+    if (!near) return;
     // Always fetched, even when Blockscout already has a cached image: the
     // image is only part of it, and skipping this when a thumbnail happened to
     // exist was silently costing every such tile its name and its traits.
@@ -283,7 +324,7 @@ function Tile({
     return () => {
       alive = false;
     };
-  }, [chain, collection, instance.id, instance.imageUrl]);
+  }, [chain, collection, instance.id, instance.imageUrl, near]);
 
   // Artwork goes through our proxy so a dead gateway can be retried server-side.
   // Inline (data:) art is already here and needs no fetch at all.
@@ -298,6 +339,7 @@ function Tile({
   return (
     <button
       type="button"
+      ref={setBox}
       onClick={() => onOpen(instance, meta)}
       aria-label={`Open ${title}`}
       className="group relative block w-full overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)] text-left transition-transform duration-150 hover:-translate-y-0.5 hover:border-[var(--text-faint)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text-faint)]">
@@ -322,20 +364,27 @@ function Tile({
       </div>
       <div className="px-2 py-1.5">
         <p className="truncate text-[11px] font-semibold text-[var(--text)]">{title}</p>
+        {/*
+          The id only earns a second line when the title isn't already it —
+          without a name the title falls back to "#2113", and printing the id
+          underneath said the same thing twice.
+        */}
         {meta?.traits?.length ? (
           <p className="truncate text-[10px] text-[var(--text-faint)]">
             {meta.traits.length} trait{meta.traits.length === 1 ? '' : 's'}
           </p>
-        ) : (
+        ) : meta?.name ? (
           <p className="truncate text-[10px] text-[var(--text-faint)]">#{instance.id}</p>
-        )}
+        ) : null}
       </div>
     </button>
   );
 }
 
 function CollectionCard({ chain, c }: { chain: ChainId; c: Collection }) {
-  const [open, setOpen] = useState(false);
+  // Open by default — the art is the point of the tab, and making people click
+  // to see it hid the one thing they came for.
+  const [open, setOpen] = useState(true);
   const [opened, setOpened] = useState<{ instance: Instance; meta: Meta | null } | null>(null);
   const name = c.name ?? c.symbol ?? 'Unnamed collection';
   const share =
@@ -386,6 +435,38 @@ function CollectionCard({ chain, c }: { chain: ChainId; c: Collection }) {
                 ? ''
                 : 'no unlock date published'}
           </p>
+          {c.locked.claim && Number(c.locked.claimableAmount) > 0 && (
+            <div className="mt-2 rounded-lg border border-emerald-400/40 bg-emerald-400/10 p-2">
+              <p className="text-[12px] font-bold text-emerald-200">
+                {prettyAmount(c.locked.claimableAmount)} {c.locked.symbol ?? ''} can be taken out now
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
+                Call{' '}
+                <code className="rounded bg-black/30 px-1 py-0.5 text-[10px] text-[var(--text)]">
+                  {c.locked.claim.method}
+                </code>{' '}
+                on the contract, once per NFT.
+                {/*
+                  Said outright, because it is the cost of the action and the
+                  contract does not warn anyone: the override transfers the
+                  tokens and then destroys the token that held them.
+                */}
+                {c.locked.claim.burnsNft && (
+                  <> This <span className="font-semibold text-amber-300">destroys the NFT</span> — the
+                  tokens come back, the collectible does not.</>
+                )}
+              </p>
+              <a
+                href={c.locked.claim.writeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-300 hover:underline"
+              >
+                Open the contract to do it <IconExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          )}
+
           {!c.locked.complete && (
             // Never let a partial sum read as a balance.
             <p className="mt-1 text-[10px] text-amber-300">
@@ -436,7 +517,7 @@ function CollectionCard({ chain, c }: { chain: ChainId; c: Collection }) {
             className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)]"
           >
             <IconChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
-            {open ? 'Hide' : `Show ${Math.min(c.instances.length, c.count)}`}
+            {open ? 'Hide art' : `Show ${Math.min(c.instances.length, c.count)}`}
           </button>
           {open && (
             <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">

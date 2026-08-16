@@ -91,6 +91,56 @@ export async function nftKind(chain: ChainId, address: string): Promise<NftKind>
   };
 }
 
+/**
+ * How a vault NFT gives its tokens back.
+ *
+ * Read from PulseBitcoinLockNFT's verified source rather than assumed. It has
+ * no `claim` or `withdraw`; the release path is ERC721Burnable's `burn`, which
+ * the contract overrides:
+ *
+ *   function _burn(uint256 tokenId) internal override {
+ *     require(block.timestamp >= lockTime[tokenId], "Token is in locked state");
+ *     uint amountToTransfer = tokenIdsToAmounts[tokenId];
+ *     tokenIdsToAmounts[tokenId] = 0;
+ *     super._burn(tokenId);
+ *     IERC20(token).transfer(msg.sender, amountToTransfer);
+ *   }
+ *
+ * Two things follow that a holder needs told: the call only succeeds once the
+ * lock has expired, and it **destroys the NFT** — the tokens come back and the
+ * collectible does not. A UI that says "claim" without saying that is hiding
+ * the cost of the action.
+ */
+export interface ClaimRoute {
+  /** Solidity signature the holder (or an approved operator) calls. */
+  method: string;
+  /** Whether calling it destroys the NFT. */
+  burnsNft: boolean;
+}
+
+/**
+ * The release route for a vault contract, or null when we can't establish one.
+ *
+ * Deliberately conservative: it only reports a route it has actually seen in
+ * the contract's own ABI. Guessing a method name would send someone to a call
+ * that reverts, or worse, to one that does something else.
+ */
+export function claimRoute(abi: { type?: string; name?: string; inputs?: unknown[] }[]): ClaimRoute | null {
+  const fns = abi.filter((f) => f?.type === 'function');
+  const burn = fns.find((f) => f.name === 'burn' && (f.inputs?.length ?? 0) === 1);
+  if (burn) return { method: 'burn(uint256 tokenId)', burnsNft: true };
+  // Other vaults may expose a plain withdraw/claim; report it only if it's there.
+  const direct = fns.find((f) => ['withdraw', 'claim', 'unlock', 'redeem'].includes(f.name ?? ''));
+  if (direct) {
+    const args = (direct.inputs ?? []) as { type?: string; name?: string }[];
+    return {
+      method: `${direct.name}(${args.map((a) => `${a.type} ${a.name ?? ''}`.trim()).join(', ')})`,
+      burnsNft: false,
+    };
+  }
+  return null;
+}
+
 export interface LockedValue {
   /** The ERC-20 the NFT is a claim on. */
   token: string;
