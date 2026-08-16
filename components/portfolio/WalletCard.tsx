@@ -18,6 +18,7 @@ import { WalletActionsMenu } from '@/components/portfolio/WalletActionsMenu';
 import { ActivityFeed } from '@/components/portfolio/ActivityFeed';
 import { ProtocolPositions } from '@/components/portfolio/ProtocolPositions';
 import { LpPositions, type V2LpRow } from '@/components/portfolio/LpPositions';
+import NftPositions from '@/components/portfolio/NftPositions';
 import { HexStakes } from '@/components/portfolio/HexStakes';
 import { WalletConnections } from '@/components/portfolio/WalletConnections';
 import { WalletRelated } from '@/components/portfolio/WalletRelated';
@@ -89,7 +90,7 @@ export function WalletCard({ wallet }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(wallet.label ?? '');
-  const [view, setView] = useState<'tokens' | 'lp' | 'activity' | 'defi' | 'staking' | 'connections' | 'funding' | 'bridge'>('tokens');
+  const [view, setView] = useState<'tokens' | 'lp' | 'nfts' | 'activity' | 'defi' | 'staking' | 'connections' | 'funding' | 'bridge'>('tokens');
   const [connView, setConnView] = useState<'list' | 'graph'>('list');
   const [sortKey, setSortKey] = useState<SortKey>('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -416,6 +417,15 @@ export function WalletCard({ wallet }: Props) {
             </button>
             <button
               type="button"
+              onClick={() => setView('nfts')}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                view === 'nfts' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              NFTs
+            </button>
+            <button
+              type="button"
               onClick={() => setView('activity')}
               className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
                 view === 'activity' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
@@ -476,6 +486,8 @@ export function WalletCard({ wallet }: Props) {
             <ActivityFeed walletAddress={wallet.address} chains={wallet.chains} />
           ) : view === 'lp' ? (
             <LpPositions walletAddress={wallet.address} chains={wallet.chains} v2={lpTokens} />
+          ) : view === 'nfts' ? (
+            <NftPositions walletAddress={wallet.address} chains={wallet.chains} />
           ) : view === 'defi' ? (
             <ProtocolPositions walletAddress={wallet.address} chains={wallet.chains} />
           ) : view === 'staking' ? (
