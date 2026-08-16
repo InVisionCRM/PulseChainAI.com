@@ -21,7 +21,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IconRefresh, IconPhoto, IconLock, IconExternalLink, IconChevronDown, IconX } from '@tabler/icons-react';
 import type { ChainId } from '@/services';
-import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
+import { pulsechainAddressUrl, pulsechainWriteContractUrl } from '@/lib/pulsechainExplorer';
+import { identicon } from '@/lib/identicon';
 
 interface Kind {
   erc721: boolean;
@@ -114,6 +115,44 @@ function whenUnlocks(ts: number): string {
 }
 
 /**
+ * Stand-in art for an NFT whose own artwork can't be fetched.
+ *
+ * Drawn from the contract address and token id, so a given NFT always gets the
+ * same picture and two of them never collide. It replaces a grid of identical
+ * grey placeholders, which looked broken and made a wallet's tokens impossible
+ * to tell apart.
+ *
+ * It is always labelled. Generated art that isn't marked would be mistaken for
+ * the real thing, and telling someone their NFT looks like something it does
+ * not is worse than showing them nothing.
+ */
+function GeneratedArt({ seed, rounded = false }: { seed: string; rounded?: boolean }) {
+  const { cells, size, colors } = useMemo(() => identicon(seed), [seed]);
+  return (
+    <svg
+      viewBox={`0 0 ${size} ${size}`}
+      className={`h-full w-full ${rounded ? 'rounded-xl' : ''}`}
+      // Nearest-neighbour keeps the squares square instead of smearing them.
+      style={{ imageRendering: 'pixelated', background: colors[0] }}
+      aria-hidden
+    >
+      {Array.from(cells).map((v, i) =>
+        v === 0 ? null : (
+          <rect
+            key={i}
+            x={i % size}
+            y={Math.floor(i / size)}
+            width={1}
+            height={1}
+            fill={colors[v]}
+          />
+        ),
+      )}
+    </svg>
+  );
+}
+
+/**
  * The opened NFT: big artwork and every trait it publishes.
  *
  * Portalled to <body> rather than rendered in place. The portfolio page puts a
@@ -193,12 +232,17 @@ function NftDetail({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={src} alt={title} className="h-full w-full object-contain" />
             ) : (
-              <div className="flex flex-col items-center gap-1.5">
-                <IconPhoto className="h-7 w-7 text-[var(--text-faint)]" />
-                <span className="text-[11px] text-[var(--text-faint)]">no artwork found</span>
-              </div>
+              <GeneratedArt seed={`${collection}:${instance.id}`} rounded />
             )}
           </div>
+
+          {!src && (
+            <p className="mt-2 text-[11px] text-[var(--text-faint)]">
+              This one&apos;s artwork couldn&apos;t be fetched — its metadata is unreachable or
+              unpinned. The picture above is generated from the token&apos;s address and id, not the
+              collection&apos;s art.
+            </p>
+          )}
 
           {meta?.description && (
             <p className="mt-3 text-[12px] leading-relaxed text-[var(--text-muted)]">{meta.description}</p>
@@ -353,11 +397,20 @@ function Tile({
             className="h-full w-full object-cover"
             onError={() => setBroken(true)}
           />
-        ) : (
+        ) : state === 'loading' && !broken ? (
           <div className="flex flex-col items-center gap-1 px-2 text-center">
             <IconPhoto className="h-5 w-5 text-[var(--text-faint)]" />
-            <span className="text-[9px] leading-tight text-[var(--text-faint)]">
-              {state === 'loading' && !broken ? 'loading…' : 'no artwork found'}
+            <span className="text-[9px] leading-tight text-[var(--text-faint)]">loading…</span>
+          </div>
+        ) : (
+          <div className="relative h-full w-full">
+            <GeneratedArt seed={`${collection}:${instance.id}`} />
+            {/* Never unmarked — see GeneratedArt. */}
+            <span
+              className="absolute bottom-1 right-1 rounded bg-black/60 px-1 py-px text-[8px] font-semibold uppercase tracking-wider text-white/80"
+              title="Artwork couldn't be fetched; this picture is generated from the token id"
+            >
+              generated
             </span>
           </div>
         )}
