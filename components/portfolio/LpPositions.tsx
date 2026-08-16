@@ -41,7 +41,16 @@ export interface V2LpRow {
     pairAddress?: string;
     dexId?: string | null;
     userShare: number;
-    sides: { symbol: string; amount: number; valueUsd?: number }[];
+    // Mirrors LpUnderlying in services/core/types.ts. It said `amount` here
+    // before, which does not exist on the real object — so every side amount
+    // rendered as a dash — and it omitted weightPct entirely, which is why the
+    // pair weighting disappeared when LP moved to its own tab.
+    sides: {
+      symbol: string;
+      amountFormatted: number;
+      valueUsd?: number;
+      weightPct: number;
+    }[];
   };
 }
 
@@ -55,6 +64,51 @@ const DEX_LABEL: Record<string, string> = {
   sushiswap: 'SushiSwap', pancakeswap: 'PancakeSwap',
 };
 
+/**
+ * The split of value across a pair, drawn.
+ *
+ * A number alone ("50.2% / 49.8%") makes you read and compare; the bar shows
+ * imbalance at a glance, which is the thing that actually matters — a pool
+ * drifting to 80/20 means one side has been sold into heavily.
+ *
+ * Falls back to nothing rather than guessing when the weights don't add up:
+ * an unpriced side leaves weightPct at whatever the reserves implied, and half
+ * a bar is worse than no bar.
+ */
+function WeightBar({ sides }: { sides: { symbol: string; weightPct: number | null | undefined }[] }) {
+  if (sides.length !== 2 || sides.some((s) => s.weightPct == null || !Number.isFinite(s.weightPct))) {
+    return null;
+  }
+  const total = sides.reduce((sum, s) => sum + (s.weightPct as number), 0);
+  if (total <= 0) return null;
+  // Normalised, so a pair whose weights sum to 99.7 still fills the bar.
+  const pct = sides.map((s) => ((s.weightPct as number) / total) * 100);
+  const COLORS = ['#22d3ee', '#f59e0b']; // cyan-400, amber-500
+
+  return (
+    <div className="mt-2">
+      <div className="flex h-2 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
+        {pct.map((p, i) => (
+          <div
+            key={sides[i].symbol}
+            style={{ width: `${p}%`, background: COLORS[i] }}
+            className="h-full first:rounded-l-full last:rounded-r-full"
+          />
+        ))}
+      </div>
+      <div className="mt-1 flex items-center justify-between text-[11px]">
+        {pct.map((p, i) => (
+          <span key={sides[i].symbol} className="flex items-center gap-1.5 tabular-nums">
+            <span className="h-2 w-2 rounded-full" style={{ background: COLORS[i] }} />
+            <span className="font-semibold text-[var(--text)]">{p.toFixed(1)}%</span>
+            <span className="text-[var(--text-faint)]">{sides[i].symbol}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Badge({ children, tone = 'plain' }: { children: React.ReactNode; tone?: 'plain' | 'good' | 'warn' }) {
   const cls =
     tone === 'good' ? 'border-emerald-400/40 text-emerald-300'
@@ -65,6 +119,23 @@ function Badge({ children, tone = 'plain' }: { children: React.ReactNode; tone?:
       {children}
     </span>
   );
+}
+
+/**
+ * Weights for a scanned position, from what each side is worth.
+ *
+ * V2 LP tokens arrive with weightPct already computed from pool reserves; a
+ * scanned position doesn't, but it does carry a USD value per side, which is
+ * the same thing. Returns nulls when a side isn't priced — half a weighting is
+ * worse than none, and WeightBar declines to draw it.
+ */
+function sideWeights(u: UnderlyingAsset[]): { symbol: string; weightPct: number | null }[] {
+  const total = u.reduce((sum, s) => sum + (s.valueUsd ?? 0), 0);
+  const allPriced = u.every((s) => s.valueUsd != null);
+  return u.map((s) => ({
+    symbol: s.symbol,
+    weightPct: allPriced && total > 0 ? ((s.valueUsd as number) / total) * 100 : null,
+  }));
 }
 
 /** Fees priced off the position's own underlying, so no extra price lookup. */
@@ -183,7 +254,7 @@ export function LpPositions({
             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[var(--text-muted)]">
               {sides.map((s) => (
                 <span key={s.symbol} className="tabular-nums">
-                  {fmtAmount(s.amount)} <span className="text-[var(--text-faint)]">{s.symbol}</span>
+                  {fmtAmount(s.amountFormatted)} <span className="text-[var(--text-faint)]">{s.symbol}</span>
                 </span>
               ))}
               {t.lp?.userShare != null && (
@@ -192,6 +263,7 @@ export function LpPositions({
                 </span>
               )}
             </div>
+            <WeightBar sides={sides} />
             {t.lp?.pairAddress && (
               <LpPositionRow
                 pair={t.lp.pairAddress}
@@ -235,6 +307,7 @@ export function LpPositions({
               </span>
             ))}
           </div>
+          <WeightBar sides={sideWeights(pos.underlying)} />
         </div>
       ))}
 
@@ -264,6 +337,12 @@ export function LpPositions({
                 </span>
               ))}
             </div>
+            {/*
+              Worth the most on a V3 position: a concentrated range drifts to
+              one side as price moves through it, and an out-of-range position
+              is 100/0. The split is the fastest read of where it sits.
+            */}
+            <WeightBar sides={sideWeights(pos.underlying)} />
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[var(--line)] pt-2 text-[12px]">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-faint)]">
                 Uncollected fees

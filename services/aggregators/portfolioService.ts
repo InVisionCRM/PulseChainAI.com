@@ -235,15 +235,23 @@ function applyPrice(token: PortfolioToken, priceUsd: number, change24h?: number 
   };
 }
 
+/**
+ * Prices keyed `address:chain`.
+ *
+ * The chain has to travel with the address. PulseChain forked Ethereum's state,
+ * so the same address is a different token on each — pDAI trades at $0.002 on
+ * PulseChain while Ethereum's DAI sits at $1, and asking without a chain got
+ * the deeper Ethereum pair and called it a dollar.
+ */
 async function fetchPriceMap(
-  addresses: string[],
+  requests: { address: string; chain: ChainId }[],
 ): Promise<Record<string, PriceProxyEntry>> {
-  if (addresses.length === 0) return {};
+  if (requests.length === 0) return {};
   try {
     const res = await fetch(PRICE_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ addresses }),
+      body: JSON.stringify({ addresses: requests }),
     });
     if (!res.ok) return {};
     const data = (await res.json()) as { prices?: Record<string, PriceProxyEntry> };
@@ -254,12 +262,16 @@ async function fetchPriceMap(
 }
 
 async function enrichWithPrices(tokens: PortfolioToken[]): Promise<PortfolioToken[]> {
-  const addresses = new Set<string>();
+  const wanted = new Map<string, { address: string; chain: ChainId }>();
+  const want = (address: string, chain: ChainId) => {
+    const a = address.toLowerCase();
+    wanted.set(`${a}:${chain}`, { address: a, chain });
+  };
   for (const t of tokens) {
     // Native PLS/ETH aren't tradable as themselves on DEXes; piggy-back on
     // the wrapped equivalent (1 PLS ≡ 1 WPLS, 1 ETH ≡ 1 WETH).
-    if (t.isNative) addresses.add(WRAPPED_NATIVE[t.chain]);
-    else addresses.add(t.address.toLowerCase());
+    if (t.isNative) want(WRAPPED_NATIVE[t.chain], t.chain);
+    else want(t.address, t.chain);
 
     // Also include underlying LP sides — when a pair isn't on DexScreener,
     // the LP route returns null prices, but each side is typically still
@@ -267,17 +279,19 @@ async function enrichWithPrices(tokens: PortfolioToken[]): Promise<PortfolioToke
     // and logos.
     if (t.lp) {
       for (const side of t.lp.sides) {
-        if (side.address) addresses.add(side.address.toLowerCase());
+        if (side.address) want(side.address, t.chain);
       }
     }
   }
 
-  const priceMap = await fetchPriceMap([...addresses]);
+  const priceMap = await fetchPriceMap([...wanted.values()]);
+  const priceFor = (address: string, chain: ChainId) =>
+    priceMap[`${address.toLowerCase()}:${chain}`];
 
   const lookupPriceFor = (token: PortfolioToken) =>
     token.isNative
-      ? priceMap[WRAPPED_NATIVE[token.chain]]
-      : priceMap[token.address.toLowerCase()];
+      ? priceFor(WRAPPED_NATIVE[token.chain], token.chain)
+      : priceFor(token.address, token.chain);
 
   return tokens.map((t) => {
     const entry = lookupPriceFor(t);
@@ -299,7 +313,7 @@ async function enrichWithPrices(tokens: PortfolioToken[]): Promise<PortfolioToke
     // no DexScreener price, the sides may.
     if (t.lp) {
       const sides = t.lp.sides.map((side) => {
-        const sideEntry = priceMap[side.address.toLowerCase()];
+        const sideEntry = priceFor(side.address, t.chain);
         if (!sideEntry) return side;
         const priceUsd = side.priceUsd ?? (sideEntry.priceUsd ?? undefined);
         const valueUsd =

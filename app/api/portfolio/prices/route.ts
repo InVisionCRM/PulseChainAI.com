@@ -32,7 +32,9 @@ interface PriceEntry {
 // is just a smoothing layer between rapid portfolio refreshes.
 const priceCache = new Map<string, PriceEntry>();
 
-const cacheKey = (address: string) => address.toLowerCase();
+// Keyed by chain as well as address, because the same address is a different
+// token on each chain — see pickBestPair.
+const cacheKey = (address: string, chain?: string) => `${address.toLowerCase()}:${chain ?? ''}`;
 
 // DexScreener returns a Cloudflare HTML challenge for fetches without a real
 // User-Agent (status 200 + content-type text/html instead of json), so the
@@ -58,13 +60,31 @@ async function fetchWithTimeout(url: string): Promise<Response> {
   }
 }
 
-function pickBestPair(pairs: any[], address: string): any | null {
+/**
+ * Pick the pair to price a token from — on the right chain.
+ *
+ * The chain filter is the whole point. PulseChain forked Ethereum's state, so
+ * the same address exists on both, and picking by liquidity alone always lands
+ * on Ethereum because Ethereum is deeper. That priced the forked PulseChain
+ * tokens as their Ethereum namesakes:
+ *
+ *   pDAI  0x6b17…1d0f — actually trades at $0.002142 on PulseChain
+ *                       ($100k of liquidity), was shown as $1.
+ *   pLUSD 0x5f98…8ba0 — has NO PulseChain pairs at all, so every pair on
+ *                       offer was Ethereum's, and it too was shown as $1.
+ *
+ * Both are "stablecoins" in name only here, and a wallet holding them was told
+ * it had dollars. With no chain given the old behaviour stands, so a caller
+ * that genuinely wants the best pair anywhere still gets it.
+ */
+function pickBestPair(pairs: any[], address: string, chain?: string): any | null {
   if (!Array.isArray(pairs) || pairs.length === 0) return null;
   const target = address.toLowerCase();
 
   // Prefer pairs where the requested address is baseToken (we get its direct
   // priceUsd that way), and among those prefer the highest USD liquidity.
   const candidates = pairs.filter((p) => {
+    if (chain && p?.chainId !== chain) return false;
     const base = p?.baseToken?.address?.toLowerCase();
     const quote = p?.quoteToken?.address?.toLowerCase();
     return base === target || quote === target;
@@ -78,8 +98,8 @@ function pickBestPair(pairs: any[], address: string): any | null {
   return withLiquidity[0]?.pair ?? candidates[0] ?? null;
 }
 
-function entryFromDexResponse(address: string, data: any): PriceEntry {
-  const pair = pickBestPair(data?.pairs || [], address);
+function entryFromDexResponse(address: string, data: any, chain?: string): PriceEntry {
+  const pair = pickBestPair(data?.pairs || [], address, chain);
   if (!pair) {
     return {
       priceUsd: null,
@@ -122,8 +142,8 @@ function entryFromDexResponse(address: string, data: any): PriceEntry {
   };
 }
 
-async function fetchPrice(address: string): Promise<PriceEntry> {
-  const key = cacheKey(address);
+async function fetchPrice({ address, chain }: PriceRequest): Promise<PriceEntry> {
+  const key = cacheKey(address, chain);
   const cached = priceCache.get(key);
   // Don't trust cached entries whose lookup produced nothing — DexScreener
   // returns the same shape for "no pairs yet" and "blocked by Cloudflare",
@@ -135,23 +155,23 @@ async function fetchPrice(address: string): Promise<PriceEntry> {
   try {
     const res = await fetchWithTimeout(`${DEX_TOKENS_URL}/${address}`);
     if (!res.ok) {
-      const empty = entryFromDexResponse(address, { pairs: [] });
+      const empty = entryFromDexResponse(address, { pairs: [] }, chain);
       priceCache.set(key, empty);
       return empty;
     }
     const ct = res.headers.get('content-type') || '';
     if (!ct.includes('application/json')) {
       // Cloudflare challenge page or some other non-JSON response.
-      const empty = entryFromDexResponse(address, { pairs: [] });
+      const empty = entryFromDexResponse(address, { pairs: [] }, chain);
       priceCache.set(key, empty);
       return empty;
     }
     const data = await res.json();
-    const entry = entryFromDexResponse(address, data);
+    const entry = entryFromDexResponse(address, data, chain);
     priceCache.set(key, entry);
     return entry;
   } catch {
-    const empty = entryFromDexResponse(address, { pairs: [] });
+    const empty = entryFromDexResponse(address, { pairs: [] }, chain);
     priceCache.set(key, empty);
     return empty;
   }
@@ -167,20 +187,43 @@ async function runBatched<T, R>(items: T[], size: number, fn: (item: T) => Promi
   return out;
 }
 
-function parseAddresses(input: unknown): string[] {
+interface PriceRequest {
+  address: string;
+  /** DexScreener chain slug, e.g. 'pulsechain'. Omitted = search every chain. */
+  chain?: string;
+}
+
+/**
+ * Accepts `["0x…"]` or `[{address, chain}]`.
+ *
+ * The bare-string form is kept because other callers (the watchlist store) use
+ * it and are chain-agnostic by design; they simply keep the old behaviour.
+ * Results are keyed `address:chain` so a wallet holding the same address on two
+ * chains gets two prices instead of one of them overwriting the other.
+ */
+function parseRequests(input: unknown): PriceRequest[] {
   if (!Array.isArray(input)) return [];
   const seen = new Set<string>();
-  const out: string[] = [];
-  for (const a of input) {
-    if (typeof a !== 'string') continue;
-    const addr = a.trim().toLowerCase();
-    if (!/^0x[a-f0-9]{40}$/.test(addr)) continue;
-    if (seen.has(addr)) continue;
-    seen.add(addr);
-    out.push(addr);
+  const out: PriceRequest[] = [];
+  for (const raw of input) {
+    const addr = (typeof raw === 'string' ? raw : raw?.address);
+    if (typeof addr !== 'string') continue;
+    const address = addr.trim().toLowerCase();
+    if (!/^0x[a-f0-9]{40}$/.test(address)) continue;
+    const chain =
+      typeof raw === 'object' && raw && typeof raw.chain === 'string' && raw.chain.trim()
+        ? raw.chain.trim()
+        : undefined;
+    const key = `${address}:${chain ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ address, chain });
   }
   return out;
 }
+
+/** Response key. Chainless requests keep the plain address they asked with. */
+const responseKey = (r: PriceRequest) => (r.chain ? `${r.address}:${r.chain}` : r.address);
 
 export async function POST(req: NextRequest) {
   let body: any;
@@ -190,15 +233,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 });
   }
 
-  const addresses = parseAddresses(body?.addresses);
-  if (addresses.length === 0) {
+  const requests = parseRequests(body?.addresses);
+  if (requests.length === 0) {
     return NextResponse.json({ prices: {} });
   }
 
-  const entries = await runBatched(addresses, CONCURRENCY, fetchPrice);
+  const entries = await runBatched(requests, CONCURRENCY, fetchPrice);
   const map: Record<string, PriceEntry> = {};
-  addresses.forEach((addr, i) => {
-    map[addr] = entries[i];
+  requests.forEach((r, i) => {
+    map[responseKey(r)] = entries[i];
   });
 
   return NextResponse.json({ prices: map }, {
