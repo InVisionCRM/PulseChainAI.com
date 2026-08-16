@@ -17,6 +17,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { ChainId } from '@/services';
 import { getCode, ethCall } from '@/lib/portfolio/evmRpc';
 import { nftKind, lockedValue, SEL } from '@/lib/portfolio/nftKinds';
+import { mintraFloors } from '@/lib/portfolio/nftFloors';
+import { fetchUsdPrices } from '@/lib/portfolio/dexPrices';
+import { getChain } from '@/lib/chains/registry';
 
 export const revalidate = 0;
 export const maxDuration = 60;
@@ -123,6 +126,20 @@ async function idsByCollection(base: string, owner: string): Promise<Map<string,
   return byCollection;
 }
 
+/**
+ * USD per unit of the chain's native coin, via its wrapped ERC-20.
+ *
+ * PLS itself has no address to price, so the wrapped token stands in for it —
+ * WPLS is redeemable 1:1, so its price is the coin's. The address comes from
+ * the chain registry rather than being written here.
+ */
+async function nativeUsd(chain: ChainId): Promise<number | null> {
+  const wrapped = getChain(chain)?.wrappedNative;
+  if (!wrapped) return null;
+  const prices = await fetchUsdPrices([wrapped], chain);
+  return prices.get(wrapped.toLowerCase()) ?? null;
+}
+
 export interface NftInstanceLite {
   id: string;
   /** Blockscout's cached image, when it has one — often null on PulseChain. */
@@ -172,6 +189,22 @@ export interface NftCollection {
      */
     complete: boolean;
   } | null;
+  /**
+   * Lowest live ask on Mintra, when the collection has one.
+   *
+   * A secondary signal, and shown as one. It is the cheapest thing a single
+   * seller currently wants, on one marketplace that much of PulseChain does not
+   * use — not a valuation, and deliberately never multiplied by `count`. Null
+   * means nothing is listed, which is the normal case here and says nothing
+   * about worth.
+   */
+  floor: {
+    pls: number;
+    usd: number | null;
+    listed: number;
+    /** Live listings priced in some other token, excluded from `pls`. */
+    otherCurrency: number;
+  } | null;
   instances: NftInstanceLite[];
 }
 
@@ -193,7 +226,13 @@ export async function GET(req: NextRequest) {
   }
 
   const raw: any[] = Array.isArray(data.items) ? data.items.slice(0, MAX_COLLECTIONS) : [];
-  const heldIds = await idsByCollection(base, address);
+  const [heldIds, floors, plsUsd] = await Promise.all([
+    idsByCollection(base, address),
+    // Never let the marketplace or the price feed take the NFT list down with
+    // them — both are extras layered on top of chain data.
+    mintraFloors(chain).catch(() => new Map()),
+    nativeUsd(chain).catch(() => null),
+  ]);
 
   const collections = await mapLimit(raw, 4, async (row): Promise<NftCollection | null> => {
     const token = row?.token ?? {};
@@ -265,6 +304,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const f = floors.get(addr.toLowerCase());
+    const floorPls = f && f.floorWei > 0n ? Number(f.floorWei) / 1e18 : null;
+
     return {
       address: addr,
       name: token.name ?? null,
@@ -276,6 +318,15 @@ export async function GET(req: NextRequest) {
       kind,
       alsoOnEthereum: !!ethCode && ethCode.length > 2,
       locked,
+      floor:
+        floorPls == null
+          ? null
+          : {
+              pls: floorPls,
+              usd: plsUsd != null ? floorPls * plsUsd : null,
+              listed: f!.listed,
+              otherCurrency: f!.otherCurrency,
+            },
       instances,
     };
   });
