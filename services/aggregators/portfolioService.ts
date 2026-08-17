@@ -319,7 +319,14 @@ async function enrichWithPrices(tokens: PortfolioToken[]): Promise<PortfolioToke
         const valueUsd =
           priceUsd != null ? side.amountFormatted * priceUsd : side.valueUsd;
         const logoURI = side.logoURI ?? sideEntry.logoURI ?? undefined;
-        return { ...side, priceUsd, valueUsd, logoURI };
+        // Second chance at a name. The LP route reads symbols off the pair's
+        // token contracts, but a side can still arrive unknown; DexScreener
+        // often knows the token on its own even when it has no entry for the
+        // pair. This pass used to fill price and logo only, which is why an
+        // unnamed side stayed unnamed all the way to the card.
+        const symbol = side.symbol && side.symbol !== '???' ? side.symbol : sideEntry.symbol || side.symbol;
+        const name = side.name && side.name !== 'Unknown' ? side.name : sideEntry.name || side.name;
+        return { ...side, priceUsd, valueUsd, logoURI, symbol, name };
       }) as typeof t.lp.sides;
 
       // Recompute weights from the now-fully-priced reserves where possible.
@@ -336,10 +343,20 @@ async function enrichWithPrices(tokens: PortfolioToken[]): Promise<PortfolioToke
           })) as typeof t.lp.sides)
         : sides;
 
-      // If the LP route didn't have a totalLiquidityUsd or userValueUsd,
-      // derive them from the now-priced sides.
-      const userValueUsd =
-        t.lp.userValueUsd ?? (weighted[0].valueUsd ?? 0) + (weighted[1].valueUsd ?? 0);
+      // If the LP route didn't have a userValueUsd, derive one from the
+      // now-priced sides — but only if a side actually has a price.
+      //
+      // `(undefined ?? 0) + (undefined ?? 0)` is 0, which turned "we could not
+      // price this" into a confident $0 on the card. Unlisted pairs hit this
+      // constantly, and a position showing $0 above a panel reporting it is
+      // currently worth $17.54 is the kind of contradiction that makes the
+      // whole number untrustworthy. Undefined reaches the UI as "—".
+      const pricedSideTotal = weighted.reduce(
+        (sum, side) => (side.valueUsd != null ? sum + side.valueUsd : sum),
+        0,
+      );
+      const anySidePriced = weighted.some((side) => side.valueUsd != null);
+      const userValueUsd = t.lp.userValueUsd ?? (anySidePriced ? pricedSideTotal : undefined);
 
       next = {
         ...t,

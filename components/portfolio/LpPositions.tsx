@@ -155,6 +155,10 @@ function feesUsd(p: ProtocolPosition): number | null {
 export function LpPositions({
   walletAddress, chains, v2,
 }: { walletAddress: string; chains: ChainId[]; v2: V2LpRow[] }) {
+  // Values reconstructed by LpPositionRow from PulseX history, keyed by pair.
+  // The header has no price for a pair DexScreener never listed; this panel
+  // can still work one out, so the card borrows it rather than showing nothing.
+  const [reconstructed, setReconstructed] = useState<Record<string, number>>({});
   const [v3, setV3] = useState<{ pos: ProtocolPosition; chain: ChainId }[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
@@ -248,7 +252,11 @@ export function LpPositions({
                 <IconExternalLink className="h-3.5 w-3.5" />
               </a>
               <span className="ml-auto tabular-nums text-sm font-bold text-[var(--text)]">
-                {t.valueUsd != null ? fmtUsd(t.valueUsd) : '—'}
+                {t.valueUsd != null
+                  ? fmtUsd(t.valueUsd)
+                  : t.lp?.pairAddress && reconstructed[t.lp.pairAddress.toLowerCase()] != null
+                    ? fmtUsd(reconstructed[t.lp.pairAddress.toLowerCase()])
+                    : '—'}
               </span>
             </div>
             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[var(--text-muted)]">
@@ -270,6 +278,13 @@ export function LpPositions({
                 wallet={walletAddress}
                 chain={t.chain}
                 balance={t.balanceFormatted}
+                onCurrentValue={(usd) =>
+                  setReconstructed((prev) =>
+                    prev[t.lp!.pairAddress!.toLowerCase()] === usd
+                      ? prev
+                      : { ...prev, [t.lp!.pairAddress!.toLowerCase()]: usd },
+                  )
+                }
               />
             )}
           </div>
