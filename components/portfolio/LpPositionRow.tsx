@@ -56,8 +56,23 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'up
 }
 
 export default function LpPositionRow({
-  pair, wallet, chain, balance,
-}: { pair: string; wallet: string; chain: string; balance: number }) {
+  pair, wallet, chain, balance, onCurrentValue,
+}: {
+  pair: string;
+  wallet: string;
+  chain: string;
+  balance: number;
+  /**
+   * Reports the position's current USD value up to the card.
+   *
+   * This panel reconstructs the value from PulseX subgraph history, which
+   * works for pairs DexScreener has never listed — exactly the pairs whose
+   * card header has no price to show. Without this the header said "—" (or,
+   * before, a fabricated $0) directly above a panel stating the position is
+   * worth $17.54.
+   */
+  onCurrentValue?: (usd: number) => void;
+}) {
   const [data, setData] = useState<LpPosition | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'empty'>('idle');
 
@@ -73,9 +88,15 @@ export default function LpPositionRow({
         if (!d.supported || !d.hasHistory) { setStatus('empty'); return; }
         setData(d);
         setStatus('ready');
+        if (d.currentValueUsd != null && Number.isFinite(d.currentValueUsd)) {
+          onCurrentValue?.(d.currentValueUsd);
+        }
       })
       .catch(() => alive && setStatus('empty'));
     return () => { alive = false; };
+    // onCurrentValue is deliberately not a dependency: callers pass an inline
+    // closure, and including it would refetch on every parent render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pair, wallet, chain, balance]);
 
   // Nothing to add for non-PulseChain LPs, transfer-only positions, or failures.

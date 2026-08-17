@@ -343,10 +343,20 @@ async function enrichWithPrices(tokens: PortfolioToken[]): Promise<PortfolioToke
           })) as typeof t.lp.sides)
         : sides;
 
-      // If the LP route didn't have a totalLiquidityUsd or userValueUsd,
-      // derive them from the now-priced sides.
-      const userValueUsd =
-        t.lp.userValueUsd ?? (weighted[0].valueUsd ?? 0) + (weighted[1].valueUsd ?? 0);
+      // If the LP route didn't have a userValueUsd, derive one from the
+      // now-priced sides — but only if a side actually has a price.
+      //
+      // `(undefined ?? 0) + (undefined ?? 0)` is 0, which turned "we could not
+      // price this" into a confident $0 on the card. Unlisted pairs hit this
+      // constantly, and a position showing $0 above a panel reporting it is
+      // currently worth $17.54 is the kind of contradiction that makes the
+      // whole number untrustworthy. Undefined reaches the UI as "—".
+      const pricedSideTotal = weighted.reduce(
+        (sum, side) => (side.valueUsd != null ? sum + side.valueUsd : sum),
+        0,
+      );
+      const anySidePriced = weighted.some((side) => side.valueUsd != null);
+      const userValueUsd = t.lp.userValueUsd ?? (anySidePriced ? pricedSideTotal : undefined);
 
       next = {
         ...t,
