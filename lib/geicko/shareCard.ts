@@ -702,7 +702,18 @@ const paint: Record<string, Painter> = {
     text(c, `Who holds ${d.symbol}`, CARD_W / 2, 224, {
       size: 40, weight: 700, color: TX_MID, align: 'center',
     });
-    text(c, l.totalHolders ? `${nf(l.totalHolders)} holders, by size of stack` : 'holders by size of stack',
+    // The ladder's lowest rung has a floor (Crab, 0.00001% of supply), so
+    // holders below it belong to no tier — the API's bandOf() returns -1 for
+    // them. They are still in totalHolders, which is why the seven rows can sum
+    // to far less than the headline count: SCADA showed 2,553 holders over
+    // rows adding to 687. Both numbers are stated so the gap is visible instead
+    // of looking like rows that lost people.
+    const ranked = l.bands.reduce((sum, b) => sum + b.count, 0);
+    const unranked = l.totalHolders != null ? Math.max(0, l.totalHolders - ranked) : null;
+    text(c,
+      l.totalHolders
+        ? `${nf(l.totalHolders)} holders · ${nf(ranked)} ranked`
+        : 'holders by size of stack',
       CARD_W / 2, 264, { size: 26, color: TX_DIM, align: 'center' });
 
     const byIndex = new Map(l.bands.map((b) => [b.index, b]));
@@ -734,11 +745,15 @@ const paint: Record<string, Painter> = {
         size: 17, color: TX_DIM, align: 'right',
       });
     });
-    text(c,
-      l.complete
-        ? `Every holder counted.`
-        : `Top ${nf(l.scanned)} holders counted — smaller tiers are floors, marked +.`,
-      CARD_W / 2, 934, { size: 20, color: TX_DIM, align: 'center' });
+    // `complete` means every TIER was counted to its bottom — not that every
+    // holder appears above. Printing "Every holder counted." off it claimed
+    // something the rows visibly contradict whenever anyone sits below Crab.
+    const footer = !l.complete
+      ? `Top ${nf(l.scanned)} holders counted — smaller tiers are floors, marked +.`
+      : unranked && unranked > 0
+        ? `Ranked holders only — ${nf(unranked)} hold less than a Crab.`
+        : 'Every holder counted.';
+    text(c, footer, CARD_W / 2, 934, { size: 20, color: TX_DIM, align: 'center' });
   },
 
   concentration(c, d) {
