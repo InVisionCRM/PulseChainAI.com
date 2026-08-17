@@ -41,6 +41,7 @@ const GET_RESERVES_SELECTOR = '0x0902f1ac';
 const TOKEN0_SELECTOR = '0x0dfe1681';
 const TOKEN1_SELECTOR = '0xd21220a7';
 const DECIMALS_SELECTOR = '0x313ce567';
+const SYMBOL_SELECTOR = '0x95d89b41';
 
 const FETCH_TIMEOUT_MS = 8_000;
 const RPC_TIMEOUT_MS = 4_000;
@@ -276,6 +277,45 @@ async function fetchTokenDecimals(
   return Number.isFinite(n) && n > 0 && n < 100 ? n : 18;
 }
 
+/**
+ * A token's own symbol, read from the contract.
+ *
+ * Needed because the placeholder path below used to invent one. When
+ * DexScreener has no entry for a pair there is no symbol in its response, and
+ * the sides were labelled with the literal strings "token0" and "token1" on the
+ * promise that enrichment downstream would replace them — which it never did:
+ * that pass fills price, value and logo, and never touches the symbol. So the
+ * placeholder went straight to the card.
+ *
+ * The contract always knows, so ask it. Two encodings are in the wild: a
+ * dynamic ABI string, and the old fixed 32-byte right-padded form that
+ * pre-dates the current ERC-20 text, so both are handled.
+ */
+async function fetchTokenSymbol(chainId: ChainId, address: string): Promise<string | null> {
+  const hex = await callContract(chainId, address, SYMBOL_SELECTOR);
+  if (!hex || hex === '0x') return null;
+  const body = hex.replace(/^0x/, '');
+  try {
+    const toUtf8 = (h: string) => {
+      const bytes = h.match(/.{2}/g) ?? [];
+      return Buffer.from(bytes.join(''), 'hex').toString('utf8').replace(/\u0000+$/, '').trim();
+    };
+    // bytes32: one word, right-padded with zeros.
+    if (body.length === 64) {
+      const trimmed = body.replace(/(00)+$/, '');
+      const out = toUtf8(trimmed);
+      return /^[\x20-\x7e]+$/.test(out) ? out : null;
+    }
+    // dynamic string: [offset][length][data]
+    const len = parseInt(body.slice(64, 128), 16);
+    if (!Number.isFinite(len) || len <= 0 || len > 64) return null;
+    const out = toUtf8(body.slice(128, 128 + len * 2));
+    return /^[\x20-\x7e]+$/.test(out) ? out : null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchTotalSupplyFromBlockscout(
   chainId: ChainId,
   address: string,
@@ -398,9 +438,11 @@ async function enrichWithOnChainReserves(info: LpInfo): Promise<LpInfo> {
     return info;
   }
 
-  const [d0, d1] = await Promise.all([
+  const [d0, d1, s0, s1] = await Promise.all([
     fetchTokenDecimals(info.chainId, state.token0Address!),
     fetchTokenDecimals(info.chainId, state.token1Address!),
+    fetchTokenSymbol(info.chainId, state.token0Address!),
+    fetchTokenSymbol(info.chainId, state.token1Address!),
   ]);
 
   const reserve0 = bigIntToFloat(state.reserve0Raw, d0);
@@ -422,20 +464,26 @@ async function enrichWithOnChainReserves(info: LpInfo): Promise<LpInfo> {
     nextToken0.reserveFormatted = reserve1;
     nextToken1.reserveFormatted = reserve0;
   } else {
-    // DexScreener pair didn't include real token addresses (or pair
-    // entry missing entirely). Materialise sides from on-chain data so
-    // the breakdown is still meaningful. Symbol/name will be filled by
-    // the prices-proxy enrichment downstream.
+    // DexScreener pair didn't include real token addresses (or the pair
+    // entry is missing entirely). Materialise sides from on-chain data so
+    // the breakdown is still meaningful.
+    //
+    // The symbols come off the contracts rather than from placeholders. This
+    // used to write the literal strings "token0"/"token1", on the assumption
+    // that later enrichment would replace them — it doesn't, it only fills
+    // price, value and logo, so those placeholders were what the LP card
+    // actually showed. '???' remains the last resort for a contract that
+    // won't answer, which at least reads as unknown rather than as a name.
     nextToken0 = {
       address: t0Addr,
-      symbol: info.token0.symbol === '???' ? 'token0' : info.token0.symbol,
+      symbol: info.token0.symbol !== '???' ? info.token0.symbol : s0 ?? '???',
       name: info.token0.name === 'Unknown' ? '' : info.token0.name,
       reserveFormatted: reserve0,
       priceUsd: info.token0.priceUsd,
     };
     nextToken1 = {
       address: t1Addr,
-      symbol: info.token1.symbol === '???' ? 'token1' : info.token1.symbol,
+      symbol: info.token1.symbol !== '???' ? info.token1.symbol : s1 ?? '???',
       name: info.token1.name === 'Unknown' ? '' : info.token1.name,
       reserveFormatted: reserve1,
       priceUsd: info.token1.priceUsd,

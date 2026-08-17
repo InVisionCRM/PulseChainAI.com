@@ -319,7 +319,14 @@ async function enrichWithPrices(tokens: PortfolioToken[]): Promise<PortfolioToke
         const valueUsd =
           priceUsd != null ? side.amountFormatted * priceUsd : side.valueUsd;
         const logoURI = side.logoURI ?? sideEntry.logoURI ?? undefined;
-        return { ...side, priceUsd, valueUsd, logoURI };
+        // Second chance at a name. The LP route reads symbols off the pair's
+        // token contracts, but a side can still arrive unknown; DexScreener
+        // often knows the token on its own even when it has no entry for the
+        // pair. This pass used to fill price and logo only, which is why an
+        // unnamed side stayed unnamed all the way to the card.
+        const symbol = side.symbol && side.symbol !== '???' ? side.symbol : sideEntry.symbol || side.symbol;
+        const name = side.name && side.name !== 'Unknown' ? side.name : sideEntry.name || side.name;
+        return { ...side, priceUsd, valueUsd, logoURI, symbol, name };
       }) as typeof t.lp.sides;
 
       // Recompute weights from the now-fully-priced reserves where possible.
