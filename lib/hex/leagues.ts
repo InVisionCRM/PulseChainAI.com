@@ -19,7 +19,7 @@
 
 export interface League {
   key: string;
-  /** Ladder name. Rank 0 is the top of the ladder. */
+  /** Ladder name. Index 0 is the top of the ladder. */
   name: string;
   /** One line of flavor — what holding this slice of the network means. */
   tagline: string;
@@ -27,34 +27,34 @@ export interface League {
   share: number;
   /** Accent color for crest, bars and text. */
   color: string;
-  /** Chevrons on the crest (military-rank style); 0 for the entry tier. */
-  chevrons: number;
-  /** Top tiers get a star above the chevrons. */
-  star?: boolean;
 }
 
 /**
- * The ladder, highest first. Bands step by ~3.16× (half a decade) rather than
- * 10× so the middle of the distribution isn't one giant undifferentiated tier —
- * with 10× steps a single league held two thousand stakers and the one above it
- * held twenty-eight.
+ * The ladder, highest first — HEX's own league names, on HEX's own decade
+ * spacing (10%, 1%, 0.1% …). These names and cutoffs are the ones the community
+ * already uses, so they are kept exactly rather than re-invented; the only
+ * change is the denominator, which here is locked T-Shares rather than tokens.
+ *
+ * A decade per rung means the tiers are not evenly populated — Dolphin
+ * currently holds around two thousand stakers where Shark holds under thirty.
+ * That is the real shape of the distribution, and the per-tier progress bar is
+ * what gives someone mid-tier something to climb.
  */
 export const LEAGUES: League[] = [
-  { key: 'sovereign', name: 'Sovereign', tagline: 'A tenth of every T-Share alive. The chain moves when you do.', share: 0.1, color: '#f8fafc', chevrons: 4, star: true },
-  { key: 'archon', name: 'Archon', tagline: 'Three percent of the network locked behind your address.', share: 0.03, color: '#c4b5fd', chevrons: 3, star: true },
-  { key: 'titan', name: 'Titan', tagline: 'One full percent of all T-Shares. Rarefied air.', share: 0.01, color: '#fbbf24', chevrons: 2, star: true },
-  { key: 'warlord', name: 'Warlord', tagline: 'Enough shares to show up in every whale scan on the chain.', share: 0.003, color: '#f43f5e', chevrons: 4 },
-  { key: 'praetor', name: 'Praetor', tagline: 'Heavy conviction. You are in the top rungs of the ladder.', share: 0.001, color: '#fb923c', chevrons: 3 },
-  { key: 'vanguard', name: 'Vanguard', tagline: 'Front line. A serious, long-dated position.', share: 0.0003, color: '#22d3ee', chevrons: 2 },
-  { key: 'sentinel', name: 'Sentinel', tagline: 'Locked in and holding the line.', share: 0.0001, color: '#34d399', chevrons: 1 },
-  { key: 'ronin', name: 'Ronin', tagline: 'Staking on your own terms. The climb starts here.', share: 0.00003, color: '#818cf8', chevrons: 1 },
-  { key: 'initiate', name: 'Initiate', tagline: 'You hold real T-Shares. Everyone above you started here.', share: 0.00001, color: '#94a3b8', chevrons: 0 },
-  { key: 'drifter', name: 'Drifter', tagline: 'No locked T-Shares — nothing on the board yet.', share: 0, color: '#64748b', chevrons: 0 },
+  { key: 'poseidon', name: 'Poseidon', tagline: 'A tenth of every T-Share alive. The chain moves when you do.', share: 0.1, color: '#f5c451' },
+  { key: 'whale', name: 'Whale', tagline: 'One full percent of the network locked behind one address.', share: 0.01, color: '#5b9dfb' },
+  { key: 'shark', name: 'Shark', tagline: 'A tenth of a percent. You show up in every whale scan on the chain.', share: 0.001, color: '#9fb3c8' },
+  { key: 'dolphin', name: 'Dolphin', tagline: 'Serious, long-dated conviction. The deep end of the pool.', share: 0.0001, color: '#38bdf8' },
+  { key: 'squid', name: 'Squid', tagline: 'A real position, quietly compounding in the dark.', share: 0.00001, color: '#c084fc' },
+  { key: 'turtle', name: 'Turtle', tagline: 'Slow, armoured, and still here. Time is the whole strategy.', share: 0.000001, color: '#34d399' },
+  { key: 'crab', name: 'Crab', tagline: 'Claws in, sideways forever. Nobody shakes you out.', share: 0.0000001, color: '#fb7185' },
+  { key: 'shrimp', name: 'Shrimp', tagline: 'Small, fast, and stacking. Everyone above you started here.', share: 0.00000001, color: '#fdba74' },
+  { key: 'shell', name: 'Shell', tagline: 'On the board. One stake is all it takes to start climbing.', share: 0.000000001, color: '#a8a29e' },
 ];
 
 export const LEAGUE_BY_KEY: Record<string, League> = Object.fromEntries(LEAGUES.map((l) => [l.key, l]));
 
-/** The entry tier — everyone below the lowest real floor lands here. */
+/** The bottom rung — anything below Shrimp's floor, including nothing at all. */
 export const ENTRY_LEAGUE = LEAGUES[LEAGUES.length - 1];
 
 /** Today's T-Share floor for a league, given the network's live share total. */

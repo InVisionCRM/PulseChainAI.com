@@ -79,8 +79,16 @@ function tsh(t: number): string {
 
 const pctOfNetwork = (pct: number) => (pct >= 0.01 ? `${pct.toFixed(2)}%` : pct > 0 ? `${pct.toFixed(4)}%` : '0%');
 
-/** A tier's floor as a percent of supply, with the float noise trimmed off. */
-const floorPctLabel = (league: League) => `${Number((league.share * 100).toPrecision(3))}% of supply`;
+/**
+ * A tier's floor as a percent of supply. Written out longhand rather than via
+ * toPrecision, which flips to exponent notation ("1e-7%") by the bottom of a
+ * ladder that runs down to a ten-millionth of a percent.
+ */
+const floorPctLabel = (league: League) => {
+  const pct = league.share * 100;
+  const s = pct >= 1 ? String(Math.round(pct)) : pct.toFixed(8).replace(/0+$/, '');
+  return `${s}% of supply`;
+};
 
 export default function StakerLeagues({ net }: { net: Network }) {
   const [data, setData] = useState<LeaguesData | null>(null);
@@ -163,7 +171,7 @@ function NetworkStrip({ data, rates }: { data: LeaguesData; rates: Rates | null 
       <Stat label="T-Shares locked chain-wide" value={tsh(data.networkTShares)} />
       <Stat label="Stakers ranked" value={data.stakersFound.toLocaleString()} />
       <Stat
-        label="Sovereign floor"
+        label="Poseidon floor"
         value={tsh(leagueFloor(LEAGUES[0], data.networkTShares))}
         accent={LEAGUES[0].color}
       />
@@ -344,7 +352,11 @@ function YourStanding({ net, data, rates }: { net: Network; data: LeaguesData; r
                   </span>
                 )}
               </div>
-              <p className="mt-0.5 text-xs text-[var(--text-muted)]">{sim.league.tagline}</p>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                {sim.tShares > 0
+                  ? sim.league.tagline
+                  : 'No locked T-Shares on this address. Open a stake and you are on the board.'}
+              </p>
               <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs">
                 <span className="text-[var(--text)]">
                   <b className="tabular-nums">{tsh(sim.tShares)}</b> <span className="text-[var(--text-faint)]">T-Shares</span>
@@ -675,7 +687,6 @@ function Ladder({ data }: { data: LeaguesData }) {
         {LEAGUES.map((l) => {
           const floor = leagueFloor(l, data.networkTShares);
           const pop = data.populations[l.key] ?? 0;
-          const isEntry = l.key === ENTRY_LEAGUE.key;
           return (
             <div
               key={l.key}
@@ -689,12 +700,9 @@ function Ladder({ data }: { data: LeaguesData }) {
               </div>
               <div className="shrink-0 text-right">
                 <div className="text-xs font-semibold tabular-nums text-[var(--text)]">
-                  {isEntry ? `< ${tsh(leagueFloor(LEAGUES[LEAGUES.length - 2], data.networkTShares))}` : `${tsh(floor)}+`}
-                  <span className="ml-1 font-normal text-[var(--text-faint)]">T</span>
+                  {tsh(floor)}+<span className="ml-1 font-normal text-[var(--text-faint)]">T</span>
                 </div>
-                <div className="text-[10px] tabular-nums text-[var(--text-faint)]">
-                  {isEntry ? 'entry tier' : floorPctLabel(l)}
-                </div>
+                <div className="text-[10px] tabular-nums text-[var(--text-faint)]">{floorPctLabel(l)}</div>
               </div>
               <div className="w-16 shrink-0 text-right">
                 <div className="text-xs font-semibold tabular-nums text-[var(--text-muted)]">
