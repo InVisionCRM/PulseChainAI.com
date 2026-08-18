@@ -11,11 +11,11 @@
 // a single serverless invocation allows, so each run does what it can inside
 // its budget, saves its cursors, and the next run picks up exactly there.
 
-import { inactiveStakeIds, networkTotals, query, type LockedStake, STAKE_FIELDS } from './lockedStakes';
+import { networkTotals, query, unlockStatus, type LockedStake, STAKE_FIELDS } from './lockedStakes';
 import type { HexNet as Net } from './subgraph';
 import {
-  countLocked, ensureSchema, getSyncState, initSyncState, removeStakes, saveSyncState,
-  upsertStakes, type SyncPhase, type SyncState,
+  countLocked, ensureSchema, getSyncState, initSyncState, markGoodAccounted, removeStakes,
+  saveSyncState, upsertStakes, type SyncPhase, type SyncState,
 } from '@/lib/db/hexLockedStakes';
 
 const PAGE = 1000;
@@ -31,9 +31,12 @@ export interface SyncReport {
   phase: SyncPhase;
   ready: boolean;
   stakesIngested: number;
-  /** Stakes skipped at insert time or deleted because they had unlocked. */
+  /** Stakes skipped at insert time because they had already been withdrawn. */
   stakesSkipped: number;
+  /** Stakes deleted because they were ended. */
   stakesRemoved: number;
+  /** Stakes flagged good-accounted — shares gone, HEX still due. */
+  stakesFrozen: number;
   lockedStakes: number;
   /** True when this run finished the initial fill. */
   completed: boolean;
@@ -75,15 +78,20 @@ async function newestTimestamp(net: Net, entity: string): Promise<number> {
  * Advance the mirror by as much as fits in `budgetMs`.
  *
  * Two phases:
- *   fill — walk every stake ever opened by ascending stakeId, and store only
- *          the ones still locked.
+ *   fill — walk every stake ever opened by ascending stakeId, and store the
+ *          ones that still hold HEX.
  *   live — incremental catch-up; the steady state.
  *
- * The unlocked check happens at INSERT time rather than as a second pass that
- * deletes afterwards. Storing all ~950k stakes and then deleting the ~750k dead
- * ones would work, but it would peak at several hundred megabytes of table and
- * index for a result that settles near 200k rows — too much to ask of a
- * free-tier database, and Postgres does not hand the space back after a DELETE.
+ * ENDED and GOOD-ACCOUNTED are handled differently, because the contract does:
+ * ending withdraws the principal, good-accounting only returns the shares and
+ * leaves the HEX locked until someone ends it. Ended stakes are dropped;
+ * good-accounted ones are kept and flagged.
+ *
+ * The withdrawn check happens at INSERT time rather than as a second pass that
+ * deletes afterwards. Storing all ~950k stakes and then deleting the dead ones
+ * would work, but it would peak at several hundred megabytes of table and index
+ * for a result that settles near 360k rows — too much to ask of a free-tier
+ * database, and Postgres does not hand the space back after a DELETE.
  * Filtering first costs more subgraph queries and keeps the table at its true
  * size throughout.
  *
@@ -103,6 +111,7 @@ export async function runStakeSync(net: Net, budgetMs = 45_000): Promise<SyncRep
   let ingested = 0;
   let skipped = 0;
   let removed = 0;
+  let frozen = 0;
   let batches = 0;
   let completed = false;
 
@@ -122,9 +131,12 @@ export async function runStakeSync(net: Net, budgetMs = 45_000): Promise<SyncRep
       const rows = await scanById<LockedStake>(net, 'stakeStarts', STAKE_FIELDS, lastStakeId);
       batches++;
       if (rows.length) {
-        const dead = await inactiveStakeIds(net, rows.map((r) => String(r.stakeId)));
-        const live = rows.filter((r) => !dead.has(String(r.stakeId)));
+        const { ended, goodAccounted } = await unlockStatus(net, rows.map((r) => String(r.stakeId)));
+        const live = rows
+          .filter((r) => !ended.has(String(r.stakeId)))
+          .map((r) => ({ ...r, goodAccounted: goodAccounted.has(String(r.stakeId)) }));
         skipped += rows.length - live.length;
+        frozen += live.filter((r) => r.goodAccounted).length;
         for (const c of chunk(live, WRITE_CHUNK)) ingested += await upsertStakes(net, c);
         lastStakeId = Math.max(lastStakeId, maxId(rows));
       }
@@ -163,7 +175,9 @@ export async function runStakeSync(net: Net, budgetMs = 45_000): Promise<SyncRep
           batches++;
           if (!rows.length) break;
           for (const c of chunk(rows.map((r) => String(r.stakeId)), WRITE_CHUNK)) {
-            removed += await removeStakes(net, c);
+            // Ending drops the row; good-accounting only flags it.
+            if (entity === 'stakeEnds') removed += await removeStakes(net, c);
+            else frozen += await markGoodAccounted(net, c);
           }
           const newest = Math.max(...rows.map((r) => Number(r.timestamp) || 0));
           if (rows.length < PAGE) {
@@ -192,7 +206,8 @@ export async function runStakeSync(net: Net, budgetMs = 45_000): Promise<SyncRep
 
     return {
       network: net, phase, ready,
-      stakesIngested: ingested, stakesSkipped: skipped, stakesRemoved: removed, lockedStakes,
+      stakesIngested: ingested, stakesSkipped: skipped, stakesRemoved: removed,
+      stakesFrozen: frozen, lockedStakes,
       completed, batches, elapsedMs: spent(),
     };
   } catch (err) {

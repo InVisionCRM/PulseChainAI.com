@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { HexNet as Net } from '@/lib/hex/subgraph';
 import { currentHexDay } from '@/lib/hex/hexDay';
 import {
-  fetchLockedStakes, inactiveStakeIds, networkTotals, remainingStakesFor,
+  fetchLockedStakes, networkTotals, remainingStakesFor, unlockStatus,
 } from '@/lib/hex/lockedStakes';
 import {
   rankStakers, leaguePopulations, leagueFloor, LEAGUES, leagueFor, type LeagueRow,
@@ -115,8 +115,14 @@ async function buildLeagues(net: Net): Promise<LeaguesResponse> {
   // Pass 2 — sweep the small stakes of everyone who ranks off pass 1.
   const provisional = rankStakers(sample.live, total, SWEEP_ADDRESSES);
   const extra = await remainingStakesFor(net, provisional.map((r) => r.address), sample.cutoffShares);
-  const extraDead = extra.length ? await inactiveStakeIds(net, extra.map((s) => String(s.stakeId))) : new Set<string>();
-  const extraLive = extra.filter((s) => !extraDead.has(String(s.stakeId)));
+  // The board ranks on shares, so both a withdrawn stake and a good-accounted
+  // one are equally irrelevant here — neither holds shares any more.
+  const swept = extra.length
+    ? await unlockStatus(net, extra.map((s) => String(s.stakeId)))
+    : { ended: new Set<string>(), goodAccounted: new Set<string>() };
+  const extraLive = extra.filter(
+    (s) => !swept.ended.has(String(s.stakeId)) && !swept.goodAccounted.has(String(s.stakeId)),
+  );
 
   const all = [...sample.live, ...extraLive];
   const ranked = rankStakers(all, total, Number.MAX_SAFE_INTEGER);

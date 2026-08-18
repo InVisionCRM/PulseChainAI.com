@@ -12,9 +12,13 @@
 // would silently overstate every macro figure — and redefining it would break
 // the dashboard that reads it.
 //
-// This table holds ONLY currently-locked stakes: a row is deleted the moment
-// its stake ends or is good-accounted. That keeps it near 200k rows rather than
-// the ~950k stakes ever opened, and makes "locked" a plain SELECT.
+// This table holds stakes that still hold HEX. A row is deleted the moment its
+// stake is ENDED; a good-accounted stake is kept and flagged, because
+// good-accounting returns the shares to the network but leaves the principal
+// in the contract until someone ends it. On PulseChain that is 17,276 stakes
+// holding 40.3B HEX — 6.5% of locked supply — which belongs in the unlock
+// schedule and not in any T-Share ranking. That keeps the table near 360k rows
+// rather than the ~950k stakes ever opened.
 
 import { sql } from './connection';
 
@@ -32,8 +36,11 @@ const DDL = [
      staked_hearts NUMERIC(40,0) NOT NULL,
      stake_shares  NUMERIC(40,0) NOT NULL,
      end_day       INTEGER       NOT NULL,
+     -- Shares already returned to the network; the HEX is still due.
+     good_accounted BOOLEAN      NOT NULL DEFAULT FALSE,
      PRIMARY KEY (network, stake_id)
    )`,
+  `ALTER TABLE hex_locked_stakes ADD COLUMN IF NOT EXISTS good_accounted BOOLEAN NOT NULL DEFAULT FALSE`,
   `CREATE INDEX IF NOT EXISTS idx_hex_locked_end_day ON hex_locked_stakes (network, end_day)`,
   `CREATE INDEX IF NOT EXISTS idx_hex_locked_staker ON hex_locked_stakes (network, staker_addr)`,
   `CREATE INDEX IF NOT EXISTS idx_hex_locked_shares ON hex_locked_stakes (network, stake_shares DESC)`,
@@ -165,6 +172,7 @@ export interface StakeRow {
   stakedHearts: string;
   stakeShares: string;
   endDay: string;
+  goodAccounted?: boolean;
 }
 
 /**
@@ -179,25 +187,38 @@ export async function upsertStakes(net: Net, rows: StakeRow[]): Promise<number> 
   const hearts = rows.map((r) => r.stakedHearts);
   const shares = rows.map((r) => r.stakeShares);
   const days = rows.map((r) => Number(r.endDay));
+  const ga = rows.map((r) => !!r.goodAccounted);
   await sql`
-    INSERT INTO hex_locked_stakes (network, stake_id, staker_addr, staked_hearts, stake_shares, end_day)
+    INSERT INTO hex_locked_stakes (network, stake_id, staker_addr, staked_hearts, stake_shares, end_day, good_accounted)
     SELECT ${net}, * FROM UNNEST(
-      ${ids}::bigint[], ${addrs}::text[], ${hearts}::numeric[], ${shares}::numeric[], ${days}::int[]
+      ${ids}::bigint[], ${addrs}::text[], ${hearts}::numeric[], ${shares}::numeric[], ${days}::int[], ${ga}::boolean[]
     )
     ON CONFLICT (network, stake_id) DO UPDATE SET
-      staker_addr   = EXCLUDED.staker_addr,
-      staked_hearts = EXCLUDED.staked_hearts,
-      stake_shares  = EXCLUDED.stake_shares,
-      end_day       = EXCLUDED.end_day`;
+      staker_addr    = EXCLUDED.staker_addr,
+      staked_hearts  = EXCLUDED.staked_hearts,
+      stake_shares   = EXCLUDED.stake_shares,
+      end_day        = EXCLUDED.end_day,
+      -- Never un-flag: good-accounting is one-way until the stake ends.
+      good_accounted = hex_locked_stakes.good_accounted OR EXCLUDED.good_accounted`;
   return rows.length;
 }
 
-/** Drop stakes that have been ended or good-accounted. Idempotent. */
+/** Drop stakes that have been ENDED — principal withdrawn. Idempotent. */
 export async function removeStakes(net: Net, stakeIds: string[]): Promise<number> {
   if (!sql || !stakeIds.length) return 0;
   const rows = await sql`
     DELETE FROM hex_locked_stakes
     WHERE network = ${net} AND stake_id = ANY(${stakeIds}::bigint[])
+    RETURNING stake_id`;
+  return rows.length;
+}
+
+/** Flag stakes whose shares have gone back to the network. Idempotent. */
+export async function markGoodAccounted(net: Net, stakeIds: string[]): Promise<number> {
+  if (!sql || !stakeIds.length) return 0;
+  const rows = await sql`
+    UPDATE hex_locked_stakes SET good_accounted = TRUE
+    WHERE network = ${net} AND stake_id = ANY(${stakeIds}::bigint[]) AND NOT good_accounted
     RETURNING stake_id`;
   return rows.length;
 }
@@ -214,13 +235,22 @@ export async function countLocked(net: Net): Promise<number> {
 
 export interface DbBucket { day: number; hex: number; tShares: number; stakes: number }
 
+/** Locked stakes whose shares are gone but whose HEX is still due. */
+export async function readFrozen(net: Net): Promise<{ hex: number; stakes: number }> {
+  if (!sql) return { hex: 0, stakes: 0 };
+  const rows = await sql`
+    SELECT COALESCE(SUM(staked_hearts) / 1e8, 0)::float8 AS hex, count(*)::int AS stakes
+    FROM hex_locked_stakes WHERE network = ${net} AND good_accounted`;
+  return { hex: num(rows[0]?.hex), stakes: num(rows[0]?.stakes) };
+}
+
 /** Every locked stake grouped by the day it matures. */
 export async function readSchedule(net: Net): Promise<DbBucket[]> {
   if (!sql) return [];
   const rows = await sql`
     SELECT end_day,
            (SUM(staked_hearts) / 1e8)::float8  AS hex,
-           (SUM(stake_shares)  / 1e12)::float8 AS tshares,
+           (SUM(stake_shares) FILTER (WHERE NOT good_accounted) / 1e12)::float8 AS tshares,
            count(*)::int                       AS stakes
     FROM hex_locked_stakes
     WHERE network = ${net}
@@ -245,7 +275,7 @@ export async function readTopStakers(net: Net, limit: number): Promise<DbStakerT
            (SUM(staked_hearts) / 1e8)::float8  AS hex,
            count(*)::int                       AS stakes
     FROM hex_locked_stakes
-    WHERE network = ${net}
+    WHERE network = ${net} AND NOT good_accounted
     GROUP BY staker_addr
     ORDER BY SUM(stake_shares) DESC
     LIMIT ${limit}`;
@@ -264,7 +294,7 @@ export async function readStakerSummary(net: Net): Promise<StakerSummary> {
   const rows = await sql`
     SELECT count(DISTINCT staker_addr)::int      AS stakers,
            (SUM(stake_shares) / 1e12)::float8    AS tshares
-    FROM hex_locked_stakes WHERE network = ${net}`;
+    FROM hex_locked_stakes WHERE network = ${net} AND NOT good_accounted`;
   return { stakers: num(rows[0]?.stakers), tShares: num(rows[0]?.tshares) };
 }
 
@@ -281,7 +311,7 @@ export async function readFloorCounts(net: Net, floors: number[]): Promise<numbe
     FROM UNNEST(${floors}::float8[]) WITH ORDINALITY AS f(floor, idx)
     LEFT JOIN (
       SELECT (SUM(stake_shares) / 1e12)::float8 AS total
-      FROM hex_locked_stakes WHERE network = ${net}
+      FROM hex_locked_stakes WHERE network = ${net} AND NOT good_accounted
       GROUP BY staker_addr
     ) t ON t.total >= f.floor
     GROUP BY f.idx

@@ -3,7 +3,7 @@ import type { HexNet as Net } from '@/lib/hex/subgraph';
 import { currentHexDay } from '@/lib/hex/hexDay';
 import { fetchLockedStakes, networkTotals } from '@/lib/hex/lockedStakes';
 import { buildSchedule, scheduleFromBuckets, type UnlockBucket } from '@/lib/hex/unlockSchedule';
-import { getSyncState, readSchedule } from '@/lib/db/hexLockedStakes';
+import { getSyncState, readFrozen, readSchedule } from '@/lib/db/hexLockedStakes';
 
 export const revalidate = 0;
 // Pages 25,000 stakes and filters them against the end/good-accounting tables.
@@ -28,6 +28,8 @@ export interface UnlockScheduleResponse {
    *  since a 15-year daily schedule is a few thousand of them. */
   buckets: [number, number, number, number][];
   overdue: UnlockBucket;
+  /** The good-accounted slice of `overdue` — frozen, not bleeding. */
+  frozen: { hex: number; stakes: number };
   totals: { hex: number; tShares: number; stakes: number };
   /** The chain's real locked totals, for the coverage figure. */
   network_totals: { hex: number; tShares: number };
@@ -49,20 +51,24 @@ const round = (n: number, dp = 2) => Number(n.toFixed(dp));
 async function fromMirror(net: Net): Promise<UnlockScheduleResponse | null> {
   const state = await getSyncState(net).catch(() => null);
   if (!state?.ready) return null;
-  const buckets = await readSchedule(net).catch(() => []);
+  const [buckets, frozen] = await Promise.all([
+    readSchedule(net).catch(() => []),
+    readFrozen(net).catch(() => ({ hex: 0, stakes: 0 })),
+  ]);
   if (!buckets.length) return null;
 
   const totals = {
     tShares: state.networkTShares ?? 0,
     hexLocked: state.networkHex ?? 0,
   };
-  const schedule = scheduleFromBuckets(buckets, currentHexDay(), totals);
+  const schedule = scheduleFromBuckets(buckets, currentHexDay(), totals, frozen);
   return {
     network: net,
     source: 'mirror',
     currentDay: schedule.currentDay,
     buckets: schedule.buckets.map((b) => [b.day, round(b.hex), round(b.tShares, 3), b.stakes]),
     overdue: schedule.overdue,
+    frozen: schedule.frozen,
     totals: schedule.totals,
     network_totals: { hex: totals.hexLocked, tShares: totals.tShares },
     coverage: schedule.coverage,
@@ -101,6 +107,7 @@ export async function GET(req: NextRequest) {
       currentDay: schedule.currentDay,
       buckets: schedule.buckets.map((b) => [b.day, round(b.hex), round(b.tShares, 3), b.stakes]),
       overdue: schedule.overdue,
+      frozen: schedule.frozen,
       totals: schedule.totals,
       network_totals: { hex: totals.hexLocked, tShares: totals.tShares },
       coverage: schedule.coverage,

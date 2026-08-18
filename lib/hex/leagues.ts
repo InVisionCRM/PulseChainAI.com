@@ -136,13 +136,14 @@ const TSHARE = 1e12;
 const HEARTS = 1e8;
 
 /**
- * Sum locked stakes per staker and rank them by T-Shares. `stakes` must already
- * have ended and good-accounted stakes removed — their shares no longer exist
- * as far as the network total is concerned.
+ * Sum locked stakes per staker and rank them by T-Shares. Ended stakes must
+ * already be gone; good-accounted ones are skipped here, because their shares
+ * have been returned to the network even though their HEX is still locked.
  */
 export function rankStakers(stakes: LockedStake[], networkTShares: number, limit = 250): LeagueRow[] {
   const totals = new Map<string, { t: number; hex: number; n: number }>();
   for (const s of stakes) {
+    if (s.goodAccounted) continue;
     const a = s.stakerAddr.toLowerCase();
     const e = totals.get(a) ?? { t: 0, hex: 0, n: 0 };
     e.t += Number(s.stakeShares) / TSHARE;

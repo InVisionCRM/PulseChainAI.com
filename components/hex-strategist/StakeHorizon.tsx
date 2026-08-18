@@ -30,6 +30,7 @@ interface ScheduleData {
   /** [day, hex, tShares, stakes] */
   buckets: [number, number, number, number][];
   overdue: UnlockBucket;
+  frozen?: { hex: number; stakes: number };
   totals: { hex: number; tShares: number; stakes: number };
   network_totals: { hex: number; tShares: number };
   coverage: { hexPct: number; tSharesPct: number };
@@ -162,7 +163,8 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
         />
       </div>
 
-      {/* Overdue — stakes that are already due and nobody has claimed */}
+      {/* Overdue — already due, nobody has claimed it. Two different states:
+          good-accounted stakes are frozen, the rest are still bleeding. */}
       {data.overdue.stakes > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
           <IconAlertTriangle className="h-4 w-4 shrink-0" />
@@ -170,7 +172,16 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
             <b className="tabular-nums">{fmtHex(data.overdue.hex)}</b> HEX across{' '}
             <b className="tabular-nums">{data.overdue.stakes.toLocaleString()}</b>{' '}
             {data.overdue.stakes === 1 ? 'stake is' : 'stakes are'} already past their end day and still
-            unclaimed — bleeding the late-end penalty until someone ends them.
+            unclaimed.{' '}
+            {data.frozen && data.frozen.stakes > 0 ? (
+              <>
+                <b className="tabular-nums">{fmtHex(data.frozen.hex)}</b> of it is frozen by
+                good-accounting — shares already returned, penalty locked in — and the rest is still
+                bleeding the late-end penalty until someone ends it.
+              </>
+            ) : (
+              <>It is bleeding the late-end penalty until someone ends it.</>
+            )}
           </span>
         </div>
       )}

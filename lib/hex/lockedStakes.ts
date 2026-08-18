@@ -5,12 +5,22 @@
 // fiddly enough (skip caps, share cursors, dead-stake filtering) that having
 // two copies of it would be two places to get it subtly wrong.
 //
-// WHAT COUNTS AS LOCKED
-// A stake's shares leave the network's total the moment it is ended OR
-// good-accounted, so both are filtered out. This is not a rounding detail:
-// among stakes whose end day is still in the future, 10.6% by count and 19.4%
-// by HEX have already been ended or good-accounted early. Counting them would
-// overstate every figure downstream.
+// WHAT COUNTS AS LOCKED — AND THE TWO DIFFERENT ANSWERS
+// Ending a stake and good-accounting it are NOT the same event, and the
+// contract treats them differently:
+//
+//   ended          — principal withdrawn. Gone from stakeSharesTotal AND from
+//                    lockedHeartsTotal. Not locked by any measure.
+//   good-accounted — shares removed from stakeSharesTotal, payout and penalty
+//                    frozen, but the principal stays in the contract (and in
+//                    lockedHeartsTotal) until someone actually ends it.
+//
+// So a good-accounted stake holds no shares but still holds HEX that is due.
+// It is excluded from T-Share rankings and INCLUDED in the unlock schedule.
+// Measured on PulseChain, that is 17,276 stakes holding 40.3B HEX — 6.5% of
+// the chain's locked supply, and all of it already overdue. Dropping them
+// entirely (as an "unlocked means either event" rule would) hid exactly that
+// much from the macro chart.
 //
 // WHY IT IS A SAMPLE
 // There is no per-staker or per-day aggregate in the subgraph, so every figure
@@ -28,6 +38,8 @@ export interface LockedStake {
   stakeShares: string;
   stakedHearts: string;
   endDay: string;
+  /** Shares already released back to the network; the HEX is still locked. */
+  goodAccounted?: boolean;
 }
 
 export const STAKE_FIELDS = 'stakeId stakerAddr stakeShares stakedHearts endDay';
@@ -127,11 +139,19 @@ export async function remainingStakesFor(
   return (await pooled(groups, 3, sweep)).flat();
 }
 
+export interface UnlockStatus {
+  /** Withdrawn — neither shares nor HEX remain. */
+  ended: Set<string>;
+  /** Shares released, HEX still locked and still due. */
+  goodAccounted: Set<string>;
+}
+
 /**
- * stakeIds whose shares no longer count toward the network total — ended OR
- * good-accounted. Both lookups ride the same request per chunk.
+ * Which of these stakes have ended and which have been good-accounted, kept
+ * apart because they mean different things (see the header). Both lookups ride
+ * the same request per chunk.
  */
-export async function inactiveStakeIds(net: Net, ids: string[]): Promise<Set<string>> {
+export async function unlockStatus(net: Net, ids: string[]): Promise<UnlockStatus> {
   const chunks: string[][] = [];
   for (let i = 0; i < ids.length; i += ID_CHUNK) chunks.push(ids.slice(i, i + ID_CHUNK));
   const lookup = (chunk: string[]) => {
@@ -145,16 +165,21 @@ export async function inactiveStakeIds(net: Net, ids: string[]): Promise<Set<str
     );
   };
   const results = await pooled(chunks, CHUNK_CONCURRENCY, lookup);
-  const out = new Set<string>();
+  const ended = new Set<string>();
+  const goodAccounted = new Set<string>();
   for (const r of results) {
-    for (const e of r.ends ?? []) out.add(String(e.stakeId));
-    for (const g of r.accounted ?? []) out.add(String(g.stakeId));
+    for (const e of r.ends ?? []) ended.add(String(e.stakeId));
+    for (const g of r.accounted ?? []) goodAccounted.add(String(g.stakeId));
   }
-  return out;
+  // Ending is terminal and can follow a good-accounting, so an ended stake is
+  // never also treated as merely good-accounted.
+  for (const id of ended) goodAccounted.delete(id);
+  return { ended, goodAccounted };
 }
 
 export interface LockedSample {
-  /** Stakes still locked — ended and good-accounted ones removed. */
+  /** Stakes still holding HEX — ended ones removed, good-accounted ones kept
+   *  and flagged (they hold no shares but their principal is still due). */
   live: LockedStake[];
   /** How many stakes were examined to find them. */
   sampled: number;
@@ -162,13 +187,15 @@ export interface LockedSample {
   cutoffShares: string;
 }
 
-/** The largest locked stakes on the chain, with dead ones already removed. */
+/** The largest locked stakes on the chain, with withdrawn ones already removed. */
 export async function fetchLockedStakes(net: Net, batches: number): Promise<LockedSample> {
   const sample = await largestStakes(net, batches);
   if (!sample.length) throw new Error('No stakes returned by the HEX subgraph');
-  const dead = await inactiveStakeIds(net, sample.map((s) => String(s.stakeId)));
+  const { ended, goodAccounted } = await unlockStatus(net, sample.map((s) => String(s.stakeId)));
   return {
-    live: sample.filter((s) => !dead.has(String(s.stakeId))),
+    live: sample
+      .filter((s) => !ended.has(String(s.stakeId)))
+      .map((s) => (goodAccounted.has(String(s.stakeId)) ? { ...s, goodAccounted: true } : s)),
     sampled: sample.length,
     cutoffShares: sample[sample.length - 1].stakeShares,
   };

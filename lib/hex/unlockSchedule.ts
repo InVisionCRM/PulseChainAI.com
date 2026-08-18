@@ -23,6 +23,13 @@ export interface UnlockSchedule {
    * late-end penalty.
    */
   overdue: UnlockBucket;
+  /**
+   * The slice of `overdue` that has been good-accounted: shares already
+   * returned, payout and penalty frozen, HEX still sitting in the contract.
+   * Good-accounting can only run on a matured stake, so this is always a
+   * subset of the overdue bucket rather than anything still to come.
+   */
+  frozen: { hex: number; stakes: number };
   totals: { hex: number; tShares: number; stakes: number };
   /** Share of the chain's real locked totals these buckets represent. */
   coverage: { hexPct: number; tSharesPct: number };
@@ -35,9 +42,11 @@ const TSHARE = 1e12;
 
 const empty = (day: number): UnlockBucket => ({ day, hex: 0, tShares: 0, stakes: 0 });
 
+// A good-accounted stake still holds its HEX but its shares have already gone
+// back to the network, so it counts toward what is due and not toward T-Shares.
 const add = (b: UnlockBucket, s: LockedStake) => {
   b.hex += Number(s.stakedHearts) / HEARTS;
-  b.tShares += Number(s.stakeShares) / TSHARE;
+  if (!s.goodAccounted) b.tShares += Number(s.stakeShares) / TSHARE;
   b.stakes += 1;
 };
 
@@ -53,8 +62,13 @@ export function buildSchedule(
   const byDay = new Map<number, UnlockBucket>();
   const overdue = empty(currentDay);
   const totals = { hex: 0, tShares: 0, stakes: 0 };
+  const frozen = { hex: 0, stakes: 0 };
 
   for (const s of stakes) {
+    if (s.goodAccounted) {
+      frozen.hex += Number(s.stakedHearts) / HEARTS;
+      frozen.stakes += 1;
+    }
     const day = Number(s.endDay);
     if (!Number.isFinite(day)) continue;
     if (day < currentDay) {
@@ -65,7 +79,7 @@ export function buildSchedule(
       add(b, s);
     }
     totals.hex += Number(s.stakedHearts) / HEARTS;
-    totals.tShares += Number(s.stakeShares) / TSHARE;
+    if (!s.goodAccounted) totals.tShares += Number(s.stakeShares) / TSHARE;
     totals.stakes += 1;
   }
 
@@ -74,6 +88,7 @@ export function buildSchedule(
     currentDay,
     buckets,
     overdue,
+    frozen,
     totals,
     coverage: {
       hexPct: network.hexLocked > 0 ? (totals.hex / network.hexLocked) * 100 : 0,
@@ -92,6 +107,7 @@ export function scheduleFromBuckets(
   daily: UnlockBucket[],
   currentDay: number,
   network: { tShares: number; hexLocked: number },
+  frozen: { hex: number; stakes: number } = { hex: 0, stakes: 0 },
 ): UnlockSchedule {
   const overdue = empty(currentDay);
   const buckets: UnlockBucket[] = [];
