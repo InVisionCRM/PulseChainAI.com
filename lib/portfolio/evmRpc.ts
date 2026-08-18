@@ -26,6 +26,73 @@ export const RPC_URLS: Record<ChainId, string[]> = {
 
 const RPC_TIMEOUT_MS = 4_000;
 
+/**
+ * What came back — keeping the chain's answer distinguishable from the node's
+ * absence.
+ *
+ *   ok          the node answered and the call succeeded
+ *   reverted    the node answered and the EVM rejected the call
+ *   unavailable this node could not serve us; ask the next one
+ */
+type RpcOutcome =
+  | { kind: 'ok'; result: unknown }
+  | { kind: 'reverted' }
+  | { kind: 'unavailable' };
+
+/**
+ * Did the EVM run this call and reject it, or did the node fail us?
+ *
+ * The distinction is the whole point. Probing a token for a `token0()` or an
+ * `asset()` it doesn't have is the *normal* case here, not an error case, and a
+ * revert is a definitive answer about chain state — every other endpoint reads
+ * the same state and would say the same thing.
+ *
+ * Verified against the live pool with a `token0()` call on WPLS (a plain
+ * ERC-20): rpc.pulsechainstats.com and rpc.pulsechainrpc.com answer
+ * `code: 3`, while pulsechain-rpc.publicnode.com, rpc-pulsechain.g4mm4.io and
+ * rpc.degenprotocol.io answer `code: -32000` — all five with the message
+ * "execution reverted". So the message is matched as well as the code, because
+ * -32000 is a catch-all these nodes also use for their own problems. Anything
+ * that isn't recognisably an execution failure — rate limits, the archive-token
+ * gating on publicnode, "method not found" — stays a node problem and still
+ * fails over.
+ */
+function isExecutionError(err: unknown): boolean {
+  const e = (err ?? {}) as { code?: unknown; message?: unknown };
+  const msg = String(e.message ?? '').toLowerCase();
+  if (e.code === 3) return true;
+  return (
+    msg.includes('execution reverted') ||
+    msg.includes('invalid opcode') ||
+    msg.includes('out of gas')
+  );
+}
+
+async function rpcRaw(
+  url: string,
+  method: string,
+  params: unknown[],
+  timeoutMs: number = RPC_TIMEOUT_MS,
+): Promise<RpcOutcome> {
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) return { kind: 'unavailable' };
+    const json = (await res.json()) as { result?: unknown; error?: unknown };
+    if (json.error) {
+      return isExecutionError(json.error) ? { kind: 'reverted' } : { kind: 'unavailable' };
+    }
+    if (json.result == null) return { kind: 'unavailable' };
+    return { kind: 'ok', result: json.result };
+  } catch {
+    return { kind: 'unavailable' };
+  }
+}
+
 // Returns the raw `result` (any JSON type — `eth_getLogs` returns an array,
 // `eth_call` a hex string), or null on transport error / JSON-RPC error.
 async function rpc(
@@ -34,25 +101,21 @@ async function rpc(
   params: unknown[],
   timeoutMs: number = RPC_TIMEOUT_MS,
 ): Promise<any | null> {
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as { result?: unknown; error?: unknown };
-    if (json.error || json.result == null) return null;
-    return json.result;
-  } catch {
-    return null;
-  }
+  const o = await rpcRaw(url, method, params, timeoutMs);
+  return o.kind === 'ok' ? o.result : null;
 }
 
 /**
  * `eth_call` with failover. Returns the hex result, or null if every endpoint
  * failed or the call reverted / returned empty (`0x`).
+ *
+ * A revert stops the walk. It used to be indistinguishable from a dead node, so
+ * every negative probe asked all six endpoints and got told "no" six times.
+ * That is not a rare path: `detectHeldPosition` asks each held token six
+ * questions in sequence (V2 pair? Balancer pool? ERC-4626? cToken? aToken?),
+ * and for an ordinary ERC-20 all six revert. Measured on one wallet — 80 tokens
+ * × 6 questions — that was ~2,880 round trips where 480 would do, and it was 30
+ * of the 35 seconds the portfolio's LP tab spent loading.
  */
 export async function ethCall(
   chain: ChainId,
@@ -60,8 +123,11 @@ export async function ethCall(
   data: string,
 ): Promise<string | null> {
   for (const url of RPC_URLS[chain] ?? []) {
-    const r = await rpc(url, 'eth_call', [{ to, data }, 'latest']);
-    if (r && r !== '0x') return r;
+    const o = await rpcRaw(url, 'eth_call', [{ to, data }, 'latest']);
+    if (o.kind === 'reverted') return null;
+    // An empty (`0x`) result still fails over: unlike a revert it can mean the
+    // node simply hasn't seen the contract yet.
+    if (o.kind === 'ok' && typeof o.result === 'string' && o.result !== '0x') return o.result;
   }
   return null;
 }

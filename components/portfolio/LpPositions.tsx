@@ -17,6 +17,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { IconRefresh, IconDroplet, IconExternalLink } from '@tabler/icons-react';
 import type { ChainId } from '@/services';
 import { fmtUsd, fmtAmount } from '@/lib/format';
+import { getChain } from '@/lib/chains/registry';
+import { Skeleton } from '@/components/ui/skeleton';
 import LpPositionRow from '@/components/portfolio/LpPositionRow';
 
 interface UnderlyingAsset {
@@ -159,7 +161,9 @@ export function LpPositions({
   // The header has no price for a pair DexScreener never listed; this panel
   // can still work one out, so the card borrows it rather than showing nothing.
   const [reconstructed, setReconstructed] = useState<Record<string, number>>({});
-  const [v3, setV3] = useState<{ pos: ProtocolPosition; chain: ChainId }[]>([]);
+  // Raw scan results, before the balance list's own V2 rows are subtracted.
+  // Kept unfiltered so that subtraction can happen at render time — see below.
+  const [found, setFound] = useState<{ pos: ProtocolPosition; chain: ChainId }[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
   const load = () => {
@@ -177,30 +181,38 @@ export function LpPositions({
       ),
     )
       .then((results) => {
-        // The V2 LP tokens are already on screen from the balance list; the
-        // position scan finds them too, so drop the duplicates by address.
-        const held = new Set(v2.map((t) => t.address.toLowerCase()));
-        const found: { pos: ProtocolPosition; chain: ChainId }[] = [];
+        const all: { pos: ProtocolPosition; chain: ChainId }[] = [];
         for (const res of results) {
           if (!res) continue;
           for (const g of (res.groups as { kind: string; positions: ProtocolPosition[] }[]) ?? []) {
             if (g.kind !== 'lp') continue;
-            for (const pos of g.positions) {
-              if (held.has(pos.address.toLowerCase())) continue;
-              found.push({ pos, chain: res.chain });
-            }
+            for (const pos of g.positions) all.push({ pos, chain: res.chain });
           }
         }
-        // The scan finds V2 LP tokens too — the symbol heuristic that fills the
-        // balance list misses plenty of them. Only the V3 ones carry a range,
-        // and only they have fees to read, so that's what splits the two.
-        setV3(found);
+        setFound(all);
         setStatus('ready');
       })
       .catch(() => setStatus('error'));
   };
 
-  useEffect(load, [walletAddress, chains.join(','), v2.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Deliberately NOT keyed on `v2`. The scan behind this is expensive — it
+  // probes every held token and every position NFT on chain — and `v2` only
+  // ever mattered for the de-duplication below, which is a pure filter over
+  // results already in hand. Keying the fetch on it meant opening the LP tab
+  // while the balance list was still arriving re-ran the whole scan the moment
+  // it landed, and two of these in flight at once share one RPC egress: a scan
+  // that takes ~9s alone took 55s when it was racing a duplicate of itself.
+  useEffect(load, [walletAddress, chains.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The V2 LP tokens are already on screen from the balance list; the position
+  // scan finds them too, so drop the duplicates by address. The scan also finds
+  // V2 LP the balance list's symbol heuristic misses, which is why this can't
+  // just be "show the V3 ones" — only the V3 ones carry a range and fees, and
+  // that's what splits the two groups downstream.
+  const v3 = useMemo(() => {
+    const held = new Set(v2.map((t) => t.address.toLowerCase()));
+    return found.filter((f) => !held.has(f.pos.address.toLowerCase()));
+  }, [found, v2]);
 
   const total = useMemo(() => {
     const a = v2.reduce((t, r) => t + (r.valueUsd ?? 0), 0);
@@ -391,13 +403,7 @@ export function LpPositions({
         );
       })}
 
-      {status === 'loading' && v3Count === 0 && (
-        <div className="grid place-items-center py-10 text-sm text-[var(--text-muted)]">
-          <span className="inline-flex items-center gap-2">
-            <IconRefresh className="h-4 w-4 animate-spin" /> Scanning for V3 positions…
-          </span>
-        </div>
-      )}
+      {status === 'loading' && v3Count === 0 && <LpScanning chains={chains} />}
       {status === 'error' && (
         <div className="py-8 text-center text-sm text-red-300">Couldn’t scan for liquidity positions.</div>
       )}
@@ -407,6 +413,88 @@ export function LpPositions({
           PulseX, 9mm and LibertySwap — and any other Uniswap fork, since positions are
           found by shape rather than from a list of addresses.
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * What the scan is doing, while it is doing it.
+ *
+ * The old copy said "Scanning for V3 positions", which was wrong twice over.
+ * The same scan reads V2 pairs as well — the balance list flags LP tokens by
+ * symbol and that heuristic misses plenty of them, so a good number of the V2
+ * rows on this tab come from here rather than from the balance list. It also
+ * covers Balancer-style pools, and it does it on every tracked chain at once.
+ *
+ * There is deliberately no percentage and no stage-by-stage checklist. The
+ * route answers once, at the end; the client cannot see which stage the server
+ * is on, so any progress figure would be an animation impersonating a
+ * measurement. The elapsed seconds below are real, which is what makes them
+ * worth showing — they are the one honest signal that this is still working.
+ */
+function LpScanning({ chains }: { chains: ChainId[] }) {
+  const [elapsed, setElapsed] = useState(0);
+  // Restart the clock whenever a new scan begins, not just on first mount.
+  const key = chains.join(',');
+  useEffect(() => {
+    setElapsed(0);
+    const started = Date.now();
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [key]);
+
+  const where =
+    chains.length === 1
+      ? getChain(chains[0]).name
+      : `${chains.length} chains`;
+
+  return (
+    <div className="space-y-2 py-2" role="status" aria-live="polite">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-sm text-[var(--text-muted)]">
+        <IconRefresh className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
+        <span>Scanning {where} for liquidity positions</span>
+        <span className="text-[var(--text-faint)]">V2 pairs and V3 ranges</span>
+        {/* Only once it has been long enough to wonder. */}
+        {elapsed >= 3 && (
+          <span className="ml-auto tabular-nums text-xs text-[var(--text-faint)]">{elapsed}s</span>
+        )}
+      </div>
+
+      {/* Placeholders shaped like the cards that are coming, so the list does
+          not jump when they land. Three is roughly what a wallet with any
+          liquidity at all comes back with. */}
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3"
+          // Fade down the stack: the eye settles on the top card rather than
+          // reading three equally-loud rectangles.
+          style={{ opacity: 1 - i * 0.22 }}
+          aria-hidden="true"
+        >
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-4 w-12 rounded-full" />
+            <Skeleton className="h-4 w-10 rounded-full" />
+            <Skeleton className="ml-auto h-4 w-16" />
+          </div>
+          <div className="mt-2 flex gap-4">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+          {/* Stands in for the WeightBar. It isn't on every card — a pair
+              whose sides can't both be priced gets no bar rather than a
+              made-up one — so this is the tallest case, not the only one. */}
+          <Skeleton className="mt-2.5 h-1.5 w-full rounded-full" />
+        </div>
+      ))}
+
+      {elapsed >= 8 && (
+        <p className="px-1 text-[11px] text-[var(--text-faint)]">
+          Still going — every token and position NFT in the wallet is checked on chain,
+          so wallets holding a lot of both take longer.
+        </p>
       )}
     </div>
   );
