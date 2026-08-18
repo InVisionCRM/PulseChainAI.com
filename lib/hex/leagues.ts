@@ -16,6 +16,7 @@
 // excluded everywhere here — on-chain that is `unlockedDay !== 0`, and off-chain
 // it is a matching stakeEnd or stakeGoodAccounting event.
 
+import type { LockedStake } from './lockedStakes';
 
 export interface League {
   key: string;
@@ -118,14 +119,6 @@ export function standingFor(tShares: number, networkTShares: number): Standing {
 // Leaderboard aggregation
 // ---------------------------------------------------------------------------
 
-/** One locked stake, as the subgraph reports it. */
-export interface ShareStake {
-  stakeId: string;
-  stakerAddr: string;
-  stakeShares: string;
-  stakedHearts: string;
-}
-
 export interface LeagueRow {
   rank: number;
   address: string;
@@ -147,7 +140,7 @@ const HEARTS = 1e8;
  * have ended and good-accounted stakes removed — their shares no longer exist
  * as far as the network total is concerned.
  */
-export function rankStakers(stakes: ShareStake[], networkTShares: number, limit = 250): LeagueRow[] {
+export function rankStakers(stakes: LockedStake[], networkTShares: number, limit = 250): LeagueRow[] {
   const totals = new Map<string, { t: number; hex: number; n: number }>();
   for (const s of stakes) {
     const a = s.stakerAddr.toLowerCase();
