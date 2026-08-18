@@ -128,6 +128,7 @@ export function scheduleFromBuckets(
     currentDay,
     buckets,
     overdue,
+    frozen,
     totals,
     coverage: {
       hexPct: network.hexLocked > 0 ? (totals.hex / network.hexLocked) * 100 : 0,

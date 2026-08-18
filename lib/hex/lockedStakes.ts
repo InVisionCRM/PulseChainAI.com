@@ -87,7 +87,11 @@ export async function largestStakes(net: Net, batches: number): Promise<LockedSt
     // `_lte` (not `_lt`) so stakes tied on the boundary value aren't skipped;
     // the map de-duplicates the boundary rows that come back twice.
     const where = cursor ? `, where:{ stakeShares_lte: "${cursor}" }` : '';
-    const pages = await Promise.all(
+    // Annotated rather than inferred: `cursor` is reassigned from these rows at
+    // the end of the loop, so letting TypeScript infer the chain
+    // cursor -> where -> pages -> cursor makes it circular and it silently
+    // falls back to `any` for the whole batch.
+    const pages: LockedStake[][] = await Promise.all(
       Array.from({ length: PAGES_PER_BATCH }, (_, i) =>
         query<{ stakeStarts: LockedStake[] }>(
           net,
