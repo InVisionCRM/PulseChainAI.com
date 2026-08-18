@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { IconBolt, IconRadar2, IconTrophy } from '@tabler/icons-react';
+import { IconBolt, IconRadar2, IconTrophy, IconShieldBolt } from '@tabler/icons-react';
 import type { Network, RatesSource } from '@/lib/hex/strategistData';
 import EntryLoader, { type LoadPhase } from '@/components/EntryLoader';
 // Designer is the default tab — import it directly so it renders immediately
@@ -19,18 +19,21 @@ const TabSkeleton = () => (
 );
 const WhaleRadar = dynamic(() => import('./WhaleRadar'), { loading: TabSkeleton, ssr: false });
 const TopHundred = dynamic(() => import('./TopHundred'), { loading: TabSkeleton, ssr: false });
+const StakerLeagues = dynamic(() => import('./StakerLeagues'), { loading: TabSkeleton, ssr: false });
 
-type Mode = 'designer' | 'radar' | 'top100';
+type Mode = 'designer' | 'radar' | 'leagues' | 'top100';
 
 const SUBTITLE: Record<Mode, string> = {
   designer: 'Design a stake — the math tells you the best length, not just the numbers.',
   radar: 'Whale radar — big stakes unlocking soon, who’s likely to sell, and how well that call backtests.',
+  leagues: 'Staker leagues — every tier is a slice of the chain’s T-Shares. Find your rank, then see what it costs to climb.',
   top100: 'Top 100 leaderboards — biggest stakes, best ROI, latest activity, and the largest holders.',
 };
 
 const TABS: { key: Mode; label: string; icon: React.ReactNode; active: string }[] = [
   { key: 'designer', label: 'Designer', icon: <IconBolt className="h-3.5 w-3.5" />, active: 'text-orange-300' },
   { key: 'radar', label: 'Radar', icon: <IconRadar2 className="h-3.5 w-3.5" />, active: 'text-cyan-300' },
+  { key: 'leagues', label: 'Leagues', icon: <IconShieldBolt className="h-3.5 w-3.5" />, active: 'text-rose-300' },
   { key: 'top100', label: 'Top 100', icon: <IconTrophy className="h-3.5 w-3.5" />, active: 'text-amber-300' },
 ];
 
@@ -117,13 +120,14 @@ export default function HexStrategistTabs() {
         </div>
       </div>
 
-      {/* Mode switch */}
-      <div className="inline-flex rounded-xl border border-[var(--line)] bg-[var(--surface)] p-0.5">
+      {/* Mode switch — scrolls rather than wraps, so a narrow phone keeps one
+          clean row of tabs instead of breaking a label across two lines. */}
+      <div className="flex max-w-full flex-nowrap overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--surface)] p-0.5">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setMode(t.key)}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+            className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
               mode === t.key ? `bg-[var(--surface-2)] ${t.active}` : 'text-[var(--text-muted)] hover:text-[var(--text)]'
             }`}
           >
@@ -138,6 +142,8 @@ export default function HexStrategistTabs() {
         <HexStrategist net={net} onSource={onSource} />
       ) : mode === 'radar' ? (
         <WhaleRadar net={net} />
+      ) : mode === 'leagues' ? (
+        <StakerLeagues net={net} />
       ) : (
         <TopHundred net={net} />
       )}
