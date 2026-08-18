@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/screener-refresh",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/hex-stake-sync",
+      "schedule": "*/2 * * * *"
     }
   ]
 }

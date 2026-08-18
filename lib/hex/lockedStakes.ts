@@ -51,9 +51,10 @@ export async function pooled<T, R>(items: T[], size: number, work: (item: T) => 
 /**
  * The public subgraph 502s under load often enough to matter when a single
  * request fans out to dozens of queries. One dropped page silently shrinks a
- * total, so every query retries before it is allowed to fail.
+ * total, so every query retries before it is allowed to fail. Shared with the
+ * stake-mirror sync, which fans out far wider still.
  */
-async function query<T>(net: Net, q: string, tries = 3): Promise<T> {
+export async function query<T>(net: Net, q: string, tries = 3): Promise<T> {
   let last: unknown;
   for (let i = 0; i < tries; i++) {
     try {

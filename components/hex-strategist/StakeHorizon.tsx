@@ -24,6 +24,8 @@ import { fmtHex, fmtUsdShort, fmtHexDate, fmtDuration, hexDayToDate } from '@/li
 import { HexLogo } from '@/components/hex/HexAmount';
 
 interface ScheduleData {
+  /** 'mirror' = every locked stake on the chain; 'sample' = the largest 25,000. */
+  source?: 'mirror' | 'sample';
   currentDay: number;
   /** [day, hex, tShares, stakes] */
   buckets: [number, number, number, number][];
@@ -175,12 +177,13 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
 
       {/* Controls */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--text)]">
           <IconChartHistogram className="h-4 w-4 text-orange-400" />
           Unlock schedule
           <span className="font-normal text-[10px] uppercase tracking-wider text-[var(--text-faint)]">
             per {GRAIN_LABEL[view.grain]}
           </span>
+          <Coverage data={data} />
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <Segmented
@@ -298,6 +301,34 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
 
       <p className="px-1 text-[10px] leading-relaxed text-[var(--text-faint)]">{data.note}</p>
     </div>
+  );
+}
+
+/**
+ * Says outright whether this is the whole chain or a sample of it. A macro
+ * chart that is quietly 91% complete would be read as 100%, so the number goes
+ * next to the title rather than in the footnote.
+ */
+function Coverage({ data }: { data: ScheduleData }) {
+  const complete = data.source === 'mirror';
+  return (
+    <span
+      className="rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+      style={
+        complete
+          ? { borderColor: 'rgba(52,211,153,0.4)', background: 'rgba(52,211,153,0.12)', color: '#6ee7b7' }
+          : { borderColor: 'var(--line)', background: 'var(--surface-2)', color: 'var(--text-muted)' }
+      }
+      title={
+        complete
+          ? 'Every locked stake on the chain, from the synced mirror.'
+          : 'The largest 25,000 stakes, read live from the subgraph. The synced mirror covers all of them once its first fill completes.'
+      }
+    >
+      {complete
+        ? `all ${data.totals.stakes.toLocaleString()} stakes`
+        : `${data.coverage.hexPct.toFixed(0)}% of locked HEX`}
+    </span>
   );
 }
 

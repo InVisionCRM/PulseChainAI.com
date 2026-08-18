@@ -30,6 +30,8 @@ import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import LeagueCrest from './LeagueCrest';
 
 interface LeaguesData {
+  /** 'mirror' = every locked stake on the chain; 'sample' = the largest ones. */
+  source?: 'mirror' | 'sample';
   networkTShares: number;
   rankedTShares: number;
   coveragePct: number;
@@ -706,7 +708,7 @@ function Ladder({ data }: { data: LeaguesData }) {
               </div>
               <div className="w-16 shrink-0 text-right">
                 <div className="text-xs font-semibold tabular-nums text-[var(--text-muted)]">
-                  {pop > 0 ? `≥${pop.toLocaleString()}` : '—'}
+                  {pop > 0 ? `${data.source === 'mirror' ? '' : '≥'}${pop.toLocaleString()}` : '—'}
                 </div>
                 <div className="text-[10px] text-[var(--text-faint)]">stakers</div>
               </div>
@@ -715,8 +717,9 @@ function Ladder({ data }: { data: LeaguesData }) {
         })}
       </div>
       <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-faint)]">
-        Staker counts are lower bounds — the ranking reaches down to stakes of {tsh(data.cutoffTShares)} T-Shares
-        each, so the tiers near the bottom of the ladder hold more people than are listed.
+        {data.source === 'mirror'
+          ? 'Staker counts are exact — every locked stake on the chain is counted.'
+          : `Staker counts are lower bounds — the ranking reaches down to stakes of ${tsh(data.cutoffTShares)} T-Shares each, so the tiers near the bottom of the ladder hold more people than are listed.`}
       </p>
     </div>
   );
@@ -741,7 +744,9 @@ function Board({ net, data, rates }: { net: Network; data: LeaguesData; rates: R
           <p className="text-xs text-[var(--text-muted)]">Every ranked staker, by locked T-Shares.</p>
         </div>
         <span className="shrink-0 text-[10px] uppercase tracking-wider text-[var(--text-faint)]">
-          {data.coveragePct.toFixed(1)}% of the chain’s shares
+          {data.source === 'mirror'
+            ? `all ${data.stakersFound.toLocaleString()} stakers`
+            : `${data.coveragePct.toFixed(1)}% of the chain’s shares`}
         </span>
       </div>
 

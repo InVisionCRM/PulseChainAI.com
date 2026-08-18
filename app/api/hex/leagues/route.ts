@@ -4,7 +4,10 @@ import { currentHexDay } from '@/lib/hex/hexDay';
 import {
   fetchLockedStakes, inactiveStakeIds, networkTotals, remainingStakesFor,
 } from '@/lib/hex/lockedStakes';
-import { rankStakers, leaguePopulations, type LeagueRow } from '@/lib/hex/leagues';
+import {
+  rankStakers, leaguePopulations, leagueFloor, LEAGUES, leagueFor, type LeagueRow,
+} from '@/lib/hex/leagues';
+import { getSyncState, readFloorCounts, readStakerSummary, readTopStakers } from '@/lib/db/hexLockedStakes';
 
 export const revalidate = 0;
 // Deep-samples the share distribution then sweeps every ranked staker's
@@ -26,8 +29,18 @@ const SAMPLE_BATCHES = 3;
 /** How many ranked addresses get the pass-2 sweep. */
 const SWEEP_ADDRESSES = 300;
 
+/**
+ * 'mirror' — every locked stake on the chain, out of the synced Postgres
+ *            mirror. Complete, and fast.
+ * 'sample' — the largest stakes read live from the subgraph, plus a sweep of
+ *            each ranked staker's remainder. Used until the mirror has
+ *            finished its first fill, or if there is no database.
+ */
+export type LeaguesSource = 'mirror' | 'sample';
+
 export interface LeaguesResponse {
   network: Net;
+  source: LeaguesSource;
   currentDay: number;
   /** Live T-Shares across the whole chain — the denominator every league uses. */
   networkTShares: number;
@@ -43,6 +56,56 @@ export interface LeaguesResponse {
   /** Stakers seen per league — LOWER BOUNDS (see `leaguePopulations`). */
   populations: Record<string, number>;
   note: string;
+}
+
+/**
+ * The complete board, straight out of the mirror. Returns null whenever the
+ * mirror can't answer, so the caller falls back to sampling rather than serving
+ * a board built on a half-filled table.
+ */
+async function fromMirror(net: Net): Promise<LeaguesResponse | null> {
+  const state = await getSyncState(net).catch(() => null);
+  if (!state?.ready) return null;
+  const total = state.networkTShares ?? 0;
+  if (!(total > 0)) return null;
+
+  const [top, summary] = await Promise.all([readTopStakers(net, 250), readStakerSummary(net)]);
+  if (!top.length) return null;
+
+  // Cumulative counts per floor come back from the database; the per-tier
+  // population is the difference between neighbouring rungs.
+  const floors = LEAGUES.map((l) => leagueFloor(l, total));
+  const cumulative = await readFloorCounts(net, floors);
+  const populations: Record<string, number> = {};
+  LEAGUES.forEach((l, i) => {
+    populations[l.key] = cumulative[i] - (i > 0 ? cumulative[i - 1] : 0);
+  });
+
+  return {
+    network: net,
+    source: 'mirror',
+    currentDay: currentHexDay(),
+    networkTShares: total,
+    rankedTShares: summary.tShares,
+    coveragePct: total > 0 ? (summary.tShares / total) * 100 : 0,
+    cutoffTShares: 0,
+    stakesSampled: state.lockedStakes,
+    stakersFound: summary.stakers,
+    rows: top.map((r, i) => ({
+      rank: i + 1,
+      address: r.address,
+      tShares: r.tShares,
+      sharePct: total > 0 ? (r.tShares / total) * 100 : 0,
+      principalHex: r.hex,
+      stakes: r.stakes,
+      leagueKey: leagueFor(r.tShares, total).key,
+    })),
+    populations,
+    note:
+      `Ranked over every locked stake on ${net} — ${state.lockedStakes.toLocaleString()} of them across ` +
+      `${summary.stakers.toLocaleString()} stakers — from the synced stake mirror. Ended and ` +
+      'good-accounted stakes are excluded; HEX removes their shares from the network total.',
+  };
 }
 
 async function buildLeagues(net: Net): Promise<LeaguesResponse> {
@@ -63,6 +126,7 @@ async function buildLeagues(net: Net): Promise<LeaguesResponse> {
 
   return {
     network: net,
+    source: 'sample',
     currentDay: currentHexDay(),
     networkTShares: total,
     rankedTShares,
@@ -84,6 +148,14 @@ async function buildLeagues(net: Net): Promise<LeaguesResponse> {
 export async function GET(req: NextRequest) {
   const net = (req.nextUrl.searchParams.get('network') === 'ethereum' ? 'ethereum' : 'pulsechain') as Net;
   try {
+    const mirrored = await fromMirror(net);
+    if (mirrored) {
+      return NextResponse.json(mirrored, {
+        // Cheap to rebuild from the mirror, so it can refresh far more often
+        // than the sampled path could afford to.
+        headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' },
+      });
+    }
     const data = await buildLeagues(net);
     return NextResponse.json(data, {
       // Expensive to build and only moves as stakes open and close, so serve it

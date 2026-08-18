@@ -83,6 +83,44 @@ export function buildSchedule(
   };
 }
 
+/**
+ * Assemble a schedule from per-day buckets that were already summed elsewhere
+ * (the Postgres mirror does the summing in SQL). Same shape and same overdue
+ * split as `buildSchedule`, just starting a step later.
+ */
+export function scheduleFromBuckets(
+  daily: UnlockBucket[],
+  currentDay: number,
+  network: { tShares: number; hexLocked: number },
+): UnlockSchedule {
+  const overdue = empty(currentDay);
+  const buckets: UnlockBucket[] = [];
+  const totals = { hex: 0, tShares: 0, stakes: 0 };
+  for (const b of [...daily].sort((a, z) => a.day - z.day)) {
+    if (b.day < currentDay) {
+      overdue.hex += b.hex;
+      overdue.tShares += b.tShares;
+      overdue.stakes += b.stakes;
+    } else {
+      buckets.push(b);
+    }
+    totals.hex += b.hex;
+    totals.tShares += b.tShares;
+    totals.stakes += b.stakes;
+  }
+  return {
+    currentDay,
+    buckets,
+    overdue,
+    totals,
+    coverage: {
+      hexPct: network.hexLocked > 0 ? (totals.hex / network.hexLocked) * 100 : 0,
+      tSharesPct: network.tShares > 0 ? (totals.tShares / network.tShares) * 100 : 0,
+    },
+    lastDay: buckets.length ? buckets[buckets.length - 1].day : currentDay,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Rolling days up for display
 // ---------------------------------------------------------------------------
