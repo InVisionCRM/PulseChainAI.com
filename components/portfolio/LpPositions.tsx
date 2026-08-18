@@ -159,7 +159,9 @@ export function LpPositions({
   // The header has no price for a pair DexScreener never listed; this panel
   // can still work one out, so the card borrows it rather than showing nothing.
   const [reconstructed, setReconstructed] = useState<Record<string, number>>({});
-  const [v3, setV3] = useState<{ pos: ProtocolPosition; chain: ChainId }[]>([]);
+  // Raw scan results, before the balance list's own V2 rows are subtracted.
+  // Kept unfiltered so that subtraction can happen at render time — see below.
+  const [found, setFound] = useState<{ pos: ProtocolPosition; chain: ChainId }[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
   const load = () => {
@@ -177,30 +179,38 @@ export function LpPositions({
       ),
     )
       .then((results) => {
-        // The V2 LP tokens are already on screen from the balance list; the
-        // position scan finds them too, so drop the duplicates by address.
-        const held = new Set(v2.map((t) => t.address.toLowerCase()));
-        const found: { pos: ProtocolPosition; chain: ChainId }[] = [];
+        const all: { pos: ProtocolPosition; chain: ChainId }[] = [];
         for (const res of results) {
           if (!res) continue;
           for (const g of (res.groups as { kind: string; positions: ProtocolPosition[] }[]) ?? []) {
             if (g.kind !== 'lp') continue;
-            for (const pos of g.positions) {
-              if (held.has(pos.address.toLowerCase())) continue;
-              found.push({ pos, chain: res.chain });
-            }
+            for (const pos of g.positions) all.push({ pos, chain: res.chain });
           }
         }
-        // The scan finds V2 LP tokens too — the symbol heuristic that fills the
-        // balance list misses plenty of them. Only the V3 ones carry a range,
-        // and only they have fees to read, so that's what splits the two.
-        setV3(found);
+        setFound(all);
         setStatus('ready');
       })
       .catch(() => setStatus('error'));
   };
 
-  useEffect(load, [walletAddress, chains.join(','), v2.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Deliberately NOT keyed on `v2`. The scan behind this is expensive — it
+  // probes every held token and every position NFT on chain — and `v2` only
+  // ever mattered for the de-duplication below, which is a pure filter over
+  // results already in hand. Keying the fetch on it meant opening the LP tab
+  // while the balance list was still arriving re-ran the whole scan the moment
+  // it landed, and two of these in flight at once share one RPC egress: a scan
+  // that takes ~9s alone took 55s when it was racing a duplicate of itself.
+  useEffect(load, [walletAddress, chains.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The V2 LP tokens are already on screen from the balance list; the position
+  // scan finds them too, so drop the duplicates by address. The scan also finds
+  // V2 LP the balance list's symbol heuristic misses, which is why this can't
+  // just be "show the V3 ones" — only the V3 ones carry a range and fees, and
+  // that's what splits the two groups downstream.
+  const v3 = useMemo(() => {
+    const held = new Set(v2.map((t) => t.address.toLowerCase()));
+    return found.filter((f) => !held.has(f.pos.address.toLowerCase()));
+  }, [found, v2]);
 
   const total = useMemo(() => {
     const a = v2.reduce((t, r) => t + (r.valueUsd ?? 0), 0);
