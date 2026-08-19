@@ -25,6 +25,14 @@
 // updates the stake — so a key that can only call this can only ever do people
 // a favour with its own gas.
 //
+// `findRescueCandidates` defaults to a 500,000 HEX principal floor. Gas cost
+// is driven by a stake's TERM, not its size (see below), so rescuing a 1,100
+// HEX stake costs the same as rescuing a 3,000,000 HEX one — the floor exists
+// to spend that fixed cost where it recovers the most, and to keep the number
+// of transactions a single run signs from growing unbounded as the backlog is
+// worked through. It is a default, not a rule: pass a lower `minPrincipalHex`
+// to widen the sweep once the largest stakes are handled.
+//
 // Two facts shape the mechanics, both verified against the deployed contract:
 //
 //   • `stakeIndex` is NOT stable and is not in the subgraph. `_stakeRemove` is
@@ -87,12 +95,14 @@ export interface RescueCandidate {
  */
 export async function findRescueCandidates(
   net: HexNet,
-  opts: { minDaysPastGrace?: number; maxAgeDays?: number; limit?: number } = {},
+  opts: { minDaysPastGrace?: number; maxAgeDays?: number; limit?: number; minPrincipalHex?: number } = {},
 ): Promise<RescueCandidate[]> {
-  const { minDaysPastGrace = 1, maxAgeDays = 3000, limit = 500 } = opts;
+  const { minDaysPastGrace = 1, maxAgeDays = 3000, limit = 500, minPrincipalHex = 500_000 } = opts;
   const today = currentHexDay();
   const newestEnd = today - LATE_PENALTY_GRACE_DAYS - minDaysPastGrace;
   const oldestEnd = today - maxAgeDays;
+  // Hearts are HEX's smallest unit, 1e8 to a HEX — the inverse of heartsToHex.
+  const minHearts = Math.round(minPrincipalHex * 1e8);
 
   interface RawStart { stakeId: string; stakerAddr: string; stakedHearts: string; stakedDays: string; endDay: string }
   const starts: RawStart[] = [];
@@ -100,7 +110,7 @@ export async function findRescueCandidates(
     const d = await hexSubgraphQuery<{ stakeStarts: RawStart[] }>(
       net,
       `{ stakeStarts(first: 1000, skip: ${skip}, orderBy: endDay, orderDirection: desc,
-          where: { endDay_lt: ${newestEnd}, endDay_gt: ${oldestEnd} })
+          where: { endDay_lt: ${newestEnd}, endDay_gt: ${oldestEnd}, stakedHearts_gte: "${minHearts}" })
         { stakeId stakerAddr stakedHearts stakedDays endDay } }`,
     );
     const batch = d.stakeStarts ?? [];

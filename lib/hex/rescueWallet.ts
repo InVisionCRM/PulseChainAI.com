@@ -25,6 +25,8 @@ import { computeAddress } from '@ethersproject/transactions';
 import {
   estimateGas,
   getTransactionCount,
+  getBaseFee,
+  getPriorityFee,
   getGasPrice,
   sendRawTransaction,
 } from '@/lib/portfolio/evmRpc';
@@ -44,11 +46,27 @@ const CHAIN_IDS: Record<'pulsechain' | 'ethereum', number> = { pulsechain: 369, 
  */
 const MAX_GAS_PER_TX = 25_000_000n;
 
-/** Refuse to send if the network is asking more than this. Gas on PulseChain is
- *  quoted in hundreds of thousands of gwei and moves fast (observed 358k ->
- *  492k within minutes), so this is a circuit breaker against a spike draining
- *  the float, not a fine-tuned bid. */
-const MAX_GAS_PRICE_WEI = 5_000_000_000_000_000n; // 5,000,000 gwei
+/**
+ * How far above the CURRENT base fee a transaction's cap is allowed to sit.
+ * PulseChain's base fee is genuinely volatile — measured moving from 951,909
+ * to 1,037,045 gwei (about +9%) in the few minutes a 25-transaction batch took
+ * to sign and broadcast, and a batch of legacy transactions signed at that
+ * moment's price went stale before the FIRST one mined: the chain's base fee
+ * had already climbed past what nonce 0 was willing to pay, which blocked
+ * every transaction queued behind it (nonces are strictly ordered) until the
+ * fee later drifted back down. 3x is generous on purpose — gas here is cheap
+ * enough in dollar terms (observed low hundredths of a cent per transaction)
+ * that overpaying by 3x is still nothing, while a stuck queue is a real
+ * problem: it costs no gas (an unmined transaction never debits the account)
+ * but it silently stalls every rescue behind it for as long as the fee stays
+ * above the stale cap.
+ */
+const MAX_FEE_MULTIPLE = 3n;
+
+/** Refuse to send if the network is asking more than this, independent of the
+ *  multiple above — a circuit breaker against a genuine fee spike draining the
+ *  float, not a fine-tuned bid. */
+const MAX_FEE_PER_GAS_WEI = 10_000_000_000_000_000n; // 10,000,000 gwei
 
 export interface KeeperWallet {
   address: string;
@@ -119,24 +137,58 @@ export async function signAndSend(args: {
     return { status: 'skipped', reason: `gas ${gasLimit} over the ${MAX_GAS_PER_TX} ceiling` };
   }
 
-  const gasPrice = await getGasPrice(chain);
-  if (gasPrice == null) return { status: 'failed', reason: 'could not read gas price' };
-  if (gasPrice > MAX_GAS_PRICE_WEI) {
-    return { status: 'skipped', reason: `gas price ${gasPrice} above the circuit breaker` };
+  // EIP-1559 (type 2), not legacy. A legacy transaction's price is a single
+  // number fixed forever at signing time, and PulseChain's base fee moves fast
+  // enough — see MAX_FEE_MULTIPLE above — that a legacy price can go stale
+  // before the very first transaction in a batch is even mined, wedging every
+  // nonce behind it. A type-2 cap of baseFee * MAX_FEE_MULTIPLE survives that
+  // drift instead of betting the whole queue on the fee never moving.
+  const baseFee = await getBaseFee(chain);
+  const priorityFee = await getPriorityFee(chain);
+  let maxFeePerGas: bigint;
+  let maxPriorityFeePerGas: bigint;
+  let txType: 0 | 2;
+
+  if (baseFee != null) {
+    maxFeePerGas = baseFee * MAX_FEE_MULTIPLE + priorityFee;
+    maxPriorityFeePerGas = priorityFee;
+    txType = 2;
+  } else {
+    // No baseFeePerGas on this chain's blocks — not EIP-1559. Fall back to a
+    // legacy price rather than refuse to run.
+    const legacyPrice = await getGasPrice(chain);
+    if (legacyPrice == null) return { status: 'failed', reason: 'could not read gas price' };
+    maxFeePerGas = legacyPrice;
+    maxPriorityFeePerGas = legacyPrice;
+    txType = 0;
   }
 
-  // Legacy (type 0) rather than EIP-1559. PulseChain supports 1559, but a
-  // legacy transaction is accepted by every endpoint in the pool and there is
-  // nothing here worth tuning a priority fee for — this job is never in a race.
-  const tx: UnsignedTransaction = {
-    to,
-    nonce,
-    gasLimit,
-    gasPrice,
-    data,
-    value: 0,
-    chainId: CHAIN_IDS[chain as 'pulsechain' | 'ethereum'],
-  };
+  if (maxFeePerGas > MAX_FEE_PER_GAS_WEI) {
+    return { status: 'skipped', reason: `fee cap ${maxFeePerGas} above the circuit breaker` };
+  }
+
+  const tx: UnsignedTransaction =
+    txType === 2
+      ? {
+          to,
+          nonce,
+          gasLimit,
+          maxFeePerGas,
+          maxPriorityFeePerGas,
+          data,
+          value: 0,
+          chainId: CHAIN_IDS[chain as 'pulsechain' | 'ethereum'],
+          type: 2,
+        }
+      : {
+          to,
+          nonce,
+          gasLimit,
+          gasPrice: maxFeePerGas,
+          data,
+          value: 0,
+          chainId: CHAIN_IDS[chain as 'pulsechain' | 'ethereum'],
+        };
 
   const signature = new SigningKey(keeper.privateKey).signDigest(keccak256(serialize(tx)));
   const signed = serialize(tx, signature);
@@ -150,4 +202,32 @@ export async function signAndSend(args: {
 /** Next usable nonce, counting anything already sitting in the mempool. */
 export async function nextNonce(chain: ChainId, address: string): Promise<number | null> {
   return getTransactionCount(chain, address, 'pending');
+}
+
+export interface NonceStatus {
+  /** The last nonce actually mined + 1 — the first slot with nothing confirmed. */
+  mined: number;
+  /** Counting anything already sitting in the mempool, ours or not. */
+  pending: number;
+  /** pending - mined: transactions WE sent that never confirmed. */
+  stuck: number;
+}
+
+/**
+ * Where a keeper's nonce actually stands, and whether anything is stuck.
+ *
+ * A gap between `mined` and `pending` means a previous run's transactions are
+ * sitting unconfirmed — see the MAX_FEE_MULTIPLE note above for why that
+ * happens on this chain. Signing more work on top of `pending` in that state
+ * doesn't help: those new transactions just queue up BEHIND the stuck ones,
+ * since nonces are strictly ordered, and confirm nothing until the stuck ones
+ * do. The only way out is to REPLACE the stuck nonces with a transaction the
+ * network is willing to include now, which is why callers should start
+ * signing from `mined`, not `pending`, whenever `stuck > 0`.
+ */
+export async function checkNonce(chain: ChainId, address: string): Promise<NonceStatus | null> {
+  const mined = await getTransactionCount(chain, address, 'latest');
+  const pending = await getTransactionCount(chain, address, 'pending');
+  if (mined == null || pending == null) return null;
+  return { mined, pending, stuck: Math.max(0, pending - mined) };
 }

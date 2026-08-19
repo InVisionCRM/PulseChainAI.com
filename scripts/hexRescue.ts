@@ -11,11 +11,27 @@
  *   npm run hex:rescue                  # dry run: says what it WOULD do
  *   npm run hex:rescue -- --execute     # actually sends (needs the key)
  *   npm run hex:rescue -- --limit 25
- *   npm run hex:rescue -- --min-days 30 # only stakes 30+ days past grace
+ *   npm run hex:rescue -- --min-days 30   # only stakes 30+ days past grace
+ *   npm run hex:rescue -- --min-hex 0     # no principal floor (see below)
  *
  * Dry run is the default and --execute is the only way past it, because the
  * first thing anyone should do with a keeper is watch a full day's worth of
  * what it intends to do before it is ever allowed to sign anything.
+ *
+ * Defaults to a 500,000 HEX principal floor — gas cost is driven by a stake's
+ * TERM, not its size (see lib/hex/rescueWallet.ts), so rescuing a 1,100 HEX
+ * stake costs the same as a 3,000,000 HEX one, and the floor spends that fixed
+ * cost where it recovers the most. Lower it with --min-hex once the largest
+ * stakes are handled.
+ *
+ * Self-heals a stuck previous run. PulseChain's base fee moves fast enough
+ * that a batch of transactions can go stale before the first one mines,
+ * wedging the whole queue behind it (nonces are strictly ordered) — see the
+ * MAX_FEE_MULTIPLE note in rescueWallet.ts for a real instance of this. If the
+ * keeper's mined and pending nonces differ, that gap is prior transactions
+ * that never confirmed, and this run REPLACES them (signs starting from the
+ * mined nonce) with fresh, currently-priced work instead of queuing more
+ * transactions behind ones that may never land.
  *
  * Loads .env / .env.local itself, via Next's own loader. Next.js reads those
  * files automatically for `next dev` / `next build` / API routes, but that is
@@ -35,8 +51,8 @@ import {
   messageForStake,
   type RescueCandidate,
 } from '@/lib/hex/rescue';
-import { loadKeeper, signAndSend, nextNonce } from '@/lib/hex/rescueWallet';
-import { estimateGas, getGasPrice } from '@/lib/portfolio/evmRpc';
+import { loadKeeper, signAndSend, checkNonce } from '@/lib/hex/rescueWallet';
+import { estimateGas, getBaseFee, getGasPrice } from '@/lib/portfolio/evmRpc';
 import { HEX_ADDRESS, LATE_PENALTY_SCALE_DAYS } from '@/lib/hex/hexDay';
 
 const arg = (name: string): string | null => {
@@ -48,6 +64,7 @@ const has = (name: string) => process.argv.includes(name);
 const EXECUTE = has('--execute');
 const LIMIT = Number(arg('--limit') ?? 25);
 const MIN_DAYS = Number(arg('--min-days') ?? 1);
+const MIN_HEX = Number(arg('--min-hex') ?? 500_000);
 
 const fmt = (n: number, d = 0) => n.toLocaleString('en-US', { maximumFractionDigits: d });
 
@@ -57,7 +74,10 @@ const bleedPerDay = (c: RescueCandidate) =>
 
 async function main() {
   console.log(EXECUTE ? '⚡ HEX rescue — EXECUTING' : '🔍 HEX rescue — dry run (add --execute to send)');
-  console.log(`   chain: pulsechain · limit ${LIMIT} · at least ${MIN_DAYS} day(s) past grace\n`);
+  console.log(
+    `   chain: pulsechain · limit ${LIMIT} · at least ${MIN_DAYS} day(s) past grace · ` +
+      `principal ≥ ${fmt(MIN_HEX)} HEX\n`,
+  );
 
   const keeper = loadKeeper();
   if (EXECUTE && !keeper) {
@@ -66,21 +86,38 @@ async function main() {
   }
   console.log(keeper ? `   keeper: ${keeper.address}` : '   keeper: (no key loaded — dry run only)');
 
-  const gasPrice = await getGasPrice('pulsechain');
-  console.log(`   gas price: ${gasPrice ? fmt(Number(gasPrice) / 1e9) + ' gwei' : 'unknown'}\n`);
+  // Same pricing basis signAndSend actually uses, so the estimate here matches
+  // reality — a legacy-only display would read wrong the moment the network
+  // (like this one, verified live) supports EIP-1559.
+  const baseFee = await getBaseFee('pulsechain');
+  const displayPrice = baseFee ?? (await getGasPrice('pulsechain'));
+  console.log(`   base fee: ${displayPrice ? fmt(Number(displayPrice) / 1e9) + ' gwei' : 'unknown'}\n`);
+
+  let nonce: number | null = null;
+  if (EXECUTE && keeper) {
+    const status = await checkNonce('pulsechain', keeper.address);
+    if (!status) {
+      console.error('❌ could not read the keeper nonce; aborting.');
+      process.exit(1);
+    }
+    if (status.stuck > 0) {
+      console.log(
+        `⚠️  ${status.stuck} transaction(s) from a previous run never confirmed ` +
+          `(nonce ${status.mined}–${status.pending - 1}). Replacing them with fresh, ` +
+          `currently-priced work instead of queuing behind them.\n`,
+      );
+    }
+    nonce = status.mined; // always resume from mined, not pending — see file header
+  }
 
   const candidates = await findRescueCandidates('pulsechain', {
     minDaysPastGrace: MIN_DAYS,
+    minPrincipalHex: MIN_HEX,
     limit: LIMIT * 3, // over-fetch: many resolve to "already settled" and cost nothing
   });
   console.log(`Found ${candidates.length} candidate stake(s) from the subgraph.\n`);
 
   let sent = 0, skipped = 0, failed = 0, totalGas = 0n, hexSaved = 0, bleedStopped = 0;
-  let nonce = EXECUTE && keeper ? await nextNonce('pulsechain', keeper.address) : null;
-  if (EXECUTE && nonce == null) {
-    console.error('❌ could not read the keeper nonce; aborting.');
-    process.exit(1);
-  }
 
   for (const c of candidates) {
     if (sent + skipped >= LIMIT) break;
@@ -93,7 +130,7 @@ async function main() {
     const data = goodAccountingCalldata(c.stakerAddr, resolved.index, c.stakeId, message);
 
     const est = await estimateGas('pulsechain', { from: keeper?.address ?? HEX_ADDRESS, to: HEX_ADDRESS, data });
-    const costPls = est && gasPrice ? Number(est * gasPrice) / 1e18 : null;
+    const costPls = est && displayPrice ? Number(est * displayPrice) / 1e18 : null;
 
     const head =
       `stake ${c.stakeId.padStart(7)} · ${fmt(c.principalHex).padStart(11)} HEX · ` +
@@ -108,7 +145,7 @@ async function main() {
 
     if (!EXECUTE) {
       console.log(`  📋 ${head}`);
-      console.log(`      idx ${resolved.index} · ${fmt(Number(est))} gas${costPls != null ? ` · ${fmt(costPls, 1)} PLS` : ''}`);
+      console.log(`      idx ${resolved.index} · ${fmt(Number(est))} gas${costPls != null ? ` · ${fmt(costPls, 1)} PLS at base fee` : ''}`);
       console.log(`      "${message}"`);
       totalGas += est;
       sent++;
@@ -148,9 +185,9 @@ async function main() {
     }
   }
 
-  const costPls = gasPrice ? Number(totalGas * gasPrice) / 1e18 : 0;
+  const costPls = displayPrice ? Number(totalGas * displayPrice) / 1e18 : 0;
   console.log(`\n${EXECUTE ? 'Sent' : 'Would send'}: ${sent} · skipped: ${skipped} · failed: ${failed}`);
-  console.log(`Gas: ${fmt(Number(totalGas))} (${fmt(costPls, 2)} PLS)`);
+  console.log(`Gas: ${fmt(Number(totalGas))} (~${fmt(costPls, 2)} PLS at base fee — actual cap includes headroom)`);
   console.log(`HEX frozen before further loss: ${fmt(hexSaved)}`);
   console.log(`Daily bleed stopped: ${fmt(bleedStopped)} HEX/day`);
   if (failed > 0) process.exit(1);
