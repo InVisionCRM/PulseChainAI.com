@@ -14,7 +14,7 @@
 // spike flattens every other bar on a linear axis, so there's a log toggle,
 // and the released strip (which reads the same either way) carries the shape.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Area, AreaChart, Bar, CartesianGrid, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
@@ -47,6 +47,13 @@ interface IndexingState {
 }
 
 type Metric = 'hex' | 'tShares';
+/**
+ * √ is the default: the schedule is so heavy-tailed (one day carries 24% of
+ * everything) that linear crushes every ordinary period into invisible slivers,
+ * while log makes the giants look ordinary. Square-root keeps the monsters
+ * obviously biggest and the small periods readable at the same time.
+ */
+type Scale = 'lin' | 'sqrt' | 'log';
 
 const HORIZONS: { key: string; label: string; years: number | null; grain: Grain }[] = [
   { key: '1y', label: '1Y', years: 1, grain: 'week' },
@@ -74,7 +81,7 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
   const [reload, setReload] = useState(0);
   const [horizon, setHorizon] = useState('3y');
   const [metric, setMetric] = useState<Metric>('hex');
-  const [log, setLog] = useState(false);
+  const [scale, setScale] = useState<Scale>('sqrt');
 
   useEffect(() => {
     let alive = true;
@@ -167,21 +174,27 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <Stat
           label="HEX locked"
-          value={fmtHex(data.network_totals.hex)}
+          countTo={data.network_totals.hex}
+          format={fmtHex}
           sub={usd(data.network_totals.hex) != null ? fmtUsdShort(usd(data.network_totals.hex)!) : undefined}
           hex
+          delay={0}
         />
-        <Stat label="T-Shares locked" value={tsh(data.network_totals.tShares)} />
+        <Stat label="T-Shares locked" countTo={data.network_totals.tShares} format={tsh} delay={60} />
         <Stat
           label="Half is free by"
           value={halfDay != null ? fmtHexDate(halfDay) : '—'}
           sub={halfDay != null ? `${fmtDuration(halfDay - data.currentDay)} out` : undefined}
+          delay={120}
         />
         <Stat
           label="Biggest single day"
-          value={peak ? fmtHex(peak.hex) : '—'}
+          countTo={peak?.hex}
+          format={fmtHex}
+          value={peak ? undefined : '—'}
           sub={peak ? `${fmtHexDate(peak.day)} · ${peakPct.toFixed(0)}% of all` : undefined}
           hex
+          delay={180}
         />
       </div>
 
@@ -204,24 +217,19 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
             onChange={(v) => setMetric(v as Metric)}
           />
           <Segmented options={HORIZONS.map((h) => ({ key: h.key, label: h.label }))} value={horizon} onChange={setHorizon} />
-          <button
-            type="button"
-            onClick={() => setLog((l) => !l)}
-            title="Log scale flattens the one enormous day so the rest of the schedule is readable"
-            className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition-colors ${
-              log
-                ? 'border-[var(--chart-accent)] bg-[color-mix(in_srgb,var(--chart-accent)_14%,transparent)] text-[var(--text)]'
-                : 'border-[var(--line)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]'
-            }`}
-          >
-            Log
-          </button>
+          <span title="How bar heights scale. √ keeps the monster days from crushing the small ones; Lin is true proportions; Log flattens everything.">
+            <Segmented
+              options={[{ key: 'lin', label: 'Lin' }, { key: 'sqrt', label: '√' }, { key: 'log', label: 'Log' }]}
+              value={scale}
+              onChange={(v) => setScale(v as Scale)}
+            />
+          </span>
         </div>
       </div>
 
       {/* The chart: bars up top, the released strip beneath, one x-axis for both. */}
-      <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 pb-2">
-        <div className="h-[248px] w-full">
+      <div className="anim-rise rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 pb-2" style={{ animationDelay: '120ms' }}>
+        <div className="h-[190px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={series} margin={CHART_MARGIN} syncId="horizon">
               <CartesianGrid stroke="var(--line-soft)" vertical={false} />
@@ -233,9 +241,9 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
                 tickLine={false}
                 // A log axis cannot start at 0, and every empty period is 0 —
                 // so the domain floors at 1 and zero bars simply don't draw.
-                scale={log ? 'log' : 'auto'}
-                domain={log ? [1, 'auto'] : [0, 'auto']}
-                allowDataOverflow={log}
+                scale={scale === 'lin' ? 'auto' : scale}
+                domain={scale === 'log' ? [1, 'auto'] : [0, 'auto']}
+                allowDataOverflow={scale === 'log'}
                 width={Y_WIDTH}
               />
               <Tooltip
@@ -247,12 +255,13 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
                 fill="var(--chart-accent)"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={22}
-                isAnimationActive={false}
+                animationDuration={700}
+                animationEasing="ease-out"
               />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
-        <div className="h-[86px] w-full">
+        <div className="h-[64px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={series} margin={{ ...CHART_MARGIN, top: 4, bottom: 0 }} syncId="horizon">
               <XAxis
@@ -281,7 +290,8 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
                 fill="var(--chart-flow)"
                 fillOpacity={0.1}
                 dot={false}
-                isAnimationActive={false}
+                animationDuration={1100}
+                animationEasing="ease-out"
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -353,7 +363,7 @@ function Overdue({ overdue, frozen }: { overdue: UnlockBucket; frozen?: { hex: n
   const bleedHex = Math.max(0, overdue.hex - frozenHex);
   const frozenPct = overdue.hex > 0 ? (frozenHex / overdue.hex) * 100 : 0;
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5">
+    <div className="anim-rise rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5" style={{ animationDelay: '80ms' }}>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-amber-500 dark:text-amber-300">
           <IconAlertTriangle className="h-3.5 w-3.5" /> Past due, unclaimed
@@ -365,7 +375,7 @@ function Overdue({ overdue, frozen }: { overdue: UnlockBucket; frozen?: { hex: n
       </div>
       {/* 2px surface gap between the two segments, per the mark spec. */}
       <div className="mt-2 flex h-1.5 gap-[2px] overflow-hidden rounded-full">
-        <div className="rounded-l-full bg-[var(--text-faint)]" style={{ width: `${Math.max(2, frozenPct)}%` }} />
+        <div className="anim-grow rounded-l-full bg-[var(--text-faint)]" style={{ width: `${Math.max(2, frozenPct)}%`, animationDelay: '250ms' }} />
         <div className="min-w-[2%] flex-1 rounded-r-full bg-amber-500" />
       </div>
       <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-[11px]">
@@ -412,13 +422,48 @@ function Indexing({ state, onRetry }: { state: IndexingState; onRetry: () => voi
   );
 }
 
-function Stat({ label, value, sub, hex }: { label: string; value: string; sub?: string; hex?: boolean }) {
+/** Eases a number from 0 to its real value on mount; honors reduced-motion. */
+function CountUp({ value, format }: { value: number; format: (n: number) => string }) {
+  const [shown, setShown] = useState(0);
+  const target = useRef(value);
+  target.current = value;
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setShown(target.current);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const dur = 900;
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - start) / dur);
+      setShown(target.current * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <>{format(shown)}</>;
+}
+
+function Stat({ label, value, countTo, format, sub, hex, delay = 0 }: {
+  label: string;
+  value?: string;
+  /** Animate the value counting up from zero instead of rendering it static. */
+  countTo?: number;
+  format?: (n: number) => string;
+  sub?: string;
+  hex?: boolean;
+  delay?: number;
+}) {
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2">
+    <div className="anim-rise rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2" style={{ animationDelay: `${delay}ms` }}>
       <div className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
       <div className="flex items-center gap-1.5 truncate text-lg font-bold text-[var(--text)]">
         {hex && <HexLogo className="h-4 w-4 shrink-0" />}
-        <span className="truncate">{value}</span>
+        <span className="truncate">
+          {countTo != null && format ? <CountUp value={countTo} format={format} /> : value}
+        </span>
       </div>
       {sub && <div className="truncate text-[10px] tabular-nums text-[var(--text-muted)]">{sub}</div>}
     </div>
@@ -463,7 +508,7 @@ function BiggestDays({ buckets, total, currentDay, usd }: {
   const peakPct = total > 0 ? (top[0].hex / total) * 100 : 0;
 
   return (
-    <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+    <div className="anim-rise rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4" style={{ animationDelay: '180ms' }}>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--text)]">
           <IconFlame className="h-4 w-4 text-rose-400" /> The cliffs
@@ -482,8 +527,12 @@ function BiggestDays({ buckets, total, currentDay, usd }: {
               <div className="w-24 shrink-0 text-xs font-semibold text-[var(--text)]">{fmtHexDate(b.day)}</div>
               <div className="h-4 min-w-0 flex-1 overflow-hidden rounded-[4px] bg-[var(--surface-2)]">
                 <div
-                  className="h-full rounded-[4px] bg-[var(--chart-accent)] transition-opacity group-hover:opacity-80"
-                  style={{ width: `${Math.max(2, (b.hex / max) * 100)}%`, opacity: i === 0 ? 1 : 0.75 }}
+                  className="anim-grow h-full rounded-[4px] bg-[var(--chart-accent)] transition-opacity group-hover:opacity-80"
+                  style={{
+                    width: `${Math.max(2, (b.hex / max) * 100)}%`,
+                    opacity: i === 0 ? 1 : 0.75,
+                    animationDelay: `${200 + i * 70}ms`,
+                  }}
                 />
               </div>
               <div className="w-32 shrink-0 text-right text-xs">
