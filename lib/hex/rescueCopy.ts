@@ -11,27 +11,47 @@
 
 export const HEX_CONTRACT = '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39';
 
-/** Where a rescued staker actually ends their stake. */
+/**
+ * The HEX app the community actually uses, pinned on IPFS.
+ *
+ * This is the front door for ending a stake, not a fallback: it is where HEX
+ * holders already go, it shows the stake list with real numbers, and ending is
+ * a button rather than a hand-encoded contract call. Verified live — it answers
+ * 200 and serves the HEX app.
+ *
+ * An IPFS URL rather than a domain on purpose. The content is addressed by its
+ * own hash, so this exact build cannot be swapped out from under anyone, which
+ * is the right property for a link we hand to someone who has just been told a
+ * stranger touched their stake.
+ */
+export const HEX_APP_URL =
+  'https://hex.mypinata.cloud/ipfs/bafybeigxypck6aqtgt2wrvt2kd4ixy3ipxr7lhaafvg3j3ucdu4w3vumbm/';
+
+/**
+ * Ending a stake, the way people actually do it.
+ *
+ * Deliberately no contract addresses, no stake index, no `stakeEnd` ABI. An
+ * earlier version of this page walked through calling the contract by hand on
+ * a block explorer, which is accurate and almost useless: the person reading it
+ * has just learned a stranger touched their stake, and the last thing that
+ * moment needs is an ABI. The app does all of it, and it is where the community
+ * already goes.
+ */
 export const CLAIM_STEPS = [
   {
     title: 'Connect the wallet that owns the stake',
     body:
-      'Only that wallet can end it. Nobody else can — not us, not anyone. That is why we could stop the loss but could not finish the job for you.',
+      'Only that wallet can end it — not us, not anyone else. That is exactly why we could stop the loss but could not finish it for you.',
   },
   {
-    title: 'Open the HEX contract on the explorer',
+    title: 'Find the stake and press End Stake',
     body:
-      'Go to the Write Contract tab. HEX has no app of its own that survives; the contract is the source of truth and always works.',
+      'It will be listed with the stake ID shown above. The app handles the rest; you just confirm the transaction in your wallet.',
   },
   {
-    title: 'Call stakeEnd with your stake index and stake ID',
+    title: 'The HEX lands in your wallet',
     body:
-      'The index is the stake’s position in your own stake list, which changes as stakes end, so read it fresh. The stake ID is fixed and is shown above.',
-  },
-  {
-    title: 'The HEX arrives in your wallet',
-    body:
-      'The amount is already locked in and cannot shrink further, no matter how long you take from here.',
+      'The amount is already locked in and cannot shrink any further, however long you take to get to it.',
   },
 ] as const;
 

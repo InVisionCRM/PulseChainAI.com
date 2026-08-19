@@ -14,10 +14,11 @@
 
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { IconExternalLink, IconShieldCheck, IconClockStop } from '@tabler/icons-react';
+import { IconExternalLink, IconShieldCheck } from '@tabler/icons-react';
 import { fetchRescue } from '@/lib/hex/rescueFeed';
-import { WHAT_HAPPENED, CLAIM_STEPS, HEX_CONTRACT } from '@/lib/hex/rescueCopy';
-import { pulsechainTxUrl, pulsechainAddressUrl, pulsechainWriteContractUrl } from '@/lib/pulsechainExplorer';
+import { WHAT_HAPPENED, CLAIM_STEPS, HEX_APP_URL } from '@/lib/hex/rescueCopy';
+import { pulsechainTxUrl, pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
+import { RescuedBy, HexWatermark, HexMark } from '@/components/rescue/RescueBrand';
 
 export const revalidate = 300;
 
@@ -52,19 +53,24 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
           ← every rescue
         </Link>
 
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400/90">
-          rescued by SuperStake · stake #{stakeId}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <RescuedBy />
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">
+            · stake #{stakeId}
+          </span>
         </div>
 
         {rescue ? (
           <>
-            <h1 className="mt-2 text-3xl font-bold leading-tight text-[var(--text)] md:text-4xl">
+            <h1 className="mt-2 flex flex-wrap items-center gap-x-3 text-3xl font-bold leading-tight text-[var(--text)] md:text-4xl">
+              <HexMark className="h-8 w-8 md:h-10 md:w-10" />
               {rescue.claimableHex != null ? (
-                <>
-                  <span className="text-emerald-400">{hex(rescue.claimableHex)} HEX</span> is still yours.
-                </>
+                <span>
+                  <span className="text-emerald-400">{hex(rescue.claimableHex)}</span>{' '}
+                  <span className="text-emerald-400">HEX</span> is still yours.
+                </span>
               ) : (
-                <>Your stake stopped losing value.</>
+                <span>Your stake stopped losing value.</span>
               )}
             </h1>
             <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-[var(--text-muted)]">
@@ -82,7 +88,7 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
             </div>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <Stat label="Claimable now" value={`${hex(rescue.claimableHex)} HEX`} tone="good" />
+              <Stat label="Claimable now" value={`${hex(rescue.claimableHex)} HEX`} tone="good" hex />
               <Stat
                 label="Was losing"
                 value={rescue.bleedPerDay != null ? `${hex(rescue.bleedPerDay)} HEX/day` : '—'}
@@ -138,7 +144,30 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
             <p className="mt-1 text-sm text-[var(--text-muted)]">
               There is no rush — the amount above cannot shrink any further. But it also will not arrive on its own.
             </p>
-            <ol className="mt-4 space-y-3">
+
+            {/* The app is the action, so it leads rather than sitting under the
+                steps as an afterthought. */}
+            <a
+              href={HEX_APP_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="group relative mt-4 flex items-center gap-4 overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.14] to-transparent p-4 transition-colors hover:border-emerald-400/60"
+            >
+              <HexWatermark className="-right-6 -top-8" size="h-32 w-32" opacity="opacity-[0.10]" />
+              <HexMark className="h-11 w-11 shrink-0" />
+              <span className="relative">
+                <span className="block text-base font-bold text-[var(--text)]">Open the HEX app</span>
+                <span className="block text-[13px] text-[var(--text-muted)]">
+                  The one the community uses, pinned on IPFS. Nothing to install, nothing to sign up for.
+                </span>
+              </span>
+              <IconExternalLink className="relative ml-auto h-5 w-5 shrink-0 text-emerald-400" />
+            </a>
+
+            <p className="mt-3 text-[12px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">
+              then, in the app
+            </p>
+            <ol className="mt-2 space-y-2.5">
               {CLAIM_STEPS.map((s, i) => (
                 <li key={s.title} className="flex gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3.5">
                   <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--surface-3)] text-[12px] font-bold text-[var(--text)]">
@@ -151,15 +180,6 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
                 </li>
               ))}
             </ol>
-
-            <a
-              href={pulsechainWriteContractUrl(HEX_CONTRACT)}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-black transition-opacity hover:opacity-90"
-            >
-              Open the HEX contract <IconExternalLink className="h-4 w-4" />
-            </a>
           </>
         ) : (
           <>
@@ -181,7 +201,7 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
         <p className="mt-10 border-t border-[var(--line)] pt-4 text-[12px] leading-relaxed text-[var(--text-faint)]">
           {WHAT_HAPPENED.long}{' '}
           <Link href="/rescued" className="underline hover:text-[var(--text)]">
-            See every stake SuperStake has rescued
+            See every stake Morbius and SuperStake have rescued
           </Link>
           .
         </p>
@@ -195,18 +215,21 @@ function Stat({
   value,
   sub,
   tone,
+  hex: showHex,
 }: {
   label: string;
   value: string;
   sub?: string;
   tone?: 'good' | 'warn';
+  hex?: boolean;
 }) {
   const color = tone === 'good' ? 'text-emerald-400' : tone === 'warn' ? 'text-amber-400' : 'text-[var(--text)]';
   return (
-    <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3.5">
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
-      <div className={`mt-1 text-lg font-bold tabular-nums ${color}`}>{value}</div>
-      {sub && <div className="text-[11px] text-[var(--text-faint)]">{sub}</div>}
+    <div className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3.5">
+      {showHex && <HexWatermark className="-bottom-6 -right-5" size="h-24 w-24" opacity="opacity-[0.07]" />}
+      <div className="relative text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
+      <div className={`relative mt-1 text-lg font-bold tabular-nums ${color}`}>{value}</div>
+      {sub && <div className="relative text-[11px] text-[var(--text-faint)]">{sub}</div>}
     </div>
   );
 }

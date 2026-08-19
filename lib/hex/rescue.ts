@@ -256,13 +256,16 @@ function shortHex(hex: number): string {
  * them. Nothing here claims we gave them anything — we stopped a loss, and the
  * HEX was always theirs.
  */
+/** Both names, because both did it. Kept short — it is on every transaction. */
+const SIGNED_BY = 'Morbius x SuperStake.win';
+
 const MESSAGE_TEMPLATES = [
-  (amt: string, url: string) => `${amt} HEX of yours was bleeding out. we stopped the clock. still yours: ${url} -- SuperStake.win`,
-  (amt: string, url: string) => `found ${amt} HEX of yours dying in public. froze it. come get it: ${url} -- SuperStake.win`,
-  (amt: string, url: string) => `you left ${amt} HEX in the oven. we turned it off. still yours: ${url} -- SuperStake.win`,
-  (amt: string, url: string) => `${amt} HEX was quietly disappearing. not anymore. it's yours: ${url} -- SuperStake.win`,
-  (amt: string, url: string) => `somebody had to press the button on ${amt} HEX of yours. it was us: ${url} -- SuperStake.win`,
-  (amt: string, url: string) => `${amt} HEX, saved from itself. no charge, no catch, still yours: ${url} -- SuperStake.win`,
+  (amt: string, url: string) => `${amt} HEX of yours was bleeding out. we stopped the clock. still yours: ${url} -- ${SIGNED_BY}`,
+  (amt: string, url: string) => `found ${amt} HEX of yours dying in public. froze it. come get it: ${url} -- ${SIGNED_BY}`,
+  (amt: string, url: string) => `you left ${amt} HEX in the oven. we turned it off. still yours: ${url} -- ${SIGNED_BY}`,
+  (amt: string, url: string) => `${amt} HEX was quietly disappearing. not anymore. it's yours: ${url} -- ${SIGNED_BY}`,
+  (amt: string, url: string) => `somebody had to press the button on ${amt} HEX of yours. it was us: ${url} -- ${SIGNED_BY}`,
+  (amt: string, url: string) => `${amt} HEX, saved from itself. no charge, no catch, still yours: ${url} -- ${SIGNED_BY}`,
 ] as const;
 
 /** For tests and docs — a rendered sample of each template. */

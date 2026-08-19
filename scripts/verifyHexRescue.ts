@@ -132,9 +132,9 @@ async function main() {
   withLink.includes('3.36M')
     ? pass('every message states the amount at stake (3.36M)')
     : fail(`message is missing the amount: ${withLink}`);
-  withLink.includes('SuperStake')
-    ? pass('every message is attributed to SuperStake')
-    : fail(`message is missing attribution: ${withLink}`);
+  withLink.includes('Morbius') && withLink.includes('SuperStake')
+    ? pass('every message credits both Morbius and SuperStake')
+    : fail(`message is missing one of the two names: ${withLink}`);
 
   console.log(
     failures === 0
