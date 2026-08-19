@@ -12,7 +12,8 @@ import {
   fitText, gauge, grid, needle, ring, rr, statTile, text,
 } from '@/lib/shareCards/paint';
 import { fmtHexDate, fmtDuration, hexDayToDate } from '@/lib/hex/hexDay';
-import { LEAGUES } from '@/lib/hex/leagues';
+import { LEAGUES, leagueFloor } from '@/lib/hex/leagues';
+import { paintLeagueCrest } from '@/lib/hex/leagueCrestCanvas';
 
 export { CARD_W, CARD_H };
 
@@ -55,7 +56,7 @@ export interface StrategistShareData {
     stakersFound: number;
     networkTShares: number;
     populations: Record<string, number>;
-    rows: { rank: number; address: string; tShares: number; sharePct: number }[];
+    rows: { rank: number; address: string; tShares: number; sharePct: number; principalHex?: number }[];
   } | null;
 }
 
@@ -81,7 +82,7 @@ export const CARDS: readonly CardKind[] = [
   { id: 'pulse', name: 'The pulse', blurb: 'The last 24 hours: starts, ends, penalties, minted yield.', group: 'pulse', source: 'pulse' },
   { id: 'loyalty', name: 'Held to term', blurb: 'How many stakes served their full term this month.', group: 'pulse', source: 'pulse' },
   { id: 'mint', name: 'Minted vs burned', blurb: '30 days of yield paid out against penalties taken.', group: 'pulse', source: 'pulse' },
-  { id: 'foodchain', name: 'The food chain', blurb: 'Every staker on the chain, ranked into nine leagues.', group: 'leagues', source: 'leagues' },
+  { id: 'foodchain', name: 'The food chain', blurb: 'All nine leagues — each crest, and what it costs to enter.', group: 'leagues', source: 'leagues' },
   { id: 'whales', name: 'The whales', blurb: 'The five largest stakers and the share they hold.', group: 'leagues', source: 'leagues' },
 ] as const;
 
@@ -625,33 +626,54 @@ function foodchainCard(c: CanvasRenderingContext2D, d: StrategistShareData, logo
     return;
   }
   const total = d.leagues.stakersFound;
-  text(c, `${nf(total)} STAKERS, NINE LEAGUES`, CARD_W / 2, 210, { size: 21, color: TX_DIM, font: MONO, align: 'center', spacing: 3 });
+  const netT = d.leagues.networkTShares;
+  const rate = d.tShareRateHex;
+  text(c, `${nf(total)} STAKERS · NINE LEAGUES · WHAT EACH CREST COSTS`, CARD_W / 2, 206, {
+    size: 20, color: TX_DIM, font: MONO, align: 'center', spacing: 3,
+  });
 
-  // Log-width bars: populations run 1 → 40k+, linear would erase the apex.
-  const counts = LEAGUES.map((l) => d.leagues!.populations[l.key] ?? 0);
-  const maxLog = Math.log10(Math.max(...counts, 10) + 1);
-  const rowH = 76;
-  const y0 = 258;
-  const barX = PAD + 250;
-  const barW = BOX_W - 250 - 130;
+  // T-Share floors run 3.7M → 0.04, so the formatter has to survive both ends.
+  const tsAmt = (t: number) =>
+    t >= 1e6 ? `${(t / 1e6).toFixed(2)}M` : t >= 1e3 ? `${(t / 1e3).toFixed(1)}K`
+      : t >= 100 ? t.toFixed(0) : t >= 1 ? t.toFixed(1) : t.toFixed(2);
+  const usdSmall = (n: number) => (n < 10 ? `$${n.toFixed(2)}` : usdAmt(n));
+
+  const colFloor = PAD + 560;
+  const colHex = PAD + 762;
+  const colUsd = CARD_W - PAD;
+  text(c, 'LEAGUE', PAD, 252, { size: 15, color: TX_DIM, font: MONO, spacing: 2 });
+  text(c, 'T-SHARE FLOOR', colFloor, 252, { size: 15, color: TX_DIM, font: MONO, align: 'right', spacing: 2 });
+  text(c, 'HEX TO ENTER', colHex, 252, { size: 15, color: TX_DIM, font: MONO, align: 'right', spacing: 2 });
+  text(c, 'VALUE TODAY', colUsd, 252, { size: 15, color: TX_DIM, font: MONO, align: 'right', spacing: 2 });
+
+  const rowH = 78;
+  const y0 = 268;
   LEAGUES.forEach((l, i) => {
     const y = y0 + i * rowH;
-    const n = counts[i];
-    hexPath(c, PAD + 26, y + 26, 24);
-    c.fillStyle = `${l.color}28`;
-    c.fill();
-    c.lineWidth = 3.5;
-    c.strokeStyle = l.color;
-    c.stroke();
-    text(c, l.name.toUpperCase(), PAD + 66, y + 36, { size: 26, weight: 800, color: l.color, spacing: 2 });
-    const w = n > 0 ? Math.max(10, (Math.log10(n + 1) / maxLog) * barW) : 4;
-    rr(c, barX, y + 12, w, 28, 9);
-    c.fillStyle = `${l.color}cc`;
-    c.fill();
-    text(c, n > 0 ? nf(n) : '—', CARD_W - PAD, y + 36, { size: 26, weight: 700, align: 'right' });
+    const n = d.leagues!.populations[l.key] ?? 0;
+    const floor = leagueFloor(l, netT);
+    const hexNeeded = rate != null ? floor * rate : null;
+    const usdNeeded = hexNeeded != null && d.priceUsd != null ? hexNeeded * d.priceUsd : null;
+
+    paintLeagueCrest(c, l, PAD, y + 6, 62, INK);
+    text(c, l.name.toUpperCase(), PAD + 82, y + 36, { size: 25, weight: 800, color: l.color, spacing: 1 });
+    text(c, n > 0 ? `${nf(n)} staker${n === 1 ? '' : 's'}` : 'unclaimed — no staker holds it', PAD + 82, y + 62, { size: 16, color: TX_DIM });
+    text(c, `${tsAmt(floor)} T`, colFloor, y + 46, { size: 21, color: TX_MID, font: MONO, align: 'right' });
+    text(c, hexNeeded != null ? hexAmt(hexNeeded) : MISSING, colHex, y + 46, { size: 24, weight: 800, align: 'right' });
+    text(c, usdNeeded != null ? usdSmall(usdNeeded) : MISSING, colUsd, y + 46, {
+      size: 24, weight: 800, color: '#4ade80', align: 'right',
+    });
+    if (i < LEAGUES.length - 1) {
+      c.strokeStyle = LINE;
+      c.lineWidth = 1;
+      c.beginPath();
+      c.moveTo(PAD, y + rowH - 3);
+      c.lineTo(CARD_W - PAD, y + rowH - 3);
+      c.stroke();
+    }
   });
-  text(c, 'bar widths are log scale — one Poseidon outweighs 33,000 Shells', CARD_W / 2, y0 + 9 * rowH + 14, {
-    size: 17, color: TX_DIM, font: MONO, align: 'center',
+  text(c, 'floors are a share of all live T-Shares — they rise as the network stakes', CARD_W / 2, y0 + 9 * rowH + 20, {
+    size: 16, color: TX_DIM, font: MONO, align: 'center',
   });
 }
 
@@ -682,7 +704,10 @@ function whalesCard(c: CanvasRenderingContext2D, d: StrategistShareData, logo: H
     c.fillStyle = i === 0 ? hexGrad(c, PAD + 300, y, PAD + 300 + bw, y) : 'rgba(255,158,0,0.45)';
     c.fill();
     text(c, `${nf(r.tShares)} T`, CARD_W - PAD, y + 26, { size: 25, weight: 800, align: 'right' });
-    text(c, `${r.sharePct.toFixed(2)}% of the network`, CARD_W - PAD, y + 54, { size: 18, color: TX_DIM, align: 'right' });
+    const sub = r.principalHex != null
+      ? `${hexAmt(r.principalHex)} HEX locked${d.priceUsd != null ? ` · ${usdAmt(r.principalHex * d.priceUsd)}` : ''} · ${r.sharePct.toFixed(2)}%`
+      : `${r.sharePct.toFixed(2)}% of the network`;
+    text(c, sub, CARD_W - PAD, y + 54, { size: 18, color: TX_DIM, align: 'right' });
   });
 }
 

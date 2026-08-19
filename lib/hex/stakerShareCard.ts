@@ -8,9 +8,10 @@
 // didn't load is drawn as MISSING rather than invented.
 
 import {
-  BOX_W, CARD_H, CARD_W, MISSING, MONO, PAD, PALETTES, TX, TX_DIM, TX_MID,
+  BOX_W, CARD_H, CARD_W, INK, MISSING, MONO, PAD, PALETTES, TX, TX_DIM, TX_MID,
   brand, chrome, fitText, gauge, grid, measure, needle, panel, rr, statTile, text,
 } from '@/lib/shareCards/paint';
+import { paintLeagueCrest } from '@/lib/hex/leagueCrestCanvas';
 
 export { CARD_W, CARD_H };
 
@@ -26,8 +27,8 @@ export interface StakerShareData {
   address: string;
   /** "Aug 19, 2026" — stamped in the footer. */
   asOf: string;
-  league: { name: string; color: string };
-  next: { name: string; color: string } | null;
+  league: { key: string; name: string; color: string };
+  next: { key: string; name: string; color: string } | null;
   tShares: number;
   principalHex: number;
   principalUsd: number | null;
@@ -64,12 +65,12 @@ const usdAmt = (n: number) =>
   n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(0)}`;
 const pctOfNetwork = (pct: number) => (pct >= 0.01 ? `${pct.toFixed(2)}%` : pct > 0 ? `${pct.toFixed(4)}%` : '0%');
 
-/** The flat-top hexagon the LeagueCrest component uses, scaled onto canvas. */
-function crest(c: CanvasRenderingContext2D, cx: number, cy: number, r: number, color: string) {
+/** The full league crest — halo first, then the real sigil-in-hexagon art. */
+function crest(c: CanvasRenderingContext2D, cx: number, cy: number, r: number, league: { key: string; color: string }) {
   const pts: [number, number][] = [[50, 3], [91, 26.5], [91, 73.5], [50, 96], [9, 73.5], [9, 26.5]];
   c.save();
-  // Glow, then fill, then edge — the same halo the on-page crest carries.
-  c.shadowColor = color;
+  // The halo the on-page crest carries, behind the painted badge.
+  c.shadowColor = league.color;
   c.shadowBlur = r * 0.55;
   c.beginPath();
   pts.forEach(([x, y], i) => {
@@ -78,16 +79,10 @@ function crest(c: CanvasRenderingContext2D, cx: number, cy: number, r: number, c
     if (i === 0) c.moveTo(px, py); else c.lineTo(px, py);
   });
   c.closePath();
-  const g = c.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
-  g.addColorStop(0, `${color}30`);
-  g.addColorStop(1, `${color}08`);
-  c.fillStyle = g;
+  c.fillStyle = `${league.color}18`;
   c.fill();
-  c.shadowBlur = 0;
-  c.lineWidth = Math.max(5, r * 0.075);
-  c.strokeStyle = color;
-  c.stroke();
   c.restore();
+  paintLeagueCrest(c, league, cx - r, cy - r, r * 2, INK);
 }
 
 function footerChrome(c: CanvasRenderingContext2D, d: StakerShareData, kicker: string, logo: HTMLImageElement | null) {
@@ -107,7 +102,7 @@ function footerChrome(c: CanvasRenderingContext2D, d: StakerShareData, kicker: s
 function leagueCard(c: CanvasRenderingContext2D, d: StakerShareData, logo: HTMLImageElement | null) {
   footerChrome(c, d, 'MY LEAGUE', logo);
 
-  crest(c, CARD_W / 2, 400, 190, d.league.color);
+  crest(c, CARD_W / 2, 400, 190, d.league);
   const size = fitText(c, d.league.name.toUpperCase(), BOX_W - 120, 108, 900);
   text(c, d.league.name.toUpperCase(), CARD_W / 2, 682, {
     size, weight: 900, color: d.league.color, align: 'center', spacing: 6,
@@ -196,7 +191,7 @@ function climbCard(c: CanvasRenderingContext2D, d: StakerShareData, logo: HTMLIm
   footerChrome(c, d, 'THE CLIMB', logo);
 
   if (!d.next) {
-    crest(c, CARD_W / 2, 400, 170, d.league.color);
+    crest(c, CARD_W / 2, 400, 170, d.league);
     text(c, d.league.name.toUpperCase(), CARD_W / 2, 650, {
       size: 84, weight: 900, color: d.league.color, align: 'center', spacing: 5,
     });

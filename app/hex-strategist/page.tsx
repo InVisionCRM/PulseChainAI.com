@@ -10,7 +10,15 @@ export const metadata: Metadata = {
 
 export default function HexStrategistPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)] text-[var(--text)]">
+    <main className="relative isolate min-h-screen bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)] text-[var(--text)]">
+      {/* The loading screen's molten artwork, ghosted behind the page. The
+          mask fades the image itself to nothing, so the page's own gradient
+          takes over — no hard seam in either theme. */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[85vh] overflow-hidden">
+        <div
+          className="absolute inset-0 bg-[url('/hex-strategist-loading-portrait.jpg')] bg-cover bg-top opacity-[0.14] md:bg-[url('/hex-strategist-loading.jpg')] [mask-image:linear-gradient(to_bottom,black_30%,transparent)]"
+        />
+      </div>
       <div className="mx-auto w-full max-w-6xl px-3 pt-4 md:px-6">
         <AdBanner />
       </div>
