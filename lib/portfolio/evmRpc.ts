@@ -199,6 +199,108 @@ export async function ethGetLogs(
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Write-path helpers.
+//
+// Everything above only reads. These four exist so a keeper can build, price
+// and broadcast a transaction through the same curated pool and failover as the
+// rest of the app, instead of standing up a second RPC layer beside it.
+// ---------------------------------------------------------------------------
+
+/**
+ * `eth_estimateGas`. Returns null if the call would revert or no endpoint
+ * answered — for a keeper those are the same instruction: do not send this.
+ */
+export async function estimateGas(
+  chain: ChainId,
+  tx: { from: string; to: string; data: string; value?: string },
+): Promise<bigint | null> {
+  for (const url of RPC_URLS[chain] ?? []) {
+    const o = await rpcRaw(url, 'eth_estimateGas', [tx]);
+    // A revert here is a definitive answer about this call and not worth
+    // asking five more nodes about — same reasoning as ethCall.
+    if (o.kind === 'reverted') return null;
+    if (o.kind === 'ok' && typeof o.result === 'string') {
+      try { return BigInt(o.result); } catch { return null; }
+    }
+  }
+  return null;
+}
+
+/** Next nonce for an address, counting transactions still in the mempool. */
+export async function getTransactionCount(
+  chain: ChainId,
+  address: string,
+  block: 'pending' | 'latest' = 'pending',
+): Promise<number | null> {
+  for (const url of RPC_URLS[chain] ?? []) {
+    const r = await rpc(url, 'eth_getTransactionCount', [address, block]);
+    if (typeof r === 'string') {
+      const n = Number.parseInt(r, 16);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return null;
+}
+
+/** Current gas price in wei, or null if every endpoint failed. */
+export async function getGasPrice(chain: ChainId): Promise<bigint | null> {
+  for (const url of RPC_URLS[chain] ?? []) {
+    const r = await rpc(url, 'eth_gasPrice', []);
+    if (typeof r === 'string') {
+      try { return BigInt(r); } catch { /* next endpoint */ }
+    }
+  }
+  return null;
+}
+
+/**
+ * Broadcast a signed transaction. Returns its hash, or the node's own reason.
+ *
+ * Walking the pool is safe here: the payload is already signed, so every
+ * endpoint sees the identical transaction at the identical nonce. A node that
+ * has already seen it rejects the duplicate, so "already known" and "nonce too
+ * low" are reported as settled rather than as failures — the transaction is out
+ * there either way, and retrying it would only double-spend the gas.
+ *
+ * This makes its own request rather than going through `rpcRaw`, because here
+ * the error TEXT is the useful part ("insufficient funds", "already known") and
+ * `rpcRaw` deliberately collapses every error into a category.
+ */
+export async function sendRawTransaction(
+  chain: ChainId,
+  signed: string,
+): Promise<{ hash: string } | { settled: true; reason: string } | { error: string }> {
+  let lastError = 'no endpoint answered';
+  for (const url of RPC_URLS[chain] ?? []) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_sendRawTransaction', params: [signed], id: 1 }),
+        signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
+      });
+      if (!res.ok) {
+        lastError = `http ${res.status}`;
+        continue;
+      }
+      const json = (await res.json()) as { result?: unknown; error?: { message?: string } };
+      if (typeof json.result === 'string') return { hash: json.result };
+      const msg = String(json.error?.message ?? 'unknown error');
+      if (/already known|known transaction|nonce too low|already imported/i.test(msg)) {
+        return { settled: true, reason: msg };
+      }
+      // A genuine rejection — bad signature, insufficient funds, underpriced —
+      // will be rejected identically everywhere, so stop rather than spray it
+      // at five more nodes.
+      return { error: msg };
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : 'transport error';
+    }
+  }
+  return { error: lastError };
+}
+
 /** Current head block number, or null if every endpoint failed. */
 export async function getBlockNumber(chain: ChainId): Promise<number | null> {
   for (const url of RPC_URLS[chain] ?? []) {

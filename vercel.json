@@ -9,6 +9,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/hex-rescue",
+      "schedule": "0 3 * * *"
+    },
+    {
       "path": "/api/cron/hex-stake-sync",
       "schedule": "*/2 * * * *"
     }
