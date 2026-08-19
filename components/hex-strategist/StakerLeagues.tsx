@@ -28,6 +28,12 @@ import { HexLogo } from '@/components/hex/HexAmount';
 import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import LeagueCrest from './LeagueCrest';
+import ShareCardModal from '@/components/share/ShareCardModal';
+import {
+  BRAND_URL as SHARE_BRAND, CARDS as SHARE_CARDS, CARD_H as SHARE_H, CARD_W as SHARE_W,
+  drawCard as drawStakerCard, type StakerShareData,
+} from '@/lib/hex/stakerShareCard';
+import { IconShare2 } from '@tabler/icons-react';
 
 interface LeaguesData {
   currentDay: number;
@@ -426,6 +432,10 @@ function YourStanding({ net, data, rates }: { net: Network; data: LeaguesData; r
                 </a>
               </div>
             </div>
+            {/* Live standings only — a simulated card would be a fabricated flex. */}
+            {!simulating && (
+              <ShareStanding net={net} standing={standing} live={live} rank={rank} data={data} rates={rates} />
+            )}
           </div>
 
           <PromotionBar standing={sim} />
@@ -460,6 +470,79 @@ function YourStanding({ net, data, rates }: { net: Network; data: LeaguesData; r
         </p>
       )}
     </div>
+  );
+}
+
+/** The share button on a live standing, feeding the shared card modal. */
+function ShareStanding({ net, standing, live, rank, data, rates }: {
+  net: Network;
+  standing: StandingData;
+  live: ReturnType<typeof standingFor>;
+  rank: number | null;
+  data: LeaguesData;
+  rates: Rates | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const shareData = useMemo<StakerShareData>(() => {
+    const rate = rates?.tShareRateHex ?? 0;
+    const promoCostHex =
+      live.next && live.toPromotion != null && rate > 0
+        ? hexForTShares(live.toPromotion, LPB_FULL_BONUS_DAYS, rate)
+        : null;
+    return {
+      network: net as 'pulsechain' | 'ethereum',
+      address: standing.address,
+      asOf: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
+      league: { name: live.league.name, color: live.league.color },
+      next: live.next ? { name: live.next.name, color: live.next.color } : null,
+      tShares: standing.tShares,
+      principalHex: standing.principalHex,
+      principalUsd: rates?.priceUsd ? standing.principalHex * rates.priceUsd : null,
+      sharePct: live.sharePct,
+      rank: rank ?? standing.board?.rank ?? null,
+      of: standing.board?.of ?? data.stakersFound,
+      progressPct: live.progressPct,
+      toPromotion: live.toPromotion,
+      promoCostHex,
+      promoCostUsd: promoCostHex != null && rates?.priceUsd ? promoCostHex * rates.priceUsd : null,
+      stakes: standing.stakes.length,
+      board: standing.board ? { above: standing.board.above, below: standing.board.below } : null,
+    };
+  }, [net, standing, live, rank, data, rates]);
+
+  const draw = useCallback(
+    (ctx: CanvasRenderingContext2D, id: string, logo: HTMLImageElement | null) => {
+      drawStakerCard(ctx, id, shareData, logo);
+    },
+    [shareData],
+  );
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-white transition-transform hover:-translate-y-px"
+        style={{ background: `linear-gradient(135deg, ${live.league.color}, var(--chart-accent))` }}
+      >
+        <IconShare2 className="h-3.5 w-3.5" /> Share
+      </button>
+      {open && (
+        <ShareCardModal
+          cards={SHARE_CARDS.map((k) => ({ id: k.id, name: k.name, blurb: k.blurb }))}
+          draw={draw}
+          drawKey={shareData}
+          logoSrc="/hex-logo.svg"
+          filePrefix="hex-league"
+          shareTitle="HEX Staker Leagues"
+          shareText={SHARE_BRAND}
+          footNote={`${SHARE_W}×${SHARE_H} PNG · figures as of ${shareData.asOf}`}
+          width={SHARE_W}
+          height={SHARE_H}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
   );
 }
 
