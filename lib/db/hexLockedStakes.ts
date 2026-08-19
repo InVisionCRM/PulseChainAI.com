@@ -77,7 +77,10 @@ const DDL = [
 
 export async function ensureSchema(): Promise<void> {
   if (!sql) throw new Error('No database configured');
-  for (const stmt of DDL) await sql(stmt);
+  // Plain-string statements must go through .query() — @neondatabase/serverless
+  // v1 only accepts the tagged-template form when `sql` is called directly.
+  // Same pattern as lib/screener/db.ts, which runs its DDL this way in prod.
+  for (const stmt of DDL) await sql.query(stmt);
 }
 
 // ---------------------------------------------------------------------------
