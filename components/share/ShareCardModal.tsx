@@ -10,7 +10,9 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { IconX, IconDownload, IconCopy, IconCheck, IconShare2 } from '@tabler/icons-react';
+import {
+  IconX, IconDownload, IconCopy, IconCheck, IconShare2, IconChevronLeft, IconChevronRight,
+} from '@tabler/icons-react';
 
 export const SHARE_GRAD =
   'linear-gradient(135deg,#7E089D,#AE176A 30%,#D83639 58%,#E96635 80%,#FB9438)';
@@ -216,6 +218,45 @@ export default function ShareCardModal({
     typeof navigator !== 'undefined' &&
     typeof (navigator as Navigator & { canShare?: unknown }).canShare === 'function';
 
+  // ── Carousel navigation over the visible cards ────────────────────────────
+  // A panel group that forces its own card (hideCards) has nothing to page
+  // through; everywhere else ‹ › arrows, dots, swipes and arrow keys all move
+  // through the same list.
+  const canPage = !activeGroup?.hideCards && visible.length > 1;
+  const index = Math.max(0, visible.findIndex((k) => k.id === id));
+  const go = useCallback(
+    (dir: 1 | -1) => {
+      if (!canPage) return;
+      const list = visible;
+      const at = Math.max(0, list.findIndex((k) => k.id === id));
+      setId(list[(at + dir + list.length) % list.length].id);
+    },
+    [canPage, visible, id],
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') go(1);
+      if (e.key === 'ArrowLeft') go(-1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [go]);
+
+  const touchX = useRef<number | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => { touchX.current = e.touches[0].clientX; };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchX.current == null) return;
+    const dx = e.changedTouches[0].clientX - touchX.current;
+    touchX.current = null;
+    if (Math.abs(dx) > 48) go(dx < 0 ? 1 : -1);
+  };
+
+  const current = visible.find((k) => k.id === id) ?? cards.find((k) => k.id === id) ?? null;
+
+  const iconBtn =
+    'rounded-lg p-2 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)] disabled:opacity-50';
+
   // z-order on a token page: the portfolio chip is z-[110], the Sleuth FAB
   // z-[120] and the portfolio drawer z-[125] — at z-[100] all three floated over
   // this dialog and swallowed taps on the cards nearest the bottom. Above them,
@@ -228,78 +269,66 @@ export default function ShareCardModal({
       aria-label={title}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)] md:my-auto">
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-4 py-3">
-          <h2 className="text-sm font-bold text-[var(--text)]">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-lg p-1.5 text-[var(--text-faint)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
-          >
-            <IconX className="h-4 w-4" />
-          </button>
+      <div className="w-full max-w-[500px] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)] md:my-auto">
+        {/* Header: title on the left, icon-only actions on the right. */}
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-[var(--line)] bg-[var(--panel)] px-4 py-2.5">
+          <h2 className="truncate text-sm font-bold text-[var(--text)]">{title}</h2>
+          <div className="flex items-center gap-0.5">
+            <button type="button" onClick={download} aria-label="Download PNG" title="Download PNG" className={iconBtn}>
+              <IconDownload className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={copy} disabled={saving} aria-label="Copy image" title="Copy image" className={iconBtn}>
+              {copied ? <IconCheck className="h-4 w-4 text-[var(--up)]" /> : <IconCopy className="h-4 w-4" />}
+            </button>
+            {canShare && (
+              <button type="button" onClick={share} aria-label="Share" title="Share" className={iconBtn}>
+                <IconShare2 className="h-4 w-4" />
+              </button>
+            )}
+            <span className="mx-1 h-4 w-px bg-[var(--line)]" />
+            <button type="button" onClick={onClose} aria-label="Close" className={iconBtn}>
+              <IconX className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="grid gap-4 p-4 pb-8 md:grid-cols-[minmax(0,430px)_minmax(0,1fr)] md:pb-4">
-          <div className="order-2 md:order-1">
-            {groups && groups.length > 1 && (
-              <div className="mb-2 flex gap-1.5">
-                {groups.map((g) => {
-                  const on = g.key === group;
-                  return (
-                    <button
-                      key={g.key}
-                      type="button"
-                      onClick={() => setGroup(g.key)}
-                      aria-pressed={on}
-                      className={`flex-1 rounded-lg border px-3 py-1.5 text-[12px] font-bold transition-colors ${
-                        on
-                          ? 'border-transparent text-white'
-                          : 'border-[var(--line)] text-[var(--text-muted)] hover:bg-[var(--surface)]'
-                      }`}
-                      style={on ? { background: SHARE_GRAD } : undefined}
-                    >
-                      {g.label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            {activeGroup?.panel}
-            {/* Two columns even on desktop — a single long column would be
-                mostly below the fold. */}
-            <div className={`grid grid-cols-2 gap-1.5 md:max-h-[58vh] md:overflow-y-auto md:overscroll-contain md:pr-1 ${
-              activeGroup?.hideCards ? 'hidden' : ''
-            }`}>
-              {visible.map((k) => {
-                const on = k.id === id;
+        <div className="p-4 pb-5">
+          {/* Category tabs, with the current card's name and blurb underneath. */}
+          {groups && groups.length > 1 && (
+            <div className="mb-2 flex gap-1.5">
+              {groups.map((g) => {
+                const on = g.key === group;
                 return (
                   <button
-                    key={k.id}
+                    key={g.key}
                     type="button"
-                    onClick={() => setId(k.id)}
+                    onClick={() => setGroup(g.key)}
                     aria-pressed={on}
-                    className={`rounded-xl border px-3 py-2 text-left transition-colors ${
+                    className={`flex-1 rounded-lg border px-2 py-1.5 text-[12px] font-bold transition-colors ${
                       on
                         ? 'border-transparent text-white'
                         : 'border-[var(--line)] text-[var(--text-muted)] hover:bg-[var(--surface)]'
                     }`}
                     style={on ? { background: SHARE_GRAD } : undefined}
                   >
-                    <div className="text-[13px] font-bold">{k.name}</div>
-                    <div className={`text-[11px] leading-snug ${on ? 'opacity-85' : 'text-[var(--text-faint)]'}`}>
-                      {k.blurb}
-                    </div>
+                    {g.label}
                   </button>
                 );
               })}
             </div>
-          </div>
+          )}
+          {current && (
+            <div className="mb-2.5 min-h-[38px] text-center">
+              <div className="text-[13px] font-bold text-[var(--text)]">{current.name}</div>
+              <div className="text-[11px] leading-snug text-[var(--text-faint)]">{current.blurb}</div>
+            </div>
+          )}
 
-          {/* live preview — the very canvas that gets exported */}
-          <div className="order-1 md:order-2">
-            <div className="relative mx-auto w-full max-w-[420px] overflow-hidden rounded-xl border border-[var(--line)]">
+          {activeGroup?.panel && <div className="mb-3">{activeGroup.panel}</div>}
+
+          {/* The carousel: the export canvas itself, arrows riding its edges. */}
+          <div className="relative" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+            <div key={id} className="anim-rise relative mx-auto w-full max-w-[420px] overflow-hidden rounded-xl border border-[var(--line)]">
               <canvas
                 ref={canvasRef}
                 width={width}
@@ -313,44 +342,63 @@ export default function ShareCardModal({
                 </div>
               )}
             </div>
-
-            <div className="mt-3 flex flex-wrap justify-center gap-2">
-              <button
-                type="button"
-                onClick={download}
-                className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold text-white transition-transform hover:-translate-y-px"
-                style={{ background: SHARE_GRAD }}
-              >
-                <IconDownload className="h-3.5 w-3.5" /> Download PNG
-              </button>
-              <button
-                type="button"
-                onClick={copy}
-                disabled={saving}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-xs font-bold text-[var(--text)] transition-colors hover:bg-[var(--surface-2)] disabled:opacity-60"
-              >
-                {copied ? <IconCheck className="h-3.5 w-3.5" /> : <IconCopy className="h-3.5 w-3.5" />}
-                {copied ? 'Copied' : 'Copy image'}
-              </button>
-              {canShare && (
+            {canPage && (
+              <>
                 <button
                   type="button"
-                  onClick={share}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-xs font-bold text-[var(--text)] transition-colors hover:bg-[var(--surface-2)]"
+                  onClick={() => go(-1)}
+                  aria-label="Previous card"
+                  className="absolute left-1 top-1/2 -translate-y-1/2 rounded-full border border-[var(--line)] bg-[var(--panel)]/90 p-2 text-[var(--text-muted)] shadow-lg backdrop-blur transition-colors hover:text-[var(--text)]"
                 >
-                  <IconShare2 className="h-3.5 w-3.5" /> Share
+                  <IconChevronLeft className="h-4 w-4" />
                 </button>
-              )}
-            </div>
-            {footNote && (
-              <p
-                className="mt-2 text-center text-[10px] uppercase tracking-[0.12em] text-[var(--text-faint)]"
-                style={{ fontFamily: MONO }}
-              >
-                {footNote}
-              </p>
+                <button
+                  type="button"
+                  onClick={() => go(1)}
+                  aria-label="Next card"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full border border-[var(--line)] bg-[var(--panel)]/90 p-2 text-[var(--text-muted)] shadow-lg backdrop-blur transition-colors hover:text-[var(--text)]"
+                >
+                  <IconChevronRight className="h-4 w-4" />
+                </button>
+              </>
             )}
           </div>
+
+          {/* Dots when they fit; a plain counter once they wouldn't. */}
+          {canPage && (
+            <div className="mt-2.5 flex items-center justify-center gap-1.5">
+              {visible.length <= 10 ? (
+                visible.map((k, i) => (
+                  <button
+                    key={k.id}
+                    type="button"
+                    onClick={() => setId(k.id)}
+                    aria-label={k.name}
+                    aria-pressed={i === index}
+                    className="rounded-full transition-all"
+                    style={{
+                      width: i === index ? 18 : 7,
+                      height: 7,
+                      background: i === index ? SHARE_GRAD : 'var(--line-strong)',
+                    }}
+                  />
+                ))
+              ) : (
+                <span className="text-[11px] tabular-nums text-[var(--text-faint)]" style={{ fontFamily: MONO }}>
+                  {index + 1} / {visible.length}
+                </span>
+              )}
+            </div>
+          )}
+
+          {footNote && (
+            <p
+              className="mt-2 text-center text-[10px] uppercase tracking-[0.12em] text-[var(--text-faint)]"
+              style={{ fontFamily: MONO }}
+            >
+              {footNote}
+            </p>
+          )}
         </div>
       </div>
     </div>

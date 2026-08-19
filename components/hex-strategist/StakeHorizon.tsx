@@ -26,6 +26,7 @@ import {
 } from '@/lib/hex/unlockSchedule';
 import { fmtHex, fmtUsdShort, fmtHexDate, fmtDuration, hexDayToDate } from '@/lib/hex/hexDay';
 import { HexLogo } from '@/components/hex/HexAmount';
+import StrategistShareCards from './StrategistShareCards';
 
 interface ScheduleData {
   currentDay: number;
@@ -225,6 +226,7 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
               onChange={(v) => setScale(v as Scale)}
             />
           </span>
+          <StrategistShareCards net={net} schedule={data} rates={rates} />
         </div>
       </div>
 
