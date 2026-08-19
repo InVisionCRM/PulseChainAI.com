@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Theme toggles · screen-wide transitions</title>
+
+<!--
+  ============================================================================
+  THEME TOGGLE GALLERY  ·  8 screen-wide dark/light transitions
+  ----------------------------------------------------------------------------
+  Each toggle is nav-sized and, when clicked, plays a full-screen choreography
+  (cord pull, sunrise arc, ripple wipe, blinds, ink flood, shooting star,
+  lightning, eclipse) while the whole page flips dark <-> light.
+
+  It is wrapped in a MOCK APP SHELL that mirrors this Next app:
+    • desktop = left side-rail  (the real <SidebarBody> in app/layout.tsx)
+    • mobile  = bottom bar      (the real components/MobileBottomNav.tsx)
+  The theme toggle lives at the bottom of the rail / end of the bottom bar.
+  Click a gallery card to "pin" that effect into the nav toggle, then try the
+  nav toggle to see it in place.
+
+  PORTING: theme is the `.dark` class on <html> — the SAME mechanism this app
+  uses (globals.css `@custom-variant dark (&:is(.dark *))`). To ship one effect:
+  copy its #stage markup + its CSS block + the runTransition() entry, mount a
+  <button> in the nav, and call runTransition(id, x, y) on click. Pure CSS
+  keyframes — no animation library. Pre-paint theme, localStorage,
+  prefers-reduced-motion and aria are all wired below.
+  ============================================================================
+-->
+
+<script>
+  /* set theme before first paint (no flash) */
+  (function () {
+    try {
+      var t = localStorage.getItem('pc-theme');
+      if (t !== 'light' && t !== 'dark') {
+        t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+      document.documentElement.classList.toggle('dark', t === 'dark');
+    } catch (e) { document.documentElement.classList.add('dark'); }
+  })();
+</script>
+
+<style>
+  /* ===================================================================
+     TOKENS (mirror app/globals.css + brand navy/orange)
+     =================================================================== */
+  :root{
+    --page:#eef2f7; --page2:#e2e8f1;
+    --card:#ffffff; --ink:#0d1b2e; --muted:#5b6b7e; --line:#dde4ee;
+    --rail:#ffffff; --rail-ink:#33425a;
+    --brand:#FA4616; --brand-2:#ff7a3d;
+    --fx-fill:#eef2f7;            /* destination bg, set per-flip in JS */
+  }
+  html.dark{
+    --page:#06182e; --page2:#0a2440;
+    --card:#0c2340; --ink:#eaf1fb; --muted:#8aa0bd; --line:rgba(250,70,22,.26);
+    --rail:#0c2340; --rail-ink:#c6d4e8;
+    --brand:#FA4616; --brand-2:#ff7a3d;
+    --fx-fill:#06182e;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{
+    background:
+      radial-gradient(1100px 700px at 80% -10%, color-mix(in srgb, var(--brand) 9%, transparent), transparent 60%),
+      linear-gradient(180deg, var(--page), var(--page2));
+    color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    transition:background-color .6s ease,color .6s ease;
+    -webkit-font-smoothing:antialiased;min-height:100vh;
+  }
+
+  /* ===================================================================
+     MOCK APP SHELL — desktop side-rail + mobile bottom bar
+     =================================================================== */
+  .rail{
+    position:fixed;left:0;top:0;bottom:0;width:86px;z-index:40;display:none;
+    flex-direction:column;align-items:center;gap:6px;padding:16px 0;
+    background:color-mix(in srgb, var(--rail) 92%, transparent);
+    border-right:1px solid var(--line);backdrop-filter:blur(10px);
+    transition:background-color .6s ease,border-color .6s ease;
+  }
+  .rail .logo{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+    background:color-mix(in srgb,var(--brand) 16%,transparent);color:var(--brand);margin-bottom:10px}
+  .rail .nav{display:flex;flex-direction:column;gap:4px;align-items:center;flex:1}
+  .rail .spacer{flex:1}
+  .railitem{width:54px;height:48px;border:0;background:transparent;color:var(--rail-ink);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    border-radius:12px;cursor:pointer;font:600 9.5px ui-sans-serif,system-ui;opacity:.78;transition:.2s}
+  .railitem:hover{opacity:1;background:color-mix(in srgb,var(--rail-ink) 10%,transparent)}
+  .railitem.active{color:var(--brand);opacity:1}
+
+  .bottombar{
+    position:fixed;left:0;right:0;bottom:0;height:62px;z-index:40;display:flex;
+    align-items:center;justify-content:space-around;padding:0 8px;
+    background:color-mix(in srgb, var(--rail) 92%, transparent);
+    border-top:1px solid var(--line);backdrop-filter:blur(10px);
+    transition:background-color .6s ease,border-color .6s ease;
+  }
+  .baritem{border:0;background:transparent;color:var(--rail-ink);display:flex;flex-direction:column;
+    align-items:center;gap:3px;font:600 10px ui-sans-serif,system-ui;opacity:.8;cursor:pointer;padding:6px 10px}
+  .baritem.active{color:var(--brand);opacity:1}
+
+  /* the theme toggle that lives in the nav */
+  .navtoggle{position:relative;border:0;cursor:pointer;border-radius:14px;
+    width:54px;height:48px;display:grid;place-items:center;color:var(--rail-ink);
+    background:color-mix(in srgb,var(--brand) 12%,transparent);
+    box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--brand) 30%,transparent);transition:.2s}
+  .navtoggle:hover{background:color-mix(in srgb,var(--brand) 20%,transparent)}
+  .navtoggle:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+  .navtoggle .lbl{position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);
+    font:600 9px ui-sans-serif,system-ui;color:var(--muted);white-space:nowrap}
+
+  /* ===================================================================
+     PAGE CONTENT
+     =================================================================== */
+  .content{max-width:1020px;margin:0 auto;padding:42px 22px 96px}
+  @media(min-width:880px){
+    .rail{display:flex}
+    .bottombar{display:none}
+    body{padding-left:86px}
+    .content{padding-bottom:48px}
+  }
+
+  header.pg{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .title{margin:0;font-size:clamp(22px,4vw,32px);font-weight:850;letter-spacing:-.025em}
+  .title b{color:var(--brand)}
+  .lede{margin:10px 0 0;color:var(--muted);font-size:15px;max-width:60ch;line-height:1.6}
+  .mode-chip{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:650;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:8px 14px;background:var(--card);
+    transition:background-color .5s ease,border-color .5s ease;flex-shrink:0}
+  .mode-chip .dot{width:9px;height:9px;border-radius:50%;background:var(--brand);box-shadow:0 0 9px var(--brand)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:30px}
+
+  .fxcard{position:relative;text-align:left;cursor:pointer;border:1px solid var(--line);border-radius:16px;
+    background:var(--card);padding:18px;display:flex;align-items:center;gap:14px;color:inherit;
+    transition:transform .15s ease,border-color .3s ease,box-shadow .3s ease,background-color .5s ease;
+    box-shadow:0 8px 22px rgba(2,10,30,.10)}
+  .fxcard:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(2,10,30,.16)}
+  .fxcard:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+  .fxcard.selected{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand),0 14px 30px rgba(250,70,22,.18)}
+  .fxcard .ctrl{flex-shrink:0;width:48px;height:48px;border-radius:13px;display:grid;place-items:center;
+    background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--brand)}
+  .fxcard .ctrl svg{width:26px;height:26px}
+  .fxcard .meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .fxcard .meta b{font-size:14.5px;font-weight:700;letter-spacing:-.01em}
+  .fxcard .meta i{font-style:normal;font-size:12px;color:var(--muted);line-height:1.4}
+  .fxcard .pin{position:absolute;top:10px;right:12px;font-size:10px;font-weight:800;letter-spacing:.04em;
+    color:var(--brand);opacity:0;transition:opacity .2s}
+  .fxcard.selected .pin{opacity:1}
+
+  .hint{margin-top:26px;font-size:12.5px;color:var(--muted);text-align:center}
+  .hint kbd{background:color-mix(in srgb,var(--ink) 8%,transparent);border:1px solid var(--line);
+    border-radius:6px;padding:1px 6px;font:inherit;font-size:11.5px}
+
+  /* sun / moon glyph that reflects the current theme */
+  .sunmoon .g-moon{display:none}
+  html.dark .sunmoon .g-sun{display:none}
+  html.dark .sunmoon .g-moon{display:block}
+
+  /* ===================================================================
+     STAGE — full-viewport overlay where every effect plays
+     =================================================================== */
+  #stage{position:fixed;inset:0;z-index:9000;pointer-events:none;overflow:hidden}
+  #stage .fx{position:absolute;inset:0;display:none;opacity:1}
+  #stage[data-fx="cord"]   .fx-cord{display:block}
+  #stage[data-fx="sun"]    .fx-sun{display:block}
+  #stage[data-fx="ripple"] .fx-ripple{display:block}
+  #stage[data-fx="blinds"] .fx-blinds{display:flex}
+  #stage[data-fx="ink"]    .fx-ink{display:block}
+  #stage[data-fx="star"]   .fx-star{display:block}
+  #stage[data-fx="bolt"]   .fx-bolt{display:block}
+  #stage[data-fx="eclipse"].fx-eclipse,
+  #stage[data-fx="eclipse"] .fx-eclipse{display:block}
+
+  /* ---------- 1 · PULL CHAIN — massive, centered; photo arm from the right ---------- */
+  /* massive beaded chain, horizontally centered. it extends above the top edge so a
+     downward pull never opens a gap. parked off-screen at rest -> nothing shows idle. */
+  .chain-rig{position:absolute;left:50%;top:-16vh;transform:translate(-50%,-150vh)}
+  .chain-col{width:26px;height:66vh;margin:0 auto;
+    background-image:radial-gradient(circle at 50% 42%, #e6ebf1 0 8px, #aab2bd 8.5px 11px, transparent 11.5px);
+    background-size:26px 30px;background-repeat:repeat-y;background-position:center top;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.28))}
+  .chain-ball{width:62px;height:62px;border-radius:50%;margin:-10px auto 0;
+    background:radial-gradient(circle at 37% 30%, #f4f8fc, #c2cbd5 52%, #7e8a97);
+    box-shadow:0 5px 12px rgba(0,0,0,.4)}
+
+  /* photo arm: the fist sits at ~24% across / ~50% down the square image, so this
+     translate pins the fist onto the chain ball. the wrapper does reach/pull/retract. */
+  .arm-anim{position:absolute;inset:0;transform:translate(122vw,0)}   /* base = parked off right */
+  .armimg{position:absolute;left:50%;top:50vh;width:var(--aw,78vw);max-width:1180px;height:auto;
+    transform:translate(-24%,-50%);will-change:transform;
+    filter:drop-shadow(-12px 16px 16px rgba(0,0,0,.32))}
+
+  #stage.run[data-fx="cord"] .chain-rig{animation:chainMove 2.1s cubic-bezier(.4,.1,.2,1) both}
+  #stage.run[data-fx="cord"] .arm-anim{animation:armMove 2.1s cubic-bezier(.36,.12,.2,1) both}
+
+  @keyframes chainMove{
+    0%{transform:translate(-50%,-150vh)}   /* hidden above */
+    11%{transform:translate(-50%,2vh)}     /* drop in, slight overshoot */
+    17%{transform:translate(-50%,0)}       /* hangs, centered */
+    40%{transform:translate(-50%,0)}       /* wait for the grab */
+    56%{transform:translate(-50%,11vh)}    /* yanked down */
+    63%{transform:translate(-50%,11vh)}    /* hold */
+    71%{transform:translate(-50%,-1.5vh)}  /* spring back up */
+    76%{transform:translate(-50%,0)}       /* settle */
+    88%{transform:translate(-50%,0)}
+    100%{transform:translate(-50%,-150vh)} /* retract up, gone */
+  }
+  @keyframes armMove{
+    0%,15%{transform:translate(122vw,0)}   /* off-screen right, waits for the drop */
+    32%{transform:translate(0,0)}          /* reaches in, fist on the ball */
+    40%{transform:translate(0,0)}          /* grip */
+    56%{transform:translate(0,11vh)}       /* pull straight down with the chain */
+    63%{transform:translate(0,11vh)}       /* hold */
+    72%{transform:translate(12vw,3vh)}     /* release, ease back */
+    100%{transform:translate(122vw,0)}     /* retract off right */
+  }
+
+  /* ---------- 2 · SUNRISE ARC ---------- */
+  .sky{position:absolute;inset:0;opacity:0;
+    background:linear-gradient(180deg,rgba(255,150,80,.55),rgba(120,70,150,.35) 60%,transparent)}
+  .sun-body,.moon-body{position:absolute;left:0;top:0;width:78px;height:78px;border-radius:50%}
+  .sun-body{background:radial-gradient(circle at 42% 38%,#fff3c4,#ffb24d 65%,#ff8f1f);
+    box-shadow:0 0 50px 14px rgba(255,180,80,.6)}
+  .moon-body{background:radial-gradient(circle at 38% 34%,#f4f7ff,#c4cfe6 70%,#9aa7c4);
+    box-shadow:0 0 34px 8px rgba(190,205,240,.4)}
+  .moon-body::after{content:"";position:absolute;left:16px;top:8px;width:64px;height:64px;border-radius:50%;
+    background:var(--page);transition:background-color .6s ease}
+  .cloud{position:absolute;height:24px;border-radius:30px;background:rgba(255,255,255,.85);opacity:0;
+    box-shadow:30px 6px 0 -2px rgba(255,255,255,.85),-26px 8px 0 -4px rgba(255,255,255,.8)}
+  .cloud.c1{top:20%;width:70px}.cloud.c2{top:40%;width:54px}
+  #stage.run[data-fx="sun"] .sky{animation:skyFade 1.5s ease}
+  #stage.run[data-fx="sun"] .sun-body{animation:arcAcross 1.5s ease-in-out}
+  #stage.run[data-fx="sun"] .moon-body{animation:arcAcross 1.5s ease-in-out reverse}
+  #stage.run[data-fx="sun"] .c1{animation:drift 1.5s ease}
+  #stage.run[data-fx="sun"] .c2{animation:drift 1.5s ease .25s}
+  @keyframes skyFade{0%,100%{opacity:0}30%,70%{opacity:.85}}
+  @keyframes arcAcross{0%{transform:translate(-14vw,46vh) scale(.85)}
+    50%{transform:translate(44vw,-8vh) scale(1)}100%{transform:translate(96vw,46vh) scale(.85)}}
+  @keyframes drift{0%{transform:translateX(-34vw);opacity:0}28%{opacity:.9}100%{transform:translateX(122vw);opacity:0}}
+
+  /* ---------- 3 · RIPPLE WIPE ---------- */
+  .rip-fill{position:absolute;left:var(--ox,50%);top:var(--oy,50%);width:12px;height:12px;margin:-6px;
+    border-radius:50%;background:var(--fx-fill);transform:scale(0)}
+  .rip-ring{position:absolute;left:var(--ox,50%);top:var(--oy,50%);width:22px;height:22px;margin:-11px;
+    border-radius:50%;border:2px solid var(--brand);opacity:0}
+  #stage.run[data-fx="ripple"] .rip-fill{animation:ripFill .92s cubic-bezier(.4,0,.2,1) forwards}
+  #stage.run[data-fx="ripple"] .rip-ring{animation:ripRing 1s ease-out forwards}
+  #stage.run[data-fx="ripple"] .rip-ring.r2{animation-delay:.1s}
+  #stage.run[data-fx="ripple"] .rip-ring.r3{animation-delay:.2s}
+  @keyframes ripFill{0%{transform:scale(0)}42%{transform:scale(420)}58%{transform:scale(420);opacity:1}
+    100%{transform:scale(420);opacity:0}}
+  @keyframes ripRing{0%{transform:scale(.2);opacity:.8}100%{transform:scale(30);opacity:0}}
+
+  /* ---------- 4 · BLINDS ---------- */
+  .fx-blinds{flex-direction:column}
+  .slat{flex:1;background:linear-gradient(180deg,
+      color-mix(in srgb,var(--fx-fill) 86%,#000),var(--fx-fill),
+      color-mix(in srgb,var(--fx-fill) 86%,#000));
+    transform:scaleY(0);transform-origin:top;box-shadow:0 1px 0 rgba(0,0,0,.18)}
+  #stage.run[data-fx="blinds"] .slat{animation:blind 1.15s cubic-bezier(.45,.05,.4,1) both}
+  #stage.run[data-fx="blinds"] .slat:nth-child(2){animation-delay:.045s}
+  #stage.run[data-fx="blinds"] .slat:nth-child(3){animation-delay:.09s}
+  #stage.run[data-fx="blinds"] .slat:nth-child(4){animation-delay:.135s}
+  #stage.run[data-fx="blinds"] .slat:nth-child(5){animation-delay:.18s}
+  #stage.run[data-fx="blinds"] .slat:nth-child(6){animation-delay:.225s}
+  #stage.run[data-fx="blinds"] .slat:nth-child(7){animation-delay:.27s}
+  #stage.run[data-fx="blinds"] .slat:nth-child(8){animation-delay:.315s}
+  @keyframes blind{0%{transform:scaleY(0)}38%{transform:scaleY(1)}64%{transform:scaleY(1)}100%{transform:scaleY(0)}}
+
+  /* ---------- 5 · INK FLOOD ---------- */
+  .ink-drop{position:absolute;left:var(--ox,50%);top:var(--oy,50%);width:12px;height:14px;margin:-7px -6px;
+    border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:var(--fx-fill);transform:translateY(-60vh) scale(.7);opacity:0}
+  .blot{position:absolute;left:var(--ox,50%);top:var(--oy,50%);width:44px;height:44px;margin:-22px;
+    border-radius:48% 52% 55% 45%/50% 48% 52% 50%;background:var(--fx-fill);transform:scale(0)}
+  .blot.b2{margin-left:-46px;margin-top:-10px}.blot.b3{margin-left:34px;margin-top:8px}
+  #stage.run[data-fx="ink"] .ink-drop{animation:inkDrop 1.2s ease both}
+  #stage.run[data-fx="ink"] .blot{animation:inkBlot 1.2s cubic-bezier(.5,0,.3,1) both}
+  #stage.run[data-fx="ink"] .blot.b2{animation-delay:.05s}
+  #stage.run[data-fx="ink"] .blot.b3{animation-delay:.08s}
+  @keyframes inkDrop{0%{transform:translateY(-60vh) scale(.7);opacity:0}10%{opacity:1}
+    24%{transform:translateY(0) scale(1);opacity:1}30%{opacity:0}100%{opacity:0}}
+  @keyframes inkBlot{0%,18%{transform:scale(0)}55%{transform:scale(64)}66%{opacity:1}100%{transform:scale(64);opacity:0}}
+
+  /* ---------- 6 · SHOOTING STAR ---------- */
+  .nighttint{position:absolute;inset:0;opacity:0;background:radial-gradient(circle at 70% 20%,rgba(120,150,255,.18),transparent 60%)}
+  .comet{position:absolute;top:0;left:0;width:160px;height:3px;border-radius:3px;opacity:0;
+    background:linear-gradient(90deg,transparent,var(--brand-2),#fff);filter:drop-shadow(0 0 6px var(--brand-2))}
+  .twinkle{position:absolute;width:14px;height:14px;opacity:0;
+    background:conic-gradient(from 0deg,transparent,#fff,transparent 25%,transparent,#fff,transparent 75%);
+    -webkit-mask:radial-gradient(circle,#000 1px,transparent 2px) ; /* fallback removed below */}
+  .twinkle{background:none}
+  .twinkle::before,.twinkle::after{content:"";position:absolute;inset:0;background:#fff;border-radius:2px}
+  .twinkle::before{clip-path:polygon(50% 0,58% 42%,100% 50%,58% 58%,50% 100%,42% 58%,0 50%,42% 42%)}
+  .twinkle::after{display:none}
+  .t1{left:18%;top:24%}.t2{left:32%;top:60%}.t3{left:54%;top:30%}.t4{left:68%;top:66%}
+  .t5{left:80%;top:22%}.t6{left:44%;top:18%}.t7{left:24%;top:78%}
+  #stage.run[data-fx="star"] .nighttint{animation:tintPulse 1.3s ease}
+  #stage.run[data-fx="star"] .comet{animation:streak 1.25s cubic-bezier(.3,.4,.2,1)}
+  #stage.run[data-fx="star"] .twinkle{animation:twk 1.3s ease both}
+  #stage.run[data-fx="star"] .t2{animation-delay:.08s}#stage.run[data-fx="star"] .t3{animation-delay:.16s}
+  #stage.run[data-fx="star"] .t4{animation-delay:.1s}#stage.run[data-fx="star"] .t5{animation-delay:.22s}
+  #stage.run[data-fx="star"] .t6{animation-delay:.05s}#stage.run[data-fx="star"] .t7{animation-delay:.18s}
+  @keyframes tintPulse{0%,100%{opacity:0}45%{opacity:1}}
+  @keyframes streak{0%{transform:translate(-12vw,-12vh) rotate(33deg);opacity:0}
+    16%{opacity:1}74%{opacity:1}100%{transform:translate(118vw,86vh) rotate(33deg);opacity:0}}
+  @keyframes twk{0%,20%{opacity:0;transform:scale(.3)}45%{opacity:1;transform:scale(1)}
+    70%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.6)}}
+
+  /* ---------- 7 · LIGHTNING ---------- */
+  .flashscreen{position:absolute;inset:0;background:#fff;opacity:0}
+  .boltsvg{position:absolute;inset:0;width:100%;height:100%}
+  .bolt-path{fill:none;stroke:#eaf2ff;stroke-width:4;stroke-linejoin:round;stroke-linecap:round;
+    filter:drop-shadow(0 0 7px #8fb8ff);stroke-dasharray:680;stroke-dashoffset:680;opacity:0}
+  #stage.run[data-fx="bolt"] .flashscreen{animation:boltFlash 1s ease}
+  #stage.run[data-fx="bolt"] .bolt-path{animation:boltDraw 1s ease}
+  @keyframes boltFlash{0%,16%{opacity:0}20%{opacity:.9}26%{opacity:.12}32%{opacity:.6}40%{opacity:0}100%{opacity:0}}
+  @keyframes boltDraw{0%,10%{stroke-dashoffset:680;opacity:0}13%{opacity:1}30%{stroke-dashoffset:0;opacity:1}
+    58%{opacity:1}72%{opacity:0}100%{opacity:0}}
+
+  /* ---------- 8 · ECLIPSE ---------- */
+  .ecl-sun{position:absolute;left:50%;top:34%;width:130px;height:130px;margin:-65px;border-radius:50%;opacity:0;
+    background:radial-gradient(circle,#ffe9a8 38%,#ffb24d 62%,#ff8f1f);
+    box-shadow:0 0 70px 26px rgba(255,180,80,.55)}
+  .ecl-moon{position:absolute;left:50%;top:34%;width:132px;height:132px;margin:-66px;border-radius:50%;
+    background:#091327;box-shadow:0 0 1px 1px rgba(255,255,255,.1);transform:translateX(-66vw)}
+  .ecl-tint{position:absolute;inset:0;opacity:0;background:rgba(3,7,20,0)}
+  #stage.run[data-fx="eclipse"] .ecl-sun{animation:eclSun 1.5s ease}
+  #stage.run[data-fx="eclipse"] .ecl-moon{animation:eclMoon 1.5s ease-in-out}
+  #stage.run[data-fx="eclipse"] .ecl-tint{animation:eclTint 1.5s ease}
+  @keyframes eclSun{0%,100%{opacity:0}22%,78%{opacity:1}}
+  @keyframes eclMoon{0%{transform:translateX(-66vw)}50%{transform:translateX(0)}100%{transform:translateX(66vw)}}
+  @keyframes eclTint{0%,100%{opacity:0;background:rgba(3,7,20,0)}50%{opacity:1;background:rgba(3,7,20,.6)}}
+
+  /* ===================================================================
+     REDUCED MOTION — skip choreography, keep the honest flip
+     =================================================================== */
+  @media(prefers-reduced-motion:reduce){
+    #stage{display:none!important}
+    *{animation:none!important}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== DESKTOP SIDE-RAIL ===================== -->
+<aside class="rail" aria-label="Sidebar (desktop)">
+  <div class="logo" title="Morbius.io">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z"/></svg>
+  </div>
+  <div class="nav">
+    <div class="railitem active"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>Home</div>
+    <div class="railitem"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Search</div>
+    <div class="railitem"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7h18v12H3zM3 7l3-3h9l3 3"/></svg>Wallet</div>
+    <div class="railitem"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19V9M10 19V5M16 19v-7M22 19h-20"/></svg>Stats</div>
+  </div>
+  <div class="spacer"></div>
+  <button class="navtoggle" data-navtoggle aria-label="Toggle light or dark theme" aria-pressed="false">
+    <span class="sunmoon">
+      <svg class="g-sun" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>
+      <svg class="g-moon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+    </span>
+    <span class="lbl">Theme</span>
+  </button>
+</aside>
+
+<!-- ===================== MOBILE BOTTOM BAR ===================== -->
+<nav class="bottombar" aria-label="Bottom navigation (mobile)">
+  <div class="baritem active"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>Home</div>
+  <div class="baritem"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Search</div>
+  <div class="baritem"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7h18v12H3zM3 7l3-3h9l3 3"/></svg>Wallet</div>
+  <button class="navtoggle" data-navtoggle aria-label="Toggle light or dark theme" aria-pressed="false" style="width:48px;height:44px">
+    <span class="sunmoon">
+      <svg class="g-sun" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>
+      <svg class="g-moon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+    </span>
+  </button>
+</nav>
+
+<!-- ===================== CONTENT ===================== -->
+<div class="content">
+  <header class="pg">
+    <div>
+      <h1 class="title">Screen-wide <b>theme toggles</b></h1>
+      <p class="lede">Eight nav-sized switches, each with its own full-screen transition.
+        Click a card to play it and pin it to the nav toggle — then try the toggle in the
+        side-rail (desktop) or bottom bar (mobile). The whole page flips dark&nbsp;↔&nbsp;light.</p>
+    </div>
+    <span class="mode-chip"><span class="dot"></span><span id="modeLabel">Dark mode</span></span>
+  </header>
+
+  <div class="grid" id="grid">
+    <button class="fxcard" data-fx="cord" type="button">
+      <span class="ctrl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="8"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="16" x2="12" y2="20"/><circle cx="12" cy="21.4" r="1.3" fill="currentColor"/></svg></span>
+      <span class="meta"><b>Pull chain</b><i>A massive chain drops dead-center; a real arm reaches in from the right and yanks it.</i></span>
+      <span class="pin">IN NAV</span>
+    </button>
+
+    <button class="fxcard" data-fx="sun" type="button">
+      <span class="ctrl sunmoon">
+        <svg class="g-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>
+        <svg class="g-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+      </span>
+      <span class="meta"><b>Sunrise arc</b><i>Sun sets and moon rises in a crossing arc, clouds drift past.</i></span>
+      <span class="pin">IN NAV</span>
+    </button>
+
+    <button class="fxcard" data-fx="ripple" type="button">
+      <span class="ctrl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="9.5" opacity=".5"/></svg></span>
+      <span class="meta"><b>Ripple wipe</b><i>The new theme floods out from the toggle in an expanding circle.</i></span>
+      <span class="pin">IN NAV</span>
+    </button>
+
+    <button class="fxcard" data-fx="blinds" type="button">
+      <span class="ctrl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 8h18M3 12h18M3 16h18"/></svg></span>
+      <span class="meta"><b>Window blinds</b><i>Louvered slats sweep shut, flip, and snap open again.</i></span>
+      <span class="pin">IN NAV</span>
+    </button>
+
+    <button class="fxcard" data-fx="ink" type="button">
+      <span class="ctrl"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2s7 8 7 12.5A7 7 0 1 1 5 14.5C5 10 12 2 12 2z"/></svg></span>
+      <span class="meta"><b>Ink flood</b><i>A drop falls and blooms, drowning the screen in the new colour.</i></span>
+      <span class="pin">IN NAV</span>
+    </button>
+
+    <button class="fxcard" data-fx="star" type="button">
+      <span class="ctrl"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.4 6.6L21 9l-5 4.3L17.6 21 12 17l-5.6 4 1.6-7.7L3 9l6.6-.4z"/></svg></span>
+      <span class="meta"><b>Shooting star</b><i>A comet streaks the sky while stars twinkle into place.</i></span>
+      <span class="pin">IN NAV</span>
+    </button>
+
+    <button class="fxcard" data-fx="bolt" type="button">
+      <span class="ctrl"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg></span>
+      <span class="meta"><b>Lightning</b><i>A bolt forks across the screen with a hard white flash.</i></span>
+      <span class="pin">IN NAV</span>
+    </button>
+
+    <button class="fxcard" data-fx="eclipse" type="button">
+      <span class="ctrl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="12" r="7"/><circle cx="14.5" cy="12" r="7" fill="currentColor" stroke="none" opacity=".85"/></svg></span>
+      <span class="meta"><b>Eclipse</b><i>A moon glides over the sun; the corona flares as darkness falls.</i></span>
+      <span class="pin">IN NAV</span>
+    </button>
+  </div>
+
+  <p class="hint">Tip: the toggle in the <kbd>side-rail</kbd> / <kbd>bottom bar</kbd> replays whichever effect you last pinned.</p>
+</div>
+
+<!-- ===================== STAGE (overlay) ===================== -->
+<div id="stage" data-fx="cord" aria-hidden="true">
+  <div class="fx fx-cord">
+    <!-- massive beaded pull-chain, centered -->
+    <div class="chain-rig"><div class="chain-col"></div><div class="chain-ball"></div></div>
+    <!-- real arm photo: enters from the right, fist grabs the chain ball -->
+    <div class="arm-anim"><img class="armimg" src="/pull-arm.png" alt="" draggable="false"/></div>
+  </div>
+  <div class="fx fx-sun"><span class="sky"></span><span class="cloud c1"></span><span class="cloud c2"></span><span class="sun-body"></span><span class="moon-body"></span></div>
+  <div class="fx fx-ripple"><span class="rip-fill"></span><span class="rip-ring r1"></span><span class="rip-ring r2"></span><span class="rip-ring r3"></span></div>
+  <div class="fx fx-blinds"><span class="slat"></span><span class="slat"></span><span class="slat"></span><span class="slat"></span><span class="slat"></span><span class="slat"></span><span class="slat"></span><span class="slat"></span></div>
+  <div class="fx fx-ink"><span class="ink-drop"></span><span class="blot b1"></span><span class="blot b2"></span><span class="blot b3"></span></div>
+  <div class="fx fx-star"><span class="nighttint"></span><span class="comet"></span><span class="twinkle t1"></span><span class="twinkle t2"></span><span class="twinkle t3"></span><span class="twinkle t4"></span><span class="twinkle t5"></span><span class="twinkle t6"></span><span class="twinkle t7"></span></div>
+  <div class="fx fx-bolt"><span class="flashscreen"></span><svg class="boltsvg" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="bolt-path" d="M52 -2 L40 34 L56 36 L34 78 L44 46 L28 44 L48 -2"/></svg></div>
+  <div class="fx fx-eclipse"><span class="ecl-sun"></span><span class="ecl-moon"></span><span class="ecl-tint"></span></div>
+</div>
+
+<script>
+  /* ===================================================================
+     THEME + TRANSITION ENGINE  (shared)
+     =================================================================== */
+  const html = document.documentElement;
+  const reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const stage = document.getElementById('stage');
+  const modeLabel = document.getElementById('modeLabel');
+  const navToggles = Array.from(document.querySelectorAll('[data-navtoggle]'));
+  const cards = Array.from(document.querySelectorAll('.fxcard'));
+
+  /* per-effect timing: when the theme flips, and when the overlay clears */
+  const FX = {
+    cord:    { flip: 1180, end: 2150 },
+    sun:     { flip: 740,  end: 1520 },
+    ripple:  { flip: 380,  end: 940  },
+    blinds:  { flip: 560,  end: 1180 },
+    ink:     { flip: 560,  end: 1220 },
+    star:    { flip: 520,  end: 1320 },
+    bolt:    { flip: 300,  end: 1020 },
+    eclipse: { flip: 740,  end: 1520 },
+  };
+
+  /* destination background colour, so wipe/flood overlays land on the right shade */
+  const BG = { light:'#eef2f7', dark:'#06182e' };
+
+  const stored = () => { try { return localStorage.getItem('pc-theme'); } catch (e) { return null; } };
+  const system = () => window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  const isLight = () => !html.classList.contains('dark');
+
+  function reflect(){
+    const lit = isLight();
+    navToggles.forEach(b => b.setAttribute('aria-pressed', String(lit)));
+    if (modeLabel) modeLabel.textContent = lit ? 'Light mode' : 'Dark mode';
+  }
+  function applyTheme(theme){ html.classList.toggle('dark', theme === 'dark'); reflect(); }
+  reflect();
+
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (!stored()) applyTheme(system());
+  });
+
+  function flip(){
+    const next = isLight() ? 'dark' : 'light';
+    try { localStorage.setItem('pc-theme', next); } catch (e) {}
+    applyTheme(next);
+  }
+
+  let busy = false;
+  function runTransition(id, x, y){
+    if (!FX[id]) id = 'cord';
+    if (reduce){ flip(); return; }      /* honest flip, no choreography */
+    if (busy) return;
+    busy = true;
+
+    /* origin for ripple / ink; destination colour for wipe / flood / blinds */
+    stage.style.setProperty('--ox', (x ?? window.innerWidth/2) + 'px');
+    stage.style.setProperty('--oy', (y ?? window.innerHeight/2) + 'px');
+    stage.style.setProperty('--fx-fill', isLight() ? BG.dark : BG.light);
+
+    stage.setAttribute('data-fx', id);
+    stage.classList.remove('run');
+    void stage.offsetWidth;             /* reflow so keyframes restart */
+    stage.classList.add('run');
+
+    setTimeout(flip, FX[id].flip);
+    setTimeout(() => { stage.classList.remove('run'); busy = false; }, FX[id].end);
+  }
+
+  /* which effect the nav toggle uses (pinned by clicking a card) */
+  let navFx = 'cord';
+  function selectCard(id){
+    navFx = id;
+    cards.forEach(c => c.classList.toggle('selected', c.dataset.fx === id));
+  }
+  selectCard('cord');
+
+  /* gallery cards: play the effect from the click point + pin to nav */
+  cards.forEach(card => {
+    card.addEventListener('click', (e) => {
+      selectCard(card.dataset.fx);
+      runTransition(card.dataset.fx, e.clientX, e.clientY);
+    });
+  });
+
+  /* nav toggles: replay the pinned effect from the toggle's centre */
+  navToggles.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const r = btn.getBoundingClientRect();
+      runTransition(navFx, r.left + r.width/2, r.top + r.height/2);
+    });
+  });
+</script>
+</body>
+</html>

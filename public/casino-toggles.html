@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Casino theme toggles · dark / light</title>
+
+<!--
+  ============================================================================
+  CASINO DARK / LIGHT TOGGLES  ·  standalone, drop-in
+  ----------------------------------------------------------------------------
+  Two hand-built SVG/CSS theme switches in the same spirit as the IronRoofing
+  pull-chain lamp:
+
+    1) SNAKE EYES  — a dealer's hand flicks two dice across the felt; they
+                     tumble through the air and settle on 1 + 1.
+    2) JACKPOT 777 — a hand yanks the slot lever; three reels blur-spin and
+                     snap to 7-7-7 while the marquee bulbs blaze on.
+
+  HOW IT WORKS / HOW TO PORT INTO THE APP
+  ---------------------------------------
+  • Theme is driven by toggling the `.dark` class on <html> — the SAME
+    mechanism this Next app already uses (globals.css:
+    `@custom-variant dark (&:is(.dark *))`). "Lights on" === light mode.
+  • The colours below mirror the app's real tokens (navy #06182e card #0C2340,
+    brand orange #FA4616) so it looks native. To port: lift one <button>
+    block + its <style> section + the tiny init in <script>, and point the
+    init at your app's theme store (or keep the classList toggle as-is).
+  • Production touches carried over from the lamp:
+      – pre-paint <script> in <head> sets the theme before first paint (no flash)
+      – remembers the choice in localStorage('pc-theme')
+      – follows the OS until an explicit choice is made
+      – full `prefers-reduced-motion` fallback (no animation, just the flip)
+      – real <button>s with aria-pressed + visually-hidden labels (a11y)
+  ============================================================================
+-->
+
+<script>
+  /* Set the theme before first paint so there is no flash of the wrong mode.
+     Default follows the OS; an explicit choice is remembered when possible. */
+  (function () {
+    try {
+      var t = localStorage.getItem('pc-theme');
+      if (t !== 'light' && t !== 'dark') {
+        t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+      document.documentElement.classList.toggle('dark', t === 'dark');
+    } catch (e) {
+      document.documentElement.classList.add('dark');
+    }
+  })();
+</script>
+
+<style>
+  /* ===================================================================
+     PAGE TOKENS  (mirror app/globals.css — shadcn HSL + brand colours)
+     :root  = light   ·   .dark = dark (default in this app)
+     =================================================================== */
+  :root{
+    --page:#eef2f7;
+    --card:#ffffff;
+    --ink:hsl(222.2 84% 4.9%);
+    --muted:hsl(215.4 16.3% 46.9%);
+    --line:hsl(214.3 31.8% 91.4%);
+    --brand:#FA4616;
+
+    /* ---- casino motif: LIT (lights on) ---- */
+    --felt:#1f9150;
+    --felt-edge:#15673a;
+    --die-face-a:#ffffff;
+    --die-face-b:#f0f2f4;
+    --pip:#1b2430;
+    --snake:#ef3b3b;
+    --glow-op:.95;
+
+    --reel-bg:#0c1c12;
+    --seven:#ff3b3b;
+    --seven-glow:drop-shadow(0 0 4px rgba(255,90,90,.55));
+    --bar:#2b3a8c;
+    --marquee-ink:#ffd45a;
+    --bulb:#ffd35a;
+    --bulb-glow:drop-shadow(0 0 5px rgba(255,205,90,.95));
+    --coin:#f3c14b;
+    --coin-op:1;
+    --tray:#7a2a18;
+  }
+  html.dark{
+    --page:#06182e;          /* the app's real body colour */
+    --card:rgba(12,35,64,.92);
+    --ink:hsl(210 40% 98%);
+    --muted:hsl(215 20.2% 65.1%);
+    --line:rgba(250,70,22,.28);
+    --brand:#FA4616;
+
+    /* ---- casino motif: DIM (lights off) ---- */
+    --felt:#0f3b27;
+    --felt-edge:#0a2c1d;
+    --die-face-a:#e9ebef;
+    --die-face-b:#dcdfe4;
+    --pip:#1b2430;
+    --snake:#a83339;
+    --glow-op:0;
+
+    --reel-bg:#0a160d;
+    --seven:#9e2f35;
+    --seven-glow:none;
+    --bar:#33406b;
+    --marquee-ink:#7c6c46;
+    --bulb:#44515c;
+    --bulb-glow:none;
+    --coin:#7d6a3c;
+    --coin-op:0;
+    --tray:#43180f;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--page);
+    color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+    transition:background-color .55s ease,color .55s ease;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .wrap{max-width:880px;margin:0 auto;padding:48px 22px 80px}
+  header.pg{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .title{margin:0;font-size:clamp(22px,4vw,30px);font-weight:800;letter-spacing:-.02em}
+  .title b{color:var(--brand)}
+  .lede{margin:10px 0 0;color:var(--muted);font-size:15px;max-width:54ch;line-height:1.55}
+  .mode-chip{
+    display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;
+    color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:7px 13px;
+    background:var(--card);transition:background-color .45s ease,border-color .45s ease;
+  }
+  .mode-chip .dot{width:9px;height:9px;border-radius:50%;background:var(--brand);box-shadow:0 0 8px var(--brand)}
+
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:34px}
+  @media(max-width:640px){.cards{grid-template-columns:1fr}}
+
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:18px 18px 22px;display:flex;flex-direction:column;align-items:center;gap:6px;
+    transition:background-color .55s ease,border-color .55s ease,box-shadow .55s ease;
+    box-shadow:0 10px 30px rgba(0,0,0,.18);
+  }
+
+  /* the toggle button is just a frameless button wrapping an SVG */
+  .toggle{
+    appearance:none;-webkit-appearance:none;border:0;background:transparent;
+    padding:0;margin:0;cursor:pointer;display:block;width:100%;max-width:330px;position:relative;
+    border-radius:14px;
+  }
+  .toggle svg{width:100%;height:auto;display:block;overflow:visible}
+  .toggle:focus-visible{outline:2px solid var(--brand);outline-offset:6px;border-radius:14px}
+  .vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .cap{text-align:center;margin-top:6px}
+  .cap h2{margin:0;font-size:16px;font-weight:700;letter-spacing:-.01em}
+  .cap p{margin:3px 0 0;color:var(--muted);font-size:13px}
+
+  /* =====================================================================
+     TOGGLE 1 — SNAKE EYES (dice throw)
+     Rest state = dice already landed on snake eyes (left), lights reflect
+     the theme. `.throwing` replays the toss; theme flips as they land.
+     ===================================================================== */
+  .felt{transition:fill .55s ease}
+  .d-glow{opacity:var(--glow-op);transition:opacity .6s ease}
+  .pips-roll{opacity:0}
+  .pip-snake{opacity:1;transform-box:fill-box;transform-origin:50% 50%;
+    transition:fill .55s ease}
+  .die-spin{transform-box:fill-box;transform-origin:50% 50%}
+  .cuff{fill:#1b2733}.skin{fill:#d9a578}
+
+  .dice.throwing .die-a{animation:throwA 1.05s cubic-bezier(.28,.7,.3,1) both}
+  .dice.throwing .die-b{animation:throwB 1.05s cubic-bezier(.28,.7,.3,1) both}
+  .dice.throwing .die-a .die-spin{animation:tumbleA 1.05s cubic-bezier(.2,.6,.2,1) both}
+  .dice.throwing .die-b .die-spin{animation:tumbleB 1.05s cubic-bezier(.2,.6,.2,1) both}
+  .dice.throwing .pips-roll{animation:rollShow 1.05s linear both}
+  .dice.throwing .pip-snake{animation:snakePop 1.05s ease both}
+  .dice.throwing .thrower{animation:flick 1.05s ease both}
+
+  @keyframes throwA{
+    0%{transform:translate(168px,-6px)}
+    12%{transform:translate(150px,-54px)}
+    46%{transform:translate(70px,-80px)}
+    74%{transform:translate(8px,-4px)}
+    82%{transform:translate(2px,-16px)}
+    100%{transform:translate(0,0)}
+  }
+  @keyframes throwB{
+    0%{transform:translate(176px,4px)}
+    12%{transform:translate(158px,-40px)}
+    46%{transform:translate(80px,-64px)}
+    72%{transform:translate(14px,-2px)}
+    80%{transform:translate(4px,-12px)}
+    100%{transform:translate(0,0)}
+  }
+  @keyframes tumbleA{from{transform:rotate(0)}to{transform:rotate(720deg)}}
+  @keyframes tumbleB{from{transform:rotate(0)}to{transform:rotate(-720deg)}}
+  @keyframes rollShow{0%,66%{opacity:1}84%,100%{opacity:0}}
+  @keyframes snakePop{
+    0%,74%{opacity:0;transform:scale(.2)}
+    88%{opacity:1;transform:scale(1.32)}
+    100%{opacity:1;transform:scale(1)}
+  }
+  .thrower{transform-box:fill-box;transform-origin:88% 60%}
+  @keyframes flick{
+    0%{transform:translate(0,0) rotate(0)}
+    10%{transform:translate(-7px,-9px) rotate(-18deg)}
+    34%{transform:translate(18px,3px) rotate(11deg)}
+    62%{transform:translate(3px,0) rotate(3deg)}
+    100%{transform:translate(0,0) rotate(0)}
+  }
+
+  /* =====================================================================
+     TOGGLE 2 — JACKPOT 777 (slot lever)
+     Rest state = reels already on 777, bulbs reflect the theme.
+     `.pulling` replays the lever yank + reel spin; theme flips on the
+     third reel landing.
+     ===================================================================== */
+  .marquee{fill:#240a0c}
+  .marquee-t{font:800 16px ui-sans-serif,system-ui,sans-serif;letter-spacing:.22em;
+    fill:var(--marquee-ink);transition:fill .55s ease}
+  .bulb{fill:var(--bulb);filter:var(--bulb-glow);transition:fill .55s ease,filter .55s ease}
+  .cabinet-edge{stroke:rgba(0,0,0,.28)}
+  .reel-bg{fill:var(--reel-bg);transition:fill .55s ease}
+  .s7{font:800 30px ui-sans-serif,system-ui,sans-serif;fill:var(--seven);filter:var(--seven-glow);
+    transition:fill .55s ease}
+  .bar{fill:var(--bar)}
+  .bart{font:800 12px ui-sans-serif,system-ui,sans-serif;letter-spacing:.04em;fill:#fff}
+  .cherry{fill:#e23b3b}
+  .payline{stroke:#f3c14b;stroke-width:2;opacity:.85}
+  .pay-mark{fill:#f3c14b}
+  .tray{fill:var(--tray);transition:fill .55s ease}
+  .coin{fill:var(--coin);opacity:var(--coin-op);transition:opacity .55s ease}
+  .lever-bracket{fill:#7f8890}
+  .lever-rod{fill:url(#s-chrome)}
+  .grip .skin{fill:#d9a578}
+  .reel-face{opacity:1;transform-box:fill-box;transform-origin:50% 50%}
+  .reel-spin{opacity:0}
+  .win-flash{opacity:0}
+  .lever{transform-box:fill-box;transform-origin:50% 100%}
+
+  .slot.pulling .lever{animation:leverPull 1.25s cubic-bezier(.5,.05,.5,1)}
+  @keyframes leverPull{
+    0%{transform:rotate(0)}12%{transform:rotate(0)}
+    26%{transform:rotate(34deg)}62%{transform:rotate(34deg)}
+    100%{transform:rotate(0)}
+  }
+
+  @keyframes reelLoop{from{transform:translateY(0)}to{transform:translateY(-176px)}}
+  .slot.pulling .r1 .reel-spin{animation:reelLoop .24s linear infinite,spinFade1 1.25s linear forwards}
+  .slot.pulling .r2 .reel-spin{animation:reelLoop .21s linear infinite,spinFade2 1.25s linear forwards}
+  .slot.pulling .r3 .reel-spin{animation:reelLoop .19s linear infinite,spinFade3 1.25s linear forwards}
+  @keyframes spinFade1{0%{opacity:1}44%{opacity:1}52%,100%{opacity:0}}
+  @keyframes spinFade2{0%{opacity:1}60%{opacity:1}68%,100%{opacity:0}}
+  @keyframes spinFade3{0%{opacity:1}78%{opacity:1}86%,100%{opacity:0}}
+
+  .slot.pulling .r1 .reel-face{animation:faceLand1 1.25s ease both}
+  .slot.pulling .r2 .reel-face{animation:faceLand2 1.25s ease both}
+  .slot.pulling .r3 .reel-face{animation:faceLand3 1.25s ease both}
+  @keyframes faceLand1{0%,44%{opacity:0;transform:translateY(-12px) scale(.85)}
+    54%{opacity:1;transform:translateY(5px) scale(1.08)}62%{transform:translateY(0) scale(1)}100%{opacity:1}}
+  @keyframes faceLand2{0%,60%{opacity:0;transform:translateY(-12px) scale(.85)}
+    70%{opacity:1;transform:translateY(5px) scale(1.08)}78%{transform:translateY(0) scale(1)}100%{opacity:1}}
+  @keyframes faceLand3{0%,78%{opacity:0;transform:translateY(-12px) scale(.85)}
+    88%{opacity:1;transform:translateY(5px) scale(1.08)}95%{transform:translateY(0) scale(1)}100%{opacity:1}}
+
+  .slot.pulling .win-flash{animation:jackpot .42s ease .92s 2}
+  @keyframes jackpot{0%,100%{opacity:0}50%{opacity:.55}}
+
+  /* =====================================================================
+     REDUCED MOTION — no choreography, just the honest flip
+     ===================================================================== */
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:background-color .2s,color .2s,fill .2s,opacity .2s!important}
+  }
+
+  .notes{margin-top:40px;border:1px solid var(--line);border-radius:14px;background:var(--card);
+    transition:background-color .55s ease,border-color .55s ease}
+  .notes summary{cursor:pointer;padding:14px 18px;font-weight:700;font-size:14px;list-style:none}
+  .notes summary::-webkit-details-marker{display:none}
+  .notes summary::before{content:"▸ ";color:var(--brand)}
+  .notes[open] summary::before{content:"▾ "}
+  .notes .body{padding:0 18px 18px;color:var(--muted);font-size:13.5px;line-height:1.6}
+  .notes code{background:rgba(127,127,127,.16);padding:1px 6px;border-radius:5px;font-size:12.5px;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="pg">
+    <div>
+      <h1 class="title">Casino <b>dark / light</b> toggles</h1>
+      <p class="lede">Two hand-built switches with the same craft as the pull-chain lamp.
+        Click either one — the whole page flips. Lights on&nbsp;= light mode.</p>
+    </div>
+    <span class="mode-chip"><span class="dot"></span><span id="modeLabel">Dark mode</span></span>
+  </header>
+
+  <div class="cards">
+
+    <!-- ===================== SNAKE EYES ===================== -->
+    <section class="card">
+      <button id="diceToggle" class="toggle dice" type="button" data-toggle
+              aria-label="Toggle light or dark theme — roll the dice" aria-pressed="false">
+        <span class="vh">Toggle light or dark theme</span>
+        <svg viewBox="0 0 280 200" aria-hidden="true">
+          <defs>
+            <radialGradient id="d-face-a" cx="36%" cy="30%" r="78%">
+              <stop offset="0%" stop-color="var(--die-face-a)"/>
+              <stop offset="72%" stop-color="var(--die-face-b)"/>
+              <stop offset="100%" stop-color="#d4d8de"/>
+            </radialGradient>
+            <radialGradient id="d-win" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="rgba(255,221,150,.95)"/>
+              <stop offset="55%" stop-color="rgba(255,200,110,.26)"/>
+              <stop offset="100%" stop-color="rgba(255,200,110,0)"/>
+            </radialGradient>
+            <linearGradient id="d-felt" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--felt)"/>
+              <stop offset="100%" stop-color="var(--felt-edge)"/>
+            </linearGradient>
+            <filter id="d-shadow" x="-40%" y="-40%" width="180%" height="180%">
+              <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="rgba(0,0,0,.45)"/>
+            </filter>
+          </defs>
+
+          <!-- felt table -->
+          <rect class="felt" x="8" y="64" width="264" height="128" rx="22" fill="url(#d-felt)"/>
+          <rect x="8" y="64" width="264" height="128" rx="22" fill="none" stroke="rgba(0,0,0,.22)" stroke-width="2"/>
+
+          <!-- win glow behind the landing spot -->
+          <circle class="d-glow" cx="92" cy="120" r="80" fill="url(#d-win)"/>
+
+          <!-- die A -->
+          <g class="d-pos" transform="translate(74,122)">
+            <g class="die-a">
+              <g class="die-spin">
+                <rect class="die-body" x="-18" y="-18" width="36" height="36" rx="8"
+                      fill="url(#d-face-a)" stroke="rgba(0,0,0,.16)" stroke-width="1" filter="url(#d-shadow)"/>
+                <g class="pips-roll" fill="var(--pip)">
+                  <circle cx="-8" cy="-8" r="3.1"/><circle cx="8" cy="-8" r="3.1"/>
+                  <circle cx="0" cy="0" r="3.1"/>
+                  <circle cx="-8" cy="8" r="3.1"/><circle cx="8" cy="8" r="3.1"/>
+                </g>
+                <circle class="pip-snake" cx="0" cy="0" r="5.6" fill="var(--snake)"/>
+              </g>
+            </g>
+          </g>
+
+          <!-- die B -->
+          <g class="d-pos" transform="translate(112,128)">
+            <g class="die-b">
+              <g class="die-spin">
+                <rect class="die-body" x="-18" y="-18" width="36" height="36" rx="8"
+                      fill="url(#d-face-a)" stroke="rgba(0,0,0,.16)" stroke-width="1" filter="url(#d-shadow)"/>
+                <g class="pips-roll" fill="var(--pip)">
+                  <circle cx="-8" cy="-8" r="3.1"/><circle cx="8" cy="-8" r="3.1"/>
+                  <circle cx="0" cy="0" r="3.1"/>
+                  <circle cx="-8" cy="8" r="3.1"/><circle cx="8" cy="8" r="3.1"/>
+                </g>
+                <circle class="pip-snake" cx="0" cy="0" r="5.6" fill="var(--snake)"/>
+              </g>
+            </g>
+          </g>
+
+          <!-- dealer hand flicking from the right -->
+          <g class="thrower">
+            <rect class="cuff" x="250" y="100" width="62" height="34" rx="13"/>
+            <rect class="skin" x="232" y="103" width="34" height="28" rx="13"/>
+            <rect class="skin" x="214" y="106" width="24" height="8" rx="4"/>
+            <rect class="skin" x="216" y="116" width="22" height="8" rx="4"/>
+          </g>
+        </svg>
+      </button>
+      <div class="cap">
+        <h2>Snake eyes</h2>
+        <p>Toss the bones — they always come up 1&nbsp;+&nbsp;1.</p>
+      </div>
+    </section>
+
+    <!-- ===================== JACKPOT 777 ===================== -->
+    <section class="card">
+      <button id="slotToggle" class="toggle slot" type="button" data-toggle
+              aria-label="Toggle light or dark theme — pull the slot lever" aria-pressed="false">
+        <span class="vh">Toggle light or dark theme</span>
+        <svg viewBox="0 0 300 210" aria-hidden="true">
+          <defs>
+            <linearGradient id="s-cab" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#c62b34"/><stop offset="100%" stop-color="#8f1820"/>
+            </linearGradient>
+            <linearGradient id="s-chrome" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#7f8890"/><stop offset="45%" stop-color="#eef2f5"/>
+              <stop offset="100%" stop-color="#7f8890"/>
+            </linearGradient>
+            <linearGradient id="s-glass" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="rgba(255,255,255,.20)"/>
+              <stop offset="42%" stop-color="rgba(255,255,255,.04)"/>
+              <stop offset="100%" stop-color="rgba(0,0,0,.20)"/>
+            </linearGradient>
+            <radialGradient id="s-knob" cx="36%" cy="30%" r="72%">
+              <stop offset="0%" stop-color="#ff7b7b"/><stop offset="60%" stop-color="#e23b3b"/>
+              <stop offset="100%" stop-color="#971d22"/>
+            </radialGradient>
+            <clipPath id="rc1"><rect x="52" y="74" width="48" height="66"/></clipPath>
+            <clipPath id="rc2"><rect x="106" y="74" width="48" height="66"/></clipPath>
+            <clipPath id="rc3"><rect x="160" y="74" width="48" height="66"/></clipPath>
+
+            <g id="sym7"><text class="s7" text-anchor="middle" dominant-baseline="central">7</text></g>
+            <g id="symC">
+              <path d="M0,-13 C5,-17 11,-14 12,-8" fill="none" stroke="#2f9e44" stroke-width="2.2" stroke-linecap="round"/>
+              <circle class="cherry" cx="-5" cy="6" r="6.4"/><circle class="cherry" cx="6" cy="9" r="6.4"/>
+              <circle cx="-7.4" cy="3.6" r="1.6" fill="rgba(255,255,255,.6)"/>
+            </g>
+            <g id="symBar">
+              <rect class="bar" x="-16" y="-8" width="32" height="16" rx="3.5"/>
+              <text class="bart" text-anchor="middle" dominant-baseline="central">BAR</text>
+            </g>
+          </defs>
+
+          <!-- marquee bulbs -->
+          <g class="bulbs">
+            <circle class="bulb" cx="36"  cy="14" r="4.4"/><circle class="bulb" cx="60"  cy="14" r="4.4"/>
+            <circle class="bulb" cx="84"  cy="14" r="4.4"/><circle class="bulb" cx="108" cy="14" r="4.4"/>
+            <circle class="bulb" cx="132" cy="14" r="4.4"/><circle class="bulb" cx="156" cy="14" r="4.4"/>
+            <circle class="bulb" cx="180" cy="14" r="4.4"/><circle class="bulb" cx="204" cy="14" r="4.4"/>
+            <circle class="bulb" cx="228" cy="14" r="4.4"/>
+          </g>
+
+          <!-- marquee sign -->
+          <rect class="marquee" x="26" y="18" width="210" height="30" rx="14"/>
+          <text class="marquee-t" x="131" y="38" text-anchor="middle">JACKPOT</text>
+
+          <!-- cabinet -->
+          <rect x="26" y="50" width="210" height="140" rx="18" fill="url(#s-cab)"/>
+          <rect class="cabinet-edge" x="26" y="50" width="210" height="140" rx="18" fill="none" stroke-width="2"/>
+
+          <!-- reel window -->
+          <rect class="reel-bg" x="46" y="74" width="170" height="66" rx="10"/>
+
+          <!-- reel 1 -->
+          <g class="reel r1" clip-path="url(#rc1)">
+            <g class="reel-spin">
+              <use href="#sym7" x="76" y="19"/><use href="#symC" x="76" y="63"/>
+              <use href="#symBar" x="76" y="107"/><use href="#sym7" x="76" y="151"/>
+              <use href="#sym7" x="76" y="195"/><use href="#symC" x="76" y="239"/>
+              <use href="#symBar" x="76" y="283"/><use href="#sym7" x="76" y="327"/>
+            </g>
+            <g class="reel-face"><use href="#sym7" x="76" y="107"/></g>
+          </g>
+          <!-- reel 2 -->
+          <g class="reel r2" clip-path="url(#rc2)">
+            <g class="reel-spin">
+              <use href="#symC" x="130" y="19"/><use href="#sym7" x="130" y="63"/>
+              <use href="#symBar" x="130" y="107"/><use href="#sym7" x="130" y="151"/>
+              <use href="#symC" x="130" y="195"/><use href="#sym7" x="130" y="239"/>
+              <use href="#symBar" x="130" y="283"/><use href="#sym7" x="130" y="327"/>
+            </g>
+            <g class="reel-face"><use href="#sym7" x="130" y="107"/></g>
+          </g>
+          <!-- reel 3 -->
+          <g class="reel r3" clip-path="url(#rc3)">
+            <g class="reel-spin">
+              <use href="#symBar" x="184" y="19"/><use href="#sym7" x="184" y="63"/>
+              <use href="#symC" x="184" y="107"/><use href="#sym7" x="184" y="151"/>
+              <use href="#symBar" x="184" y="195"/><use href="#sym7" x="184" y="239"/>
+              <use href="#symC" x="184" y="283"/><use href="#sym7" x="184" y="327"/>
+            </g>
+            <g class="reel-face"><use href="#sym7" x="184" y="107"/></g>
+          </g>
+
+          <!-- payline -->
+          <line class="payline" x1="50" y1="107" x2="210" y2="107"/>
+          <path class="pay-mark" d="M44,107 l8,-5 v10 z"/>
+          <path class="pay-mark" d="M216,107 l-8,-5 v10 z"/>
+
+          <!-- glass reflection over the window -->
+          <rect class="reel-glass" x="46" y="74" width="170" height="66" rx="10" fill="url(#s-glass)" pointer-events="none"/>
+
+          <!-- coin tray + jackpot coins -->
+          <rect class="tray" x="46" y="150" width="170" height="26" rx="8"/>
+          <g class="coins">
+            <circle class="coin" cx="72"  cy="166" r="7"/><circle class="coin" cx="96" cy="169" r="7"/>
+            <circle class="coin" cx="120" cy="165" r="7"/><circle class="coin" cx="146" cy="169" r="6.4"/>
+          </g>
+
+          <!-- jackpot flash over the marquee -->
+          <rect class="win-flash" x="26" y="16" width="210" height="34" rx="14" fill="rgba(255,221,150,.85)" pointer-events="none"/>
+
+          <!-- lever -->
+          <rect class="lever-bracket" x="232" y="140" width="16" height="18" rx="4"/>
+          <g class="lever">
+            <rect class="lever-rod" x="240" y="84" width="8" height="66" rx="4"/>
+            <circle cx="244" cy="78" r="13" fill="url(#s-knob)"/>
+            <circle cx="240" cy="74" r="3.4" fill="rgba(255,255,255,.55)"/>
+            <g class="grip">
+              <ellipse class="skin" cx="244" cy="80" rx="15" ry="11"/>
+              <rect class="skin" x="231" y="71" width="26" height="7" rx="3.5"/>
+              <rect class="skin" x="231" y="81" width="26" height="7" rx="3.5"/>
+            </g>
+          </g>
+        </svg>
+      </button>
+      <div class="cap">
+        <h2>Jackpot 777</h2>
+        <p>Yank the lever — three sevens, lights up.</p>
+      </div>
+    </section>
+
+  </div>
+
+  <details class="notes">
+    <summary>How to drop these into the app</summary>
+    <div class="body">
+      <p>Theme is driven by toggling the <code>.dark</code> class on
+      <code>&lt;html&gt;</code> — the exact mechanism this Next app already uses
+      (<code>app/globals.css</code>: <code>@custom-variant dark (&amp;:is(.dark *))</code>).
+      So "lights on" maps to light mode and the switch is portable as-is.</p>
+      <p>To reuse one toggle in a React component: copy a single
+      <code>&lt;button class="toggle …"&gt;</code> block, move its scoped
+      <code>&lt;style&gt;</code> rules into your CSS, and call the same
+      <code>flip()</code> logic from the button's <code>onClick</code>
+      (or wire it to your theme store / <code>next-themes</code>). The animation
+      is pure CSS keyframes triggered by adding the
+      <code>throwing</code> / <code>pulling</code> class, so no animation
+      library is needed.</p>
+      <p>Carried over from the pull-chain lamp: pre-paint theme (no flash),
+      <code>localStorage('pc-theme')</code>, OS-default until an explicit
+      choice, full <code>prefers-reduced-motion</code> fallback, and real
+      <code>&lt;button&gt;</code>s with <code>aria-pressed</code> +
+      visually-hidden labels.</p>
+    </div>
+  </details>
+
+</div>
+
+<script>
+  /* =====================================================================
+     THEME WIRING  (shared by both toggles)
+     ===================================================================== */
+  const html   = document.documentElement;
+  const reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const toggles = Array.from(document.querySelectorAll('[data-toggle]'));
+  const modeLabel = document.getElementById('modeLabel');
+
+  const stored = () => { try { return localStorage.getItem('pc-theme'); } catch (e) { return null; } };
+  const system = () => window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  const isLight = () => !html.classList.contains('dark');
+
+  function reflect(){
+    const lit = isLight();
+    toggles.forEach(b => b.setAttribute('aria-pressed', String(lit)));
+    if (modeLabel) modeLabel.textContent = lit ? 'Light mode' : 'Dark mode';
+  }
+  function apply(theme){
+    html.classList.toggle('dark', theme === 'dark');
+    reflect();
+  }
+  reflect();   /* the head script already set the class — just mirror it into the UI */
+
+  /* keep following the OS until the visitor makes an explicit choice */
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (!stored()) apply(system());
+  });
+
+  function flip(){
+    const next = isLight() ? 'dark' : 'light';
+    try { localStorage.setItem('pc-theme', next); } catch (e) {}
+    apply(next);
+  }
+
+  /* re-runs a CSS animation by removing + reflowing + re-adding the class */
+  function replay(el, cls){
+    el.classList.remove(cls);
+    void el.offsetWidth;          /* force reflow so the keyframes restart */
+    el.classList.add(cls);
+  }
+
+  let busy = false;
+  function drive(el, cls, flipAt, endAt){
+    return function(){
+      if (reduce){ flip(); return; }      /* no choreography — just the flip */
+      if (busy) return;
+      busy = true;
+      replay(el, cls);
+      setTimeout(flip, flipAt);           /* theme changes as the dice / reels land */
+      setTimeout(() => { el.classList.remove(cls); busy = false; }, endAt);
+    };
+  }
+
+  const dice = document.getElementById('diceToggle');
+  const slot = document.getElementById('slotToggle');
+  dice.addEventListener('click', drive(dice, 'throwing', 800, 1150));
+  slot.addEventListener('click', drive(slot, 'pulling', 1000, 1320));
+</script>
+</body>
+</html>

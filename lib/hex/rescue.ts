@@ -199,13 +199,12 @@ export async function resolveStake(
  * lost a key, or died; the joke is on the situation, never on them.
  */
 export const RESCUE_MESSAGES = [
-  'you left your stake in the oven. we turned it off. -- Morbius',
-  'found this one bleeding out back. patched it up. -- Morbius',
-  'your stake has been rescued. it is still yours. come get it. -- Morbius',
-  'beep boop. saved your HEX from itself. no charge. -- Morbius',
-  'this stake stopped losing money at this block. you are welcome. -- Morbius',
-  'someone had to press the button. it was us. -- Morbius',
-  'good accounting: the least romantic rescue there is. -- Morbius',
+  'you left your stake in the oven. we turned it off. -- Your Friends at SuperStake.win',
+  'found this one bleeding out back. patched it up. -- Your Friends at SuperStake.win',
+  'your stake has been rescued. it is still yours. come get it. -- Your Friends at SuperStake.win',
+  'beep boop. saved your HEX from itself. no charge. -- Your Friends at SuperStake.win',
+  'this stake stopped losing money at this block. you are welcome. -- Your Friends at SuperStake.win',
+  'someone had to press the button. it was us. -- Your Friends at SuperStake.win',
 ] as const;
 
 /** Deterministic per stake, so a retry of the same stake carries the same note. */
