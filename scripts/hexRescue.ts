@@ -126,7 +126,7 @@ async function main() {
     const resolved = await resolveStake('pulsechain', c.stakerAddr, c.stakeId);
     if (!resolved) continue; // already ended or good-accounted — not even a skip
 
-    const message = messageForStake(c.stakeId);
+    const message = messageForStake(c.stakeId, c.principalHex);
     const data = goodAccountingCalldata(c.stakerAddr, resolved.index, c.stakeId, message);
 
     const est = await estimateGas('pulsechain', { from: keeper?.address ?? HEX_ADDRESS, to: HEX_ADDRESS, data });

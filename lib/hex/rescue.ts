@@ -76,6 +76,8 @@ export interface RescueCandidate {
   daysBleeding: number;
   /** Share of gross (0-1) the late penalty has already taken. */
   penaltyFraction: number;
+  /** HEX protected per unit of gas — what the candidate list is sorted by. */
+  hexPerGas: number;
 }
 
 /**
@@ -145,16 +147,29 @@ export async function findRescueCandidates(
     .map((s) => {
       const endDay = Number(s.endDay);
       const daysBleeding = Math.max(0, today - endDay - LATE_PENALTY_GRACE_DAYS);
+      const principalHex = heartsToHex(s.stakedHearts);
+      const stakedDays = Number(s.stakedDays);
       return {
         stakeId: String(s.stakeId),
         stakerAddr: s.stakerAddr.toLowerCase(),
-        principalHex: heartsToHex(s.stakedHearts),
+        principalHex,
         endDay,
-        stakedDays: Number(s.stakedDays),
+        stakedDays,
         daysBleeding,
         penaltyFraction: Math.min(1, daysBleeding / LATE_PENALTY_SCALE_DAYS),
+        hexPerGas: principalHex / estimateGasForTerm(stakedDays),
       };
     })
+    // Best value first: HEX still at risk per unit of gas it costs to save.
+    //
+    // Sorting by size alone would be the obvious move and it is the wrong one,
+    // because gas tracks a stake's TERM rather than its size. A 5M HEX stake
+    // with a 90-day term costs ~360k gas to freeze; a 500k HEX stake with a
+    // 1,782-day term costs ~5.9M. The first protects ten times the HEX for a
+    // sixteenth of the gas. Ordering by that ratio means a fixed budget — or a
+    // bounded run, which is what the cron does every night — always spends
+    // itself on the stakes where it saves the most.
+    .sort((a, b) => b.hexPerGas - a.hexPerGas)
     .slice(0, limit);
 }
 
@@ -197,32 +212,68 @@ export async function resolveStake(
 }
 
 /**
+ * Where a rescued staker is sent to find out what happened.
+ *
+ * This domain, not superstake.win, for one reason: this repo deploys here, so
+ * the page can be guaranteed to exist. The URL is written into an immutable
+ * transaction — a link that 404s is a broken promise that can never be edited
+ * — so it points at the only host whose routes this codebase controls. The
+ * message and the page are still SuperStake-branded.
+ */
+export const RESCUE_URL_BASE = 'scan.morbius.io/rescued';
+
+/** Compact so it reads like a number a human would say, and costs less gas. */
+function shortHex(hex: number): string {
+  if (hex >= 1e9) return `${(hex / 1e9).toFixed(1).replace(/\.0$/, '')}B`;
+  if (hex >= 1e6) return `${(hex / 1e6).toFixed(2).replace(/\.?0+$/, '')}M`;
+  if (hex >= 1e3) return `${Math.round(hex / 1e3)}k`;
+  return String(Math.round(hex));
+}
+
+/**
  * Messages left in the transaction's calldata.
  *
  * Solidity's ABI decoder ignores trailing bytes after a call's arguments, so a
  * note can ride along on the transaction and show up in the explorer's input
  * data. Verified against the deployed contract: appending 56 bytes to a real
  * `stakeGoodAccounting` call changed the gas estimate from 574,489 to 575,572 —
- * about 19 gas a byte, or a hundred-thousandth of a cent.
+ * about 19 gas a byte, or a hundred-thousandth of a cent. A longer message with
+ * an amount and a link runs ~120 bytes, so about 2,000 gas — still nothing
+ * against the 200k-900k the call itself costs.
  *
- * Kept friendly rather than smug. Whoever reads this forgot about a stake, or
- * lost a key, or died; the joke is on the situation, never on them.
+ * Every message carries three things, and each earns its bytes:
+ *
+ *   • THE AMOUNT. "your stake" is abstract; "3.36M HEX" is their money. It is
+ *     the single most persuasive thing we can say, and it happens to be true.
+ *   • THE LINK. Without it the note is a joke nobody can act on. With it, the
+ *     person who lost track of a stake has a way back to it — which is the
+ *     entire point of doing any of this.
+ *   • WHO. Attribution to SuperStake, so the rescue is traceable to somebody
+ *     rather than looking like a stranger poking at their wallet.
+ *
+ * Kept warm rather than smug, and never overstated. Whoever reads this forgot
+ * about a stake, lost a key, or died; the joke is on the situation, never on
+ * them. Nothing here claims we gave them anything — we stopped a loss, and the
+ * HEX was always theirs.
  */
-export const RESCUE_MESSAGES = [
-  'you left your stake in the oven. we turned it off. -- Morbius',
-  'found this one bleeding out back. patched it up. -- Morbius',
-  'your stake has been rescued. it is still yours. come get it. -- Morbius',
-  'beep boop. saved your HEX from itself. no charge. -- Morbius',
-  'this stake stopped losing money at this block. you are welcome. -- Morbius',
-  'someone had to press the button. it was us. -- Morbius',
-  'good accounting: the least romantic rescue there is. -- Morbius',
+const MESSAGE_TEMPLATES = [
+  (amt: string, url: string) => `${amt} HEX of yours was bleeding out. we stopped the clock. still yours: ${url} -- SuperStake.win`,
+  (amt: string, url: string) => `found ${amt} HEX of yours dying in public. froze it. come get it: ${url} -- SuperStake.win`,
+  (amt: string, url: string) => `you left ${amt} HEX in the oven. we turned it off. still yours: ${url} -- SuperStake.win`,
+  (amt: string, url: string) => `${amt} HEX was quietly disappearing. not anymore. it's yours: ${url} -- SuperStake.win`,
+  (amt: string, url: string) => `somebody had to press the button on ${amt} HEX of yours. it was us: ${url} -- SuperStake.win`,
+  (amt: string, url: string) => `${amt} HEX, saved from itself. no charge, no catch, still yours: ${url} -- SuperStake.win`,
 ] as const;
 
+/** For tests and docs — a rendered sample of each template. */
+export const RESCUE_MESSAGES = MESSAGE_TEMPLATES.map((t) => t('3.36M', `${RESCUE_URL_BASE}/945449`));
+
 /** Deterministic per stake, so a retry of the same stake carries the same note. */
-export function messageForStake(stakeId: string): string {
+export function messageForStake(stakeId: string, principalHex?: number): string {
   let h = 0;
   for (const ch of stakeId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return RESCUE_MESSAGES[h % RESCUE_MESSAGES.length];
+  const template = MESSAGE_TEMPLATES[h % MESSAGE_TEMPLATES.length];
+  return template(shortHex(principalHex ?? 0), `${RESCUE_URL_BASE}/${stakeId}`);
 }
 
 /** Calldata for `stakeGoodAccounting`, with the note appended. */

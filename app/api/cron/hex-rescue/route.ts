@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
       if (!resolved) continue; // already ended or good-accounted: no work, no gas
 
       attempted++;
-      const data = goodAccountingCalldata(c.stakerAddr, resolved.index, c.stakeId, messageForStake(c.stakeId));
+      const data = goodAccountingCalldata(c.stakerAddr, resolved.index, c.stakeId, messageForStake(c.stakeId, c.principalHex));
 
       if (dryRun) {
         const est = await estimateGas('pulsechain', { from: HEX_ADDRESS, to: HEX_ADDRESS, data });

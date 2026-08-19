@@ -8,6 +8,7 @@
 // wide tables. Designed to be reusable (drop into a portfolio wallet card too).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { IconRefresh, IconExternalLink, IconAlertTriangle, IconLock, IconChevronDown } from '@tabler/icons-react';
 import { pulsechainHexStakingService } from '@/services/pulsechainHexStakingService';
 import type {
@@ -346,6 +347,18 @@ function ActiveStakeCard({ stake, currentDay, hexUsd, payoutPerTShare, ga }: { s
               </span>
             </span>
           </div>
+
+          {/* Someone stopped this stake bleeding, and the holder is entitled to
+              know who and to see the proof. Linked unconditionally rather than
+              only for our own keeper's work: the page resolves the rescue from
+              the chain and says plainly when it was not us, which is more
+              honest than a badge that quietly claims every rescue. */}
+          <Link
+            href={`/rescued/${stake.stakeId}`}
+            className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-cyan-300/90 underline-offset-2 hover:underline"
+          >
+            Who froze this, and how to claim it →
+          </Link>
         </div>
       )}
 
