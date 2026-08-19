@@ -12,17 +12,18 @@
  *   npm run hex:rescue -- --execute     # actually sends (needs the key)
  *   npm run hex:rescue -- --limit 25
  *   npm run hex:rescue -- --min-days 30   # only stakes 30+ days past grace
- *   npm run hex:rescue -- --min-hex 0     # no principal floor (see below)
+ *   npm run hex:rescue -- --min-hex 0     # no principal floor, this run only
  *
  * Dry run is the default and --execute is the only way past it, because the
  * first thing anyone should do with a keeper is watch a full day's worth of
  * what it intends to do before it is ever allowed to sign anything.
  *
- * Defaults to a 500,000 HEX principal floor — gas cost is driven by a stake's
- * TERM, not its size (see lib/hex/rescueWallet.ts), so rescuing a 1,100 HEX
- * stake costs the same as a 3,000,000 HEX one, and the floor spends that fixed
- * cost where it recovers the most. Lower it with --min-hex once the largest
- * stakes are handled.
+ * Applies a principal floor, because gas cost is driven by a stake's TERM and
+ * not its size (see lib/hex/rescueWallet.ts) — a 1,100 HEX stake costs the same
+ * to rescue as a 3,000,000 HEX one, so the floor spends that fixed cost where it
+ * recovers the most. Set `HEX_RESCUE_MIN_HEX` in .env/Vercel to move it for
+ * every run including the nightly cron, or pass --min-hex to override it once.
+ * The run prints which of the two it used.
  *
  * Self-heals a stuck previous run. PulseChain's base fee moves fast enough
  * that a batch of transactions can go stale before the first one mines,
@@ -45,6 +46,7 @@ import { loadEnvConfig } from '@next/env';
 loadEnvConfig(process.cwd());
 
 import {
+  defaultMinPrincipalHex,
   findRescueCandidates,
   resolveStake,
   goodAccountingCalldata,
@@ -64,7 +66,11 @@ const has = (name: string) => process.argv.includes(name);
 const EXECUTE = has('--execute');
 const LIMIT = Number(arg('--limit') ?? 25);
 const MIN_DAYS = Number(arg('--min-days') ?? 1);
-const MIN_HEX = Number(arg('--min-hex') ?? 500_000);
+// Precedence: --min-hex flag (this run only) > HEX_RESCUE_MIN_HEX (everywhere,
+// including the nightly cron) > the built-in fallback.
+const minHexArg = arg('--min-hex');
+const MIN_HEX = minHexArg != null ? Number(minHexArg) : defaultMinPrincipalHex();
+const MIN_HEX_SOURCE = minHexArg != null ? '--min-hex' : process.env.HEX_RESCUE_MIN_HEX ? 'HEX_RESCUE_MIN_HEX' : 'default';
 
 const fmt = (n: number, d = 0) => n.toLocaleString('en-US', { maximumFractionDigits: d });
 
@@ -76,7 +82,7 @@ async function main() {
   console.log(EXECUTE ? '⚡ HEX rescue — EXECUTING' : '🔍 HEX rescue — dry run (add --execute to send)');
   console.log(
     `   chain: pulsechain · limit ${LIMIT} · at least ${MIN_DAYS} day(s) past grace · ` +
-      `principal ≥ ${fmt(MIN_HEX)} HEX\n`,
+      `principal ≥ ${fmt(MIN_HEX)} HEX (${MIN_HEX_SOURCE})\n`,
   );
 
   const keeper = loadKeeper();

@@ -33,7 +33,14 @@ loadEnvConfig(process.cwd());
 
 import { signAndSend, loadKeeper } from '@/lib/hex/rescueWallet';
 import { HEX_ADDRESS } from '@/lib/hex/hexDay';
-import { SEL, goodAccountingCalldata, messageForStake, RESCUE_MESSAGES } from '@/lib/hex/rescue';
+import {
+  SEL,
+  goodAccountingCalldata,
+  messageForStake,
+  defaultMinPrincipalHex,
+  MIN_PRINCIPAL_HEX_FALLBACK,
+  RESCUE_MESSAGES,
+} from '@/lib/hex/rescue';
 
 let failures = 0;
 const pass = (msg: string) => console.log(`  ✅ ${msg}`);
@@ -108,6 +115,27 @@ async function main() {
   thirdWord === BigInt(999).toString(16).padStart(64, '0')
     ? pass('stakeId 999 encodes to 0x3e7, left-padded to a full word')
     : fail(`third word is wrong: ${thirdWord}`);
+
+  console.log('\nPrincipal floor:');
+  const prevMin = process.env.HEX_RESCUE_MIN_HEX;
+  const check = (set: string | undefined, want: number, why: string) => {
+    if (set === undefined) delete process.env.HEX_RESCUE_MIN_HEX;
+    else process.env.HEX_RESCUE_MIN_HEX = set;
+    const got = defaultMinPrincipalHex();
+    got === want
+      ? pass(`${why} -> ${got.toLocaleString()} HEX`)
+      : fail(`${why}: expected ${want}, got ${got}`);
+  };
+  check(undefined, MIN_PRINCIPAL_HEX_FALLBACK, 'unset falls back');
+  check('100000', 100_000, 'HEX_RESCUE_MIN_HEX=100000');
+  check('  250000  ', 250_000, 'whitespace is tolerated');
+  // 0 means "sweep everything" and is a real setting, not an unset value —
+  // easy to break with a truthiness check, so it is pinned here.
+  check('0', 0, 'HEX_RESCUE_MIN_HEX=0 means no floor');
+  check('banana', MIN_PRINCIPAL_HEX_FALLBACK, 'unparseable falls back');
+  check('-5', MIN_PRINCIPAL_HEX_FALLBACK, 'negative falls back');
+  if (prevMin === undefined) delete process.env.HEX_RESCUE_MIN_HEX;
+  else process.env.HEX_RESCUE_MIN_HEX = prevMin;
 
   console.log('\nMessages:');
   const m1 = messageForStake('12345', 1_000_000);

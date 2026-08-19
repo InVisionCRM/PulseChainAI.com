@@ -25,13 +25,16 @@
 // updates the stake — so a key that can only call this can only ever do people
 // a favour with its own gas.
 //
-// `findRescueCandidates` defaults to a 500,000 HEX principal floor. Gas cost
-// is driven by a stake's TERM, not its size (see below), so rescuing a 1,100
-// HEX stake costs the same as rescuing a 3,000,000 HEX one — the floor exists
-// to spend that fixed cost where it recovers the most, and to keep the number
-// of transactions a single run signs from growing unbounded as the backlog is
-// worked through. It is a default, not a rule: pass a lower `minPrincipalHex`
-// to widen the sweep once the largest stakes are handled.
+// `findRescueCandidates` applies a principal floor. Gas cost is driven by a
+// stake's TERM, not its size (see below), so rescuing a 1,100 HEX stake costs
+// the same as rescuing a 3,000,000 HEX one — the floor exists to spend that
+// fixed cost where it recovers the most, and to keep the number of
+// transactions a single run signs from growing unbounded.
+//
+// The floor is meant to be turned down as the backlog is worked through, so it
+// is a setting rather than a constant: `HEX_RESCUE_MIN_HEX` in the environment
+// moves it everywhere (script and nightly cron alike) with no code change, and
+// `--min-hex` overrides it for a single run. See `defaultMinPrincipalHex`.
 //
 // Two facts shape the mechanics, both verified against the deployed contract:
 //
@@ -49,6 +52,7 @@
 
 import { ethCall } from '@/lib/portfolio/evmRpc';
 import { hexSubgraphQuery, type HexNet } from './subgraph';
+import { readRescueCandidates } from '@/lib/db/hexLockedStakes';
 import { HEX_ADDRESS, LATE_PENALTY_GRACE_DAYS, LATE_PENALTY_SCALE_DAYS, currentHexDay, heartsToHex } from './hexDay';
 import type { ChainId } from '@/services';
 
@@ -66,6 +70,28 @@ const num = (hex: string, i: number) => Number(BigInt('0x' + word(hex, i)));
 /** HEX lives at the same address on both chains (PulseChain forked the state). */
 const chainOf = (net: HexNet): ChainId => (net === 'ethereum' ? 'ethereum' : 'pulsechain');
 
+/** Where the floor lands when nothing overrides it. */
+export const MIN_PRINCIPAL_HEX_FALLBACK = 100_000;
+
+/**
+ * The principal floor, in HEX, from `HEX_RESCUE_MIN_HEX` or the fallback.
+ *
+ * Read at call time rather than at module load so a process can change it
+ * (the verification script does), and so a serverless invocation always sees
+ * the current value rather than one baked in when the module was first
+ * imported.
+ *
+ * `0` is a legitimate setting — it means "no floor, sweep everything" — so it
+ * has to survive the validation below rather than being treated as unset. Only
+ * a missing, unparseable or negative value falls back.
+ */
+export function defaultMinPrincipalHex(): number {
+  const raw = (process.env.HEX_RESCUE_MIN_HEX ?? '').trim();
+  if (!raw) return MIN_PRINCIPAL_HEX_FALLBACK;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : MIN_PRINCIPAL_HEX_FALLBACK;
+}
+
 export interface RescueCandidate {
   stakeId: string;
   stakerAddr: string;
@@ -81,13 +107,22 @@ export interface RescueCandidate {
 }
 
 /**
- * Stakes that have matured and are still bleeding, newest-matured first.
+ * Stakes that have matured and are still bleeding, best value first.
  *
- * The subgraph is used only to NARROW the field: it can say which stakes have
- * no end and no good-accounting event, which is enough to build a candidate
- * list cheaply. It is never trusted as the final word — `resolveStake` re-reads
+ * Read from the `hex_locked_stakes` mirror, which is the only source that can
+ * answer this. A subgraph `stakeStart` carries no "has this ended" flag, so
+ * finding open stakes there means fetching everything and subtracting the ends
+ * locally — and every bounded page window of that is a biased sample. Measured,
+ * all three obvious orderings failed: by end day it drops the oldest and
+ * therefore largest stakes (lowering the floor made the total HEX protected go
+ * DOWN, which is impossible); by principal it fills with whales who ended their
+ * own stakes and returns nothing; by stake id it spends the budget on the very
+ * first stakes ever made. The mirror holds ONLY locked stakes, so the question
+ * is a single indexed query over the complete set.
+ *
+ * The mirror is still not trusted as the final word — `resolveStake` re-reads
  * the chain before a single unit of gas is spent, because a stake ended two
- * minutes ago is still "live" to an indexer running a few blocks behind.
+ * minutes ago is still "locked" to a mirror that syncs on a cron.
  *
  * `minDaysPastGrace` defaults to 1 rather than 0 on purpose. Good-accounting a
  * stake the day it matures is harmless, but ~76% of stakers end their own stakes
@@ -97,67 +132,73 @@ export interface RescueCandidate {
  */
 export async function findRescueCandidates(
   net: HexNet,
-  opts: { minDaysPastGrace?: number; maxAgeDays?: number; limit?: number; minPrincipalHex?: number } = {},
+  opts: { minDaysPastGrace?: number; limit?: number; minPrincipalHex?: number } = {},
 ): Promise<RescueCandidate[]> {
-  const { minDaysPastGrace = 1, maxAgeDays = 3000, limit = 500, minPrincipalHex = 500_000 } = opts;
+  const {
+    minDaysPastGrace = 1,
+    limit = 500,
+    minPrincipalHex = defaultMinPrincipalHex(),
+  } = opts;
   const today = currentHexDay();
   const newestEnd = today - LATE_PENALTY_GRACE_DAYS - minDaysPastGrace;
-  const oldestEnd = today - maxAgeDays;
   // Hearts are HEX's smallest unit, 1e8 to a HEX — the inverse of heartsToHex.
   const minHearts = Math.round(minPrincipalHex * 1e8);
 
-  interface RawStart { stakeId: string; stakerAddr: string; stakedHearts: string; stakedDays: string; endDay: string }
-  const starts: RawStart[] = [];
-  for (let skip = 0; skip < 5000 && starts.length < limit * 4; skip += 1000) {
-    const d = await hexSubgraphQuery<{ stakeStarts: RawStart[] }>(
-      net,
-      `{ stakeStarts(first: 1000, skip: ${skip}, orderBy: endDay, orderDirection: desc,
-          where: { endDay_lt: ${newestEnd}, endDay_gt: ${oldestEnd}, stakedHearts_gte: "${minHearts}" })
-        { stakeId stakerAddr stakedHearts stakedDays endDay } }`,
-    );
-    const batch = d.stakeStarts ?? [];
-    starts.push(...batch);
-    if (batch.length < 1000) break;
-  }
-  if (starts.length === 0) return [];
+  const rows = await readRescueCandidates(net, {
+    maturedBefore: newestEnd,
+    minHearts: String(minHearts),
+    limit: Math.max(limit * 2, 200),
+  });
 
-  // Drop anything already ended or already good-accounted.
-  const settled = new Set<string>();
-  const ids = starts.map((s) => String(s.stakeId));
-  for (const field of ['stakeEnds', 'stakeGoodAccountings'] as const) {
-    for (let i = 0; i < ids.length; i += 500) {
-      const chunk = ids.slice(i, i + 500).map((id) => `"${id}"`).join(',');
-      try {
-        const d = await hexSubgraphQuery<Record<string, { stakeId: string }[]>>(
-          net,
-          `{ ${field}(first: 1000, where: { stakeId_in: [${chunk}] }) { stakeId } }`,
-        );
-        for (const e of d[field] ?? []) settled.add(String(e.stakeId));
-      } catch {
-        // A failed chunk must not silently shrink the settled set, or we would
-        // spend gas on stakes that are already done. Give up on the whole run
-        // instead — the next run will retry.
-        throw new Error(`rescue: could not confirm ${field}; aborting rather than risk wasted calls`);
-      }
+  if (rows === null) {
+    // Deliberately fatal rather than falling back. There is no second source
+    // that can answer this correctly — see the note above — and a partial
+    // answer here reads exactly like a complete one while quietly leaving
+    // people's stakes bleeding.
+    throw new Error(
+      'hex-rescue: no hex_locked_stakes mirror available (no database, or the ' +
+        'initial fill has not finished). Set DATABASE_URL and let the ' +
+        'hex-stake-sync cron complete, then try again.',
+    );
+  }
+  if (rows.length === 0) return [];
+
+  // The mirror does not store a stake's TERM, and gas depends on it, so the
+  // shortlist is enriched from the subgraph — a couple of `stakeId_in` queries
+  // over a few hundred ids, which is a very different thing from sweeping the
+  // whole history through it.
+  const terms = new Map<string, number>();
+  const ids = rows.map((r) => r.stakeId);
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500).map((id) => `"${id}"`).join(',');
+    try {
+      const d = await hexSubgraphQuery<{ stakeStarts: { stakeId: string; stakedDays: string }[] }>(
+        net,
+        `{ stakeStarts(first: 1000, where: { stakeId_in: [${chunk}] }) { stakeId stakedDays } }`,
+      );
+      for (const s of d.stakeStarts ?? []) terms.set(String(s.stakeId), Number(s.stakedDays));
+    } catch {
+      /* a term we could not read just ranks last — see below */
     }
   }
 
-  return starts
-    .filter((s) => !settled.has(String(s.stakeId)))
-    .map((s) => {
-      const endDay = Number(s.endDay);
-      const daysBleeding = Math.max(0, today - endDay - LATE_PENALTY_GRACE_DAYS);
-      const principalHex = heartsToHex(s.stakedHearts);
-      const stakedDays = Number(s.stakedDays);
+  return rows
+    .map((r) => {
+      const principalHex = heartsToHex(r.stakedHearts);
+      // No term means no honest gas estimate, so it ranks last rather than
+      // being given an invented one. `resolveStake` still prices it properly
+      // if a run ever reaches it.
+      const stakedDays = terms.get(r.stakeId) ?? 0;
+      const daysBleeding = Math.max(0, today - r.endDay - LATE_PENALTY_GRACE_DAYS);
       return {
-        stakeId: String(s.stakeId),
-        stakerAddr: s.stakerAddr.toLowerCase(),
+        stakeId: r.stakeId,
+        stakerAddr: r.stakerAddr,
         principalHex,
-        endDay,
+        endDay: r.endDay,
         stakedDays,
         daysBleeding,
         penaltyFraction: Math.min(1, daysBleeding / LATE_PENALTY_SCALE_DAYS),
-        hexPerGas: principalHex / estimateGasForTerm(stakedDays),
+        hexPerGas: stakedDays > 0 ? principalHex / estimateGasForTerm(stakedDays) : 0,
       };
     })
     // Best value first: HEX still at risk per unit of gas it costs to save.
@@ -166,13 +207,10 @@ export async function findRescueCandidates(
     // because gas tracks a stake's TERM rather than its size. A 5M HEX stake
     // with a 90-day term costs ~360k gas to freeze; a 500k HEX stake with a
     // 1,782-day term costs ~5.9M. The first protects ten times the HEX for a
-    // sixteenth of the gas. Ordering by that ratio means a fixed budget — or a
-    // bounded run, which is what the cron does every night — always spends
-    // itself on the stakes where it saves the most.
+    // sixteenth of the gas.
     .sort((a, b) => b.hexPerGas - a.hexPerGas)
     .slice(0, limit);
 }
-
 export interface ResolvedStake {
   /** Current index in the staker's stake list. Valid only right now. */
   index: number;
