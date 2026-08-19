@@ -56,6 +56,11 @@ interface StandingStake {
   stakedDays: number;
 }
 
+interface RankNeighbor {
+  address: string;
+  tShares: number;
+}
+
 interface StandingData {
   address: string;
   currentDay: number;
@@ -63,6 +68,8 @@ interface StandingData {
   principalHex: number;
   stakes: StandingStake[];
   unlockedStakes: number;
+  /** Exact spot on the full ranking with the nearest rivals, from the mirror. */
+  board?: { rank: number; of: number; above: RankNeighbor[]; below: RankNeighbor[] };
 }
 
 const addrUrl = (net: Network, a: string) =>
@@ -303,9 +310,13 @@ function YourStanding({ net, data, rates }: { net: Network; data: LeaguesData; r
   const simPrincipal = standing ? Math.max(0, standing.principalHex - droppedTotals.hex + addedHex) : 0;
   const sim = standing ? standingFor(simTShares, data.networkTShares) : null;
   const changed = !!live && !!sim && sim.league.key !== live.league.key;
-  // The board rank is a live standing — it says nothing about a simulated one,
-  // so it is hidden rather than left sitting next to a tier it doesn't match.
-  const rank = standing && !simulating ? data.rows.find((r) => r.address === standing.address)?.rank ?? null : null;
+  // Rank is a live standing — it says nothing about a simulated one, so it is
+  // hidden rather than left sitting next to a tier it doesn't match. The exact
+  // figure comes from the mirror; the top-250 board covers the gap if the
+  // mirror hasn't answered.
+  const rank = standing && !simulating
+    ? standing.board?.rank ?? data.rows.find((r) => r.address === standing.address)?.rank ?? null
+    : null;
 
   return (
     <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
@@ -378,7 +389,8 @@ function YourStanding({ net, data, rates }: { net: Network; data: LeaguesData; r
                 </span>
                 {rank != null && (
                   <span className="rounded-md border border-[var(--line)] bg-[var(--surface-2)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--text-muted)]">
-                    Rank #{rank}
+                    Rank #{rank.toLocaleString()}
+                    {standing.board && <span className="font-normal text-[var(--text-faint)]"> of {standing.board.of.toLocaleString()}</span>}
                   </span>
                 )}
                 {simulating && (
@@ -420,6 +432,7 @@ function YourStanding({ net, data, rates }: { net: Network; data: LeaguesData; r
           </div>
 
           <PromotionBar standing={sim} />
+          {!simulating && standing.board && <BoardSlice net={net} standing={standing} board={standing.board} />}
           <ClimbAndFall standing={sim} rates={rates} />
 
           <WhatIf
@@ -447,6 +460,93 @@ function YourStanding({ net, data, rates }: { net: Network; data: LeaguesData; r
       {state === 'idle' && (
         <p className="mt-3 text-xs text-[var(--text-muted)]">
           Read live off the HEX contract — exact to the minute, nothing stored.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The slice of the full ranking around this address — the rivals directly
+ * above and below, and exactly how many T-Shares it takes to pass each one.
+ * Local mini-bars are scaled to the slice, not the network, so the gaps in
+ * this neighborhood are actually visible.
+ */
+function BoardSlice({ net, standing, board }: {
+  net: Network;
+  standing: StandingData;
+  board: NonNullable<StandingData['board']>;
+}) {
+  type Row = { rank: number; address: string | null; tShares: number };
+  const rows: Row[] = [
+    // `above` arrives nearest-first; render furthest-first so ranks descend.
+    ...[...board.above].reverse().map((n, i) => ({
+      rank: board.rank - (board.above.length - i),
+      address: n.address,
+      tShares: n.tShares,
+    })),
+    { rank: board.rank, address: null, tShares: standing.tShares },
+    ...board.below.map((n, i) => ({ rank: board.rank + i + 1, address: n.address, tShares: n.tShares })),
+  ];
+  const max = Math.max(...rows.map((r) => r.tShares), 1);
+
+  return (
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-3">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+        <span className="text-xs font-bold uppercase tracking-wide text-[var(--text)]">The board around you</span>
+        <span className="text-[10px] tabular-nums text-[var(--text-faint)]">
+          #{board.rank.toLocaleString()} of {board.of.toLocaleString()} stakers
+        </span>
+      </div>
+      <div className="space-y-1">
+        {rows.map((r) => {
+          const you = r.address == null;
+          const gap = r.tShares - standing.tShares;
+          return (
+            <div
+              key={r.rank}
+              className={`flex items-center gap-2 rounded-lg px-2 py-1 text-xs ${you ? 'border border-orange-500/40 bg-orange-500/10' : ''}`}
+            >
+              <span className={`w-14 shrink-0 tabular-nums ${you ? 'font-bold text-[var(--text)]' : 'text-[var(--text-faint)]'}`}>
+                #{r.rank.toLocaleString()}
+              </span>
+              <span className="w-24 shrink-0 truncate font-mono">
+                {you ? (
+                  <b className="not-italic text-[var(--text)]">You</b>
+                ) : (
+                  <a
+                    href={addrUrl(net, r.address!)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--text-muted)] hover:text-[var(--text)]"
+                  >
+                    {shortAddr(r.address!)}
+                  </a>
+                )}
+              </span>
+              <div className="hidden h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--surface)] sm:block">
+                <div
+                  className={you ? 'anim-grow h-full rounded-full bg-[var(--chart-accent)]' : 'anim-grow h-full rounded-full bg-[var(--text-faint)] opacity-50'}
+                  style={{ width: `${Math.max(2, (r.tShares / max) * 100)}%` }}
+                />
+              </div>
+              {/* On phones the totals column goes — the gap to each rival is
+                  the story, and it must never be the thing that gets clipped. */}
+              <span className={`hidden w-24 shrink-0 text-right tabular-nums sm:block ${you ? 'font-bold text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
+                {tsh(r.tShares)} T
+              </span>
+              <span className={`min-w-0 flex-1 truncate text-right tabular-nums sm:w-28 sm:flex-none ${you ? 'text-xs font-bold text-[var(--text)] sm:text-[10px] sm:font-normal' : 'text-[10px] text-[var(--text-faint)]'}`}>
+                {you
+                  ? <span className="sm:hidden">{tsh(r.tShares)} T</span>
+                  : gap > 0 ? `+${tsh(gap)} T to pass` : `${tsh(-gap)} T behind you`}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {board.rank > board.above.length + 1 && board.above.length > 0 && (
+        <p className="mt-1.5 text-[10px] text-[var(--text-faint)]">
+          {(board.rank - 1).toLocaleString()} stakers stand above you in total.
         </p>
       )}
     </div>
