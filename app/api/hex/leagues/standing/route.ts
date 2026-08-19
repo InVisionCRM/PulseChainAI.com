@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchOnChainStakes, type OnChainStake } from '@/lib/hex/onchainStakes';
 import { currentHexDay } from '@/lib/hex/hexDay';
 import type { HexNet as Net } from '@/lib/hex/subgraph';
+import { dbAvailable, getSyncState, readRankAround, type StakerRank } from '@/lib/db/hexLockedStakes';
 
 export const revalidate = 0;
 export const maxDuration = 30;
@@ -35,6 +36,12 @@ export interface StandingResponse {
   stakes: StandingStake[];
   /** Stakes on the address that are already unlocked, so contribute nothing. */
   unlockedStakes: number;
+  /**
+   * Exact position on the full staker ranking with the nearest rivals, from
+   * the stake mirror. Absent while the mirror is still filling — the on-chain
+   * standing above never waits on it.
+   */
+  board?: StakerRank;
 }
 
 const toStake = (s: OnChainStake): StandingStake => ({
@@ -55,14 +62,32 @@ export async function GET(req: NextRequest) {
   try {
     const all = await fetchOnChainStakes(net, address);
     const locked = all.filter((s) => s.unlockedDay === 0);
+    const tShares = locked.reduce((t, s) => t + s.tShares, 0);
+
+    // Best-effort: the exact rank needs the mirror, the standing does not — so
+    // a mirror that is still filling (or erroring) only costs the board slice.
+    let board: StakerRank | undefined;
+    // A zero-share address has no place on the board — "rank #121,007 of
+    // 121,006" is the kind of figure that erodes trust in the real ones.
+    // `lite` skips the rank entirely: the wallet picker only wants to know
+    // whether an address stakes at all, and shouldn't cost a ranking query.
+    const lite = req.nextUrl.searchParams.get('lite') === '1';
+    if (dbAvailable() && tShares > 0 && !lite) {
+      board = await getSyncState(net)
+        .then((st) => (st?.ready ? readRankAround(net, address, tShares) : null))
+        .then((r) => r ?? undefined)
+        .catch(() => undefined);
+    }
+
     const body: StandingResponse = {
       network: net,
       address,
       currentDay: currentHexDay(),
-      tShares: locked.reduce((t, s) => t + s.tShares, 0),
+      tShares,
       principalHex: locked.reduce((h, s) => h + s.principalHex, 0),
       stakes: locked.map(toStake).sort((a, b) => b.tShares - a.tShares),
       unlockedStakes: all.length - locked.length,
+      ...(board ? { board } : {}),
     };
     return NextResponse.json(body, {
       headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' },

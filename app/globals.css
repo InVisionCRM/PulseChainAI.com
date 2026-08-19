@@ -47,6 +47,10 @@
     --text-muted: rgba(20, 35, 59, 0.66); /* secondary text (was white/60–70) */
     --text-faint: rgba(20, 35, 59, 0.45); /* tertiary text (was white/40–50) */
     --up: #15803d;                /* positive / "up" green — dark for light bg */
+    /* Chart series hues — validated for contrast + CVD separation per surface,
+       so the dark pair is its own step, not a lightened copy. */
+    --chart-accent: #ea700b;      /* bars / primary series */
+    --chart-flow: #0d96d6;        /* the cumulative / secondary line */
   }
 
   .dark {
@@ -84,6 +88,24 @@
     --text-muted: rgba(255, 255, 255, 0.70);
     --text-faint: rgba(255, 255, 255, 0.45);
     --up: #4ade80;                /* positive / "up" green — bright for dark bg */
+    --chart-accent: #e06908;
+    --chart-flow: #1090cc;
+  }
+
+  /* Entrance motion for the strategist macro view. Widths are set inline, so
+     grow-x animates from zero to the computed value. All of it stands down
+     for readers who asked for reduced motion. */
+  @keyframes rise-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes grow-x {
+    from { width: 0; }
+  }
+  .anim-rise { animation: rise-in 0.5s ease-out both; }
+  .anim-grow { animation: grow-x 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  @media (prefers-reduced-motion: reduce) {
+    .anim-rise, .anim-grow { animation: none; }
   }
 }
 

@@ -313,6 +313,63 @@ export async function readTopStakers(net: Net, limit: number): Promise<DbStakerT
   }));
 }
 
+export interface RankNeighbor { address: string; tShares: number }
+
+export interface StakerRank {
+  /** 1-based position among all ranked stakers. */
+  rank: number;
+  /** How many stakers are ranked at all. */
+  of: number;
+  /** The stakers directly above, nearest first (rank-1, rank-2, …). */
+  above: RankNeighbor[];
+  /** The stakers directly below, nearest first. */
+  below: RankNeighbor[];
+}
+
+/**
+ * Where a given T-Share total lands on the full staker ranking, with the
+ * stakers immediately around it. The address itself is excluded from the
+ * comparison: its T-Shares come in live from the contract, and its mirrored
+ * row (which can lag by a sync cycle) must not compete with that.
+ */
+export async function readRankAround(net: Net, address: string, tShares: number, span = 3): Promise<StakerRank | null> {
+  if (!sql) return null;
+  // Compared in T (float8), not raw shares: a whale's share count overflows a
+  // JS safe integer, and rank gaps are whole T-Shares anyway.
+  const rows = await sql`
+    WITH ranked AS (
+      SELECT staker_addr, (SUM(stake_shares) / 1e12)::float8 AS t
+      FROM hex_locked_stakes
+      WHERE network = ${net} AND NOT good_accounted AND staker_addr != ${address}
+      GROUP BY staker_addr
+    )
+    SELECT
+      (SELECT count(*)::int FROM ranked WHERE t > ${tShares}::float8) AS above_count,
+      (SELECT count(*)::int FROM ranked)                              AS others,
+      (SELECT json_agg(x) FROM (
+         SELECT staker_addr AS address, t AS tshares
+         FROM ranked WHERE t > ${tShares}::float8 ORDER BY t ASC LIMIT ${span}
+       ) x) AS above,
+      (SELECT json_agg(x) FROM (
+         SELECT staker_addr AS address, t AS tshares
+         FROM ranked WHERE t <= ${tShares}::float8 ORDER BY t DESC LIMIT ${span}
+       ) x) AS below`;
+  const r = rows[0];
+  if (!r) return null;
+  const toNeighbors = (v: unknown): RankNeighbor[] =>
+    (Array.isArray(v) ? v : []).map((n: { address: string; tshares: number }) => ({
+      address: String(n.address),
+      tShares: num(n.tshares),
+    }));
+  return {
+    rank: num(r.above_count) + 1,
+    // The queried address holds a place of its own once it has any T-Shares.
+    of: num(r.others) + (tShares > 0 ? 1 : 0),
+    above: toNeighbors(r.above),
+    below: toNeighbors(r.below),
+  };
+}
+
 export interface StakerSummary { stakers: number; tShares: number }
 
 export async function readStakerSummary(net: Net): Promise<StakerSummary> {
