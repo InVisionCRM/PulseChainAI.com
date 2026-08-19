@@ -69,7 +69,10 @@ export async function GET(req: NextRequest) {
     let board: StakerRank | undefined;
     // A zero-share address has no place on the board — "rank #121,007 of
     // 121,006" is the kind of figure that erodes trust in the real ones.
-    if (dbAvailable() && tShares > 0) {
+    // `lite` skips the rank entirely: the wallet picker only wants to know
+    // whether an address stakes at all, and shouldn't cost a ranking query.
+    const lite = req.nextUrl.searchParams.get('lite') === '1';
+    if (dbAvailable() && tShares > 0 && !lite) {
       board = await getSyncState(net)
         .then((st) => (st?.ready ? readRankAround(net, address, tShares) : null))
         .then((r) => r ?? undefined)

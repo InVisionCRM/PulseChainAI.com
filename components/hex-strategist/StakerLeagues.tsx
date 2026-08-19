@@ -13,7 +13,7 @@
 //                        what ending them costs you, or size up a new stake and
 //                        watch the crest change before you commit a single HEX.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   IconShieldBolt, IconRefresh, IconExternalLink, IconSearch, IconArrowUpRight,
   IconArrowDownRight, IconWallet, IconAlertTriangle, IconChevronDown, IconTrendingUp,
@@ -30,6 +30,7 @@ import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import LeagueCrest from './LeagueCrest';
 
 interface LeaguesData {
+  currentDay: number;
   networkTShares: number;
   rankedTShares: number;
   coveragePct: number;
@@ -319,16 +320,26 @@ function YourStanding({ net, data, rates }: { net: Network; data: LeaguesData; r
     : null;
 
   return (
-    <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
-        <IconShieldBolt className="h-4 w-4 text-orange-400" /> Where do you stand?
+    <div
+      className="rounded-2xl border p-4 sm:p-5"
+      style={{
+        borderColor: 'color-mix(in srgb, var(--chart-accent) 30%, var(--line))',
+        background:
+          'linear-gradient(140deg, color-mix(in srgb, var(--chart-accent) 9%, transparent), transparent 45%), var(--surface)',
+      }}
+    >
+      <div className="mb-1 flex items-center gap-2 text-base font-bold text-[var(--text)]">
+        <IconShieldBolt className="h-5 w-5 text-[var(--chart-accent)]" /> Where do you stand?
       </div>
+      <p className="mb-3 text-xs text-[var(--text-muted)]">
+        Any address. Exact rank out of {data.stakersFound.toLocaleString()} stakers, straight off the chain.
+      </p>
 
       <form
         onSubmit={(e) => { e.preventDefault(); look(input); }}
         className="flex flex-wrap items-center gap-2"
       >
-        <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2">
+        <div className="flex min-w-[240px] flex-1 items-center gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3.5 py-2.5 transition-all focus-within:border-[var(--chart-accent)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--chart-accent)_20%,transparent)]">
           <IconSearch className="h-4 w-4 shrink-0 text-[var(--text-faint)]" />
           <input
             value={input}
@@ -338,31 +349,17 @@ function YourStanding({ net, data, rates }: { net: Network; data: LeaguesData; r
             className="w-full bg-transparent font-mono text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-faint)]"
           />
         </div>
+        {hexWallets.length > 0 && (
+          <WalletPicker net={net} wallets={hexWallets} onPick={(a) => { setInput(a); look(a); }} />
+        )}
         <button
           type="submit"
-          className="rounded-xl border border-orange-500/50 bg-orange-500/15 px-4 py-2 text-xs font-bold uppercase tracking-wide text-orange-200 transition-colors hover:bg-orange-500/25"
+          className="rounded-xl px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white transition-transform hover:-translate-y-px"
+          style={{ background: 'linear-gradient(135deg, var(--chart-accent), #d3313f)' }}
         >
           Rank me
         </button>
       </form>
-
-      {hexWallets.length > 0 && (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[var(--text-faint)]">
-            <IconWallet className="h-3 w-3" /> Your wallets
-          </span>
-          {hexWallets.map((w) => (
-            <button
-              key={w.address}
-              type="button"
-              onClick={() => { setInput(w.address); look(w.address); }}
-              className="rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-2 py-0.5 font-mono text-[11px] text-[var(--text-muted)] hover:text-[var(--text)]"
-            >
-              {w.label || shortAddr(w.address)}
-            </button>
-          ))}
-        </div>
-      )}
 
       {state === 'loading' && (
         <div className="mt-4 inline-flex items-center gap-2 text-sm text-[var(--text-muted)]">
@@ -461,6 +458,91 @@ function YourStanding({ net, data, rates }: { net: Network; data: LeaguesData; r
         <p className="mt-3 text-xs text-[var(--text-muted)]">
           Read live off the HEX contract — exact to the minute, nothing stored.
         </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Tracked wallets as a dropdown. Each row lazily reports whether that wallet
+ * actually stakes — count and locked T-Shares, read once when the menu first
+ * opens (the `lite` standing skips the ranking query, so a row costs one
+ * contract read, not a table scan).
+ */
+function WalletPicker({ net, wallets, onPick }: {
+  net: Network;
+  wallets: { address: string; label?: string }[];
+  onPick: (address: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [info, setInfo] = useState<Record<string, { stakes: number; tShares: number } | 'loading' | 'error'>>({});
+
+  const openMenu = () => {
+    setOpen((o) => !o);
+    if (Object.keys(info).length > 0) return;
+    // First open: fill the rows in as each wallet answers.
+    setInfo(Object.fromEntries(wallets.map((w) => [w.address, 'loading' as const])));
+    wallets.forEach((w) => {
+      fetch(`/api/hex/leagues/standing?network=${net}&address=${w.address.toLowerCase()}&lite=1`)
+        .then(async (r) => {
+          if (!r.ok) throw new Error();
+          const j = (await r.json()) as { stakes: unknown[]; tShares: number };
+          setInfo((prev) => ({ ...prev, [w.address]: { stakes: j.stakes.length, tShares: j.tShares } }));
+        })
+        .catch(() => setInfo((prev) => ({ ...prev, [w.address]: 'error' })));
+    });
+  };
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={openMenu}
+        className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3.5 py-2.5 text-xs font-semibold text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+      >
+        <IconWallet className="h-4 w-4" /> My wallets
+        <IconChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <>
+          <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="fixed inset-0 z-10 cursor-default" />
+          <div className="absolute right-0 top-full z-20 mt-1.5 w-72 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-2xl">
+            {wallets.map((w) => {
+              const st = info[w.address];
+              return (
+                <button
+                  key={w.address}
+                  type="button"
+                  onClick={() => { setOpen(false); onPick(w.address); }}
+                  className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[var(--surface-2)]"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-xs font-semibold text-[var(--text)]">
+                      {w.label || shortAddr(w.address)}
+                    </span>
+                    <span className="block truncate font-mono text-[10px] text-[var(--text-faint)]">
+                      {shortAddr(w.address)}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-right text-[11px] tabular-nums">
+                    {st === 'loading' && <IconRefresh className="h-3.5 w-3.5 animate-spin text-[var(--text-faint)]" />}
+                    {st === 'error' && <span className="text-[var(--text-faint)]">—</span>}
+                    {typeof st === 'object' && (st.stakes > 0 ? (
+                      <>
+                        <span className="block font-semibold text-[var(--text)]">{tsh(st.tShares)} T</span>
+                        <span className="block text-[10px] text-[var(--text-muted)]">
+                          {st.stakes} {st.stakes === 1 ? 'stake' : 'stakes'}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-[var(--text-faint)]">no stakes</span>
+                    ))}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );
@@ -868,17 +950,41 @@ function Ladder({ data }: { data: LeaguesData }) {
 
 const PAGE_STEP = 50;
 
+/** Gold, silver, bronze — the three ranks that get metal instead of a number. */
+const MEDALS: Record<number, string> = {
+  1: 'linear-gradient(135deg,#fde68a,#d97706)',
+  2: 'linear-gradient(135deg,#e5e7eb,#6b7280)',
+  3: 'linear-gradient(135deg,#fdba74,#9a3412)',
+};
+
 function Board({ net, data, rates }: { net: Network; data: LeaguesData; rates: Rates | null }) {
   const [shown, setShown] = useState(PAGE_STEP);
+  const [openAddr, setOpenAddr] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Record<string, StandingData | 'loading' | 'error'>>({});
   const rows = data.rows.slice(0, shown);
+  const top = data.rows[0]?.tShares ?? 1;
   const usd = (hex: number) => (rates?.priceUsd ? hex * rates.priceUsd : null);
+
+  const toggle = (address: string) => {
+    setOpenAddr((cur) => (cur === address ? null : address));
+    if (detail[address]) return;
+    setDetail((d) => ({ ...d, [address]: 'loading' }));
+    // `lite` skips the ranking query — the row already knows its rank.
+    fetch(`/api/hex/leagues/standing?network=${net}&address=${address}&lite=1`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error();
+        return (await r.json()) as StandingData;
+      })
+      .then((j) => setDetail((d) => ({ ...d, [address]: j })))
+      .catch(() => setDetail((d) => ({ ...d, [address]: 'error' })));
+  };
 
   return (
     <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
       <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] px-4 py-3">
         <div>
           <div className="text-sm font-semibold text-[var(--text)]">The board</div>
-          <p className="text-xs text-[var(--text-muted)]">Every ranked staker, by locked T-Shares.</p>
+          <p className="text-xs text-[var(--text-muted)]">Tap a staker to open their stakes.</p>
         </div>
         <span className="shrink-0 text-[10px] uppercase tracking-wider text-[var(--text-faint)]">
           all {data.stakersFound.toLocaleString()} stakers
@@ -886,54 +992,90 @@ function Board({ net, data, rates }: { net: Network; data: LeaguesData; rates: R
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[540px] text-sm">
+        <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="border-b border-[var(--line)] text-[10px] uppercase tracking-wider text-[var(--text-faint)]">
               <th className="px-3 py-2 text-left font-semibold">#</th>
               <th className="px-3 py-2 text-left font-semibold">League</th>
               <th className="px-3 py-2 text-left font-semibold">Address</th>
               <th className="px-3 py-2 text-right font-semibold">T-Shares</th>
-              <th className="px-3 py-2 text-right font-semibold">Network</th>
+              <th className="hidden px-3 py-2 text-right font-semibold md:table-cell">Network</th>
               <th className="px-3 py-2 text-right font-semibold">
                 <span className="inline-flex items-center justify-end gap-1"><HexLogo className="h-3 w-3" />Locked</span>
               </th>
-              <th className="px-3 py-2 text-right font-semibold">Stakes</th>
+              <th className="hidden px-3 py-2 text-right font-semibold sm:table-cell">Stakes</th>
+              <th className="w-8 px-2 py-2" />
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => {
               const l = LEAGUE_BY_KEY[r.leagueKey] ?? ENTRY_LEAGUE;
               const $ = usd(r.principalHex);
+              const open = openAddr === r.address;
+              const barPct = Math.max(0.4, (r.tShares / top) * 100);
               return (
-                <tr key={r.address} className="border-b border-[var(--line-soft)] last:border-0 hover:bg-[var(--surface-2)]">
-                  <td className="px-3 py-2 tabular-nums text-[var(--text-faint)]">{r.rank}</td>
-                  <td className="px-3 py-2">
-                    <span className="inline-flex items-center gap-1.5">
-                      <LeagueCrest league={l} size={20} />
-                      <span className="hidden text-[11px] font-semibold uppercase tracking-wide sm:inline" style={{ color: l.color }}>
-                        {l.name}
+                <React.Fragment key={r.address}>
+                  <tr
+                    onClick={() => toggle(r.address)}
+                    className={`group cursor-pointer border-b border-[var(--line-soft)] transition-colors last:border-0 ${open ? 'bg-[var(--surface-2)]' : 'hover:bg-[var(--surface-2)]'}`}
+                    style={{
+                      // The row itself is the chart: a league-colored bar
+                      // proportional to rank #1 runs behind the cells.
+                      backgroundImage: `linear-gradient(90deg, ${l.color}1f ${barPct}%, transparent ${barPct}%)`,
+                      boxShadow: `inset 3px 0 0 ${l.color}`,
+                    }}
+                  >
+                    <td className="px-3 py-2.5 tabular-nums">
+                      {MEDALS[r.rank] ? (
+                        <span
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-black text-black/80 shadow"
+                          style={{ background: MEDALS[r.rank] }}
+                        >
+                          {r.rank}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--text-faint)]">{r.rank}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className="inline-flex items-center gap-1.5">
+                        <LeagueCrest league={l} size={22} />
+                        <span className="hidden text-[11px] font-semibold uppercase tracking-wide lg:inline" style={{ color: l.color }}>
+                          {l.name}
+                        </span>
                       </span>
-                    </span>
-                  </td>
-                  <td className="px-3 py-2">
-                    <a
-                      href={addrUrl(net, r.address)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 font-mono text-[var(--text)] hover:text-orange-300"
-                    >
-                      {shortAddr(r.address)}
-                      <IconExternalLink className="h-3 w-3 text-[var(--text-faint)]" />
-                    </a>
-                  </td>
-                  <td className="px-3 py-2 text-right font-bold tabular-nums text-[var(--text)]">{tsh(r.tShares)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-[var(--text-muted)]">{pctOfNetwork(r.sharePct)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-[var(--text-muted)]">
-                    {fmtHex(r.principalHex)}
-                    {$ != null && <div className="text-[10px] text-[var(--text-faint)]">{fmtUsdShort($)}</div>}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-[var(--text-muted)]">{r.stakes}</td>
-                </tr>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <a
+                        href={addrUrl(net, r.address)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 font-mono text-[var(--text)] hover:text-[var(--chart-accent)]"
+                      >
+                        {shortAddr(r.address)}
+                        <IconExternalLink className="h-3 w-3 text-[var(--text-faint)]" />
+                      </a>
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-bold tabular-nums text-[var(--text)]">{tsh(r.tShares)}</td>
+                    <td className="hidden px-3 py-2.5 text-right tabular-nums text-[var(--text-muted)] md:table-cell">{pctOfNetwork(r.sharePct)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-muted)]">
+                      {fmtHex(r.principalHex)}
+                      {$ != null && <div className="text-[10px] text-[var(--text-faint)]">{fmtUsdShort($)}</div>}
+                    </td>
+                    <td className="hidden px-3 py-2.5 text-right tabular-nums text-[var(--text-muted)] sm:table-cell">{r.stakes}</td>
+                    <td className="px-2 py-2.5 text-right">
+                      <IconChevronDown className={`h-4 w-4 text-[var(--text-faint)] transition-transform group-hover:text-[var(--text-muted)] ${open ? 'rotate-180' : ''}`} />
+                    </td>
+                  </tr>
+                  {open && (
+                    <tr className="border-b border-[var(--line-soft)]">
+                      <td colSpan={8} className="bg-[var(--surface-2)] px-4 py-3">
+                        <StakerDetail row={r} league={l} detail={detail[r.address]} usd={usd} currentDay={data.currentDay} />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               );
             })}
           </tbody>
@@ -948,6 +1090,77 @@ function Board({ net, data, rates }: { net: Network; data: LeaguesData; rates: R
         >
           Show {Math.min(PAGE_STEP, data.rows.length - shown)} more
         </button>
+      )}
+    </div>
+  );
+}
+
+/** The expanded row: that staker's actual stakes, read live off the contract. */
+function StakerDetail({ row, league, detail, usd, currentDay }: {
+  row: LeagueRow;
+  league: League;
+  detail: StandingData | 'loading' | 'error' | undefined;
+  usd: (hex: number) => number | null;
+  currentDay: number;
+}) {
+  if (!detail || detail === 'loading') {
+    return (
+      <span className="inline-flex items-center gap-2 text-xs text-[var(--text-muted)]">
+        <IconRefresh className="h-3.5 w-3.5 animate-spin" /> Reading their stakes off the contract…
+      </span>
+    );
+  }
+  if (detail === 'error') {
+    return <span className="text-xs text-red-300">Couldn’t read this address’s stakes right now.</span>;
+  }
+  const stakes = detail.stakes;
+  const longest = stakes.reduce((m, s) => Math.max(m, s.endDay), 0);
+  const $ = usd(detail.principalHex);
+  return (
+    <div className="anim-rise">
+      <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+        <span className="font-bold uppercase tracking-wide" style={{ color: league.color }}>{league.name}</span>
+        <span className="tabular-nums text-[var(--text)]"><b>{tsh(detail.tShares)}</b> T locked</span>
+        <span className="inline-flex items-center gap-1 tabular-nums text-[var(--text-muted)]">
+          <HexLogo className="h-3 w-3" />{fmtHex(detail.principalHex)}{$ != null && ` (${fmtUsdShort($)})`}
+        </span>
+        <span className="tabular-nums text-[var(--text-muted)]">
+          {stakes.length} active {stakes.length === 1 ? 'stake' : 'stakes'}
+          {detail.unlockedStakes > 0 && ` · ${detail.unlockedStakes} already unlocked`}
+        </span>
+        {longest > currentDay && (
+          <span className="tabular-nums text-[var(--text-faint)]">longest runs to {fmtHexDate(longest)}</span>
+        )}
+      </div>
+      {stakes.length === 0 ? (
+        <p className="text-xs text-[var(--text-muted)]">
+          No locked stakes right now — this board entry may have just ended them.
+        </p>
+      ) : (
+        <div className="max-h-52 space-y-1 overflow-y-auto pr-1">
+          {stakes.map((s) => {
+            const left = s.endDay - currentDay;
+            const served = Math.min(1, Math.max(0, (currentDay - s.startDay) / Math.max(1, s.stakedDays)));
+            return (
+              <div key={s.stakeId} className="flex items-center gap-3 rounded-lg bg-[var(--surface)] px-2.5 py-1.5 text-xs">
+                <span className="w-20 shrink-0 truncate font-mono text-[10px] text-[var(--text-faint)]">#{s.stakeId}</span>
+                <span className="w-24 shrink-0 tabular-nums font-semibold text-[var(--text)]">{tsh(s.tShares)} T</span>
+                <span className="hidden w-24 shrink-0 items-center gap-1 tabular-nums text-[var(--text-muted)] sm:inline-flex">
+                  <HexLogo className="h-3 w-3" />{fmtHex(s.principalHex)}
+                </span>
+                <div className="hidden h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)] sm:block">
+                  <div
+                    className="anim-grow h-full rounded-full"
+                    style={{ width: `${Math.max(2, served * 100)}%`, background: league.color, opacity: 0.7 }}
+                  />
+                </div>
+                <span className="w-32 shrink-0 text-right tabular-nums text-[10px] text-[var(--text-faint)]">
+                  {left > 0 ? `${fmtHexDate(s.endDay)} · ${fmtDuration(left)} left` : 'matured'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
