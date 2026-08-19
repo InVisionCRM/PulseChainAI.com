@@ -73,13 +73,13 @@ export const CARDS: readonly CardKind[] = [
   // it asks for the fetch too — being the landing card, that starts the load
   // the moment the modal opens and the tile fills in when it arrives.
   { id: 'wall', name: 'The wall of HEX', blurb: 'How much of all HEX is locked away, and for how long.', group: 'macro', source: 'pulse' },
-  { id: 'cliffs', name: 'The cliffs', blurb: 'The whole unlock schedule — and the one day that dwarfs it.', group: 'macro' },
+  { id: 'cliffs', name: 'The cliffs', blurb: 'Every future unlock — and the biggest single day.', group: 'macro' },
   { id: 'countdown', name: 'The countdown', blurb: 'When half of everything locked comes free.', group: 'macro' },
   { id: 'overdue', name: 'The overdue pile', blurb: 'Matured, unclaimed, and mostly frozen by good-accounting.', group: 'macro' },
   { id: 'yield', name: 'The yield', blurb: 'What one T-Share costs, and what it pays every day.', group: 'macro' },
   { id: 'flow', name: 'In vs out', blurb: '30 days of HEX staked in and unstaked out, day by day.', group: 'pulse', source: 'pulse' },
   { id: 'pulse', name: 'The pulse', blurb: 'The last 24 hours: starts, ends, penalties, minted yield.', group: 'pulse', source: 'pulse' },
-  { id: 'loyalty', name: 'Held to term', blurb: 'How many stakes served their full sentence this month.', group: 'pulse', source: 'pulse' },
+  { id: 'loyalty', name: 'Held to term', blurb: 'How many stakes served their full term this month.', group: 'pulse', source: 'pulse' },
   { id: 'mint', name: 'Minted vs burned', blurb: '30 days of yield paid out against penalties taken.', group: 'pulse', source: 'pulse' },
   { id: 'foodchain', name: 'The food chain', blurb: 'Every staker on the chain, ranked into nine leagues.', group: 'leagues', source: 'leagues' },
   { id: 'whales', name: 'The whales', blurb: 'The five largest stakers and the share they hold.', group: 'leagues', source: 'leagues' },
@@ -166,7 +166,7 @@ function hexChrome(
   c.lineTo(CARD_W - PAD, 136);
   c.stroke();
 
-  text(c, BRAND_URL, PAD, CARD_H - 46, { size: 20, weight: 700 });
+  text(c, `${BRAND_URL}/hex-strategist`, PAD, CARD_H - 46, { size: 20, weight: 700 });
   text(c, o.footerRight, CARD_W - PAD, CARD_H - 46, { size: 17, color: TX_DIM, font: MONO, align: 'right' });
 }
 
@@ -174,8 +174,9 @@ const frame = (
   c: CanvasRenderingContext2D, d: StrategistShareData, kicker: string, logo: HTMLImageElement | null,
 ) =>
   hexChrome(c, {
-    title: 'HEX STRATEGIST',
-    subtitle: d.network === 'pulsechain' ? 'PulseChain' : 'Ethereum',
+    // The site is the title — the card should say where to get this chart.
+    title: 'SCAN.MORBIUS.IO',
+    subtitle: d.network === 'pulsechain' ? 'HEX · PulseChain' : 'HEX · Ethereum',
     kicker,
     footerRight: d.asOf,
     logo,
@@ -268,23 +269,23 @@ function cliffsCard(c: CanvasRenderingContext2D, d: StrategistShareData, logo: H
   const yr = (q: number) => hexDayToDate(d.currentDay + q * Q).getFullYear();
   text(c, String(yr(0)), chart.x, chart.y + chart.h + 34, { size: 18, color: TX_DIM, font: MONO });
   text(c, String(yr(nQ - 1)), chart.x + chart.w, chart.y + chart.h + 34, { size: 18, color: TX_DIM, font: MONO, align: 'right' });
-  text(c, '√ scale — every quarter of the schedule', chart.x + chart.w / 2, chart.y + chart.h + 34, {
+  text(c, 'HEX unlocking each quarter, today through the last stake', chart.x + chart.w / 2, chart.y + chart.h + 34, {
     size: 16, color: TX_DIM, font: MONO, align: 'center',
   });
 
   if (peak) {
     const pct = d.totals.hex > 0 ? (peak.hex / d.totals.hex) * 100 : 0;
-    text(c, 'THE SCHEDULE IS NOT SMOOTH', CARD_W / 2, 760, { size: 19, color: TX_DIM, font: MONO, align: 'center', spacing: 4 });
-    const line = `${fmtHexDate(peak.day)} frees ${hexAmt(peak.hex)} HEX`;
+    text(c, 'THE BIGGEST UNLOCK DAY', CARD_W / 2, 760, { size: 19, color: TX_DIM, font: MONO, align: 'center', spacing: 4 });
+    const line = `${fmtHexDate(peak.day)} unlocks ${hexAmt(peak.hex)} HEX`;
     text(c, line, CARD_W / 2, 812, { size: fitText(c, line, BOX_W - 40, 52, 800), weight: 800, align: 'center' });
     text(
       c,
-      `${pct.toFixed(0)}% of everything mapped, on one day — ${fmtDuration(peak.day - d.currentDay)} out, ${nf(peak.stakes)} stakes`,
+      `${pct.toFixed(0)}% of all locked HEX, on one day — ${fmtDuration(peak.day - d.currentDay)} out, ${nf(peak.stakes)} stakes`,
       CARD_W / 2, 856, { size: 24, color: TX_MID, align: 'center' },
     );
   }
   const tiles = grid(PAD, 890, BOX_W, 100, 2, 1);
-  statTile(c, tiles[0], { label: 'Mapped', value: `${hexAmt(d.totals.hex)} HEX`, size: 40, accent: HEX_A });
+  statTile(c, tiles[0], { label: 'Locked in stakes', value: `${hexAmt(d.totals.hex)} HEX`, size: 40, accent: HEX_A });
   statTile(c, tiles[1], {
     label: 'Already matured, unclaimed',
     value: `${hexAmt(d.overdue.hex)} HEX`,
@@ -457,7 +458,7 @@ function countdownCard(c: CanvasRenderingContext2D, d: StrategistShareData, logo
   }
   text(c, String(hexDayToDate(d.currentDay).getFullYear()), chart.x, chart.y + chart.h + 34, { size: 18, color: TX_DIM, font: MONO });
   text(c, String(hexDayToDate(lastDay).getFullYear()), chart.x + chart.w, chart.y + chart.h + 34, { size: 18, color: TX_DIM, font: MONO, align: 'right' });
-  text(c, 'share of all locked HEX released, over time', CARD_W / 2, chart.y + chart.h + 34, { size: 16, color: TX_DIM, font: MONO, align: 'center' });
+  text(c, 'share of locked HEX unlocked, over time', CARD_W / 2, chart.y + chart.h + 34, { size: 16, color: TX_DIM, font: MONO, align: 'center' });
 
   const tiles = grid(PAD, 880, BOX_W, 110, 2, 1);
   statTile(c, tiles[0], { label: 'Locked today', value: `${hexAmt(d.networkHex)} HEX`, size: 40, accent: HEX_A });
@@ -542,9 +543,9 @@ function yieldCard(c: CanvasRenderingContext2D, d: StrategistShareData, logo: HT
     accent: HEX_A,
   });
   statTile(c, tiles[1], {
-    label: 'And only gets dearer',
-    value: 'ratchet',
-    sub: 'the share rate can only ever rise — early stakers keep the cheap seats',
+    label: 'Pays per year',
+    value: daily != null ? `${nf(daily * 365)} HEX` : MISSING,
+    sub: 'the T-Share price only ever rises — it never gets cheaper to buy in',
     accent: HEX_B,
   });
 }

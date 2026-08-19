@@ -99,9 +99,9 @@ export default function StrategistShareCards({ net, schedule, rates }: Strategis
           title="Share the chain"
           cards={CARDS.map((k) => ({ id: k.id, name: k.name, blurb: k.blurb, group: k.group }))}
           groups={[
-            { key: 'macro', label: 'The macro' },
-            { key: 'pulse', label: 'The pulse' },
-            { key: 'leagues', label: 'The leagues' },
+            { key: 'macro', label: 'Macro' },
+            { key: 'pulse', label: 'Activity' },
+            { key: 'leagues', label: 'Leagues' },
           ]}
           draw={draw}
           drawKey={data}
