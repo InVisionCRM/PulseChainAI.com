@@ -88,6 +88,7 @@ npm run hex:rescue                 # DRY RUN — prints exactly what it would do
 npm run hex:rescue -- --execute    # actually send
 npm run hex:rescue -- --execute --limit 200   # clear the backlog
 npm run hex:rescue -- --min-days 30           # only stakes 30+ days past grace
+npm run hex:rescue -- --min-hex 0             # no principal floor (see below)
 ```
 
 Dry run is the default and `--execute` is the only way past it. Watch a full
@@ -99,7 +100,36 @@ invocation has a wall clock. About 23 stakes a day go past grace, so the steady
 state fits easily. Clear the initial backlog from a terminal instead, where
 there is no time limit.
 
-## Two things that will bite whoever edits this
+## Only stakes over 500,000 HEX by default
+
+Gas cost is driven by a stake's *term*, not its size (next section), so
+rescuing a 1,100 HEX stake costs exactly the same as rescuing a 3,000,000 HEX
+one. The default floor spends that fixed cost where it recovers the most, and
+keeps a single run's transaction count from growing unbounded as the backlog
+is worked through. `--min-hex 0` removes it once the largest stakes are done.
+
+## Three things that will bite whoever edits this
+
+**PulseChain's base fee moves fast enough to strand a whole batch.** This
+actually happened: a batch of 25 legacy (type-0) transactions was signed at
+951,909 gwei, and by the time they reached the mempool the base fee had risen
+to 1,037,045 gwei — above what the FIRST transaction (nonce 0) was willing to
+pay. Because nonces are strictly ordered, that single stuck transaction wedged
+every transaction behind it, even ones signed moments later at a still-higher
+price. Nothing was lost — an unmined transaction never debits the account —
+but nothing confirmed either, for as long as base fee stayed above the stale
+price.
+
+The fix is `signAndSend` building EIP-1559 (type-2) transactions with
+`maxFeePerGas = baseFee × 3 + priorityFee` instead of a single fixed price, so
+an individual transaction survives several multiples of the base fee moving
+against it before going stale. `checkNonce` also runs at the start of every
+invocation (script and cron alike): if the keeper's mined and pending nonces
+differ, that gap is a previous run's transactions that never confirmed, and the
+next run REPLACES them — signs starting from the mined nonce — instead of
+queuing more work behind ones that may never land. Re-running
+`npm run hex:rescue -- --execute` after a stuck run self-heals it; nothing
+manual is required.
 
 **Stake indexes move.** `stakeGoodAccounting` needs the stake's *index* in the
 staker's array, which is not in the subgraph and is not stable: `_stakeRemove`

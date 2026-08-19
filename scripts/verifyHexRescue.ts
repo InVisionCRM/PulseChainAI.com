@@ -110,14 +110,31 @@ async function main() {
     : fail(`third word is wrong: ${thirdWord}`);
 
   console.log('\nMessages:');
-  const m1 = messageForStake('12345');
-  m1 === messageForStake('12345')
+  const m1 = messageForStake('12345', 1_000_000);
+  m1 === messageForStake('12345', 1_000_000)
     ? pass(`the same stake always gets the same message ("${m1}")`)
     : fail('message selection is not deterministic');
-  const spread = new Set(Array.from({ length: 200 }, (_, i) => messageForStake(String(i * 7919)))).size;
-  spread >= Math.min(4, RESCUE_MESSAGES.length)
-    ? pass(`messages rotate across stakes (${spread} of ${RESCUE_MESSAGES.length} seen in 200 draws)`)
-    : fail(`messages barely rotate: only ${spread} distinct in 200 draws`);
+
+  // Counting distinct RENDERED messages would be meaningless now that each one
+  // embeds its own stake id and amount — every draw is trivially unique. What
+  // actually needs checking is that the TEMPLATE rotates, so strip the
+  // per-stake parts back out before counting.
+  const shape = (s: string) => s.replace(/[\d.,]+[MBk]?/g, '#').replace(/rescued\/\S+/, 'rescued/#');
+  const shapes = new Set(Array.from({ length: 200 }, (_, i) => shape(messageForStake(String(i * 7919), 1e6))));
+  shapes.size >= Math.min(4, RESCUE_MESSAGES.length)
+    ? pass(`templates rotate across stakes (${shapes.size} of ${RESCUE_MESSAGES.length} seen in 200 draws)`)
+    : fail(`templates barely rotate: only ${shapes.size} distinct in 200 draws`);
+
+  const withLink = messageForStake('945449', 3_363_389);
+  withLink.includes('scan.morbius.io/rescued/945449')
+    ? pass('every message carries its own claim link')
+    : fail(`message is missing the claim link: ${withLink}`);
+  withLink.includes('3.36M')
+    ? pass('every message states the amount at stake (3.36M)')
+    : fail(`message is missing the amount: ${withLink}`);
+  withLink.includes('Morbius') && withLink.includes('SuperStake')
+    ? pass('every message credits both Morbius and SuperStake')
+    : fail(`message is missing one of the two names: ${withLink}`);
 
   console.log(
     failures === 0

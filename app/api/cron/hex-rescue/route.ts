@@ -17,11 +17,19 @@
 // Without HEX_RESCUE_PRIVATE_KEY set this runs as a dry run and reports what it
 // would have done, which is also what makes it safe to deploy before the key
 // exists.
+//
+// Self-heals a run that never confirmed. PulseChain's base fee moves fast
+// enough that a batch can go stale before the first transaction mines, wedging
+// every nonce behind it (nonces are strictly ordered) — see the
+// MAX_FEE_MULTIPLE note in rescueWallet.ts for a real instance of this. If the
+// keeper's mined and pending nonces differ, this run REPLACES the stuck ones
+// (signs starting at the mined nonce) with fresh, currently-priced work,
+// rather than queuing more transactions behind ones that may never land.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { findRescueCandidates, resolveStake, goodAccountingCalldata, messageForStake } from '@/lib/hex/rescue';
-import { loadKeeper, signAndSend, nextNonce } from '@/lib/hex/rescueWallet';
-import { estimateGas, getGasPrice } from '@/lib/portfolio/evmRpc';
+import { loadKeeper, signAndSend, checkNonce } from '@/lib/hex/rescueWallet';
+import { estimateGas, getBaseFee, getGasPrice } from '@/lib/portfolio/evmRpc';
 import { HEX_ADDRESS, LATE_PENALTY_SCALE_DAYS } from '@/lib/hex/hexDay';
 
 export const revalidate = 0;
@@ -44,15 +52,21 @@ export async function GET(request: NextRequest) {
   const dryRun = !keeper;
 
   try {
-    const gasPrice = await getGasPrice('pulsechain');
+    // Same pricing basis signAndSend actually uses, so the reported cost
+    // matches what was really paid rather than a legacy-only guess.
+    const displayPrice = (await getBaseFee('pulsechain')) ?? (await getGasPrice('pulsechain'));
     const candidates = await findRescueCandidates('pulsechain', {
       minDaysPastGrace: 1,
       limit: MAX_PER_RUN * 3, // most resolve to "already settled" and cost nothing
     });
 
-    let nonce = keeper ? await nextNonce('pulsechain', keeper.address) : null;
-    if (keeper && nonce == null) {
-      return NextResponse.json({ error: 'could not read keeper nonce' }, { status: 503 });
+    let nonce: number | null = null;
+    let stuckFromPriorRun = 0;
+    if (keeper) {
+      const status = await checkNonce('pulsechain', keeper.address);
+      if (!status) return NextResponse.json({ error: 'could not read keeper nonce' }, { status: 503 });
+      nonce = status.mined; // always resume from mined, not pending — see header
+      stuckFromPriorRun = status.stuck;
     }
 
     const rescued: { stakeId: string; hex: number; hash?: string; gas: string }[] = [];
@@ -70,7 +84,7 @@ export async function GET(request: NextRequest) {
       if (!resolved) continue; // already ended or good-accounted: no work, no gas
 
       attempted++;
-      const data = goodAccountingCalldata(c.stakerAddr, resolved.index, c.stakeId, messageForStake(c.stakeId));
+      const data = goodAccountingCalldata(c.stakerAddr, resolved.index, c.stakeId, messageForStake(c.stakeId, c.principalHex));
 
       if (dryRun) {
         const est = await estimateGas('pulsechain', { from: HEX_ADDRESS, to: HEX_ADDRESS, data });
@@ -102,11 +116,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const costPls = gasPrice ? Number(totalGas * gasPrice) / 1e18 : null;
+    const costPls = displayPrice ? Number(totalGas * displayPrice) / 1e18 : null;
     return NextResponse.json({
       success: problems.length === 0,
       dryRun,
       keeper: keeper?.address ?? null,
+      stuckFromPriorRun,
       candidates: candidates.length,
       rescued: rescued.length,
       hexFrozen: Math.round(hexFrozen),

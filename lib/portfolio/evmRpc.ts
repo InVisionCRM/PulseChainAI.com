@@ -255,6 +255,43 @@ export async function getGasPrice(chain: ChainId): Promise<bigint | null> {
 }
 
 /**
+ * The pending block's base fee, or null if the chain doesn't run EIP-1559 (no
+ * `baseFeePerGas` on its blocks) or every endpoint failed.
+ *
+ * Read directly off a block rather than trusted from `eth_gasPrice`, because
+ * `eth_gasPrice` bakes in each node's own guess at a suggested total price —
+ * useful for a legacy transaction, but this exists so a caller can compute its
+ * OWN margin on top of the real base fee for a type-2 transaction instead.
+ */
+export async function getBaseFee(chain: ChainId): Promise<bigint | null> {
+  for (const url of RPC_URLS[chain] ?? []) {
+    const r = await rpc(url, 'eth_getBlockByNumber', ['pending', false]);
+    const fee = r && typeof r === 'object' ? (r as { baseFeePerGas?: string }).baseFeePerGas : undefined;
+    if (typeof fee === 'string') {
+      try { return BigInt(fee); } catch { /* next endpoint */ }
+    }
+  }
+  return null;
+}
+
+/**
+ * The network's suggested tip, or a small flat fallback if the endpoint
+ * doesn't support `eth_maxPriorityFeePerGas` (verified live: PulseChain's pool
+ * does — it answered 0.1 gwei, which matches a chain with essentially no
+ * priority-fee competition; base fee is the whole story here).
+ */
+export async function getPriorityFee(chain: ChainId): Promise<bigint> {
+  const FALLBACK = 1_000_000_000n; // 1 gwei
+  for (const url of RPC_URLS[chain] ?? []) {
+    const r = await rpc(url, 'eth_maxPriorityFeePerGas', []);
+    if (typeof r === 'string') {
+      try { return BigInt(r); } catch { /* next endpoint */ }
+    }
+  }
+  return FALLBACK;
+}
+
+/**
  * Broadcast a signed transaction. Returns its hash, or the node's own reason.
  *
  * Walking the pool is safe here: the payload is already signed, so every
