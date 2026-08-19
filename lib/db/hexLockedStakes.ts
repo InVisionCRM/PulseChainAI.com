@@ -110,9 +110,23 @@ export interface SyncState {
 
 const num = (v: unknown, d = 0) => (v == null ? d : Number(v));
 
+/** Postgres 42P01 — the table hasn't been created yet. Only the sync cron runs
+ *  the DDL, so before its first run this is the normal state of a fresh
+ *  database, not an error: readers treat it as "indexing hasn't started". */
+const isMissingTable = (err: unknown) =>
+  (err as { code?: string })?.code === '42P01' ||
+  /relation .* does not exist/i.test(err instanceof Error ? err.message : '');
+
 export async function getSyncState(net: Net): Promise<SyncState | null> {
   if (!sql) return null;
-  const rows = await sql`SELECT * FROM hex_sync_state WHERE network = ${net}`;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the driver itself is untyped (`sql: any`)
+  let rows: any[];
+  try {
+    rows = await sql`SELECT * FROM hex_sync_state WHERE network = ${net}`;
+  } catch (err) {
+    if (isMissingTable(err)) return null;
+    throw err;
+  }
   const r = rows[0];
   if (!r) return null;
   return {
