@@ -195,7 +195,10 @@ export default function StakerLeagues({ net }: { net: Network }) {
       <YourStanding net={net} data={data} rates={rates} />
       <Ladder data={data} />
       <Board net={net} data={data} rates={rates} />
-      <p className="px-1 text-[10px] leading-relaxed text-[var(--text-faint)]">{data.note}</p>
+      <p className="px-1 text-[10px] leading-relaxed text-[var(--text-faint)]">
+        Ranked over every locked stake on {net} — counts are exact. Ended and good-accounted stakes sit
+        out; HEX removes their shares from the network total.
+      </p>
     </div>
   );
 }
@@ -207,7 +210,7 @@ export default function StakerLeagues({ net }: { net: Network }) {
 function NetworkStrip({ data, rates }: { data: LeaguesData; rates: Rates | null }) {
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      <Stat label="T-Shares locked chain-wide" value={tsh(data.networkTShares)} />
+      <Stat label="T-Shares locked" value={tsh(data.networkTShares)} />
       <Stat label="Stakers ranked" value={data.stakersFound.toLocaleString()} />
       <Stat
         label="Poseidon floor"
@@ -442,9 +445,8 @@ function YourStanding({ net, data, rates }: { net: Network; data: LeaguesData; r
       )}
 
       {state === 'idle' && (
-        <p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">
-          Your T-Shares are read live from the HEX contract, not from an index — so the number is exactly
-          what the chain says, including stakes opened minutes ago. Nothing is stored.
+        <p className="mt-3 text-xs text-[var(--text-muted)]">
+          Read live off the HEX contract — exact to the minute, nothing stored.
         </p>
       )}
     </div>
@@ -545,19 +547,21 @@ function ClimbAndFall({ standing, rates }: { standing: ReturnType<typeof standin
         {below ? (
           <>
             <p className="text-xs text-[var(--text-muted)]">
-              You are <b className="tabular-nums text-[var(--text)]">{tsh(cushion)}</b> T-Shares clear of the{' '}
-              {league.name} floor ({tsh(standing.floorTShares)}). End stakes worth more than that and you drop to{' '}
-              <b style={{ color: below.color }}>{below.name}</b>.
+              <b className="tabular-nums text-[var(--text)]">{tsh(cushion)}</b> T-Shares clear of the{' '}
+              {league.name} floor. End more than that and you drop to{' '}
+              <b style={{ color: below.color }}>{below.name}</b>
+              {rate > 0 && cushion > 0 && (
+                <>
+                  {' '}— roughly{' '}
+                  <span className="inline-flex items-center gap-1 tabular-nums text-[var(--text)]">
+                    <HexLogo className="h-3 w-3" />{fmtHex(hexForTShares(cushion, LPB_FULL_BONUS_DAYS, rate))}
+                  </span>{' '}
+                  of principal
+                </>
+              )}.
             </p>
-            {rate > 0 && cushion > 0 && (
-              <p className="mt-1.5 text-xs text-[var(--text-faint)]">
-                Roughly <span className="inline-flex items-center gap-1 tabular-nums"><HexLogo className="h-3 w-3" />{fmtHex(hexForTShares(cushion, LPB_FULL_BONUS_DAYS, rate))}</span>{' '}
-                of principal at today’s rate — though what a specific stake is really worth to your rank is below.
-              </p>
-            )}
             <p className="mt-1.5 text-[10px] leading-relaxed text-[var(--text-faint)]">
-              Selling liquid HEX never costs you a tier. T-Shares only leave when a stake is ended or
-              good-accounted — and league floors rise on their own as the rest of the chain stakes.
+              Only ending a stake moves T-Shares — selling liquid HEX never costs a tier.
             </p>
           </>
         ) : (
@@ -717,11 +721,12 @@ function WhatIf({
 function Ladder({ data }: { data: LeaguesData }) {
   return (
     <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-      <div className="mb-1 text-sm font-semibold text-[var(--text)]">The ladder</div>
-      <p className="mb-3 text-xs text-[var(--text-muted)]">
-        Every tier is a slice of the {tsh(data.networkTShares)} T-Shares locked across the chain, so the floors
-        move as the network stakes. Standing still is how you get demoted.
-      </p>
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+        <span className="text-sm font-semibold text-[var(--text)]">The ladder</span>
+        <span className="text-[11px] text-[var(--text-muted)]">
+          Floors move with the network — standing still is how you get demoted.
+        </span>
+      </div>
       <div className="space-y-1.5">
         {LEAGUES.map((l) => {
           const floor = leagueFloor(l, data.networkTShares);
@@ -735,7 +740,7 @@ function Ladder({ data }: { data: LeaguesData }) {
               <LeagueCrest league={l} size={34} />
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-bold uppercase tracking-wide" style={{ color: l.color }}>{l.name}</div>
-                <div className="truncate text-[11px] text-[var(--text-faint)]">{l.tagline}</div>
+                <div className="hidden truncate text-[11px] text-[var(--text-faint)] sm:block">{l.tagline}</div>
               </div>
               <div className="shrink-0 text-right">
                 <div className="text-xs font-semibold tabular-nums text-[var(--text)]">
@@ -753,9 +758,6 @@ function Ladder({ data }: { data: LeaguesData }) {
           );
         })}
       </div>
-      <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-faint)]">
-        Staker counts are exact — every locked stake on the chain is counted.
-      </p>
     </div>
   );
 }
