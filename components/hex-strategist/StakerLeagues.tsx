@@ -28,6 +28,7 @@ import { HexLogo } from '@/components/hex/HexAmount';
 import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
 import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import LeagueCrest from './LeagueCrest';
+import { HexStakes } from '@/components/portfolio/HexStakes';
 import ShareCardModal from '@/components/share/ShareCardModal';
 import {
   BRAND_URL as SHARE_BRAND, CARDS as SHARE_CARDS, CARD_H as SHARE_H, CARD_W as SHARE_W,
@@ -589,7 +590,9 @@ function WalletPicker({ net, wallets, onPick }: {
       {open && (
         <>
           <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="fixed inset-0 z-10 cursor-default" />
-          <div className="absolute right-0 top-full z-20 mt-1.5 w-72 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-2xl">
+          {/* Anchored left on phones — the button sits at the row's left edge
+              there, and a right-anchored panel would open off-screen. */}
+          <div className="absolute left-0 top-full z-20 mt-1.5 w-72 max-w-[calc(100vw-2.5rem)] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--panel)] shadow-2xl sm:left-auto sm:right-0">
             {wallets.map((w) => {
               const st = info[w.address];
               return (
@@ -1043,24 +1046,11 @@ const MEDALS: Record<number, string> = {
 function Board({ net, data, rates }: { net: Network; data: LeaguesData; rates: Rates | null }) {
   const [shown, setShown] = useState(PAGE_STEP);
   const [openAddr, setOpenAddr] = useState<string | null>(null);
-  const [detail, setDetail] = useState<Record<string, StandingData | 'loading' | 'error'>>({});
   const rows = data.rows.slice(0, shown);
   const top = data.rows[0]?.tShares ?? 1;
   const usd = (hex: number) => (rates?.priceUsd ? hex * rates.priceUsd : null);
 
-  const toggle = (address: string) => {
-    setOpenAddr((cur) => (cur === address ? null : address));
-    if (detail[address]) return;
-    setDetail((d) => ({ ...d, [address]: 'loading' }));
-    // `lite` skips the ranking query — the row already knows its rank.
-    fetch(`/api/hex/leagues/standing?network=${net}&address=${address}&lite=1`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error();
-        return (await r.json()) as StandingData;
-      })
-      .then((j) => setDetail((d) => ({ ...d, [address]: j })))
-      .catch(() => setDetail((d) => ({ ...d, [address]: 'error' })));
-  };
+  const toggle = (address: string) => setOpenAddr((cur) => (cur === address ? null : address));
 
   return (
     <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
@@ -1153,8 +1143,14 @@ function Board({ net, data, rates }: { net: Network; data: LeaguesData; rates: R
                   </tr>
                   {open && (
                     <tr className="border-b border-[var(--line-soft)]">
-                      <td colSpan={8} className="bg-[var(--surface-2)] px-4 py-3">
-                        <StakerDetail row={r} league={l} detail={detail[r.address]} usd={usd} currentDay={data.currentDay} />
+                      <td colSpan={8} className="bg-[var(--surface-2)] px-3 py-3 sm:px-4">
+                        <div className="anim-rise">
+                          <HexStakes
+                            address={r.address}
+                            hexUsd={rates?.priceUsd ?? null}
+                            payoutPerTShare={rates?.dailyPayoutPerTShare ?? null}
+                          />
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -1178,73 +1174,3 @@ function Board({ net, data, rates }: { net: Network; data: LeaguesData; rates: R
   );
 }
 
-/** The expanded row: that staker's actual stakes, read live off the contract. */
-function StakerDetail({ row, league, detail, usd, currentDay }: {
-  row: LeagueRow;
-  league: League;
-  detail: StandingData | 'loading' | 'error' | undefined;
-  usd: (hex: number) => number | null;
-  currentDay: number;
-}) {
-  if (!detail || detail === 'loading') {
-    return (
-      <span className="inline-flex items-center gap-2 text-xs text-[var(--text-muted)]">
-        <IconRefresh className="h-3.5 w-3.5 animate-spin" /> Reading their stakes off the contract…
-      </span>
-    );
-  }
-  if (detail === 'error') {
-    return <span className="text-xs text-red-300">Couldn’t read this address’s stakes right now.</span>;
-  }
-  const stakes = detail.stakes;
-  const longest = stakes.reduce((m, s) => Math.max(m, s.endDay), 0);
-  const $ = usd(detail.principalHex);
-  return (
-    <div className="anim-rise">
-      <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-        <span className="font-bold uppercase tracking-wide" style={{ color: league.color }}>{league.name}</span>
-        <span className="tabular-nums text-[var(--text)]"><b>{tsh(detail.tShares)}</b> T locked</span>
-        <span className="inline-flex items-center gap-1 tabular-nums text-[var(--text-muted)]">
-          <HexLogo className="h-3 w-3" />{fmtHex(detail.principalHex)}{$ != null && ` (${fmtUsdShort($)})`}
-        </span>
-        <span className="tabular-nums text-[var(--text-muted)]">
-          {stakes.length} active {stakes.length === 1 ? 'stake' : 'stakes'}
-          {detail.unlockedStakes > 0 && ` · ${detail.unlockedStakes} already unlocked`}
-        </span>
-        {longest > currentDay && (
-          <span className="tabular-nums text-[var(--text-faint)]">longest runs to {fmtHexDate(longest)}</span>
-        )}
-      </div>
-      {stakes.length === 0 ? (
-        <p className="text-xs text-[var(--text-muted)]">
-          No locked stakes right now — this board entry may have just ended them.
-        </p>
-      ) : (
-        <div className="max-h-52 space-y-1 overflow-y-auto pr-1">
-          {stakes.map((s) => {
-            const left = s.endDay - currentDay;
-            const served = Math.min(1, Math.max(0, (currentDay - s.startDay) / Math.max(1, s.stakedDays)));
-            return (
-              <div key={s.stakeId} className="flex items-center gap-3 rounded-lg bg-[var(--surface)] px-2.5 py-1.5 text-xs">
-                <span className="w-20 shrink-0 truncate font-mono text-[10px] text-[var(--text-faint)]">#{s.stakeId}</span>
-                <span className="w-24 shrink-0 tabular-nums font-semibold text-[var(--text)]">{tsh(s.tShares)} T</span>
-                <span className="hidden w-24 shrink-0 items-center gap-1 tabular-nums text-[var(--text-muted)] sm:inline-flex">
-                  <HexLogo className="h-3 w-3" />{fmtHex(s.principalHex)}
-                </span>
-                <div className="hidden h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)] sm:block">
-                  <div
-                    className="anim-grow h-full rounded-full"
-                    style={{ width: `${Math.max(2, served * 100)}%`, background: league.color, opacity: 0.7 }}
-                  />
-                </div>
-                <span className="w-32 shrink-0 text-right tabular-nums text-[10px] text-[var(--text-faint)]">
-                  {left > 0 ? `${fmtHexDate(s.endDay)} · ${fmtDuration(left)} left` : 'matured'}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
