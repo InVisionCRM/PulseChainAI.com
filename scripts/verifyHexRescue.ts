@@ -23,7 +23,13 @@
  * any network call, and the key below is a throwaway that has never held funds.
  *
  * Exits non-zero on any failure, so it doubles as a CI smoke test.
+ *
+ * Loads .env / .env.local via Next's own loader first — see the note in
+ * scripts/hexRescue.ts for why a bare tsx script needs this explicitly.
  */
+
+import { loadEnvConfig } from '@next/env';
+loadEnvConfig(process.cwd());
 
 import { signAndSend, loadKeeper } from '@/lib/hex/rescueWallet';
 import { HEX_ADDRESS } from '@/lib/hex/hexDay';
