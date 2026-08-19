@@ -14,7 +14,8 @@
 // spike flattens every other bar on a linear axis, so there's a log toggle,
 // and the released strip (which reads the same either way) carries the shape.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import CountUp from './CountUp';
 import {
   Area, AreaChart, Bar, CartesianGrid, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
@@ -420,30 +421,6 @@ function Indexing({ state, onRetry }: { state: IndexingState; onRetry: () => voi
       </button>
     </div>
   );
-}
-
-/** Eases a number from 0 to its real value on mount; honors reduced-motion. */
-function CountUp({ value, format }: { value: number; format: (n: number) => string }) {
-  const [shown, setShown] = useState(0);
-  const target = useRef(value);
-  target.current = value;
-  useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setShown(target.current);
-      return;
-    }
-    let raf = 0;
-    const start = performance.now();
-    const dur = 900;
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - start) / dur);
-      setShown(target.current * (1 - Math.pow(1 - p, 3)));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [value]);
-  return <>{format(shown)}</>;
 }
 
 function Stat({ label, value, countTo, format, sub, hex, delay = 0 }: {

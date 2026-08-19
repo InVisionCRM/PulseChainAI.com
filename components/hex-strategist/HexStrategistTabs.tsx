@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { IconBolt, IconRadar2, IconTrophy, IconShieldBolt, IconChartHistogram } from '@tabler/icons-react';
+import { IconBolt, IconRadar2, IconTrophy, IconShieldBolt, IconChartHistogram, IconActivity } from '@tabler/icons-react';
 import type { Network, RatesSource } from '@/lib/hex/strategistData';
 import EntryLoader, { type LoadPhase } from '@/components/EntryLoader';
 // Macro is the landing tab — import it directly so it renders immediately with
@@ -21,11 +21,13 @@ const HexStrategist = dynamic(() => import('./HexStrategist'), { loading: TabSke
 const WhaleRadar = dynamic(() => import('./WhaleRadar'), { loading: TabSkeleton, ssr: false });
 const TopHundred = dynamic(() => import('./TopHundred'), { loading: TabSkeleton, ssr: false });
 const StakerLeagues = dynamic(() => import('./StakerLeagues'), { loading: TabSkeleton, ssr: false });
+const StakingPulse = dynamic(() => import('./StakingPulse'), { loading: TabSkeleton, ssr: false });
 
-type Mode = 'macro' | 'designer' | 'radar' | 'leagues' | 'top100';
+type Mode = 'macro' | 'micro' | 'designer' | 'radar' | 'leagues' | 'top100';
 
 const SUBTITLE: Record<Mode, string> = {
   macro: 'Every locked stake on the chain, plotted by the day it comes due — and where the cliffs are.',
+  micro: 'The pulse — everything HEX staking did in the last 24 hours, 7 days, and 30 days.',
   designer: 'Design a stake — the math tells you the best length, not just the numbers.',
   radar: 'Whale radar — big stakes unlocking soon, who’s likely to sell, and how well that call backtests.',
   leagues: 'Staker leagues — every tier is a slice of the chain’s T-Shares. Find your rank, then see what it costs to climb.',
@@ -34,6 +36,7 @@ const SUBTITLE: Record<Mode, string> = {
 
 const TABS: { key: Mode; label: string; icon: React.ReactNode; active: string }[] = [
   { key: 'macro', label: 'Macro', icon: <IconChartHistogram className="h-3.5 w-3.5" />, active: 'text-sky-300' },
+  { key: 'micro', label: 'Micro', icon: <IconActivity className="h-3.5 w-3.5" />, active: 'text-emerald-300' },
   { key: 'designer', label: 'Designer', icon: <IconBolt className="h-3.5 w-3.5" />, active: 'text-orange-300' },
   { key: 'radar', label: 'Radar', icon: <IconRadar2 className="h-3.5 w-3.5" />, active: 'text-cyan-300' },
   { key: 'leagues', label: 'Leagues', icon: <IconShieldBolt className="h-3.5 w-3.5" />, active: 'text-rose-300' },
@@ -145,6 +148,8 @@ export default function HexStrategistTabs() {
         <ComingSoon />
       ) : mode === 'macro' ? (
         <StakeHorizon net={net} onSource={onSource} />
+      ) : mode === 'micro' ? (
+        <StakingPulse net={net} />
       ) : mode === 'designer' ? (
         <HexStrategist net={net} onSource={onSource} />
       ) : mode === 'radar' ? (
