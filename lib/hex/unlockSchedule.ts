@@ -1,8 +1,7 @@
 // The macro unlock schedule — when every locked HEX stake on the chain comes
-// due. Pure: the route sums stakes into per-day buckets, the browser rolls
-// those days up into whatever window the viewer picked.
-
-import type { LockedStake } from './lockedStakes';
+// due. Pure: Postgres sums the stakes into per-day buckets, this assembles them
+// into a schedule, and the browser rolls the days up into whatever window the
+// viewer picked.
 
 /** One HEX day's worth of maturing stakes. */
 export interface UnlockBucket {
@@ -31,77 +30,18 @@ export interface UnlockSchedule {
    */
   frozen: { hex: number; stakes: number };
   totals: { hex: number; tShares: number; stakes: number };
-  /** Share of the chain's real locked totals these buckets represent. */
+  /** These buckets against the chain's own locked totals — a reconciliation
+   *  check, and 100% once the index is complete. */
   coverage: { hexPct: number; tSharesPct: number };
-  /** Furthest-dated maturity in the sample. */
+  /** Furthest-dated maturity on the chain. */
   lastDay: number;
 }
 
-const HEARTS = 1e8;
-const TSHARE = 1e12;
-
 const empty = (day: number): UnlockBucket => ({ day, hex: 0, tShares: 0, stakes: 0 });
 
-// A good-accounted stake still holds its HEX but its shares have already gone
-// back to the network, so it counts toward what is due and not toward T-Shares.
-const add = (b: UnlockBucket, s: LockedStake) => {
-  b.hex += Number(s.stakedHearts) / HEARTS;
-  if (!s.goodAccounted) b.tShares += Number(s.stakeShares) / TSHARE;
-  b.stakes += 1;
-};
-
 /**
- * Sum locked stakes into one bucket per maturity day. `stakes` must already
- * have ended and good-accounted stakes removed.
- */
-export function buildSchedule(
-  stakes: LockedStake[],
-  currentDay: number,
-  network: { tShares: number; hexLocked: number },
-): UnlockSchedule {
-  const byDay = new Map<number, UnlockBucket>();
-  const overdue = empty(currentDay);
-  const totals = { hex: 0, tShares: 0, stakes: 0 };
-  const frozen = { hex: 0, stakes: 0 };
-
-  for (const s of stakes) {
-    if (s.goodAccounted) {
-      frozen.hex += Number(s.stakedHearts) / HEARTS;
-      frozen.stakes += 1;
-    }
-    const day = Number(s.endDay);
-    if (!Number.isFinite(day)) continue;
-    if (day < currentDay) {
-      add(overdue, s);
-    } else {
-      let b = byDay.get(day);
-      if (!b) byDay.set(day, (b = empty(day)));
-      add(b, s);
-    }
-    totals.hex += Number(s.stakedHearts) / HEARTS;
-    if (!s.goodAccounted) totals.tShares += Number(s.stakeShares) / TSHARE;
-    totals.stakes += 1;
-  }
-
-  const buckets = [...byDay.values()].sort((a, b) => a.day - b.day);
-  return {
-    currentDay,
-    buckets,
-    overdue,
-    frozen,
-    totals,
-    coverage: {
-      hexPct: network.hexLocked > 0 ? (totals.hex / network.hexLocked) * 100 : 0,
-      tSharesPct: network.tShares > 0 ? (totals.tShares / network.tShares) * 100 : 0,
-    },
-    lastDay: buckets.length ? buckets[buckets.length - 1].day : currentDay,
-  };
-}
-
-/**
- * Assemble a schedule from per-day buckets that were already summed elsewhere
- * (the Postgres mirror does the summing in SQL). Same shape and same overdue
- * split as `buildSchedule`, just starting a step later.
+ * Assemble a schedule from the per-day buckets Postgres has already summed,
+ * splitting off everything that is already past due.
  */
 export function scheduleFromBuckets(
   daily: UnlockBucket[],

@@ -24,8 +24,6 @@ import { fmtHex, fmtUsdShort, fmtHexDate, fmtDuration, hexDayToDate } from '@/li
 import { HexLogo } from '@/components/hex/HexAmount';
 
 interface ScheduleData {
-  /** 'mirror' = every locked stake on the chain; 'sample' = the largest 25,000. */
-  source?: 'mirror' | 'sample';
   currentDay: number;
   /** [day, hex, tShares, stakes] */
   buckets: [number, number, number, number][];
@@ -35,9 +33,14 @@ interface ScheduleData {
   network_totals: { hex: number; tShares: number };
   coverage: { hexPct: number; tSharesPct: number };
   lastDay: number;
-  stakesSampled: number;
-  cutoffTShares: number;
   note: string;
+}
+
+/** Sent while the stake index is still being built for the first time. */
+interface IndexingState {
+  progressPct: number;
+  stakesIndexed: number;
+  reason: string;
 }
 
 type Metric = 'hex' | 'tShares';
@@ -57,7 +60,8 @@ const shortDate = (day: number) =>
 
 export default function StakeHorizon({ net, onSource }: { net: Network; onSource?: RatesSourceReporter }) {
   const [data, setData] = useState<ScheduleData | null>(null);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [indexing, setIndexing] = useState<IndexingState | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'indexing' | 'error'>('loading');
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [rates, setRates] = useState<Rates | null>(null);
   const [reload, setReload] = useState(0);
@@ -71,14 +75,23 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
     setErrMsg(null);
     fetch(`/api/hex/unlock-schedule?network=${net}`)
       .then(async (r) => {
-        if (r.ok) return r.json();
         const j = await r.json().catch(() => null);
-        throw new Error(j?.error || `HTTP ${r.status}`);
+        // 503 with `indexing` is the first-run state, not a failure.
+        if (r.status === 503 && j?.indexing) {
+          return { indexing: j as IndexingState, data: null };
+        }
+        if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+        return { indexing: null, data: j as ScheduleData };
       })
-      .then((d: ScheduleData) => {
+      .then((res) => {
         if (!alive) return;
-        setData(d);
-        setStatus('ready');
+        if (res.indexing) {
+          setIndexing(res.indexing);
+          setStatus('indexing');
+        } else {
+          setData(res.data);
+          setStatus('ready');
+        }
       })
       .catch((e) => {
         if (!alive) return;
@@ -115,13 +128,13 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
     return (
       <div className="grid place-items-center py-20 text-center text-sm text-[var(--text-muted)]">
         <span className="inline-flex items-center gap-2">
-          <IconRefresh className="h-4 w-4 animate-spin" /> Mapping every locked stake on the chain…
-        </span>
-        <span className="mt-2 text-xs text-[var(--text-faint)]">
-          Reading 25,000 stakes and their end dates. This one takes a moment the first time.
+          <IconRefresh className="h-4 w-4 animate-spin" /> Reading the stake index…
         </span>
       </div>
     );
+  }
+  if (status === 'indexing' && indexing) {
+    return <Indexing state={indexing} onRetry={() => setReload((n) => n + 1)} />;
   }
   if (status === 'error' || !data) {
     return (
@@ -194,7 +207,13 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
           <span className="font-normal text-[10px] uppercase tracking-wider text-[var(--text-faint)]">
             per {GRAIN_LABEL[view.grain]}
           </span>
-          <Coverage data={data} />
+          <span
+            className="rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+            style={{ borderColor: 'rgba(52,211,153,0.4)', background: 'rgba(52,211,153,0.12)', color: '#6ee7b7' }}
+            title="Every locked stake on the chain, from the synced index."
+          >
+            all {data.totals.stakes.toLocaleString()} stakes
+          </span>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <Segmented
@@ -316,30 +335,35 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
 }
 
 /**
- * Says outright whether this is the whole chain or a sample of it. A macro
- * chart that is quietly 91% complete would be read as 100%, so the number goes
- * next to the title rather than in the footnote.
+ * The first run has to walk every stake the chain has ever opened, which takes
+ * about 45 minutes. Showing real progress beats a spinner that looks stuck —
+ * and there is no second data path to fall back to, by design: a live sample
+ * would quietly disagree with the index it is standing in for.
  */
-function Coverage({ data }: { data: ScheduleData }) {
-  const complete = data.source === 'mirror';
+function Indexing({ state, onRetry }: { state: IndexingState; onRetry: () => void }) {
   return (
-    <span
-      className="rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-      style={
-        complete
-          ? { borderColor: 'rgba(52,211,153,0.4)', background: 'rgba(52,211,153,0.12)', color: '#6ee7b7' }
-          : { borderColor: 'var(--line)', background: 'var(--surface-2)', color: 'var(--text-muted)' }
-      }
-      title={
-        complete
-          ? 'Every locked stake on the chain, from the synced mirror.'
-          : 'The largest 25,000 stakes, read live from the subgraph. The synced mirror covers all of them once its first fill completes.'
-      }
-    >
-      {complete
-        ? `all ${data.totals.stakes.toLocaleString()} stakes`
-        : `${data.coverage.hexPct.toFixed(0)}% of locked HEX`}
-    </span>
+    <div className="mx-auto max-w-md py-16 text-center">
+      <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+        <IconRefresh className="h-4 w-4 animate-spin text-orange-400" /> Building the stake index
+      </div>
+      <div className="mb-2 h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
+        <div
+          className="h-full rounded-full transition-[width] duration-700"
+          style={{
+            width: `${Math.max(2, state.progressPct)}%`,
+            background: 'linear-gradient(90deg,#ff9e00,#ff2e7e)',
+          }}
+        />
+      </div>
+      <div className="mb-3 flex items-center justify-between text-[11px] tabular-nums text-[var(--text-muted)]">
+        <span>{state.progressPct.toFixed(0)}%</span>
+        <span>{state.stakesIndexed.toLocaleString()} locked stakes so far</span>
+      </div>
+      <p className="text-xs leading-relaxed text-[var(--text-muted)]">{state.reason}</p>
+      <button onClick={onRetry} className="mt-3 text-xs text-[var(--text-faint)] underline hover:text-[var(--text)]">
+        check again
+      </button>
+    </div>
   );
 }
 

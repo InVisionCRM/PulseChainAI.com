@@ -201,7 +201,13 @@ export async function runStakeSync(net: Net, budgetMs = 45_000): Promise<SyncRep
 
     await saveSyncState(net, {
       phase, lastStakeId, lastEndTs, lastGaTs, ready, lockedStakes, completed, error: null,
-      ...(totals ? { networkTShares: totals.tShares, networkHex: totals.hexLocked } : {}),
+      ...(totals
+        ? {
+            networkTShares: totals.tShares,
+            networkHex: totals.hexLocked,
+            latestStakeId: totals.latestStakeId,
+          }
+        : {}),
     });
 
     return {

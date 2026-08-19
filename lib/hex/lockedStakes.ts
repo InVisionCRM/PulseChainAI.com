@@ -1,13 +1,11 @@
-// Fetching the chain's LOCKED HEX stakes out of the staking subgraph.
+// Subgraph reads that feed the locked-stake mirror.
 //
-// Shared by the two macro views that both need "the biggest stakes still
-// locked" — the staker leagues and the unlock schedule. The pagination here is
-// fiddly enough (skip caps, share cursors, dead-stake filtering) that having
-// two copies of it would be two places to get it subtly wrong.
+// Only the sync uses these. The macro views read the mirror in Postgres, never
+// the subgraph directly — there is no per-day or per-staker aggregate here, so
+// answering their questions live would mean summing hundreds of thousands of
+// individual stakes on every request.
 //
-// WHAT COUNTS AS LOCKED — AND THE TWO DIFFERENT ANSWERS
-// Ending a stake and good-accounting it are NOT the same event, and the
-// contract treats them differently:
+// ENDED vs GOOD-ACCOUNTED — the distinction everything downstream rests on:
 //
 //   ended          — principal withdrawn. Gone from stakeSharesTotal AND from
 //                    lockedHeartsTotal. Not locked by any measure.
@@ -17,18 +15,8 @@
 //
 // So a good-accounted stake holds no shares but still holds HEX that is due.
 // It is excluded from T-Share rankings and INCLUDED in the unlock schedule.
-// Measured on PulseChain, that is 17,276 stakes holding 40.3B HEX — 6.5% of
-// the chain's locked supply, and all of it already overdue. Dropping them
-// entirely (as an "unlocked means either event" rule would) hid exactly that
-// much from the macro chart.
-//
-// WHY IT IS A SAMPLE
-// There is no per-staker or per-day aggregate in the subgraph, so every figure
-// has to be summed from individual stakes — and there are hundreds of thousands
-// of locked stakes, far more than one request can page through. We therefore
-// take the largest N by shares, which is where essentially all of the value
-// sits: 25,000 stakes cover ~94% of the chain's live T-Shares and ~91% of its
-// locked HEX. Callers surface that coverage rather than implying completeness.
+// Measured on PulseChain, that is 17,275 stakes holding 40.3B HEX — 6.5% of
+// the chain's locked supply, and all of it already overdue.
 
 import { hexSubgraphQuery, type HexNet as Net } from './subgraph';
 
@@ -45,9 +33,6 @@ export interface LockedStake {
 export const STAKE_FIELDS = 'stakeId stakerAddr stakeShares stakedHearts endDay';
 
 const PAGE = 1000;
-/** graph-node refuses `skip` above 5000, so a batch is five pages. */
-const PAGES_PER_BATCH = 5;
-export const STAKES_PER_BATCH = PAGE * PAGES_PER_BATCH;
 const ID_CHUNK = 500;
 const CHUNK_CONCURRENCY = 8;
 
@@ -77,70 +62,6 @@ export async function query<T>(net: Net, q: string, tries = 3): Promise<T> {
     }
   }
   throw last instanceof Error ? last : new Error('HEX subgraph query failed');
-}
-
-/** The `batches * 5,000` largest stakes on the chain by shares, biggest first. */
-export async function largestStakes(net: Net, batches: number): Promise<LockedStake[]> {
-  const seen = new Map<string, LockedStake>();
-  let cursor: string | null = null;
-  for (let b = 0; b < batches; b++) {
-    // `_lte` (not `_lt`) so stakes tied on the boundary value aren't skipped;
-    // the map de-duplicates the boundary rows that come back twice.
-    const where = cursor ? `, where:{ stakeShares_lte: "${cursor}" }` : '';
-    // Annotated rather than inferred: `cursor` is reassigned from these rows at
-    // the end of the loop, so letting TypeScript infer the chain
-    // cursor -> where -> pages -> cursor makes it circular and it silently
-    // falls back to `any` for the whole batch.
-    const pages: LockedStake[][] = await Promise.all(
-      Array.from({ length: PAGES_PER_BATCH }, (_, i) =>
-        query<{ stakeStarts: LockedStake[] }>(
-          net,
-          `{ stakeStarts(orderBy: stakeShares, orderDirection: desc, first: ${PAGE}, skip: ${i * PAGE}${where}){ ${STAKE_FIELDS} } }`,
-        ).then((d) => d.stakeStarts ?? []),
-      ),
-    );
-    const flat = pages.flat();
-    const fresh = flat.filter((s) => !seen.has(String(s.stakeId)));
-    for (const s of flat) seen.set(String(s.stakeId), s);
-    // Exhausted the chain, or the batch brought nothing new — stop paging.
-    if (flat.length < STAKES_PER_BATCH || fresh.length === 0) break;
-    cursor = flat.reduce((min, s) => (BigInt(s.stakeShares) < BigInt(min) ? s.stakeShares : min), flat[0].stakeShares);
-  }
-  return [...seen.values()].sort((a, b) => (BigInt(b.stakeShares) > BigInt(a.stakeShares) ? 1 : -1));
-}
-
-/**
- * Every stake below `belowShares` belonging to one of `addresses` — the tail
- * that the size-ranked sample cuts off. Used to make a ranked staker's total
- * its real total.
- */
-export async function remainingStakesFor(
-  net: Net,
-  addresses: string[],
-  belowShares: string,
-  groupSize = 100,
-): Promise<LockedStake[]> {
-  const groups: string[][] = [];
-  for (let i = 0; i < addresses.length; i += groupSize) groups.push(addresses.slice(i, i + groupSize));
-  const sweep = async (group: string[]): Promise<LockedStake[]> => {
-    const list = group.map((a) => `"${a}"`).join(',');
-    const out: LockedStake[] = [];
-    let cursor = belowShares;
-    // Cursor-paged rather than skip-paged: a large group can hold well over
-    // 5000 small stakes, which is exactly where `skip` gives out.
-    for (let page = 0; page < 6; page++) {
-      const d = await query<{ stakeStarts: LockedStake[] }>(
-        net,
-        `{ stakeStarts(where:{ stakerAddr_in: [${list}], stakeShares_lt: "${cursor}" }, orderBy: stakeShares, orderDirection: desc, first: ${PAGE}){ ${STAKE_FIELDS} } }`,
-      );
-      const rows = d.stakeStarts ?? [];
-      out.push(...rows);
-      if (rows.length < PAGE) break;
-      cursor = rows[rows.length - 1].stakeShares;
-    }
-    return out;
-  };
-  return (await pooled(groups, 3, sweep)).flat();
 }
 
 export interface UnlockStatus {
@@ -181,46 +102,27 @@ export async function unlockStatus(net: Net, ids: string[]): Promise<UnlockStatu
   return { ended, goodAccounted };
 }
 
-export interface LockedSample {
-  /** Stakes still holding HEX — ended ones removed, good-accounted ones kept
-   *  and flagged (they hold no shares but their principal is still due). */
-  live: LockedStake[];
-  /** How many stakes were examined to find them. */
-  sampled: number;
-  /** Shares of the smallest stake looked at — the sample's floor. */
-  cutoffShares: string;
-}
-
-/** The largest locked stakes on the chain, with withdrawn ones already removed. */
-export async function fetchLockedStakes(net: Net, batches: number): Promise<LockedSample> {
-  const sample = await largestStakes(net, batches);
-  if (!sample.length) throw new Error('No stakes returned by the HEX subgraph');
-  const { ended, goodAccounted } = await unlockStatus(net, sample.map((s) => String(s.stakeId)));
-  return {
-    live: sample
-      .filter((s) => !ended.has(String(s.stakeId)))
-      .map((s) => (goodAccounted.has(String(s.stakeId)) ? { ...s, goodAccounted: true } : s)),
-    sampled: sample.length,
-    cutoffShares: sample[sample.length - 1].stakeShares,
-  };
-}
-
 export interface NetworkTotals {
   /** Live T-Shares across the whole chain. */
   tShares: number;
   /** HEX locked in stakes across the whole chain. */
   hexLocked: number;
+  /** Highest stakeId opened on chain — the denominator for fill progress. */
+  latestStakeId: number;
 }
 
 /** The chain's own locked totals, straight from the subgraph's globalInfo. */
 export async function networkTotals(net: Net): Promise<NetworkTotals> {
-  const d = await query<{ globalInfos: { stakeSharesTotal: string; lockedHeartsTotal: string }[] }>(
+  const d = await query<{
+    globalInfos: { stakeSharesTotal: string; lockedHeartsTotal: string; latestStakeId: string }[];
+  }>(
     net,
-    '{ globalInfos(first: 1, orderBy: timestamp, orderDirection: desc){ stakeSharesTotal lockedHeartsTotal } }',
+    '{ globalInfos(first: 1, orderBy: timestamp, orderDirection: desc){ stakeSharesTotal lockedHeartsTotal latestStakeId } }',
   );
   const g = d.globalInfos?.[0];
   return {
     tShares: Number(g?.stakeSharesTotal ?? 0) / 1e12,
     hexLocked: Number(g?.lockedHeartsTotal ?? 0) / 1e8,
+    latestStakeId: Number(g?.latestStakeId ?? 0),
   };
 }

@@ -16,8 +16,6 @@
 // excluded everywhere here — on-chain that is `unlockedDay !== 0`, and off-chain
 // it is a matching stakeEnd or stakeGoodAccounting event.
 
-import type { LockedStake } from './lockedStakes';
-
 export interface League {
   key: string;
   /** Ladder name. Index 0 is the top of the ladder. */
@@ -130,49 +128,4 @@ export interface LeagueRow {
   /** How many locked stakes the address is running. */
   stakes: number;
   leagueKey: string;
-}
-
-const TSHARE = 1e12;
-const HEARTS = 1e8;
-
-/**
- * Sum locked stakes per staker and rank them by T-Shares. Ended stakes must
- * already be gone; good-accounted ones are skipped here, because their shares
- * have been returned to the network even though their HEX is still locked.
- */
-export function rankStakers(stakes: LockedStake[], networkTShares: number, limit = 250): LeagueRow[] {
-  const totals = new Map<string, { t: number; hex: number; n: number }>();
-  for (const s of stakes) {
-    if (s.goodAccounted) continue;
-    const a = s.stakerAddr.toLowerCase();
-    const e = totals.get(a) ?? { t: 0, hex: 0, n: 0 };
-    e.t += Number(s.stakeShares) / TSHARE;
-    e.hex += Number(s.stakedHearts) / HEARTS;
-    e.n += 1;
-    totals.set(a, e);
-  }
-  return [...totals.entries()]
-    .sort((a, b) => b[1].t - a[1].t)
-    .slice(0, limit)
-    .map(([address, v], i) => ({
-      rank: i + 1,
-      address,
-      tShares: v.t,
-      sharePct: networkTShares > 0 ? (v.t / networkTShares) * 100 : 0,
-      principalHex: v.hex,
-      stakes: v.n,
-      leagueKey: leagueFor(v.t, networkTShares).key,
-    }));
-}
-
-/**
- * How many sampled stakers sit in each league, keyed by league. These are LOWER
- * BOUNDS, not censuses: the sample only reaches down to the largest N stakes on
- * the chain, so tiers near the bottom of the ladder are undercounted. The UI
- * labels them as such.
- */
-export function leaguePopulations(tShareTotals: number[], networkTShares: number): Record<string, number> {
-  const out: Record<string, number> = Object.fromEntries(LEAGUES.map((l) => [l.key, 0]));
-  for (const t of tShareTotals) out[leagueFor(t, networkTShares).key] += 1;
-  return out;
 }

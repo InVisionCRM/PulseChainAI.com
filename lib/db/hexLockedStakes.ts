@@ -24,8 +24,8 @@ import { sql } from './connection';
 
 export type Net = 'pulsechain' | 'ethereum';
 
-/** Whether a database is configured at all. Without one the callers fall back
- *  to sampling the subgraph live, so this is a normal state, not an error. */
+/** Whether a database is configured at all. Without one the macro views have
+ *  nothing to read and say so — they do not have a second data path. */
 export const dbAvailable = () => !!sql;
 
 const DDL = [
@@ -48,6 +48,9 @@ const DDL = [
      network         VARCHAR(16) PRIMARY KEY,
      phase           VARCHAR(16) NOT NULL DEFAULT 'fill',
      last_stake_id   BIGINT      NOT NULL DEFAULT 0,
+     -- Highest stakeId that exists on chain, so progress through the initial
+     -- fill is a real percentage rather than a spinner.
+     latest_stake_id BIGINT      NOT NULL DEFAULT 0,
      last_end_ts     BIGINT      NOT NULL DEFAULT 0,
      last_ga_ts      BIGINT      NOT NULL DEFAULT 0,
      ready           BOOLEAN     NOT NULL DEFAULT FALSE,
@@ -61,6 +64,7 @@ const DDL = [
   // CREATE TABLE IF NOT EXISTS is a no-op against a table that already exists,
   // so a deploy that adds a column would silently keep the old shape and fail
   // on first write. Every column is therefore also added idempotently.
+  `ALTER TABLE hex_sync_state ADD COLUMN IF NOT EXISTS latest_stake_id BIGINT NOT NULL DEFAULT 0`,
   `ALTER TABLE hex_sync_state ADD COLUMN IF NOT EXISTS last_end_ts BIGINT NOT NULL DEFAULT 0`,
   `ALTER TABLE hex_sync_state ADD COLUMN IF NOT EXISTS last_ga_ts BIGINT NOT NULL DEFAULT 0`,
   `ALTER TABLE hex_sync_state ADD COLUMN IF NOT EXISTS network_tshares NUMERIC(40,6)`,
@@ -83,7 +87,8 @@ export async function ensureSchema(): Promise<void> {
 /**
  * `fill` walks every stake ever opened and stores the ones still locked;
  * `live` is the cheap incremental steady state. `ready` flips true when the
- * fill completes, and readers fall back to the live subgraph sample until then.
+ * fill completes; until then readers report indexing progress rather than
+ * serving a partial chain.
  */
 export type SyncPhase = 'fill' | 'live';
 
@@ -91,6 +96,7 @@ export interface SyncState {
   network: Net;
   phase: SyncPhase;
   lastStakeId: number;
+  latestStakeId: number;
   lastEndTs: number;
   lastGaTs: number;
   ready: boolean;
@@ -113,6 +119,7 @@ export async function getSyncState(net: Net): Promise<SyncState | null> {
     network: net,
     phase: (r.phase ?? 'fill') as SyncPhase,
     lastStakeId: num(r.last_stake_id),
+    latestStakeId: num(r.latest_stake_id),
     lastEndTs: num(r.last_end_ts),
     lastGaTs: num(r.last_ga_ts),
     ready: !!r.ready,
@@ -133,6 +140,7 @@ export async function initSyncState(net: Net): Promise<void> {
 export interface SyncStatePatch {
   phase?: SyncPhase;
   lastStakeId?: number;
+  latestStakeId?: number;
   lastEndTs?: number;
   lastGaTs?: number;
   ready?: boolean;
@@ -150,6 +158,7 @@ export async function saveSyncState(net: Net, p: SyncStatePatch): Promise<void> 
     UPDATE hex_sync_state SET
       phase           = COALESCE(${p.phase ?? null}, phase),
       last_stake_id   = COALESCE(${p.lastStakeId ?? null}, last_stake_id),
+      latest_stake_id = COALESCE(${p.latestStakeId ?? null}, latest_stake_id),
       last_end_ts     = COALESCE(${p.lastEndTs ?? null}, last_end_ts),
       last_ga_ts      = COALESCE(${p.lastGaTs ?? null}, last_ga_ts),
       ready           = COALESCE(${p.ready ?? null}, ready),

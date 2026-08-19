@@ -1,28 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { HexNet as Net } from '@/lib/hex/subgraph';
 import { currentHexDay } from '@/lib/hex/hexDay';
-import { fetchLockedStakes, networkTotals } from '@/lib/hex/lockedStakes';
-import { buildSchedule, scheduleFromBuckets, type UnlockBucket } from '@/lib/hex/unlockSchedule';
-import { getSyncState, readFrozen, readSchedule } from '@/lib/db/hexLockedStakes';
+import { scheduleFromBuckets, type UnlockBucket } from '@/lib/hex/unlockSchedule';
+import { dbAvailable, getSyncState, readFrozen, readSchedule } from '@/lib/db/hexLockedStakes';
 
 export const revalidate = 0;
-// Pages 25,000 stakes and filters them against the end/good-accounting tables.
-export const maxDuration = 60;
+export const maxDuration = 30;
 
-/** 5 × 5,000 stakes — ~94% of the chain's live T-Shares (see lockedStakes). */
-const SAMPLE_BATCHES = 5;
-
-/**
- * 'mirror' — every locked stake on the chain, out of the synced Postgres
- *            mirror. Complete, and fast.
- * 'sample' — the largest 25,000 stakes read live from the subgraph. Used until
- *            the mirror has finished its first fill, or if there is no database.
- */
-export type ScheduleSource = 'mirror' | 'sample';
+// Served entirely from the synced stake mirror — one data path, one set of
+// numbers. There is deliberately no live-subgraph fallback: the subgraph cannot
+// answer "how much matures on each day" without summing hundreds of thousands
+// of individual stakes, so any live path is a size-ranked sample that quietly
+// disagrees with the mirror. Two sets of figures for the same chart is worse
+// than one honest "still indexing" message.
 
 export interface UnlockScheduleResponse {
   network: Net;
-  source: ScheduleSource;
   currentDay: number;
   /** Per-day buckets as [day, hex, tShares, stakes] — compact on the wire,
    *  since a 15-year daily schedule is a few thousand of them. */
@@ -31,79 +24,62 @@ export interface UnlockScheduleResponse {
   /** The good-accounted slice of `overdue` — frozen, not bleeding. */
   frozen: { hex: number; stakes: number };
   totals: { hex: number; tShares: number; stakes: number };
-  /** The chain's real locked totals, for the coverage figure. */
+  /** The chain's own locked totals, for the reconciliation figure. */
   network_totals: { hex: number; tShares: number };
   coverage: { hexPct: number; tSharesPct: number };
   lastDay: number;
-  stakesSampled: number;
-  cutoffTShares: number;
   note: string;
+}
+
+/** Returned while the mirror is still building, so the UI can show progress. */
+export interface IndexingResponse {
+  indexing: true;
+  /** 0–100 through the initial fill. */
+  progressPct: number;
+  stakesIndexed: number;
+  reason: string;
 }
 
 const round = (n: number, dp = 2) => Number(n.toFixed(dp));
 
-/**
- * The complete schedule, straight out of the mirror. Returns null whenever the
- * mirror can't answer — no database, first fill still running, or it came back
- * empty — so the caller falls back to sampling rather than serving a short
- * schedule that would read as "the chain has fewer stakes than it does".
- */
-async function fromMirror(net: Net): Promise<UnlockScheduleResponse | null> {
-  const state = await getSyncState(net).catch(() => null);
-  if (!state?.ready) return null;
-  const [buckets, frozen] = await Promise.all([
-    readSchedule(net).catch(() => []),
-    readFrozen(net).catch(() => ({ hex: 0, stakes: 0 })),
-  ]);
-  if (!buckets.length) return null;
-
-  const totals = {
-    tShares: state.networkTShares ?? 0,
-    hexLocked: state.networkHex ?? 0,
-  };
-  const schedule = scheduleFromBuckets(buckets, currentHexDay(), totals, frozen);
-  return {
-    network: net,
-    source: 'mirror',
-    currentDay: schedule.currentDay,
-    buckets: schedule.buckets.map((b) => [b.day, round(b.hex), round(b.tShares, 3), b.stakes]),
-    overdue: schedule.overdue,
-    frozen: schedule.frozen,
-    totals: schedule.totals,
-    network_totals: { hex: totals.hexLocked, tShares: totals.tShares },
-    coverage: schedule.coverage,
-    lastDay: schedule.lastDay,
-    stakesSampled: schedule.totals.stakes,
-    cutoffTShares: 0,
-    note:
-      `Every locked stake on ${net} — ${schedule.totals.stakes.toLocaleString()} of them — from the ` +
-      'synced stake mirror, refreshed continuously. Ended and good-accounted stakes are excluded: ' +
-      'among stakes still dated in the future, roughly a fifth of the HEX has already been withdrawn early.',
-  };
-}
-
 export async function GET(req: NextRequest) {
   const net = (req.nextUrl.searchParams.get('network') === 'ethereum' ? 'ethereum' : 'pulsechain') as Net;
+
+  if (!dbAvailable()) {
+    return NextResponse.json<IndexingResponse>(
+      {
+        indexing: true,
+        progressPct: 0,
+        stakesIndexed: 0,
+        reason: 'The stake index is not configured yet (no DATABASE_URL).',
+      },
+      { status: 503 },
+    );
+  }
+
   try {
-    const mirrored = await fromMirror(net);
-    if (mirrored) {
-      return NextResponse.json(mirrored, {
-        // Cheap to rebuild from the mirror, so it can refresh far more often
-        // than the sampled path could afford to.
-        headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' },
-      });
+    const state = await getSyncState(net);
+    if (!state?.ready) {
+      const pct = state && state.latestStakeId > 0
+        ? Math.min(99, (state.lastStakeId / state.latestStakeId) * 100)
+        : 0;
+      return NextResponse.json<IndexingResponse>(
+        {
+          indexing: true,
+          progressPct: round(pct, 1),
+          stakesIndexed: state?.lockedStakes ?? 0,
+          reason: 'Indexing every stake on the chain. This runs once and takes about 45 minutes.',
+        },
+        { status: 503 },
+      );
     }
 
-    const [totals, sample] = await Promise.all([
-      networkTotals(net),
-      fetchLockedStakes(net, SAMPLE_BATCHES),
-    ]);
-    const schedule = buildSchedule(sample.live, currentHexDay(), totals);
-    const cutoffTShares = Number(sample.cutoffShares) / 1e12;
+    const [buckets, frozen] = await Promise.all([readSchedule(net), readFrozen(net)]);
+    const totals = { tShares: state.networkTShares ?? 0, hexLocked: state.networkHex ?? 0 };
+    const schedule = scheduleFromBuckets(buckets, currentHexDay(), totals, frozen);
 
     const body: UnlockScheduleResponse = {
       network: net,
-      source: 'sample',
       currentDay: schedule.currentDay,
       buckets: schedule.buckets.map((b) => [b.day, round(b.hex), round(b.tShares, 3), b.stakes]),
       overdue: schedule.overdue,
@@ -112,22 +88,18 @@ export async function GET(req: NextRequest) {
       network_totals: { hex: totals.hexLocked, tShares: totals.tShares },
       coverage: schedule.coverage,
       lastDay: schedule.lastDay,
-      stakesSampled: sample.sampled,
-      cutoffTShares,
       note:
-        `Built from the ${sample.sampled.toLocaleString()} largest stakes on ${net} ` +
-        `(down to ${cutoffTShares.toLocaleString(undefined, { maximumFractionDigits: 0 })} T-Shares each), ` +
-        `covering ${schedule.coverage.tSharesPct.toFixed(1)}% of the chain's live T-Shares and ` +
-        `${schedule.coverage.hexPct.toFixed(1)}% of its locked HEX. Ended and good-accounted stakes are ` +
-        'excluded — among stakes still dated in the future, roughly a fifth of the HEX has already been ' +
-        'withdrawn early. The remainder is a long tail of small stakes no single request can page through.',
+        `Every locked stake on ${net} — ${schedule.totals.stakes.toLocaleString()} of them — from the ` +
+        'synced stake index, refreshed every couple of minutes. Ended stakes are excluded; ' +
+        'good-accounted ones are included, because good-accounting returns the shares to the ' +
+        'network but leaves the HEX in the contract until someone ends the stake.',
     };
     return NextResponse.json(body, {
-      headers: { 'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=86400' },
+      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' },
     });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed to build the unlock schedule' },
+      { error: err instanceof Error ? err.message : 'Failed to read the unlock schedule' },
       { status: 500 },
     );
   }

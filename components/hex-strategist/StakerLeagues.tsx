@@ -30,17 +30,21 @@ import { usePortfolioStore } from '@/lib/stores/portfolioStore';
 import LeagueCrest from './LeagueCrest';
 
 interface LeaguesData {
-  /** 'mirror' = every locked stake on the chain; 'sample' = the largest ones. */
-  source?: 'mirror' | 'sample';
   networkTShares: number;
   rankedTShares: number;
   coveragePct: number;
-  cutoffTShares: number;
-  stakesSampled: number;
+  lockedStakes: number;
   stakersFound: number;
   rows: LeagueRow[];
   populations: Record<string, number>;
   note: string;
+}
+
+/** Sent while the stake index is still being built for the first time. */
+interface IndexingState {
+  progressPct: number;
+  stakesIndexed: number;
+  reason: string;
 }
 
 interface StandingStake {
@@ -94,7 +98,8 @@ const floorPctLabel = (league: League) => {
 
 export default function StakerLeagues({ net }: { net: Network }) {
   const [data, setData] = useState<LeaguesData | null>(null);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [indexing, setIndexing] = useState<IndexingState | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'indexing' | 'error'>('loading');
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [rates, setRates] = useState<Rates | null>(null);
   const [reload, setReload] = useState(0);
@@ -105,14 +110,23 @@ export default function StakerLeagues({ net }: { net: Network }) {
     setErrMsg(null);
     fetch(`/api/hex/leagues?network=${net}`)
       .then(async (r) => {
-        if (r.ok) return r.json();
         const j = await r.json().catch(() => null);
-        throw new Error(j?.error || `HTTP ${r.status}`);
+        // 503 with `indexing` is the first-run state, not a failure.
+        if (r.status === 503 && j?.indexing) {
+          return { indexing: j as IndexingState, data: null };
+        }
+        if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+        return { indexing: null, data: j as LeaguesData };
       })
-      .then((d: LeaguesData) => {
+      .then((res) => {
         if (!alive) return;
-        setData(d);
-        setStatus('ready');
+        if (res.indexing) {
+          setIndexing(res.indexing);
+          setStatus('indexing');
+        } else {
+          setData(res.data);
+          setStatus('ready');
+        }
       })
       .catch((e) => {
         if (!alive) return;
@@ -134,11 +148,34 @@ export default function StakerLeagues({ net }: { net: Network }) {
     return (
       <div className="grid place-items-center py-20 text-center text-sm text-[var(--text-muted)]">
         <span className="inline-flex items-center gap-2">
-          <IconRefresh className="h-4 w-4 animate-spin" /> Weighing every stake on the chain…
+          <IconRefresh className="h-4 w-4 animate-spin" /> Reading the stake index…
         </span>
-        <span className="mt-2 text-xs text-[var(--text-faint)]">
-          Ranking 15,000 stakes by T-Shares. This one takes a moment the first time.
-        </span>
+      </div>
+    );
+  }
+  if (status === 'indexing' && indexing) {
+    return (
+      <div className="mx-auto max-w-md py-16 text-center">
+        <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+          <IconRefresh className="h-4 w-4 animate-spin text-orange-400" /> Building the stake index
+        </div>
+        <div className="mb-2 h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
+          <div
+            className="h-full rounded-full transition-[width] duration-700"
+            style={{
+              width: `${Math.max(2, indexing.progressPct)}%`,
+              background: 'linear-gradient(90deg,#ff9e00,#ff2e7e)',
+            }}
+          />
+        </div>
+        <div className="mb-3 flex items-center justify-between text-[11px] tabular-nums text-[var(--text-muted)]">
+          <span>{indexing.progressPct.toFixed(0)}%</span>
+          <span>{indexing.stakesIndexed.toLocaleString()} locked stakes so far</span>
+        </div>
+        <p className="text-xs leading-relaxed text-[var(--text-muted)]">{indexing.reason}</p>
+        <button onClick={() => setReload((n) => n + 1)} className="mt-3 text-xs text-[var(--text-faint)] underline hover:text-[var(--text)]">
+          check again
+        </button>
       </div>
     );
   }
@@ -708,7 +745,7 @@ function Ladder({ data }: { data: LeaguesData }) {
               </div>
               <div className="w-16 shrink-0 text-right">
                 <div className="text-xs font-semibold tabular-nums text-[var(--text-muted)]">
-                  {pop > 0 ? `${data.source === 'mirror' ? '' : '≥'}${pop.toLocaleString()}` : '—'}
+                  {pop > 0 ? pop.toLocaleString() : '—'}
                 </div>
                 <div className="text-[10px] text-[var(--text-faint)]">stakers</div>
               </div>
@@ -717,9 +754,7 @@ function Ladder({ data }: { data: LeaguesData }) {
         })}
       </div>
       <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-faint)]">
-        {data.source === 'mirror'
-          ? 'Staker counts are exact — every locked stake on the chain is counted.'
-          : `Staker counts are lower bounds — the ranking reaches down to stakes of ${tsh(data.cutoffTShares)} T-Shares each, so the tiers near the bottom of the ladder hold more people than are listed.`}
+        Staker counts are exact — every locked stake on the chain is counted.
       </p>
     </div>
   );
@@ -744,9 +779,7 @@ function Board({ net, data, rates }: { net: Network; data: LeaguesData; rates: R
           <p className="text-xs text-[var(--text-muted)]">Every ranked staker, by locked T-Shares.</p>
         </div>
         <span className="shrink-0 text-[10px] uppercase tracking-wider text-[var(--text-faint)]">
-          {data.source === 'mirror'
-            ? `all ${data.stakersFound.toLocaleString()} stakers`
-            : `${data.coveragePct.toFixed(1)}% of the chain’s shares`}
+          all {data.stakersFound.toLocaleString()} stakers
         </span>
       </div>
 
