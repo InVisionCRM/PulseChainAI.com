@@ -102,3 +102,29 @@ export function defaultLengths(): number[] {
   set.add(HEX_MAX_STAKE_DAYS);
   return [...set].sort((a, b) => a - b);
 }
+
+/**
+ * Inverse of `projectedTShares`: the HEX principal a `stakedDays`-long stake
+ * needs in order to mint `targetTShares` at the current T-Share rate.
+ *
+ * Solved exactly rather than searched, because the contract's bonus algebra is
+ * a quadratic in principal — BPB scales with the principal itself:
+ *   effective = p·(1 + L + min(p, BPB_MAX)/BPB)   where L = cappedExtraDays/LPB
+ * Below the BPB cap that is `p²/BPB + p(1+L) − E = 0`; at or above the cap the
+ * BPB term is the constant 0.1 and it collapses to a straight division.
+ */
+export function hexForTShares(
+  targetTShares: number,
+  stakedDays: number,
+  tShareRateHex: number,
+): number {
+  if (!(targetTShares > 0) || !(tShareRateHex > 0) || !(stakedDays > 0)) return 0;
+  const effective = targetTShares * tShareRateHex; // bonus-weighted HEX required
+  const cappedExtraDays = stakedDays > 1 ? Math.min(stakedDays - 1, LPB_MAX_BONUS_DAYS) : 0;
+  const l = 1 + cappedExtraDays / LPB;
+  // Root of p²/BPB + p·l − effective = 0, valid while p stays under the BPB cap.
+  const p = (BPB / 2) * (Math.sqrt(l * l + (4 * effective) / BPB) - l);
+  if (p <= BPB_MAX_HEX) return p;
+  // Past the cap the bonus stops growing with size: effective = p·(l + 0.1).
+  return effective / (l + BPB_MAX_HEX / BPB);
+}

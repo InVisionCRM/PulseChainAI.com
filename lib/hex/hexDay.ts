@@ -114,6 +114,10 @@ export const fmtHexDate = (day: number) => hexDayToDate(day).toLocaleDateString(
 export function fmtUsdShort(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return '—';
   const a = Math.abs(n);
+  // Chain-wide figures run into the billions — without these the whole locked
+  // supply reads as "$1796.95M".
+  if (a >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
+  if (a >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
   if (a >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
   if (a >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
   return `$${n.toFixed(2)}`;

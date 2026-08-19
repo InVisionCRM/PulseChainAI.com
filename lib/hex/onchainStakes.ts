@@ -43,29 +43,46 @@ export interface OnChainStake {
   index: number;
   stakeId: string;
   principalHex: number;
+  /** T-Shares the stake minted. Still counts toward the network's live share
+   *  total ONLY while `unlockedDay` is 0 — ending or good-accounting removes it. */
+  tShares: number;
   lockedDay: number;
   stakedDays: number;
+  /** The HEX day the stake matures (`lockedDay + stakedDays`). */
+  endDay: number;
   /** 0 while locked/active; non-zero once good-accounting (or end) set it. */
   unlockedDay: number;
   isAutoStake: boolean;
 }
 
+/** How many stakeList reads to have in flight at once. A laddered staker can
+ *  hold dozens of stakes, and one round trip each in series is a visible wait. */
+const READ_CONCURRENCY = 10;
+
 /** Read every stake currently in a staker's on-chain stakeList. */
 export async function fetchOnChainStakes(net: HexNet, stakerAddr: string): Promise<OnChainStake[]> {
   const count = Number(BigInt(await ethCall(net, SEL_STAKE_COUNT + addrArg(stakerAddr))));
-  const stakes: OnChainStake[] = [];
-  for (let i = 0; i < count; i++) {
+  const readOne = async (i: number): Promise<OnChainStake> => {
     const r = (await ethCall(net, SEL_STAKE_LISTS + addrArg(stakerAddr) + uintArg(i))).replace(/^0x/, '');
     const word = (k: number) => r.slice(k * 64, k * 64 + 64);
-    stakes.push({
+    const lockedDay = Number(BigInt('0x' + word(3)));
+    const stakedDays = Number(BigInt('0x' + word(4)));
+    return {
       index: i,
       stakeId: BigInt('0x' + word(0)).toString(),
       principalHex: Number(BigInt('0x' + word(1))) / 1e8,
-      lockedDay: Number(BigInt('0x' + word(3))),
-      stakedDays: Number(BigInt('0x' + word(4))),
+      tShares: Number(BigInt('0x' + word(2))) / 1e12,
+      lockedDay,
+      stakedDays,
+      endDay: lockedDay + stakedDays,
       unlockedDay: Number(BigInt('0x' + word(5))),
       isAutoStake: BigInt('0x' + word(6)) !== 0n,
-    });
+    };
+  };
+  const stakes: OnChainStake[] = [];
+  for (let i = 0; i < count; i += READ_CONCURRENCY) {
+    const batch = Array.from({ length: Math.min(READ_CONCURRENCY, count - i) }, (_, k) => i + k);
+    stakes.push(...(await Promise.all(batch.map(readOne))));
   }
   return stakes;
 }
