@@ -16,7 +16,17 @@
  * Dry run is the default and --execute is the only way past it, because the
  * first thing anyone should do with a keeper is watch a full day's worth of
  * what it intends to do before it is ever allowed to sign anything.
+ *
+ * Loads .env / .env.local itself, via Next's own loader. Next.js reads those
+ * files automatically for `next dev` / `next build` / API routes, but that is
+ * a Next.js convenience, not a Node one — a plain `tsx` invocation like this
+ * script never sees them, so HEX_RESCUE_PRIVATE_KEY would read as unset even
+ * sitting right there in .env.local. Using Next's own loadEnvConfig (rather
+ * than hand-rolling a parser or adding a dotenv dependency) keeps the same
+ * file precedence Next.js uses everywhere else in this repo.
  */
+import { loadEnvConfig } from '@next/env';
+loadEnvConfig(process.cwd());
 
 import {
   findRescueCandidates,
