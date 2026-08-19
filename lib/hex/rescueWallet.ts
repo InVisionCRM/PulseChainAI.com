@@ -68,6 +68,33 @@ const MAX_FEE_MULTIPLE = 3n;
  *  float, not a fine-tuned bid. */
 const MAX_FEE_PER_GAS_WEI = 10_000_000_000_000_000n; // 10,000,000 gwei
 
+/**
+ * Replacing a stuck nonce is a different, harder problem than sending a new one,
+ * and getting it wrong is what "replacement transaction underpriced" means.
+ *
+ * A node only accepts a replacement if it beats the transaction already sitting
+ * at that nonce on BOTH fee fields by ~10%. The catch is that the stuck ones
+ * here are legacy (type 0), and a legacy transaction's single `gasPrice` counts
+ * as its fee cap AND its priority fee. Measured on the real stuck queue: the
+ * transaction at nonce 21 was priced at 891,078 gwei, so a replacement had to
+ * offer a TIP above 891,078 gwei — while a normal type-2 send tips 0.097 gwei,
+ * which is what the pool suggests and is nine million times too small. The cap
+ * was fine; the tip was the whole problem.
+ *
+ * So a replacement bids its tip EQUAL to its cap. That beats any legacy
+ * predecessor priced below the cap on both fields at once, without needing to
+ * know what the predecessor actually paid — which cannot be discovered here
+ * anyway: Blockscout only lists mined transactions, and `txpool_content` is
+ * disabled on the public pool (both checked).
+ *
+ * Because tip == cap, a replacement really does pay the full cap rather than
+ * base fee, so it costs the multiple below rather than ~1x. That is the price
+ * of getting unstuck, it applies only to replacements, and it is cents.
+ */
+const REPLACE_FEE_MULTIPLE = 4n;
+/** Each retry doubles the bid; bounded, and still under the circuit breaker. */
+const REPLACE_ATTEMPTS = 4;
+
 export interface KeeperWallet {
   address: string;
   privateKey: string;
@@ -113,8 +140,14 @@ export async function signAndSend(args: {
   nonce: number;
   /** Multiplier applied to the estimate, as a percentage. 120 = +20% headroom. */
   gasBufferPct?: number;
+  /**
+   * True when this nonce already has an unconfirmed transaction on it. Changes
+   * how the bid is built — see REPLACE_FEE_MULTIPLE. Callers get this from
+   * `checkNonce`: any nonce below `pending` is a replacement.
+   */
+  replacing?: boolean;
 }): Promise<SendOutcome> {
-  const { keeper, chain, to, data, nonce, gasBufferPct = 120 } = args;
+  const { keeper, chain, to, data, nonce, gasBufferPct = 120, replacing = false } = args;
 
   // --- the security boundary: this key signs exactly one kind of call -------
   if (to.toLowerCase() !== HEX_ADDRESS.toLowerCase()) {
@@ -150,8 +183,16 @@ export async function signAndSend(args: {
   let txType: 0 | 2;
 
   if (baseFee != null) {
-    maxFeePerGas = baseFee * MAX_FEE_MULTIPLE + priorityFee;
-    maxPriorityFeePerGas = priorityFee;
+    if (replacing) {
+      // Tip == cap, so the bid beats a legacy predecessor on both fee fields at
+      // once. See REPLACE_FEE_MULTIPLE for why the tip is the field that
+      // actually matters here.
+      maxFeePerGas = baseFee * REPLACE_FEE_MULTIPLE;
+      maxPriorityFeePerGas = maxFeePerGas;
+    } else {
+      maxFeePerGas = baseFee * MAX_FEE_MULTIPLE + priorityFee;
+      maxPriorityFeePerGas = priorityFee;
+    }
     txType = 2;
   } else {
     // No baseFeePerGas on this chain's blocks — not EIP-1559. Fall back to a
@@ -163,9 +204,8 @@ export async function signAndSend(args: {
     txType = 0;
   }
 
-  if (maxFeePerGas > MAX_FEE_PER_GAS_WEI) {
-    return { status: 'skipped', reason: `fee cap ${maxFeePerGas} above the circuit breaker` };
-  }
+  // The circuit breaker is checked inside the bid loop below rather than here,
+  // so it also catches a raised bid rather than only the opening one.
 
   const tx: UnsignedTransaction =
     txType === 2
@@ -190,13 +230,44 @@ export async function signAndSend(args: {
           chainId: CHAIN_IDS[chain as 'pulsechain' | 'ethereum'],
         };
 
-  const signature = new SigningKey(keeper.privateKey).signDigest(keccak256(serialize(tx)));
-  const signed = serialize(tx, signature);
+  // Sign and send, raising the bid if the node says it is not enough.
+  //
+  // The retry exists because what a replacement must beat cannot be read from
+  // anywhere: the stuck transaction's price is not in Blockscout (it lists only
+  // mined ones) and `txpool_content` is disabled on the public pool. Rather
+  // than guess, this discovers the threshold empirically — bid, and if the node
+  // rejects it as underpriced, double and try again. Bounded, and every attempt
+  // still passes under the circuit breaker.
+  //
+  // Only replacements retry. A brand-new nonce has nothing to outbid, so an
+  // "underpriced" answer there is about the base fee rather than a predecessor,
+  // and doubling would just overpay.
+  const attempts = replacing ? REPLACE_ATTEMPTS : 1;
+  let lastError = 'not sent';
 
-  const res = await sendRawTransaction(chain, signed);
-  if ('hash' in res) return { status: 'sent', hash: res.hash, gasLimit };
-  if ('settled' in res) return { status: 'settled', reason: res.reason };
-  return { status: 'failed', reason: res.error };
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (maxFeePerGas > MAX_FEE_PER_GAS_WEI) {
+      return { status: 'skipped', reason: `fee cap ${maxFeePerGas} above the circuit breaker` };
+    }
+
+    const bid: UnsignedTransaction =
+      txType === 2
+        ? { ...tx, maxFeePerGas, maxPriorityFeePerGas }
+        : { ...tx, gasPrice: maxFeePerGas };
+
+    const signature = new SigningKey(keeper.privateKey).signDigest(keccak256(serialize(bid)));
+    const res = await sendRawTransaction(chain, serialize(bid, signature));
+
+    if ('hash' in res) return { status: 'sent', hash: res.hash, gasLimit };
+    if ('settled' in res) return { status: 'settled', reason: res.reason };
+
+    lastError = res.error;
+    if (!/underpriced|fee too low|replacement/i.test(res.error)) break; // not a pricing problem
+    maxFeePerGas *= 2n;
+    if (txType === 2) maxPriorityFeePerGas = maxFeePerGas;
+  }
+
+  return { status: 'failed', reason: lastError };
 }
 
 /** Next usable nonce, counting anything already sitting in the mempool. */

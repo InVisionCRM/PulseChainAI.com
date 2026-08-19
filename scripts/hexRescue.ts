@@ -94,6 +94,7 @@ async function main() {
   console.log(`   base fee: ${displayPrice ? fmt(Number(displayPrice) / 1e9) + ' gwei' : 'unknown'}\n`);
 
   let nonce: number | null = null;
+  let pendingNonce = 0;
   if (EXECUTE && keeper) {
     const status = await checkNonce('pulsechain', keeper.address);
     if (!status) {
@@ -108,6 +109,7 @@ async function main() {
       );
     }
     nonce = status.mined; // always resume from mined, not pending — see file header
+    pendingNonce = status.pending;
   }
 
   const candidates = await findRescueCandidates('pulsechain', {
@@ -160,6 +162,9 @@ async function main() {
       to: HEX_ADDRESS,
       data,
       nonce: nonce!,
+      // Any nonce below the pending count already has an unconfirmed
+      // transaction sitting on it, so this send has to outbid it.
+      replacing: nonce! < pendingNonce,
     });
 
     if (out.status === 'sent') {
