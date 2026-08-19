@@ -1,8 +1,9 @@
 'use client';
 
 // The Macro tab's share button. The unlock schedule and rates ride in from the
-// tab; the pulse payload (24h/30d activity) is fetched once, the first time a
-// card that needs it is opened — the modal shows its busy strip until it lands.
+// tab; the pulse (24h/30d activity) and leagues (census + board) payloads are
+// each fetched once, the first time a card that needs them is opened — the
+// modal shows its busy strip until the payload lands, then repaints.
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { IconShare2 } from '@tabler/icons-react';
@@ -28,22 +29,24 @@ export interface StrategistShareProps {
 export default function StrategistShareCards({ net, schedule, rates }: StrategistShareProps) {
   const [open, setOpen] = useState(false);
   const [pulse, setPulse] = useState<StrategistShareData['pulse']>(null);
-  const [pulseBusy, setPulseBusy] = useState(false);
-  const fetched = useRef(false);
+  const [leagues, setLeagues] = useState<StrategistShareData['leagues']>(null);
+  const [busySources, setBusySources] = useState<Record<string, boolean>>({});
+  const fetched = useRef<Record<string, boolean>>({});
   const [selected, setSelected] = useState<string>(CARDS[0].id);
 
   const onSelect = useCallback(
     (id: string) => {
       setSelected(id);
-      const kind = CARDS.find((k) => k.id === id);
-      if (!kind?.needsPulse || fetched.current) return;
-      fetched.current = true;
-      setPulseBusy(true);
-      fetch(`/api/hex/pulse?network=${net}`)
+      const source = CARDS.find((k) => k.id === id)?.source;
+      if (!source || fetched.current[source]) return;
+      fetched.current[source] = true;
+      setBusySources((b) => ({ ...b, [source]: true }));
+      const url = source === 'pulse' ? `/api/hex/pulse?network=${net}` : `/api/hex/leagues?network=${net}`;
+      fetch(url)
         .then((r) => (r.ok ? r.json() : null))
-        .then((j) => setPulse(j ?? null))
-        .catch(() => setPulse(null))
-        .finally(() => setPulseBusy(false));
+        .then((j) => (source === 'pulse' ? setPulse(j ?? null) : setLeagues(j ?? null)))
+        .catch(() => (source === 'pulse' ? setPulse(null) : setLeagues(null)))
+        .finally(() => setBusySources((b) => ({ ...b, [source]: false })));
     },
     [net],
   );
@@ -60,9 +63,13 @@ export default function StrategistShareCards({ net, schedule, rates }: Strategis
       overdue: { hex: schedule.overdue.hex, stakes: schedule.overdue.stakes },
       frozenHex: schedule.frozen?.hex ?? 0,
       priceUsd: rates?.priceUsd ?? null,
+      tShareRateHex: rates?.tShareRateHex ?? null,
+      tSharePriceUsd: rates?.tSharePriceUsd ?? null,
+      dailyPayoutPerTShare: rates?.dailyPayoutPerTShare ?? null,
       pulse,
+      leagues,
     }),
-    [net, schedule, rates, pulse],
+    [net, schedule, rates, pulse, leagues],
   );
 
   const draw = useCallback(
@@ -72,7 +79,8 @@ export default function StrategistShareCards({ net, schedule, rates }: Strategis
     [data],
   );
 
-  const busy = pulseBusy && !!CARDS.find((k) => k.id === selected)?.needsPulse;
+  const selectedSource = CARDS.find((k) => k.id === selected)?.source;
+  const busy = !!selectedSource && !!busySources[selectedSource];
 
   return (
     <>
@@ -93,6 +101,7 @@ export default function StrategistShareCards({ net, schedule, rates }: Strategis
           groups={[
             { key: 'macro', label: 'The macro' },
             { key: 'pulse', label: 'The pulse' },
+            { key: 'leagues', label: 'The leagues' },
           ]}
           draw={draw}
           drawKey={data}
