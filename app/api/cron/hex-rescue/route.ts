@@ -61,11 +61,13 @@ export async function GET(request: NextRequest) {
     });
 
     let nonce: number | null = null;
+    let pendingNonce = 0;
     let stuckFromPriorRun = 0;
     if (keeper) {
       const status = await checkNonce('pulsechain', keeper.address);
       if (!status) return NextResponse.json({ error: 'could not read keeper nonce' }, { status: 503 });
       nonce = status.mined; // always resume from mined, not pending — see header
+      pendingNonce = status.pending;
       stuckFromPriorRun = status.stuck;
     }
 
@@ -96,7 +98,12 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      const out = await signAndSend({ keeper: keeper!, chain: 'pulsechain', to: HEX_ADDRESS, data, nonce: nonce! });
+      const out = await signAndSend({
+        keeper: keeper!, chain: 'pulsechain', to: HEX_ADDRESS, data, nonce: nonce!,
+        // Below the pending count means something unconfirmed is already on
+        // this nonce and has to be outbid.
+        replacing: nonce! < pendingNonce,
+      });
       if (out.status === 'sent') {
         nonce!++;
         totalGas += out.gasLimit;
