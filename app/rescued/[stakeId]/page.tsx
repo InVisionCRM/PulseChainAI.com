@@ -88,7 +88,7 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
             </div>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <Stat label="Claimable now" value={`${hex(rescue.claimableHex)} HEX`} tone="good" hex />
+              <Stat label="Claimable now" value={`${hex(rescue.claimableHex)} HEX`} tone="good" />
               <Stat
                 label="Was losing"
                 value={rescue.bleedPerDay != null ? `${hex(rescue.bleedPerDay)} HEX/day` : '—'}
@@ -210,26 +210,32 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
   );
 }
 
+/**
+ * The same metric shape the portfolio's HEX summary and the Rescue Wall use.
+ *
+ * Was a chunkier card with its own type scale, which made this page read as a
+ * separate product from the rest of the HEX surfaces. 10px uppercase label over
+ * a tabular figure is the house style; matching it is the polish.
+ */
 function Stat({
   label,
   value,
   sub,
   tone,
-  hex: showHex,
 }: {
   label: string;
   value: string;
   sub?: string;
   tone?: 'good' | 'warn';
-  hex?: boolean;
 }) {
-  const color = tone === 'good' ? 'text-emerald-400' : tone === 'warn' ? 'text-amber-400' : 'text-[var(--text)]';
+  const color = tone === 'good' ? 'text-emerald-400' : tone === 'warn' ? 'text-red-400' : 'text-[var(--text)]';
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3.5">
-      {showHex && <HexWatermark className="-bottom-6 -right-5" size="h-24 w-24" opacity="opacity-[0.07]" />}
-      <div className="relative text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
-      <div className={`relative mt-1 text-lg font-bold tabular-nums ${color}`}>{value}</div>
-      {sub && <div className="relative text-[11px] text-[var(--text-faint)]">{sub}</div>}
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2">
+      <div className="truncate text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
+        {label}
+      </div>
+      <div className={`mt-0.5 text-sm font-semibold tabular-nums ${color}`}>{value}</div>
+      {sub && <div className="text-[10px] tabular-nums text-[var(--text-faint)]">{sub}</div>}
     </div>
   );
 }

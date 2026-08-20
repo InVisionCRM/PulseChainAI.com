@@ -23,12 +23,13 @@ import {
   latePenaltyStatus, LATE_PENALTY_GRACE_DAYS, LATE_PENALTY_SCALE_DAYS,
   HEX_LAUNCH_TS,
 } from '@/lib/hex/hexDay';
-import { HexAmount, HexUnit } from '@/components/hex/HexAmount';
+import { HexAmount, HexUnit, HEX_GRADIENT } from '@/components/hex/HexAmount';
 import { pulsechainTxUrl, pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
+import { RescueBanner } from '@/components/rescue/RescueBanner';
 
 // HEX brand gradient — used ONLY on the locked-stake progress bar now; amounts
 // use the portfolio's standard text tokens for a calmer, consistent look.
-const HEX_GRADIENT = 'linear-gradient(135deg, #ff9e00 0%, #ff2e7e 52%, #ff00d4 100%)';
+
 
 /** Whole HEX day for a unix-seconds timestamp (matches the contract's epoch). */
 const tsToHexDay = (ts: string | number) => Math.floor((Number(ts) - HEX_LAUNCH_TS) / 86400);
@@ -138,6 +139,11 @@ export function HexStakes({ address, hexUsd, payoutPerTShare }: Props) {
 
   return (
     <div className="space-y-3">
+      {/* The rescue initiative. Placed here rather than on a marketing page
+          because this is where someone is already looking at HEX stakes — and
+          where a matured one of their own is most likely to be on screen. */}
+      <RescueBanner />
+
       {/* Summary strip */}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
         <Metric label="Staked" value={fmtHex(view.activePrincipal)} sub={view.usd(view.activePrincipal) != null ? fmtUsdShort(view.usd(view.activePrincipal)) : <HexUnit className="text-[var(--text-faint)]" />} />
