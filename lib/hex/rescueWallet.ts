@@ -207,7 +207,15 @@ export function loadKeeper(): KeeperWallet | null {
 }
 
 export type SendOutcome =
-  | { status: 'sent'; hash: string; gasLimit: bigint }
+  | {
+      status: 'sent';
+      hash: string;
+      gasLimit: bigint;
+      /** How many endpoints took it, of how many tried. One-of-many is the
+       *  shape that wedged the keeper — see sendRawTransaction. */
+      accepted?: number;
+      tried?: number;
+    }
   | { status: 'settled'; reason: string }
   | { status: 'skipped'; reason: string }
   | { status: 'failed'; reason: string };
@@ -388,7 +396,7 @@ export async function signAndSend(args: {
     const signature = new SigningKey(keeper.privateKey).signDigest(keccak256(serialize(bid)));
     const res = await sendRawTransaction(chain, serialize(bid, signature));
 
-    if ('hash' in res) return { status: 'sent', hash: res.hash, gasLimit };
+    if ('hash' in res) return { status: 'sent', hash: res.hash, gasLimit, accepted: res.accepted, tried: res.tried };
     if ('settled' in res) return { status: 'settled', reason: res.reason };
 
     lastError = res.error;
@@ -479,7 +487,9 @@ export async function signAndCancel(args: {
     const signature = new SigningKey(keeper.privateKey).signDigest(keccak256(serialize(bid)));
     const res = await sendRawTransaction(chain, serialize(bid, signature));
 
-    if ('hash' in res) return { status: 'sent', hash: res.hash, gasLimit: CANCEL_GAS };
+    if ('hash' in res) {
+      return { status: 'sent', hash: res.hash, gasLimit: CANCEL_GAS, accepted: res.accepted, tried: res.tried };
+    }
     if ('settled' in res) return { status: 'settled', reason: res.reason };
 
     lastError = res.error;

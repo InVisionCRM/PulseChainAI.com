@@ -165,6 +165,31 @@ async function main() {
     ? pass('a normal send is charged base + tip, and the rest of the cap is headroom')
     : fail('effectivePrice mispriced an ordinary send');
 
+  console.log('\nBroadcast:');
+  {
+    // The load-bearing fix: a transaction only one node holds is invisible to
+    // validators. Counting the ATTEMPTS rather than the acceptances keeps this
+    // honest offline — the payload is nonsense, so every node rejects it, and
+    // nothing is ever sent.
+    const { RPC_URLS, sendRawTransaction } = await import('@/lib/portfolio/evmRpc');
+    const urls = RPC_URLS.pulsechain ?? [];
+    const hit = new Set<string>();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = ((input: unknown, init?: { body?: unknown }) => {
+      const url = typeof input === 'string' ? input : (input as { url?: string })?.url;
+      if (init?.body && String(init.body).includes('eth_sendRawTransaction')) hit.add(String(url));
+      return realFetch(input as RequestInfo, init as RequestInit);
+    }) as typeof fetch;
+    try {
+      await sendRawTransaction('pulsechain', `0x02f8${'00'.repeat(40)}`);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+    hit.size === urls.length && urls.length > 1
+      ? pass(`a broadcast reaches every endpoint (${hit.size} of ${urls.length}), not just the first`)
+      : fail(`a broadcast reached ${hit.size} of ${urls.length} endpoints`);
+  }
+
   console.log('\nCancel path:');
   const cancelBadChain = await signAndCancel({
     keeper: { address: '0x0000000000000000000000000000000000000001', privateKey: `0x${'11'.repeat(32)}` },

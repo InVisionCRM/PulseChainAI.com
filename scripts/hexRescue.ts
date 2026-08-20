@@ -66,6 +66,15 @@ const EXECUTE = has('--execute');
 // replaced with a 21,000-gas transaction that does nothing. Nonces are strictly
 // ordered, so one stuck transaction blocks every rescue behind it.
 const CANCEL_STUCK = has('--cancel-stuck');
+/**
+ * How many transactions one run will leave unconfirmed at once.
+ *
+ * Deliberately under geth's default per-account allowance of 16: a node accepts
+ * a burst from its own client but its peers do not, so anything past that is
+ * quietly not relayed and cannot mine at any price. 81 in flight is how this
+ * keeper wedged itself.
+ */
+const MAX_IN_FLIGHT = 12;
 const LIMIT = Number(arg('--limit') ?? 25);
 const MIN_DAYS = Number(arg('--min-days') ?? 1);
 // Precedence: --min-hex flag (this run only) > HEX_RESCUE_MIN_HEX (everywhere,
@@ -137,7 +146,7 @@ async function cancelStuck(
       // 21,000 gas at whatever it took to outbid the predecessor.
       const paid = prev ? (Number(prev.cap) * 1.125 * 21_000) / 1e18 : 0;
       spentPls += paid;
-      console.log(`  ✅ ${label} — ${out.hash}`);
+      console.log(`  ✅ ${label} — ${out.hash}${out.tried ? ` · ${out.accepted}/${out.tried} nodes` : ''}`);
     } else if (out.status === 'settled') {
       cleared++;
       console.log(`  ↩️  ${label} — ${out.reason}`);
@@ -212,10 +221,23 @@ async function main() {
   });
   console.log(`Found ${candidates.length} candidate stake(s) in the locked-stake index.\n`);
 
+  const startNonce = nonce ?? 0;
   let sent = 0, skipped = 0, failed = 0, totalGas = 0n, hexSaved = 0, bleedStopped = 0;
 
   for (const c of candidates) {
     if (sent + skipped >= LIMIT) break;
+    // Keep the queue short enough that the whole of it propagates. Geth carries
+    // and relays a limited number of transactions per account (16 by default),
+    // so a burst past that is accepted by the node you hand it to and dropped
+    // by its peers — the tail then sits unmined however much it bids. Stopping
+    // here costs nothing: the next run picks up where this one left off.
+    if (nonce != null && nonce - startNonce >= MAX_IN_FLIGHT) {
+      console.log(
+        `\n⏸  ${MAX_IN_FLIGHT} transactions in flight — stopping so they can propagate and mine.\n` +
+          '   Run again once they confirm.',
+      );
+      break;
+    }
 
     // The chain, not the indexer, decides whether there is work to do.
     const resolved = await resolveStake('pulsechain', c.stakerAddr, c.stakeId);
@@ -264,7 +286,14 @@ async function main() {
     });
 
     if (out.status === 'sent') {
-      console.log(`  ✅ ${head}\n      ${out.hash}`);
+      // How many nodes took it matters as much as the hash: a transaction one
+      // node holds and never gossips is invisible to validators, which is what
+      // wedged this keeper before — see sendRawTransaction.
+      const spread = out.tried ? ` · ${out.accepted}/${out.tried} nodes` : '';
+      console.log(`  ✅ ${head}\n      ${out.hash}${spread}`);
+      if (out.accepted === 1 && (out.tried ?? 0) > 1) {
+        console.log('      ⚠️  only one node accepted it — it may not reach a validator');
+      }
       nonce!++;
       sent++;
       totalGas += out.gasLimit;
