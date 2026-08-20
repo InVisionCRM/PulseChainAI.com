@@ -22,6 +22,7 @@
 
 import { sql } from './connection';
 import { DAILY_DDL } from './hexDaily';
+import { ENDS_DDL } from './hexStakeEnds';
 
 export type Net = 'pulsechain' | 'ethereum';
 
@@ -87,6 +88,7 @@ const DDL = [
   // The per-day macro spine. Same migration path as everything else here:
   // one ensureSchema call creates or updates every table the sync touches.
   ...DAILY_DDL,
+  ...ENDS_DDL,
 ];
 
 export async function ensureSchema(): Promise<void> {

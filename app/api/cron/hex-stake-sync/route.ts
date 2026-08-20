@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runStakeSync } from '@/lib/hex/lockedStakeSync';
 import { runDailySync } from '@/lib/hex/dailySync';
+import { runEndsSync } from '@/lib/hex/endsSync';
 import { resetDailyForRefill } from '@/lib/db/hexDaily';
 import { dbAvailable, getSyncState, resetForRefill } from '@/lib/db/hexLockedStakes';
 
@@ -18,9 +19,11 @@ export const maxDuration = 60;
  * The budget sits under `maxDuration` so the run always gets to save its
  * cursors rather than being killed mid-batch and repeating the work.
  */
-const STAKE_BUDGET_MS = 35_000;
+const STAKE_BUDGET_MS = 25_000;
 /** Left for the per-day spine after the stake slice, still inside maxDuration. */
-const DAILY_BUDGET_MS = 15_000;
+const DAILY_BUDGET_MS = 10_000;
+/** And for the ended-stake history, which has a long one-time backfill. */
+const ENDS_BUDGET_MS = 18_000;
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get('authorization');
@@ -74,11 +77,21 @@ export async function GET(req: NextRequest) {
       dailyError = err instanceof Error ? err.message : 'daily sync failed';
     }
 
+    let ends: Awaited<ReturnType<typeof runEndsSync>> | null = null;
+    let endsError: string | null = null;
+    try {
+      ends = await runEndsSync('pulsechain', ENDS_BUDGET_MS);
+    } catch (err) {
+      endsError = err instanceof Error ? err.message : 'ends sync failed';
+    }
+
     return NextResponse.json({
       success: true,
       ...report,
       daily,
       ...(dailyError ? { dailyError } : {}),
+      ends,
+      ...(endsError ? { endsError } : {}),
       ...(unprotected
         ? { warning: 'CRON_SECRET is not set, so this endpoint is callable by anyone. Set it to lock the sync down.' }
         : {}),
