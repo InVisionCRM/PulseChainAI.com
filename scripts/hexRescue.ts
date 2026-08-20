@@ -120,7 +120,7 @@ async function main() {
     minPrincipalHex: MIN_HEX,
     limit: LIMIT * 3, // over-fetch: many resolve to "already settled" and cost nothing
   });
-  console.log(`Found ${candidates.length} candidate stake(s) from the subgraph.\n`);
+  console.log(`Found ${candidates.length} candidate stake(s) in the locked-stake index.\n`);
 
   let sent = 0, skipped = 0, failed = 0, totalGas = 0n, hexSaved = 0, bleedStopped = 0;
 
