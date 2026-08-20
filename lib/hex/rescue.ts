@@ -52,7 +52,7 @@
 
 import { ethCall } from '@/lib/portfolio/evmRpc';
 import { hexSubgraphQuery, type HexNet } from './subgraph';
-import { readRescueCandidates } from '@/lib/db/hexLockedStakes';
+import { readRescueCandidates, dbAvailable, getSyncState } from '@/lib/db/hexLockedStakes';
 import { HEX_ADDRESS, LATE_PENALTY_GRACE_DAYS, LATE_PENALTY_SCALE_DAYS, currentHexDay, heartsToHex } from './hexDay';
 import type { ChainId } from '@/services';
 
@@ -130,6 +130,60 @@ export interface RescueCandidate {
  * lapsed skips all of them and costs the stragglers 1/700th — about 0.14% — of
  * their gross. That is six times less gas for the same practical outcome.
  */
+/**
+ * Why the mirror could not answer, in the words of whoever has to fix it.
+ *
+ * The three causes need three different actions and used to share one message,
+ * which cost an evening: a `tsx` run reported "no database, or the initial fill
+ * has not finished" while DATABASE_URL sat in .env the whole time — the real
+ * fault was import order (see scripts/loadEnv.ts). A diagnostic that cannot
+ * tell "not configured" from "not finished" sends you looking in the wrong
+ * place, so this asks the database itself before saying anything.
+ */
+async function describeMirrorGap(net: HexNet): Promise<string> {
+  if (!dbAvailable()) {
+    return (
+      'no database connection. DATABASE_URL / POSTGRES_URL was not set at the ' +
+      'moment lib/db/connection.ts was first imported. In a tsx script that ' +
+      "means import order, not a missing value — `import './loadEnv'` has to be " +
+      'the FIRST import, because ES imports are evaluated before any statement ' +
+      'in the file. On Vercel it means the variable is genuinely unset for this ' +
+      'environment.'
+    );
+  }
+
+  let state: Awaited<ReturnType<typeof getSyncState>>;
+  try {
+    state = await getSyncState(net);
+  } catch (err) {
+    // An unreachable database is not an unfilled one, and saying so saves
+    // someone re-running a sync that was never the problem.
+    return `could not read hex_sync_state: ${err instanceof Error ? err.message : String(err)}`;
+  }
+  if (!state) {
+    return (
+      `the hex_locked_stakes mirror has never run for ${net} (no hex_sync_state ` +
+      'row). Call GET /api/cron/hex-stake-sync until it reports ready:true — the ' +
+      'initial fill is ~950k stakes and takes many time-boxed runs.'
+    );
+  }
+  if (!state.ready) {
+    const pct =
+      state.latestStakeId > 0
+        ? ` — ${((state.lastStakeId / state.latestStakeId) * 100).toFixed(1)}% ` +
+          `(stake ${state.lastStakeId.toLocaleString()} of ${state.latestStakeId.toLocaleString()})`
+        : '';
+    return (
+      `the mirror is still filling: phase "${state.phase}"${pct}. Keep calling ` +
+      'GET /api/cron/hex-stake-sync until ready:true.' +
+      (state.lastError ? ` Last sync error: ${state.lastError}` : '')
+    );
+  }
+  // ready, yet the read still refused — the only remaining path is a throw the
+  // reader swallowed, so say that rather than inventing a cause.
+  return 'the mirror reports ready but returned no result. Check the database logs.';
+}
+
 export async function findRescueCandidates(
   net: HexNet,
   opts: { minDaysPastGrace?: number; limit?: number; minPrincipalHex?: number } = {},
@@ -155,11 +209,7 @@ export async function findRescueCandidates(
     // that can answer this correctly — see the note above — and a partial
     // answer here reads exactly like a complete one while quietly leaving
     // people's stakes bleeding.
-    throw new Error(
-      'hex-rescue: no hex_locked_stakes mirror available (no database, or the ' +
-        'initial fill has not finished). Set DATABASE_URL and let the ' +
-        'hex-stake-sync cron complete, then try again.',
-    );
+    throw new Error(`hex-rescue: ${await describeMirrorGap(net)}`);
   }
   if (rows.length === 0) return [];
 
