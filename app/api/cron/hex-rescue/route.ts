@@ -1,4 +1,4 @@
-// Daily keeper: freezes HEX stakes that are bleeding out.
+// Hourly keeper: freezes HEX stakes that are bleeding out.
 //
 // A matured HEX stake loses 1/700th of itself per day past a 14-day grace
 // period until somebody calls `stakeGoodAccounting` on it. Anyone may make that
@@ -9,10 +9,11 @@
 // Why the work is BOUNDED per run rather than draining the backlog in one go:
 // a serverless invocation has a wall clock, and each stake costs a handful of
 // round trips (resolve the index, estimate, broadcast). So this takes a bite,
-// reports what it did, and leaves the rest for tomorrow. About 23 stakes a day
-// go past grace on PulseChain, so the steady state fits comfortably; the
-// initial backlog is better cleared from a terminal with
-// `npm run hex:rescue -- --execute --limit 200`, which has no time limit.
+// reports what it did, and leaves the rest for the next hour. About 23 stakes
+// a day go past grace on PulseChain, so the steady state is covered many times
+// over and the backlog drains between the gaps — which is why this runs hourly
+// rather than daily. It is still bounded per run, so a large backlog costs the
+// same per hour as a small one; only the number of hours changes.
 //
 // Without HEX_RESCUE_PRIVATE_KEY set this runs as a dry run and reports what it
 // would have done, which is also what makes it safe to deploy before the key

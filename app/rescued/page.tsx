@@ -165,7 +165,7 @@ export default async function RescueWallPage() {
               How it runs
             </h2>
             <div className="mt-2">
-              <KeeperPanel address={KEEPER_ADDRESS} runsAtUtcHour={3} />
+              <KeeperPanel address={KEEPER_ADDRESS} />
             </div>
 
             <h2 className="mt-7 flex items-baseline gap-2 text-sm font-bold uppercase tracking-wider text-[var(--text-faint)]">

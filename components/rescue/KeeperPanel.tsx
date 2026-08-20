@@ -6,6 +6,12 @@
 // stranger is being asked to send PLS to an address, so the address, what it
 // can do, and what the money buys have to be in one place.
 //
+// The schedule is stated in plain words rather than computed from a UTC hour.
+// It used to render "Every day at 03:00 UTC" from a prop, and the moment the
+// cron moved to hourly the page was telling people something false — a page
+// that promises a schedule has to be changed in the same breath as the
+// schedule.
+//
 // The wording is careful on purpose. This is a donation toward gas, not an
 // investment, not a token, and nothing is owed in return; saying so plainly is
 // both honest and the thing that makes it credible.
@@ -19,14 +25,7 @@ import { useState } from 'react';
 import { IconCopy, IconCheck, IconClock, IconFlame, IconExternalLink } from '@tabler/icons-react';
 import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
 
-export function KeeperPanel({
-  address,
-  /** UTC hour the sweep runs, from the cron schedule in vercel.json. */
-  runsAtUtcHour = 3,
-}: {
-  address: string;
-  runsAtUtcHour?: number;
-}) {
+export function KeeperPanel({ address }: { address: string }) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -39,14 +38,6 @@ export function KeeperPanel({
     }
   };
 
-  const utc = `${String(runsAtUtcHour).padStart(2, '0')}:00 UTC`;
-  // Shown in the reader's own zone as well, because "03:00 UTC" is a small
-  // maths problem for most people and this is meant to be reassuring.
-  const local = new Date(Date.UTC(2000, 0, 1, runsAtUtcHour, 0)).toLocaleTimeString(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-
   return (
     <div className="grid gap-3 md:grid-cols-2">
       {/* Schedule */}
@@ -55,13 +46,12 @@ export function KeeperPanel({
           <IconClock className="h-3 w-3" />
           The sweep
         </div>
-        <div className="mt-1 text-lg font-bold text-[var(--text)]">
-          Every day at {utc}
-        </div>
+        <div className="mt-1 text-lg font-bold text-[var(--text)]">Every hour, on the hour</div>
         <p className="mt-1.5 text-[12px] leading-relaxed text-[var(--text-muted)]">
-          That is <span className="font-semibold text-[var(--text)]">{local}</span> your time. The bot
-          takes the stakes that are bleeding hardest for the gas they cost and freezes them, biggest
-          value first. A stake only needs freezing once, so nothing is ever done twice.
+          No timezone to work out and nothing to wait a day for — whenever a stake starts bleeding,
+          the longest it sits is until the next hour. The bot takes the ones losing the most HEX for
+          the gas they cost and freezes those first. A stake only needs freezing once, so nothing is
+          ever done twice.
         </p>
         <p className="mt-1.5 text-[12px] leading-relaxed text-[var(--text-faint)]">
           It waits until a stake is past its 14-day grace before touching it — inside the grace there
