@@ -63,10 +63,48 @@ const MAX_GAS_PER_TX = 25_000_000n;
  */
 const MAX_FEE_MULTIPLE = 3n;
 
-/** Refuse to send if the network is asking more than this, independent of the
- *  multiple above — a circuit breaker against a genuine fee spike draining the
- *  float, not a fine-tuned bid. */
-const MAX_FEE_PER_GAS_WEI = 10_000_000_000_000_000n; // 10,000,000 gwei
+/**
+ * Refuse to send if the network is genuinely asking too much — a circuit
+ * breaker against a fee spike draining the float, not a fine-tuned bid.
+ *
+ * TWO THINGS WERE WRONG WITH THE FIRST VERSION OF THIS.
+ *
+ * It compared the fee CAP, and the cap carries 3× headroom for base-fee drift
+ * (see MAX_FEE_MULTIPLE) rather than being what the transaction pays. EIP-1559
+ * charges base fee + tip and refunds the rest, so testing the cap tripped the
+ * breaker at a third of the price it was supposed to be guarding. Measured on
+ * the live keeper: base fee 3,825,030 gwei produced a cap of 11,475,090 gwei,
+ * the breaker refused it — and the rescue it refused would have cost 1,870 PLS,
+ * about 2.4 US cents. That is not a spike, that is a Tuesday on PulseChain,
+ * where the base fee swung 6× within an hour (635,127 gwei measured shortly
+ * after). So the ceiling now applies to the EFFECTIVE price.
+ *
+ * And it was a hardcoded constant on a chain whose fees move like that, so the
+ * only way past a stalled sweep was a code change. It is now an env var, the
+ * same as the principal floor.
+ *
+ * The default is ~40× the normal cost of a rescue and still refuses a genuine
+ * runaway: at 25,000,000 gwei an average 488,929-gas rescue costs about
+ * 12,223 PLS (~$0.16 at $0.00001276), against ~$0.004 at a normal base fee.
+ * Because the cap is at most 3× the effective price, bounding one bounds the
+ * other.
+ */
+const MAX_EFFECTIVE_GWEI_FALLBACK = 25_000_000n;
+
+export function maxEffectiveFeeWei(): bigint {
+  const raw = (process.env.HEX_RESCUE_MAX_GWEI ?? '').trim();
+  if (raw) {
+    try {
+      const n = BigInt(raw);
+      if (n > 0n) return n * 1_000_000_000n;
+    } catch {
+      /* unparseable — fall through to the default rather than run uncapped */
+    }
+  }
+  return MAX_EFFECTIVE_GWEI_FALLBACK * 1_000_000_000n;
+}
+
+const gwei = (wei: bigint) => (Number(wei) / 1e9).toLocaleString('en-US', { maximumFractionDigits: 0 });
 
 /**
  * Replacing a stuck nonce is a different, harder problem than sending a new one,
@@ -180,6 +218,9 @@ export async function signAndSend(args: {
   const priorityFee = await getPriorityFee(chain);
   let maxFeePerGas: bigint;
   let maxPriorityFeePerGas: bigint;
+  /** What this transaction is expected to be CHARGED per gas — the number the
+   *  circuit breaker judges, as opposed to the cap it is allowed to reach. */
+  let effectiveFeePerGas: bigint;
   let txType: 0 | 2;
 
   if (baseFee != null) {
@@ -189,9 +230,15 @@ export async function signAndSend(args: {
       // actually matters here.
       maxFeePerGas = baseFee * REPLACE_FEE_MULTIPLE;
       maxPriorityFeePerGas = maxFeePerGas;
+      // A tip this large is not headroom, it is spent: EIP-1559 pays
+      // base + min(tip, cap - base), which here is the whole cap.
+      effectiveFeePerGas = maxFeePerGas;
     } else {
       maxFeePerGas = baseFee * MAX_FEE_MULTIPLE + priorityFee;
       maxPriorityFeePerGas = priorityFee;
+      // What the block will actually charge; the rest of the cap is drift
+      // headroom that gets refunded.
+      effectiveFeePerGas = baseFee + priorityFee;
     }
     txType = 2;
   } else {
@@ -201,6 +248,7 @@ export async function signAndSend(args: {
     if (legacyPrice == null) return { status: 'failed', reason: 'could not read gas price' };
     maxFeePerGas = legacyPrice;
     maxPriorityFeePerGas = legacyPrice;
+    effectiveFeePerGas = legacyPrice; // legacy pays its price outright
     txType = 0;
   }
 
@@ -245,9 +293,21 @@ export async function signAndSend(args: {
   const attempts = replacing ? REPLACE_ATTEMPTS : 1;
   let lastError = 'not sent';
 
+  const ceiling = maxEffectiveFeeWei();
+
   for (let attempt = 0; attempt < attempts; attempt++) {
-    if (maxFeePerGas > MAX_FEE_PER_GAS_WEI) {
-      return { status: 'skipped', reason: `fee cap ${maxFeePerGas} above the circuit breaker` };
+    if (effectiveFeePerGas > ceiling) {
+      // Priced in PLS as well as gwei, because gwei-per-gas is not a number
+      // anyone can judge "too expensive?" from, and that judgement is the whole
+      // reason to read this line.
+      const pls = (effectiveFeePerGas * BigInt(gasLimit)) / 10n ** 18n;
+      return {
+        status: 'skipped',
+        reason:
+          `gas is ${gwei(effectiveFeePerGas)} gwei — this rescue would cost about ` +
+          `${pls.toLocaleString()} PLS, over the ${gwei(ceiling)} gwei ceiling. ` +
+          `Raise it with HEX_RESCUE_MAX_GWEI if that is acceptable.`,
+      };
     }
 
     const bid: UnsignedTransaction =
@@ -265,6 +325,9 @@ export async function signAndSend(args: {
     if (!/underpriced|fee too low|replacement/i.test(res.error)) break; // not a pricing problem
     maxFeePerGas *= 2n;
     if (txType === 2) maxPriorityFeePerGas = maxFeePerGas;
+    // Doubling a replacement's bid doubles what it pays, not just what it may
+    // pay, so the breaker has to see the raised number on the next pass.
+    effectiveFeePerGas = txType === 2 && replacing ? maxFeePerGas : effectiveFeePerGas * 2n;
   }
 
   return { status: 'failed', reason: lastError };

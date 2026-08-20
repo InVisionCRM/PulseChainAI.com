@@ -20,7 +20,9 @@ import { WHAT_HAPPENED, CLAIM_STEPS, HEX_APP_URL } from '@/lib/hex/rescueCopy';
 import { pulsechainTxUrl, pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
 import { RescuedBy, HexWatermark, HexMark } from '@/components/rescue/RescueBrand';
 
-export const revalidate = 300;
+// Matches the wall: a freshly-rescued stake should not have to wait five
+// minutes for its own claim page to admit it exists.
+export const revalidate = 60;
 
 const hex = (n: number | null | undefined) =>
   n == null ? '—' : n.toLocaleString('en-US', { maximumFractionDigits: 0 });

@@ -30,7 +30,7 @@
 
 import './loadEnv';
 
-import { signAndSend, loadKeeper } from '@/lib/hex/rescueWallet';
+import { signAndSend, loadKeeper, maxEffectiveFeeWei } from '@/lib/hex/rescueWallet';
 import { HEX_ADDRESS } from '@/lib/hex/hexDay';
 import {
   SEL,
@@ -114,6 +114,29 @@ async function main() {
   thirdWord === BigInt(999).toString(16).padStart(64, '0')
     ? pass('stakeId 999 encodes to 0x3e7, left-padded to a full word')
     : fail(`third word is wrong: ${thirdWord}`);
+
+  console.log('\nFee ceiling:');
+  const prevMaxGwei = process.env.HEX_RESCUE_MAX_GWEI;
+  const GWEI = 1_000_000_000n;
+  const ceiling = (set: string | undefined, wantGwei: bigint, why: string) => {
+    if (set === undefined) delete process.env.HEX_RESCUE_MAX_GWEI;
+    else process.env.HEX_RESCUE_MAX_GWEI = set;
+    const got = maxEffectiveFeeWei();
+    got === wantGwei * GWEI
+      ? pass(`${why} -> ${wantGwei.toLocaleString()} gwei`)
+      : fail(`${why}: expected ${wantGwei * GWEI} wei, got ${got}`);
+  };
+  ceiling(undefined, 25_000_000n, 'unset falls back');
+  ceiling('60000000', 60_000_000n, 'HEX_RESCUE_MAX_GWEI=60000000');
+  ceiling('  40000000  ', 40_000_000n, 'whitespace is tolerated');
+  // Unlike the principal floor, 0 is NOT a meaningful setting here: it would
+  // refuse every rescue rather than allow every one, so it falls back instead
+  // of silently halting the keeper.
+  ceiling('0', 25_000_000n, 'HEX_RESCUE_MAX_GWEI=0 falls back rather than halting');
+  ceiling('twenty', 25_000_000n, 'unparseable falls back');
+  ceiling('-5', 25_000_000n, 'negative falls back');
+  if (prevMaxGwei === undefined) delete process.env.HEX_RESCUE_MAX_GWEI;
+  else process.env.HEX_RESCUE_MAX_GWEI = prevMaxGwei;
 
   console.log('\nPrincipal floor:');
   const prevMin = process.env.HEX_RESCUE_MIN_HEX;

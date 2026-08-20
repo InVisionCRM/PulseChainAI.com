@@ -93,16 +93,50 @@ export function decodeRescueCalldata(
 }
 
 /**
- * Every rescue this keeper has performed, newest first.
+ * A Blockscout row is a rescue only if the chain says it WORKED.
  *
- * `limit` bounds the Blockscout paging, not the result: a page holds 50, so
- * this walks until it has enough or runs out.
+ * The test used to be `if (t.status && t.status !== 'ok') continue` — absence
+ * of failure rather than presence of success — and a pending transaction has
+ * `status: null`, so every one of them sailed through. During a keeper run that
+ * is most of the list: the wall filled with rescues dated 1970 (no timestamp
+ * yet), with no figures (the subgraph cannot price what has not mined), and
+ * counted them in its totals. Some of those then revert, so the wall was
+ * crediting rescues that never happened.
+ *
+ * Verified against the live keeper mid-run: `result: "pending"`, `status: null`,
+ * `timestamp: null`, `block_number: null`. Seven of its transactions did revert
+ * (receipt status `0x0`), and Blockscout marks those `status: "error"` with
+ * `result: "awaiting_internal_transactions"` — so demanding "ok" excludes both
+ * the not-yet-mined and the failed, which is the only honest set to show
+ * someone about their own money.
  */
-export async function fetchRescues(net: HexNet = 'pulsechain', limit = 100): Promise<Rescue[]> {
+function isMinedRescue(t: any): boolean {
+  const to = String(t?.to?.hash ?? t?.to?.address_hash ?? '').toLowerCase();
+  if (to !== HEX_ADDRESS.toLowerCase()) return false;
+  if (String(t?.status ?? '') !== 'ok') return false;
+  // A rescue with no timestamp cannot be dated on the page, and the only rows
+  // missing one are rows that have not mined.
+  return !!t?.timestamp;
+}
+
+/**
+ * Walk the keeper's transactions newest-first, decoding the rescues.
+ *
+ * `stopAt` lets a single-stake lookup quit as soon as it finds its rescue
+ * instead of pulling the whole history to answer one question.
+ */
+async function walkRescues(
+  net: HexNet,
+  limit: number,
+  stopAt?: string,
+): Promise<Rescue[]> {
   const out: Rescue[] = [];
   let nextParams = '';
 
-  for (let page = 0; page < 10 && out.length < limit; page++) {
+  // 50 rows a page. The ceiling is a runaway guard, not a budget: the loop
+  // already stops at `limit`, and the old 10-page cap silently truncated the
+  // wall once the keeper passed 500 transactions.
+  for (let page = 0; page < 60 && out.length < limit; page++) {
     const url = `${BLOCKSCOUT[net]}/addresses/${KEEPER_ADDRESS}/transactions?filter=from${nextParams}`;
     let data: any;
     try {
@@ -116,20 +150,19 @@ export async function fetchRescues(net: HexNet = 'pulsechain', limit = 100): Pro
     const items: any[] = data?.items ?? [];
     if (items.length === 0) break;
 
+    let found = false;
     for (const t of items) {
-      // Only successful calls into HEX count — a reverted one rescued nothing.
-      const to = String(t?.to?.hash ?? t?.to?.address_hash ?? '').toLowerCase();
-      if (to !== HEX_ADDRESS.toLowerCase()) continue;
-      if (t?.status && t.status !== 'ok') continue;
+      if (!isMinedRescue(t)) continue;
 
       const decoded = decodeRescueCalldata(String(t?.raw_input ?? ''));
       if (!decoded) continue;
+      if (stopAt && decoded.stakeId !== stopAt) continue;
 
       out.push({
         stakeId: decoded.stakeId,
         stakerAddr: decoded.stakerAddr,
         txHash: String(t?.hash ?? ''),
-        timestamp: t?.timestamp ? Date.parse(t.timestamp) : 0,
+        timestamp: Date.parse(t.timestamp),
         message: decoded.message,
         principalHex: null,
         payoutHex: null,
@@ -137,7 +170,9 @@ export async function fetchRescues(net: HexNet = 'pulsechain', limit = 100): Pro
         claimableHex: null,
         bleedPerDay: null,
       });
+      if (stopAt) { found = true; break; }
     }
+    if (found) break;
 
     const np = data?.next_page_params;
     if (!np) break;
@@ -146,7 +181,18 @@ export async function fetchRescues(net: HexNet = 'pulsechain', limit = 100): Pro
     ).toString()}`;
   }
 
-  return enrich(net, out.slice(0, limit));
+  return out.slice(0, limit);
+}
+
+/**
+ * Every rescue this keeper has performed, newest first.
+ *
+ * The default covers the whole history rather than a page of it, because the
+ * caller totals this list: a limit that quietly cuts it off does not shorten
+ * the wall, it under-reports how much HEX was saved.
+ */
+export async function fetchRescues(net: HexNet = 'pulsechain', limit = 2_000): Promise<Rescue[]> {
+  return enrich(net, await walkRescues(net, limit));
 }
 
 /**
@@ -177,10 +223,18 @@ async function enrich(net: HexNet, rescues: Rescue[]): Promise<Rescue[]> {
   return rescues;
 }
 
-/** One rescue by stake id, or null if this keeper never touched that stake. */
+/**
+ * One rescue by stake id, or null if this keeper never touched that stake.
+ *
+ * Stops at the matching transaction rather than pulling and pricing the whole
+ * history to answer about one stake — this page is linked from every on-chain
+ * message, so it has to stay quick and has to keep working as the keeper's
+ * history grows.
+ */
 export async function fetchRescue(net: HexNet, stakeId: string): Promise<Rescue | null> {
-  const all = await fetchRescues(net, 500);
-  return all.find((r) => r.stakeId === stakeId) ?? null;
+  const found = await walkRescues(net, 1, stakeId);
+  if (found.length === 0) return null;
+  return (await enrich(net, found))[0] ?? null;
 }
 
 export interface RescueTotals {
