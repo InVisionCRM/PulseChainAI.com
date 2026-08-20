@@ -10,6 +10,15 @@
 
 import { fmtHex } from '@/lib/hex/hexDay';
 
+/**
+ * The HEX brand gradient, as used on the stake progress bars.
+ *
+ * Lives here rather than in one component so every HEX surface draws the same
+ * one — it was previously a private constant in the portfolio's stake list,
+ * which meant anything else wanting it had to eyeball a copy.
+ */
+export const HEX_GRADIENT = 'linear-gradient(135deg, #ff9e00 0%, #ff2e7e 52%, #ff00d4 100%)';
+
 /** Small inline HEX logo. Sizes to the surrounding text by default. */
 export function HexLogo({ className = 'h-[0.9em] w-[0.9em]' }: { className?: string }) {
   return (
