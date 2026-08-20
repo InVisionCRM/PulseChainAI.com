@@ -72,6 +72,8 @@ export default async function RescueWallPage() {
   ]);
   const t = totalsFor(rescues);
   const shown = rescues.slice(0, CARD_LIMIT);
+  // Every collected rescue, however deep in the list it sits.
+  const collected = rescues.filter((r) => r.claimed);
   const usd = (hex: number) => (price != null ? fmtUsdShort(hex * price) : null);
 
   return (
@@ -153,6 +155,36 @@ export default async function RescueWallPage() {
               </div>
             )}
 
+            {/* What happened next. A rescue is only half the story — the
+                point of freezing a stake is that its owner eventually comes
+                and takes their HEX, so the page says whether they have. */}
+            {(t.claimed > 0 || t.unclaimed > 0) && (
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <Metric
+                  label="Collected since"
+                  value={String(t.claimed)}
+                  sub={t.claimedHex > 0 ? `${fmtHex(t.claimedHex)} taken home` : 'owners came back'}
+                  good
+                />
+                <Metric
+                  label="Still waiting"
+                  value={String(t.unclaimed)}
+                  sub="frozen, safe, unclaimed"
+                />
+                {t.medianDaysToClaim != null && (
+                  <Metric
+                    label="Typical wait"
+                    value={
+                      t.medianDaysToClaim < 1
+                        ? `${Math.round(t.medianDaysToClaim * 24)}h`
+                        : `${t.medianDaysToClaim.toFixed(t.medianDaysToClaim < 10 ? 1 : 0)}d`
+                    }
+                    sub="from rescue to collection"
+                  />
+                )}
+              </div>
+            )}
+
             {t.unpriced > 0 && (
               <p className="mt-2 text-[11px] text-[var(--text-faint)]">
                 {t.unpriced} rescue{t.unpriced === 1 ? '' : 's'} could not be priced from the subgraph
@@ -167,6 +199,28 @@ export default async function RescueWallPage() {
             <div className="mt-2">
               <KeeperPanel address={KEEPER_ADDRESS} />
             </div>
+
+            {/* The rescues that reached their ending, pulled out of the main
+                list. They are the proof the whole thing works, and ordering by
+                transaction buries them: the three collected so far sit at
+                positions 274, 361 and 386 of 407, well past the card limit, so
+                without this section nobody would ever see one. */}
+            {collected.length > 0 && (
+              <>
+                <h2 className="mt-7 flex items-baseline gap-2 text-sm font-bold uppercase tracking-wider text-[var(--text-faint)]">
+                  Collected by their owners
+                  <span className="text-[var(--text-muted)]">· {collected.length}</span>
+                </h2>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  Frozen by the keeper, then ended by the person they belonged to.
+                </p>
+                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                  {collected.map((r) => (
+                    <RescueStakeCard key={`claimed-${r.txHash}`} rescue={r} hexUsd={price} />
+                  ))}
+                </div>
+              </>
+            )}
 
             <h2 className="mt-7 flex items-baseline gap-2 text-sm font-bold uppercase tracking-wider text-[var(--text-faint)]">
               Every rescue
