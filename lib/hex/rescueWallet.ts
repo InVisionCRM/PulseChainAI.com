@@ -3,20 +3,25 @@
 // SERVER ONLY. This module reads a private key. It must never be imported from
 // anything that ends up in a browser bundle.
 //
-// The safety story here is unusually good, and it is worth being explicit about
-// why, because "an app with a hot wallet" normally deserves suspicion.
-// `stakeGoodAccounting` pays its caller NOTHING — read the deployed source: it
-// emits an event, folds the penalty into the global pool, and updates the
-// stake. No transfer, no mint, no approval. So the worst an attacker can do
-// with this key is spend its own gas doing strangers a favour.
+// What this key is allowed to sign is enforced here rather than trusted to
+// callers, and there are exactly TWO shapes:
 //
-// That property only holds while the key can ONLY make that one call, so this
-// module enforces it rather than trusting callers: `signAndSend` refuses any
-// transaction that is not addressed to the HEX contract with the
-// `stakeGoodAccounting` selector, refuses any non-zero value, and refuses to
-// exceed a per-transaction gas ceiling. Those checks are the actual security
-// boundary — if a bug upstream ever produced different calldata, it would be
-// rejected here instead of signed.
+//   1. `stakeGoodAccounting` addressed to the HEX contract, zero value, under a
+//      per-transaction gas ceiling — `signAndSend` refuses anything else.
+//   2. A no-op that clears the sender's own stuck nonce: zero value, addressed
+//      to the keeper itself, no calldata, 21,000 gas — `signAndCancel` refuses
+//      anything else.
+//
+// Neither can move another account's funds, and `stakeGoodAccounting` pays its
+// caller nothing (read the deployed source: it emits an event, folds the
+// penalty into the global pool, updates the stake — no transfer, no mint, no
+// approval). Those refusals are the actual security boundary: if a bug upstream
+// ever produced different calldata, it would be rejected here instead of
+// signed.
+//
+// Deliberately no claim in the UI about what a stolen key could or could not
+// do. This module started out signing one shape and now signs two; a promise
+// that drifts out of date is worse than no promise.
 
 import { serialize, type UnsignedTransaction } from '@ethersproject/transactions';
 import { SigningKey } from '@ethersproject/signing-key';
@@ -252,7 +257,7 @@ export async function signAndSend(args: {
 }): Promise<SendOutcome> {
   const { keeper, chain, to, data, nonce, gasBufferPct = 120, replacing = false, predecessor } = args;
 
-  // --- the security boundary: this key signs exactly one kind of call -------
+  // --- the security boundary: good-accounting calls only, nothing else -----
   if (to.toLowerCase() !== HEX_ADDRESS.toLowerCase()) {
     return { status: 'failed', reason: `refused: destination ${to} is not the HEX contract` };
   }

@@ -273,7 +273,7 @@ async function main() {
 
   console.log(
     failures === 0
-      ? '\n✅ ALL CHECKS PASSED — the key can only ever call stakeGoodAccounting'
+      ? '\n✅ ALL CHECKS PASSED — the key signs good-accounting calls and self-cancels, nothing else'
       : `\n❌ ${failures} CHECK(S) FAILED`,
   );
   process.exit(failures === 0 ? 0 : 1);
