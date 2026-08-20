@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/cron/hex-stake-sync",
-      "schedule": "*/2 * * * *"
+      "schedule": "0 4 * * *"
     }
   ]
 }
