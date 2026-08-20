@@ -29,6 +29,8 @@ import {
   getPriorityFee,
   getGasPrice,
   sendRawTransaction,
+  getPendingBids,
+  type PendingBid,
 } from '@/lib/portfolio/evmRpc';
 import { HEX_ADDRESS } from './hexDay';
 import { SEL } from './rescue';
@@ -133,6 +135,55 @@ const REPLACE_FEE_MULTIPLE = 4n;
 /** Each retry doubles the bid; bounded, and still under the circuit breaker. */
 const REPLACE_ATTEMPTS = 4;
 
+/**
+ * How much a replacement must beat its predecessor by. Geth's pool wants 10%
+ * (`--txpool.pricebump`); 12.5% is that plus enough margin to survive integer
+ * truncation, and it is deliberately the SMALLEST step that works.
+ *
+ * Blind escalation is what made this necessary. When the predecessor's price
+ * could not be read, a replacement bid 4x the base fee with tip == cap, and
+ * doubled on every "underpriced" answer. Each run therefore bid against a
+ * predecessor a previous run had already doubled, so the price ratcheted while
+ * the queue stayed stuck. Measured on the live keeper: 81 transactions wedged
+ * at nonce 333 priced at 21-22 MILLION gwei against a 652,000 gwei base fee —
+ * 32x the real cost of gas, reserving about 4.5M PLS of a 4.37M PLS balance.
+ * Since tip == cap means EIP-1559 charges the WHOLE cap, mining those as
+ * priced would have spent essentially the entire float.
+ *
+ * getPendingBids can read the predecessor's exact cap and tip, so the bid is
+ * now one step above what is actually there.
+ */
+const PRICE_BUMP_NUM = 1125n;
+const PRICE_BUMP_DEN = 1000n;
+const bumped = (v: bigint) => (v * PRICE_BUMP_NUM) / PRICE_BUMP_DEN + 1n;
+
+/**
+ * The smallest bid that displaces `prev` at its nonce, given the base fee now.
+ *
+ * Both replacement paths — a re-sent rescue and a cancel — need exactly this,
+ * so it lives in one place and is unit-tested rather than written twice.
+ *
+ * A legacy predecessor has no separate tip: its single gasPrice counts as both
+ * its cap and its tip, so that is the number to beat on both fields. The cap
+ * also has to leave room for the new tip on top of the CURRENT base fee, or the
+ * node rejects it for a different reason than the one being fixed.
+ */
+export function replacementBid(
+  baseFee: bigint,
+  prev: PendingBid,
+): { cap: bigint; tip: bigint } {
+  const tip = bumped(prev.type === 0 ? prev.cap : prev.tip);
+  const prevCap = bumped(prev.cap);
+  const wanted = baseFee + tip;
+  return { cap: prevCap > wanted ? prevCap : wanted, tip };
+}
+
+/** What EIP-1559 will actually charge: base + tip, never more than the cap. */
+export function effectivePrice(baseFee: bigint, cap: bigint, tip: bigint): bigint {
+  const room = cap - baseFee;
+  return baseFee + (tip < room ? tip : room);
+}
+
 export interface KeeperWallet {
   address: string;
   privateKey: string;
@@ -184,8 +235,14 @@ export async function signAndSend(args: {
    * `checkNonce`: any nonce below `pending` is a replacement.
    */
   replacing?: boolean;
+  /**
+   * The transaction already sitting at this nonce, from `getPendingBids`. With
+   * it the replacement bids one step above what is actually there; without it
+   * it has to escalate blindly — see PRICE_BUMP_NUM for what that cost.
+   */
+  predecessor?: PendingBid;
 }): Promise<SendOutcome> {
-  const { keeper, chain, to, data, nonce, gasBufferPct = 120, replacing = false } = args;
+  const { keeper, chain, to, data, nonce, gasBufferPct = 120, replacing = false, predecessor } = args;
 
   // --- the security boundary: this key signs exactly one kind of call -------
   if (to.toLowerCase() !== HEX_ADDRESS.toLowerCase()) {
@@ -224,10 +281,15 @@ export async function signAndSend(args: {
   let txType: 0 | 2;
 
   if (baseFee != null) {
-    if (replacing) {
-      // Tip == cap, so the bid beats a legacy predecessor on both fee fields at
-      // once. See REPLACE_FEE_MULTIPLE for why the tip is the field that
-      // actually matters here.
+    if (replacing && predecessor) {
+      // One step above what is actually queued.
+      const bid = replacementBid(baseFee, predecessor);
+      maxFeePerGas = bid.cap;
+      maxPriorityFeePerGas = bid.tip;
+      effectiveFeePerGas = effectivePrice(baseFee, bid.cap, bid.tip);
+    } else if (replacing) {
+      // Nothing readable at this nonce: fall back to escalating blindly. Tip ==
+      // cap so the bid beats a legacy predecessor on both fee fields at once.
       maxFeePerGas = baseFee * REPLACE_FEE_MULTIPLE;
       maxPriorityFeePerGas = maxFeePerGas;
       // A tip this large is not headroom, it is spent: EIP-1559 pays
@@ -301,12 +363,20 @@ export async function signAndSend(args: {
       // anyone can judge "too expensive?" from, and that judgement is the whole
       // reason to read this line.
       const pls = (effectiveFeePerGas * BigInt(gasLimit)) / 10n ** 18n;
+      // Which advice is right depends on WHY the price is high. A replacement is
+      // expensive because of what is already queued at this nonce, not because
+      // gas is expensive, and raising the ceiling there just lets the bid
+      // ratchet further — clearing the queue is the cheap way out.
+      const fix = replacing
+        ? `This nonce already holds a transaction bidding ${gwei(predecessor?.cap ?? 0n)} gwei, so ` +
+          `outbidding it is what costs this much. Clear the queue instead: ` +
+          `npm run hex:rescue -- --execute --cancel-stuck`
+        : `Raise it with HEX_RESCUE_MAX_GWEI if that is acceptable.`;
       return {
         status: 'skipped',
         reason:
           `gas is ${gwei(effectiveFeePerGas)} gwei — this rescue would cost about ` +
-          `${pls.toLocaleString()} PLS, over the ${gwei(ceiling)} gwei ceiling. ` +
-          `Raise it with HEX_RESCUE_MAX_GWEI if that is acceptable.`,
+          `${pls.toLocaleString()} PLS, over the ${gwei(ceiling)} gwei ceiling. ${fix}`,
       };
     }
 
@@ -332,6 +402,107 @@ export async function signAndSend(args: {
 
   return { status: 'failed', reason: lastError };
 }
+
+/**
+ * Clear one wedged nonce by replacing it with a transaction that does nothing.
+ *
+ * THE SECOND KIND OF TRANSACTION THIS KEY MAY SIGN, and it is deliberately the
+ * most harmless one that exists: zero PLS, to the keeper's own address, with no
+ * calldata at all. It cannot move anyone's funds, cannot call any contract, and
+ * cannot do anything to a stake. The three constraints are enforced here rather
+ * than assumed, exactly like the good-accounting boundary above.
+ *
+ * Why it has to exist: a wedged queue is not free to leave alone. Nonces are
+ * strictly ordered, so one stuck transaction blocks every rescue behind it, and
+ * the stuck ones on the live keeper were priced at 32x the real cost of gas
+ * (see PRICE_BUMP_NUM) — mining as priced they would have spent the whole
+ * float. Replacing them with 21,000-gas no-ops costs about 500 PLS each
+ * instead of 55,000, and unblocks the queue in one run.
+ */
+export async function signAndCancel(args: {
+  keeper: KeeperWallet;
+  chain: ChainId;
+  nonce: number;
+  predecessor?: PendingBid;
+}): Promise<SendOutcome> {
+  const { keeper, chain, nonce, predecessor } = args;
+
+  if (chain !== 'pulsechain' && chain !== 'ethereum') {
+    return { status: 'failed', reason: `refused: unsupported chain ${chain}` };
+  }
+
+  const baseFee = await getBaseFee(chain);
+  const priorityFee = await getPriorityFee(chain);
+  if (baseFee == null) return { status: 'failed', reason: 'could not read the base fee' };
+
+  // Nothing readable to outbid means this is priced like an ordinary send.
+  const { cap: maxFeePerGas, tip: maxPriorityFeePerGas } = predecessor
+    ? replacementBid(baseFee, predecessor)
+    : { cap: baseFee * MAX_FEE_MULTIPLE + priorityFee, tip: priorityFee };
+
+  // A cancel is 21,000 gas, so it stays cheap at almost any per-gas price —
+  // which is the whole point, since the price it has to beat is exactly the one
+  // the per-gas ceiling would refuse. It is bounded by total COST instead.
+  const cost = maxFeePerGas * CANCEL_GAS;
+  if (cost > MAX_CANCEL_COST_WEI) {
+    return {
+      status: 'skipped',
+      reason:
+        `clearing nonce ${nonce} would cost about ${(cost / 10n ** 18n).toLocaleString()} PLS, ` +
+        `over the ${(MAX_CANCEL_COST_WEI / 10n ** 18n).toLocaleString()} PLS-per-nonce ceiling`,
+    };
+  }
+
+  const tx: UnsignedTransaction = {
+    to: keeper.address, // itself
+    nonce,
+    gasLimit: CANCEL_GAS,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+    data: '0x', // nothing to execute
+    value: 0,
+    chainId: CHAIN_IDS[chain as 'pulsechain' | 'ethereum'],
+    type: 2,
+  };
+
+  // Escalate if the node says the bid is too small. Unlike a rescue, doubling
+  // here is safe to do freely: at 21,000 gas the whole transaction stays worth
+  // a fraction of a cent, and MAX_CANCEL_COST_WEI is the hard stop.
+  let cap = maxFeePerGas;
+  let tip = maxPriorityFeePerGas;
+  let lastError = 'not sent';
+
+  for (let attempt = 0; attempt < CANCEL_ATTEMPTS; attempt++) {
+    if (cap * CANCEL_GAS > MAX_CANCEL_COST_WEI) break;
+
+    const bid: UnsignedTransaction = { ...tx, maxFeePerGas: cap, maxPriorityFeePerGas: tip };
+    const signature = new SigningKey(keeper.privateKey).signDigest(keccak256(serialize(bid)));
+    const res = await sendRawTransaction(chain, serialize(bid, signature));
+
+    if ('hash' in res) return { status: 'sent', hash: res.hash, gasLimit: CANCEL_GAS };
+    if ('settled' in res) return { status: 'settled', reason: res.reason };
+
+    lastError = res.error;
+    if (!/underpriced|fee too low|replacement/i.test(res.error)) break;
+    cap *= 2n;
+    tip *= 2n;
+  }
+
+  return { status: 'failed', reason: lastError };
+}
+
+/** Enough doublings to clear a queue priced by a runaway escalation, bounded by
+ *  MAX_CANCEL_COST_WEI either way. */
+const CANCEL_ATTEMPTS = 5;
+
+/** A plain value transfer is 21,000 gas — the protocol minimum, and all a
+ *  do-nothing transaction needs. */
+const CANCEL_GAS = 21_000n;
+
+/** Per-nonce spend ceiling for clearing the queue: 5,000 PLS, about 6 US cents
+ *  at $0.00001276. Generous next to the ~500 PLS a cancel actually costs, and
+ *  still a hard stop if the predecessor's price is absurd. */
+const MAX_CANCEL_COST_WEI = 5_000n * 10n ** 18n;
 
 /** Next usable nonce, counting anything already sitting in the mempool. */
 export async function nextNonce(chain: ChainId, address: string): Promise<number | null> {

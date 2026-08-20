@@ -30,7 +30,14 @@
 
 import './loadEnv';
 
-import { signAndSend, loadKeeper, maxEffectiveFeeWei } from '@/lib/hex/rescueWallet';
+import {
+  signAndSend,
+  signAndCancel,
+  loadKeeper,
+  maxEffectiveFeeWei,
+  replacementBid,
+  effectivePrice,
+} from '@/lib/hex/rescueWallet';
 import { HEX_ADDRESS } from '@/lib/hex/hexDay';
 import {
   SEL,
@@ -114,6 +121,59 @@ async function main() {
   thirdWord === BigInt(999).toString(16).padStart(64, '0')
     ? pass('stakeId 999 encodes to 0x3e7, left-padded to a full word')
     : fail(`third word is wrong: ${thirdWord}`);
+
+  console.log('\nReplacement pricing:');
+  const GW = 1_000_000_000n;
+  const base = 652_000n * GW; // the base fee measured while the keeper was wedged
+  // Mirrors REPLACE_FEE_MULTIPLE in rescueWallet.ts; kept local so a change
+  // there shows up as a failure here rather than being silently tracked.
+  const REPLACE_FEE_MULTIPLE_FOR_TEST = 4n;
+
+  // The real wedge: predecessors at 22,349,612 gwei with tip == cap.
+  const wedged = { nonce: 333, cap: 22_349_612n * GW, tip: 22_349_612n * GW, type: 2 as const, gasLimit: 2_509_000n };
+  const b1 = replacementBid(base, wedged);
+  b1.tip > wedged.tip && b1.tip < (wedged.tip * 12n) / 10n
+    ? pass(`beats the queued tip by one step, not by doubling (${(Number(b1.tip) / 1e9).toLocaleString()} gwei)`)
+    : fail(`replacement tip ${b1.tip} is not a single 12.5% step above ${wedged.tip}`);
+  b1.cap >= base + b1.tip
+    ? pass('the cap leaves room for the tip on top of the current base fee')
+    : fail(`cap ${b1.cap} cannot pay tip ${b1.tip} over base ${base}`);
+  // What blind escalation could reach: 4x the base fee, doubled once per retry
+  // over four attempts, so 4x -> 32x. Against a predecessor a previous run had
+  // already ratcheted to 34x the base fee, that tops out BELOW what it has to
+  // beat — which is exactly the stall this replaces. Reading the predecessor
+  // gets there in one step instead of not at all.
+  const blindCeiling = base * REPLACE_FEE_MULTIPLE_FOR_TEST * 8n;
+  blindCeiling <= wedged.tip && b1.tip > wedged.tip
+    ? pass(
+        `blind escalation tops out at ${(Number(blindCeiling) / 1e9).toLocaleString()} gwei and never ` +
+          `beats the queued ${(Number(wedged.tip) / 1e9).toLocaleString()}; one step does`,
+      )
+    : fail('the blind-escalation comparison no longer holds — re-check the retry bounds');
+
+  // A legacy predecessor has no separate tip — its gasPrice is both fields.
+  const legacy = { nonce: 1, cap: 891_078n * GW, tip: 0n, type: 0 as const, gasLimit: 21_000n };
+  replacementBid(base, legacy).tip > legacy.cap
+    ? pass("a legacy predecessor's gasPrice is beaten on the TIP as well as the cap")
+    : fail('a legacy predecessor would be replaced with too small a tip');
+
+  // tip == cap is what made the wedged transactions cost the full cap.
+  effectivePrice(base, 22_349_612n * GW, 22_349_612n * GW) === 22_349_612n * GW
+    ? pass('tip == cap means the whole cap is charged, not the base fee')
+    : fail('effectivePrice does not charge the full cap when tip == cap');
+  effectivePrice(base, base * 3n, 500n * GW) === base + 500n * GW
+    ? pass('a normal send is charged base + tip, and the rest of the cap is headroom')
+    : fail('effectivePrice mispriced an ordinary send');
+
+  console.log('\nCancel path:');
+  const cancelBadChain = await signAndCancel({
+    keeper: { address: '0x0000000000000000000000000000000000000001', privateKey: `0x${'11'.repeat(32)}` },
+    chain: 'robinhood' as never,
+    nonce: 0,
+  });
+  cancelBadChain.status === 'failed' && /unsupported chain/.test(cancelBadChain.reason ?? '')
+    ? pass('a cancel refuses an unsupported chain before signing')
+    : fail(`a cancel on an unsupported chain was not refused: ${JSON.stringify(cancelBadChain)}`);
 
   console.log('\nFee ceiling:');
   const prevMaxGwei = process.env.HEX_RESCUE_MAX_GWEI;

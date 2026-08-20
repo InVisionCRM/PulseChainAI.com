@@ -291,6 +291,67 @@ export async function getPriorityFee(chain: ChainId): Promise<bigint> {
   return FALLBACK;
 }
 
+/** What a transaction already sitting in the mempool is bidding. */
+export interface PendingBid {
+  nonce: number;
+  /** maxFeePerGas, or gasPrice for a legacy transaction. */
+  cap: bigint;
+  /** maxPriorityFeePerGas, or gasPrice for a legacy transaction. */
+  tip: bigint;
+  /** 0 = legacy, 2 = EIP-1559. */
+  type: 0 | 2;
+  gasLimit: bigint;
+}
+
+/**
+ * What `address` is currently bidding at each pending nonce.
+ *
+ * A replacement has to beat the transaction already at its nonce on both fee
+ * fields, and this is how to find out by how much instead of guessing. The
+ * usual answer is that you cannot — `txpool_content` is disabled on public
+ * endpoints — but `eth_getBlockByNumber('pending', true)` returns the pool's
+ * candidate block with full transaction objects, and the sender's own pending
+ * transactions are in it. Verified against the live keeper: it returned 20
+ * transactions from one address with their exact caps, tips and gas limits.
+ *
+ * Blind escalation is what this replaces, and blind escalation ratchets: each
+ * run doubles against a predecessor that a previous run already doubled, so
+ * the bid runs away from the real price of gas while the queue stays stuck.
+ */
+export async function getPendingBids(chain: ChainId, address: string): Promise<Map<number, PendingBid>> {
+  const want = address.toLowerCase();
+  for (const url of RPC_URLS[chain] ?? []) {
+    const r = await rpc(url, 'eth_getBlockByNumber', ['pending', true]);
+    const txs = (r as { transactions?: unknown[] } | null)?.transactions;
+    if (!Array.isArray(txs)) continue;
+    const out = new Map<number, PendingBid>();
+    for (const raw of txs) {
+      const t = raw as Record<string, string | undefined>;
+      if (String(t.from ?? '').toLowerCase() !== want) continue;
+      try {
+        const legacy = t.maxFeePerGas == null;
+        const cap = BigInt((legacy ? t.gasPrice : t.maxFeePerGas) ?? '0x0');
+        const tip = BigInt((legacy ? t.gasPrice : t.maxPriorityFeePerGas) ?? '0x0');
+        if (cap === 0n) continue;
+        out.set(Number(BigInt(t.nonce ?? '0x0')), {
+          nonce: Number(BigInt(t.nonce ?? '0x0')),
+          cap,
+          tip,
+          type: legacy ? 0 : 2,
+          gasLimit: BigInt(t.gas ?? '0x0'),
+        });
+      } catch {
+        /* a row we cannot parse is one we cannot bid against — skip it */
+      }
+    }
+    // An empty pool is a real answer, but only from a node that gave us a
+    // transaction list at all; an endpoint that omits them must not be read as
+    // "nothing pending".
+    if (txs.length > 0) return out;
+  }
+  return new Map();
+}
+
 /**
  * Broadcast a signed transaction. Returns its hash, or the node's own reason.
  *
