@@ -27,7 +27,13 @@
 // rather than queuing more transactions behind ones that may never land.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { findRescueCandidates, resolveStake, goodAccountingCalldata, messageForStake } from '@/lib/hex/rescue';
+import {
+  defaultMinPrincipalHex,
+  findRescueCandidates,
+  resolveStake,
+  goodAccountingCalldata,
+  messageForStake,
+} from '@/lib/hex/rescue';
 import { loadKeeper, signAndSend, checkNonce } from '@/lib/hex/rescueWallet';
 import { estimateGas, getBaseFee, getGasPrice } from '@/lib/portfolio/evmRpc';
 import { HEX_ADDRESS, LATE_PENALTY_SCALE_DAYS } from '@/lib/hex/hexDay';
@@ -55,8 +61,14 @@ export async function GET(request: NextRequest) {
     // Same pricing basis signAndSend actually uses, so the reported cost
     // matches what was really paid rather than a legacy-only guess.
     const displayPrice = (await getBaseFee('pulsechain')) ?? (await getGasPrice('pulsechain'));
+    // Read explicitly rather than leaning on the library default, so the value
+    // actually used can be reported below — otherwise there is no way to tell
+    // from the outside whether a change to HEX_RESCUE_MIN_HEX reached this
+    // deployment, and a Vercel env var only takes effect after a redeploy.
+    const minPrincipalHex = defaultMinPrincipalHex();
     const candidates = await findRescueCandidates('pulsechain', {
       minDaysPastGrace: 1,
+      minPrincipalHex,
       limit: MAX_PER_RUN * 3, // most resolve to "already settled" and cost nothing
     });
 
@@ -128,6 +140,7 @@ export async function GET(request: NextRequest) {
       success: problems.length === 0,
       dryRun,
       keeper: keeper?.address ?? null,
+      minPrincipalHex,
       stuckFromPriorRun,
       candidates: candidates.length,
       rescued: rescued.length,

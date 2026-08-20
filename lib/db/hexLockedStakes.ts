@@ -249,6 +249,58 @@ export async function markGoodAccounted(net: Net, stakeIds: string[]): Promise<n
   return rows.length;
 }
 
+export interface RescueRow {
+  stakeId: string;
+  stakerAddr: string;
+  stakedHearts: string;
+  endDay: number;
+}
+
+/**
+ * Matured, unended, not-yet-good-accounted stakes above a principal floor —
+ * biggest first. Returns null when there is no database or the mirror is still
+ * filling, so a caller can fall back rather than act on a partial table.
+ *
+ * This is the query the subgraph cannot answer. A stakeStart carries no "has
+ * this ended" flag, so finding open stakes there means fetching everything and
+ * subtracting the ends locally, which no bounded page window can do honestly:
+ * ordered by end day it drops the oldest and largest stakes, and ordered by
+ * size it fills up with whales who ended their own stakes and surfaces nothing.
+ * This table only ever holds LOCKED stakes — `removeStakes` deletes them the
+ * moment they end — so "biggest first" is finally the right ordering rather
+ * than a trap, and the answer is complete instead of a sample.
+ */
+export async function readRescueCandidates(
+  net: Net,
+  opts: { maturedBefore: number; minHearts: string; limit: number },
+): Promise<RescueRow[] | null> {
+  if (!sql) return null;
+  const state = await getSyncState(net);
+  // A half-filled mirror would look like a short list of candidates rather than
+  // an error, which is exactly the kind of quietly-wrong answer to refuse.
+  if (!state?.ready) return null;
+
+  const rows = await sql`
+    SELECT stake_id::text      AS stake_id,
+           staker_addr,
+           staked_hearts::text AS staked_hearts,
+           end_day
+    FROM hex_locked_stakes
+    WHERE network = ${net}
+      AND NOT good_accounted
+      AND end_day < ${opts.maturedBefore}
+      AND staked_hearts >= ${opts.minHearts}::numeric
+    ORDER BY staked_hearts DESC
+    LIMIT ${opts.limit}`;
+
+  return rows.map((r: any) => ({
+    stakeId: String(r.stake_id),
+    stakerAddr: String(r.staker_addr).toLowerCase(),
+    stakedHearts: String(r.staked_hearts),
+    endDay: Number(r.end_day),
+  }));
+}
+
 export async function countLocked(net: Net): Promise<number> {
   if (!sql) return 0;
   const rows = await sql`SELECT count(*)::int AS n FROM hex_locked_stakes WHERE network = ${net}`;
