@@ -46,6 +46,9 @@ import {
   messageForStake,
   defaultMinPrincipalHex,
   MIN_PRINCIPAL_HEX_FALLBACK,
+  defaultMinHexPerMgas,
+  MIN_HEX_PER_MGAS_FALLBACK,
+  estimateGasForTerm,
   RESCUE_MESSAGES,
 } from '@/lib/hex/rescue';
 
@@ -165,6 +168,39 @@ async function main() {
   effectivePrice(base, base * 3n, 500n * GW) === base + 500n * GW
     ? pass('a normal send is charged base + tip, and the rest of the cap is headroom')
     : fail('effectivePrice mispriced an ordinary send');
+
+  console.log('\nValue floor:');
+  const prevPerMgas = process.env.HEX_RESCUE_MIN_HEX_PER_MGAS;
+  const perMgas = (set: string | undefined, want: number, why: string) => {
+    if (set === undefined) delete process.env.HEX_RESCUE_MIN_HEX_PER_MGAS;
+    else process.env.HEX_RESCUE_MIN_HEX_PER_MGAS = set;
+    const got = defaultMinHexPerMgas();
+    got === want ? pass(`${why} -> ${got}`) : fail(`${why}: expected ${want}, got ${got}`);
+  };
+  perMgas(undefined, MIN_HEX_PER_MGAS_FALLBACK, 'unset falls back');
+  perMgas('120', 120, 'HEX_RESCUE_MIN_HEX_PER_MGAS=120');
+  // 0 is a real setting here — "rescue anything" — unlike the fee ceiling.
+  perMgas('0', 0, '0 means no value floor');
+  perMgas('nope', MIN_HEX_PER_MGAS_FALLBACK, 'unparseable falls back');
+  if (prevPerMgas === undefined) delete process.env.HEX_RESCUE_MIN_HEX_PER_MGAS;
+  else process.env.HEX_RESCUE_MIN_HEX_PER_MGAS = prevPerMgas;
+
+  // The shapes the floor exists to tell apart. Gas tracks TERM, so size alone
+  // cannot make this call: a Hedron HSI is small AND long-term, which is the
+  // worst case, and it still pays for itself.
+  const score = (hex: number, days: number) => (hex / estimateGasForTerm(days)) * 1_000_000;
+  const hsi = score(5_555, 5555);
+  const junk = score(100, 5555);
+  const whale = score(1_000_000, 90);
+  hsi >= MIN_HEX_PER_MGAS_FALLBACK
+    ? pass(`a 5,555 HEX / 5555-day Hedron HSI scores ${hsi.toFixed(0)} and clears the floor`)
+    : fail(`the worst realistic HSI scores ${hsi.toFixed(0)}, under the ${MIN_HEX_PER_MGAS_FALLBACK} floor`);
+  junk < MIN_HEX_PER_MGAS_FALLBACK
+    ? pass(`a 100 HEX / 5555-day stake scores ${junk.toFixed(1)} and is dropped`)
+    : fail('the floor does not drop a stake whose gas outweighs its HEX');
+  whale > hsi
+    ? pass(`a short-term whale (${whale.toFixed(0)}) still outranks the HSI (${hsi.toFixed(0)})`)
+    : fail('ordering is wrong: the HSI outranks a short-term whale');
 
   console.log('\nIn-flight bound:');
   MAX_IN_FLIGHT > 0 && MAX_IN_FLIGHT < 16

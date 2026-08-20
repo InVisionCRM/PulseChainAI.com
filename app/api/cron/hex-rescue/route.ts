@@ -33,12 +33,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   defaultMinPrincipalHex,
+  defaultMinHexPerMgas,
   findRescueCandidates,
   resolveStake,
   goodAccountingCalldata,
   messageForStake,
 } from '@/lib/hex/rescue';
-import { loadKeeper, signAndSend, checkNonce, MAX_IN_FLIGHT } from '@/lib/hex/rescueWallet';
+import { loadKeeper, signAndSend, checkNonce, waitForInFlight, MAX_IN_FLIGHT } from '@/lib/hex/rescueWallet';
 import { estimateGas, getBaseFee, getGasPrice, getPendingBids, type PendingBid } from '@/lib/portfolio/evmRpc';
 import { HEX_ADDRESS, LATE_PENALTY_SCALE_DAYS } from '@/lib/hex/hexDay';
 
@@ -48,9 +49,23 @@ export const maxDuration = 60;
 /** Stop starting new stakes past this, leaving room to finish the one in hand
  *  and return a report rather than being killed mid-flight. */
 const TIME_BUDGET_MS = 45_000;
-/** Also cap by count, so a fast day cannot quietly spend the whole float — and
- *  so the whole batch actually reaches the network. See MAX_IN_FLIGHT. */
-const MAX_PER_RUN = MAX_IN_FLIGHT;
+/**
+ * How many stakes one run may rescue in total.
+ *
+ * NOT how many it may have unconfirmed at once — that is MAX_IN_FLIGHT, and
+ * the difference is the whole lesson from the wedge. A run that queues 200
+ * transactions at once does not rescue 200 stakes: geth carries and relays a
+ * limited number per account (16 by default), so the tail is accepted by one
+ * node, never announced to peers, and sits unmined at any price. 81 queued at
+ * once is what wedged this keeper.
+ *
+ * So the run works in WAVES of MAX_IN_FLIGHT, waiting for each to confirm
+ * before starting the next, up to this many in total. In practice TIME_BUDGET_MS
+ * ends the run long before 200 on a single serverless invocation — the cap is
+ * there so a long-running or more frequent schedule is not the thing that
+ * limits it.
+ */
+const MAX_PER_RUN = 200;
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -71,9 +86,13 @@ export async function GET(request: NextRequest) {
     // from the outside whether a change to HEX_RESCUE_MIN_HEX reached this
     // deployment, and a Vercel env var only takes effect after a redeploy.
     const minPrincipalHex = defaultMinPrincipalHex();
+    // Same reason as the principal floor: read explicitly so the value actually
+    // in force is visible in the report rather than inferred.
+    const minHexPerMgas = defaultMinHexPerMgas();
     const candidates = await findRescueCandidates('pulsechain', {
       minDaysPastGrace: 1,
       minPrincipalHex,
+      minHexPerMgas,
       limit: MAX_PER_RUN * 3, // most resolve to "already settled" and cost nothing
     });
 
@@ -81,12 +100,19 @@ export async function GET(request: NextRequest) {
     let pendingNonce = 0;
     let stuckFromPriorRun = 0;
     let pendingBids = new Map<number, PendingBid>();
+    /** Mined nonce at the start of the current wave — the in-flight baseline. */
+    let startedAtNonce = 0;
+    let waves = 1;
+    /** True when a wave did not confirm inside the budget, so the run stopped
+     *  early on purpose rather than running out of candidates. */
+    let waitedOut = false;
     if (keeper) {
       const status = await checkNonce('pulsechain', keeper.address);
       if (!status) return NextResponse.json({ error: 'could not read keeper nonce' }, { status: 503 });
       nonce = status.mined; // always resume from mined, not pending — see header
       pendingNonce = status.pending;
       stuckFromPriorRun = status.stuck;
+      startedAtNonce = status.mined;
       // Read once what is queued, so replacements bid against the real price
       // rather than escalating blindly against their own previous runs.
       if (status.stuck > 0) pendingBids = await getPendingBids('pulsechain', keeper.address);
@@ -105,6 +131,23 @@ export async function GET(request: NextRequest) {
       // The chain decides, not the indexer — it may be blocks behind.
       const resolved = await resolveStake('pulsechain', c.stakerAddr, c.stakeId);
       if (!resolved) continue; // already ended or good-accounted: no work, no gas
+
+      // One wave at a time. Past the in-flight bound this waits for the
+      // outstanding transactions to confirm rather than queueing behind them.
+      if (nonce != null && keeper && nonce - startedAtNonce >= MAX_IN_FLIGHT) {
+        const status = await waitForInFlight(
+          'pulsechain', keeper.address, MAX_IN_FLIGHT, started + TIME_BUDGET_MS,
+        );
+        if (!status) break; // cannot read the nonce: stop rather than guess
+        if (status.stuck >= MAX_IN_FLIGHT) {
+          waitedOut = true;
+          break; // the wave did not clear inside the budget — leave it for the next run
+        }
+        nonce = status.mined;
+        pendingNonce = status.pending;
+        startedAtNonce = status.mined;
+        waves++;
+      }
 
       attempted++;
       const data = goodAccountingCalldata(c.stakerAddr, resolved.index, c.stakeId, messageForStake(c.stakeId, c.principalHex));
@@ -154,7 +197,15 @@ export async function GET(request: NextRequest) {
       dryRun,
       keeper: keeper?.address ?? null,
       minPrincipalHex,
+      minHexPerMgas,
       stuckFromPriorRun,
+      // How the run was paced, and why it ended. Without these a short run
+      // reads the same whether it ran out of candidates, ran out of clock, or
+      // was waiting for a wave to confirm.
+      waves,
+      maxInFlight: MAX_IN_FLIGHT,
+      maxPerRun: MAX_PER_RUN,
+      stoppedWaitingForConfirmations: waitedOut,
       candidates: candidates.length,
       rescued: rescued.length,
       hexFrozen: Math.round(hexFrozen),

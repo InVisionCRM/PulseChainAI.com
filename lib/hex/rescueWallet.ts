@@ -535,6 +535,36 @@ const CANCEL_GAS = 21_000n;
  *  still a hard stop if the predecessor's price is absurd. */
 const MAX_CANCEL_COST_WEI = 5_000n * 10n ** 18n;
 
+/**
+ * Block until fewer than `maxInFlight` of this account's transactions are
+ * unconfirmed, or the deadline passes. Returns the mined nonce it saw last.
+ *
+ * This is what lets a run do more work than the in-flight bound without
+ * recreating the wedge: send a wave, wait for it to confirm, send the next.
+ * A run that instead queues everything at once does not rescue more stakes —
+ * the network drops what it will not carry and the tail sits unmined at any
+ * price.
+ *
+ * Returns null if the nonce could not be read at all; the caller should stop
+ * rather than guess.
+ */
+export async function waitForInFlight(
+  chain: ChainId,
+  address: string,
+  maxInFlight: number,
+  deadline: number,
+  pollMs = 3_000,
+): Promise<NonceStatus | null> {
+  let last: NonceStatus | null = null;
+  for (;;) {
+    last = await checkNonce(chain, address);
+    if (!last) return null;
+    if (last.stuck < maxInFlight) return last;
+    if (Date.now() + pollMs >= deadline) return last;
+    await new Promise((r) => setTimeout(r, pollMs));
+  }
+}
+
 /** Next usable nonce, counting anything already sitting in the mempool. */
 export async function nextNonce(chain: ChainId, address: string): Promise<number | null> {
   return getTransactionCount(chain, address, 'pending');
