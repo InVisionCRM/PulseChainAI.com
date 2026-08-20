@@ -51,7 +51,7 @@ import {
   messageForStake,
   type RescueCandidate,
 } from '@/lib/hex/rescue';
-import { loadKeeper, signAndSend, signAndCancel, checkNonce } from '@/lib/hex/rescueWallet';
+import { loadKeeper, signAndSend, signAndCancel, checkNonce, MAX_IN_FLIGHT } from '@/lib/hex/rescueWallet';
 import { estimateGas, getBaseFee, getGasPrice, getPendingBids, type PendingBid } from '@/lib/portfolio/evmRpc';
 import { HEX_ADDRESS, LATE_PENALTY_SCALE_DAYS } from '@/lib/hex/hexDay';
 
@@ -66,15 +66,7 @@ const EXECUTE = has('--execute');
 // replaced with a 21,000-gas transaction that does nothing. Nonces are strictly
 // ordered, so one stuck transaction blocks every rescue behind it.
 const CANCEL_STUCK = has('--cancel-stuck');
-/**
- * How many transactions one run will leave unconfirmed at once.
- *
- * Deliberately under geth's default per-account allowance of 16: a node accepts
- * a burst from its own client but its peers do not, so anything past that is
- * quietly not relayed and cannot mine at any price. 81 in flight is how this
- * keeper wedged itself.
- */
-const MAX_IN_FLIGHT = 12;
+
 const LIMIT = Number(arg('--limit') ?? 25);
 const MIN_DAYS = Number(arg('--min-days') ?? 1);
 // Precedence: --min-hex flag (this run only) > HEX_RESCUE_MIN_HEX (everywhere,

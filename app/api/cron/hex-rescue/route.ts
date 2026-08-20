@@ -18,6 +18,10 @@
 // would have done, which is also what makes it safe to deploy before the key
 // exists.
 //
+// Bounded to MAX_PER_RUN for propagation as much as for cost — see that
+// constant. A run that queues more than the network will carry does not rescue
+// more stakes, it wedges the ones it queued.
+//
 // Self-heals a run that never confirmed. PulseChain's base fee moves fast
 // enough that a batch can go stale before the first transaction mines, wedging
 // every nonce behind it (nonces are strictly ordered) — see the
@@ -34,8 +38,8 @@ import {
   goodAccountingCalldata,
   messageForStake,
 } from '@/lib/hex/rescue';
-import { loadKeeper, signAndSend, checkNonce } from '@/lib/hex/rescueWallet';
-import { estimateGas, getBaseFee, getGasPrice } from '@/lib/portfolio/evmRpc';
+import { loadKeeper, signAndSend, checkNonce, MAX_IN_FLIGHT } from '@/lib/hex/rescueWallet';
+import { estimateGas, getBaseFee, getGasPrice, getPendingBids, type PendingBid } from '@/lib/portfolio/evmRpc';
 import { HEX_ADDRESS, LATE_PENALTY_SCALE_DAYS } from '@/lib/hex/hexDay';
 
 export const revalidate = 0;
@@ -44,8 +48,9 @@ export const maxDuration = 60;
 /** Stop starting new stakes past this, leaving room to finish the one in hand
  *  and return a report rather than being killed mid-flight. */
 const TIME_BUDGET_MS = 45_000;
-/** Also cap by count, so a fast day cannot quietly spend the whole float. */
-const MAX_PER_RUN = 20;
+/** Also cap by count, so a fast day cannot quietly spend the whole float — and
+ *  so the whole batch actually reaches the network. See MAX_IN_FLIGHT. */
+const MAX_PER_RUN = MAX_IN_FLIGHT;
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -75,12 +80,16 @@ export async function GET(request: NextRequest) {
     let nonce: number | null = null;
     let pendingNonce = 0;
     let stuckFromPriorRun = 0;
+    let pendingBids = new Map<number, PendingBid>();
     if (keeper) {
       const status = await checkNonce('pulsechain', keeper.address);
       if (!status) return NextResponse.json({ error: 'could not read keeper nonce' }, { status: 503 });
       nonce = status.mined; // always resume from mined, not pending — see header
       pendingNonce = status.pending;
       stuckFromPriorRun = status.stuck;
+      // Read once what is queued, so replacements bid against the real price
+      // rather than escalating blindly against their own previous runs.
+      if (status.stuck > 0) pendingBids = await getPendingBids('pulsechain', keeper.address);
     }
 
     const rescued: { stakeId: string; hex: number; hash?: string; gas: string }[] = [];
@@ -115,6 +124,10 @@ export async function GET(request: NextRequest) {
         // Below the pending count means something unconfirmed is already on
         // this nonce and has to be outbid.
         replacing: nonce! < pendingNonce,
+        // What is actually queued there, so a replacement bids one step above
+        // it. Without this it can only escalate blindly, which ratchets the
+        // price against its own previous runs — see PRICE_BUMP_NUM.
+        predecessor: pendingBids.get(nonce!),
       });
       if (out.status === 'sent') {
         nonce!++;

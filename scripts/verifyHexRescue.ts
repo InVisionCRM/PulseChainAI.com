@@ -37,6 +37,7 @@ import {
   maxEffectiveFeeWei,
   replacementBid,
   effectivePrice,
+  MAX_IN_FLIGHT,
 } from '@/lib/hex/rescueWallet';
 import { HEX_ADDRESS } from '@/lib/hex/hexDay';
 import {
@@ -164,6 +165,25 @@ async function main() {
   effectivePrice(base, base * 3n, 500n * GW) === base + 500n * GW
     ? pass('a normal send is charged base + tip, and the rest of the cap is headroom')
     : fail('effectivePrice mispriced an ordinary send');
+
+  console.log('\nIn-flight bound:');
+  MAX_IN_FLIGHT > 0 && MAX_IN_FLIGHT < 16
+    ? pass(`${MAX_IN_FLIGHT} in flight, under geth's default per-account allowance of 16`)
+    : fail(`MAX_IN_FLIGHT is ${MAX_IN_FLIGHT}, which peers will not carry in full`);
+  {
+    // The script and the cron each kept their own number once. The script was
+    // lowered and the cron was not, so the unattended 03:00 run would have
+    // reproduced the wedge. Neither may define its own again.
+    const { readFileSync } = await import('node:fs');
+    const offenders = ['scripts/hexRescue.ts', 'app/api/cron/hex-rescue/route.ts'].filter((f) => {
+      const src = readFileSync(f, 'utf8');
+      return !/MAX_IN_FLIGHT.*from '@\/lib\/hex\/rescueWallet'/s.test(src.split('\n').filter((l) => l.startsWith('import')).join('\n'))
+        || /^const MAX_IN_FLIGHT\s*=\s*\d/m.test(src);
+    });
+    offenders.length === 0
+      ? pass('the script and the cron both import the bound rather than redefining it')
+      : fail(`these define their own in-flight bound: ${offenders.join(', ')}`);
+  }
 
   console.log('\nBroadcast:');
   {

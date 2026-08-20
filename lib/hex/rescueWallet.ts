@@ -46,6 +46,22 @@ import type { ChainId } from '@/services';
 const CHAIN_IDS: Record<'pulsechain' | 'ethereum', number> = { pulsechain: 369, ethereum: 1 };
 
 /**
+ * How many transactions one run may leave unconfirmed at once.
+ *
+ * Geth carries and relays a limited number of transactions per account (16 by
+ * default). Past that, the node you hand them to accepts them from its own
+ * client and never announces them to peers, so they cannot mine at any price —
+ * the keeper wedged 81 transactions that existed on exactly one node, priced at
+ * 34x the base fee and going nowhere.
+ *
+ * Both the script and the nightly cron import this rather than each keeping
+ * their own number. They did keep their own, the script was lowered and the
+ * cron was not, and an unattended run at 03:00 UTC would have reproduced the
+ * whole thing.
+ */
+export const MAX_IN_FLIGHT = 12;
+
+/**
  * Hard ceiling per transaction. The longest possible HEX stake is 5,555 days,
  * which measured at ~2,900-3,300 gas per staked day puts the worst legitimate
  * call around 18M. 25M leaves headroom under PulseChain's ~45M block limit
