@@ -28,13 +28,19 @@ import { RescuedBy } from '@/components/rescue/RescueBrand';
 import { RescueStakeCard } from '@/components/rescue/RescueStakeCard';
 import { KeeperPanel } from '@/components/rescue/KeeperPanel';
 
-export const revalidate = 300;
+// A minute, not five. The wall is watched live while the keeper runs, and a
+// five-minute window meant a sweep looked like nothing had happened.
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: 'The Rescue Wall — HEX stakes saved from bleeding out',
   description:
     'Every matured HEX stake Morbius and SuperStake have frozen before the late-end penalty could eat it. Nothing taken, nothing given — the HEX is still the owner’s.',
 };
+
+/** How many stake cards to draw. Page weight, not data: the totals are summed
+ *  over every rescue regardless of what is rendered. */
+const CARD_LIMIT = 200;
 
 /** Live pHEX price for the USD figures. Best effort — the page is fully useful
  *  in HEX alone, so a price outage hides dollars rather than breaking. */
@@ -57,11 +63,15 @@ async function hexUsd(): Promise<number | null> {
 }
 
 export default async function RescueWallPage() {
+  // The whole history, not a page of it: the totals below are summed from this
+  // list, so a cap here would not shorten the wall, it would under-report how
+  // much HEX was saved. Cards are capped further down instead.
   const [rescues, price] = await Promise.all([
-    fetchRescues('pulsechain', 200).catch(() => []),
+    fetchRescues('pulsechain').catch(() => []),
     hexUsd(),
   ]);
   const t = totalsFor(rescues);
+  const shown = rescues.slice(0, CARD_LIMIT);
   const usd = (hex: number) => (price != null ? fmtUsdShort(hex * price) : null);
 
   return (
@@ -162,8 +172,13 @@ export default async function RescueWallPage() {
               Every rescue
               <span className="text-[var(--text-muted)]">· {rescues.length}</span>
             </h2>
+            {shown.length < rescues.length && (
+              <p className="mt-1 text-[11px] text-[var(--text-faint)]">
+                Showing the newest {shown.length}. The totals above count all {rescues.length}.
+              </p>
+            )}
             <div className="mt-2 grid gap-2 md:grid-cols-2">
-              {rescues.map((r) => (
+              {shown.map((r) => (
                 <RescueStakeCard key={r.txHash} rescue={r} hexUsd={price} />
               ))}
             </div>
