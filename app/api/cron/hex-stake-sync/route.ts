@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runStakeSync } from '@/lib/hex/lockedStakeSync';
-import { dbAvailable, getSyncState } from '@/lib/db/hexLockedStakes';
+import { dbAvailable, getSyncState, resetForRefill } from '@/lib/db/hexLockedStakes';
 
 export const revalidate = 0;
 export const maxDuration = 60;
@@ -38,6 +38,22 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // ?refill=1 rewinds the cursor to the start of the stake list before this
+    // slice runs. Needed after a migration adds columns (existing rows are null
+    // in them and the live phase never looks back), and to reconcile drift if
+    // the sync has been down. Guarded by the same secret as the sync itself,
+    // and refused when there is no secret — an open endpoint doing idempotent
+    // catch-up work is fine, one that can restart a full sweep is not.
+    if (req.nextUrl.searchParams.get('refill') === '1') {
+      if (unprotected) {
+        return NextResponse.json(
+          { error: 'refill requires CRON_SECRET to be set' },
+          { status: 403 },
+        );
+      }
+      await resetForRefill('pulsechain');
+    }
+
     const report = await runStakeSync('pulsechain', BUDGET_MS);
     return NextResponse.json({
       success: true,
