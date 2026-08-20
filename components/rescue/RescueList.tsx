@@ -54,7 +54,12 @@ export function RescueList({
       case 'claimed':
         // Claimed first, most recently claimed at the top; everything else
         // keeps newest-first behind them.
-        out.sort((a, b) => desc(a.claimedAt, b.claimedAt) || desc(a.timestamp, b.timestamp));
+        out.sort(
+          (a, b) =>
+            Number(b.claimed === true) - Number(a.claimed === true) ||
+            desc(a.claimedAt, b.claimedAt) ||
+            desc(a.timestamp, b.timestamp),
+        );
         break;
       case 'oldest':
         out.sort((a, b) => a.timestamp - b.timestamp);

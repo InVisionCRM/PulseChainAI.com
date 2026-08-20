@@ -25,9 +25,10 @@
 // verifiable.
 
 import { fetchGoodAccountings, type GoodAccountingRecord } from './goodAccounting';
+import { fetchStakeEnds, type StakeEndRecord } from './stakeEnds';
 import { HEX_ADDRESS, heartsToHex, LATE_PENALTY_SCALE_DAYS } from './hexDay';
 import { SEL } from './rescue';
-import { hexSubgraphQuery, type HexNet } from './subgraph';
+import type { HexNet } from './subgraph';
 
 const BLOCKSCOUT: Record<HexNet, string> = {
   pulsechain: 'https://api.scan.pulsechain.com/api/v2',
@@ -64,16 +65,25 @@ export interface Rescue {
   claimableHex: number | null;
   /** HEX/day this stake was losing when we stopped it. */
   bleedPerDay: number | null;
+
+  // --- what happened after the rescue ---
   /**
-   * When the owner came back and ended the stake, if they have.
-   *
-   * The point of the whole exercise: a rescue only freezes the damage, it does
-   * not hand anybody their HEX. This is the proof that somebody read the note,
-   * turned up and collected.
+   * Whether the owner has since ended the stake and taken their HEX.
+   * Null means the lookup did not resolve, which is not the same as "no" —
+   * a failed chunk must not be shown to someone as "nobody came for it".
    */
+  claimed: boolean | null;
+  /** Unix ms the owner ended it, when they have. */
   claimedAt: number | null;
-  /** What they walked away with — the stakeEnd's own payout figure. */
-  claimedPayoutHex: number | null;
+  /** Days between our good-accounting and their collection. */
+  daysToClaim: number | null;
+  /** HEX they actually received: principal + payout - penalty, as recorded. */
+  claimedHex: number | null;
+  /**
+   * True when the end record confirms the stake was unlocked before it ended —
+   * on-chain proof the rescue is what stopped the bleeding, not a coincidence.
+   */
+  endConfirmsRescue: boolean | null;
 }
 
 /** Decode a `stakeGoodAccounting` call back into its arguments and note. */
@@ -179,8 +189,11 @@ async function walkRescues(
         penaltyHex: null,
         claimableHex: null,
         bleedPerDay: null,
+        claimed: null,
         claimedAt: null,
-        claimedPayoutHex: null,
+        daysToClaim: null,
+        claimedHex: null,
+        endConfirmsRescue: null,
       });
       if (stopAt) { found = true; break; }
     }
@@ -216,67 +229,45 @@ export async function fetchRescues(net: HexNet = 'pulsechain', limit = 2_000): P
  */
 async function enrich(net: HexNet, rescues: Rescue[]): Promise<Rescue[]> {
   if (rescues.length === 0) return rescues;
+  const ids = rescues.map((r) => r.stakeId);
 
-  // Who has since collected. Independent of the pricing below and allowed to
-  // fail on its own: not knowing whether someone claimed must not cost the
-  // page its figures.
-  try {
-    const claims = await fetchClaims(net, rescues.map((r) => r.stakeId));
-    for (const r of rescues) {
-      const c = claims.get(r.stakeId);
-      if (!c) continue;
-      r.claimedAt = c.at;
-      r.claimedPayoutHex = c.payoutHex;
-    }
-  } catch {
-    /* nobody shown as claimed rather than a wrong page */
-  }
-
+  // The two halves of a rescue's story, fetched together: what we froze, and
+  // whether the owner has since come to collect it.
   let records = new Map<string, GoodAccountingRecord>();
+  let ends = new Map<string, StakeEndRecord>();
   try {
-    records = await fetchGoodAccountings(net, rescues.map((r) => r.stakeId));
+    [records, ends] = await Promise.all([fetchGoodAccountings(net, ids), fetchStakeEnds(net, ids)]);
   } catch {
     return rescues; // best effort: the list is still true, just unpriced
   }
 
   for (const r of rescues) {
     const ga = records.get(r.stakeId);
-    if (!ga) continue;
-    r.principalHex = ga.principalHex;
-    r.payoutHex = ga.payoutHex;
-    r.penaltyHex = ga.penaltyHex;
-    r.claimableHex = Math.max(0, ga.principalHex + ga.payoutHex - ga.penaltyHex);
-    r.bleedPerDay = (ga.principalHex + ga.payoutHex) / LATE_PENALTY_SCALE_DAYS;
+    if (ga) {
+      r.principalHex = ga.principalHex;
+      r.payoutHex = ga.payoutHex;
+      r.penaltyHex = ga.penaltyHex;
+      r.claimableHex = Math.max(0, ga.principalHex + ga.payoutHex - ga.penaltyHex);
+      r.bleedPerDay = (ga.principalHex + ga.payoutHex) / LATE_PENALTY_SCALE_DAYS;
+    }
+
+    // An absent end means the stake is still sitting there — but only if the
+    // lookup actually ran. `ends` is empty when the whole fetch failed, and
+    // reporting that as "nobody claimed anything" would be a lie about money.
+    if (ends.size === 0) continue;
+    const end = ends.get(r.stakeId);
+    if (!end) {
+      r.claimed = false;
+      continue;
+    }
+    r.claimed = true;
+    r.claimedAt = end.timestamp;
+    r.claimedHex = Math.max(0, end.principalHex + end.payoutHex - end.penaltyHex);
+    r.endConfirmsRescue = end.prevUnlocked;
+    // Measured from the rescue, which is the moment the loss stopped.
+    r.daysToClaim = Math.max(0, (end.timestamp - r.timestamp) / 86_400_000);
   }
   return rescues;
-}
-
-/**
- * Which of these stakes their owners have since ended, and for how much.
- *
- * A rescue is only ever performed on a stake that is still locked, so any
- * `stakeEnd` on one of ours necessarily happened afterwards — no need to
- * compare timestamps to tell "claimed after we froze it" from "ended anyway".
- */
-async function fetchClaims(
-  net: HexNet,
-  stakeIds: string[],
-): Promise<Map<string, { at: number; payoutHex: number }>> {
-  const out = new Map<string, { at: number; payoutHex: number }>();
-  const ids = [...new Set(stakeIds)];
-  for (let i = 0; i < ids.length; i += 500) {
-    const chunk = ids.slice(i, i + 500).map((id) => `"${id}"`).join(',');
-    const d = await hexSubgraphQuery<{
-      stakeEnds: { stakeId: string; timestamp: string; payout: string }[];
-    }>(net, `{ stakeEnds(where:{ stakeId_in: [${chunk}] }, first: 1000){ stakeId timestamp payout } }`);
-    for (const e of d.stakeEnds ?? []) {
-      out.set(String(e.stakeId), {
-        at: Number(e.timestamp) * 1000,
-        payoutHex: heartsToHex(e.payout),
-      });
-    }
-  }
-  return out;
 }
 
 /**
@@ -295,6 +286,20 @@ export async function fetchRescue(net: HexNet, stakeId: string): Promise<Rescue 
 
 export interface RescueTotals {
   count: number;
+  /** Rescues whose owner has since ended the stake and taken the HEX. */
+  claimed: number;
+  /** Rescued and still sitting there, waiting for someone to collect. */
+  unclaimed: number;
+  /** Total HEX collected by owners across the claimed rescues. */
+  claimedHex: number;
+  /**
+   * Median days owners took to collect after a rescue. Median, not mean: the
+   * distribution has a long tail of people who take most of a year, and one of
+   * those drags an average somewhere no real staker sits.
+   */
+  medianDaysToClaim: number | null;
+  /** Longest gap between a rescue and its collection, so far. */
+  slowestClaim: Rescue | null;
   /** Total still claimable across every rescue we could price. */
   claimableHex: number;
   /** Total HEX/day of bleeding stopped. */
@@ -303,10 +308,6 @@ export interface RescueTotals {
   penaltyHex: number;
   /** Rescues we could not price, so the totals are known to be incomplete. */
   unpriced: number;
-  /** Owners who came back and ended the stake after we froze it. */
-  claimed: number;
-  /** HEX those owners actually collected. */
-  claimedHex: number;
   biggest: Rescue | null;
   /** Closest call: the highest share of gross already burned when we froze it. */
   closestCall: Rescue | null;
@@ -315,7 +316,10 @@ export interface RescueTotals {
 export function totalsFor(rescues: Rescue[]): RescueTotals {
   let claimableHex = 0;
   let claimed = 0;
+  let unclaimed = 0;
   let claimedHex = 0;
+  let slowestClaim: Rescue | null = null;
+  const claimDays: number[] = [];
   let bleedStoppedPerDay = 0;
   let penaltyHex = 0;
   let unpriced = 0;
@@ -324,12 +328,6 @@ export function totalsFor(rescues: Rescue[]): RescueTotals {
   let worstFrac = -1;
 
   for (const r of rescues) {
-    // Counted outside the pricing guard: whether somebody collected is known
-    // from the stakeEnd alone and does not depend on the rescue being priced.
-    if (r.claimedAt != null) {
-      claimed++;
-      claimedHex += r.claimedPayoutHex ?? 0;
-    }
     if (r.claimableHex == null) {
       unpriced++;
       continue;
@@ -339,6 +337,26 @@ export function totalsFor(rescues: Rescue[]): RescueTotals {
     penaltyHex += r.penaltyHex ?? 0;
     if (!biggest || (biggest.claimableHex ?? 0) < r.claimableHex) biggest = r;
   }
+
+  // Counted over every rescue, priced or not — whether someone collected does
+  // not depend on our being able to price it.
+  for (const r of rescues) {
+    if (r.claimed === true) {
+      claimed++;
+      claimedHex += r.claimedHex ?? 0;
+      if (r.daysToClaim != null) claimDays.push(r.daysToClaim);
+      if (r.daysToClaim != null && (slowestClaim?.daysToClaim ?? -1) < r.daysToClaim) slowestClaim = r;
+    } else if (r.claimed === false) {
+      unclaimed++;
+    }
+    // r.claimed === null is unknown and deliberately counted in neither.
+  }
+  claimDays.sort((a, b) => a - b);
+  const medianDaysToClaim = claimDays.length
+    ? claimDays.length % 2
+      ? claimDays[(claimDays.length - 1) / 2]
+      : (claimDays[claimDays.length / 2 - 1] + claimDays[claimDays.length / 2]) / 2
+    : null;
 
   // Closest call is chosen AFTER the biggest is known, and never lands on the
   // same stake: two headline cards pointing at one rescue reads as a bug, and
@@ -356,5 +374,8 @@ export function totalsFor(rescues: Rescue[]): RescueTotals {
     }
   }
 
-  return { count: rescues.length, claimableHex, bleedStoppedPerDay, penaltyHex, unpriced, claimed, claimedHex, biggest, closestCall };
+  return {
+    count: rescues.length, claimed, unclaimed, claimedHex, medianDaysToClaim, slowestClaim,
+    claimableHex, bleedStoppedPerDay, penaltyHex, unpriced, biggest, closestCall,
+  };
 }

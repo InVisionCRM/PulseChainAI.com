@@ -37,7 +37,8 @@ export async function generateMetadata({
   if (r?.claimedAt != null) {
     return {
       title: `Stake ${stakeId} was rescued and collected`,
-      description: WHAT_HAPPENED.short,
+      description:
+        'This stake was losing value after maturing. The keeper froze the penalty, and its owner has since ended the stake and collected.',
     };
   }
   const amount = r?.claimableHex != null ? `${hex(r.claimableHex)} HEX` : 'A HEX stake';
@@ -75,11 +76,11 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
               {/* Once they have ended the stake the HEX is in their wallet, so
                   "is still yours" would be telling them to go and collect
                   something they already collected. */}
-              {rescue.claimedAt != null ? (
+              {rescue.claimed === true ? (
                 <span>
                   You collected{' '}
                   <span className="text-emerald-400">
-                    {hex(rescue.claimedPayoutHex ?? rescue.claimableHex)} HEX
+                    {hex(rescue.claimedHex ?? rescue.claimableHex)} HEX
                   </span>
                   .
                 </span>
@@ -93,7 +94,9 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
               )}
             </h1>
             <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-[var(--text-muted)]">
-              {WHAT_HAPPENED.short}
+              {rescue.claimed === true
+                ? 'Your stake finished its term and then started losing value. We stopped that, and you have since ended the stake and been paid.'
+                : WHAT_HAPPENED.short}
             </p>
 
             {/* The reassurance has to come before the detail — someone who thinks
@@ -102,7 +105,7 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
               <IconShieldCheck className="h-6 w-6 shrink-0 text-emerald-400" aria-hidden="true" />
               <p className="font-poppins text-sm leading-relaxed text-[var(--text-muted)]">
                 <span className="font-semibold text-[var(--text)]">Nothing was taken and nothing can be.</span>{' '}
-                {rescue.claimedAt != null
+                {rescue.claimed === true
                   ? 'Your HEX never moved while it sat in the contract, and ending the stake paid it out to your address and nowhere else. We only froze the penalty; we could never have touched the funds.'
                   : WHAT_HAPPENED.why}
               </p>
@@ -162,10 +165,10 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
             </div>
 
             <h2 className="font-jost mt-8 text-lg font-bold text-[var(--text)]">
-              {rescue.claimedAt != null ? 'Nothing left to do' : 'How to get it'}
+              {rescue.claimed === true ? 'Nothing left to do' : 'How to get it'}
             </h2>
             <p className="font-poppins mt-1 text-sm text-[var(--text-muted)]">
-              {rescue.claimedAt != null
+              {rescue.claimed === true
                 ? 'This stake has been ended and the HEX has been paid out to its owner. The rest of this page is kept as the record of what happened.'
                 : 'There is no rush — the amount above cannot shrink any further. But it also will not arrive on its own.'}
             </p>

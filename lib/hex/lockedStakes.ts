@@ -26,11 +26,22 @@ export interface LockedStake {
   stakeShares: string;
   stakedHearts: string;
   endDay: string;
+  /** HEX day the stake was opened. With endDay it gives the full term. */
+  startDay: string;
+  /** Term the staker committed to, in days. */
+  stakedDays: string;
+  /** Unix seconds the stakeStart was mined — the only wall-clock we get. */
+  timestamp: string;
+  /** Opened by a contract's auto-stake rather than by hand. */
+  isAutoStake: boolean;
   /** Shares already released back to the network; the HEX is still locked. */
   goodAccounted?: boolean;
 }
 
-export const STAKE_FIELDS = 'stakeId stakerAddr stakeShares stakedHearts endDay';
+// stakeTShares is deliberately NOT requested: it is stakeShares scaled by 1e12,
+// so storing it as well would be a second copy of one fact that can drift.
+export const STAKE_FIELDS =
+  'stakeId stakerAddr stakeShares stakedHearts endDay startDay stakedDays timestamp isAutoStake';
 
 const PAGE = 1000;
 const ID_CHUNK = 500;
