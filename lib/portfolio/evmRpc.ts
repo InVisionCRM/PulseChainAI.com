@@ -291,14 +291,90 @@ export async function getPriorityFee(chain: ChainId): Promise<bigint> {
   return FALLBACK;
 }
 
+/** What a transaction already sitting in the mempool is bidding. */
+export interface PendingBid {
+  nonce: number;
+  /** maxFeePerGas, or gasPrice for a legacy transaction. */
+  cap: bigint;
+  /** maxPriorityFeePerGas, or gasPrice for a legacy transaction. */
+  tip: bigint;
+  /** 0 = legacy, 2 = EIP-1559. */
+  type: 0 | 2;
+  gasLimit: bigint;
+}
+
 /**
- * Broadcast a signed transaction. Returns its hash, or the node's own reason.
+ * What `address` is currently bidding at each pending nonce.
  *
- * Walking the pool is safe here: the payload is already signed, so every
- * endpoint sees the identical transaction at the identical nonce. A node that
- * has already seen it rejects the duplicate, so "already known" and "nonce too
- * low" are reported as settled rather than as failures — the transaction is out
- * there either way, and retrying it would only double-spend the gas.
+ * A replacement has to beat the transaction already at its nonce on both fee
+ * fields, and this is how to find out by how much instead of guessing. The
+ * usual answer is that you cannot — `txpool_content` is disabled on public
+ * endpoints — but `eth_getBlockByNumber('pending', true)` returns the pool's
+ * candidate block with full transaction objects, and the sender's own pending
+ * transactions are in it. Verified against the live keeper: it returned 20
+ * transactions from one address with their exact caps, tips and gas limits.
+ *
+ * Blind escalation is what this replaces, and blind escalation ratchets: each
+ * run doubles against a predecessor that a previous run already doubled, so
+ * the bid runs away from the real price of gas while the queue stays stuck.
+ */
+export async function getPendingBids(chain: ChainId, address: string): Promise<Map<number, PendingBid>> {
+  const want = address.toLowerCase();
+  for (const url of RPC_URLS[chain] ?? []) {
+    const r = await rpc(url, 'eth_getBlockByNumber', ['pending', true]);
+    const txs = (r as { transactions?: unknown[] } | null)?.transactions;
+    if (!Array.isArray(txs)) continue;
+    const out = new Map<number, PendingBid>();
+    for (const raw of txs) {
+      const t = raw as Record<string, string | undefined>;
+      if (String(t.from ?? '').toLowerCase() !== want) continue;
+      try {
+        const legacy = t.maxFeePerGas == null;
+        const cap = BigInt((legacy ? t.gasPrice : t.maxFeePerGas) ?? '0x0');
+        const tip = BigInt((legacy ? t.gasPrice : t.maxPriorityFeePerGas) ?? '0x0');
+        if (cap === 0n) continue;
+        out.set(Number(BigInt(t.nonce ?? '0x0')), {
+          nonce: Number(BigInt(t.nonce ?? '0x0')),
+          cap,
+          tip,
+          type: legacy ? 0 : 2,
+          gasLimit: BigInt(t.gas ?? '0x0'),
+        });
+      } catch {
+        /* a row we cannot parse is one we cannot bid against — skip it */
+      }
+    }
+    // An empty pool is a real answer, but only from a node that gave us a
+    // transaction list at all; an endpoint that omits them must not be read as
+    // "nothing pending".
+    if (txs.length > 0) return out;
+  }
+  return new Map();
+}
+
+/**
+ * Broadcast a signed transaction to EVERY endpoint, not just the first that
+ * accepts it.
+ *
+ * This used to stop at the first acceptance, the same first-that-answers-wins
+ * shape the read helpers use, and that is wrong for a write. A read only needs
+ * one node to know the answer; a transaction needs the NETWORK to know it, and
+ * the node you happen to hand it to is not obliged to gossip it onward — geth
+ * caps how many transactions it will carry and relay per account (16 by
+ * default), so a burst from one sender is accepted locally and quietly not
+ * announced.
+ *
+ * That is not theoretical. The HEX keeper had 81 transactions "stuck": priced
+ * at 34x the base fee, unmined for hours. They existed on exactly one node,
+ * rpc.pulsechainstats.com, the first in this list. A second node had never
+ * heard of any of them — eth_getTransactionByHash returned null for every one,
+ * while returning mined transactions normally. No validator could include what
+ * no validator had seen, which is why raising the price did nothing.
+ *
+ * Fanning out is safe: the payload is already signed, so every endpoint sees a
+ * byte-identical transaction at the identical nonce. Duplicates are rejected as
+ * "already known", which is a success rather than a failure — the transaction
+ * is out there either way, and retrying it would only double-spend the gas.
  *
  * This makes its own request rather than going through `rpcRaw`, because here
  * the error TEXT is the useful part ("insufficient funds", "already known") and
@@ -307,35 +383,46 @@ export async function getPriorityFee(chain: ChainId): Promise<bigint> {
 export async function sendRawTransaction(
   chain: ChainId,
   signed: string,
-): Promise<{ hash: string } | { settled: true; reason: string } | { error: string }> {
-  let lastError = 'no endpoint answered';
-  for (const url of RPC_URLS[chain] ?? []) {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_sendRawTransaction', params: [signed], id: 1 }),
-        signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
-      });
-      if (!res.ok) {
-        lastError = `http ${res.status}`;
-        continue;
+): Promise<
+  | { hash: string; accepted: number; tried: number }
+  | { settled: true; reason: string }
+  | { error: string }
+> {
+  const urls = RPC_URLS[chain] ?? [];
+  if (urls.length === 0) return { error: 'no endpoint configured' };
+
+  const attempts = await Promise.all(
+    urls.map(async (url) => {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_sendRawTransaction', params: [signed], id: 1 }),
+          signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
+        });
+        if (!res.ok) return { kind: 'transport' as const, message: `http ${res.status}` };
+        const json = (await res.json()) as { result?: unknown; error?: { message?: string } };
+        if (typeof json.result === 'string') return { kind: 'accepted' as const, hash: json.result };
+        const message = String(json.error?.message ?? 'unknown error');
+        if (/already known|known transaction|nonce too low|already imported/i.test(message)) {
+          return { kind: 'known' as const, message };
+        }
+        return { kind: 'rejected' as const, message };
+      } catch (e) {
+        return { kind: 'transport' as const, message: e instanceof Error ? e.message : 'transport error' };
       }
-      const json = (await res.json()) as { result?: unknown; error?: { message?: string } };
-      if (typeof json.result === 'string') return { hash: json.result };
-      const msg = String(json.error?.message ?? 'unknown error');
-      if (/already known|known transaction|nonce too low|already imported/i.test(msg)) {
-        return { settled: true, reason: msg };
-      }
-      // A genuine rejection — bad signature, insufficient funds, underpriced —
-      // will be rejected identically everywhere, so stop rather than spray it
-      // at five more nodes.
-      return { error: msg };
-    } catch (e) {
-      lastError = e instanceof Error ? e.message : 'transport error';
-    }
+    }),
+  );
+
+  const accepted = attempts.filter((a) => a.kind === 'accepted') as { kind: 'accepted'; hash: string }[];
+  if (accepted.length > 0) {
+    return { hash: accepted[0].hash, accepted: accepted.length, tried: urls.length };
   }
-  return { error: lastError };
+  const known = attempts.find((a) => a.kind === 'known');
+  if (known) return { settled: true, reason: known.message };
+  const rejected = attempts.find((a) => a.kind === 'rejected');
+  if (rejected) return { error: rejected.message };
+  return { error: attempts[0]?.message ?? 'no endpoint answered' };
 }
 
 /** Current head block number, or null if every endpoint failed. */

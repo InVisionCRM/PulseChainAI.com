@@ -8,14 +8,15 @@
 //
 // The wording is careful on purpose. This is a donation toward gas, not an
 // investment, not a token, and nothing is owed in return; saying so plainly is
-// both honest and the thing that makes it credible. The safety line is the real
-// reassurance and it is a fact rather than a promise: `stakeGoodAccounting`
-// pays its caller nothing, so a key restricted to it cannot move anyone's
-// funds — the worst case for money sent here is that it buys gas for someone
-// else's rescue.
+// both honest and the thing that makes it credible.
+//
+// There is deliberately NO claim here about what the keeper key can or cannot
+// do. It used to say the key could make exactly one kind of call, which stopped
+// being true the moment the keeper needed to cancel its own stuck transactions,
+// and a safety promise that drifts out of date is worse than none at all.
 
 import { useState } from 'react';
-import { IconCopy, IconCheck, IconClock, IconShieldLock, IconFlame, IconExternalLink } from '@tabler/icons-react';
+import { IconCopy, IconCheck, IconClock, IconFlame, IconExternalLink } from '@tabler/icons-react';
 import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
 
 export function KeeperPanel({
@@ -104,15 +105,6 @@ export function KeeperPanel({
           </a>
         </div>
 
-        <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-relaxed text-[var(--text-faint)]">
-          <IconShieldLock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
-          <span>
-            This key can make exactly one kind of call —{' '}
-            <code className="text-[var(--text-muted)]">stakeGoodAccounting</code>, which pays its
-            caller nothing. Even if it were stolen, the worst anyone could do with it is spend the
-            gas rescuing more strangers&rsquo; stakes.
-          </span>
-        </p>
       </div>
     </div>
   );

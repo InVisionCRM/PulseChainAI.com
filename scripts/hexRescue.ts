@@ -13,6 +13,7 @@
  *   npm run hex:rescue -- --limit 25
  *   npm run hex:rescue -- --min-days 30   # only stakes 30+ days past grace
  *   npm run hex:rescue -- --min-hex 0     # no principal floor, this run only
+ *   npm run hex:rescue -- --execute --cancel-stuck   # unwedge a stuck queue
  *
  * Dry run is the default and --execute is the only way past it, because the
  * first thing anyone should do with a keeper is watch a full day's worth of
@@ -50,8 +51,8 @@ import {
   messageForStake,
   type RescueCandidate,
 } from '@/lib/hex/rescue';
-import { loadKeeper, signAndSend, checkNonce } from '@/lib/hex/rescueWallet';
-import { estimateGas, getBaseFee, getGasPrice } from '@/lib/portfolio/evmRpc';
+import { loadKeeper, signAndSend, signAndCancel, checkNonce } from '@/lib/hex/rescueWallet';
+import { estimateGas, getBaseFee, getGasPrice, getPendingBids, type PendingBid } from '@/lib/portfolio/evmRpc';
 import { HEX_ADDRESS, LATE_PENALTY_SCALE_DAYS } from '@/lib/hex/hexDay';
 
 const arg = (name: string): string | null => {
@@ -61,6 +62,19 @@ const arg = (name: string): string | null => {
 const has = (name: string) => process.argv.includes(name);
 
 const EXECUTE = has('--execute');
+// Clears a wedged queue instead of rescuing: every unconfirmed nonce is
+// replaced with a 21,000-gas transaction that does nothing. Nonces are strictly
+// ordered, so one stuck transaction blocks every rescue behind it.
+const CANCEL_STUCK = has('--cancel-stuck');
+/**
+ * How many transactions one run will leave unconfirmed at once.
+ *
+ * Deliberately under geth's default per-account allowance of 16: a node accepts
+ * a burst from its own client but its peers do not, so anything past that is
+ * quietly not relayed and cannot mine at any price. 81 in flight is how this
+ * keeper wedged itself.
+ */
+const MAX_IN_FLIGHT = 12;
 const LIMIT = Number(arg('--limit') ?? 25);
 const MIN_DAYS = Number(arg('--min-days') ?? 1);
 // Precedence: --min-hex flag (this run only) > HEX_RESCUE_MIN_HEX (everywhere,
@@ -74,6 +88,77 @@ const fmt = (n: number, d = 0) => n.toLocaleString('en-US', { maximumFractionDig
 /** HEX the stake is still losing every day, at 1/700th of principal. */
 const bleedPerDay = (c: RescueCandidate) =>
   c.penaltyFraction >= 1 ? 0 : c.principalHex / LATE_PENALTY_SCALE_DAYS;
+
+/**
+ * Replace every unconfirmed nonce with a transaction that does nothing.
+ *
+ * The escape hatch for a wedged queue. Nonces are strictly ordered, so a single
+ * transaction the network will not mine blocks every rescue behind it, and the
+ * stuck ones can be far more expensive than the no-ops that clear them: on the
+ * live keeper they sat at 21-22 million gwei against a 652,000 gwei base fee,
+ * about 55,000 PLS each, while a 21,000-gas cancel at the same price is ~500.
+ *
+ * Dry run by default like everything else here — it prints the bill first.
+ */
+async function cancelStuck(
+  keeper: ReturnType<typeof loadKeeper>,
+  mined: number | null,
+  pending: number,
+  bids: Map<number, PendingBid>,
+) {
+  if (!keeper || mined == null) {
+    console.error('❌ --cancel-stuck needs --execute and HEX_RESCUE_PRIVATE_KEY (it reads the live nonce).');
+    process.exit(1);
+  }
+  const stuck = pending - mined;
+  if (stuck <= 0) {
+    console.log('✅ nothing stuck — the keeper has no unconfirmed transactions.');
+    return;
+  }
+
+  // The pending block only carries the transactions that fit in it, so a long
+  // queue is only partly readable — 20 of 81 on the live keeper. The unreadable
+  // ones came from the same escalation as the readable ones, so the highest
+  // price we CAN see is the floor for the ones we cannot: bidding below it just
+  // earns an "underpriced" answer and wastes a round trip.
+  let floor: PendingBid | undefined;
+  for (const b of bids.values()) if (!floor || b.cap > floor.cap) floor = b;
+
+  console.log(`🧹 clearing ${stuck} stuck nonce(s): ${mined}–${pending - 1}`);
+  if (floor) {
+    console.log(
+      `   ${bids.size} readable; the rest are priced from the highest of those ` +
+        `(${fmt(Number(floor.cap) / 1e9)} gwei)\n`,
+    );
+  } else {
+    console.log('   none readable — pricing them as ordinary sends\n');
+  }
+  let cleared = 0, failed = 0, spentPls = 0;
+
+  for (let n = mined; n < pending; n++) {
+    const known = bids.get(n);
+    const prev = known ?? floor;
+    const label = `nonce ${n}${known ? ` (queued at ${fmt(Number(known.cap) / 1e9)} gwei)` : ''}`;
+    const out = await signAndCancel({ keeper, chain: 'pulsechain', nonce: n, predecessor: prev });
+
+    if (out.status === 'sent') {
+      cleared++;
+      // 21,000 gas at whatever it took to outbid the predecessor.
+      const paid = prev ? (Number(prev.cap) * 1.125 * 21_000) / 1e18 : 0;
+      spentPls += paid;
+      console.log(`  ✅ ${label} — ${out.hash}${out.tried ? ` · ${out.accepted}/${out.tried} nodes` : ''}`);
+    } else if (out.status === 'settled') {
+      cleared++;
+      console.log(`  ↩️  ${label} — ${out.reason}`);
+    } else {
+      failed++;
+      console.log(`  ⏭  ${label}\n      ${out.reason}`);
+    }
+  }
+
+  console.log(`\n   cleared ${cleared}, failed ${failed}, spent about ${fmt(spentPls)} PLS`);
+  console.log('   Re-run `npm run hex:rescue -- --execute` once these confirm.');
+}
 
 async function main() {
   console.log(EXECUTE ? '⚡ HEX rescue — EXECUTING' : '🔍 HEX rescue — dry run (add --execute to send)');
@@ -98,6 +183,7 @@ async function main() {
 
   let nonce: number | null = null;
   let pendingNonce = 0;
+  let pendingBids = new Map<number, PendingBid>();
   if (EXECUTE && keeper) {
     const status = await checkNonce('pulsechain', keeper.address);
     if (!status) {
@@ -113,6 +199,19 @@ async function main() {
     }
     nonce = status.mined; // always resume from mined, not pending — see file header
     pendingNonce = status.pending;
+
+    // Read what is actually queued once, rather than per transaction. Without
+    // this a replacement can only escalate blindly, which is what wedged the
+    // keeper at 32x the real price of gas — see PRICE_BUMP_NUM.
+    pendingBids = await getPendingBids('pulsechain', keeper.address);
+    if (status.stuck > 0 && pendingBids.size === 0) {
+      console.log('   (could not read the queued transactions — replacements will have to escalate blindly)\n');
+    }
+  }
+
+  if (CANCEL_STUCK) {
+    await cancelStuck(keeper, nonce, pendingNonce, pendingBids);
+    return;
   }
 
   const candidates = await findRescueCandidates('pulsechain', {
@@ -122,10 +221,23 @@ async function main() {
   });
   console.log(`Found ${candidates.length} candidate stake(s) in the locked-stake index.\n`);
 
+  const startNonce = nonce ?? 0;
   let sent = 0, skipped = 0, failed = 0, totalGas = 0n, hexSaved = 0, bleedStopped = 0;
 
   for (const c of candidates) {
     if (sent + skipped >= LIMIT) break;
+    // Keep the queue short enough that the whole of it propagates. Geth carries
+    // and relays a limited number of transactions per account (16 by default),
+    // so a burst past that is accepted by the node you hand it to and dropped
+    // by its peers — the tail then sits unmined however much it bids. Stopping
+    // here costs nothing: the next run picks up where this one left off.
+    if (nonce != null && nonce - startNonce >= MAX_IN_FLIGHT) {
+      console.log(
+        `\n⏸  ${MAX_IN_FLIGHT} transactions in flight — stopping so they can propagate and mine.\n` +
+          '   Run again once they confirm.',
+      );
+      break;
+    }
 
     // The chain, not the indexer, decides whether there is work to do.
     const resolved = await resolveStake('pulsechain', c.stakerAddr, c.stakeId);
@@ -168,10 +280,20 @@ async function main() {
       // Any nonce below the pending count already has an unconfirmed
       // transaction sitting on it, so this send has to outbid it.
       replacing: nonce! < pendingNonce,
+      // What is already queued at this nonce, so the replacement bids one step
+      // above it rather than escalating blindly.
+      predecessor: pendingBids.get(nonce!),
     });
 
     if (out.status === 'sent') {
-      console.log(`  ✅ ${head}\n      ${out.hash}`);
+      // How many nodes took it matters as much as the hash: a transaction one
+      // node holds and never gossips is invisible to validators, which is what
+      // wedged this keeper before — see sendRawTransaction.
+      const spread = out.tried ? ` · ${out.accepted}/${out.tried} nodes` : '';
+      console.log(`  ✅ ${head}\n      ${out.hash}${spread}`);
+      if (out.accepted === 1 && (out.tried ?? 0) > 1) {
+        console.log('      ⚠️  only one node accepted it — it may not reach a validator');
+      }
       nonce!++;
       sent++;
       totalGas += out.gasLimit;
