@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runStakeSync } from '@/lib/hex/lockedStakeSync';
+import { runDailySync } from '@/lib/hex/dailySync';
+import { resetDailyForRefill } from '@/lib/db/hexDaily';
 import { dbAvailable, getSyncState, resetForRefill } from '@/lib/db/hexLockedStakes';
 
 export const revalidate = 0;
@@ -16,7 +18,9 @@ export const maxDuration = 60;
  * The budget sits under `maxDuration` so the run always gets to save its
  * cursors rather than being killed mid-batch and repeating the work.
  */
-const BUDGET_MS = 45_000;
+const STAKE_BUDGET_MS = 35_000;
+/** Left for the per-day spine after the stake slice, still inside maxDuration. */
+const DAILY_BUDGET_MS = 15_000;
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get('authorization');
@@ -52,12 +56,29 @@ export async function GET(req: NextRequest) {
         );
       }
       await resetForRefill('pulsechain');
+      await resetDailyForRefill('pulsechain');
     }
 
-    const report = await runStakeSync('pulsechain', BUDGET_MS);
+    const report = await runStakeSync('pulsechain', STAKE_BUDGET_MS);
+
+    // The per-day spine rides along on the same invocation. It is small and
+    // usually a no-op, and folding it in here means one thing to schedule
+    // rather than two — which matters when the platform only grants one
+    // reliable firing a day. Its failure is reported but never fails the
+    // stake sync, which is the one the public views depend on.
+    let daily: Awaited<ReturnType<typeof runDailySync>> | null = null;
+    let dailyError: string | null = null;
+    try {
+      daily = await runDailySync('pulsechain', DAILY_BUDGET_MS);
+    } catch (err) {
+      dailyError = err instanceof Error ? err.message : 'daily sync failed';
+    }
+
     return NextResponse.json({
       success: true,
       ...report,
+      daily,
+      ...(dailyError ? { dailyError } : {}),
       ...(unprotected
         ? { warning: 'CRON_SECRET is not set, so this endpoint is callable by anyone. Set it to lock the sync down.' }
         : {}),

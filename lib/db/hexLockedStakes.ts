@@ -21,6 +21,7 @@
 // rather than the ~950k stakes ever opened.
 
 import { sql } from './connection';
+import { DAILY_DDL } from './hexDaily';
 
 export type Net = 'pulsechain' | 'ethereum';
 
@@ -83,6 +84,9 @@ const DDL = [
   `ALTER TABLE hex_sync_state ADD COLUMN IF NOT EXISTS last_run_at TIMESTAMPTZ`,
   `ALTER TABLE hex_sync_state ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`,
   `ALTER TABLE hex_sync_state ADD COLUMN IF NOT EXISTS last_error TEXT`,
+  // The per-day macro spine. Same migration path as everything else here:
+  // one ensureSchema call creates or updates every table the sync touches.
+  ...DAILY_DDL,
 ];
 
 export async function ensureSchema(): Promise<void> {
