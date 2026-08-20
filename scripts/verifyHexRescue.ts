@@ -24,12 +24,11 @@
  *
  * Exits non-zero on any failure, so it doubles as a CI smoke test.
  *
- * Loads .env / .env.local via Next's own loader first — see the note in
- * scripts/hexRescue.ts for why a bare tsx script needs this explicitly.
+ * Loads .env / .env.local via ./loadEnv, which has to be the first import —
+ * see the note in that file for why the obvious placement does not work.
  */
 
-import { loadEnvConfig } from '@next/env';
-loadEnvConfig(process.cwd());
+import './loadEnv';
 
 import { signAndSend, loadKeeper } from '@/lib/hex/rescueWallet';
 import { HEX_ADDRESS } from '@/lib/hex/hexDay';

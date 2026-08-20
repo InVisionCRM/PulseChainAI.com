@@ -34,16 +34,13 @@
  * mined nonce) with fresh, currently-priced work instead of queuing more
  * transactions behind ones that may never land.
  *
- * Loads .env / .env.local itself, via Next's own loader. Next.js reads those
- * files automatically for `next dev` / `next build` / API routes, but that is
- * a Next.js convenience, not a Node one — a plain `tsx` invocation like this
- * script never sees them, so HEX_RESCUE_PRIVATE_KEY would read as unset even
- * sitting right there in .env.local. Using Next's own loadEnvConfig (rather
- * than hand-rolling a parser or adding a dotenv dependency) keeps the same
- * file precedence Next.js uses everywhere else in this repo.
+ * Loads .env / .env.local through ./loadEnv, which MUST stay the first import —
+ * see the note in that file. Calling the loader below the imports instead looks
+ * right and silently is not: the database module reads DATABASE_URL at module
+ * scope, and module scope runs first, so the whole DB layer came up dead while
+ * the lazily-read private key came up fine.
  */
-import { loadEnvConfig } from '@next/env';
-loadEnvConfig(process.cwd());
+import './loadEnv';
 
 import {
   defaultMinPrincipalHex,
