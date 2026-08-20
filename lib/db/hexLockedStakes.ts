@@ -21,6 +21,8 @@
 // rather than the ~950k stakes ever opened.
 
 import { sql } from './connection';
+import { DAILY_DDL } from './hexDaily';
+import { ENDS_DDL } from './hexStakeEnds';
 
 export type Net = 'pulsechain' | 'ethereum';
 
@@ -41,6 +43,16 @@ const DDL = [
      PRIMARY KEY (network, stake_id)
    )`,
   `ALTER TABLE hex_locked_stakes ADD COLUMN IF NOT EXISTS good_accounted BOOLEAN NOT NULL DEFAULT FALSE`,
+  // The time axis. These ride in on the same stakeStarts records the sync
+  // already pages through, and without them the mirror can say who holds what
+  // but never how old a stake is, how long its term was, or how much of it has
+  // been served. Nullable because rows written before this migration have no
+  // values until the next full refill backfills them.
+  `ALTER TABLE hex_locked_stakes ADD COLUMN IF NOT EXISTS start_day INTEGER`,
+  `ALTER TABLE hex_locked_stakes ADD COLUMN IF NOT EXISTS staked_days INTEGER`,
+  `ALTER TABLE hex_locked_stakes ADD COLUMN IF NOT EXISTS started_at BIGINT`,
+  `ALTER TABLE hex_locked_stakes ADD COLUMN IF NOT EXISTS is_auto_stake BOOLEAN`,
+  `CREATE INDEX IF NOT EXISTS idx_hex_locked_start_day ON hex_locked_stakes (network, start_day)`,
   `CREATE INDEX IF NOT EXISTS idx_hex_locked_end_day ON hex_locked_stakes (network, end_day)`,
   `CREATE INDEX IF NOT EXISTS idx_hex_locked_staker ON hex_locked_stakes (network, staker_addr)`,
   `CREATE INDEX IF NOT EXISTS idx_hex_locked_shares ON hex_locked_stakes (network, stake_shares DESC)`,
@@ -73,6 +85,10 @@ const DDL = [
   `ALTER TABLE hex_sync_state ADD COLUMN IF NOT EXISTS last_run_at TIMESTAMPTZ`,
   `ALTER TABLE hex_sync_state ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`,
   `ALTER TABLE hex_sync_state ADD COLUMN IF NOT EXISTS last_error TEXT`,
+  // The per-day macro spine. Same migration path as everything else here:
+  // one ensureSchema call creates or updates every table the sync touches.
+  ...DAILY_DDL,
+  ...ENDS_DDL,
 ];
 
 export async function ensureSchema(): Promise<void> {
@@ -188,6 +204,23 @@ export async function saveSyncState(net: Net, p: SyncStatePatch): Promise<void> 
     WHERE network = ${net}`;
 }
 
+/**
+ * Send the sync back to the start of the stake list without dropping a row.
+ *
+ * Two things need this. A schema migration that adds columns leaves every
+ * existing row null in them, and the live phase only ever looks at stake ids
+ * ABOVE its cursor, so those rows would never be revisited. Separately, if the
+ * cron stops firing for a while the mirror drifts — stakes end and are never
+ * removed — and a full re-sweep is the only thing that reconciles it.
+ *
+ * `ready` is deliberately left alone. The existing rows are still true while
+ * the sweep runs, so the public views keep serving from them instead of
+ * showing an indexing notice for the length of a refill.
+ */
+export async function resetForRefill(net: Net): Promise<void> {
+  await saveSyncState(net, { phase: 'fill', lastStakeId: 0 });
+}
+
 // ---------------------------------------------------------------------------
 // Writes
 // ---------------------------------------------------------------------------
@@ -199,6 +232,13 @@ export interface StakeRow {
   stakeShares: string;
   endDay: string;
   goodAccounted?: boolean;
+  /** The time axis — optional so a caller without it cannot be blocked, and
+   *  COALESCE in the upsert keeps a null from erasing a filled column. */
+  startDay?: string;
+  stakedDays?: string;
+  /** Unix seconds the stake was opened. */
+  timestamp?: string;
+  isAutoStake?: boolean;
 }
 
 /**
@@ -214,16 +254,32 @@ export async function upsertStakes(net: Net, rows: StakeRow[]): Promise<number> 
   const shares = rows.map((r) => r.stakeShares);
   const days = rows.map((r) => Number(r.endDay));
   const ga = rows.map((r) => !!r.goodAccounted);
+  // A stake's own facts never change after it opens, but a row written before
+  // the time columns existed has nulls, so these are written on conflict too —
+  // that is what backfills the mirror as the sync sweeps back over it.
+  const startDays = rows.map((r) => (r.startDay == null ? null : Number(r.startDay)));
+  const stakedDays = rows.map((r) => (r.stakedDays == null ? null : Number(r.stakedDays)));
+  const startedAt = rows.map((r) => (r.timestamp == null ? null : Number(r.timestamp)));
+  const auto = rows.map((r) => (r.isAutoStake == null ? null : !!r.isAutoStake));
   await sql`
-    INSERT INTO hex_locked_stakes (network, stake_id, staker_addr, staked_hearts, stake_shares, end_day, good_accounted)
+    INSERT INTO hex_locked_stakes (
+      network, stake_id, staker_addr, staked_hearts, stake_shares, end_day, good_accounted,
+      start_day, staked_days, started_at, is_auto_stake)
     SELECT ${net}, * FROM UNNEST(
-      ${ids}::bigint[], ${addrs}::text[], ${hearts}::numeric[], ${shares}::numeric[], ${days}::int[], ${ga}::boolean[]
+      ${ids}::bigint[], ${addrs}::text[], ${hearts}::numeric[], ${shares}::numeric[], ${days}::int[], ${ga}::boolean[],
+      ${startDays}::int[], ${stakedDays}::int[], ${startedAt}::bigint[], ${auto}::boolean[]
     )
     ON CONFLICT (network, stake_id) DO UPDATE SET
       staker_addr    = EXCLUDED.staker_addr,
       staked_hearts  = EXCLUDED.staked_hearts,
       stake_shares   = EXCLUDED.stake_shares,
       end_day        = EXCLUDED.end_day,
+      -- COALESCE so a payload without the time fields cannot blank a row that
+      -- already has them.
+      start_day      = COALESCE(EXCLUDED.start_day, hex_locked_stakes.start_day),
+      staked_days    = COALESCE(EXCLUDED.staked_days, hex_locked_stakes.staked_days),
+      started_at     = COALESCE(EXCLUDED.started_at, hex_locked_stakes.started_at),
+      is_auto_stake  = COALESCE(EXCLUDED.is_auto_stake, hex_locked_stakes.is_auto_stake),
       -- Never un-flag: good-accounting is one-way until the stake ends.
       good_accounted = hex_locked_stakes.good_accounted OR EXCLUDED.good_accounted`;
   return rows.length;
