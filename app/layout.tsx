@@ -1,5 +1,5 @@
 "use client";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Poppins, Jost } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next"
 import { TopTickerBar } from "@/components/TopTickerBar";
@@ -36,6 +36,23 @@ const inter = Inter({
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+  display: 'swap',
+});
+
+// The rescue surfaces set their own type: Poppins for body and labels, Jost for
+// headlines. Declared here because next/font has to be called at module scope,
+// but applied only where those pages ask for the variables — the rest of the
+// app stays on Inter.
+const poppins = Poppins({
+  variable: "--font-poppins",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: 'swap',
+});
+
+const jost = Jost({
+  variable: "--font-jost",
   subsets: ["latin"],
   display: 'swap',
 });
@@ -176,7 +193,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} text-md md:text-base antialiased min-h-screen bg-[var(--app-bg)]`}
+        className={`${inter.variable} ${jetbrainsMono.variable} ${poppins.variable} ${jost.variable} text-md md:text-base antialiased min-h-screen bg-[var(--app-bg)]`}
       >
         <div className="flex flex-col min-h-screen md:h-screen w-full md:overflow-hidden">
           {!isStackerGamePage && <TopTickerBar />}

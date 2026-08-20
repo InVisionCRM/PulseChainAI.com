@@ -34,6 +34,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { stakeId } = await params;
   const r = await fetchRescue('pulsechain', stakeId).catch(() => null);
+  if (r?.claimedAt != null) {
+    return {
+      title: `Stake ${stakeId} was rescued and collected`,
+      description:
+        'This stake was losing value after maturing. The keeper froze the penalty, and its owner has since ended the stake and collected.',
+    };
+  }
   const amount = r?.claimableHex != null ? `${hex(r.claimableHex)} HEX` : 'A HEX stake';
   return {
     title: `${amount} is still yours — stake ${stakeId}`,
@@ -64,9 +71,20 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
 
         {rescue ? (
           <>
-            <h1 className="mt-2 flex flex-wrap items-center gap-x-3 text-3xl font-bold leading-tight text-[var(--text)] md:text-4xl">
+            <h1 className="font-jost mt-2 flex flex-wrap items-center gap-x-3 text-3xl font-bold leading-tight text-[var(--text)] md:text-4xl">
               <HexMark className="h-8 w-8 md:h-10 md:w-10" />
-              {rescue.claimableHex != null ? (
+              {/* Once they have ended the stake the HEX is in their wallet, so
+                  "is still yours" would be telling them to go and collect
+                  something they already collected. */}
+              {rescue.claimed === true ? (
+                <span>
+                  You collected{' '}
+                  <span className="text-emerald-400">
+                    {hex(rescue.claimedHex ?? rescue.claimableHex)} HEX
+                  </span>
+                  .
+                </span>
+              ) : rescue.claimableHex != null ? (
                 <span>
                   <span className="text-emerald-400">{hex(rescue.claimableHex)}</span>{' '}
                   <span className="text-emerald-400">HEX</span> is still yours.
@@ -76,16 +94,20 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
               )}
             </h1>
             <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-[var(--text-muted)]">
-              {WHAT_HAPPENED.short}
+              {rescue.claimed === true
+                ? 'Your stake finished its term and then started losing value. We stopped that, and you have since ended the stake and been paid.'
+                : WHAT_HAPPENED.short}
             </p>
 
             {/* The reassurance has to come before the detail — someone who thinks
                 they have been robbed will not read a table. */}
             <div className="mt-5 flex flex-col gap-2 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06] p-4 sm:flex-row sm:items-center sm:gap-4">
               <IconShieldCheck className="h-6 w-6 shrink-0 text-emerald-400" aria-hidden="true" />
-              <p className="text-sm leading-relaxed text-[var(--text-muted)]">
+              <p className="font-poppins text-sm leading-relaxed text-[var(--text-muted)]">
                 <span className="font-semibold text-[var(--text)]">Nothing was taken and nothing can be.</span>{' '}
-                {WHAT_HAPPENED.why}
+                {rescue.claimed === true
+                  ? 'Your HEX never moved while it sat in the contract, and ending the stake paid it out to your address and nowhere else. We only froze the penalty; we could never have touched the funds.'
+                  : WHAT_HAPPENED.why}
               </p>
             </div>
 
@@ -142,13 +164,19 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
               />
             </div>
 
-            <h2 className="mt-8 text-lg font-bold text-[var(--text)]">How to get it</h2>
-            <p className="mt-1 text-sm text-[var(--text-muted)]">
-              There is no rush — the amount above cannot shrink any further. But it also will not arrive on its own.
+            <h2 className="font-jost mt-8 text-lg font-bold text-[var(--text)]">
+              {rescue.claimed === true ? 'Nothing left to do' : 'How to get it'}
+            </h2>
+            <p className="font-poppins mt-1 text-sm text-[var(--text-muted)]">
+              {rescue.claimed === true
+                ? 'This stake has been ended and the HEX has been paid out to its owner. The rest of this page is kept as the record of what happened.'
+                : 'There is no rush — the amount above cannot shrink any further. But it also will not arrive on its own.'}
             </p>
 
             {/* The app is the action, so it leads rather than sitting under the
                 steps as an afterthought. */}
+            {rescue.claimedAt == null && (
+              <>
             <a
               href={HEX_APP_URL}
               target="_blank"
@@ -182,6 +210,8 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
                 </li>
               ))}
             </ol>
+              </>
+            )}
           </>
         ) : (
           <>
@@ -233,7 +263,7 @@ function Stat({
   const color = tone === 'good' ? 'text-emerald-400' : tone === 'warn' ? 'text-red-400' : 'text-[var(--text)]';
   return (
     <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2">
-      <div className="truncate text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
+      <div className="font-poppins truncate text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
         {label}
       </div>
       <div className={`mt-0.5 text-sm font-semibold tabular-nums ${color}`}>{value}</div>

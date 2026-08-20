@@ -33,7 +33,7 @@ export function RescueStakeCard({ rescue, hexUsd }: { rescue: Rescue; hexUsd?: n
       <div className="mb-3 flex items-center justify-between gap-2">
         <Link
           href={`/rescued/${rescue.stakeId}`}
-          className="text-sm font-semibold text-[var(--text)] hover:text-emerald-400"
+          className="font-jost text-[15px] font-semibold text-[var(--text)] hover:text-emerald-400"
         >
           Stake #{rescue.stakeId}
         </Link>
@@ -55,7 +55,7 @@ export function RescueStakeCard({ rescue, hexUsd }: { rescue: Rescue; hexUsd?: n
 
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
+          <div className="font-poppins text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
             {/* Past tense once it has been collected: "still claimable" on a
                 stake the owner already emptied is simply false. */}
             {rescue.claimed ? 'What we saved' : 'Still claimable'}
@@ -69,7 +69,7 @@ export function RescueStakeCard({ rescue, hexUsd }: { rescue: Rescue; hexUsd?: n
           )}
         </div>
         <div className="text-right">
-          <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
+          <div className="font-poppins text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
             Was losing
           </div>
           <div className="text-lg font-semibold tabular-nums text-[var(--text)]">
@@ -83,7 +83,7 @@ export function RescueStakeCard({ rescue, hexUsd }: { rescue: Rescue; hexUsd?: n
 
       {/* How much of the return the penalty had already taken. Frozen, so it
           does not move — which is the entire point of the rescue. */}
-      <div className="mb-1.5 flex items-center justify-between text-xs">
+      <div className="font-poppins mb-1.5 flex items-center justify-between text-xs">
         <span className="tabular-nums text-[var(--text-muted)]">
           {(burned * 100).toFixed(1)}% lost before we got there
         </span>
@@ -123,7 +123,7 @@ export function RescueStakeCard({ rescue, hexUsd }: { rescue: Rescue; hexUsd?: n
       {/* Two fixed groups rather than one wrapping row: with everything in a
           single flex-wrap the proof link landed on its own line for some cards
           and not others, so a grid of cards had ragged footers. */}
-      <div className="mt-3 flex items-end justify-between gap-3 text-[11px] text-[var(--text-faint)]">
+      <div className="font-poppins mt-3 flex items-end justify-between gap-3 text-[11px] text-[var(--text-faint)]">
         <div className="flex min-w-0 flex-wrap gap-x-3 gap-y-0.5">
           <span className="tabular-nums">
             Principal <span className="text-[var(--text-muted)]">{Math.round(rescue.principalHex ?? 0).toLocaleString()}</span>

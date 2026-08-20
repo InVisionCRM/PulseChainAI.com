@@ -14,6 +14,12 @@ module.exports = {
       fontSize: {
         md: ["1.125rem", { lineHeight: "1.75rem" }], // 18px for mobile medium text
       },
+      fontFamily: {
+        // Used by the rescue surfaces. Not the app default — `font-sans` stays
+        // whatever the browser resolves so nothing else shifts.
+        poppins: ['var(--font-poppins)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        jost: ['var(--font-jost)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
       colors: {
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
