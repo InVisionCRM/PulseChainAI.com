@@ -70,8 +70,8 @@ const num = (hex: string, i: number) => Number(BigInt('0x' + word(hex, i)));
 /** HEX lives at the same address on both chains (PulseChain forked the state). */
 const chainOf = (net: HexNet): ChainId => (net === 'ethereum' ? 'ethereum' : 'pulsechain');
 
-/** Where the floor lands when nothing overrides it. */
-export const MIN_PRINCIPAL_HEX_FALLBACK = 100_000;
+/** Where the principal floor lands when nothing overrides it. */
+export const MIN_PRINCIPAL_HEX_FALLBACK = 50_000;
 
 /**
  * The principal floor, in HEX, from `HEX_RESCUE_MIN_HEX` or the fallback.
@@ -90,6 +90,40 @@ export function defaultMinPrincipalHex(): number {
   if (!raw) return MIN_PRINCIPAL_HEX_FALLBACK;
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : MIN_PRINCIPAL_HEX_FALLBACK;
+}
+
+/**
+ * The value floor: HEX still at risk per MILLION gas it costs to save.
+ *
+ * The principal floor above asks "is this stake big?", which is the wrong
+ * question — gas tracks a stake's TERM, not its size, so a small stake with a
+ * short term can be far better value than a large one with a long term. This
+ * asks the right question, and it is what makes it safe to drop the principal
+ * floor to zero.
+ *
+ * The default is set so that anything which pays for itself within about a
+ * month survives. Working, at the prices measured while writing this — pHEX
+ * $0.0038, PLS $0.00001276, base fee ~650,000 gwei:
+ *
+ *   a million gas costs ~650 PLS, about $0.0083
+ *   a stake bleeds principal/700 HEX a day, so H HEX per million gas
+ *     stops (H/700) x $0.0038 of bleeding per day per million gas
+ *   break-even in days = 0.0083 / ((H/700) x 0.0038) = 1529 / H
+ *
+ * So H = 50 is a ~30-day payback. For scale: a 5,555 HEX Hedron HSI on a
+ * 5,555-day term — the most gas-expensive shape that exists — scores ~300 and
+ * clears this comfortably, while a 100 HEX stake on the same term scores 5 and
+ * does not.
+ *
+ * Prices move, so this is a setting: `HEX_RESCUE_MIN_HEX_PER_MGAS`.
+ */
+export const MIN_HEX_PER_MGAS_FALLBACK = 50;
+
+export function defaultMinHexPerMgas(): number {
+  const raw = (process.env.HEX_RESCUE_MIN_HEX_PER_MGAS ?? '').trim();
+  if (!raw) return MIN_HEX_PER_MGAS_FALLBACK;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : MIN_HEX_PER_MGAS_FALLBACK;
 }
 
 export interface RescueCandidate {
@@ -186,12 +220,18 @@ async function describeMirrorGap(net: HexNet): Promise<string> {
 
 export async function findRescueCandidates(
   net: HexNet,
-  opts: { minDaysPastGrace?: number; limit?: number; minPrincipalHex?: number } = {},
+  opts: {
+    minDaysPastGrace?: number;
+    limit?: number;
+    minPrincipalHex?: number;
+    minHexPerMgas?: number;
+  } = {},
 ): Promise<RescueCandidate[]> {
   const {
     minDaysPastGrace = 1,
     limit = 500,
     minPrincipalHex = defaultMinPrincipalHex(),
+    minHexPerMgas = defaultMinHexPerMgas(),
   } = opts;
   const today = currentHexDay();
   const newestEnd = today - LATE_PENALTY_GRACE_DAYS - minDaysPastGrace;
@@ -251,6 +291,14 @@ export async function findRescueCandidates(
         hexPerGas: stakedDays > 0 ? principalHex / estimateGasForTerm(stakedDays) : 0,
       };
     })
+    // Then drop anything whose gas is not worth its HEX. The principal floor
+    // above cannot make this judgement — it only knows size, and gas tracks
+    // TERM — so this is the filter that actually decides whether a rescue is
+    // worth paying for. See MIN_HEX_PER_MGAS_FALLBACK.
+    //
+    // A candidate with no readable term scores 0 and is dropped here rather
+    // than being rescued on an invented estimate.
+    .filter((c) => c.hexPerGas * 1_000_000 >= minHexPerMgas)
     // Best value first: HEX still at risk per unit of gas it costs to save.
     //
     // Sorting by size alone would be the obvious move and it is the wrong one,

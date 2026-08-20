@@ -46,6 +46,22 @@ import type { ChainId } from '@/services';
 const CHAIN_IDS: Record<'pulsechain' | 'ethereum', number> = { pulsechain: 369, ethereum: 1 };
 
 /**
+ * How many transactions one run may leave unconfirmed at once.
+ *
+ * Geth carries and relays a limited number of transactions per account (16 by
+ * default). Past that, the node you hand them to accepts them from its own
+ * client and never announces them to peers, so they cannot mine at any price —
+ * the keeper wedged 81 transactions that existed on exactly one node, priced at
+ * 34x the base fee and going nowhere.
+ *
+ * Both the script and the nightly cron import this rather than each keeping
+ * their own number. They did keep their own, the script was lowered and the
+ * cron was not, and an unattended run at 03:00 UTC would have reproduced the
+ * whole thing.
+ */
+export const MAX_IN_FLIGHT = 12;
+
+/**
  * Hard ceiling per transaction. The longest possible HEX stake is 5,555 days,
  * which measured at ~2,900-3,300 gas per staked day puts the worst legitimate
  * call around 18M. 25M leaves headroom under PulseChain's ~45M block limit
@@ -518,6 +534,36 @@ const CANCEL_GAS = 21_000n;
  *  at $0.00001276. Generous next to the ~500 PLS a cancel actually costs, and
  *  still a hard stop if the predecessor's price is absurd. */
 const MAX_CANCEL_COST_WEI = 5_000n * 10n ** 18n;
+
+/**
+ * Block until fewer than `maxInFlight` of this account's transactions are
+ * unconfirmed, or the deadline passes. Returns the mined nonce it saw last.
+ *
+ * This is what lets a run do more work than the in-flight bound without
+ * recreating the wedge: send a wave, wait for it to confirm, send the next.
+ * A run that instead queues everything at once does not rescue more stakes —
+ * the network drops what it will not carry and the tail sits unmined at any
+ * price.
+ *
+ * Returns null if the nonce could not be read at all; the caller should stop
+ * rather than guess.
+ */
+export async function waitForInFlight(
+  chain: ChainId,
+  address: string,
+  maxInFlight: number,
+  deadline: number,
+  pollMs = 3_000,
+): Promise<NonceStatus | null> {
+  let last: NonceStatus | null = null;
+  for (;;) {
+    last = await checkNonce(chain, address);
+    if (!last) return null;
+    if (last.stuck < maxInFlight) return last;
+    if (Date.now() + pollMs >= deadline) return last;
+    await new Promise((r) => setTimeout(r, pollMs));
+  }
+}
 
 /** Next usable nonce, counting anything already sitting in the mempool. */
 export async function nextNonce(chain: ChainId, address: string): Promise<number | null> {

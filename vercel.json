@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/hex-rescue",
-      "schedule": "0 3 * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/hex-stake-sync",
