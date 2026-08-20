@@ -25,8 +25,10 @@ import { pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
 import { HexAmount, HexUnit, HEX_GRADIENT } from '@/components/hex/HexAmount';
 import { fmtHex, fmtUsdShort } from '@/lib/hex/hexDay';
 import { RescuedBy } from '@/components/rescue/RescueBrand';
-import { RescueStakeCard } from '@/components/rescue/RescueStakeCard';
 import { KeeperPanel } from '@/components/rescue/KeeperPanel';
+import { RescueList } from '@/components/rescue/RescueList';
+import { RescueCounter } from '@/components/rescue/RescueCounter';
+import { GoodAccountingDiagram } from '@/components/rescue/GoodAccountingDiagram';
 
 // A minute, not five. The wall is watched live while the keeper runs, and a
 // five-minute window meant a sweep looked like nothing had happened.
@@ -71,7 +73,6 @@ export default async function RescueWallPage() {
     hexUsd(),
   ]);
   const t = totalsFor(rescues);
-  const shown = rescues.slice(0, CARD_LIMIT);
   const usd = (hex: number) => (price != null ? fmtUsdShort(hex * price) : null);
 
   return (
@@ -88,11 +89,11 @@ export default async function RescueWallPage() {
           />
           <div className="relative">
             <RescuedBy />
-            <h1 className="mt-2.5 flex items-center gap-3 text-[28px] font-bold leading-none tracking-tight text-[var(--text)] md:text-[40px]">
-              <img src="/hex-logo.svg" alt="" aria-hidden="true" className="h-8 w-8 object-contain md:h-10 md:w-10" />
+            <h1 className="font-jost mt-2.5 flex items-center gap-3 text-[32px] font-bold leading-none tracking-tight text-[var(--text)] md:text-[46px]">
+              <img src="/hex-logo.svg" alt="" aria-hidden="true" className="h-9 w-9 object-contain md:h-11 md:w-11" />
               The Rescue Wall
             </h1>
-            <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-[var(--text-muted)] md:text-[15px]">
+            <p className="font-poppins mt-3 max-w-2xl text-[14px] leading-relaxed text-[var(--text-muted)] md:text-[15px]">
               A matured HEX stake stops earning but does not stop losing — 1/700th a day until there
               is nothing left. Anyone can freeze that clock for anyone, and it pays the person who
               does it nothing. So we do it, for strangers, with our own gas.{' '}
@@ -107,26 +108,33 @@ export default async function RescueWallPage() {
           </div>
         ) : (
           <>
-            {/* Metric strip — same shape as the portfolio's HEX stake summary. */}
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <Metric label="Stakes rescued" value={String(t.count)} sub="and counting" />
-              <Metric
-                label="HEX still theirs"
-                value={fmtHex(t.claimableHex)}
-                sub={usd(t.claimableHex) ?? <HexUnit className="text-[var(--text-faint)]" />}
-                good
-              />
-              <Metric
-                label="Bleeding stopped"
-                value={fmtHex(t.bleedStoppedPerDay)}
-                sub={usd(t.bleedStoppedPerDay) ? `${usd(t.bleedStoppedPerDay)} / day` : 'per day'}
-              />
-              <Metric
-                label="Lost before us"
-                value={fmtHex(t.penaltyHex)}
-                sub="nobody could save it"
-                bad
-              />
+            {/* How it works, before any number is thrown at anybody. */}
+            <div className="mt-3">
+              <GoodAccountingDiagram />
+            </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+              <RescueCounter value={t.count} label="Stakes rescued" sub="the keeper sweeps every hour" />
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-1 md:content-center">
+                <Metric
+                  label="HEX still theirs"
+                  value={fmtHex(t.claimableHex)}
+                  sub={usd(t.claimableHex) ?? <HexUnit className="text-[var(--text-faint)]" />}
+                  good
+                />
+                <Metric
+                  label="Owners who came back"
+                  value={String(t.claimed)}
+                  sub={t.claimed > 0 ? `${fmtHex(t.claimedHex)} HEX collected` : 'none yet'}
+                  good={t.claimed > 0}
+                />
+                <Metric
+                  label="Lost before us"
+                  value={fmtHex(t.penaltyHex)}
+                  sub="nobody could save it"
+                  bad
+                />
+              </div>
             </div>
 
             {(t.biggest || t.closestCall) && (
@@ -161,27 +169,18 @@ export default async function RescueWallPage() {
             )}
 
             {/* How it runs, and how to fuel it. */}
-            <h2 className="mt-7 text-sm font-bold uppercase tracking-wider text-[var(--text-faint)]">
+            <h2 className="font-jost mt-7 text-sm font-bold uppercase tracking-wider text-[var(--text-faint)]">
               How it runs
             </h2>
             <div className="mt-2">
               <KeeperPanel address={KEEPER_ADDRESS} />
             </div>
 
-            <h2 className="mt-7 flex items-baseline gap-2 text-sm font-bold uppercase tracking-wider text-[var(--text-faint)]">
+            <h2 className="font-jost mt-7 flex items-baseline gap-2 text-sm font-bold uppercase tracking-wider text-[var(--text-faint)]">
               Every rescue
               <span className="text-[var(--text-muted)]">· {rescues.length}</span>
             </h2>
-            {shown.length < rescues.length && (
-              <p className="mt-1 text-[11px] text-[var(--text-faint)]">
-                Showing the newest {shown.length}. The totals above count all {rescues.length}.
-              </p>
-            )}
-            <div className="mt-2 grid gap-2 md:grid-cols-2">
-              {shown.map((r) => (
-                <RescueStakeCard key={r.txHash} rescue={r} hexUsd={price} />
-              ))}
-            </div>
+            <RescueList rescues={rescues} hexUsd={price} cardLimit={CARD_LIMIT} />
           </>
         )}
 
@@ -205,7 +204,7 @@ export default async function RescueWallPage() {
         </a>
 
         <div className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-          <h2 className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
+          <h2 className="font-poppins text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
             What this actually is
           </h2>
           <p className="mt-1.5 text-[12px] leading-relaxed text-[var(--text-muted)]">{WHAT_HAPPENED.long}</p>
@@ -243,7 +242,7 @@ function Metric({
 }) {
   return (
     <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2">
-      <div className="truncate text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
+      <div className="font-poppins truncate text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
         {label}
       </div>
       <div
@@ -280,7 +279,7 @@ function Highlight({
     >
       {icon}
       <div className="min-w-0">
-        <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
+        <div className="font-poppins text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
           {kicker} · #{stakeId}
         </div>
         <div className="text-sm font-semibold text-[var(--text)]">
