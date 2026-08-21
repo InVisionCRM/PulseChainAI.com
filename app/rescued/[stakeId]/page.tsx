@@ -4,9 +4,14 @@
 // with this URL in it. That is an alarming way to find out about anything, so
 // the job of this page, in order, is:
 //
-//   1. Prove it is real — show their stake, their numbers, and the transaction.
+//   1. Prove it is real — their stake, their numbers, the transaction.
 //   2. Say plainly that nothing was taken and nothing can be.
 //   3. Tell them exactly how to get their HEX.
+//
+// Built the same way as the wall: the figure is the headline, the arithmetic is
+// drawn rather than described, and no step is a paragraph. The one place words
+// still lead is the reassurance line — someone who thinks they have been robbed
+// needs a sentence, not a chart, and that sentence stays.
 //
 // Rendered on the server so the numbers are in the HTML: this link is shared,
 // pasted and previewed, and a page that needs JavaScript to say anything is a
@@ -14,11 +19,18 @@
 
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { IconExternalLink, IconShieldCheck } from '@tabler/icons-react';
+import { IconExternalLink, IconShieldCheck, IconArrowLeft } from '@tabler/icons-react';
 import { fetchRescue } from '@/lib/hex/rescueFeed';
+import { fetchStakeStarts } from '@/lib/hex/stakeStarts';
+import { hexPriceHistory, windowFor } from '@/lib/hex/hexPriceHistory';
 import { WHAT_HAPPENED, CLAIM_STEPS, HEX_APP_URL } from '@/lib/hex/rescueCopy';
 import { pulsechainTxUrl, pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
-import { RescuedBy, HexWatermark, HexMark } from '@/components/rescue/RescueBrand';
+import { fmtHex } from '@/lib/hex/hexDay';
+import { RescuedBy } from '@/components/rescue/RescueBrand';
+import {
+  HeroNumber, Speedo, Waterfall, ValueJourney,
+  type WaterfallStep, type ValueMark,
+} from '@/components/rescue/RescueDashboard';
 
 // Matches the wall: a freshly-rescued stake should not have to wait five
 // minutes for its own claim page to admit it exists.
@@ -26,6 +38,9 @@ export const revalidate = 60;
 
 const hex = (n: number | null | undefined) =>
   n == null ? '—' : n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+const dateOf = (ms: number | null | undefined) =>
+  ms ? new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : null;
 
 export async function generateMetadata({
   params,
@@ -52,231 +67,234 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
   const { stakeId } = await params;
   const rescue = await fetchRescue('pulsechain', stakeId).catch(() => null);
 
+  // The stake's beginning and the price history behind it. Both are best
+  // effort: the page's own figures come from the rescue itself, so a price
+  // outage hides one panel rather than breaking anything.
+  const [starts, prices] = await Promise.all([
+    rescue ? fetchStakeStarts('pulsechain', [stakeId]).catch(() => new Map()) : Promise.resolve(new Map()),
+    rescue ? hexPriceHistory().catch(() => []) : Promise.resolve([]),
+  ]);
+  const start = starts.get(stakeId) ?? null;
+  const pw = rescue ? windowFor(prices, start?.timestamp ?? null) : null;
+
+  const gross = (rescue?.principalHex ?? 0) + (rescue?.payoutHex ?? 0);
+  const savedFrac = gross > 0 ? Math.max(0, Math.min(1, 1 - (rescue?.penaltyHex ?? 0) / gross)) : 1;
+  const headline = rescue?.claimed ? rescue.claimedHex ?? rescue.claimableHex : rescue?.claimableHex;
+
+  const steps: WaterfallStep[] = rescue
+    ? [
+        { label: 'Principal', delta: rescue.principalHex ?? 0, kind: 'base' },
+        { label: 'Interest', delta: rescue.payoutHex ?? 0, kind: 'gain' },
+        { label: 'Penalty', delta: -(rescue.penaltyHex ?? 0), kind: 'loss' },
+        { label: rescue.claimed ? 'Collected' : 'Yours', delta: rescue.claimableHex ?? 0, kind: 'total' },
+      ]
+    : [];
+
+  // One fixed pile of HEX — the amount that is theirs — priced at four
+  // moments. A changing amount at a changing price would make the four
+  // figures incomparable, so the basis is stated in the panel's heading.
+  const basis = rescue ? (rescue.claimed ? rescue.claimedHex ?? rescue.claimableHex : rescue.claimableHex) ?? 0 : 0;
+  const marks: ValueMark[] = pw
+    ? [
+        {
+          key: 'start',
+          label: 'At stake start',
+          usd: pw.atStart ? basis * pw.atStart.usd : null,
+          price: pw.atStart?.usd ?? null,
+          when: pw.atStart ? dateOf(pw.atStart.t) : null,
+        },
+        { key: 'high', label: 'Peak', usd: basis * pw.high.usd, price: pw.high.usd, when: dateOf(pw.high.t) },
+        { key: 'low', label: 'Low', usd: basis * pw.low.usd, price: pw.low.usd, when: dateOf(pw.low.t) },
+        { key: 'now', label: 'Now', usd: basis * pw.now.usd, price: pw.now.usd, when: dateOf(pw.now.t) },
+      ]
+    : [];
+
   return (
-    <div className="min-h-screen w-full bg-[var(--app-bg)]">
-      <div className="mx-auto w-full max-w-3xl px-4 py-8 md:px-6 md:py-12">
+    <div className="min-h-screen w-full bg-[var(--app-bg)] [--viz-a:#d96406] [--viz-b:#d6186e] [--viz-gain:#0d9488] [--viz-loss:#be123c] dark:[--viz-a:#dd7300] dark:[--viz-b:#ff2e7e] dark:[--viz-gain:#0d9488] dark:[--viz-loss:#e11d48]">
+      <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6 md:py-10">
         <Link
           href="/rescued"
-          className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-faint)] transition-colors hover:text-[var(--text)]"
+          className="font-poppins mb-3 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)] transition-colors hover:text-[var(--text)]"
         >
-          ← every rescue
+          <IconArrowLeft className="h-3.5 w-3.5" /> every rescue
         </Link>
-
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <RescuedBy />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">
-            · stake #{stakeId}
-          </span>
-        </div>
 
         {rescue ? (
           <>
-            <h1 className="font-jost mt-2 flex flex-wrap items-center gap-x-3 text-3xl font-bold leading-tight text-[var(--text)] md:text-4xl">
-              <HexMark className="h-8 w-8 md:h-10 md:w-10" />
-              {/* Once they have ended the stake the HEX is in their wallet, so
-                  "is still yours" would be telling them to go and collect
-                  something they already collected. */}
-              {rescue.claimed === true ? (
-                <span>
-                  You collected{' '}
-                  <span className="text-emerald-400">
-                    {hex(rescue.claimedHex ?? rescue.claimableHex)} HEX
-                  </span>
-                  .
-                </span>
-              ) : rescue.claimableHex != null ? (
-                <span>
-                  <span className="text-emerald-400">{hex(rescue.claimableHex)}</span>{' '}
-                  <span className="text-emerald-400">HEX</span> is still yours.
-                </span>
-              ) : (
-                <span>Your stake stopped losing value.</span>
-              )}
-            </h1>
-            <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-[var(--text-muted)]">
-              {rescue.claimed === true
-                ? 'Your stake finished its term and then started losing value. We stopped that, and you have since ended the stake and been paid.'
-                : WHAT_HAPPENED.short}
-            </p>
-
-            {/* The reassurance has to come before the detail — someone who thinks
-                they have been robbed will not read a table. */}
-            <div className="mt-5 flex flex-col gap-2 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06] p-4 sm:flex-row sm:items-center sm:gap-4">
-              <IconShieldCheck className="h-6 w-6 shrink-0 text-emerald-400" aria-hidden="true" />
-              <p className="font-poppins text-sm leading-relaxed text-[var(--text-muted)]">
-                <span className="font-semibold text-[var(--text)]">Nothing was taken and nothing can be.</span>{' '}
-                {rescue.claimed === true
-                  ? 'Your HEX never moved while it sat in the contract, and ending the stake paid it out to your address and nowhere else. We only froze the penalty; we could never have touched the funds.'
-                  : WHAT_HAPPENED.why}
-              </p>
-            </div>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <Stat label="Claimable now" value={`${hex(rescue.claimableHex)} HEX`} tone="good" />
-              <Stat
-                label="Was losing"
-                value={rescue.bleedPerDay != null ? `${hex(rescue.bleedPerDay)} HEX/day` : '—'}
-                sub="until we froze it"
-              />
-              <Stat
-                label="Lost before we arrived"
-                value={`${hex(rescue.penaltyHex)} HEX`}
-                sub="the part nobody could save"
-                tone={rescue.penaltyHex && rescue.penaltyHex > 0 ? 'warn' : undefined}
-              />
-            </div>
-
-            <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
-              <Row label="Stake ID" value={`#${stakeId}`} />
-              <Row
-                label="Owner"
-                value={
-                  <a
-                    href={pulsechainAddressUrl(rescue.stakerAddr)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 font-mono text-[13px] hover:text-[var(--text)]"
-                  >
-                    {rescue.stakerAddr.slice(0, 10)}…{rescue.stakerAddr.slice(-8)}
-                    <IconExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                }
-              />
-              <Row label="Principal staked" value={`${hex(rescue.principalHex)} HEX`} />
-              <Row label="Interest earned" value={`${hex(rescue.payoutHex)} HEX`} />
-              <Row
-                label="Frozen on"
-                value={rescue.timestamp ? new Date(rescue.timestamp).toUTCString().replace('GMT', 'UTC') : '—'}
-              />
-              <Row
-                label="Proof"
-                value={
-                  <a
-                    href={pulsechainTxUrl(rescue.txHash)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 font-mono text-[13px] hover:text-[var(--text)]"
-                  >
-                    {rescue.txHash.slice(0, 12)}…
-                    <IconExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                }
-              />
-            </div>
-
-            <h2 className="font-jost mt-8 text-lg font-bold text-[var(--text)]">
-              {rescue.claimed === true ? 'Nothing left to do' : 'How to get it'}
-            </h2>
-            <p className="font-poppins mt-1 text-sm text-[var(--text-muted)]">
-              {rescue.claimed === true
-                ? 'This stake has been ended and the HEX has been paid out to its owner. The rest of this page is kept as the record of what happened.'
-                : 'There is no rush — the amount above cannot shrink any further. But it also will not arrive on its own.'}
-            </p>
-
-            {/* The app is the action, so it leads rather than sitting under the
-                steps as an afterthought. */}
-            {rescue.claimedAt == null && (
-              <>
-            <a
-              href={HEX_APP_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="group relative mt-4 flex items-center gap-4 overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.14] to-transparent p-4 transition-colors hover:border-emerald-400/60"
+            {/* ── Hero: always-dark, whatever the theme, so the figure lands ── */}
+            <div
+              className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#06182e] p-5 md:p-7"
+              style={{
+                ['--text' as string]: '#ffffff',
+                ['--text-muted' as string]: 'rgba(255,255,255,0.70)',
+                ['--text-faint' as string]: 'rgba(255,255,255,0.45)',
+              }}
             >
-              <HexWatermark className="-right-6 -top-8" size="h-32 w-32" opacity="opacity-[0.10]" />
-              <HexMark className="h-11 w-11 shrink-0" />
-              <span className="relative">
-                <span className="block text-base font-bold text-[var(--text)]">Open the HEX app</span>
-                <span className="block text-[13px] text-[var(--text-muted)]">
-                  The one the community uses, pinned on IPFS. Nothing to install, nothing to sign up for.
-                </span>
-              </span>
-              <IconExternalLink className="relative ml-auto h-5 w-5 shrink-0 text-emerald-400" />
-            </a>
-
-            <p className="mt-3 text-[12px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">
-              then, in the app
-            </p>
-            <ol className="mt-2 space-y-2.5">
-              {CLAIM_STEPS.map((s, i) => (
-                <li key={s.title} className="flex gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3.5">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--surface-3)] text-[12px] font-bold text-[var(--text)]">
-                    {i + 1}
+              <div
+                className="pointer-events-none absolute inset-0"
+                style={{ background: 'radial-gradient(120% 140% at 90% -25%, rgba(255,158,0,0.30) 0%, rgba(255,46,126,0.13) 45%, transparent 75%)' }}
+              />
+              <img
+                src="/hex-logo.svg"
+                alt=""
+                aria-hidden="true"
+                className="pointer-events-none absolute -right-12 -top-12 h-56 w-56 rotate-12 select-none object-contain opacity-[0.22] md:h-64 md:w-64"
+              />
+              <div className="relative">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <RescuedBy />
+                  <span className="font-poppins text-[11px] font-bold uppercase tracking-wider text-white/45">
+                    stake #{stakeId}
                   </span>
-                  <div>
-                    <div className="text-sm font-semibold text-[var(--text)]">{s.title}</div>
-                    <p className="mt-0.5 text-[13px] leading-relaxed text-[var(--text-muted)]">{s.body}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
+                </div>
+
+                <div className="mt-5">
+                  <HeroNumber
+                    label={rescue.claimed ? 'You collected' : 'Still yours'}
+                    value={headline ?? 0}
+                    fmt="hex"
+                    sub={
+                      rescue.claimed
+                        ? 'Ended by you — the HEX is in your wallet.'
+                        : 'Frozen. It cannot shrink any further.'
+                    }
+                    gradient
+                  />
+                </div>
+
+                {/* The reassurance stays a sentence: someone who thinks they
+                    have been robbed will not read a chart first. */}
+                <div className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5">
+                  <IconShieldCheck className="mt-0.5 h-5 w-5 shrink-0" style={{ color: 'var(--viz-gain)' }} aria-hidden="true" />
+                  <p className="font-poppins text-[13px] leading-relaxed text-white/70">
+                    <span className="font-semibold text-white">Nothing was taken and nothing can be.</span>{' '}
+                    {rescue.claimed
+                      ? 'Ending the stake paid out to your address and nowhere else. We only froze the penalty.'
+                      : 'Your HEX never moved. Only the clock stopped.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── The arithmetic, drawn ── */}
+            <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+              <Waterfall steps={steps} />
+              <Speedo
+                frac={savedFrac}
+                figure={`${(savedFrac * 100).toFixed(1)}%`}
+                label="Survived the bleed"
+                sub={
+                  (rescue.penaltyHex ?? 0) > 0
+                    ? `${hex(rescue.penaltyHex)} HEX was gone before we got there`
+                    : 'We reached it before the penalty took anything'
+                }
+              />
+            </div>
+
+            {pw && marks.length > 0 && (
+              <div className="mt-3">
+                <ValueJourney
+                  points={pw.series.map((p) => [p.t, p.usd] as [number, number])}
+                  marks={marks}
+                  basisHex={fmtHex(basis)}
+                  note={
+                    pw.atStart
+                      ? `since this stake started · ${dateOf(pw.series[0].t)}`
+                      : `past 12 months · this stake predates our price history`
+                  }
+                />
+              </div>
+            )}
+
+            {/* ── The proof, compact ── */}
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <Fact
+                label="Owner"
+                value={`${rescue.stakerAddr.slice(0, 10)}…${rescue.stakerAddr.slice(-8)}`}
+                href={pulsechainAddressUrl(rescue.stakerAddr)}
+              />
+              <Fact
+                label="Rescue transaction"
+                value={`${rescue.txHash.slice(0, 14)}…`}
+                href={pulsechainTxUrl(rescue.txHash)}
+              />
+            </div>
+
+            {/* ── The action ── */}
+            {!rescue.claimed && (
+              <>
+                <a
+                  href={HEX_APP_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group relative mt-6 flex items-center gap-4 overflow-hidden rounded-2xl border p-4 transition-colors"
+                  style={{ borderColor: 'color-mix(in srgb, var(--viz-gain) 35%, transparent)', background: 'color-mix(in srgb, var(--viz-gain) 8%, transparent)' }}
+                >
+                  <img src="/hex-logo.svg" alt="" aria-hidden="true" className="relative h-10 w-10 shrink-0 object-contain" />
+                  <span className="relative">
+                    <span className="font-jost block text-[16px] font-bold text-[var(--text)]">Open the HEX app to end it</span>
+                    <span className="font-poppins block text-[12px] text-[var(--text-muted)]">
+                      Pinned on IPFS. Nothing to install, nothing to sign up for.
+                    </span>
+                  </span>
+                  <IconExternalLink className="relative ml-auto h-5 w-5 shrink-0" style={{ color: 'var(--viz-gain)' }} />
+                </a>
+
+                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  {CLAIM_STEPS.map((s, i) => (
+                    <div key={s.title} className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3.5">
+                      <span className="font-jost pointer-events-none absolute right-3 top-1 text-[40px] font-bold leading-none text-[var(--text-faint)] opacity-30">
+                        {i + 1}
+                      </span>
+                      <div className="font-jost relative text-[13px] font-bold leading-snug text-[var(--text)]">
+                        {s.title}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="font-poppins mt-2 text-[11px] text-[var(--text-faint)]">
+                  Only the wallet that owns the stake can end it — which is exactly why we could stop the loss but
+                  could not finish it for you.
+                </p>
               </>
             )}
           </>
         ) : (
-          <>
-            <h1 className="mt-2 text-3xl font-bold text-[var(--text)]">No rescue found for stake #{stakeId}</h1>
-            <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-[var(--text-muted)]">
-              This keeper has not good-accounted that stake — either the link is wrong, or the rescue is very
-              recent and has not been indexed yet. Nothing is lost either way: a stake can always be ended by
-              its owner, whatever state it is in.
+          <div className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6">
+            <h1 className="font-jost text-2xl font-bold text-[var(--text)]">No rescue found for stake #{stakeId}</h1>
+            <p className="font-poppins mt-2 text-[13px] leading-relaxed text-[var(--text-muted)]">
+              Either the link is wrong, or the rescue is very recent and has not been indexed yet. Nothing is lost
+              either way — a stake can always be ended by its owner, whatever state it is in.
             </p>
             <Link
               href="/rescued"
-              className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold text-[var(--text)]"
+              className="font-poppins mt-4 inline-flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-4 py-2.5 text-[13px] font-semibold text-[var(--text)]"
             >
               See every rescue
             </Link>
-          </>
+          </div>
         )}
-
-        <p className="mt-10 border-t border-[var(--line)] pt-4 text-[12px] leading-relaxed text-[var(--text-faint)]">
-          {WHAT_HAPPENED.long}{' '}
-          <Link href="/rescued" className="underline hover:text-[var(--text)]">
-            See every stake Morbius and SuperStake have rescued
-          </Link>
-          .
-        </p>
       </div>
     </div>
   );
 }
 
-/**
- * The same metric shape the portfolio's HEX summary and the Rescue Wall use.
- *
- * Was a chunkier card with its own type scale, which made this page read as a
- * separate product from the rest of the HEX surfaces. 10px uppercase label over
- * a tabular figure is the house style; matching it is the polish.
- */
-function Stat({
-  label,
-  value,
-  sub,
-  tone,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  tone?: 'good' | 'warn';
-}) {
-  const color = tone === 'good' ? 'text-emerald-400' : tone === 'warn' ? 'text-red-400' : 'text-[var(--text)]';
+/** One verifiable fact, linked to the chain. */
+function Fact({ label, value, href }: { label: string; value: string; href: string }) {
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2">
-      <div className="font-poppins truncate text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
-        {label}
-      </div>
-      <div className={`mt-0.5 text-sm font-semibold tabular-nums ${color}`}>{value}</div>
-      {sub && <div className="text-[10px] tabular-nums text-[var(--text-faint)]">{sub}</div>}
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-2.5 last:border-b-0">
-      <span className="text-[13px] text-[var(--text-muted)]">{label}</span>
-      <span className="text-right text-[13px] font-semibold tabular-nums text-[var(--text)]">{value}</span>
-    </div>
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-3.5 py-3 transition-colors hover:border-[var(--text-faint)]"
+    >
+      <span className="min-w-0">
+        <span className="font-poppins block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+          {label}
+        </span>
+        <span className="block truncate font-mono text-[12px] text-[var(--text)]">{value}</span>
+      </span>
+      <IconExternalLink className="h-4 w-4 shrink-0 text-[var(--text-faint)]" />
+    </a>
   );
 }
