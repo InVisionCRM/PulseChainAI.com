@@ -12,10 +12,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bar, CartesianGrid, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import {
-  IconActivity, IconRefresh, IconTrendingUp, IconTrendingDown, IconFlame, IconSnowflake,
+  IconRefresh,
 } from '@tabler/icons-react';
 import type { Network } from '@/lib/hex/strategistData';
 import { fmtHex } from '@/lib/hex/hexDay';
+import { HeroNumber, Speedo } from '@/components/hex/Instruments';
 import { fmtPrice } from '@/lib/format';
 import { HexLogo } from '@/components/hex/HexAmount';
 import CountUp from './CountUp';
@@ -146,83 +147,108 @@ export default function StakingPulse({ net }: { net: Network }) {
 
   return (
     <div className="space-y-3">
-      {/* The one filter row — scopes every figure below it. */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--text)]">
-          <IconActivity className="h-4 w-4 text-[var(--chart-accent)]" /> The pulse
-          <span className="text-[10px] font-normal uppercase tracking-wider text-[var(--text-faint)]">
-            last {WINDOW_LABEL[win]}
-          </span>
-        </span>
-        <div className="inline-flex rounded-lg border border-[var(--line)] bg-[var(--surface)] p-0.5">
-          {(['24h', '7d', '30d'] as WindowKey[]).map((k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setWin(k)}
-              className={`rounded-md px-3 py-1 text-xs font-semibold uppercase transition-colors ${
-                win === k ? 'bg-[var(--surface-3)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-              }`}
-            >
-              {k}
-            </button>
-          ))}
+      {/* ── Hero: the window's headline figures on the molten panel ── */}
+      <div
+        className="anim-rise relative overflow-hidden rounded-3xl border border-white/10 bg-[#06182e] p-5 md:p-7"
+        style={{
+          ['--text' as string]: '#ffffff',
+          ['--text-muted' as string]: 'rgba(255,255,255,0.70)',
+          ['--text-faint' as string]: 'rgba(255,255,255,0.45)',
+        }}
+      >
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ background: 'radial-gradient(120% 140% at 92% -20%, rgba(255,158,0,0.30) 0%, rgba(255,46,126,0.13) 45%, transparent 75%)' }}
+        />
+        <img
+          src="/hex-logo.svg"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-14 -top-14 h-60 w-60 rotate-12 select-none object-contain opacity-[0.20] md:h-72 md:w-72"
+        />
+        <div className="relative">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-poppins text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">
+              Everything HEX staking did · last {WINDOW_LABEL[win]}
+            </span>
+            {/* The one filter — it scopes every figure on the tab. */}
+            <div className="inline-flex rounded-lg border border-white/15 bg-white/[0.06] p-0.5">
+              {(['24h', '7d', '30d'] as WindowKey[]).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setWin(k)}
+                  aria-pressed={win === k}
+                  className={`font-poppins rounded-md px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                    win === k ? 'bg-white/15 text-white' : 'text-white/55 hover:text-white'
+                  }`}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-6 sm:grid-cols-3 md:gap-8">
+            <HeroNumber
+              key={`h-net-${win}`}
+              label="Net HEX flow"
+              value={Math.abs(w.netHex)}
+              fmt="hex"
+              sub={inflow ? 'more locked than freed' : 'more freed than locked'}
+              gradient
+            />
+            <HeroNumber
+              key={`h-in-${win}`}
+              label="HEX staked in"
+              value={w.starts.hex}
+              fmt="hex"
+              sub={`${count(w.starts.count)} stakes · ${count(w.starts.stakers)} stakers`}
+            />
+            <HeroNumber
+              key={`h-out-${win}`}
+              label="HEX unstaked out"
+              value={w.ends.principalHex}
+              fmt="hex"
+              sub={`${count(w.ends.count)} stakes · ${fmtHex(w.ends.payoutHex)} yield paid`}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Headlines */}
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <Headline
-          key={`s-${win}`} label="Stakes started" value={w.starts.count} format={count}
-          sub={`${w.starts.stakers.toLocaleString()} stakers · ${tsh(w.starts.tShares)} T minted`} delay={0}
-        />
-        <Headline
-          key={`e-${win}`} label="Stakes ended" value={w.ends.count} format={count}
-          sub={`${w.ends.stakers.toLocaleString()} stakers · ${tsh(w.ends.tShares)} T released`} delay={60}
-        />
-        <Headline
-          key={`sh-${win}`} label="HEX staked" value={w.starts.hex} format={fmtHex} hex
-          sub={`biggest single stake ${fmtHex(w.starts.biggestHex)}`} delay={120}
-        />
-        <Headline
-          key={`uh-${win}`} label="HEX unstaked" value={w.ends.principalHex} format={fmtHex} hex
-          sub={`plus ${fmtHex(w.ends.payoutHex)} minted as yield`} delay={180}
-        />
-      </div>
-
-      {/* The dials */}
-      <div className="grid gap-2 sm:grid-cols-3">
-        <Dial
+      {/* The dials — the shared instrument the Rescue Wall uses, so a gauge
+          means the same thing everywhere on the site. */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Speedo
           key={`flow-${win}`}
           frac={flowFrac}
-          center={signedHex(w.netHex)}
-          centerColor={inflow ? 'var(--up)' : '#f87171'}
+          figure={signedHex(w.netHex)}
           label="Net flow"
           sub={inflow ? 'more HEX locked than freed' : 'more HEX freed than locked'}
-          icon={inflow ? <IconTrendingUp className="h-3.5 w-3.5" /> : <IconTrendingDown className="h-3.5 w-3.5" />}
+          tone="a"
         />
-        <Dial
+        <Speedo
           key={`loyal-${win}`}
           frac={loyaltyFrac}
-          center={`${Math.round(loyaltyFrac * 100)}%`}
+          figure={`${Math.round(loyaltyFrac * 100)}%`}
           label="Held to term"
-          sub={`${w.ends.early.toLocaleString()} ended early · ${w.ends.late.toLocaleString()} claimed late`}
-          icon={<IconSnowflake className="h-3.5 w-3.5" />}
+          sub={`${count(w.ends.early)} ended early · ${count(w.ends.late)} claimed late`}
+          tone="b"
         />
-        <Dial
+        <Speedo
           key="staked-share"
           frac={stakedFrac}
-          center={`${(stakedFrac * 100).toFixed(1)}%`}
+          figure={`${(stakedFrac * 100).toFixed(1)}%`}
           label="Of all HEX is staked"
           sub={data.now ? `${fmtHex(data.now.lockedHex)} locked vs ${fmtHex(data.now.supplyHex)} liquid` : '—'}
-          icon={<IconFlame className="h-3.5 w-3.5" />}
+          tone="a"
         />
       </div>
 
       {/* In vs out, per day — always the full 30-day strip for context. */}
       <div className="anim-rise rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3">
         <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 px-1">
-          <span className="text-xs font-semibold text-[var(--text)]">Staked in, unstaked out — daily, last 30 days</span>
+          <span className="font-jost text-[13px] font-bold text-[var(--text)]">Staked in, unstaked out — daily, last 30 days</span>
           <span className="flex items-center gap-3 text-[10px] text-[var(--text-faint)]">
             <span className="inline-flex items-center gap-1"><span className="h-2 w-3 rounded-[3px] bg-[var(--chart-accent)]" />staked</span>
             <span className="inline-flex items-center gap-1"><span className="h-2 w-3 rounded-[3px] bg-[var(--chart-flow)]" />unstaked</span>
@@ -248,8 +274,8 @@ export default function StakingPulse({ net }: { net: Network }) {
         </div>
       </div>
 
-      {/* The chain moved */}
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+      {/* ── The chain moved ── */}
+      <Group title="The chain moved">
         <Delta label="Locked HEX" value={w.delta?.lockedHex ?? null} format={signedHex} goodWhenUp delay={0} />
         <Delta label="Live T-Shares" value={w.delta?.tShares ?? null} format={(n) => `${n >= 0 ? '+' : '−'}${tsh(Math.abs(n))} T`} goodWhenUp delay={40} />
         <Delta
@@ -262,25 +288,45 @@ export default function StakingPulse({ net }: { net: Network }) {
           format={(n) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(1)}%`} goodWhenUp delay={120}
           sub={priceNow != null ? `now ${fmtPrice(priceNow)}` : 'price feed unavailable'}
         />
-      </div>
+      </Group>
 
-      {/* Everything else — the small print, as tiles instead of prose. */}
-      <div className="anim-rise grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6" style={{ animationDelay: '150ms' }}>
+      {/* The rest, grouped by the question it answers rather than laid out as
+          one undifferentiated wall of twelve tiles. */}
+      <Group title="HEX minted and taken back">
         <Small label="Yield minted" value={fmtHex(w.mintedHex)} sub="inflation to all stakers" hex />
+        <Small label="Yield claimed" value={fmtHex(w.ends.payoutHex)} sub="paid out on ends" hex />
         <Small label="Penalties paid" value={fmtHex(w.ends.penaltyHex + w.goodAccounted.penaltyHex)} sub="early + late ends" hex />
+        <Small label="Circulating Δ" value={w.delta?.supplyHex != null ? signedHex(w.delta.supplyHex) : '—'} sub="liquid HEX supply" />
+      </Group>
+
+      <Group title="How stakes ended">
+        <Small label="Ended early" value={count(w.ends.early)} sub="broke the term" />
+        <Small label="Served in full" value={count(w.ends.fullTerm)} sub="held to the day" />
+        <Small label="Claimed late" value={count(w.ends.late)} sub="matured, ended after" />
         <Small label="Good-accounted" value={count(w.goodAccounted.count)} sub={`${fmtHex(w.goodAccounted.hex)} frozen`} />
+      </Group>
+
+      <Group title="What people opened">
         <Small label="Avg new stake" value={`${count(w.starts.avgDays)}d`} sub={`median ${count(w.starts.medianDays)}d`} />
         <Small label="Biggest stake" value={fmtHex(w.starts.biggestHex)} sub={`${count(w.starts.biggestDays)}-day lock`} hex />
         <Small label="Auto-stakes" value={count(w.starts.autoStakes)} sub={`of ${count(w.starts.count)} starts`} />
-        <Small label="Circulating Δ" value={w.delta?.supplyHex != null ? signedHex(w.delta.supplyHex) : '—'} sub="liquid HEX supply" />
         <Small label="Net stakes" value={`${w.netStakes >= 0 ? '+' : '−'}${count(Math.abs(w.netStakes))}`} sub="started minus ended" />
-        <Small label="Yield claimed" value={fmtHex(w.ends.payoutHex)} sub="paid out on ends" hex />
-        <Small label="Ended early" value={count(w.ends.early)} sub={`${count(w.ends.fullTerm)} served in full`} />
-        <Small label="Claimed late" value={count(w.ends.late)} sub="matured, ended after" />
-        <Small label="Share rate" value={data.now ? `${count(data.now.shareRate)}` : '—'} sub="HEX per T-Share" />
-      </div>
+      </Group>
 
       <p className="px-1 text-[10px] leading-relaxed text-[var(--text-faint)]">{data.note}</p>
+    </div>
+  );
+}
+
+/** A titled row of tiles. The Micro tab carries a lot of numbers, and four
+ *  under a heading are read where twelve in a grid are skipped. */
+function Group({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="anim-rise">
+      <div className="font-poppins mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+        {title}
+      </div>
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">{children}</div>
     </div>
   );
 }
@@ -309,98 +355,31 @@ function DailyTooltip({ active, payload }: {
   );
 }
 
-function Headline({ label, value, format, sub, hex, delay }: {
-  label: string; value: number; format: (n: number) => string; sub?: string; hex?: boolean; delay: number;
-}) {
-  return (
-    <div className="anim-rise rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5" style={{ animationDelay: `${delay}ms` }}>
-      <div className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
-      <div className="flex items-center gap-1.5 truncate text-xl font-extrabold text-[var(--text)]">
-        {hex && <HexLogo className="h-4 w-4 shrink-0" />}
-        <CountUp value={value} format={format} />
-      </div>
-      {sub && <div className="truncate text-[10px] tabular-nums text-[var(--text-muted)]">{sub}</div>}
-    </div>
-  );
-}
-
-/**
- * A speedometer. The needle and arc ease to their position on mount and glide
- * when the window changes — CSS transitions carry the motion, and they stand
- * down automatically under prefers-reduced-motion (transitions of transform
- * are cheap and won't run when the browser suppresses animation durations).
- */
-function Dial({ frac, center, centerColor, label, sub, icon }: {
-  frac: number; center: string; centerColor?: string; label: string; sub: string; icon: React.ReactNode;
-}) {
-  const f = Math.max(0, Math.min(1, frac));
-  const [shown, setShown] = useState(0);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setShown(f));
-    return () => cancelAnimationFrame(id);
-  }, [f]);
-  // Semi-circle r=64 → arc length ≈ 201; the dash pattern draws `shown` of it.
-  const R = 64;
-  const ARC = Math.PI * R;
-  const angle = -90 + shown * 180;
-  return (
-    <div className="anim-rise rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 pb-2 pt-3 text-center">
-      <div className="mx-auto h-[78px] w-[160px]">
-        <svg viewBox="0 0 160 92" className="h-full w-full">
-          <path d="M 16 84 A 64 64 0 0 1 144 84" fill="none" stroke="var(--line)" strokeWidth="10" strokeLinecap="round" />
-          <path
-            d="M 16 84 A 64 64 0 0 1 144 84"
-            fill="none"
-            stroke="var(--chart-accent)"
-            strokeWidth="10"
-            strokeLinecap="round"
-            strokeDasharray={ARC}
-            strokeDashoffset={ARC * (1 - shown)}
-            style={{ transition: 'stroke-dashoffset 900ms cubic-bezier(0.22, 1, 0.36, 1)' }}
-          />
-          {/* Needle stops short of the arc so it never crosses the figure. */}
-          <g style={{ transform: `rotate(${angle}deg)`, transformOrigin: '80px 84px', transition: 'transform 900ms cubic-bezier(0.22, 1, 0.36, 1)' }}>
-            <line x1="80" y1="80" x2="80" y2="44" stroke="var(--text)" strokeWidth="3" strokeLinecap="round" />
-          </g>
-          <circle cx="80" cy="84" r="5" fill="var(--text)" />
-        </svg>
-      </div>
-      <div className="text-lg font-extrabold tabular-nums" style={{ color: centerColor ?? 'var(--text)' }}>
-        {center}
-      </div>
-      <div className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--text)]">
-        {icon} {label}
-      </div>
-      <div className="text-[10px] text-[var(--text-muted)]">{sub}</div>
-    </div>
-  );
-}
-
 function Delta({ label, value, format, goodWhenUp, sub, delay }: {
   label: string; value: number | null; format: (n: number) => string;
   goodWhenUp: boolean; sub?: string; delay: number;
 }) {
   const color = value == null ? 'var(--text-faint)' : (value >= 0) === goodWhenUp ? 'var(--up)' : '#f87171';
   return (
-    <div className="anim-rise rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2" style={{ animationDelay: `${delay}ms` }}>
-      <div className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
-      <div className="truncate text-base font-bold tabular-nums" style={{ color }}>
+    <div className="anim-rise rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3.5 py-3" style={{ animationDelay: `${delay}ms` }}>
+      <div className="font-poppins truncate text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
+      <div className="font-jost truncate text-[26px] font-bold leading-none tabular-nums" style={{ color }}>
         {value != null ? format(value) : '—'}
       </div>
-      {sub && <div className="truncate text-[10px] text-[var(--text-muted)]">{sub}</div>}
+      {sub && <div className="font-poppins mt-1 truncate text-[11px] text-[var(--text-muted)]">{sub}</div>}
     </div>
   );
 }
 
 function Small({ label, value, sub, hex }: { label: string; value: string; sub?: string; hex?: boolean }) {
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2">
-      <div className="truncate text-[9px] uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
-      <div className="flex items-center gap-1 truncate text-sm font-bold tabular-nums text-[var(--text)]">
-        {hex && <HexLogo className="h-3 w-3 shrink-0" />}
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3.5 py-3">
+      <div className="font-poppins truncate text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
+      <div className="font-jost flex items-center gap-1.5 truncate text-[26px] font-bold leading-none tabular-nums text-[var(--text)]">
+        {hex && <HexLogo className="h-4 w-4 shrink-0" />}
         <span className="truncate">{value}</span>
       </div>
-      {sub && <div className="truncate text-[9px] text-[var(--text-muted)]">{sub}</div>}
+      {sub && <div className="font-poppins mt-1 truncate text-[11px] text-[var(--text-muted)]">{sub}</div>}
     </div>
   );
 }
