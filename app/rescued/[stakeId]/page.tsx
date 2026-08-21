@@ -21,12 +21,15 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { IconExternalLink, IconShieldCheck, IconArrowLeft } from '@tabler/icons-react';
 import { fetchRescue } from '@/lib/hex/rescueFeed';
+import { fetchStakeStarts } from '@/lib/hex/stakeStarts';
+import { hexPriceHistory, windowFor } from '@/lib/hex/hexPriceHistory';
 import { WHAT_HAPPENED, CLAIM_STEPS, HEX_APP_URL } from '@/lib/hex/rescueCopy';
 import { pulsechainTxUrl, pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
+import { fmtHex } from '@/lib/hex/hexDay';
 import { RescuedBy } from '@/components/rescue/RescueBrand';
 import {
-  HeroNumber, Speedo, Waterfall, RescueTimeline,
-  type WaterfallStep, type TimelineStep,
+  HeroNumber, Speedo, Waterfall, ValueJourney,
+  type WaterfallStep, type ValueMark,
 } from '@/components/rescue/RescueDashboard';
 
 // Matches the wall: a freshly-rescued stake should not have to wait five
@@ -64,6 +67,16 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
   const { stakeId } = await params;
   const rescue = await fetchRescue('pulsechain', stakeId).catch(() => null);
 
+  // The stake's beginning and the price history behind it. Both are best
+  // effort: the page's own figures come from the rescue itself, so a price
+  // outage hides one panel rather than breaking anything.
+  const [starts, prices] = await Promise.all([
+    rescue ? fetchStakeStarts('pulsechain', [stakeId]).catch(() => new Map()) : Promise.resolve(new Map()),
+    rescue ? hexPriceHistory().catch(() => []) : Promise.resolve([]),
+  ]);
+  const start = starts.get(stakeId) ?? null;
+  const pw = rescue ? windowFor(prices, start?.timestamp ?? null) : null;
+
   const gross = (rescue?.principalHex ?? 0) + (rescue?.payoutHex ?? 0);
   const savedFrac = gross > 0 ? Math.max(0, Math.min(1, 1 - (rescue?.penaltyHex ?? 0) / gross)) : 1;
   const headline = rescue?.claimed ? rescue.claimedHex ?? rescue.claimableHex : rescue?.claimableHex;
@@ -77,14 +90,22 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
       ]
     : [];
 
-  const timeline: TimelineStep[] = rescue
+  // One fixed pile of HEX — the amount that is theirs — priced at four
+  // moments. A changing amount at a changing price would make the four
+  // figures incomparable, so the basis is stated in the panel's heading.
+  const basis = rescue ? (rescue.claimed ? rescue.claimedHex ?? rescue.claimableHex : rescue.claimableHex) ?? 0 : 0;
+  const marks: ValueMark[] = pw
     ? [
-        { label: 'Term finished', when: null, state: 'done' },
-        { label: 'Started losing', when: null, state: 'done' },
-        { label: 'We froze it', when: dateOf(rescue.timestamp), state: 'done' },
-        rescue.claimed
-          ? { label: 'You collected', when: dateOf(rescue.claimedAt), state: 'done' }
-          : { label: 'Waiting for you', when: null, state: 'now' },
+        {
+          key: 'start',
+          label: 'At stake start',
+          usd: pw.atStart ? basis * pw.atStart.usd : null,
+          price: pw.atStart?.usd ?? null,
+          when: pw.atStart ? dateOf(pw.atStart.t) : null,
+        },
+        { key: 'high', label: 'Peak', usd: basis * pw.high.usd, price: pw.high.usd, when: dateOf(pw.high.t) },
+        { key: 'low', label: 'Low', usd: basis * pw.low.usd, price: pw.low.usd, when: dateOf(pw.low.t) },
+        { key: 'now', label: 'Now', usd: basis * pw.now.usd, price: pw.now.usd, when: dateOf(pw.now.t) },
       ]
     : [];
 
@@ -170,9 +191,20 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
               />
             </div>
 
-            <div className="mt-3">
-              <RescueTimeline steps={timeline} />
-            </div>
+            {pw && marks.length > 0 && (
+              <div className="mt-3">
+                <ValueJourney
+                  points={pw.series.map((p) => [p.t, p.usd] as [number, number])}
+                  marks={marks}
+                  basisHex={fmtHex(basis)}
+                  note={
+                    pw.atStart
+                      ? `since this stake started · ${dateOf(pw.series[0].t)}`
+                      : `past 12 months · this stake predates our price history`
+                  }
+                />
+              </div>
+            )}
 
             {/* ── The proof, compact ── */}
             <div className="mt-3 grid gap-2 sm:grid-cols-2">

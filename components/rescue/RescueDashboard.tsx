@@ -491,3 +491,142 @@ export function RescueTimeline({ steps }: { steps: TimelineStep[] }) {
     </div>
   );
 }
+
+/* ───────────────────── what the stake has been worth ───────────────────── */
+
+export interface ValueMark {
+  key: 'start' | 'high' | 'low' | 'now';
+  label: string;
+  /** USD value of the stake's HEX at this moment; null when unavailable. */
+  usd: number | null;
+  /** pHEX price at this moment. */
+  price: number | null;
+  /** "Sep 27, 2025" — already formatted by the server. */
+  when: string | null;
+}
+
+/**
+ * A stake's worth over its life: a price line with the four moments marked,
+ * over four tiles reading start / peak / low / now.
+ *
+ * ONE fixed pile of HEX priced at four different moments — never a changing
+ * amount at a changing price, which would make the four figures
+ * incomparable. The caller states the amount in the heading so the basis is
+ * never in doubt.
+ *
+ * A marker that has no data (a stake older than the price history) draws as
+ * an em dash rather than being clamped to the oldest price we hold, which
+ * would put a number on screen that was never real.
+ */
+export function ValueJourney({
+  points,
+  marks,
+  basisHex,
+  note,
+}: {
+  /** Daily closes, oldest first, as [unixMs, usd]. */
+  points: [number, number][];
+  marks: ValueMark[];
+  basisHex: string;
+  note?: string;
+}) {
+  const { on, instant } = useSettled();
+  const [hover, setHover] = useState<number | null>(null);
+  if (points.length < 2) return null;
+
+  const W = 640;
+  const H = 120;
+  const PAD = 4;
+  const xs = points.map((p) => p[0]);
+  const ys = points.map((p) => p[1]);
+  const t0 = Math.min(...xs);
+  const t1 = Math.max(...xs);
+  const lo = Math.min(...ys);
+  const hi = Math.max(...ys);
+  const px = (t: number) => PAD + ((t - t0) / Math.max(1, t1 - t0)) * (W - PAD * 2);
+  // Log scale: pHEX ran 16x between its low and high over a year, and a
+  // linear axis flattens everything below the spike into the baseline.
+  const ly = (v: number) => Math.log(Math.max(v, 1e-12));
+  const py = (v: number) =>
+    H - PAD - ((ly(v) - ly(lo)) / Math.max(1e-9, ly(hi) - ly(lo))) * (H - PAD * 2);
+
+  const d = points.map((p, i) => `${i ? 'L' : 'M'}${px(p[0]).toFixed(1)} ${py(p[1]).toFixed(1)}`).join(' ');
+  const area = `${d} L${px(t1).toFixed(1)} ${H} L${px(t0).toFixed(1)} ${H} Z`;
+
+  const dotFor = (m: ValueMark) => {
+    if (m.price == null || m.when == null) return null;
+    const hit = points.reduce((best, p) =>
+      Math.abs(p[1] - m.price!) < Math.abs(best[1] - m.price!) ? p : best, points[0]);
+    return { x: px(hit[0]), y: py(m.price) };
+  };
+
+  const usd = (n: number | null) =>
+    n == null ? '—'
+      : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M`
+      : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K`
+      : `$${n.toFixed(2)}`;
+
+  return (
+    <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <div className="font-poppins text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+          What this {basisHex} HEX has been worth
+        </div>
+        {note && <div className="font-poppins text-[10px] text-[var(--text-faint)]">{note}</div>}
+      </div>
+
+      <div className="relative mt-3" onMouseLeave={() => setHover(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="pHEX price over this stake's life">
+          <defs>
+            <linearGradient id="vj-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--viz-a)" stopOpacity="0.28" />
+              <stop offset="100%" stopColor="var(--viz-a)" stopOpacity="0" />
+            </linearGradient>
+            <clipPath id="vj-clip">
+              <rect x="0" y="0" width={on ? W : 0} height={H}
+                style={{ transition: instant ? 'none' : `width 1.1s ${EASE}` }} />
+            </clipPath>
+          </defs>
+          <g clipPath="url(#vj-clip)">
+            <path d={area} fill="url(#vj-fill)" />
+            <path d={d} fill="none" stroke="var(--viz-a)" strokeWidth="2" strokeLinejoin="round" />
+          </g>
+          {marks.map((m) => {
+            const pt = dotFor(m);
+            if (!pt) return null;
+            const tone = m.key === 'high' ? 'var(--viz-gain)' : m.key === 'low' ? 'var(--viz-loss)' : 'var(--text)';
+            return (
+              <circle key={m.key} cx={pt.x} cy={pt.y} r={hover === null ? 4.5 : 4.5}
+                fill={tone} stroke="var(--surface)" strokeWidth="2" />
+            );
+          })}
+        </svg>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {marks.map((m) => (
+          <div key={m.key} className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-2.5 py-2">
+            <div className="font-poppins truncate text-[10px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">
+              {m.label}
+            </div>
+            <div
+              className="font-jost mt-0.5 text-[20px] font-bold leading-none tabular-nums"
+              style={{
+                color:
+                  m.usd == null ? 'var(--text-faint)'
+                    : m.key === 'high' ? 'var(--viz-gain)'
+                    : m.key === 'low' ? 'var(--viz-loss)'
+                    : 'var(--text)',
+              }}
+            >
+              {usd(m.usd)}
+            </div>
+            <div className="font-poppins mt-0.5 truncate text-[10px] tabular-nums text-[var(--text-faint)]">
+              {m.when ?? 'before our price data'}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
