@@ -70,7 +70,7 @@ export function Speedo({
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-      <div className="font-poppins text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+      <div className="font-poppins text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
         {label}
       </div>
       <div className="mx-auto mt-2 w-full max-w-[240px]">
@@ -117,13 +117,13 @@ export function Speedo({
           <circle cx="100" cy="100" r="3" fill={color} />
         </svg>
         <div className="-mt-1 text-center">
-          <span className="font-jost text-[30px] font-bold leading-none tracking-tight text-[var(--text)] tabular-nums">
+          <span className="font-jost text-[36px] font-bold leading-none tracking-tight text-[var(--text)] tabular-nums">
             {figure}
           </span>
         </div>
       </div>
       {sub && (
-        <div className="font-poppins mt-2.5 text-center text-[11px] text-[var(--text-muted)]">{sub}</div>
+        <div className="font-poppins mt-3 text-center text-[12px] text-[var(--text-muted)]">{sub}</div>
       )}
     </div>
   );
@@ -156,16 +156,16 @@ export function BigStat({
 }) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-      <div className="font-poppins text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+      <div className="font-poppins text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
         {label}
       </div>
       <div
-        className="font-jost mt-1.5 text-[34px] font-bold leading-none tracking-tight tabular-nums md:text-[40px]"
+        className="font-jost mt-1.5 text-[38px] font-bold leading-none tracking-tight tabular-nums md:text-[46px]"
         style={{ color }}
       >
         <CountUp value={value} format={FMT[fmt]} />
       </div>
-      {sub && <div className="font-poppins mt-1.5 text-[11px] text-[var(--text-muted)]">{sub}</div>}
+      {sub && <div className="font-poppins mt-1.5 text-[12px] text-[var(--text-muted)]">{sub}</div>}
     </div>
   );
 }
@@ -186,7 +186,7 @@ export function HeroNumber({
 }) {
   return (
     <div>
-      <div className="font-poppins text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+      <div className="font-poppins text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
         {label}
       </div>
       <div
@@ -197,7 +197,7 @@ export function HeroNumber({
       >
         <CountUp value={value} format={FMT[fmt]} />
       </div>
-      {sub && <div className="font-poppins mt-1.5 text-[12px] text-white/55">{sub}</div>}
+      {sub && <div className="font-poppins mt-2 text-[12.5px] text-white/55">{sub}</div>}
     </div>
   );
 }

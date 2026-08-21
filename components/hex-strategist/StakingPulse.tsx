@@ -323,7 +323,7 @@ export default function StakingPulse({ net }: { net: Network }) {
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="anim-rise">
-      <div className="font-poppins mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+      <div className="font-poppins mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
         {title}
       </div>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">{children}</div>
@@ -361,25 +361,25 @@ function Delta({ label, value, format, goodWhenUp, sub, delay }: {
 }) {
   const color = value == null ? 'var(--text-faint)' : (value >= 0) === goodWhenUp ? 'var(--up)' : '#f87171';
   return (
-    <div className="anim-rise rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2" style={{ animationDelay: `${delay}ms` }}>
-      <div className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
-      <div className="truncate text-base font-bold tabular-nums" style={{ color }}>
+    <div className="anim-rise rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3.5 py-3" style={{ animationDelay: `${delay}ms` }}>
+      <div className="font-poppins truncate text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
+      <div className="font-jost truncate text-[26px] font-bold leading-none tabular-nums" style={{ color }}>
         {value != null ? format(value) : '—'}
       </div>
-      {sub && <div className="truncate text-[10px] text-[var(--text-muted)]">{sub}</div>}
+      {sub && <div className="font-poppins mt-1 truncate text-[11px] text-[var(--text-muted)]">{sub}</div>}
     </div>
   );
 }
 
 function Small({ label, value, sub, hex }: { label: string; value: string; sub?: string; hex?: boolean }) {
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2">
-      <div className="truncate text-[9px] uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
-      <div className="flex items-center gap-1 truncate text-sm font-bold tabular-nums text-[var(--text)]">
-        {hex && <HexLogo className="h-3 w-3 shrink-0" />}
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3.5 py-3">
+      <div className="font-poppins truncate text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
+      <div className="font-jost flex items-center gap-1.5 truncate text-[26px] font-bold leading-none tabular-nums text-[var(--text)]">
+        {hex && <HexLogo className="h-4 w-4 shrink-0" />}
         <span className="truncate">{value}</span>
       </div>
-      {sub && <div className="truncate text-[9px] text-[var(--text-muted)]">{sub}</div>}
+      {sub && <div className="font-poppins mt-1 truncate text-[11px] text-[var(--text-muted)]">{sub}</div>}
     </div>
   );
 }

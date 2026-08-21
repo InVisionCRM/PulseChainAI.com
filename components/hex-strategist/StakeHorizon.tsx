@@ -144,6 +144,42 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
   const peak = useMemo(() => biggestDay(buckets), [buckets]);
   const halfDay = useMemo(() => dayForFraction(buckets, 0.5), [buckets]);
 
+  // Everything below comes out of the schedule and the rates the tab already
+  // holds — no extra request. Overdue buckets are excluded from the forward
+  // figures: HEX that matured last year is not "coming due", and folding it in
+  // would overstate the next twelve months.
+  const shape = useMemo(() => {
+    // Hooks cannot sit behind the loading/error early-returns below: the render
+    // where data arrives would run a different number of them and React tears
+    // the tab tree down. So this lives with the other memos and tolerates a
+    // null `data` instead.
+    const currentDay = data?.currentDay ?? 0;
+    const totals = data?.totals ?? { hex: 0, tShares: 0, stakes: 0 };
+    let dueYear = 0;
+    let stakesYear = 0;
+    let hexDays = 0;
+    let futureHex = 0;
+    for (const [day, hex, , stakes] of data?.buckets ?? []) {
+      if (day < currentDay) continue;
+      const out = day - currentDay;
+      futureHex += hex;
+      hexDays += hex * out;
+      if (out <= 365) {
+        dueYear += hex;
+        stakesYear += stakes;
+      }
+    }
+    return {
+      dueYear,
+      stakesYear,
+      // HEX-weighted, so one 150B day counts for what it actually is rather
+      // than as one bucket among thousands.
+      avgWaitYears: futureHex > 0 ? hexDays / futureHex / 365 : 0,
+      avgStake: totals.stakes > 0 ? totals.hex / totals.stakes : 0,
+      dueYearPct: totals.hex > 0 ? (dueYear / totals.hex) * 100 : 0,
+    };
+  }, [data]);
+
   if (status === 'loading') {
     return (
       <div className="grid place-items-center py-20 text-center text-sm text-[var(--text-muted)]">
@@ -174,6 +210,10 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
   // thing is in its single worst day, and how much of what is mapped is
   // already past due. Both are shares of the same total, so both read 0–100.
   const overduePct = data.totals.hex > 0 ? (data.overdue.hex / data.totals.hex) * 100 : 0;
+
+  const apy = rates && rates.tShareRateHex > 0
+    ? (rates.dailyPayoutPerTShare * 365 / rates.tShareRateHex) * 100
+    : null;
 
   return (
     <div className="space-y-3">
@@ -253,6 +293,53 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
               {fmtHexDate(data.lastDay)}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── What the schedule and the rates say, beyond the headline ── */}
+      <div>
+        <div className="font-poppins mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+          The shape of it
+        </div>
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+          <Tile
+            label="Due in the next year"
+            value={fmtHex(shape.dueYear)}
+            sub={`${shape.dueYearPct.toFixed(1)}% of everything · ${shape.stakesYear.toLocaleString()} stakes`}
+            hex
+          />
+          <Tile
+            label="Average wait left"
+            value={`${shape.avgWaitYears.toFixed(1)} yr`}
+            sub="weighted by HEX, not by stake"
+          />
+          <Tile
+            label="Average stake"
+            value={fmtHex(shape.avgStake)}
+            sub={`across ${data.totals.stakes.toLocaleString()} locked stakes`}
+            hex
+          />
+          <Tile
+            label="One T-Share costs"
+            value={rates ? fmtHex(rates.tShareRateHex) : '—'}
+            sub={rates?.tSharePriceUsd ? `${fmtUsdShort(rates.tSharePriceUsd)} at today's price` : 'it only ever ratchets up'}
+            hex
+          />
+          <Tile
+            label="A T-Share pays"
+            value={rates ? `${rates.dailyPayoutPerTShare.toFixed(2)}/day` : '—'}
+            sub={
+              rates?.priceUsd
+                ? `≈ ${fmtUsdShort(rates.dailyPayoutPerTShare * 365 * rates.priceUsd)} a year`
+                : 'trailing 30-day average'
+            }
+            hex
+          />
+          <Tile
+            label="Implied yield"
+            value={apy != null ? `${apy.toFixed(2)}%` : '—'}
+            sub="in HEX terms, at today's rate"
+          />
         </div>
       </div>
 
@@ -477,6 +564,23 @@ function Indexing({ state, onRetry }: { state: IndexingState; onRetry: () => voi
       <button onClick={onRetry} className="mt-3 text-xs text-[var(--text-faint)] underline hover:text-[var(--text)]">
         check again
       </button>
+    </div>
+  );
+}
+
+/** A stat tile at the same scale the Micro tab uses, so a figure is the same
+ *  size whichever tab it is on. */
+function Tile({ label, value, sub, hex }: { label: string; value: string; sub?: string; hex?: boolean }) {
+  return (
+    <div className="anim-rise rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3.5 py-3">
+      <div className="font-poppins truncate text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">
+        {label}
+      </div>
+      <div className="font-jost flex items-center gap-1.5 truncate text-[26px] font-bold leading-none tabular-nums text-[var(--text)]">
+        {hex && <HexLogo className="h-4 w-4 shrink-0" />}
+        <span className="truncate">{value}</span>
+      </div>
+      {sub && <div className="font-poppins mt-1 truncate text-[11px] text-[var(--text-muted)]">{sub}</div>}
     </div>
   );
 }
