@@ -15,7 +15,6 @@
 // and the released strip (which reads the same either way) carries the shape.
 
 import { useEffect, useMemo, useState } from 'react';
-import CountUp from './CountUp';
 import {
   Area, AreaChart, Bar, CartesianGrid, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
@@ -26,6 +25,7 @@ import {
 } from '@/lib/hex/unlockSchedule';
 import { fmtHex, fmtUsdShort, fmtHexDate, fmtDuration, hexDayToDate } from '@/lib/hex/hexDay';
 import { HexLogo } from '@/components/hex/HexAmount';
+import { HeroNumber, Speedo } from '@/components/hex/Instruments';
 import StrategistShareCards from './StrategistShareCards';
 
 interface ScheduleData {
@@ -170,34 +170,90 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
   const fmtValue = (v: number) => (metric === 'hex' ? fmtHex(v) : `${tsh(v)} T`);
   const peakPct = peak && data.totals.hex > 0 ? (peak.hex / data.totals.hex) * 100 : 0;
 
+  // Two dials the schedule can answer on its own: how concentrated the whole
+  // thing is in its single worst day, and how much of what is mapped is
+  // already past due. Both are shares of the same total, so both read 0–100.
+  const overduePct = data.totals.hex > 0 ? (data.overdue.hex / data.totals.hex) * 100 : 0;
+
   return (
     <div className="space-y-3">
-      {/* Headline numbers */}
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <Stat
-          label="HEX locked"
-          countTo={data.network_totals.hex}
-          format={fmtHex}
-          sub={usd(data.network_totals.hex) != null ? fmtUsdShort(usd(data.network_totals.hex)!) : undefined}
-          hex
-          delay={0}
+      {/* ── Hero: always-dark molten panel, the same one the Rescue Wall wears ── */}
+      <div
+        className="anim-rise relative overflow-hidden rounded-3xl border border-white/10 bg-[#06182e] p-5 md:p-7"
+        style={{
+          ['--text' as string]: '#ffffff',
+          ['--text-muted' as string]: 'rgba(255,255,255,0.70)',
+          ['--text-faint' as string]: 'rgba(255,255,255,0.45)',
+        }}
+      >
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ background: 'radial-gradient(120% 140% at 92% -20%, rgba(255,158,0,0.30) 0%, rgba(255,46,126,0.13) 45%, transparent 75%)' }}
         />
-        <Stat label="T-Shares locked" countTo={data.network_totals.tShares} format={tsh} delay={60} />
-        <Stat
-          label="Half is free by"
-          value={halfDay != null ? fmtHexDate(halfDay) : '—'}
-          sub={halfDay != null ? `${fmtDuration(halfDay - data.currentDay)} out` : undefined}
-          delay={120}
+        <img
+          src="/hex-logo.svg"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-14 -top-14 h-60 w-60 rotate-12 select-none object-contain opacity-[0.20] md:h-72 md:w-72"
         />
-        <Stat
-          label="Biggest single day"
-          countTo={peak?.hex}
-          format={fmtHex}
-          value={peak ? undefined : '—'}
-          sub={peak ? `${fmtHexDate(peak.day)} · ${peakPct.toFixed(0)}% of all` : undefined}
-          hex
-          delay={180}
+        <div className="relative">
+          <div className="font-poppins text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">
+            Every locked stake on {net}
+          </div>
+          <div className="mt-5 grid gap-6 sm:grid-cols-3 md:gap-8">
+            <HeroNumber
+              label="HEX locked"
+              value={data.network_totals.hex}
+              fmt="hex"
+              sub={usd(data.network_totals.hex) != null ? fmtUsdShort(usd(data.network_totals.hex)!) : `${data.totals.stakes.toLocaleString()} stakes`}
+              gradient
+            />
+            <HeroNumber label="T-Shares locked" value={data.network_totals.tShares} fmt="int" sub="live, earning" />
+            <HeroNumber
+              label="Biggest single day"
+              value={peak?.hex ?? 0}
+              fmt="hex"
+              sub={peak ? `${fmtHexDate(peak.day)} · ${peakPct.toFixed(0)}% of everything` : 'no schedule mapped'}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── The two dials, beside the date that matters most ── */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Speedo
+          frac={peakPct / 100}
+          figure={`${peakPct.toFixed(1)}%`}
+          label="Concentrated in one day"
+          sub={peak ? `${fmtHexDate(peak.day)} carries ${fmtHex(peak.hex)} HEX` : '—'}
+          tone="a"
         />
+        <Speedo
+          frac={overduePct / 100}
+          figure={`${overduePct.toFixed(1)}%`}
+          label="Already past due"
+          sub={`${fmtHex(data.overdue.hex)} HEX matured and unclaimed`}
+          tone="b"
+        />
+        <div className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+          <div className="font-poppins text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+            Half is free by
+          </div>
+          <div className="font-jost mt-1.5 text-[34px] font-bold leading-none tracking-tight text-[var(--text)] md:text-[40px]">
+            {halfDay != null ? fmtHexDate(halfDay) : '—'}
+          </div>
+          <div className="font-poppins mt-1.5 text-[11px] text-[var(--text-muted)]">
+            {halfDay != null ? `${fmtDuration(halfDay - data.currentDay)} from today` : 'no schedule mapped'}
+          </div>
+          <div className="mt-3 border-t border-[var(--line)] pt-2.5">
+            <div className="font-poppins text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+              Last stake matures
+            </div>
+            <div className="font-jost mt-0.5 text-[20px] font-bold leading-none text-[var(--text)]">
+              {fmtHexDate(data.lastDay)}
+            </div>
+          </div>
+        </div>
       </div>
 
       <Overdue overdue={data.overdue} frozen={data.frozen} />
@@ -205,10 +261,10 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
       {/* Controls */}
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--text)]">
+          <span className="font-jost inline-flex items-center gap-1.5 text-[15px] font-bold text-[var(--text)]">
             <IconChartHistogram className="h-4 w-4 text-[var(--chart-accent)]" /> Unlock schedule
           </span>
-          <span className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">
+          <span className="font-poppins text-[10px] uppercase tracking-wider text-[var(--text-faint)]">
             per {GRAIN_LABEL[view.grain]} · all {data.totals.stakes.toLocaleString()} stakes
           </span>
         </div>
@@ -425,30 +481,6 @@ function Indexing({ state, onRetry }: { state: IndexingState; onRetry: () => voi
   );
 }
 
-function Stat({ label, value, countTo, format, sub, hex, delay = 0 }: {
-  label: string;
-  value?: string;
-  /** Animate the value counting up from zero instead of rendering it static. */
-  countTo?: number;
-  format?: (n: number) => string;
-  sub?: string;
-  hex?: boolean;
-  delay?: number;
-}) {
-  return (
-    <div className="anim-rise rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2" style={{ animationDelay: `${delay}ms` }}>
-      <div className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">{label}</div>
-      <div className="flex items-center gap-1.5 truncate text-lg font-bold text-[var(--text)]">
-        {hex && <HexLogo className="h-4 w-4 shrink-0" />}
-        <span className="truncate">
-          {countTo != null && format ? <CountUp value={countTo} format={format} /> : value}
-        </span>
-      </div>
-      {sub && <div className="truncate text-[10px] tabular-nums text-[var(--text-muted)]">{sub}</div>}
-    </div>
-  );
-}
-
 function Segmented({ options, value, onChange }: {
   options: { key: string; label: string }[];
   value: string;
@@ -489,7 +521,7 @@ function BiggestDays({ buckets, total, currentDay, usd }: {
   return (
     <div className="anim-rise rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4" style={{ animationDelay: '180ms' }}>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--text)]">
+        <span className="font-jost inline-flex items-center gap-1.5 text-[15px] font-bold text-[var(--text)]">
           <IconFlame className="h-4 w-4 text-rose-400" /> The cliffs
         </span>
         <span className="text-[11px] text-[var(--text-muted)]">

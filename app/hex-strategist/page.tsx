@@ -10,7 +10,9 @@ export const metadata: Metadata = {
 
 export default function HexStrategistPage() {
   return (
-    <main className="relative isolate min-h-screen bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)] text-[var(--text)]">
+    <main
+      className="relative isolate min-h-screen bg-gradient-to-br from-[var(--panel)] via-[var(--surface-2)] to-[var(--panel)] text-[var(--text)] [--viz-a:#d96406] [--viz-b:#d6186e] [--viz-gain:#0d9488] [--viz-loss:#be123c] dark:[--viz-a:#dd7300] dark:[--viz-b:#ff2e7e] dark:[--viz-gain:#0d9488] dark:[--viz-loss:#e11d48]"
+    >
       {/* The loading screen's molten artwork, ghosted behind the page. The
           mask fades the image itself to nothing, so the page's own gradient
           takes over — no hard seam in either theme. */}
