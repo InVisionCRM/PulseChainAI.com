@@ -1,144 +1,127 @@
-// A rescued stake, drawn the way every other HEX stake in this app is drawn.
+// One rescued stake, as a tile in the wall.
 //
-// Deliberately mirrors ActiveStakeCard in components/portfolio/HexStakes.tsx —
-// same shell (rounded-xl, --line border, --surface fill, p-4), same "Stake #id
-// + status pill" header, same 10px uppercase micro-labels over tabular figures,
-// same two-column principal/secondary split, same 2px progress bar. A rescue is
-// a HEX stake, so it should not look like a different product; anything that
-// reads as its own visual language here is a bug, not a style.
+// The card answers three things at a glance and nothing else: how much HEX
+// this stake still holds, how much of it survived, and whether its owner has
+// come for it. Everything smaller — principal, interest, penalty, addresses —
+// sits in one quiet footer strip, because a card where every figure shouts is
+// a card where nothing is read.
 //
-// The one thing it says that a normal stake card cannot: this stake stopped
-// losing value on a particular day, and here is what survived.
+// The number is the design: Jost at 30px carrying the HEX figure, Poppins for
+// every label, a donut that sweeps once to the survival share, and the brand
+// gradient only as a hairline on the collected state. No paragraph anywhere.
+//
+// The survival share is printed as text beside the ring as well as drawn in
+// it, so the color is never the only thing saying whether this went well.
 
 import Link from 'next/link';
 import { IconExternalLink, IconSnowflake, IconCheck } from '@tabler/icons-react';
-import { HexAmount, HexUnit } from '@/components/hex/HexAmount';
+import { HexAmount } from '@/components/hex/HexAmount';
 import { fmtUsdShort, fmtHexDate, HEX_LAUNCH_TS } from '@/lib/hex/hexDay';
 import { pulsechainTxUrl, pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
+import { SavedRing } from '@/components/rescue/RescueDashboard';
 import type { Rescue } from '@/lib/hex/rescueFeed';
 
 const tsToHexDay = (ms: number) => Math.floor((ms / 1000 - HEX_LAUNCH_TS) / 86400);
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+const n0 = (n: number | null | undefined) => Math.round(n ?? 0).toLocaleString();
 
 export function RescueStakeCard({ rescue, hexUsd }: { rescue: Rescue; hexUsd?: number | null }) {
   const gross = (rescue.principalHex ?? 0) + (rescue.payoutHex ?? 0);
-  // The share of the whole return the penalty had taken by the time we froze
-  // it. Bounded because a fully-bled stake would otherwise overflow the bar.
-  const burned = gross > 0 ? Math.min(1, (rescue.penaltyHex ?? 0) / gross) : 0;
+  // Share of the whole return that survived to the freeze. Bounded because a
+  // fully-bled stake would otherwise push the ring past a full turn.
+  const savedFrac = gross > 0 ? Math.max(0, Math.min(1, 1 - (rescue.penaltyHex ?? 0) / gross)) : 1;
   const usd = (hex: number | null | undefined) =>
     hexUsd != null && hex != null ? fmtUsdShort(hex * hexUsd) : null;
+  const headline = rescue.claimed ? rescue.claimedHex ?? rescue.claimableHex : rescue.claimableHex;
 
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--text-faint)]">
-      <div className="mb-3 flex items-center justify-between gap-2">
+    <div className="group relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--text-faint)]">
+      {/* A collected stake earns the brand hairline — it is the outcome the
+          whole wall exists to produce. */}
+      {rescue.claimed && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-[3px]"
+          style={{ background: 'linear-gradient(90deg, #ff9e00, #ff2e7e)' }}
+        />
+      )}
+
+      <div className="flex items-center justify-between gap-2">
         <Link
           href={`/rescued/${rescue.stakeId}`}
-          className="font-jost text-[15px] font-semibold text-[var(--text)] hover:text-emerald-400"
+          className="font-jost text-[15px] font-bold tracking-tight text-[var(--text)] transition-colors hover:text-[var(--viz-a)]"
         >
-          Stake #{rescue.stakeId}
+          #{rescue.stakeId}
         </Link>
-        {/* Once the owner has ended the stake the freeze is history — the
-            headline becomes that they got their HEX, not that we stopped the
-            bleeding. Until then the frozen state is the live fact. */}
         {rescue.claimed ? (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
-            <IconCheck className="h-3 w-3" />
-            Collected by owner
+          <span
+            className="font-poppins inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+            style={{ background: 'color-mix(in srgb, var(--viz-gain) 16%, transparent)', color: 'var(--viz-gain)' }}
+          >
+            <IconCheck className="h-3 w-3" /> Collected
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-300">
-            <IconSnowflake className="h-3 w-3" />
-            Rescued · penalty frozen
+          <span className="font-poppins inline-flex items-center gap-1 rounded-full bg-cyan-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cyan-300">
+            <IconSnowflake className="h-3 w-3" /> Frozen
           </span>
         )}
       </div>
 
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <div className="font-poppins text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
-            {/* Past tense once it has been collected: "still claimable" on a
-                stake the owner already emptied is simply false. */}
-            {rescue.claimed ? 'What we saved' : 'Still claimable'}
+      {/* The headline: what this stake is worth, and how much of it survived. */}
+      <div className="mt-2.5 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-poppins text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+            {rescue.claimed ? 'Collected by owner' : 'Still claimable'}
           </div>
-          <HexAmount
-            hex={rescue.claimableHex ?? 0}
-            className="text-lg font-semibold text-emerald-400"
-          />
-          {usd(rescue.claimableHex) && (
-            <div className="text-xs tabular-nums text-[var(--text-muted)]">{usd(rescue.claimableHex)}</div>
+          <div className="font-jost mt-0.5 text-[30px] font-bold leading-none tracking-tight text-[var(--text)] tabular-nums">
+            <HexAmount hex={headline ?? 0} />
+          </div>
+          {usd(headline) && (
+            <div className="font-poppins mt-1 text-[12px] tabular-nums text-[var(--text-muted)]">{usd(headline)}</div>
           )}
         </div>
-        <div className="text-right">
-          <div className="font-poppins text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
-            Was losing
-          </div>
-          <div className="text-lg font-semibold tabular-nums text-[var(--text)]">
-            {rescue.bleedPerDay != null ? Math.round(rescue.bleedPerDay).toLocaleString() : '—'}
-          </div>
-          <div className="text-xs tabular-nums text-[var(--text-muted)]">
-            <HexUnit className="text-[var(--text-faint)]" /> / day
-          </div>
+        <div className="flex shrink-0 flex-col items-center">
+          <SavedRing frac={savedFrac} />
+          <span className="font-poppins mt-0.5 text-[10px] font-medium uppercase tracking-wider text-[var(--text-faint)]">
+            saved
+          </span>
         </div>
       </div>
 
-      {/* How much of the return the penalty had already taken. Frozen, so it
-          does not move — which is the entire point of the rescue. */}
-      <div className="font-poppins mb-1.5 flex items-center justify-between text-xs">
-        <span className="tabular-nums text-[var(--text-muted)]">
-          {(burned * 100).toFixed(1)}% lost before we got there
+      {/* Everything else, one quiet strip. */}
+      <div className="font-poppins mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--line)] pt-2.5 text-[11px] text-[var(--text-faint)]">
+        <span className="tabular-nums">
+          Principal <span className="text-[var(--text-muted)]">{n0(rescue.principalHex)}</span>
         </span>
-        <span className="font-semibold tabular-nums text-cyan-300">
-          {(100 - burned * 100).toFixed(1)}% saved
+        <span className="tabular-nums">
+          Interest <span className="text-[var(--text-muted)]">{n0(rescue.payoutHex)}</span>
         </span>
-      </div>
-      <div className="flex h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
-        <div className="h-full" style={{ width: `${burned * 100}%`, background: '#ef4444' }} />
-        <div className="h-full flex-1" style={{ background: '#06b6d4' }} />
-      </div>
-
-      {/* The ending, when there is one. Placed under the saved/lost bar
-          because it is what that bar was for: the HEX it protected reached
-          the person it belonged to. */}
-      {rescue.claimed && rescue.claimedHex != null && (
-        <div className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2 text-[11px]">
-          <span className="font-semibold text-emerald-400">
-            {Math.round(rescue.claimedHex).toLocaleString()} HEX collected
+        <span className="tabular-nums">
+          Penalty <span style={{ color: 'var(--viz-loss)' }}>−{n0(rescue.penaltyHex)}</span>
+        </span>
+        {!rescue.claimed && rescue.bleedPerDay != null && (
+          <span className="tabular-nums">
+            Was losing <span className="text-[var(--text-muted)]">{n0(rescue.bleedPerDay)}/day</span>
           </span>
-          {rescue.daysToClaim != null && (
+        )}
+        {rescue.claimed && rescue.daysToClaim != null && (
+          <span className="tabular-nums">
+            Claimed{' '}
             <span className="text-[var(--text-muted)]">
-              {' · '}
               {rescue.daysToClaim < 1
-                ? `${Math.max(1, Math.round(rescue.daysToClaim * 24))}h after the rescue`
-                : `${rescue.daysToClaim.toFixed(rescue.daysToClaim < 10 ? 1 : 0)} days after the rescue`}
+                ? `${Math.max(1, Math.round(rescue.daysToClaim * 24))}h`
+                : `${rescue.daysToClaim.toFixed(rescue.daysToClaim < 10 ? 1 : 0)}d`}{' '}
+              after
             </span>
-          )}
-          {/* The chain confirming the stake was unlocked before it ended is
-              what makes this a rescue outcome rather than a coincidence. */}
-          {rescue.endConfirmsRescue && (
-            <span className="text-[var(--text-faint)]"> · confirmed on chain</span>
-          )}
-        </div>
-      )}
+          </span>
+        )}
+      </div>
 
-      {/* Two fixed groups rather than one wrapping row: with everything in a
-          single flex-wrap the proof link landed on its own line for some cards
-          and not others, so a grid of cards had ragged footers. */}
-      <div className="font-poppins mt-3 flex items-end justify-between gap-3 text-[11px] text-[var(--text-faint)]">
-        <div className="flex min-w-0 flex-wrap gap-x-3 gap-y-0.5">
-          <span className="tabular-nums">
-            Principal <span className="text-[var(--text-muted)]">{Math.round(rescue.principalHex ?? 0).toLocaleString()}</span>
-          </span>
-          <span className="tabular-nums">
-            Interest <span className="text-[var(--text-muted)]">{Math.round(rescue.payoutHex ?? 0).toLocaleString()}</span>
-          </span>
-          <span className="tabular-nums">
-            Penalty <span className="text-red-400">−{Math.round(rescue.penaltyHex ?? 0).toLocaleString()}</span>
-          </span>
-          {rescue.timestamp > 0 && (
-            <span className="tabular-nums">frozen {fmtHexDate(tsToHexDay(rescue.timestamp))}</span>
-          )}
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
+      <div className="font-poppins mt-1.5 flex items-center justify-between gap-3 text-[11px] text-[var(--text-faint)]">
+        <span className="tabular-nums">
+          {rescue.timestamp > 0 ? `frozen ${fmtHexDate(tsToHexDay(rescue.timestamp))}` : ''}
+        </span>
+        <span className="flex shrink-0 items-center gap-3">
           <a
             href={pulsechainAddressUrl(rescue.stakerAddr)}
             target="_blank"
@@ -156,7 +139,7 @@ export function RescueStakeCard({ rescue, hexUsd }: { rescue: Rescue; hexUsd?: n
           >
             proof <IconExternalLink className="h-3 w-3" />
           </a>
-        </div>
+        </span>
       </div>
     </div>
   );

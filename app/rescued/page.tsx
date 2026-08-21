@@ -155,7 +155,7 @@ export default async function RescueWallPage() {
 
   return (
     <div
-      className="min-h-screen w-full bg-[var(--app-bg)] [--viz-a:#d96406] [--viz-b:#d6186e] dark:[--viz-a:#dd7300] dark:[--viz-b:#ff2e7e]"
+      className="min-h-screen w-full bg-[var(--app-bg)] [--viz-a:#d96406] [--viz-b:#d6186e] [--viz-gain:#0d9488] [--viz-loss:#be123c] dark:[--viz-a:#dd7300] dark:[--viz-b:#ff2e7e] dark:[--viz-gain:#0d9488] dark:[--viz-loss:#e11d48]"
     >
       <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-6 md:py-10">
         {/* ── Hero: always-dark molten HEX panel, whatever the theme ──

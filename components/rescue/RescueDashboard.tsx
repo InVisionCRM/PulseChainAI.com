@@ -326,3 +326,168 @@ export function SavedChart({ buckets, price, unit }: { buckets: RescueBucket[]; 
     </div>
   );
 }
+
+/* ───────────────────── per-stake visuals ───────────────────── */
+
+/**
+ * A compact donut: how much of a stake's gross return survived to the freeze.
+ *
+ * Sweeps once on arrival like everything else here. The figure sits inside the
+ * ring, and the caller always prints the same number in words nearby — the
+ * ring is a second reading of a fact, never the only one.
+ */
+export function SavedRing({ frac, size = 66 }: { frac: number; size?: number }) {
+  const { on, instant } = useSettled();
+  const f = Math.max(0, Math.min(1, frac));
+  const shown = on ? f : 0;
+  const R = 26;
+  const LEN = 2 * Math.PI * R;
+
+  return (
+    <svg viewBox="0 0 64 64" width={size} height={size} className="shrink-0" role="img"
+      aria-label={`${Math.round(f * 100)}% of this stake survived to the freeze`}>
+      <circle cx="32" cy="32" r={R} fill="none" stroke="var(--surface-3)" strokeWidth="7" />
+      <circle
+        cx="32" cy="32" r={R} fill="none"
+        stroke="var(--viz-gain)" strokeWidth="7" strokeLinecap="round"
+        strokeDasharray={LEN}
+        strokeDashoffset={LEN * (1 - shown)}
+        transform="rotate(-90 32 32)"
+        style={{ transition: instant ? 'none' : `stroke-dashoffset 1.1s ${EASE}` }}
+      />
+      <text x="32" y="36" textAnchor="middle" className="font-jost" fontSize="16" fontWeight="700" fill="var(--text)">
+        {Math.round(f * 100)}%
+      </text>
+    </svg>
+  );
+}
+
+export interface WaterfallStep {
+  label: string;
+  /** Signed: positive adds, negative takes away. */
+  delta: number;
+  kind: 'base' | 'gain' | 'loss' | 'total';
+}
+
+/**
+ * The arithmetic of one rescue, drawn: principal, plus what it earned, minus
+ * what the penalty took, equals what the owner can still collect.
+ *
+ * A waterfall rather than a pie because the story is a running balance, and
+ * the penalty is the only bar that points down — which is the whole point.
+ * Every bar is direct-labeled, so the gain/loss color is a second encoding
+ * rather than the only one.
+ */
+export function Waterfall({ steps, unit = 'HEX' }: { steps: WaterfallStep[]; unit?: string }) {
+  const { on, instant } = useSettled();
+
+  // Running balance, so each bar starts where the last one finished.
+  let run = 0;
+  const bars = steps.map((s) => {
+    const from = s.kind === 'total' ? 0 : run;
+    const to = s.kind === 'total' ? s.delta : run + s.delta;
+    if (s.kind !== 'total') run = to;
+    return { ...s, from, to, lo: Math.min(from, to), hi: Math.max(from, to) };
+  });
+  const peak = Math.max(...bars.map((b) => b.hi), 1);
+
+  const fmt = (n: number) => {
+    const a = Math.abs(n);
+    return a >= 1e9 ? `${(a / 1e9).toFixed(2)}B` : a >= 1e6 ? `${(a / 1e6).toFixed(2)}M`
+      : a >= 1e3 ? `${(a / 1e3).toFixed(1)}K` : `${Math.round(a)}`;
+  };
+  const colorOf = (k: WaterfallStep['kind']) =>
+    k === 'gain' ? 'var(--viz-gain)' : k === 'loss' ? 'var(--viz-loss)' : 'var(--viz-a)';
+
+  return (
+    <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+      <div className="font-poppins text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+        Where the {unit} went
+      </div>
+      <div className="mt-3 flex items-end gap-2" style={{ height: 168 }}>
+        {bars.map((b, i) => {
+          const h = ((b.hi - b.lo) / peak) * 118;
+          const bottom = (b.lo / peak) * 118;
+          return (
+            <div key={b.label} className="flex min-w-0 flex-1 flex-col items-center justify-end" style={{ height: '100%' }}>
+              {/* Bar and figure share one track, so a floating segment carries
+                  its number directly above itself rather than in a top row
+                  that reads as belonging to nothing. */}
+              <div className="relative w-full" style={{ height: 146 }}>
+                <div
+                  className="absolute inset-x-1 rounded-[4px]"
+                  style={{
+                    bottom,
+                    height: on ? Math.max(4, h) : 4,
+                    background: colorOf(b.kind),
+                    transition: instant ? 'none' : `height 0.8s ${EASE} ${i * 90}ms`,
+                  }}
+                />
+                <div
+                  className="font-jost absolute inset-x-0 text-center text-[13px] font-bold leading-none tabular-nums"
+                  style={{
+                    bottom: bottom + (on ? Math.max(4, h) : 4) + 6,
+                    color: b.kind === 'loss' ? 'var(--viz-loss)' : 'var(--text)',
+                    transition: instant ? 'none' : `bottom 0.8s ${EASE} ${i * 90}ms`,
+                  }}
+                >
+                  {b.kind === 'loss' ? '−' : b.kind === 'gain' ? '+' : ''}{fmt(b.delta)}
+                </div>
+              </div>
+              <div className="font-poppins mt-1.5 w-full truncate text-center text-[10px] text-[var(--text-faint)]">
+                {b.label}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export interface TimelineStep {
+  label: string;
+  when: string | null;
+  state: 'done' | 'now' | 'todo';
+}
+
+/** The stake's story as three or four beats, left to right. */
+export function RescueTimeline({ steps }: { steps: TimelineStep[] }) {
+  return (
+    <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+      <div className="font-poppins text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+        What happened
+      </div>
+      <div className="mt-3 flex items-start">
+        {steps.map((s, i) => (
+          <div key={s.label} className="flex min-w-0 flex-1 items-start">
+            <div className="flex min-w-0 flex-col items-center text-center">
+              <span
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold"
+                style={{
+                  background:
+                    s.state === 'done' ? 'var(--viz-gain)' : s.state === 'now' ? 'var(--viz-a)' : 'var(--surface-3)',
+                  color: s.state === 'todo' ? 'var(--text-faint)' : '#fff',
+                }}
+              >
+                {s.state === 'done' ? '✓' : i + 1}
+              </span>
+              <span className="font-poppins mt-1.5 text-[11px] font-semibold leading-tight text-[var(--text)]">
+                {s.label}
+              </span>
+              {s.when && (
+                <span className="font-poppins text-[10px] leading-tight text-[var(--text-faint)]">{s.when}</span>
+              )}
+            </div>
+            {i < steps.length - 1 && (
+              <span
+                className="mt-3.5 h-0.5 min-w-2 flex-1"
+                style={{ background: steps[i + 1].state === 'todo' ? 'var(--surface-3)' : 'var(--viz-gain)' }}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
