@@ -224,7 +224,15 @@ export default function RootLayout({
                   </div>
                 </div>
               </SidebarBody>
-            <main className="flex-1 w-full overflow-y-auto pb-20 md:pb-0">
+            {/* Desktop: this is the app's scroll container (the column above
+                is h-screen / overflow-hidden). Mobile: the window scrolls and
+                main is content-sized, so overflow-y stays visible — an
+                overflow-y-auto box that never scrolls still captures
+                position:sticky, which is what pinned the home page's promo
+                strip to a box that scrolled away. overflow-x-clip keeps the
+                horizontal clipping mobile had without making main a scroll
+                container again (visible + clip is the one legal mix). */}
+            <main className="flex-1 w-full overflow-x-clip overflow-y-visible pb-20 md:overflow-auto md:pb-0">
               <ToastProvider>
                 {children}
               </ToastProvider>
