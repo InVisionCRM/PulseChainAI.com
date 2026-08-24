@@ -52,16 +52,25 @@ export function Speedo({
   label,
   sub,
   tone = 'a',
+  live = false,
 }: {
   frac: number;
   figure: string;
   label: string;
   sub?: string;
   tone?: 'a' | 'b';
+  /**
+   * The reading changes with user input (a slider, a filter) rather than only
+   * on arrival. The needle then tracks in 0.35s instead of the 1.3s arrival
+   * sweep — at 1.3s a dragged slider leaves the needle a second behind the
+   * figure it is supposed to be showing.
+   */
+  live?: boolean;
 }) {
   const { on, instant } = useSettled();
   const f = Math.max(0, Math.min(1, frac));
   const shown = on ? f : 0;
+  const sweep = live ? `0.35s ${EASE}` : `1.3s ${EASE}`;
 
   // Arc geometry: half circle, r=80, centred at (100, 100) in a 200×112 box.
   const R = 80;
@@ -101,14 +110,14 @@ export function Speedo({
             strokeLinecap="round"
             strokeDasharray={LEN}
             strokeDashoffset={LEN * (1 - shown)}
-            style={{ transition: instant ? 'none' : `stroke-dashoffset 1.3s ${EASE}` }}
+            style={{ transition: instant ? 'none' : `stroke-dashoffset ${sweep}` }}
           />
           {/* needle — sweeps with the arc, stops short of the figure */}
           <g
             style={{
               transform: `rotate(${shown * 180 - 90}deg)`,
               transformOrigin: '100px 100px',
-              transition: instant ? 'none' : `transform 1.3s ${EASE}`,
+              transition: instant ? 'none' : `transform ${sweep}`,
             }}
           >
             <line x1="100" y1="92" x2="100" y2="40" stroke="var(--text)" strokeWidth="3" strokeLinecap="round" />
@@ -145,12 +154,20 @@ export function BigStat({
   label,
   value,
   fmt,
+  text,
   sub,
   color = 'var(--text)',
 }: {
   label: string;
-  value: number;
-  fmt: StatFmt;
+  value?: number;
+  fmt?: StatFmt;
+  /**
+   * A already-formatted figure, shown as-is with no count-up. Use it for a
+   * number the visitor is driving (a slider, an amount they typed): CountUp
+   * restarts from zero every time its value changes, which on a dragged
+   * slider reads as the number flickering rather than responding.
+   */
+  text?: string;
   sub?: string;
   color?: string;
 }) {
@@ -163,7 +180,7 @@ export function BigStat({
         className="font-jost mt-1.5 text-[38px] font-bold leading-none tracking-tight tabular-nums md:text-[46px]"
         style={{ color }}
       >
-        <CountUp value={value} format={FMT[fmt]} />
+        {text ?? <CountUp value={value ?? 0} format={FMT[fmt ?? 'int']} />}
       </div>
       {sub && <div className="font-poppins mt-1.5 text-[12px] text-[var(--text-muted)]">{sub}</div>}
     </div>
@@ -175,12 +192,15 @@ export function HeroNumber({
   label,
   value,
   fmt,
+  text,
   sub,
   gradient = false,
 }: {
   label: string;
-  value: number;
-  fmt: StatFmt;
+  value?: number;
+  fmt?: StatFmt;
+  /** An already-formatted figure, shown as-is with no count-up — see BigStat. */
+  text?: string;
   sub?: string;
   gradient?: boolean;
 }) {
@@ -195,7 +215,7 @@ export function HeroNumber({
         }`}
         style={gradient ? { backgroundImage: 'linear-gradient(115deg, #ff9e00, #ff2e7e)' } : undefined}
       >
-        <CountUp value={value} format={FMT[fmt]} />
+        {text ?? <CountUp value={value ?? 0} format={FMT[fmt ?? 'int']} />}
       </div>
       {sub && <div className="font-poppins mt-2 text-[12.5px] text-white/55">{sub}</div>}
     </div>
