@@ -12,7 +12,7 @@ import {
   setMeta,
   insertDiscovered,
   applyMarket,
-  markUnlisted,
+  recordMisses,
   refreshTargets,
 } from './db';
 
@@ -29,7 +29,10 @@ export interface RefreshSummary {
   scannedTo: number | null;
   discovered: number;
   refreshed: number;
-  unlisted: number;
+  /** Pairs DexScreener had nothing for this run. Most are simply on the clock. */
+  missed: number;
+  /** Of those, how many had been missing long enough to actually be delisted. */
+  delisted: number;
   batchErrors: number;
   elapsedMs: number;
 }
@@ -57,7 +60,8 @@ export async function runRefresh(timeBudgetMs: number): Promise<RefreshSummary> 
 
   const targets = await refreshTargets(MAX_REFRESH_PAIRS);
   let refreshed = 0;
-  let unlisted = 0;
+  let missed = 0;
+  let delisted = 0;
   let batchErrors = 0;
 
   for (let i = 0; i < targets.length; i += BATCH_SIZE) {
@@ -67,9 +71,9 @@ export async function runRefresh(timeBudgetMs: number): Promise<RefreshSummary> 
       const found = await fetchPairsBatch(batch);
       const missing = batch.filter((a) => !found.has(a));
       await applyMarket(Array.from(found.values()));
-      await markUnlisted(missing);
+      delisted += await recordMisses(missing);
       refreshed += found.size;
-      unlisted += missing.length;
+      missed += missing.length;
     } catch (err) {
       batchErrors += 1;
       console.error('screener refresh batch failed:', err);
@@ -81,7 +85,8 @@ export async function runRefresh(timeBudgetMs: number): Promise<RefreshSummary> 
     scannedTo,
     discovered,
     refreshed,
-    unlisted,
+    missed,
+    delisted,
     batchErrors,
     elapsedMs: Date.now() - started,
   };

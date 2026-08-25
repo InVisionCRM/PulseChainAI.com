@@ -28,7 +28,7 @@ import {
   setMeta,
   insertDiscovered,
   applyMarket,
-  markUnlisted,
+  recordMisses,
   countUnenriched,
 } from '../lib/screener/db';
 import { neon } from '@neondatabase/serverless';
@@ -115,8 +115,9 @@ async function enrichPhase(): Promise<void> {
     // (WPLS, HEX, PLSX, …), so the table becomes useful within minutes.
     // The cron's refresh targets newest-first, covering the other end.
     const rows = (await sql.query(
-      `SELECT pair_address FROM screener_pairs WHERE listed IS NULL
-       ORDER BY created_block ASC LIMIT 3000`,
+      `SELECT pair_address FROM screener_pairs
+        WHERE listed IS NULL AND missing_since IS NULL
+        ORDER BY created_block ASC LIMIT 3000`,
     )) as { pair_address: string }[];
     if (rows.length === 0) break;
 
@@ -126,7 +127,7 @@ async function enrichPhase(): Promise<void> {
         const found = await fetchPairsBatch(batch);
         const missing = batch.filter((a) => !found.has(a));
         await applyMarket(Array.from(found.values()));
-        await markUnlisted(missing);
+        await recordMisses(missing);
         listed += found.size;
         unlisted += missing.length;
       } catch (err) {

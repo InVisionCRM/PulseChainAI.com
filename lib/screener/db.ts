@@ -52,8 +52,13 @@ export function ensureSchema(): Promise<void> {
           vol_m5 DOUBLE PRECISION, vol_h1 DOUBLE PRECISION, vol_h6 DOUBLE PRECISION, vol_h24 DOUBLE PRECISION,
           chg_m5 DOUBLE PRECISION, chg_h1 DOUBLE PRECISION, chg_h6 DOUBLE PRECISION, chg_h24 DOUBLE PRECISION,
           listed          BOOLEAN,
-          updated_at      TIMESTAMPTZ
+          updated_at      TIMESTAMPTZ,
+          missing_since   TIMESTAMPTZ
         )`);
+      // Added after the fact — existing deployments have the table already.
+      await q.query(
+        `ALTER TABLE screener_pairs ADD COLUMN IF NOT EXISTS missing_since TIMESTAMPTZ`,
+      );
       await q.query(
         `CREATE INDEX IF NOT EXISTS idx_sp_listed_vol24 ON screener_pairs (vol_h24 DESC NULLS LAST) WHERE listed`,
       );
@@ -136,7 +141,7 @@ export async function applyMarket(rows: MarketRow[]): Promise<void> {
        txns_m5 = v.txns_m5::int, txns_h1 = v.txns_h1::int, txns_h6 = v.txns_h6::int, txns_h24 = v.txns_h24::int,
        vol_m5 = v.vol_m5::float8, vol_h1 = v.vol_h1::float8, vol_h6 = v.vol_h6::float8, vol_h24 = v.vol_h24::float8,
        chg_m5 = v.chg_m5::float8, chg_h1 = v.chg_h1::float8, chg_h6 = v.chg_h6::float8, chg_h24 = v.chg_h24::float8,
-       listed = TRUE, updated_at = now()
+       listed = TRUE, updated_at = now(), missing_since = NULL
      FROM (VALUES ${tuples.join(',')}) AS v(
        pair_address, dex_id, label, base_address, base_symbol, base_name,
        quote_address, quote_symbol, image_url, price_usd, market_cap, fdv,
@@ -147,13 +152,63 @@ export async function applyMarket(rows: MarketRow[]): Promise<void> {
   );
 }
 
-/** Pairs DexScreener returned nothing for: mark unlisted so they stop cycling. */
-export async function markUnlisted(addresses: string[]): Promise<void> {
-  if (addresses.length === 0) return;
-  await sql().query(
-    `UPDATE screener_pairs SET listed = FALSE, updated_at = now() WHERE pair_address = ANY($1)`,
-    [addresses],
-  );
+/**
+ * How long a pair must be continuously absent from DexScreener before we accept
+ * that it is really gone and delist it.
+ *
+ * This exists because the old behaviour — delist on the very first miss — meant
+ * one bad afternoon upstream could empty the entire screener. It did: when
+ * DexScreener's PulseChain data degraded, every batch came back "missing" and
+ * the refresh dutifully flipped the whole universe to `listed = FALSE`, at up
+ * to 900 pairs a run. HEX, PLSX and WPLS went with it. The home page had two
+ * tokens left.
+ *
+ * A grace window rather than a miss counter, because the counter's meaning
+ * changes with the cron schedule: "three strikes" is three minutes on a
+ * per-minute cron and three days on a daily one. A duration means the same
+ * thing either way.
+ */
+const DELIST_AFTER = '24 hours';
+
+/**
+ * Pairs DexScreener returned nothing for.
+ *
+ * The first miss only starts the clock (`missing_since`); the pair keeps its
+ * last known market data and stays listed. It is delisted once it has been
+ * missing for `DELIST_AFTER` — long enough that a genuine dead pair still stops
+ * cycling, short-lived enough that an upstream wobble costs stale numbers
+ * instead of the whole index. Any successful refresh clears the clock
+ * (`applyMarket` sets `missing_since = NULL`).
+ */
+export async function recordMisses(addresses: string[]): Promise<number> {
+  if (addresses.length === 0) return 0;
+  // The `before` CTE exists so the returned count means "newly delisted this
+  // run". Without it the re-check bucket — which by definition feeds back pairs
+  // that are already FALSE — would report them as fresh delistings every run,
+  // and the one number that would tell you an outage is eating the index would
+  // be noise.
+  const rows = (await sql().query(
+    `WITH before AS (
+       SELECT pair_address, listed AS was
+         FROM screener_pairs
+        WHERE pair_address = ANY($1)
+     ), upd AS (
+       UPDATE screener_pairs AS p
+          SET missing_since = COALESCE(p.missing_since, now()),
+              listed = CASE
+                WHEN COALESCE(p.missing_since, now()) <= now() - $2::interval THEN FALSE
+                ELSE p.listed
+              END,
+              updated_at = now()
+        WHERE p.pair_address = ANY($1)
+        RETURNING p.pair_address, p.listed
+     )
+     SELECT count(*)::int AS n
+       FROM upd JOIN before USING (pair_address)
+      WHERE upd.listed IS FALSE AND before.was IS DISTINCT FROM FALSE`,
+    [addresses, DELIST_AFTER],
+  )) as { n: number }[];
+  return rows[0]?.n ?? 0;
 }
 
 /**
@@ -181,9 +236,19 @@ export async function refreshTargets(limit: number): Promise<string[]> {
   return rows.map((r) => r.pair_address);
 }
 
+/**
+ * Pairs still awaiting a first verdict from DexScreener.
+ *
+ * `missing_since IS NULL` excludes the ones already on the delist clock: since
+ * a miss no longer flips `listed` immediately, they would otherwise stay
+ * `listed IS NULL` forever and the backfill's enrichment loop — which drains
+ * exactly this set — would never terminate. They are not forgotten; the cron
+ * keeps re-checking them and delists them once the window elapses.
+ */
 export async function countUnenriched(): Promise<number> {
   const rows = (await sql().query(
-    `SELECT count(*)::int AS n FROM screener_pairs WHERE listed IS NULL`,
+    `SELECT count(*)::int AS n FROM screener_pairs
+      WHERE listed IS NULL AND missing_since IS NULL`,
   )) as { n: number }[];
   return rows[0]?.n ?? 0;
 }
