@@ -287,6 +287,64 @@ export async function fetchRescue(net: HexNet, stakeId: string): Promise<Rescue 
   return (await enrich(net, found))[0] ?? null;
 }
 
+export interface KeeperBurn {
+  /** PLS the keeper spent on gas per day, averaged over the window. */
+  plsPerDay: number;
+  /** Days actually averaged over — shorter than asked if the history is. */
+  windowDays: number;
+}
+
+/**
+ * What the keeper spends on gas, from the actual fee of every mined
+ * transaction it sent in the trailing window — failed ones included, since
+ * they burn gas too.
+ *
+ * A trailing window, not the whole history: the first days cleared a backlog
+ * (Aug 20 2026 alone burned 3.85M PLS against ~20K on an ordinary day), and an
+ * all-time average would put that burst into every future day. Throws if the
+ * explorer cannot be read, so the caller shows no estimate rather than one
+ * built on half a window.
+ */
+/** 1,000 transactions inside one window is far past any real sweep rate
+ *  (~10/day lately) — hitting it means something is wrong, so it throws. */
+const BURN_MAX_PAGES = 20;
+
+export async function fetchKeeperBurn(net: HexNet, days: number): Promise<KeeperBurn> {
+  const now = Date.now();
+  const since = now - days * 86_400_000;
+  let wei = 0n;
+  let oldest = now;
+  let nextParams = '';
+
+  for (let page = 0; ; page++) {
+    if (page === BURN_MAX_PAGES) throw new Error(`Keeper burn window exceeds ${BURN_MAX_PAGES * 50} transactions`);
+    const url = `${BLOCKSCOUT[net]}/addresses/${KEEPER_ADDRESS}/transactions?filter=from${nextParams}`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/json' } });
+    if (!r.ok) throw new Error(`Blockscout ${r.status} on keeper transactions page ${page}`);
+    const data: any = await r.json();
+
+    let pastWindow = false;
+    for (const t of data?.items ?? []) {
+      // Pending rows come first with no timestamp and a "maximum" fee — not spent yet.
+      if (t?.fee?.type !== 'actual' || !t?.timestamp) continue;
+      const at = Date.parse(t.timestamp);
+      if (at < since) { pastWindow = true; break; }
+      wei += BigInt(t.fee.value);
+      oldest = Math.min(oldest, at);
+    }
+
+    const np = data?.next_page_params;
+    if (pastWindow || !np) {
+      // Ran out of history before the window did: average over what exists.
+      const windowDays = pastWindow ? days : Math.max(1, (now - oldest) / 86_400_000);
+      return { plsPerDay: Number(wei / 10n ** 12n) / 1e6 / windowDays, windowDays };
+    }
+    nextParams = `&${new URLSearchParams(
+      Object.entries(np).map(([k, v]) => [k, String(v)]),
+    ).toString()}`;
+  }
+}
+
 export interface RescueTotals {
   count: number;
   /** Rescues whose owner has since ended the stake and taken the HEX. */

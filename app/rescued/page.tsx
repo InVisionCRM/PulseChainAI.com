@@ -19,13 +19,14 @@ import type { Metadata } from 'next';
 import {
   IconExternalLink, IconTrophy, IconClock, IconDroplet, IconSnowflake,
 } from '@tabler/icons-react';
-import { fetchRescues, totalsFor, KEEPER_ADDRESS, type Rescue } from '@/lib/hex/rescueFeed';
+import { fetchRescues, fetchKeeperBurn, totalsFor, KEEPER_ADDRESS, type Rescue } from '@/lib/hex/rescueFeed';
+import { getBalance } from '@/lib/portfolio/evmRpc';
 import { HEX_APP_URL } from '@/lib/hex/rescueCopy';
 import { fmtHex, fmtUsdShort } from '@/lib/hex/hexDay';
 import { HexAmount, HEX_GRADIENT } from '@/components/hex/HexAmount';
 import { RescuedBy } from '@/components/rescue/RescueBrand';
 import { RescueList } from '@/components/rescue/RescueList';
-import { KeeperPanel } from '@/components/rescue/KeeperPanel';
+import { KeeperPanel, type KeeperFuel } from '@/components/rescue/KeeperPanel';
 import {
   BigStat, HeroNumber, SavedChart, Speedo, type RescueBucket,
 } from '@/components/rescue/RescueDashboard';
@@ -43,6 +44,10 @@ export const metadata: Metadata = {
 /** How many stake cards to draw. Page weight, not data: the totals are summed
  *  over every rescue regardless of what is rendered. */
 const CARD_LIMIT = 200;
+
+/** Days of gas spend the fuel gauge averages. Two weeks smooths a busy day
+ *  without reaching back into the launch backlog. */
+const FUEL_WINDOW_DAYS = 14;
 
 /** Live pHEX price for the USD figures. Best effort — the page is fully useful
  *  in HEX alone, so a price outage hides dollars rather than breaking. */
@@ -65,9 +70,12 @@ async function hexUsd(): Promise<number | null> {
 }
 
 /**
- * The chart's buckets: weekly while the record is young, monthly once it
- * spans a season — a two-month keeper with monthly bars is two lonely
- * rectangles, and a two-year one with weekly bars is a hundred slivers.
+ * The chart's buckets: daily while the record is young, weekly, then monthly
+ * once it spans a season — a two-month keeper with monthly bars is two lonely
+ * rectangles, and a two-year one with daily bars is seven hundred slivers.
+ *
+ * Every bucket in the span is drawn, including the empty ones: skipping a
+ * quiet day would put its neighbours side by side and make the time axis lie.
  */
 function bucketize(rescues: Rescue[]): { buckets: RescueBucket[]; unit: string } {
   const stamped = rescues.filter((r) => r.timestamp > 0);
@@ -78,33 +86,58 @@ function bucketize(rescues: Rescue[]): { buckets: RescueBucket[]; unit: string }
   const DAY = 86_400_000;
   const grain: 'day' | 'week' | 'month' = span < 45 * DAY ? 'day' : span < 200 * DAY ? 'week' : 'month';
 
-  const keyOf = (ms: number) => {
+  /** UTC start of the bucket holding `ms`: its day, its Monday, or its 1st. */
+  const startOf = (ms: number) => {
     const d = new Date(ms);
-    if (grain === 'month') return `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
-    const day = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-    // Weekly buckets key on the Monday the rescue's week began.
-    if (grain === 'week') day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
-    return String(day.getTime());
+    if (grain === 'month') return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+    const day = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    return grain === 'week' ? day - ((new Date(day).getUTCDay() + 6) % 7) * DAY : day;
   };
-  const labelOf = (ms: number) => {
-    const d = new Date(ms);
-    return grain === 'month'
-      ? d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })
-      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const next = (at: number) => {
+    if (grain === 'day') return at + DAY;
+    if (grain === 'week') return at + 7 * DAY;
+    const d = new Date(at);
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
   };
+  const fmt = (at: number, o: Intl.DateTimeFormatOptions) =>
+    new Date(at).toLocaleDateString('en-US', { ...o, timeZone: 'UTC' });
 
-  const map = new Map<string, RescueBucket & { at: number }>();
+  const map = new Map<number, RescueBucket>();
+  for (let at = startOf(min); at <= startOf(max); at = next(at)) {
+    map.set(at, {
+      label: grain === 'month' ? fmt(at, { month: 'short' }) : fmt(at, { month: 'short', day: 'numeric' }),
+      title:
+        grain === 'day' ? fmt(at, { weekday: 'short', month: 'short', day: 'numeric' })
+          : grain === 'week' ? `Week of ${fmt(at, { month: 'short', day: 'numeric' })}`
+          : fmt(at, { month: 'long', year: 'numeric' }),
+      hex: 0,
+      count: 0,
+    });
+  }
   for (const r of stamped) {
-    const k = keyOf(r.timestamp);
-    const cur = map.get(k) ?? { label: labelOf(r.timestamp), hex: 0, count: 0, at: r.timestamp };
-    cur.hex += r.claimableHex ?? 0;
-    cur.count += 1;
-    cur.at = Math.min(cur.at, r.timestamp);
-    map.set(k, cur);
+    const b = map.get(startOf(r.timestamp))!;
+    b.hex += r.claimableHex ?? 0;
+    b.count += 1;
   }
   return {
-    buckets: [...map.values()].sort((a, b) => a.at - b.at).map(({ at, ...b }) => b),
+    buckets: [...map.values()],
     unit: grain === 'day' ? 'day by day' : grain === 'week' ? 'week by week' : 'month by month',
+  };
+}
+
+/** Keeper wallet balance and gas burn for the fuel gauge. Each half fails to
+ *  null on its own, so an explorer outage still shows the balance. */
+async function keeperFuel(): Promise<KeeperFuel> {
+  const measuredAt = Date.now();
+  const [wei, burn] = await Promise.all([
+    getBalance('pulsechain', KEEPER_ADDRESS),
+    fetchKeeperBurn('pulsechain', FUEL_WINDOW_DAYS).catch(() => null),
+  ]);
+  return {
+    balancePls: wei != null ? Number(wei / 10n ** 12n) / 1e6 : null,
+    plsPerDay: burn?.plsPerDay ?? null,
+    windowDays: burn?.windowDays ?? null,
+    measuredAt,
   };
 }
 
@@ -135,6 +168,7 @@ function Honeycomb() {
 }
 
 export default async function RescueWallPage() {
+  const fuelP = keeperFuel();
   // The whole history, not a page of it: the totals below are summed from this
   // list, so a cap here would not shorten the wall, it would under-report how
   // much HEX was saved. Cards are capped further down instead.
@@ -144,6 +178,7 @@ export default async function RescueWallPage() {
     fetchRescues('pulsechain'),
     hexUsd(),
   ]);
+  const fuel = await fuelP;
   const t = totalsFor(rescues);
   const { buckets, unit: bucketUnit } = bucketize(rescues);
 
@@ -296,7 +331,7 @@ export default async function RescueWallPage() {
 
             {/* ── The keeper: schedule, fuel, address ── */}
             <div className="mt-3">
-              <KeeperPanel address={KEEPER_ADDRESS} />
+              <KeeperPanel address={KEEPER_ADDRESS} fuel={fuel} />
             </div>
 
             {t.unpriced > 0 && (

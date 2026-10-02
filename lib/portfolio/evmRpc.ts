@@ -243,6 +243,15 @@ export async function getTransactionCount(
   return null;
 }
 
+/** Native balance in wei at the latest block, or null if every endpoint failed. */
+export async function getBalance(chain: ChainId, address: string): Promise<bigint | null> {
+  for (const url of RPC_URLS[chain] ?? []) {
+    const r = await rpc(url, 'eth_getBalance', [address, 'latest']);
+    if (typeof r === 'string') return BigInt(r);
+  }
+  return null;
+}
+
 /** Current gas price in wei, or null if every endpoint failed. */
 export async function getGasPrice(chain: ChainId): Promise<bigint | null> {
   for (const url of RPC_URLS[chain] ?? []) {
