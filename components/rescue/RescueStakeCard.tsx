@@ -14,7 +14,7 @@
 // it, so the color is never the only thing saying whether this went well.
 
 import Link from 'next/link';
-import { IconExternalLink, IconSnowflake, IconCheck } from '@tabler/icons-react';
+import { IconExternalLink, IconSnowflake, IconCheck, IconHelpCircle } from '@tabler/icons-react';
 import { HexAmount } from '@/components/hex/HexAmount';
 import { fmtUsdShort, fmtHexDate, HEX_LAUNCH_TS } from '@/lib/hex/hexDay';
 import { pulsechainTxUrl, pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
@@ -60,9 +60,14 @@ export function RescueStakeCard({ rescue, hexUsd }: { rescue: Rescue; hexUsd?: n
           >
             <IconCheck className="h-3 w-3" /> Collected
           </span>
-        ) : (
+        ) : rescue.claimed === false ? (
           <span className="font-poppins inline-flex items-center gap-1 rounded-full bg-cyan-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cyan-300">
             <IconSnowflake className="h-3 w-3" /> Frozen
+          </span>
+        ) : (
+          // null: the collection lookup failed. Unknown is not "still frozen".
+          <span className="font-poppins inline-flex items-center gap-1 rounded-full bg-[var(--surface-3)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+            <IconHelpCircle className="h-3 w-3" /> Unconfirmed
           </span>
         )}
       </div>
@@ -71,7 +76,7 @@ export function RescueStakeCard({ rescue, hexUsd }: { rescue: Rescue; hexUsd?: n
       <div className="mt-2.5 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="font-poppins text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
-            {rescue.claimed ? 'Collected by owner' : 'Still claimable'}
+            {rescue.claimed ? 'Collected by owner' : rescue.claimed === false ? 'Still claimable' : 'Claimable at rescue'}
           </div>
           <div className="font-jost mt-0.5 text-[30px] font-bold leading-none tracking-tight text-[var(--text)] tabular-nums">
             <HexAmount hex={headline ?? 0} />

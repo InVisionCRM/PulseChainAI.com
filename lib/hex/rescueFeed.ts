@@ -139,6 +139,9 @@ function isMinedRescue(t: any): boolean {
   return !!t?.timestamp;
 }
 
+/** Pages of keeper transactions (50 each) read before giving up. */
+const MAX_PAGES = 60;
+
 /**
  * Walk the keeper's transactions newest-first, decoding the rescues.
  *
@@ -153,19 +156,18 @@ async function walkRescues(
   const out: Rescue[] = [];
   let nextParams = '';
 
-  // 50 rows a page. The ceiling is a runaway guard, not a budget: the loop
-  // already stops at `limit`, and the old 10-page cap silently truncated the
-  // wall once the keeper passed 500 transactions.
-  for (let page = 0; page < 60 && out.length < limit; page++) {
-    const url = `${BLOCKSCOUT[net]}/addresses/${KEEPER_ADDRESS}/transactions?filter=from${nextParams}`;
-    let data: any;
-    try {
-      const r = await fetch(url, { signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/json' } });
-      if (!r.ok) break;
-      data = await r.json();
-    } catch {
-      break;
+  // 50 rows a page. A failed page throws rather than ending the walk: the
+  // caller totals this list, so stopping early would publish a smaller wall
+  // with nothing saying it is short.
+  for (let page = 0; out.length < limit; page++) {
+    // Runaway guard, not a budget — hitting it throws for the same reason.
+    if (page === MAX_PAGES) {
+      throw new Error(`Keeper history exceeds ${MAX_PAGES * 50} transactions; raise MAX_PAGES`);
     }
+    const url = `${BLOCKSCOUT[net]}/addresses/${KEEPER_ADDRESS}/transactions?filter=from${nextParams}`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/json' } });
+    if (!r.ok) throw new Error(`Blockscout ${r.status} on keeper transactions page ${page}`);
+    const data: any = await r.json();
 
     const items: any[] = data?.items ?? [];
     if (items.length === 0) break;
@@ -212,12 +214,12 @@ async function walkRescues(
 /**
  * Every rescue this keeper has performed, newest first.
  *
- * The default covers the whole history rather than a page of it, because the
- * caller totals this list: a limit that quietly cuts it off does not shorten
- * the wall, it under-reports how much HEX was saved.
+ * No limit, because the caller totals this list: a limit that quietly cuts it
+ * off does not shorten the wall, it under-reports how much HEX was saved.
+ * Throws if the history cannot be read in full.
  */
-export async function fetchRescues(net: HexNet = 'pulsechain', limit = 2_000): Promise<Rescue[]> {
-  return enrich(net, await walkRescues(net, limit));
+export async function fetchRescues(net: HexNet = 'pulsechain'): Promise<Rescue[]> {
+  return enrich(net, await walkRescues(net, Infinity));
 }
 
 /**
@@ -232,14 +234,15 @@ async function enrich(net: HexNet, rescues: Rescue[]): Promise<Rescue[]> {
   const ids = rescues.map((r) => r.stakeId);
 
   // The two halves of a rescue's story, fetched together: what we froze, and
-  // whether the owner has since come to collect it.
-  let records = new Map<string, GoodAccountingRecord>();
-  let ends = new Map<string, StakeEndRecord>();
-  try {
-    [records, ends] = await Promise.all([fetchGoodAccountings(net, ids), fetchStakeEnds(net, ids)]);
-  } catch {
-    return rescues; // best effort: the list is still true, just unpriced
-  }
+  // whether the owner has since come to collect it. Settled separately, so a
+  // failed end lookup leaves every `claimed` unknown without also discarding
+  // the prices — and a failed price lookup leaves rows unpriced, not lost.
+  const [gaRes, endRes] = await Promise.allSettled([
+    fetchGoodAccountings(net, ids),
+    fetchStakeEnds(net, ids),
+  ]);
+  const records: Map<string, GoodAccountingRecord> = gaRes.status === 'fulfilled' ? gaRes.value : new Map();
+  const ends: Map<string, StakeEndRecord> | null = endRes.status === 'fulfilled' ? endRes.value : null;
 
   for (const r of rescues) {
     const ga = records.get(r.stakeId);
@@ -252,9 +255,9 @@ async function enrich(net: HexNet, rescues: Rescue[]): Promise<Rescue[]> {
     }
 
     // An absent end means the stake is still sitting there — but only if the
-    // lookup actually ran. `ends` is empty when the whole fetch failed, and
-    // reporting that as "nobody claimed anything" would be a lie about money.
-    if (ends.size === 0) continue;
+    // lookup actually ran. `ends` is null when it failed, and reporting that
+    // as "nobody claimed anything" would be a lie about money.
+    if (!ends) continue;
     const end = ends.get(r.stakeId);
     if (!end) {
       r.claimed = false;

@@ -56,9 +56,9 @@ const toRecord = (e: RawEnd): StakeEndRecord => ({
  * End records for a set of stakeIds, keyed by stakeId. A stake with no entry
  * has not been ended — it is still sitting there waiting to be collected.
  *
- * Chunked and best-effort per chunk, matching fetchGoodAccountings: a failed
- * chunk leaves those stakes unknown rather than failing the whole lookup, and
- * "unknown" is surfaced as such rather than as "not ended".
+ * All or nothing, unlike fetchGoodAccountings: the caller reads a missing
+ * entry as "not ended", so a skipped chunk would report up to 500 collected
+ * stakes as still frozen. Any failed chunk throws instead.
  */
 export async function fetchStakeEnds(
   net: HexNet,
@@ -68,15 +68,11 @@ export async function fetchStakeEnds(
   const ids = [...new Set(stakeIds.map(String))];
   for (let i = 0; i < ids.length; i += 500) {
     const chunk = ids.slice(i, i + 500).map((id) => `"${id}"`).join(',');
-    try {
-      const d = await hexSubgraphQuery<{ stakeEnds: RawEnd[] }>(
-        net,
-        `{ stakeEnds(where:{ stakeId_in: [${chunk}] }, first: 1000){ ${END_FIELDS} } }`,
-      );
-      for (const e of d.stakeEnds ?? []) out.set(String(e.stakeId), toRecord(e));
-    } catch {
-      /* best-effort: skip this chunk */
-    }
+    const d = await hexSubgraphQuery<{ stakeEnds: RawEnd[] }>(
+      net,
+      `{ stakeEnds(where:{ stakeId_in: [${chunk}] }, first: 1000){ ${END_FIELDS} } }`,
+    );
+    for (const e of d.stakeEnds ?? []) out.set(String(e.stakeId), toRecord(e));
   }
   return out;
 }

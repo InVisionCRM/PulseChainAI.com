@@ -138,8 +138,10 @@ export default async function RescueWallPage() {
   // The whole history, not a page of it: the totals below are summed from this
   // list, so a cap here would not shorten the wall, it would under-report how
   // much HEX was saved. Cards are capped further down instead.
+  // Not caught: if the history cannot be read in full, this render fails and
+  // ISR keeps serving the last complete wall instead of a short or empty one.
   const [rescues, price] = await Promise.all([
-    fetchRescues('pulsechain').catch(() => []),
+    fetchRescues('pulsechain'),
     hexUsd(),
   ]);
   const t = totalsFor(rescues);
