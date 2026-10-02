@@ -292,6 +292,8 @@ export interface RescueTotals {
   unclaimed: number;
   /** Total HEX collected by owners across the claimed rescues. */
   claimedHex: number;
+  /** Claimable HEX still frozen in the unclaimed rescues, waiting for owners. */
+  unclaimedHex: number;
   /**
    * Median days owners took to collect after a rescue. Median, not mean: the
    * distribution has a long tail of people who take most of a year, and one of
@@ -318,6 +320,7 @@ export function totalsFor(rescues: Rescue[]): RescueTotals {
   let claimed = 0;
   let unclaimed = 0;
   let claimedHex = 0;
+  let unclaimedHex = 0;
   let slowestClaim: Rescue | null = null;
   const claimDays: number[] = [];
   let bleedStoppedPerDay = 0;
@@ -348,6 +351,7 @@ export function totalsFor(rescues: Rescue[]): RescueTotals {
       if (r.daysToClaim != null && (slowestClaim?.daysToClaim ?? -1) < r.daysToClaim) slowestClaim = r;
     } else if (r.claimed === false) {
       unclaimed++;
+      unclaimedHex += r.claimableHex ?? 0;
     }
     // r.claimed === null is unknown and deliberately counted in neither.
   }
@@ -375,7 +379,7 @@ export function totalsFor(rescues: Rescue[]): RescueTotals {
   }
 
   return {
-    count: rescues.length, claimed, unclaimed, claimedHex, medianDaysToClaim, slowestClaim,
+    count: rescues.length, claimed, unclaimed, claimedHex, unclaimedHex, medianDaysToClaim, slowestClaim,
     claimableHex, bleedStoppedPerDay, penaltyHex, unpriced, biggest, closestCall,
   };
 }

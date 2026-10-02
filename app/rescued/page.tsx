@@ -24,7 +24,6 @@ import { HEX_APP_URL } from '@/lib/hex/rescueCopy';
 import { fmtHex, fmtUsdShort } from '@/lib/hex/hexDay';
 import { HexAmount, HEX_GRADIENT } from '@/components/hex/HexAmount';
 import { RescuedBy } from '@/components/rescue/RescueBrand';
-import { RescueStakeCard } from '@/components/rescue/RescueStakeCard';
 import { RescueList } from '@/components/rescue/RescueList';
 import { KeeperPanel } from '@/components/rescue/KeeperPanel';
 import {
@@ -144,7 +143,6 @@ export default async function RescueWallPage() {
     hexUsd(),
   ]);
   const t = totalsFor(rescues);
-  const collected = rescues.filter((r) => r.claimed);
   const { buckets, unit: bucketUnit } = bucketize(rescues);
 
   const gross = t.claimableHex + t.penaltyHex;
@@ -203,7 +201,7 @@ export default async function RescueWallPage() {
                 label="HEX saved"
                 value={t.claimableHex}
                 fmt="hex"
-                sub={usd(t.claimableHex) ?? 'waiting for their owners'}
+                sub={usd(t.claimableHex) ?? 'kept whole at the freeze'}
               />
               <HeroNumber
                 label="Bleeding stopped"
@@ -236,8 +234,8 @@ export default async function RescueWallPage() {
                 label="Collected by owners"
                 sub={
                   t.claimedHex > 0
-                    ? `${fmtHex(t.claimedHex)} HEX taken home · ${t.unclaimed.toLocaleString()} still frozen safe`
-                    : `${t.unclaimed.toLocaleString()} still frozen safe`
+                    ? `${fmtHex(t.claimedHex)} HEX taken home · ${fmtHex(t.unclaimedHex)} HEX in ${t.unclaimed.toLocaleString()} still waiting`
+                    : `${fmtHex(t.unclaimedHex)} HEX in ${t.unclaimed.toLocaleString()} still waiting`
                 }
                 tone="b"
               />
@@ -303,23 +301,6 @@ export default async function RescueWallPage() {
               <p className="font-poppins mt-2 text-[11px] text-[var(--text-faint)]">
                 {t.unpriced} rescue{t.unpriced === 1 ? '' : 's'} not priced yet — the totals are a floor.
               </p>
-            )}
-
-            {/* The rescues that reached their ending, pulled out of the main
-                list: ordering by transaction buries them far past the card
-                limit, and they are the proof the whole thing works. */}
-            {collected.length > 0 && (
-              <>
-                <h2 className="font-jost mt-8 flex items-baseline gap-2 text-sm font-bold uppercase tracking-wider text-[var(--text-faint)]">
-                  Collected by their owners
-                  <span className="text-[var(--text-muted)]">· {collected.length}</span>
-                </h2>
-                <div className="mt-2 grid gap-2 md:grid-cols-2">
-                  {collected.map((r) => (
-                    <RescueStakeCard key={`claimed-${r.txHash}`} rescue={r} hexUsd={price} />
-                  ))}
-                </div>
-              </>
             )}
 
             <h2 className="font-jost mt-8 flex items-baseline gap-2 text-sm font-bold uppercase tracking-wider text-[var(--text-faint)]">
