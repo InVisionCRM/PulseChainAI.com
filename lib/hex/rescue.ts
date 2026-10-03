@@ -313,6 +313,11 @@ export async function findRescueCandidates(
 
   const rows = await readRescueCandidates(net, {
     maturedBefore: newestEnd,
+    // Still bleeding: fewer than 700 days past grace. Past that the penalty has
+    // taken the whole stake, so freezing it saves 0 HEX and only spends gas —
+    // and since nothing ever settles them, these would otherwise sit at the top
+    // of the biggest-first LIMIT forever. Same cutoff as the penalties board.
+    maturedAfter: today - LATE_PENALTY_GRACE_DAYS - LATE_PENALTY_SCALE_DAYS + 1,
     minHearts: String(minHearts),
     maxHearts: String(maxHearts),
     limit: Math.max(limit * 2, 200),
@@ -354,6 +359,9 @@ export async function findRescueCandidates(
       // if a run ever reaches it.
       const stakedDays = terms.get(r.stakeId) ?? 0;
       const daysBleeding = Math.max(0, today - r.endDay - LATE_PENALTY_GRACE_DAYS);
+      const penaltyFraction = Math.min(1, daysBleeding / LATE_PENALTY_SCALE_DAYS);
+      // What freezing actually protects: the part the penalty has not taken yet.
+      const atRiskHex = principalHex * (1 - penaltyFraction);
       return {
         stakeId: r.stakeId,
         stakerAddr: r.stakerAddr,
@@ -361,8 +369,8 @@ export async function findRescueCandidates(
         endDay: r.endDay,
         stakedDays,
         daysBleeding,
-        penaltyFraction: Math.min(1, daysBleeding / LATE_PENALTY_SCALE_DAYS),
-        hexPerGas: stakedDays > 0 ? principalHex / estimateGasForTerm(stakedDays) : 0,
+        penaltyFraction,
+        hexPerGas: stakedDays > 0 ? atRiskHex / estimateGasForTerm(stakedDays) : 0,
       };
     })
     // Then drop anything whose gas is not worth its HEX. The principal floor
