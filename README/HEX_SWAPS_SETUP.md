@@ -23,7 +23,7 @@ NEXT_PUBLIC_MORALIS_API_KEY=your-moralis-api-key-here
 
 # Optional: Custom RPC endpoints (service will use defaults if not set)
 NEXT_PUBLIC_ETHEREUM_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/your-key
-NEXT_PUBLIC_PULSECHAIN_RPC_URL=https://rpc.pulsechain.com
+NEXT_PUBLIC_PULSECHAIN_RPC_URL=https://rpc.pulsechainrpc.com
 ```
 
 ### 2. API Key Setup

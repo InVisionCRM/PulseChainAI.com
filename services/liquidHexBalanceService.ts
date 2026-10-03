@@ -1,3 +1,5 @@
+import { getChain } from '@/lib/chains/registry';
+
 export interface LiquidHexBalances {
   ethereum: number | null;
   pulsechain: number | null;
@@ -11,7 +13,7 @@ export class LiquidHexBalanceService {
   constructor() {
     // These would typically come from environment variables
     this.ethereumRpcUrl = process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/your-api-key';
-    this.pulsechainRpcUrl = process.env.NEXT_PUBLIC_PULSECHAIN_RPC_URL || 'https://rpc.pulsechain.com';
+    this.pulsechainRpcUrl = process.env.NEXT_PUBLIC_PULSECHAIN_RPC_URL || getChain('pulsechain').rpcUrls[0];
     this.etherscanApiKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || 'your-etherscan-api-key';
   }
 

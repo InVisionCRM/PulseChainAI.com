@@ -20,7 +20,7 @@ Create a `.env.local` file in your project root with:
 NEXT_PUBLIC_ETHEREUM_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/your-alchemy-api-key
 
 # PulseChain RPC URL (default is public RPC)
-NEXT_PUBLIC_PULSECHAIN_RPC_URL=https://rpc.pulsechain.com
+NEXT_PUBLIC_PULSECHAIN_RPC_URL=https://rpc.pulsechainrpc.com
 
 # Etherscan API Key (for Ethereum HEX balance fetching)
 NEXT_PUBLIC_ETHERSCAN_API_KEY=your-etherscan-api-key
