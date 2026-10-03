@@ -328,8 +328,10 @@ export interface RescueRow {
  */
 export async function readRescueCandidates(
   net: Net,
-  /** `maxHearts` (inclusive) is an optional ceiling on principal. */
-  opts: { maturedBefore: number; minHearts: string; maxHearts?: string; limit: number },
+  /** `maturedAfter` (inclusive) bounds the oldest end day; omitted, every
+   *  matured stake qualifies however long ago it ended. `maxHearts`
+   *  (inclusive) is an optional ceiling on principal. */
+  opts: { maturedBefore: number; maturedAfter?: number; minHearts: string; maxHearts?: string; limit: number },
 ): Promise<RescueRow[] | null> {
   if (!sql) return null;
   const state = await getSyncState(net);
@@ -346,11 +348,16 @@ export async function readRescueCandidates(
     WHERE network = ${net}
       AND NOT good_accounted
       AND end_day < ${opts.maturedBefore}
+      AND end_day >= ${opts.maturedAfter ?? 0}
       AND staked_hearts >= ${opts.minHearts}::numeric
       -- The ceiling is applied here, not after: the list is biggest first, so
       -- filtering later would let over-ceiling stakes fill the LIMIT every run.
       AND (${opts.maxHearts ?? null}::numeric IS NULL OR staked_hearts <= ${opts.maxHearts ?? null}::numeric)
-    ORDER BY staked_hearts DESC
+    -- Qualified on purpose: a bare 'staked_hearts' here names the ::text output
+    -- alias above, not the column, and sorts the amounts as strings — 9,999 HEX
+    -- ahead of 47,400 and 100M last. That fed both the keeper and the Active
+    -- penalties board an alphabetical "biggest first".
+    ORDER BY hex_locked_stakes.staked_hearts DESC
     LIMIT ${opts.limit}`;
 
   return rows.map((r: any) => ({
