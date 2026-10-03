@@ -3,7 +3,7 @@ import { fetchTopHolders } from '@/lib/portfolio/holders';
 import { currentHexDay, HEX_ADDRESS } from '@/lib/hex/hexDay';
 import {
   type BoardKey, type RawStart, type RawEnd, type LeaderRow,
-  activeByAmount, completedByAmount, highestRoi, activePenalties, depletedStakes, recentPenalties, LATE_GRACE_DAYS,
+  activeByAmount, completedByAmount, highestRoi, activePenalties, depletedStakes, recentPenalties, LATE_GRACE_DAYS, LATE_SCALE_DAYS,
   recentStarts, recentEnds, topHolders, aggregateStaked,
 } from '@/lib/hex/leaderboards';
 import { hexSubgraphQuery, type HexNet as Net } from '@/lib/hex/subgraph';
@@ -60,13 +60,15 @@ const endsByServed = (net: Net, first: number) =>
   gql<{ stakeEnds: RawEnd[] }>(net, `{ stakeEnds(orderBy: servedDays, orderDirection: desc, first: ${first}){ ${END_FIELDS} } }`)
     .then((d) => d.stakeEnds ?? []);
 
-// 1,000,000 HEX in hearts (1 HEX = 1e8 hearts) — the overdue board's floor.
-const MIN_OVERDUE_HEARTS = '100000000000000';
-
 /**
- * Candidate bleeding stakes: ≥1M HEX, past the grace period, still locked and
- * not good-accounted — from the locked-stake index, then hydrated from the
- * subgraph by id. Null when the index is not available or still filling.
+ * Candidate bleeding stakes, any size: past the grace period but not yet fully
+ * bled, still locked and not good-accounted — the biggest from the locked-stake
+ * index, then hydrated from the subgraph by id. Null when the index is not
+ * available or still filling.
+ *
+ * The end-day window matters as much as the ordering: without its lower bound,
+ * fully-bled stakes (nothing left to lose) would take the top of a biggest-first
+ * list and push the stakes still bleeding off it.
  *
  * Not from a size-ordered subgraph page: stakeStarts has no "ended" flag, so
  * "the 1,000 biggest stakes past their end day" is almost entirely whales who
@@ -81,8 +83,12 @@ const MIN_OVERDUE_HEARTS = '100000000000000';
 async function bleedingBigStakes(net: Net, currentDay: number): Promise<RawStart[] | null> {
   const locked = await readRescueCandidates(net, {
     maturedBefore: currentDay - LATE_GRACE_DAYS,
-    minHearts: MIN_OVERDUE_HEARTS,
-    limit: 1000,
+    // Still bleeding: fewer than 700 days past grace (`activePenalties` drops 100%).
+    maturedAfter: currentDay - LATE_GRACE_DAYS - LATE_SCALE_DAYS + 1,
+    minHearts: '0',
+    // The board shows 100; the headroom absorbs stakes ended or frozen since
+    // the index last synced, which the live checks below drop.
+    limit: 300,
   });
   if (locked === null) return null;
   const rows: RawStart[] = [];
@@ -150,7 +156,7 @@ async function buildBoard(net: Net, board: BoardKey): Promise<{ rows: LeaderRow[
       return {
         rows: activePenalties(overdue, currentDay, gaIds),
         sample: overdue.length,
-        note: 'Active stakes ≥1M HEX past their end day, actively bleeding the late-end penalty, largest first. Good-accounted (frozen) stakes are excluded — they’ve stopped bleeding. “Lost” = share of the stake gone to the penalty so far.',
+        note: 'The 100 largest stakes actively bleeding the late-end penalty right now, any size, largest first. Stakes of 50K HEX and up are frozen by the rescue keeper soon after their grace period ends, so what still bleeds is mostly smaller. Good-accounted (frozen) stakes are excluded — they’ve stopped bleeding. “Lost” = share of the stake gone to the penalty so far.',
       };
     }
     case 'depleted': {
