@@ -11,14 +11,13 @@
 // events) we say so rather than return wrong numbers.
 //
 // Only archive RPCs that serve historical logs are usable here. g4mm4 is the
-// primary (a full archive node, user-selected); the other two are failover.
+// primary (a full archive node, user-selected); the other is failover.
 // publicnode is deliberately excluded — it archive-gates `eth_getLogs` behind a
 // paid token (HTTP 403).
 
 const LOG_RPCS = [
   'https://rpc-pulsechain.g4mm4.io',
   'https://rpc.pulsechainrpc.com',
-  'https://rpc.gigatheminter.com',
 ];
 
 // keccak256("Transfer(address,address,uint256)")

@@ -96,17 +96,17 @@ unsure. The owner cannot double-check you — accuracy is the whole job.
 ### RPC endpoints (JSON-RPC nodes — return raw chain data, NOT decoded history)
 - **PulseChain (369)** — canonical list from chainlist.org. These are healthy
   public nodes; use them, don't invent others. HTTPS:
-  `pulsechain-rpc.publicnode.com`,
-  `rpc.degenprotocol.io`, `rpc.gigatheminter.com`, `rpc-pulsechain.g4mm4.io`
-  ("gamma"), `rpc.pulsechainrpc.com`, `rpc.swiftnodes.io/rpc/pulsechain`,
+  `rpc-pulsechain.g4mm4.io` ("gamma"), `pulsechain-rpc.publicnode.com`,
+  `rpc.pulsechainrpc.com`, `rpc.swiftnodes.io/rpc/pulsechain`,
   `rpc.hairylabs.io`, `evex.cloud/pulserpc`,
   `rpc.owlracle.info/pulse/<key>` (key-gated).
   WebSocket (WSS): `pulsechain-rpc.publicnode.com`, `rpc.hairylabs.io/ws`,
   `ws.pulsechainrpc.com`, `evex.cloud/pulsews`.
   In-app server pool (`lib/portfolio/evmRpc.ts` + portfolio routes):
-  `rpc.pulsechainrpc.com`,
-  `pulsechain-rpc.publicnode.com`, `rpc.gigatheminter.com`,
-  `rpc-pulsechain.g4mm4.io`, `rpc.degenprotocol.io`.
+  `rpc-pulsechain.g4mm4.io`, `rpc.pulsechainrpc.com`,
+  `pulsechain-rpc.publicnode.com`.
+  **When in doubt, use g4mm4** — it is the owner's default node and the only
+  full archive node in the pool. A node you can't reach is dead: drop it.
   Override: `PULSECHAIN_RPC_URL` / `NEXT_PUBLIC_PULSECHAIN_RPC_URL`.
 - **Ethereum (1):** `ethereum-rpc.publicnode.com`, `rpc.ankr.com/eth`,
   `eth.drpc.org`. Override: `ETHEREUM_RPC_URL`.
@@ -161,6 +161,8 @@ per-day they match GeckoTerminal to 1.005× over 20 days. Those are safe to use.
 - **`rpc.pulsechain.com`** — retired; never use it, not even as a default.
 - **`rpc.pulsechainstats.com`** — dropped 2026-10-03: its TLS certificate
   failed verification while every other node in the pool passed.
+- **`rpc.gigatheminter.com`** (403 bot-check page) and **`rpc.degenprotocol.io`**
+  (502) — dropped 2026-10-03: unreachable on repeated checks.
 - **Any paid / metered API** (Moralis, paid RPC tiers, paid data providers).
   Cost is never an acceptable default for an API here — the owner runs on free
   tiers. If the only solution costs money, STOP and say so; don't ship it.

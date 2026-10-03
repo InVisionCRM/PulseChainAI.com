@@ -41,10 +41,9 @@ export const CHAINS: Record<ChainKey, ChainConfig> = {
     blockscoutApiBase: 'https://api.scan.pulsechain.com/api/v2',
     explorerUrl: 'https://scan.pulsechain.com',
     rpcUrls: [
+      'https://rpc-pulsechain.g4mm4.io',
       'https://rpc.pulsechainrpc.com',
       'https://pulsechain-rpc.publicnode.com',
-      'https://rpc.gigatheminter.com',
-      'https://rpc-pulsechain.g4mm4.io',
     ],
     dexscreenerSlug: 'pulsechain',
     geckoterminalSlug: 'pulsechain',
