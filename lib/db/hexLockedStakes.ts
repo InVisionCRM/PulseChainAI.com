@@ -328,7 +328,9 @@ export interface RescueRow {
  */
 export async function readRescueCandidates(
   net: Net,
-  opts: { maturedBefore: number; minHearts: string; limit: number },
+  /** `maturedAfter` (inclusive) bounds the oldest end day; omitted, every
+   *  matured stake qualifies however long ago it ended. */
+  opts: { maturedBefore: number; maturedAfter?: number; minHearts: string; limit: number },
 ): Promise<RescueRow[] | null> {
   if (!sql) return null;
   const state = await getSyncState(net);
@@ -345,6 +347,7 @@ export async function readRescueCandidates(
     WHERE network = ${net}
       AND NOT good_accounted
       AND end_day < ${opts.maturedBefore}
+      AND end_day >= ${opts.maturedAfter ?? 0}
       AND staked_hearts >= ${opts.minHearts}::numeric
     ORDER BY staked_hearts DESC
     LIMIT ${opts.limit}`;

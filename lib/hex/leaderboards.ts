@@ -91,7 +91,6 @@ export function activeByAmount(starts: RawStart[], currentDay: number, limit = 1
 // good-accounted (the caller passes the set of good-accounted stakeIds).
 export const LATE_GRACE_DAYS = 14;
 export const LATE_SCALE_DAYS = 700;
-export const MIN_OVERDUE_HEX = 1_000_000;
 
 function deriveOverdue(s: RawStart, currentDay: number) {
   const principalHex = heartsToHex(s.stakedHearts);
@@ -133,8 +132,11 @@ export function activePenalties(
     starts
       .filter((s) => !goodAccountedIds.has(String(s.stakeId)))
       .map((s) => deriveOverdue(s, currentDay))
-      // Penalty actively accruing (past grace) but not yet fully gone; sizeable.
-      .filter((x) => x.penaltyPct > 0 && x.penaltyPct < 100 && x.principalHex >= MIN_OVERDUE_HEX)
+      // Penalty actively accruing (past grace) but not yet fully gone. No size
+      // floor: the keeper freezes stakes ≥50K HEX soon after grace ends,
+      // so what is still bleeding is almost all smaller — a 1M floor left the
+      // board empty while tens of thousands of stakes were bleeding.
+      .filter((x) => x.penaltyPct > 0 && x.penaltyPct < 100)
       .sort((a, b) => b.principalHex - a.principalHex)
       .slice(0, limit)
       .map(overdueRow),
