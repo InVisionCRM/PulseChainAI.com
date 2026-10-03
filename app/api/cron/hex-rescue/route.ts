@@ -149,6 +149,8 @@ export async function GET(request: NextRequest) {
     let hexFrozen = 0;
     let bleedStopped = 0;
     let attempted = 0;
+    /** Drained stakes frozen this run — see rankCandidates. */
+    let drainedFrozen = 0;
 
     for (const c of candidates) {
       if (attempted >= MAX_PER_RUN || Date.now() - started > TIME_BUDGET_MS) break;
@@ -175,7 +177,10 @@ export async function GET(request: NextRequest) {
       }
 
       attempted++;
-      const data = goodAccountingCalldata(c.stakerAddr, resolved.index, c.stakeId, messageForStake(c.stakeId, c.principalHex));
+      // No note on a drained stake: every message says the HEX is "still yours",
+      // which would be a permanent, public lie when the penalty took all of it.
+      const note = c.depleted ? undefined : messageForStake(c.stakeId, c.principalHex);
+      const data = goodAccountingCalldata(c.stakerAddr, resolved.index, c.stakeId, note);
 
       if (dryRun) {
         const est = await estimateGas('pulsechain', { from: HEX_ADDRESS, to: HEX_ADDRESS, data });
@@ -183,6 +188,7 @@ export async function GET(request: NextRequest) {
         totalGas += est;
         hexFrozen += c.principalHex * (1 - c.penaltyFraction);
         bleedStopped += c.penaltyFraction >= 1 ? 0 : c.principalHex / LATE_PENALTY_SCALE_DAYS;
+        if (c.depleted) drainedFrozen++;
         rescued.push({ stakeId: c.stakeId, hex: Math.round(c.principalHex), gas: est.toString() });
         continue;
       }
@@ -202,6 +208,7 @@ export async function GET(request: NextRequest) {
         totalGas += out.gasLimit;
         hexFrozen += c.principalHex * (1 - c.penaltyFraction);
         bleedStopped += c.penaltyFraction >= 1 ? 0 : c.principalHex / LATE_PENALTY_SCALE_DAYS;
+        if (c.depleted) drainedFrozen++;
         rescued.push({ stakeId: c.stakeId, hex: Math.round(c.principalHex), hash: out.hash, gas: out.gasLimit.toString() });
       } else if (out.status === 'settled') {
         nonce!++;
@@ -238,6 +245,7 @@ export async function GET(request: NextRequest) {
       stoppedWaitingForConfirmations: waitedOut,
       candidates: candidates.length,
       rescued: rescued.length,
+      drainedFrozen,
       hexFrozen: Math.round(hexFrozen),
       bleedStoppedPerDay: Math.round(bleedStopped),
       gasUsed: totalGas.toString(),

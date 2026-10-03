@@ -206,6 +206,9 @@ export interface RescueCandidate {
   daysBleeding: number;
   /** Share of gross (0-1) the late penalty has already taken. */
   penaltyFraction: number;
+  /** True when the penalty has taken the whole stake (700+ days past grace):
+   *  nothing left to protect, so it is frozen only after every live stake. */
+  depleted: boolean;
   /** HEX protected per unit of gas — what the candidate list is sorted by. */
   hexPerGas: number;
 }
@@ -311,28 +314,31 @@ export async function findRescueCandidates(
   const minHearts = Math.round(minPrincipalHex * 1e8);
   const maxHearts = Math.round(maxPrincipalHex * 1e8);
 
-  const rows = await readRescueCandidates(net, {
-    maturedBefore: newestEnd,
-    minHearts: String(minHearts),
-    maxHearts: String(maxHearts),
-    limit: Math.max(limit * 2, 200),
-  });
+  // Still bleeding: fewer than 700 days past grace. Past that the penalty has
+  // taken the whole stake. Same cutoff as the penalties board.
+  const drainedBefore = today - LATE_PENALTY_GRACE_DAYS - LATE_PENALTY_SCALE_DAYS + 1;
+  const common = { minHearts: String(minHearts), maxHearts: String(maxHearts), limit: Math.max(limit * 2, 200) };
+  // Two reads, not one, because nothing ever settles a drained stake: in a
+  // single biggest-first LIMIT they would sit at the top forever and crowd out
+  // the stakes that can still be saved.
+  const live = await readRescueCandidates(net, { ...common, maturedBefore: newestEnd, maturedAfter: drainedBefore });
+  const drained = await readRescueCandidates(net, { ...common, maturedBefore: drainedBefore });
 
-  if (rows === null) {
+  if (live === null || drained === null) {
     // Deliberately fatal rather than falling back. There is no second source
     // that can answer this correctly — see the note above — and a partial
     // answer here reads exactly like a complete one while quietly leaving
     // people's stakes bleeding.
     throw new Error(`hex-rescue: ${await describeMirrorGap(net)}`);
   }
-  if (rows.length === 0) return [];
+  if (live.length === 0 && drained.length === 0) return [];
 
   // The mirror does not store a stake's TERM, and gas depends on it, so the
   // shortlist is enriched from the subgraph — a couple of `stakeId_in` queries
   // over a few hundred ids, which is a very different thing from sweeping the
   // whole history through it.
   const terms = new Map<string, number>();
-  const ids = rows.map((r) => r.stakeId);
+  const ids = [...live, ...drained].map((r) => r.stakeId);
   for (let i = 0; i < ids.length; i += 500) {
     const chunk = ids.slice(i, i + 500).map((id) => `"${id}"`).join(',');
     try {
@@ -346,42 +352,70 @@ export async function findRescueCandidates(
     }
   }
 
-  return rows
-    .map((r) => {
-      const principalHex = heartsToHex(r.stakedHearts);
-      // No term means no honest gas estimate, so it ranks last rather than
-      // being given an invented one. `resolveStake` still prices it properly
-      // if a run ever reaches it.
-      const stakedDays = terms.get(r.stakeId) ?? 0;
-      const daysBleeding = Math.max(0, today - r.endDay - LATE_PENALTY_GRACE_DAYS);
-      return {
-        stakeId: r.stakeId,
-        stakerAddr: r.stakerAddr,
-        principalHex,
-        endDay: r.endDay,
-        stakedDays,
-        daysBleeding,
-        penaltyFraction: Math.min(1, daysBleeding / LATE_PENALTY_SCALE_DAYS),
-        hexPerGas: stakedDays > 0 ? principalHex / estimateGasForTerm(stakedDays) : 0,
-      };
-    })
-    // Then drop anything whose gas is not worth its HEX. The principal floor
-    // above cannot make this judgement — it only knows size, and gas tracks
-    // TERM — so this is the filter that actually decides whether a rescue is
-    // worth paying for. See MIN_HEX_PER_MGAS_FALLBACK.
-    //
-    // A candidate with no readable term scores 0 and is dropped here rather
-    // than being rescued on an invented estimate.
-    .filter((c) => c.hexPerGas * 1_000_000 >= minHexPerMgas)
-    // Best value first: HEX still at risk per unit of gas it costs to save.
-    //
-    // Sorting by size alone would be the obvious move and it is the wrong one,
-    // because gas tracks a stake's TERM rather than its size. A 5M HEX stake
-    // with a 90-day term costs ~360k gas to freeze; a 500k HEX stake with a
-    // 1,782-day term costs ~5.9M. The first protects ten times the HEX for a
-    // sixteenth of the gas.
-    .sort((a, b) => b.hexPerGas - a.hexPerGas)
-    .slice(0, limit);
+  return rankCandidates([...live, ...drained], terms, today, minHexPerMgas, limit);
+}
+
+/**
+ * Order the shortlist: every stake that still has HEX to save, best value
+ * first, and only after all of them the drained ones.
+ *
+ * A drained stake (700+ days past grace) has nothing left to protect, but
+ * freezing it still helps every other staker: it takes its shares out of
+ * `stakeSharesTotal`, which dilutes everyone's daily payout until it is
+ * unlocked, and books its whole value as a penalty, half of which goes to the
+ * stakers' payout pool (`_splitPenaltyProceeds`). So they are worth doing with
+ * whatever gas is left over, never ahead of a stake that can still be saved.
+ */
+export function rankCandidates(
+  rows: { stakeId: string; stakerAddr: string; stakedHearts: string; endDay: number }[],
+  terms: Map<string, number>,
+  today: number,
+  minHexPerMgas: number,
+  limit: number,
+): RescueCandidate[] {
+  const all = rows.map((r) => {
+    const principalHex = heartsToHex(r.stakedHearts);
+    // No term means no honest gas estimate, so it ranks last rather than
+    // being given an invented one. `resolveStake` still prices it properly
+    // if a run ever reaches it.
+    const stakedDays = terms.get(r.stakeId) ?? 0;
+    const daysBleeding = Math.max(0, today - r.endDay - LATE_PENALTY_GRACE_DAYS);
+    const penaltyFraction = Math.min(1, daysBleeding / LATE_PENALTY_SCALE_DAYS);
+    const gas = stakedDays > 0 ? estimateGasForTerm(stakedDays) : 0;
+    return {
+      stakeId: r.stakeId,
+      stakerAddr: r.stakerAddr,
+      principalHex,
+      endDay: r.endDay,
+      stakedDays,
+      daysBleeding,
+      penaltyFraction,
+      depleted: penaltyFraction >= 1,
+      // What freezing protects: the part the penalty has not taken yet.
+      hexPerGas: gas > 0 ? (principalHex * (1 - penaltyFraction)) / gas : 0,
+      // What freezing releases to other stakers — how drained stakes rank.
+      releasedPerGas: gas > 0 ? principalHex / gas : 0,
+    };
+  });
+
+  // Drop anything whose gas is not worth its HEX. The principal floor cannot
+  // make this judgement — it only knows size, and gas tracks TERM — so this is
+  // the filter that actually decides whether a rescue is worth paying for. See
+  // MIN_HEX_PER_MGAS_FALLBACK. A candidate with no readable term scores 0 and
+  // is dropped rather than rescued on an invented estimate.
+  //
+  // Best value first. Sorting by size alone would be the obvious move and it
+  // is the wrong one, because gas tracks a stake's TERM rather than its size.
+  // A 5M HEX stake with a 90-day term costs ~360k gas to freeze; a 500k HEX
+  // stake with a 1,782-day term costs ~5.9M. The first protects ten times the
+  // HEX for a sixteenth of the gas.
+  const live = all
+    .filter((c) => !c.depleted && c.hexPerGas * 1_000_000 >= minHexPerMgas)
+    .sort((a, b) => b.hexPerGas - a.hexPerGas);
+  const drained = all
+    .filter((c) => c.depleted && c.releasedPerGas * 1_000_000 >= minHexPerMgas)
+    .sort((a, b) => b.releasedPerGas - a.releasedPerGas);
+  return [...live, ...drained].slice(0, limit).map(({ releasedPerGas: _, ...c }) => c);
 }
 export interface UpcomingBleeder {
   stakeId: string;
