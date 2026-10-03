@@ -45,6 +45,7 @@ import './loadEnv';
 
 import {
   defaultMinPrincipalHex,
+  defaultMaxPrincipalHex,
   findRescueCandidates,
   resolveStake,
   goodAccountingCalldata,
@@ -74,6 +75,10 @@ const MIN_DAYS = Number(arg('--min-days') ?? 1);
 const minHexArg = arg('--min-hex');
 const MIN_HEX = minHexArg != null ? Number(minHexArg) : defaultMinPrincipalHex();
 const MIN_HEX_SOURCE = minHexArg != null ? '--min-hex' : process.env.HEX_RESCUE_MIN_HEX ? 'HEX_RESCUE_MIN_HEX' : 'default';
+// Same precedence for the ceiling: --max-hex > HEX_RESCUE_MAX_HEX > fallback.
+const maxHexArg = arg('--max-hex');
+const MAX_HEX = maxHexArg != null ? Number(maxHexArg) : defaultMaxPrincipalHex();
+const MAX_HEX_SOURCE = maxHexArg != null ? '--max-hex' : process.env.HEX_RESCUE_MAX_HEX ? 'HEX_RESCUE_MAX_HEX' : 'default';
 
 const fmt = (n: number, d = 0) => n.toLocaleString('en-US', { maximumFractionDigits: d });
 
@@ -156,7 +161,7 @@ async function main() {
   console.log(EXECUTE ? '⚡ HEX rescue — EXECUTING' : '🔍 HEX rescue — dry run (add --execute to send)');
   console.log(
     `   chain: pulsechain · limit ${LIMIT} · at least ${MIN_DAYS} day(s) past grace · ` +
-      `principal ≥ ${fmt(MIN_HEX)} HEX (${MIN_HEX_SOURCE})\n`,
+      `principal ${fmt(MIN_HEX)} HEX (${MIN_HEX_SOURCE}) to ${fmt(MAX_HEX)} HEX (${MAX_HEX_SOURCE})\n`,
   );
 
   const keeper = loadKeeper();
@@ -209,6 +214,7 @@ async function main() {
   const candidates = await findRescueCandidates('pulsechain', {
     minDaysPastGrace: MIN_DAYS,
     minPrincipalHex: MIN_HEX,
+    maxPrincipalHex: MAX_HEX,
     limit: LIMIT * 3, // over-fetch: many resolve to "already settled" and cost nothing
   });
   console.log(`Found ${candidates.length} candidate stake(s) in the locked-stake index.\n`);

@@ -46,6 +46,13 @@ import {
   messageForStake,
   defaultMinPrincipalHex,
   MIN_PRINCIPAL_HEX_FALLBACK,
+  defaultMaxPrincipalHex,
+  MAX_PRINCIPAL_HEX_FALLBACK,
+  defaultReservePls,
+  RESERVE_PLS_FALLBACK,
+  defaultReserveMinHex,
+  RESERVE_MIN_HEX_FALLBACK,
+  floorForBalance,
   defaultMinHexPerMgas,
   MIN_HEX_PER_MGAS_FALLBACK,
   estimateGasForTerm,
@@ -299,6 +306,57 @@ async function main() {
   check('-5', MIN_PRINCIPAL_HEX_FALLBACK, 'negative falls back');
   if (prevMin === undefined) delete process.env.HEX_RESCUE_MIN_HEX;
   else process.env.HEX_RESCUE_MIN_HEX = prevMin;
+
+  console.log('\nPrincipal ceiling:');
+  const prevMax = process.env.HEX_RESCUE_MAX_HEX;
+  const top = (set: string | undefined, want: number, why: string) => {
+    if (set === undefined) delete process.env.HEX_RESCUE_MAX_HEX;
+    else process.env.HEX_RESCUE_MAX_HEX = set;
+    const got = defaultMaxPrincipalHex();
+    got === want
+      ? pass(`${why} -> ${got.toLocaleString()} HEX`)
+      : fail(`${why}: expected ${want}, got ${got}`);
+  };
+  top(undefined, MAX_PRINCIPAL_HEX_FALLBACK, 'unset falls back');
+  top('50000000', 50_000_000, 'HEX_RESCUE_MAX_HEX=50000000');
+  top('  10000000  ', 10_000_000, 'whitespace is tolerated');
+  // 0 would refuse every rescue, so it falls back rather than halting the keeper.
+  top('0', MAX_PRINCIPAL_HEX_FALLBACK, 'HEX_RESCUE_MAX_HEX=0 falls back rather than halting');
+  top('lots', MAX_PRINCIPAL_HEX_FALLBACK, 'unparseable falls back');
+  top('-5', MAX_PRINCIPAL_HEX_FALLBACK, 'negative falls back');
+  if (prevMax === undefined) delete process.env.HEX_RESCUE_MAX_HEX;
+  else process.env.HEX_RESCUE_MAX_HEX = prevMax;
+
+  console.log('\nGas reserve:');
+  const envCheck = (name: string, read: () => number, set: string | undefined, want: number, why: string) => {
+    const prev = process.env[name];
+    if (set === undefined) delete process.env[name];
+    else process.env[name] = set;
+    const got = read();
+    got === want ? pass(`${why} -> ${got.toLocaleString()}`) : fail(`${why}: expected ${want}, got ${got}`);
+    if (prev === undefined) delete process.env[name];
+    else process.env[name] = prev;
+  };
+  envCheck('HEX_RESCUE_RESERVE_PLS', defaultReservePls, undefined, RESERVE_PLS_FALLBACK, 'reserve unset falls back');
+  envCheck('HEX_RESCUE_RESERVE_PLS', defaultReservePls, '2000000', 2_000_000, 'HEX_RESCUE_RESERVE_PLS=2000000');
+  envCheck('HEX_RESCUE_RESERVE_PLS', defaultReservePls, '0', 0, 'HEX_RESCUE_RESERVE_PLS=0 disables the guard');
+  envCheck('HEX_RESCUE_RESERVE_PLS', defaultReservePls, 'many', RESERVE_PLS_FALLBACK, 'unparseable reserve falls back');
+  envCheck('HEX_RESCUE_RESERVE_MIN_HEX', defaultReserveMinHex, undefined, RESERVE_MIN_HEX_FALLBACK, 'reserve floor unset falls back');
+  envCheck('HEX_RESCUE_RESERVE_MIN_HEX', defaultReserveMinHex, '100000', 100_000, 'HEX_RESCUE_RESERVE_MIN_HEX=100000');
+  envCheck('HEX_RESCUE_RESERVE_MIN_HEX', defaultReserveMinHex, '-1', RESERVE_MIN_HEX_FALLBACK, 'negative reserve floor falls back');
+  const band = { minPrincipalHex: 10_000, reservePls: 500_000, reserveMinHex: 50_000 };
+  const floorIs = (bal: number, opts: typeof band, want: number, active: boolean, why: string) => {
+    const got = floorForBalance(bal, opts);
+    got.minPrincipalHex === want && got.reserveActive === active
+      ? pass(`${why} -> floor ${got.minPrincipalHex.toLocaleString()} HEX${got.reserveActive ? ' (reserve)' : ''}`)
+      : fail(`${why}: expected ${want}/${active}, got ${got.minPrincipalHex}/${got.reserveActive}`);
+  };
+  floorIs(821_660, band, 10_000, false, 'healthy wallet uses the normal floor');
+  floorIs(499_999, band, 50_000, true, 'under the reserve raises the floor');
+  floorIs(500_000, band, 10_000, false, 'exactly at the reserve is not under it');
+  floorIs(0, band, 50_000, true, 'empty wallet keeps only the big stakes');
+  floorIs(100, { ...band, reservePls: 0 }, 10_000, false, 'reserve 0 never activates');
+  floorIs(100, { ...band, minPrincipalHex: 80_000 }, 80_000, true, 'never lowers a floor already above the reserve floor');
 
   console.log('\nMessages:');
   const m1 = messageForStake('12345', 1_000_000);

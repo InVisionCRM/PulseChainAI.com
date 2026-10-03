@@ -71,7 +71,7 @@ const num = (hex: string, i: number) => Number(BigInt('0x' + word(hex, i)));
 const chainOf = (net: HexNet): ChainId => (net === 'ethereum' ? 'ethereum' : 'pulsechain');
 
 /** Where the principal floor lands when nothing overrides it. */
-export const MIN_PRINCIPAL_HEX_FALLBACK = 50_000;
+export const MIN_PRINCIPAL_HEX_FALLBACK = 10_000;
 
 /**
  * The principal floor, in HEX, from `HEX_RESCUE_MIN_HEX` or the fallback.
@@ -90,6 +90,74 @@ export function defaultMinPrincipalHex(): number {
   if (!raw) return MIN_PRINCIPAL_HEX_FALLBACK;
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : MIN_PRINCIPAL_HEX_FALLBACK;
+}
+
+/** Where the principal ceiling lands when nothing overrides it. */
+export const MAX_PRINCIPAL_HEX_FALLBACK = 25_000_000;
+
+/**
+ * The principal ceiling, in HEX, from `HEX_RESCUE_MAX_HEX` or the fallback.
+ * Stakes above it are left alone — the owner's chosen upper bound for what the
+ * keeper spends its gas on.
+ *
+ * Unlike the floor, 0 is not a meaningful setting: it would refuse every rescue
+ * rather than allow every one, so it falls back instead of silently halting the
+ * keeper — the same rule as HEX_RESCUE_MAX_GWEI.
+ */
+export function defaultMaxPrincipalHex(): number {
+  const raw = (process.env.HEX_RESCUE_MAX_HEX ?? '').trim();
+  if (!raw) return MAX_PRINCIPAL_HEX_FALLBACK;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : MAX_PRINCIPAL_HEX_FALLBACK;
+}
+
+/**
+ * The gas reserve, in PLS, from `HEX_RESCUE_RESERVE_PLS` or the fallback.
+ *
+ * Below it, a run stops spending on small stakes and keeps only the ones at or
+ * above `defaultReserveMinHex` — so a low wallet goes on saving the stakes
+ * that matter most instead of draining itself on the long tail and then
+ * saving nothing. 500,000 PLS is about three weeks of the keeper's spend on
+ * 50K+ stakes alone (~23,000 PLS/day, measured Oct 2026).
+ *
+ * `0` disables the guard and is a real setting; only a missing, unparseable or
+ * negative value falls back.
+ */
+export const RESERVE_PLS_FALLBACK = 500_000;
+
+export function defaultReservePls(): number {
+  const raw = (process.env.HEX_RESCUE_RESERVE_PLS ?? '').trim();
+  if (!raw) return RESERVE_PLS_FALLBACK;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : RESERVE_PLS_FALLBACK;
+}
+
+/** The principal floor while the wallet is under the reserve, from
+ *  `HEX_RESCUE_RESERVE_MIN_HEX` or the fallback — the floor the keeper ran on
+ *  before it was lowered to 10K. */
+export const RESERVE_MIN_HEX_FALLBACK = 50_000;
+
+export function defaultReserveMinHex(): number {
+  const raw = (process.env.HEX_RESCUE_RESERVE_MIN_HEX ?? '').trim();
+  if (!raw) return RESERVE_MIN_HEX_FALLBACK;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : RESERVE_MIN_HEX_FALLBACK;
+}
+
+/**
+ * The principal floor a run should use given the wallet's balance: the normal
+ * floor, raised to the reserve floor while the balance is under the reserve.
+ * Never lowers the normal floor.
+ */
+export function floorForBalance(
+  balancePls: number,
+  opts: { minPrincipalHex: number; reservePls: number; reserveMinHex: number },
+): { minPrincipalHex: number; reserveActive: boolean } {
+  const reserveActive = balancePls < opts.reservePls;
+  return {
+    minPrincipalHex: reserveActive ? Math.max(opts.minPrincipalHex, opts.reserveMinHex) : opts.minPrincipalHex,
+    reserveActive,
+  };
 }
 
 /**
@@ -224,6 +292,7 @@ export async function findRescueCandidates(
     minDaysPastGrace?: number;
     limit?: number;
     minPrincipalHex?: number;
+    maxPrincipalHex?: number;
     minHexPerMgas?: number;
   } = {},
 ): Promise<RescueCandidate[]> {
@@ -231,16 +300,19 @@ export async function findRescueCandidates(
     minDaysPastGrace = 1,
     limit = 500,
     minPrincipalHex = defaultMinPrincipalHex(),
+    maxPrincipalHex = defaultMaxPrincipalHex(),
     minHexPerMgas = defaultMinHexPerMgas(),
   } = opts;
   const today = currentHexDay();
   const newestEnd = today - LATE_PENALTY_GRACE_DAYS - minDaysPastGrace;
   // Hearts are HEX's smallest unit, 1e8 to a HEX — the inverse of heartsToHex.
   const minHearts = Math.round(minPrincipalHex * 1e8);
+  const maxHearts = Math.round(maxPrincipalHex * 1e8);
 
   const rows = await readRescueCandidates(net, {
     maturedBefore: newestEnd,
     minHearts: String(minHearts),
+    maxHearts: String(maxHearts),
     limit: Math.max(limit * 2, 200),
   });
 
