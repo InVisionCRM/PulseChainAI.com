@@ -34,6 +34,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   defaultMinPrincipalHex,
+  defaultMaxPrincipalHex,
   defaultMinHexPerMgas,
   findRescueCandidates,
   resolveStake,
@@ -87,12 +88,14 @@ export async function GET(request: NextRequest) {
     // from the outside whether a change to HEX_RESCUE_MIN_HEX reached this
     // deployment, and a Vercel env var only takes effect after a redeploy.
     const minPrincipalHex = defaultMinPrincipalHex();
+    const maxPrincipalHex = defaultMaxPrincipalHex();
     // Same reason as the principal floor: read explicitly so the value actually
     // in force is visible in the report rather than inferred.
     const minHexPerMgas = defaultMinHexPerMgas();
     const candidates = await findRescueCandidates('pulsechain', {
       minDaysPastGrace: 1,
       minPrincipalHex,
+      maxPrincipalHex,
       minHexPerMgas,
       limit: MAX_PER_RUN * 3, // most resolve to "already settled" and cost nothing
     });
@@ -198,6 +201,7 @@ export async function GET(request: NextRequest) {
       dryRun,
       keeper: keeper?.address ?? null,
       minPrincipalHex,
+      maxPrincipalHex,
       minHexPerMgas,
       stuckFromPriorRun,
       // How the run was paced, and why it ended. Without these a short run

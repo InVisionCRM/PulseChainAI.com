@@ -46,6 +46,8 @@ import {
   messageForStake,
   defaultMinPrincipalHex,
   MIN_PRINCIPAL_HEX_FALLBACK,
+  defaultMaxPrincipalHex,
+  MAX_PRINCIPAL_HEX_FALLBACK,
   defaultMinHexPerMgas,
   MIN_HEX_PER_MGAS_FALLBACK,
   estimateGasForTerm,
@@ -299,6 +301,26 @@ async function main() {
   check('-5', MIN_PRINCIPAL_HEX_FALLBACK, 'negative falls back');
   if (prevMin === undefined) delete process.env.HEX_RESCUE_MIN_HEX;
   else process.env.HEX_RESCUE_MIN_HEX = prevMin;
+
+  console.log('\nPrincipal ceiling:');
+  const prevMax = process.env.HEX_RESCUE_MAX_HEX;
+  const top = (set: string | undefined, want: number, why: string) => {
+    if (set === undefined) delete process.env.HEX_RESCUE_MAX_HEX;
+    else process.env.HEX_RESCUE_MAX_HEX = set;
+    const got = defaultMaxPrincipalHex();
+    got === want
+      ? pass(`${why} -> ${got.toLocaleString()} HEX`)
+      : fail(`${why}: expected ${want}, got ${got}`);
+  };
+  top(undefined, MAX_PRINCIPAL_HEX_FALLBACK, 'unset falls back');
+  top('50000000', 50_000_000, 'HEX_RESCUE_MAX_HEX=50000000');
+  top('  10000000  ', 10_000_000, 'whitespace is tolerated');
+  // 0 would refuse every rescue, so it falls back rather than halting the keeper.
+  top('0', MAX_PRINCIPAL_HEX_FALLBACK, 'HEX_RESCUE_MAX_HEX=0 falls back rather than halting');
+  top('lots', MAX_PRINCIPAL_HEX_FALLBACK, 'unparseable falls back');
+  top('-5', MAX_PRINCIPAL_HEX_FALLBACK, 'negative falls back');
+  if (prevMax === undefined) delete process.env.HEX_RESCUE_MAX_HEX;
+  else process.env.HEX_RESCUE_MAX_HEX = prevMax;
 
   console.log('\nMessages:');
   const m1 = messageForStake('12345', 1_000_000);

@@ -328,7 +328,8 @@ export interface RescueRow {
  */
 export async function readRescueCandidates(
   net: Net,
-  opts: { maturedBefore: number; minHearts: string; limit: number },
+  /** `maxHearts` (inclusive) is an optional ceiling on principal. */
+  opts: { maturedBefore: number; minHearts: string; maxHearts?: string; limit: number },
 ): Promise<RescueRow[] | null> {
   if (!sql) return null;
   const state = await getSyncState(net);
@@ -346,6 +347,9 @@ export async function readRescueCandidates(
       AND NOT good_accounted
       AND end_day < ${opts.maturedBefore}
       AND staked_hearts >= ${opts.minHearts}::numeric
+      -- The ceiling is applied here, not after: the list is biggest first, so
+      -- filtering later would let over-ceiling stakes fill the LIMIT every run.
+      AND (${opts.maxHearts ?? null}::numeric IS NULL OR staked_hearts <= ${opts.maxHearts ?? null}::numeric)
     ORDER BY staked_hearts DESC
     LIMIT ${opts.limit}`;
 

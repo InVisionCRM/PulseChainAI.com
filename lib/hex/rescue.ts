@@ -71,7 +71,7 @@ const num = (hex: string, i: number) => Number(BigInt('0x' + word(hex, i)));
 const chainOf = (net: HexNet): ChainId => (net === 'ethereum' ? 'ethereum' : 'pulsechain');
 
 /** Where the principal floor lands when nothing overrides it. */
-export const MIN_PRINCIPAL_HEX_FALLBACK = 50_000;
+export const MIN_PRINCIPAL_HEX_FALLBACK = 10_000;
 
 /**
  * The principal floor, in HEX, from `HEX_RESCUE_MIN_HEX` or the fallback.
@@ -90,6 +90,25 @@ export function defaultMinPrincipalHex(): number {
   if (!raw) return MIN_PRINCIPAL_HEX_FALLBACK;
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : MIN_PRINCIPAL_HEX_FALLBACK;
+}
+
+/** Where the principal ceiling lands when nothing overrides it. */
+export const MAX_PRINCIPAL_HEX_FALLBACK = 25_000_000;
+
+/**
+ * The principal ceiling, in HEX, from `HEX_RESCUE_MAX_HEX` or the fallback.
+ * Stakes above it are left alone — the owner's chosen upper bound for what the
+ * keeper spends its gas on.
+ *
+ * Unlike the floor, 0 is not a meaningful setting: it would refuse every rescue
+ * rather than allow every one, so it falls back instead of silently halting the
+ * keeper — the same rule as HEX_RESCUE_MAX_GWEI.
+ */
+export function defaultMaxPrincipalHex(): number {
+  const raw = (process.env.HEX_RESCUE_MAX_HEX ?? '').trim();
+  if (!raw) return MAX_PRINCIPAL_HEX_FALLBACK;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : MAX_PRINCIPAL_HEX_FALLBACK;
 }
 
 /**
@@ -224,6 +243,7 @@ export async function findRescueCandidates(
     minDaysPastGrace?: number;
     limit?: number;
     minPrincipalHex?: number;
+    maxPrincipalHex?: number;
     minHexPerMgas?: number;
   } = {},
 ): Promise<RescueCandidate[]> {
@@ -231,16 +251,19 @@ export async function findRescueCandidates(
     minDaysPastGrace = 1,
     limit = 500,
     minPrincipalHex = defaultMinPrincipalHex(),
+    maxPrincipalHex = defaultMaxPrincipalHex(),
     minHexPerMgas = defaultMinHexPerMgas(),
   } = opts;
   const today = currentHexDay();
   const newestEnd = today - LATE_PENALTY_GRACE_DAYS - minDaysPastGrace;
   // Hearts are HEX's smallest unit, 1e8 to a HEX — the inverse of heartsToHex.
   const minHearts = Math.round(minPrincipalHex * 1e8);
+  const maxHearts = Math.round(maxPrincipalHex * 1e8);
 
   const rows = await readRescueCandidates(net, {
     maturedBefore: newestEnd,
     minHearts: String(minHearts),
+    maxHearts: String(maxHearts),
     limit: Math.max(limit * 2, 200),
   });
 
