@@ -3,11 +3,12 @@ import { fetchTopHolders } from '@/lib/portfolio/holders';
 import { currentHexDay, HEX_ADDRESS } from '@/lib/hex/hexDay';
 import {
   type BoardKey, type RawStart, type RawEnd, type LeaderRow,
-  activeByAmount, completedByAmount, highestRoi, activePenalties, depletedStakes, recentPenalties,
+  activeByAmount, completedByAmount, highestRoi, activePenalties, depletedStakes, recentPenalties, LATE_GRACE_DAYS,
   recentStarts, recentEnds, topHolders, aggregateStaked,
 } from '@/lib/hex/leaderboards';
 import { hexSubgraphQuery, type HexNet as Net } from '@/lib/hex/subgraph';
 import { fetchGoodAccountings } from '@/lib/hex/goodAccounting';
+import { readRescueCandidates } from '@/lib/db/hexLockedStakes';
 
 export const revalidate = 0;
 // The overdue boards (active-penalties / depleted) page deep + fetch good-
@@ -63,22 +64,35 @@ const endsByServed = (net: Net, first: number) =>
 const MIN_OVERDUE_HEARTS = '100000000000000';
 
 /**
- * Candidate overdue stakes: ≥1M HEX and past their end day, biggest first.
- * We pull the largest such stakes straight from the subgraph (so the board is
- * ordered by size) and drop any that have actually ended; the pure
- * `activePenalties` / `depletedStakes` then split them by penalty status and
- * drop good-accounted ones.
+ * Candidate bleeding stakes: ≥1M HEX, past the grace period, still locked and
+ * not good-accounted — from the locked-stake index, then hydrated from the
+ * subgraph by id. Null when the index is not available or still filling.
+ *
+ * Not from a size-ordered subgraph page: stakeStarts has no "ended" flag, so
+ * "the 1,000 biggest stakes past their end day" is almost entirely whales who
+ * ended long ago. Measured: 992 of those 1,000 had ended and the smallest was
+ * 101M HEX, so every bleeding stake under 101M was never even looked at and the
+ * board read empty while stakes were bleeding. The index holds only locked
+ * stakes, so biggest-first there is complete.
+ *
+ * The index syncs on a cron, so the ended and good-accounted checks still run
+ * live against the subgraph (here and in `activePenalties`).
  */
-async function overdueBigStakes(net: Net, currentDay: number): Promise<RawStart[]> {
-  let rows: RawStart[] = [];
-  try {
+async function bleedingBigStakes(net: Net, currentDay: number): Promise<RawStart[] | null> {
+  const locked = await readRescueCandidates(net, {
+    maturedBefore: currentDay - LATE_GRACE_DAYS,
+    minHearts: MIN_OVERDUE_HEARTS,
+    limit: 1000,
+  });
+  if (locked === null) return null;
+  const rows: RawStart[] = [];
+  for (let i = 0; i < locked.length; i += 500) {
+    const chunk = locked.slice(i, i + 500).map((r) => `"${r.stakeId}"`).join(',');
     const d = await gql<{ stakeStarts: RawStart[] }>(
       net,
-      `{ stakeStarts(where:{ stakedHearts_gte: "${MIN_OVERDUE_HEARTS}", endDay_lt: ${currentDay} }, orderBy: stakedHearts, orderDirection: desc, first: 1000){ ${START_FIELDS} } }`,
+      `{ stakeStarts(where:{ stakeId_in: [${chunk}] }, first: 1000){ ${START_FIELDS} } }`,
     );
-    rows = d.stakeStarts ?? [];
-  } catch {
-    return [];
+    rows.push(...(d.stakeStarts ?? []));
   }
   const ended = await endedIds(net, rows);
   return rows.filter((r) => !ended.has(String(r.stakeId)));
@@ -128,7 +142,10 @@ async function buildBoard(net: Net, board: BoardKey): Promise<{ rows: LeaderRow[
       return { rows: highestRoi(ends), sample: ends.length, note: 'Ranked over the 1,000 longest-served ended stakes.' };
     }
     case 'active-penalties': {
-      const overdue = await overdueBigStakes(net, currentDay);
+      const overdue = await bleedingBigStakes(net, currentDay);
+      if (overdue === null) {
+        return { rows: [], sample: 0, note: 'This board reads from the locked-stake index, which is not ready for this network yet — so it is blank rather than incomplete.' };
+      }
       const gaIds = new Set((await fetchGoodAccountings(net, overdue.map((s) => s.stakeId))).keys());
       return {
         rows: activePenalties(overdue, currentDay, gaIds),
