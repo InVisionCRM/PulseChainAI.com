@@ -36,13 +36,16 @@ import {
   defaultMinPrincipalHex,
   defaultMaxPrincipalHex,
   defaultMinHexPerMgas,
+  defaultReservePls,
+  defaultReserveMinHex,
+  floorForBalance,
   findRescueCandidates,
   resolveStake,
   goodAccountingCalldata,
   messageForStake,
 } from '@/lib/hex/rescue';
 import { loadKeeper, signAndSend, checkNonce, waitForInFlight, MAX_IN_FLIGHT } from '@/lib/hex/rescueWallet';
-import { estimateGas, getBaseFee, getGasPrice, getPendingBids, type PendingBid } from '@/lib/portfolio/evmRpc';
+import { estimateGas, getBalance, getBaseFee, getGasPrice, getPendingBids, type PendingBid } from '@/lib/portfolio/evmRpc';
 import { HEX_ADDRESS, LATE_PENALTY_SCALE_DAYS } from '@/lib/hex/hexDay';
 
 export const revalidate = 0;
@@ -87,8 +90,26 @@ export async function GET(request: NextRequest) {
     // actually used can be reported below — otherwise there is no way to tell
     // from the outside whether a change to HEX_RESCUE_MIN_HEX reached this
     // deployment, and a Vercel env var only takes effect after a redeploy.
-    const minPrincipalHex = defaultMinPrincipalHex();
+    const baseMinPrincipalHex = defaultMinPrincipalHex();
     const maxPrincipalHex = defaultMaxPrincipalHex();
+    // The gas reserve: under it, only the bigger stakes are rescued, so a low
+    // wallet keeps saving what matters most rather than emptying itself on
+    // small ones. Checked once per run — a run spends a few tens of thousands
+    // of PLS at most, far under the reserve. A dry run has no wallet to guard.
+    const reservePls = defaultReservePls();
+    const reserveMinHex = defaultReserveMinHex();
+    let balancePls: number | null = null;
+    let reserveActive = false;
+    let minPrincipalHex = baseMinPrincipalHex;
+    if (keeper) {
+      const wei = await getBalance('pulsechain', keeper.address);
+      // Unknown balance: stop rather than guess, like an unreadable nonce.
+      if (wei == null) return NextResponse.json({ error: 'could not read keeper balance' }, { status: 503 });
+      balancePls = Number(wei / 10n ** 12n) / 1e6;
+      ({ minPrincipalHex, reserveActive } = floorForBalance(balancePls, {
+        minPrincipalHex: baseMinPrincipalHex, reservePls, reserveMinHex,
+      }));
+    }
     // Same reason as the principal floor: read explicitly so the value actually
     // in force is visible in the report rather than inferred.
     const minHexPerMgas = defaultMinHexPerMgas();
@@ -203,6 +224,10 @@ export async function GET(request: NextRequest) {
       minPrincipalHex,
       maxPrincipalHex,
       minHexPerMgas,
+      // Why minPrincipalHex may be above the configured floor this run.
+      balancePls: balancePls == null ? null : Math.round(balancePls),
+      reservePls,
+      reserveActive,
       stuckFromPriorRun,
       // How the run was paced, and why it ended. Without these a short run
       // reads the same whether it ran out of candidates, ran out of clock, or

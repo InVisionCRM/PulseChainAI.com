@@ -112,6 +112,55 @@ export function defaultMaxPrincipalHex(): number {
 }
 
 /**
+ * The gas reserve, in PLS, from `HEX_RESCUE_RESERVE_PLS` or the fallback.
+ *
+ * Below it, a run stops spending on small stakes and keeps only the ones at or
+ * above `defaultReserveMinHex` — so a low wallet goes on saving the stakes
+ * that matter most instead of draining itself on the long tail and then
+ * saving nothing. 500,000 PLS is about three weeks of the keeper's spend on
+ * 50K+ stakes alone (~23,000 PLS/day, measured Oct 2026).
+ *
+ * `0` disables the guard and is a real setting; only a missing, unparseable or
+ * negative value falls back.
+ */
+export const RESERVE_PLS_FALLBACK = 500_000;
+
+export function defaultReservePls(): number {
+  const raw = (process.env.HEX_RESCUE_RESERVE_PLS ?? '').trim();
+  if (!raw) return RESERVE_PLS_FALLBACK;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : RESERVE_PLS_FALLBACK;
+}
+
+/** The principal floor while the wallet is under the reserve, from
+ *  `HEX_RESCUE_RESERVE_MIN_HEX` or the fallback — the floor the keeper ran on
+ *  before it was lowered to 10K. */
+export const RESERVE_MIN_HEX_FALLBACK = 50_000;
+
+export function defaultReserveMinHex(): number {
+  const raw = (process.env.HEX_RESCUE_RESERVE_MIN_HEX ?? '').trim();
+  if (!raw) return RESERVE_MIN_HEX_FALLBACK;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : RESERVE_MIN_HEX_FALLBACK;
+}
+
+/**
+ * The principal floor a run should use given the wallet's balance: the normal
+ * floor, raised to the reserve floor while the balance is under the reserve.
+ * Never lowers the normal floor.
+ */
+export function floorForBalance(
+  balancePls: number,
+  opts: { minPrincipalHex: number; reservePls: number; reserveMinHex: number },
+): { minPrincipalHex: number; reserveActive: boolean } {
+  const reserveActive = balancePls < opts.reservePls;
+  return {
+    minPrincipalHex: reserveActive ? Math.max(opts.minPrincipalHex, opts.reserveMinHex) : opts.minPrincipalHex,
+    reserveActive,
+  };
+}
+
+/**
  * The value floor: HEX still at risk per MILLION gas it costs to save.
  *
  * The principal floor above asks "is this stake big?", which is the wrong
