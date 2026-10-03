@@ -27,6 +27,8 @@ import { HexAmount, HEX_GRADIENT } from '@/components/hex/HexAmount';
 import { RescuedBy } from '@/components/rescue/RescueBrand';
 import { RescueList } from '@/components/rescue/RescueList';
 import { KeeperPanel, type KeeperFuel } from '@/components/rescue/KeeperPanel';
+import { UpcomingBleeders } from '@/components/rescue/UpcomingBleeders';
+import { findUpcomingBleeders, defaultMinPrincipalHex, defaultMaxPrincipalHex } from '@/lib/hex/rescue';
 import {
   BigStat, HeroNumber, SavedChart, Speedo, type RescueBucket,
 } from '@/components/rescue/RescueDashboard';
@@ -48,6 +50,10 @@ const CARD_LIMIT = 200;
 /** Days of gas spend the fuel gauge averages. Two weeks smooths a busy day
  *  without reaching back into the launch backlog. */
 const FUEL_WINDOW_DAYS = 14;
+
+/** How far ahead the "about to start bleeding" list looks, and how many it shows. */
+const UPCOMING_HOURS = 72;
+const UPCOMING_SHOWN = 10;
 
 /** Live pHEX price for the USD figures. Best effort — the page is fully useful
  *  in HEX alone, so a price outage hides dollars rather than breaking. */
@@ -169,6 +175,10 @@ function Honeycomb() {
 
 export default async function RescueWallPage() {
   const fuelP = keeperFuel();
+  const upcomingP = findUpcomingBleeders('pulsechain', UPCOMING_HOURS);
+  // Marked handled so a failure here while the history below is also failing
+  // is not an unhandled rejection; the await further down still throws it.
+  upcomingP.catch(() => {});
   // The whole history, not a page of it: the totals below are summed from this
   // list, so a cap here would not shorten the wall, it would under-report how
   // much HEX was saved. Cards are capped further down instead.
@@ -179,6 +189,10 @@ export default async function RescueWallPage() {
     hexUsd(),
   ]);
   const fuel = await fuelP;
+  // Null only when the locked-stake index is not ready; the section is left
+  // out then rather than shown short.
+  const upcoming = await upcomingP;
+  const renderedAt = Date.now();
   const t = totalsFor(rescues);
   const { buckets, unit: bucketUnit } = bucketize(rescues);
 
@@ -226,7 +240,7 @@ export default async function RescueWallPage() {
               <span className="font-semibold text-white">every one is still its owner’s.</span>
             </p>
 
-            <div className="mt-7 grid gap-6 sm:grid-cols-3 md:gap-8">
+            <div className="mt-7 grid gap-6 sm:grid-cols-2 md:gap-8">
               <HeroNumber
                 label="Stakes rescued"
                 value={t.count}
@@ -239,12 +253,6 @@ export default async function RescueWallPage() {
                 value={t.claimableHex}
                 fmt="hex"
                 sub={usd(t.claimableHex) ?? 'kept whole at the freeze'}
-              />
-              <HeroNumber
-                label="Bleeding stopped"
-                value={t.bleedStoppedPerDay}
-                fmt="hex"
-                sub={usd(t.bleedStoppedPerDay) ? `${usd(t.bleedStoppedPerDay)} · every day` : 'HEX per day'}
               />
             </div>
           </div>
@@ -302,6 +310,20 @@ export default async function RescueWallPage() {
                 )}
               </div>
             </div>
+
+            {/* ── What is coming next: stakes about to leave their grace ── */}
+            {upcoming && (
+              <div className="mt-3">
+                <UpcomingBleeders
+                  stakes={upcoming}
+                  hours={UPCOMING_HOURS}
+                  shown={UPCOMING_SHOWN}
+                  keeperMinHex={defaultMinPrincipalHex()}
+                  keeperMaxHex={defaultMaxPrincipalHex()}
+                  now={renderedAt}
+                />
+              </div>
+            )}
 
             {/* ── The record over time ── */}
             {buckets.length > 1 && (

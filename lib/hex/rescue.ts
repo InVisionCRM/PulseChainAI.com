@@ -53,7 +53,9 @@
 import { ethCall } from '@/lib/portfolio/evmRpc';
 import { hexSubgraphQuery, type HexNet } from './subgraph';
 import { readRescueCandidates, dbAvailable, getSyncState } from '@/lib/db/hexLockedStakes';
-import { HEX_ADDRESS, LATE_PENALTY_GRACE_DAYS, LATE_PENALTY_SCALE_DAYS, currentHexDay, heartsToHex } from './hexDay';
+import { HEX_ADDRESS, HEX_LAUNCH_TS, LATE_PENALTY_GRACE_DAYS, LATE_PENALTY_SCALE_DAYS, currentHexDay, heartsToHex } from './hexDay';
+import { fetchStakeEnds } from './stakeEnds';
+import { fetchGoodAccountings } from './goodAccounting';
 import type { ChainId } from '@/services';
 
 /** Selectors, computed from the signatures in the verified HEX ABI. */
@@ -381,6 +383,96 @@ export async function findRescueCandidates(
     .sort((a, b) => b.hexPerGas - a.hexPerGas)
     .slice(0, limit);
 }
+export interface UpcomingBleeder {
+  stakeId: string;
+  stakerAddr: string;
+  principalHex: number;
+  /** Unix ms the late-end penalty starts: 00:00 UTC on HEX day endDay + 15. */
+  bleedsAt: number;
+}
+
+/** Window wider than any one page of the locked-stake index should need —
+ *  ~95 stakes a day reach the end of grace still unended (measured Oct 2026). */
+const UPCOMING_LIMIT = 2000;
+
+/**
+ * Stakes that will start bleeding within the next `hours`: matured, still in
+ * their 14-day grace, unended and not good-accounted — biggest first.
+ *
+ * The penalty starts at the beginning of HEX day endDay + 15 (HEX.sol charges
+ * nothing while unlockedDay <= endDay + 14), so the window is a band of end
+ * days. Candidates come from the locked-stake index; because it syncs on a
+ * cron, ended and good-accounted are re-checked live against the subgraph.
+ *
+ * Null when the index is not ready. Throws when the live checks fail or the
+ * window overflows the limit, rather than returning a short list.
+ */
+/** First HEX day a stake ending on `endDay` is charged the late penalty —
+ *  HEX.sol charges nothing while unlockedDay <= endDay + 14. */
+const FIRST_BLEED_OFFSET = LATE_PENALTY_GRACE_DAYS + 1;
+
+/** Unix ms the late-end penalty starts for a stake ending on `endDay`. */
+export const bleedsAtFor = (endDay: number) => (HEX_LAUNCH_TS + (endDay + FIRST_BLEED_OFFSET) * 86_400) * 1000;
+
+/**
+ * The band of end days whose penalty starts within the next `hours`, as the
+ * index query's bounds: end_day >= maturedAfter AND end_day < maturedBefore.
+ * Whole days only; `selectUpcoming` trims the band to the exact hour.
+ */
+export function upcomingWindow(today: number, hours: number): { maturedAfter: number; maturedBefore: number } {
+  return {
+    // Still inside grace: the penalty has not started today or earlier.
+    maturedAfter: today - FIRST_BLEED_OFFSET + 1,
+    // Starts no later than the window's last day.
+    maturedBefore: today - FIRST_BLEED_OFFSET + Math.ceil(hours / 24) + 1,
+  };
+}
+
+/** Index rows minus the ones ended or good-accounted since it synced, timed
+ *  and trimmed to the hour. Keeps the input's order (biggest first). */
+export function selectUpcoming(
+  rows: { stakeId: string; stakerAddr: string; stakedHearts: string; endDay: number }[],
+  ended: { has(id: string): boolean },
+  accounted: { has(id: string): boolean },
+  now: number,
+  hours: number,
+): UpcomingBleeder[] {
+  return rows
+    .filter((r) => !ended.has(r.stakeId) && !accounted.has(r.stakeId))
+    .map((r) => ({
+      stakeId: r.stakeId,
+      stakerAddr: r.stakerAddr,
+      principalHex: heartsToHex(r.stakedHearts),
+      bleedsAt: bleedsAtFor(r.endDay),
+    }))
+    .filter((r) => r.bleedsAt > now && r.bleedsAt - now <= hours * 3_600_000);
+}
+
+/**
+ * Stakes that will start bleeding within the next `hours`: matured, still in
+ * their 14-day grace, unended and not good-accounted — biggest first.
+ *
+ * Candidates come from the locked-stake index; because it syncs on a cron,
+ * ended and good-accounted are re-checked live against the subgraph.
+ *
+ * Null when the index is not ready. Throws when the live checks fail or the
+ * window overflows the limit, rather than returning a short list.
+ */
+export async function findUpcomingBleeders(net: HexNet, hours: number): Promise<UpcomingBleeder[] | null> {
+  const rows = await readRescueCandidates(net, {
+    ...upcomingWindow(currentHexDay(), hours),
+    minHearts: '0',
+    limit: UPCOMING_LIMIT,
+  });
+  if (rows === null) return null;
+  if (rows.length === UPCOMING_LIMIT) throw new Error(`upcoming bleeders: window exceeds ${UPCOMING_LIMIT} stakes`);
+  if (rows.length === 0) return [];
+
+  const ids = rows.map((r) => r.stakeId);
+  const [ended, accounted] = await Promise.all([fetchStakeEnds(net, ids), fetchGoodAccountings(net, ids)]);
+  return selectUpcoming(rows, ended, accounted, Date.now(), hours);
+}
+
 export interface ResolvedStake {
   /** Current index in the staker's stake list. Valid only right now. */
   index: number;
