@@ -248,7 +248,10 @@ export default function StakeHorizon({ net, onSource }: { net: Network; onSource
               sub={usd(data.network_totals.hex) != null ? fmtUsdShort(usd(data.network_totals.hex)!) : `${data.totals.stakes.toLocaleString()} stakes`}
               gradient
             />
-            <HeroNumber label="T-Shares locked" value={data.network_totals.tShares} fmt="int" sub="live, earning" />
+            {/* Compact like its neighbours: as a full integer (42,126,613) it ran
+                wider than its column and over "Biggest single day". The "hex"
+                format is the shared compact one (42.13M) — no HEX symbol. */}
+            <HeroNumber label="T-Shares locked" value={data.network_totals.tShares} fmt="hex" sub="live, earning" />
             <HeroNumber
               label="Biggest single day"
               value={peak?.hex ?? 0}
