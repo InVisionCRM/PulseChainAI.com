@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { IconRefresh, IconMaximize, IconMinimize, IconShare2, IconX } from '@tabler/icons-react';
+import { IconRefresh, IconMaximize, IconMinimize, IconShare2, IconX, IconEyeOff } from '@tabler/icons-react';
 import type { ScreenerRow, ScreenerUiTab, ScreenerFilters } from '@/lib/screener/types';
 import type { ScreenerChain } from './Screener';
 import { fetchPinnedRows } from '@/lib/screener/pinned';
@@ -67,6 +67,30 @@ const DAMP = 0.992; // very light friction so motion persists
 const WANDER = 0.03; // tiny random accel — keeps the field alive
 const MAX_V = 1.5;
 const MIN_V = 0.16;
+
+/** Largest radius a bubble may reach, as a share of the canvas's shorter side.
+ *  0.44 let one runaway token (a +2,355% day) cover most of the field. */
+const MAX_R_FRAC = 0.35;
+
+/** Tokens the viewer has hidden from the field, per device. Keyed by chain and
+ *  address so the same address on two chains is two tokens. */
+const HIDDEN_KEY = 'morbius-bubbles-hidden-v1';
+const hiddenId = (chain: string, address: string) => `${chain}:${address.toLowerCase()}`;
+function readHidden(): Set<string> {
+  try {
+    const raw = localStorage.getItem(HIDDEN_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+function writeHidden(ids: Set<string>) {
+  try { localStorage.setItem(HIDDEN_KEY, JSON.stringify([...ids])); } catch { /* storage blocked: hide for this visit only */ }
+}
+
+/** How long a touch must be held on a bubble to hide it. iOS Safari never
+ *  fires contextmenu, so long-press is timed here rather than left to it. */
+const LONG_PRESS_MS = 550;
 
 type RGB = [number, number, number];
 
@@ -611,6 +635,14 @@ export default function MarketBubbles({ chain, tab, dexId, filters, watchlistPar
   // (not state) because the rAF loop repaints every frame anyway — the ring
   // shows up on the next frame after the fetch lands, no re-render needed.
   const heldRef = useRef<Set<string>>(new Set());
+  // Hidden tokens: the ref is what the fetch and the canvas read (so hiding one
+  // does not refetch the field); the count drives the restore button.
+  const hiddenRef = useRef<Set<string>>(new Set());
+  const [hiddenCount, setHiddenCount] = useState(0);
+  useEffect(() => {
+    hiddenRef.current = readHidden();
+    setHiddenCount(hiddenRef.current.size);
+  }, []);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   /** Mirrors `share_` so unmount cleanup can revoke without re-running. */
   const shareRef = useRef<{ blob: Blob; url: string } | null>(null);
@@ -646,8 +678,16 @@ export default function MarketBubbles({ chain, tab, dexId, filters, watchlistPar
       }
     };
     // Override each token's liquidity with its summed main-pair liquidity.
+    // Hidden tokens are dropped here, and counted out of the page loop below,
+    // so a "100" field still shows 100 bubbles after the viewer hides some.
+    const visible = () =>
+      [...byToken.values()].filter(
+        (e) => !e.rep.baseAddress || !hiddenRef.current.has(hiddenId(e.rep.chainId ?? chain.key, e.rep.baseAddress)),
+      );
     const finalize = (): ScreenerRow[] =>
-      [...byToken.values()].slice(0, count).map((e) => ({ ...e.rep, liquidityUsd: e.mainLiq }));
+      visible()
+        .slice(0, count)
+        .map((e) => ({ ...e.rep, liquidityUsd: e.mainLiq }));
 
     // Pinned tokens (e.g. Morbius) go in first so they always get a bubble and
     // survive the `count` slice, on every tab. They're PulseChain tokens, so
@@ -667,7 +707,7 @@ export default function MarketBubbles({ chain, tab, dexId, filters, watchlistPar
     }
 
     const MAX_PAGES = 24; // safety cap (~1200 pairs scanned)
-    for (let p = 0; p < MAX_PAGES && byToken.size < count; p++) {
+    for (let p = 0; p < MAX_PAGES && visible().length < count; p++) {
       const qs = new URLSearchParams({ tab, window: 'h24', page: String(p) });
       if (dexId) qs.set('dex', dexId);
       if (filters.minLiq !== null) qs.set('minLiq', String(filters.minLiq));
@@ -898,7 +938,7 @@ export default function MarketBubbles({ chain, tab, dexId, filters, watchlistPar
       const area = W * H;
       const unit = Math.sqrt(area / Math.max(1, nodes.length));
       const min = Math.max(4, unit * 0.34);
-      const max = Math.min(Math.min(W, H) * 0.44, Math.max(min * 3, unit * 3.4));
+      const max = Math.min(Math.min(W, H) * MAX_R_FRAC, Math.max(min * 3, unit * 3.4));
       const maxV = Math.max(1e-9, ...nodes.map((n) => sizeVal(n.row, m)));
       let total = 0;
       for (const n of nodes) {
@@ -1047,7 +1087,7 @@ export default function MarketBubbles({ chain, tab, dexId, filters, watchlistPar
       if (isHeld(n, heldRef.current)) {
         html += `<div style="font-size:11px;color:#fbbf24;margin-top:4px;font-weight:600">◉ You hold this</div>`;
       }
-      html += `<div style="${sub};margin-top:5px">Click to open in analyzer →</div>`;
+      html += `<div style="${sub};margin-top:5px">Click to open · right-click to hide</div>`;
       tip.innerHTML = html; tip.style.opacity = '1';
       let tx = n.x + 16; if (tx > W - 184) tx = n.x - 184;
       tip.style.left = `${tx}px`; tip.style.top = `${Math.max(2, n.y - 12)}px`;
@@ -1065,6 +1105,7 @@ export default function MarketBubbles({ chain, tab, dexId, filters, watchlistPar
       if (hover) showTip(hover); else hideTip();
     };
     const onDown = (e: MouseEvent) => {
+      if (e.button !== 0 || Date.now() < suppressUntil) return; // right-click hides; a long-press is not a tap
       const p = mpos(e), n = pick(p);
       if (n) { drag = n; n.fixed = true; downXY = p; lastDrag = p; moved = false; }
     };
@@ -1080,6 +1121,57 @@ export default function MarketBubbles({ chain, tab, dexId, filters, watchlistPar
       }
     };
     const onLeave = () => { if (!drag) { hover = null; hideTip(); } };
+
+    // ── Hide a bubble: right-click on desktop (and long-press on Android, which
+    // fires contextmenu), or a timed long-press on touch for iOS. ──
+    let pressTimer: ReturnType<typeof setTimeout> | null = null;
+    let pressAt: { x: number; y: number } | null = null;
+    /** After a touch long-press, ignore the contextmenu Android also fires and
+     *  the emulated mouse events that follow, so one press hides one bubble and
+     *  never opens the analyzer. */
+    let suppressUntil = 0;
+    function hideNode(n: MNode) {
+      const i = nodes.indexOf(n);
+      if (i < 0) return; // already hidden by the other path of the same press
+      nodes.splice(i, 1);
+      if (n.address) {
+        hiddenRef.current.add(hiddenId(n.row.chainId ?? chain.key, n.address));
+        writeHidden(hiddenRef.current);
+        setHiddenCount(hiddenRef.current.size);
+      }
+      if (hover === n) hover = null;
+      if (drag === n) drag = null;
+      hideTip();
+      computeTargets(); // the rest grow back into the freed space
+    }
+    const cancelPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } pressAt = null; };
+    const onContext = (e: MouseEvent) => {
+      e.preventDefault();
+      cancelPress();
+      if (Date.now() < suppressUntil) return;
+      const n = pick(mpos(e));
+      if (n) hideNode(n);
+    };
+    const touchPos = (t: Touch) => { const r = cvs.getBoundingClientRect(); return { x: t.clientX - r.left, y: t.clientY - r.top }; };
+    const onTouchStart = (e: TouchEvent) => {
+      cancelPress();
+      if (e.touches.length !== 1) return;
+      const p = touchPos(e.touches[0]);
+      const n = pick(p);
+      if (!n) return;
+      pressAt = p;
+      pressTimer = setTimeout(() => {
+        pressTimer = null;
+        suppressUntil = Date.now() + 1000;
+        hideNode(n);
+        navigator.vibrate?.(15);
+      }, LONG_PRESS_MS);
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!pressAt || e.touches.length !== 1) return;
+      const p = touchPos(e.touches[0]);
+      if (Math.hypot(p.x - pressAt.x, p.y - pressAt.y) > 10) cancelPress();
+    };
     const onResize = () => {
       const oldW = W, oldH = H;
       measure();
@@ -1098,6 +1190,11 @@ export default function MarketBubbles({ chain, tab, dexId, filters, watchlistPar
     cvs.addEventListener('mousedown', onDown);
     window.addEventListener('mouseup', onUp);
     cvs.addEventListener('mouseleave', onLeave);
+    cvs.addEventListener('contextmenu', onContext);
+    cvs.addEventListener('touchstart', onTouchStart, { passive: true });
+    cvs.addEventListener('touchmove', onTouchMove, { passive: true });
+    cvs.addEventListener('touchend', cancelPress);
+    cvs.addEventListener('touchcancel', cancelPress);
     window.addEventListener('resize', onResize);
     raf = requestAnimationFrame(frame);
 
@@ -1108,6 +1205,12 @@ export default function MarketBubbles({ chain, tab, dexId, filters, watchlistPar
       cvs.removeEventListener('mousedown', onDown);
       window.removeEventListener('mouseup', onUp);
       cvs.removeEventListener('mouseleave', onLeave);
+      cvs.removeEventListener('contextmenu', onContext);
+      cvs.removeEventListener('touchstart', onTouchStart);
+      cvs.removeEventListener('touchmove', onTouchMove);
+      cvs.removeEventListener('touchend', cancelPress);
+      cvs.removeEventListener('touchcancel', cancelPress);
+      cancelPress();
       window.removeEventListener('resize', onResize);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1154,6 +1257,22 @@ export default function MarketBubbles({ chain, tab, dexId, filters, watchlistPar
               </button>
             ))}
           </div>
+          {hiddenCount > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                hiddenRef.current = new Set();
+                writeHidden(hiddenRef.current);
+                setHiddenCount(0);
+                void load();
+              }}
+              disabled={status === 'loading'}
+              className="flex items-center gap-1 rounded-md border border-[var(--line)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--text-faint)] transition-colors hover:text-[var(--text)] disabled:opacity-40"
+              title="Show the bubbles you hid again"
+            >
+              <IconEyeOff className="h-3.5 w-3.5" /> {hiddenCount} hidden · show
+            </button>
+          )}
           <button
             type="button"
             onClick={() => void share()}
@@ -1209,8 +1328,9 @@ export default function MarketBubbles({ chain, tab, dexId, filters, watchlistPar
               ref={canvasRef}
               role="img"
               aria-label="Floating bubble map of tokens sized by the selected metric, coloured by 24h performance"
-              className="block w-full rounded-lg border border-[var(--line)]"
-              style={{ height: fs ? '100%' : CANVAS_H }}
+              className="block w-full select-none rounded-lg border border-[var(--line)]"
+              // No iOS long-press callout: a long-press here hides the bubble.
+              style={{ height: fs ? '100%' : CANVAS_H, WebkitTouchCallout: 'none' }}
             />
             <div
               ref={tipRef}

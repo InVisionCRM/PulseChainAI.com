@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import AdBanner from '@/components/ads/AdBanner';
+import AiCodeAgentAd from '@/components/ads/AiCodeAgentAd';
 import HomeSearchBar from '@/components/HomeSearchBar';
 import Screener from '@/components/Screener/Screener';
 import { WatchlistPanel } from '@/components/portfolio/WatchlistPanel';
@@ -22,7 +22,7 @@ export default function Home(): React.JSX.Element {
           (z-60). The screener table's own sticky header is scoped to its
           overflow-auto box, so the two never fight. */}
       <div className="sticky top-0 z-40 w-full border-b border-[var(--line)] bg-[var(--app-bg)] px-3 py-2 shadow-[0_8px_16px_-12px_rgba(0,0,0,0.8)] md:px-4">
-        <AdBanner />
+        <AiCodeAgentAd />
       </div>
       {/* Search bar is the hero of the page body, directly under the strip. */}
       <div className="w-full px-3 pt-3 md:px-4">

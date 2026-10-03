@@ -34,7 +34,8 @@ const PHRASES = [
 ];
 
 // Typewriter: type a phrase, hold, delete, advance. Pure timers, no deps.
-function useTypewriter(phrases: string[]) {
+// `phrases` must be a stable reference (a module constant) — it is an effect dep.
+export function useTypewriter(phrases: string[]) {
   const [text, setText] = useState('');
   useEffect(() => {
     let phrase = 0;
