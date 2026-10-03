@@ -349,7 +349,11 @@ export async function readRescueCandidates(
       AND end_day < ${opts.maturedBefore}
       AND end_day >= ${opts.maturedAfter ?? 0}
       AND staked_hearts >= ${opts.minHearts}::numeric
-    ORDER BY staked_hearts DESC
+    -- Qualified on purpose: a bare 'staked_hearts' here names the ::text output
+    -- alias above, not the column, and sorts the amounts as strings — 9,999 HEX
+    -- ahead of 47,400 and 100M last. That fed both the keeper and the Active
+    -- penalties board an alphabetical "biggest first".
+    ORDER BY hex_locked_stakes.staked_hearts DESC
     LIMIT ${opts.limit}`;
 
   return rows.map((r: any) => ({
