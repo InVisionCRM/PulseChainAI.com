@@ -96,7 +96,7 @@ unsure. The owner cannot double-check you — accuracy is the whole job.
 ### RPC endpoints (JSON-RPC nodes — return raw chain data, NOT decoded history)
 - **PulseChain (369)** — canonical list from chainlist.org. These are healthy
   public nodes; use them, don't invent others. HTTPS:
-  `rpc.pulsechainstats.com` ("pulsechain stats"), `pulsechain-rpc.publicnode.com`,
+  `pulsechain-rpc.publicnode.com`,
   `rpc.degenprotocol.io`, `rpc.gigatheminter.com`, `rpc-pulsechain.g4mm4.io`
   ("gamma"), `rpc.pulsechainrpc.com`, `rpc.swiftnodes.io/rpc/pulsechain`,
   `rpc.hairylabs.io`, `evex.cloud/pulserpc`,
@@ -104,7 +104,7 @@ unsure. The owner cannot double-check you — accuracy is the whole job.
   WebSocket (WSS): `pulsechain-rpc.publicnode.com`, `rpc.hairylabs.io/ws`,
   `ws.pulsechainrpc.com`, `evex.cloud/pulsews`.
   In-app server pool (`lib/portfolio/evmRpc.ts` + portfolio routes):
-  `rpc.pulsechainstats.com`, `rpc.pulsechainrpc.com`,
+  `rpc.pulsechainrpc.com`,
   `pulsechain-rpc.publicnode.com`, `rpc.gigatheminter.com`,
   `rpc-pulsechain.g4mm4.io`, `rpc.degenprotocol.io`.
   Override: `PULSECHAIN_RPC_URL` / `NEXT_PUBLIC_PULSECHAIN_RPC_URL`.
@@ -158,6 +158,9 @@ per-day they match GeckoTerminal to 1.005× over 20 days. Those are safe to use.
   `app/api/pulsechain-graphql-proxy`.
 
 ### ⛔ Banned / never use
+- **`rpc.pulsechain.com`** — retired; never use it, not even as a default.
+- **`rpc.pulsechainstats.com`** — dropped 2026-10-03: its TLS certificate
+  failed verification while every other node in the pool passed.
 - **Any paid / metered API** (Moralis, paid RPC tiers, paid data providers).
   Cost is never an acceptable default for an API here — the owner runs on free
   tiers. If the only solution costs money, STOP and say so; don't ship it.

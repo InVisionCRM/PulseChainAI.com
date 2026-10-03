@@ -1,6 +1,8 @@
 // Enhanced PulseChain API Service for Comprehensive Blockchain Analysis
 // Phase 2: Extended functionality with full endpoint coverage
 
+import { getChain } from '@/lib/chains/registry';
+
 const PULSECHAIN_API_BASE = '/api/pulsechain-proxy';
 
 export interface TokenInfo {
@@ -662,7 +664,7 @@ class PulseChainApiService {
   }
 
   // JSON-RPC Methods for Contract Calls
-  private rpcUrl = 'https://rpc.pulsechain.com';
+  private rpcUrl = getChain('pulsechain').rpcUrls[0];
 
   /**
    * Make a JSON-RPC eth_call to read contract data

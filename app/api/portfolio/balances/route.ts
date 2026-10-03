@@ -31,7 +31,6 @@ const CACHE_TTL_MS = 30_000;
 // the portfolio still shows something instead of an empty wallet.
 const RPC_URLS: Record<ChainId, string[]> = {
   pulsechain: [
-    'https://rpc.pulsechainstats.com',
     'https://rpc.pulsechainrpc.com',
     'https://pulsechain-rpc.publicnode.com',
     'https://rpc.gigatheminter.com',

@@ -13,12 +13,8 @@
 //    uint16 lockedDay, uint16 stakedDays, uint16 unlockedDay, bool isAutoStake)
 
 import { HEX_ADDRESS } from './hexDay';
+import { ethCall as poolEthCall } from '@/lib/portfolio/evmRpc';
 import type { HexNet } from './subgraph';
-
-const RPC_URL: Record<HexNet, string> = {
-  pulsechain: process.env.PULSECHAIN_RPC_URL || 'https://rpc.pulsechain.com',
-  ethereum: process.env.ETHEREUM_RPC_URL || 'https://ethereum-rpc.publicnode.com',
-};
 
 const SEL_STAKE_COUNT = '0x33060d90';
 const SEL_STAKE_LISTS = '0x2607443b';
@@ -28,15 +24,11 @@ const addrArg = (addr: string) => pad32(addr.toLowerCase().replace(/^0x/, ''));
 const uintArg = (n: number) => pad32(n.toString(16));
 
 async function ethCall(net: HexNet, data: string): Promise<string> {
-  const res = await fetch(RPC_URL[net], {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to: HEX_ADDRESS, data }, 'latest'] }),
-  });
-  if (!res.ok) throw new Error(`${net} RPC HTTP ${res.status}`);
-  const j = await res.json();
-  if (j.error) throw new Error(`${net} RPC: ${j.error.message || 'eth_call error'}`);
-  return j.result as string;
+  // The shared failover pool (lib/portfolio/evmRpc.ts), not one node: a single
+  // dead endpoint used to fail every read here.
+  const r = await poolEthCall(net, HEX_ADDRESS, data);
+  if (r == null) throw new Error(`${net} RPC: every endpoint failed for eth_call`);
+  return r;
 }
 
 export interface OnChainStake {
