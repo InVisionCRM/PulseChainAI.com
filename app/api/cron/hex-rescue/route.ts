@@ -49,11 +49,13 @@ import { estimateGas, getBalance, getBaseFee, getGasPrice, getPendingBids, type 
 import { HEX_ADDRESS, LATE_PENALTY_SCALE_DAYS } from '@/lib/hex/hexDay';
 
 export const revalidate = 0;
-export const maxDuration = 60;
+// 5 minutes (Vercel Pro allows up to 800s). Paired with the 10-minute schedule in
+// vercel.json, so a run always ends before the next one starts.
+export const maxDuration = 300;
 
 /** Stop starting new stakes past this, leaving room to finish the one in hand
  *  and return a report rather than being killed mid-flight. */
-const TIME_BUDGET_MS = 45_000;
+const TIME_BUDGET_MS = 270_000;
 /**
  * How many stakes one run may rescue in total.
  *
@@ -66,11 +68,11 @@ const TIME_BUDGET_MS = 45_000;
  *
  * So the run works in WAVES of MAX_IN_FLIGHT, waiting for each to confirm
  * before starting the next, up to this many in total. In practice TIME_BUDGET_MS
- * ends the run long before 200 on a single serverless invocation — the cap is
+ * ends the run long before 500 on a single serverless invocation — the cap is
  * there so a long-running or more frequent schedule is not the thing that
  * limits it.
  */
-const MAX_PER_RUN = 200;
+const MAX_PER_RUN = 500;
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
