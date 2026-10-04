@@ -249,7 +249,12 @@ async function enrich(net: HexNet, rescues: Rescue[]): Promise<Rescue[]> {
     if (ga) {
       r.principalHex = ga.principalHex;
       r.payoutHex = ga.payoutHex;
-      r.penaltyHex = ga.penaltyHex;
+      // The event's penalty is NOT capped: HEX computes gross × daysLate / 700
+      // and only caps what it takes (`cappedPenalty`) at the gross. A stake
+      // 1,305 days late records 186% of its gross. What was actually taken —
+      // and split 50/50 between Origin and the stakers' payout pool — is the
+      // capped amount.
+      r.penaltyHex = Math.min(ga.penaltyHex, ga.principalHex + ga.payoutHex);
       r.claimableHex = Math.max(0, ga.principalHex + ga.payoutHex - ga.penaltyHex);
       r.bleedPerDay = (ga.principalHex + ga.payoutHex) / LATE_PENALTY_SCALE_DAYS;
     }
