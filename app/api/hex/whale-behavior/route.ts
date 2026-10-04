@@ -4,6 +4,7 @@ import {
   classifyEnds, behaviorSummary,
   type StakeRecord, type OutflowRecord,
 } from '@/lib/hex/whaleBehavior';
+import { ethCall } from '@/lib/portfolio/evmRpc';
 
 export const revalidate = 0;
 // Pages the wallet's HEX transfer history + resolves DEX pairs over RPC.
@@ -64,10 +65,6 @@ const EXPLORER: Record<Net, string> = {
   pulsechain: 'https://api.scan.pulsechain.com/api/v2',
   ethereum: 'https://eth.blockscout.com/api/v2',
 };
-const RPC_URL: Record<Net, string> = {
-  pulsechain: process.env.PULSECHAIN_RPC_URL || 'https://rpc.pulsechain.com',
-  ethereum: process.env.ETHEREUM_RPC_URL || 'https://ethereum-rpc.publicnode.com',
-};
 
 interface RawTransfer { ts: number; to: string; toIsContract: boolean; hex: number; tx: string }
 
@@ -109,20 +106,6 @@ async function hexTransfersOut(net: Net, addr: string): Promise<{ out: RawTransf
   return { out, oldestActivityTs: oldest };
 }
 
-async function ethCall(net: Net, to: string, data: string): Promise<string | null> {
-  try {
-    const res = await fetch(RPC_URL[net], {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to, data }, 'latest'] }),
-    });
-    if (!res.ok) return null;
-    const j = await res.json();
-    return typeof j.result === 'string' ? j.result : null;
-  } catch {
-    return null;
-  }
-}
 
 const addrFromWord = (r: string | null) => (r && r.length >= 66 ? '0x' + r.slice(-40).toLowerCase() : null);
 

@@ -39,8 +39,6 @@ const BLOCKSCOUT = 'https://api.scan.pulsechain.com/api';
 const ARCHIVE_RPCS = [
   'https://rpc-pulsechain.g4mm4.io',
   'https://rpc.pulsechainrpc.com',
-  'https://rpc.gigatheminter.com',
-  'https://rpc.degenprotocol.io',
 ];
 
 // Historical burns never change, so this only really refreshes to pick up the
