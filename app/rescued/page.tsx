@@ -118,12 +118,15 @@ function bucketize(rescues: Rescue[]): { buckets: RescueBucket[]; unit: string }
           : fmt(at, { month: 'long', year: 'numeric' }),
       hex: 0,
       count: 0,
+      paid: 0,
     });
   }
   for (const r of stamped) {
     const b = map.get(startOf(r.timestamp))!;
     b.hex += r.claimableHex ?? 0;
     b.count += 1;
+    // Stakers' half of the penalty this freeze released (HEX splits it 50/50 with Origin).
+    b.paid += (r.penaltyHex ?? 0) / 2;
   }
   return {
     buckets: [...map.values()],

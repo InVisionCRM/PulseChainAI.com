@@ -36,9 +36,12 @@ export interface RescueBucket {
   hex: number;
   /** Rescues in this bucket. */
   count: number;
+  /** Penalty HEX these rescues sent to the stakers' payout pool — HEX gives
+   *  half of every penalty to stakers (`_splitPenaltyProceeds`). */
+  paid: number;
 }
 
-type Metric = 'count' | 'hex';
+type Metric = 'count' | 'hex' | 'paid';
 
 const compact = (n: number) =>
   n >= 1e9 ? `${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(n >= 1e4 ? 0 : 1)}K` : `${Math.round(n)}`;
@@ -95,7 +98,7 @@ export function SavedChart({ buckets, price, unit }: { buckets: RescueBucket[]; 
   if (buckets.length === 0) return null;
 
   const n = buckets.length;
-  const values = buckets.map((b) => (metric === 'count' ? b.count : b.hex));
+  const values = buckets.map((b) => (metric === 'count' ? b.count : metric === 'hex' ? b.hex : b.paid));
   const { top, capped } = axisTop(values, metric === 'count');
   // Neighbouring bars past the cap share one label ("58 · 592 · 280"): three
   // labels over three 6px bars printed on top of each other.
@@ -138,18 +141,19 @@ export function SavedChart({ buckets, price, unit }: { buckets: RescueBucket[]; 
 
   const total = metric === 'count'
     ? `${buckets.reduce((a, b) => a + b.count, 0).toLocaleString()} rescues`
-    : `${compact(buckets.reduce((a, b) => a + b.hex, 0))} HEX`;
+    : `${compact(buckets.reduce((a, b) => a + (metric === 'hex' ? b.hex : b.paid), 0))} HEX`;
+  const heading = metric === 'count' ? 'Stakes rescued' : metric === 'hex' ? 'HEX saved' : 'Penalties paid to stakers';
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="font-poppins text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
-          {metric === 'count' ? 'Stakes rescued' : 'HEX saved'}, {unit}
+          {heading}, {unit}
         </div>
         <div className="flex items-center gap-2">
           <span className="font-poppins text-[10px] tabular-nums text-[var(--text-faint)]">{total}</span>
           <div role="group" aria-label="Measure" className="flex rounded-full border border-[var(--line)] p-0.5">
-            {([['count', 'Stakes'], ['hex', 'HEX']] as const).map(([k, label]) => (
+            {([['count', 'Stakes'], ['hex', 'HEX'], ['paid', 'Paid out']] as const).map(([k, label]) => (
               <button
                 key={k}
                 type="button"
@@ -259,6 +263,10 @@ export function SavedChart({ buckets, price, unit }: { buckets: RescueBucket[]; 
                   {compact(buckets[hover].hex)} HEX saved
                   {usd(buckets[hover].hex) ? ` · ${usd(buckets[hover].hex)}` : ''}
                 </div>
+                <div className="font-poppins whitespace-nowrap text-[11px] text-[var(--text-muted)] tabular-nums">
+                  {compact(buckets[hover].paid)} HEX paid to stakers
+                  {usd(buckets[hover].paid) ? ` · ${usd(buckets[hover].paid)}` : ''}
+                </div>
               </div>
             )}
           </div>
@@ -290,11 +298,11 @@ export function SavedChart({ buckets, price, unit }: { buckets: RescueBucket[]; 
       )}
 
       <table className="sr-only">
-        <caption>{metric === 'count' ? 'Stakes rescued' : 'HEX saved'}, {unit}</caption>
-        <thead><tr><th>Period</th><th>Stakes</th><th>HEX saved</th></tr></thead>
+        <caption>{heading}, {unit}</caption>
+        <thead><tr><th>Period</th><th>Stakes</th><th>HEX saved</th><th>Penalties paid to stakers</th></tr></thead>
         <tbody>
           {buckets.map((b) => (
-            <tr key={b.title}><td>{b.title}</td><td>{b.count}</td><td>{Math.round(b.hex)}</td></tr>
+            <tr key={b.title}><td>{b.title}</td><td>{b.count}</td><td>{Math.round(b.hex)}</td><td>{Math.round(b.paid)}</td></tr>
           ))}
         </tbody>
       </table>
