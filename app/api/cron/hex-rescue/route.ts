@@ -47,6 +47,7 @@ import {
 import { loadKeeper, signAndSend, checkNonce, waitForInFlight, MAX_IN_FLIGHT } from '@/lib/hex/rescueWallet';
 import { estimateGas, getBalance, getBaseFee, getGasPrice, getPendingBids, type PendingBid } from '@/lib/portfolio/evmRpc';
 import { HEX_ADDRESS, LATE_PENALTY_SCALE_DAYS } from '@/lib/hex/hexDay';
+import { markGoodAccounted } from '@/lib/db/hexLockedStakes';
 
 export const revalidate = 0;
 // 5 minutes (Vercel Pro allows up to 800s). Paired with the 10-minute schedule in
@@ -153,13 +154,25 @@ export async function GET(request: NextRequest) {
     let attempted = 0;
     /** Drained stakes frozen this run — see rankCandidates. */
     let drainedFrozen = 0;
+    /**
+     * Candidates the chain shows are already frozen, written back to the
+     * mirror at the end of the run. The mirror only syncs once a day, so
+     * without this every stake frozen since that sync stays a candidate, ranks
+     * at the top (it was picked for ranking high), and is re-read on chain by
+     * every run before any new work — measured on 2026-10-04 at ~1,600
+     * sequential calls by evening, most of the time budget, with runs falling
+     * from 75 rescues to 12. Recorded only on proof from the chain, never on
+     * send: a transaction that never mines must leave its stake a candidate.
+     */
+    const confirmedFrozen: string[] = [];
 
     for (const c of candidates) {
       if (attempted >= MAX_PER_RUN || Date.now() - started > TIME_BUDGET_MS) break;
 
       // The chain decides, not the indexer — it may be blocks behind.
       const resolved = await resolveStake('pulsechain', c.stakerAddr, c.stakeId);
-      if (!resolved) continue; // already ended or good-accounted: no work, no gas
+      if (resolved === 'frozen') { confirmedFrozen.push(c.stakeId); continue; }
+      if (!resolved) continue; // ended, or unreadable: no work, no gas
 
       // One wave at a time. Past the in-flight bound this waits for the
       // outstanding transactions to confirm rather than queueing behind them.
@@ -225,6 +238,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const markedFrozen = await markGoodAccounted('pulsechain', confirmedFrozen);
+
     const costPls = displayPrice ? Number(totalGas * displayPrice) / 1e18 : null;
     return NextResponse.json({
       success: problems.length === 0,
@@ -248,6 +263,8 @@ export async function GET(request: NextRequest) {
       candidates: candidates.length,
       rescued: rescued.length,
       drainedFrozen,
+      // Already frozen on chain, now dropped from the mirror's candidates.
+      markedFrozen,
       hexFrozen: Math.round(hexFrozen),
       bleedStoppedPerDay: Math.round(bleedStopped),
       gasUsed: totalGas.toString(),
