@@ -1,7 +1,7 @@
 'use client';
 
 // The Rescue Wall's instrument cluster: speedometer gauges, big animated
-// figures, and the month-by-month record of HEX saved.
+// figures, and the day/week/month record of HEX saved.
 //
 // Every animation here runs ONCE, on arrival, and settles. The previous
 // diagram re-rendered at 60fps on an infinite nine-second loop, which read as
@@ -17,7 +17,9 @@
 // The generic pieces (Speedo, BigStat, HeroNumber, useSettled) now live in
 // components/hex/Instruments.tsx; what stays here is rescue-shaped.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { IconX } from '@tabler/icons-react';
 import { EASE, useSettled } from '@/components/hex/Instruments';
 
 // The generic instruments moved to components/hex/Instruments so the
@@ -27,21 +29,96 @@ export { Speedo, BigStat, HeroNumber, type StatFmt } from '@/components/hex/Inst
 
 /* ─────────────────────────── the record over time ─────────────────────────── */
 
-export interface RescueBucket {
-  /** Axis label: "Sep 19" or "Sep" — already formatted by the server. */
-  label: string;
-  /** Tooltip heading: "Fri, Sep 19", "Week of Sep 15", "September 2026". */
-  title: string;
-  /** HEX saved (claimable at rescue time) in this bucket. */
-  hex: number;
-  /** Rescues in this bucket. */
-  count: number;
-  /** Penalty HEX these rescues sent to the stakers' payout pool — HEX gives
-   *  half of every penalty to stakers (`_splitPenaltyProceeds`). */
+/** One rescue, as much of it as the chart and its period list show. No tx
+ *  hash: at 64 incompressible characters it was most of the page weight this
+ *  adds, and each stake's own page (/rescued/<id>) carries the proof link. */
+export interface RescuePoint {
+  /** Unix ms the rescue was mined. */
+  t: number;
+  stakeId: string;
+  /** HEX saved: what the staker could still claim at rescue time. */
+  saved: number;
+  /** The stakers' half of the penalty this freeze released — HEX splits every
+   *  penalty 50/50 with Origin (`_splitPenaltyProceeds`). */
   paid: number;
 }
 
+interface RescueBucket {
+  /** Axis label: "Sep 19" or "Sep". */
+  label: string;
+  /** Tooltip and list heading: "Fri, Sep 19", "Week of Sep 15", "September 2026". */
+  title: string;
+  hex: number;
+  count: number;
+  paid: number;
+  /** The rescues in this period, for the expanded list. */
+  items: RescuePoint[];
+}
+
 type Metric = 'count' | 'hex' | 'paid';
+type Grain = 'day' | 'week' | 'month';
+
+const DAY = 86_400_000;
+
+/** The default: daily while the record is young, weekly, then monthly once it
+ *  spans a season — two lonely monthly rectangles say as little as seven
+ *  hundred daily slivers. The switch overrides it. */
+function autoGrain(points: RescuePoint[]): Grain {
+  const ts = points.map((p) => p.t);
+  const span = Math.max(...ts) - Math.min(...ts);
+  return span < 45 * DAY ? 'day' : span < 200 * DAY ? 'week' : 'month';
+}
+
+/**
+ * Every bucket in the span is drawn, including the empty ones: skipping a
+ * quiet day would put its neighbours side by side and make the time axis lie.
+ * All dates are UTC, so the server render and the browser agree.
+ */
+function bucketize(points: RescuePoint[], grain: Grain): RescueBucket[] {
+  const ts = points.map((p) => p.t);
+  const min = Math.min(...ts);
+  const max = Math.max(...ts);
+  /** UTC start of the bucket holding `ms`: its day, its Monday, or its 1st. */
+  const startOf = (ms: number) => {
+    const d = new Date(ms);
+    if (grain === 'month') return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+    const day = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    return grain === 'week' ? day - ((new Date(day).getUTCDay() + 6) % 7) * DAY : day;
+  };
+  const next = (at: number) => {
+    if (grain === 'day') return at + DAY;
+    if (grain === 'week') return at + 7 * DAY;
+    const d = new Date(at);
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
+  };
+  const fmt = (at: number, o: Intl.DateTimeFormatOptions) =>
+    new Date(at).toLocaleDateString('en-US', { ...o, timeZone: 'UTC' });
+
+  const map = new Map<number, RescueBucket>();
+  for (let at = startOf(min); at <= startOf(max); at = next(at)) {
+    map.set(at, {
+      label: grain === 'month' ? fmt(at, { month: 'short' }) : fmt(at, { month: 'short', day: 'numeric' }),
+      title:
+        grain === 'day' ? fmt(at, { weekday: 'short', month: 'short', day: 'numeric' })
+          : grain === 'week' ? `Week of ${fmt(at, { month: 'short', day: 'numeric' })}`
+          : fmt(at, { month: 'long', year: 'numeric' }),
+      hex: 0,
+      count: 0,
+      paid: 0,
+      items: [],
+    });
+  }
+  for (const p of points) {
+    const b = map.get(startOf(p.t))!;
+    b.hex += p.saved;
+    b.count += 1;
+    b.paid += p.paid;
+    b.items.push(p);
+  }
+  return [...map.values()];
+}
+
+const UNIT: Record<Grain, string> = { day: 'day by day', week: 'week by week', month: 'month by month' };
 
 const compact = (n: number) =>
   n >= 1e9 ? `${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(n >= 1e4 ? 0 : 1)}K` : `${Math.round(n)}`;
@@ -71,35 +148,80 @@ function axisTop(values: number[], whole: boolean): { top: number; capped: boole
   return { top: niceCeil(max, whole), capped: false };
 }
 
+/** Narrowest a bar's slot may get (bar + 2px gap) before the plot scrolls
+ *  sideways instead — past that a day of history is a hairline. */
+const MIN_SLOT_PX = 6;
+
+/** A small segmented switch, shared by the measure and the period. */
+function Segmented<K extends string>({ label, options, value, onChange }: {
+  label: string; options: readonly (readonly [K, string])[]; value: K; onChange: (k: K) => void;
+}) {
+  return (
+    <div role="group" aria-label={label} className="flex rounded-full border border-[var(--line)] p-0.5">
+      {options.map(([k, text]) => (
+        <button
+          key={k}
+          type="button"
+          onClick={() => onChange(k)}
+          aria-pressed={value === k}
+          className={`font-poppins rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
+            value === k ? 'bg-[var(--surface-3)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+          }`}
+        >
+          {text}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /**
- * The record, bucket by bucket: stakes rescued or HEX saved — one measure at a
- * time on one axis, switched, never two scales at once.
+ * The record, period by period: stakes rescued, HEX saved, or penalties paid
+ * to stakers — one measure at a time on one axis, switched, never two scales
+ * at once. Day, week or month at the reader's choice; tap a bar to list every
+ * stake in it.
  *
  * Built from HTML rather than a scaled SVG on purpose: a viewBox shrinks its
  * text with the chart, which on a phone drew the 45 day labels at ~5px on top
  * of each other. Here bars are flex columns with a true 2px gap, and the axis
  * shows only as many dates as fit the measured width, anchored on the latest.
  */
-export function SavedChart({ buckets, price, unit }: { buckets: RescueBucket[]; price: number | null; unit: string }) {
+export function SavedChart({ points, price }: { points: RescuePoint[]; price: number | null }) {
   const { on, instant } = useSettled();
   const [metric, setMetric] = useState<Metric>('count');
+  const [grain, setGrain] = useState<Grain>(() => autoGrain(points));
   const [hover, setHover] = useState<number | null>(null);
-  const [width, setWidth] = useState(640);
-  const plot = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState<number | null>(null);
+  const [view, setView] = useState(640);
+  const [scrollX, setScrollX] = useState(0);
+  const scroller = useRef<HTMLDivElement>(null);
+
+  const buckets = useMemo(() => bucketize(points, grain), [points, grain]);
+  const n = buckets.length;
 
   useEffect(() => {
-    const el = plot.current;
+    const el = scroller.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width));
+    const ro = new ResizeObserver(([e]) => setView(e.contentRect.width));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  if (buckets.length === 0) return null;
+  // A new period size is a new set of bars: drop the old selection and show
+  // the newest end, where the reader is most likely looking.
+  useEffect(() => {
+    setOpen(null);
+    setHover(null);
+    const el = scroller.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [grain]);
 
-  const n = buckets.length;
+  if (n === 0) return null;
+
   const values = buckets.map((b) => (metric === 'count' ? b.count : metric === 'hex' ? b.hex : b.paid));
   const { top, capped } = axisTop(values, metric === 'count');
+  /** Width the bars are laid out across: the card, or wider and scrolled. */
+  const width = Math.max(view, n * MIN_SLOT_PX);
   // Neighbouring bars past the cap share one label ("58 · 592 · 280"): three
   // labels over three 6px bars printed on top of each other.
   const runs: { from: number; to: number }[] = [];
@@ -131,6 +253,9 @@ export function SavedChart({ buckets, price, unit }: { buckets: RescueBucket[]; 
     l.row = row;
   }
   const rows = capped ? rowEnds.length : 0;
+  /** Room above the plot for the direct labels. Inside the scroller as
+   *  padding, because a scrolling box clips whatever sticks out of it. */
+  const labelRoom = 16 + Math.max(0, rows - 1) * 15;
 
   // One date per ~58px, counted back from the newest so today is always named.
   const every = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(width / 58))));
@@ -144,35 +269,44 @@ export function SavedChart({ buckets, price, unit }: { buckets: RescueBucket[]; 
     : `${compact(buckets.reduce((a, b) => a + (metric === 'hex' ? b.hex : b.paid), 0))} HEX`;
   const heading = metric === 'count' ? 'Stakes rescued' : metric === 'hex' ? 'HEX saved' : 'Penalties paid to stakers';
 
+  // The readout sits outside the scroller so it is never clipped: placed at
+  // the hovered bar's on-screen x, pinned to whichever side keeps it in the card.
+  const hoverX = hover == null ? 0 : (pct(hover) / 100) * width - scrollX;
+  const shown = open != null ? buckets[open] : null;
+  // Biggest first by the measure being read; by time when counting stakes.
+  const rowsShown = shown
+    ? [...shown.items].sort((a, b) => (metric === 'hex' ? b.saved - a.saved : metric === 'paid' ? b.paid - a.paid : b.t - a.t))
+    : [];
+
   return (
     <div className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="font-poppins text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
-          {heading}, {unit}
+          {heading}, {UNIT[grain]}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="font-poppins text-[10px] tabular-nums text-[var(--text-faint)]">{total}</span>
-          <div role="group" aria-label="Measure" className="flex rounded-full border border-[var(--line)] p-0.5">
-            {([['count', 'Stakes'], ['hex', 'HEX'], ['paid', 'Paid out']] as const).map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setMetric(k)}
-                aria-pressed={metric === k}
-                className={`font-poppins rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
-                  metric === k ? 'bg-[var(--surface-3)] text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            label="Measure"
+            options={[['count', 'Stakes'], ['hex', 'HEX'], ['paid', 'Paid out']] as const}
+            value={metric}
+            onChange={setMetric}
+          />
+          <Segmented
+            label="Period"
+            options={[['day', 'Day'], ['week', 'Week'], ['month', 'Month']] as const}
+            value={grain}
+            onChange={setGrain}
+          />
         </div>
       </div>
 
-      <div className="flex gap-2" style={{ marginTop: 16 + Math.max(0, rows - 1) * 15 }}>
+      <div className="flex gap-2">
         {/* y ticks: clean numbers, recessive ink */}
-        <div className="font-poppins relative h-40 w-9 shrink-0 text-right text-[10px] tabular-nums text-[var(--text-faint)]">
+        <div
+          className="font-poppins relative h-40 w-9 shrink-0 text-right text-[10px] tabular-nums text-[var(--text-faint)]"
+          style={{ marginTop: labelRoom }}
+        >
           {ticks.map((v, i) => (
             <span key={i} className="absolute right-0 -translate-y-1/2" style={{ top: `${(i / 2) * 100}%` }}>
               {fmtV(v)}{i === 0 && capped ? '+' : ''}
@@ -180,125 +314,192 @@ export function SavedChart({ buckets, price, unit }: { buckets: RescueBucket[]; 
           ))}
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="relative min-w-0 flex-1">
           <div
-            ref={plot}
-            className="relative h-40"
-            onPointerLeave={() => setHover(null)}
+            ref={scroller}
+            className="overflow-x-auto overflow-y-hidden"
+            style={{ paddingTop: labelRoom }}
+            onScroll={(e) => setScrollX(e.currentTarget.scrollLeft)}
           >
-            {ticks.map((_, i) => (
-              <div
-                key={i}
-                aria-hidden
-                className="absolute inset-x-0 border-t"
-                style={{ top: `${(i / 2) * 100}%`, borderColor: 'var(--line)', borderStyle: i === 2 ? 'solid' : 'dashed', opacity: i === 2 ? 1 : 0.6 }}
-              />
-            ))}
-
-            <div className="absolute inset-0 flex items-end gap-[2px]">
-              {buckets.map((b, i) => {
-                const v = values[i];
-                const over = v > top;
-                const h = v === 0 ? 0 : Math.max(2, (Math.min(v, top) / top) * 100);
-                return (
+            <div style={{ width }}>
+              <div className="relative h-40" onPointerLeave={() => setHover(null)}>
+                {ticks.map((_, i) => (
                   <div
-                    key={b.title}
-                    className="relative flex h-full min-w-0 flex-1 items-end"
-                    onPointerEnter={() => setHover(i)}
-                    onPointerDown={() => setHover(i)}
-                  >
-                    <div
-                      className="w-full rounded-t-[4px]"
+                    key={i}
+                    aria-hidden
+                    className="absolute inset-x-0 border-t"
+                    style={{ top: `${(i / 2) * 100}%`, borderColor: 'var(--line)', borderStyle: i === 2 ? 'solid' : 'dashed', opacity: i === 2 ? 1 : 0.6 }}
+                  />
+                ))}
+
+                <div className="absolute inset-0 flex items-end gap-[2px]">
+                  {buckets.map((b, i) => {
+                    const v = values[i];
+                    const over = v > top;
+                    const h = v === 0 ? 0 : Math.max(2, (Math.min(v, top) / top) * 100);
+                    const focus = hover ?? open;
+                    return (
+                      <button
+                        key={b.title}
+                        type="button"
+                        className="relative flex h-full min-w-0 flex-1 cursor-pointer items-end disabled:cursor-default"
+                        onPointerEnter={() => setHover(i)}
+                        onPointerDown={() => setHover(i)}
+                        onClick={() => setOpen(open === i ? null : i)}
+                        disabled={b.count === 0}
+                        aria-expanded={open === i}
+                        aria-label={`${b.title}: ${b.count} ${b.count === 1 ? 'stake' : 'stakes'} — show each stake`}
+                      >
+                        <div
+                          className="w-full rounded-t-[4px]"
+                          style={{
+                            height: on ? `${h}%` : '0%',
+                            // A bar past the cap gets a real transparent gap cut
+                            // near its top — the break. (--surface is translucent,
+                            // so painting it over the bar showed nothing.)
+                            background: over
+                              ? 'linear-gradient(to bottom, var(--viz-a) 0 6px, transparent 6px 10px, var(--viz-a) 10px)'
+                              : 'var(--viz-a)',
+                            opacity: focus == null || focus === i ? 1 : 0.45,
+                            transition: instant
+                              ? 'opacity 0.15s ease'
+                              : `height 0.9s ${EASE} ${Math.round(i * step)}ms, opacity 0.15s ease`,
+                          }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* direct labels: each run of bars past the cap, or the tallest when none is */}
+                {hover == null &&
+                  labels.map((l) => (
+                    <span
+                      key={l.at}
+                      className="font-jost pointer-events-none absolute whitespace-nowrap text-[12px] font-bold leading-none text-[var(--text)] tabular-nums"
                       style={{
-                        height: on ? `${h}%` : '0%',
-                        // A bar past the cap gets a real transparent gap cut
-                        // near its top — the break. (--surface is translucent,
-                        // so painting it over the bar showed nothing.)
-                        background: over
-                          ? 'linear-gradient(to bottom, var(--viz-a) 0 6px, transparent 6px 10px, var(--viz-a) 10px)'
-                          : 'var(--viz-a)',
-                        opacity: hover == null || hover === i ? 1 : 0.45,
-                        transition: instant
-                          ? 'opacity 0.15s ease'
-                          : `height 0.9s ${EASE} ${Math.round(i * step)}ms, opacity 0.15s ease`,
+                        left: `${l.at}%`,
+                        top: capped ? `${-4 - l.row * 15}px` : `calc(${100 - (values[peak] / top) * 100}% - 4px)`,
+                        transform: `translate(${l.at < 12 ? '0' : l.at > 88 ? '-100%' : '-50%'}, -100%)`,
                       }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* direct labels: each run of bars past the cap, or the tallest when none is */}
-            {hover == null &&
-              labels.map((l) => (
-                <span
-                  key={l.at}
-                  className="font-jost pointer-events-none absolute whitespace-nowrap text-[12px] font-bold leading-none text-[var(--text)] tabular-nums"
-                  style={{
-                    left: `${l.at}%`,
-                    top: capped ? `${-4 - l.row * 15}px` : `calc(${100 - (values[peak] / top) * 100}% - 4px)`,
-                    transform: `translate(${l.at < 12 ? '0' : l.at > 88 ? '-100%' : '-50%'}, -100%)`,
-                  }}
-                >
-                  {l.text}
-                </span>
-              ))}
-
-            {hover != null && (
-              <div
-                className="pointer-events-none absolute top-0 z-10 rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-2.5 py-1.5 shadow-lg"
-                style={{
-                  left: `${pct(hover)}%`,
-                  // Pin to the side it is on, so the edge bars' readout stays inside the card.
-                  transform: pct(hover) < 25 ? 'translateX(0)' : pct(hover) > 75 ? 'translateX(-100%)' : 'translateX(-50%)',
-                }}
-              >
-                <div className="font-poppins whitespace-nowrap text-[10px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">
-                  {buckets[hover].title}
-                </div>
-                <div className="font-jost whitespace-nowrap text-[15px] font-bold leading-tight text-[var(--text)] tabular-nums">
-                  {buckets[hover].count.toLocaleString()} {buckets[hover].count === 1 ? 'stake' : 'stakes'}
-                </div>
-                <div className="font-poppins whitespace-nowrap text-[11px] text-[var(--text-muted)] tabular-nums">
-                  {compact(buckets[hover].hex)} HEX saved
-                  {usd(buckets[hover].hex) ? ` · ${usd(buckets[hover].hex)}` : ''}
-                </div>
-                <div className="font-poppins whitespace-nowrap text-[11px] text-[var(--text-muted)] tabular-nums">
-                  {compact(buckets[hover].paid)} HEX paid to stakers
-                  {usd(buckets[hover].paid) ? ` · ${usd(buckets[hover].paid)}` : ''}
-                </div>
+                    >
+                      {l.text}
+                    </span>
+                  ))}
               </div>
-            )}
+
+              {/* x labels: HTML, so they stay 10px on every screen */}
+              <div className="font-poppins relative mt-1.5 h-4 text-[10px] text-[var(--text-faint)]">
+                {buckets.map((b, i) =>
+                  showLabel(i) ? (
+                    <span
+                      key={b.title}
+                      className="absolute top-0 whitespace-nowrap tabular-nums"
+                      style={{
+                        left: `${pct(i)}%`,
+                        transform: pct(i) < 6 ? 'translateX(0)' : pct(i) > 94 ? 'translateX(-100%)' : 'translateX(-50%)',
+                      }}
+                    >
+                      {b.label}
+                    </span>
+                  ) : null,
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* x labels: HTML, so they stay 10px on every screen */}
-          <div className="font-poppins relative mt-1.5 h-4 text-[10px] text-[var(--text-faint)]">
-            {buckets.map((b, i) =>
-              showLabel(i) ? (
-                <span
-                  key={b.title}
-                  className="absolute top-0 whitespace-nowrap tabular-nums"
-                  style={{
-                    left: `${pct(i)}%`,
-                    transform: pct(i) < 6 ? 'translateX(0)' : pct(i) > 94 ? 'translateX(-100%)' : 'translateX(-50%)',
-                  }}
-                >
-                  {b.label}
-                </span>
-              ) : null,
-            )}
-          </div>
+          {hover != null && (
+            <div
+              className="pointer-events-none absolute z-10 rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-2.5 py-1.5 shadow-lg"
+              style={{
+                top: labelRoom,
+                left: hoverX,
+                transform: hoverX < view * 0.25 ? 'translateX(0)' : hoverX > view * 0.75 ? 'translateX(-100%)' : 'translateX(-50%)',
+              }}
+            >
+              <div className="font-poppins whitespace-nowrap text-[10px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">
+                {buckets[hover].title}
+              </div>
+              <div className="font-jost whitespace-nowrap text-[15px] font-bold leading-tight text-[var(--text)] tabular-nums">
+                {buckets[hover].count.toLocaleString()} {buckets[hover].count === 1 ? 'stake' : 'stakes'}
+              </div>
+              <div className="font-poppins whitespace-nowrap text-[11px] text-[var(--text-muted)] tabular-nums">
+                {compact(buckets[hover].hex)} HEX saved
+                {usd(buckets[hover].hex) ? ` · ${usd(buckets[hover].hex)}` : ''}
+              </div>
+              <div className="font-poppins whitespace-nowrap text-[11px] text-[var(--text-muted)] tabular-nums">
+                {compact(buckets[hover].paid)} HEX paid to stakers
+                {usd(buckets[hover].paid) ? ` · ${usd(buckets[hover].paid)}` : ''}
+              </div>
+              {buckets[hover].count > 0 && (
+                <div className="font-poppins mt-0.5 whitespace-nowrap text-[10px] text-[var(--text-faint)]">
+                  {open === hover ? 'Tap to close' : 'Tap to see each stake'}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {capped && (
         <p className="font-poppins mt-2 text-[10px] text-[var(--text-faint)]">
-          Axis capped at {fmtV(top)} so ordinary {unit.split(' ')[0]}s stay readable — broken bars run past it, their real values printed above.
+          Axis capped at {fmtV(top)} so ordinary {grain}s stay readable — broken bars run past it, their real values printed above.
         </p>
       )}
 
+      {shown && (
+        <div className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--surface-2)]">
+          <div className="flex items-start justify-between gap-2 border-b border-[var(--line)] px-3 py-2">
+            <div className="min-w-0">
+              <div className="font-poppins text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+                {shown.title}
+              </div>
+              <div className="font-poppins text-[11px] leading-snug tabular-nums text-[var(--text-muted)]">
+                {shown.count.toLocaleString()} {shown.count === 1 ? 'stake' : 'stakes'} · {compact(shown.hex)} HEX saved · {compact(shown.paid)} HEX paid to stakers
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(null)}
+              aria-label="Close the list"
+              className="shrink-0 rounded-full p-1 text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+            >
+              <IconX className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="max-h-80 overflow-y-auto">
+            <table className="w-full text-left">
+              <thead className="font-poppins sticky top-0 bg-[var(--surface-2)] text-[10px] leading-tight uppercase tracking-wider text-[var(--text-faint)]">
+                <tr>
+                  <th className="px-3 py-1.5 font-semibold">Stake</th>
+                  <th className="hidden px-3 py-1.5 font-semibold sm:table-cell">Rescued</th>
+                  <th className="px-3 py-1.5 text-right font-semibold">HEX saved</th>
+                  <th className="px-3 py-1.5 text-right font-semibold">Paid to stakers</th>
+                </tr>
+              </thead>
+              <tbody className="font-poppins text-[12px] leading-snug tabular-nums text-[var(--text-muted)]">
+                {rowsShown.map((p) => (
+                  <tr key={p.stakeId} className="border-t border-[var(--line)]">
+                    <td className="px-3 py-1.5">
+                      <Link href={`/rescued/${p.stakeId}`} className="font-jost font-bold text-[var(--text)] transition-colors hover:text-[var(--viz-a)]">
+                        #{p.stakeId}
+                      </Link>
+                    </td>
+                    <td className="hidden whitespace-nowrap px-3 py-1.5 sm:table-cell">
+                      {new Date(p.t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })} UTC
+                    </td>
+                    <td className="px-3 py-1.5 text-right text-[var(--text)]">{p.saved.toLocaleString()}</td>
+                    <td className="px-3 py-1.5 text-right">{p.paid.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <table className="sr-only">
-        <caption>{heading}, {unit}</caption>
+        <caption>{heading}, {UNIT[grain]}</caption>
         <thead><tr><th>Period</th><th>Stakes</th><th>HEX saved</th><th>Penalties paid to stakers</th></tr></thead>
         <tbody>
           {buckets.map((b) => (
