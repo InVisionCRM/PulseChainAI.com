@@ -81,10 +81,24 @@ const endsByServed = (net: Net, first: number) =>
  * live against the subgraph (here and in `activePenalties`).
  */
 async function bleedingBigStakes(net: Net, currentDay: number): Promise<RawStart[] | null> {
-  const locked = await readRescueCandidates(net, {
+  return lockedFromIndex(net, {
     maturedBefore: currentDay - LATE_GRACE_DAYS,
     // Still bleeding: fewer than 700 days past grace (`activePenalties` drops 100%).
     maturedAfter: currentDay - LATE_GRACE_DAYS - LATE_SCALE_DAYS + 1,
+  });
+}
+
+/**
+ * The biggest still-locked stakes in an end-day window, from the locked-stake
+ * index, hydrated from the subgraph by id, with stakes ended since the last
+ * sync dropped. Null when the index is not available or still filling.
+ */
+async function lockedFromIndex(
+  net: Net,
+  window: { maturedBefore: number; maturedAfter?: number },
+): Promise<RawStart[] | null> {
+  const locked = await readRescueCandidates(net, {
+    ...window,
     minHearts: '0',
     // The board shows 100; the headroom absorbs stakes ended or frozen since
     // the index last synced, which the live checks below drop.
@@ -104,29 +118,18 @@ async function bleedingBigStakes(net: Net, currentDay: number): Promise<RawStart
   return rows.filter((r) => !ended.has(String(r.stakeId)));
 }
 
-// Past the full 14-day grace + 700-day bleed = a stake is fully depleted.
-const FULLY_BLED_DAYS = 714;
-
 /**
- * Candidate fully-depleted stakes: end day ≥714 days in the past, largest first,
- * NO size floor (fully-bled stakes are rarer, so we surface the biggest that
- * exist). Ended ones are dropped; the pure `depletedStakes` then drops
- * good-accounted ones (which were frozen and never actually bled out).
+ * Candidate fully-depleted stakes: 700+ days past grace, still locked, any
+ * size, biggest first — from the locked-stake index, for the same reason as
+ * `bleedingBigStakes`. The old source, "the 1,000 biggest stakeStarts past the
+ * cutoff", is all whales who ended long ago: measured live, 998 of the 1,000
+ * had ended and the other 2 were frozen, so the board read empty while 3,796
+ * depleted stakes of 10K+ HEX sat below that page. The window is the exact
+ * complement of the active-penalties one. `depletedStakes` still drops
+ * good-accounted ones and anything short of 100%.
  */
-async function depletedCandidates(net: Net, currentDay: number): Promise<RawStart[]> {
-  const cutoff = currentDay - FULLY_BLED_DAYS;
-  let rows: RawStart[] = [];
-  try {
-    const d = await gql<{ stakeStarts: RawStart[] }>(
-      net,
-      `{ stakeStarts(where:{ endDay_lt: ${cutoff} }, orderBy: stakedHearts, orderDirection: desc, first: 1000){ ${START_FIELDS} } }`,
-    );
-    rows = d.stakeStarts ?? [];
-  } catch {
-    return [];
-  }
-  const ended = await endedIds(net, rows);
-  return rows.filter((r) => !ended.has(String(r.stakeId)));
+function depletedCandidates(net: Net, currentDay: number): Promise<RawStart[] | null> {
+  return lockedFromIndex(net, { maturedBefore: currentDay - LATE_GRACE_DAYS - LATE_SCALE_DAYS + 1 });
 }
 
 async function buildBoard(net: Net, board: BoardKey): Promise<{ rows: LeaderRow[]; sample: number; note?: string }> {
@@ -161,6 +164,9 @@ async function buildBoard(net: Net, board: BoardKey): Promise<{ rows: LeaderRow[
     }
     case 'depleted': {
       const candidates = await depletedCandidates(net, currentDay);
+      if (candidates === null) {
+        return { rows: [], sample: 0, note: 'This board reads from the locked-stake index, which is not ready for this network yet — so it is blank rather than incomplete.' };
+      }
       const gaIds = new Set((await fetchGoodAccountings(net, candidates.map((s) => s.stakeId))).keys());
       return {
         rows: depletedStakes(candidates, currentDay, gaIds),
