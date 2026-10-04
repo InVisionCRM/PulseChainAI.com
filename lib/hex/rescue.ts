@@ -63,7 +63,24 @@ export const SEL = {
   stakeCount: '0x33060d90', // stakeCount(address)
   stakeLists: '0x2607443b', // stakeLists(address,uint256)
   stakeGoodAccounting: '0x65cf71b2', // stakeGoodAccounting(address,uint256,uint40)
+  // Communis (verified source on PulseChain Blockscout, compiler v0.8.16):
+  communisGoodAccounting: '0x39d6e567', // mintGoodAccountingBonus(address,uint256,uint256)
+  communisGoodAccountingPaid: '0x6c03c39c', // stakeIdGoodAccountingBonusPayout(uint256)
+  communisEndBonusPaid: '0xea98ed9a', // stakeIdEndBonusPayout(uint256)
 } as const;
+
+/**
+ * Communis (COM), PulseChain. Its `mintGoodAccountingBonus` runs the same
+ * `HEX.stakeGoodAccounting` call the keeper makes, then mints COM to the CALLER
+ * — so routing an eligible rescue through it earns the keeper COM for the same
+ * freeze, for ~83k extra gas. It has no owner, no upgrade path and nothing
+ * payable, and the keeper approves and sends it nothing.
+ */
+export const COMMUNIS_ADDRESS = '0x5a9780bfe63f3ec57f01b087cd65bd656c9034a8';
+/** Communis requires `HEX.currentDay() > lockedDay + stakedDays + 37`. */
+export const COMMUNIS_DAYS_PAST_END = 37;
+/** Communis requires `stakeShares > 9999`. */
+const COMMUNIS_MIN_SHARES = 10_000n;
 
 const pad = (hex: string) => hex.replace(/^0x/, '').toLowerCase().padStart(64, '0');
 const word = (hex: string, i: number) => hex.replace(/^0x/, '').slice(i * 64, i * 64 + 64);
@@ -514,6 +531,7 @@ export interface ResolvedStake {
   lockedDay: number;
   /** 0 means still locked — the only state good-accounting accepts. */
   unlockedDay: number;
+  stakeShares: bigint;
 }
 
 /**
@@ -540,7 +558,7 @@ export async function resolveStake(
     if (BigInt('0x' + word(raw, 0)) !== want) continue;
     const unlockedDay = num(raw, 5);
     if (unlockedDay !== 0) return null; // already good-accounted or ended
-    return { index: i, lockedDay: num(raw, 3), stakedDays: num(raw, 4), unlockedDay };
+    return { index: i, lockedDay: num(raw, 3), stakedDays: num(raw, 4), unlockedDay, stakeShares: BigInt('0x' + word(raw, 2)) };
   }
   return null;
 }
@@ -613,6 +631,14 @@ export function messageForStake(stakeId: string, principalHex?: number): string 
   return template(shortHex(principalHex ?? 0), `${RESCUE_URL_BASE}/${stakeId}`);
 }
 
+/** (stakerAddr, index, stakeId) + note — the same layout for both calls below
+ *  (uint40 and uint256 encode to the same 32-byte word). */
+function rescueArgs(stakerAddr: string, index: number, stakeId: string, message?: string): string {
+  const args = pad(stakerAddr) + pad(index.toString(16)) + pad(BigInt(stakeId).toString(16));
+  const note = message ? Buffer.from(message, 'utf8').toString('hex') : '';
+  return args + note;
+}
+
 /** Calldata for `stakeGoodAccounting`, with the note appended. */
 export function goodAccountingCalldata(
   stakerAddr: string,
@@ -620,9 +646,47 @@ export function goodAccountingCalldata(
   stakeId: string,
   message?: string,
 ): string {
-  const args = pad(stakerAddr) + pad(index.toString(16)) + pad(BigInt(stakeId).toString(16));
-  const note = message ? Buffer.from(message, 'utf8').toString('hex') : '';
-  return SEL.stakeGoodAccounting + args + note;
+  return SEL.stakeGoodAccounting + rescueArgs(stakerAddr, index, stakeId, message);
+}
+
+/** Calldata for Communis `mintGoodAccountingBonus`, with the note appended. */
+export function communisGoodAccountingCalldata(
+  stakerAddr: string,
+  index: number,
+  stakeId: string,
+  message?: string,
+): string {
+  return SEL.communisGoodAccounting + rescueArgs(stakerAddr, index, stakeId, message);
+}
+
+/**
+ * Would Communis pay its Good Accounting Bonus for this stake right now?
+ *
+ * Mirrors every `require` in `mintGoodAccountingBonus`, so an eligible rescue
+ * never reverts on Communis's own rules. The bonus-paid reads are exact
+ * on-chain answers; if either cannot be read, eligibility is not proven and the
+ * rescue goes straight to HEX — the freeze is the job, the COM is extra.
+ *
+ * Never waits for eligibility: a stake under the 37-day line is rescued now,
+ * directly. Holding it back would cost its owner 1/700 a day to earn COM.
+ */
+export async function communisEligible(
+  net: HexNet,
+  stakeId: string,
+  stake: ResolvedStake,
+  today: number,
+): Promise<boolean> {
+  if (net !== 'pulsechain') return false; // only verified on PulseChain
+  if (stake.unlockedDay !== 0) return false;
+  if (stake.stakeShares < COMMUNIS_MIN_SHARES) return false;
+  if (!(today > stake.lockedDay + stake.stakedDays + COMMUNIS_DAYS_PAST_END)) return false;
+  const id = pad(BigInt(stakeId).toString(16));
+  const [gaPaid, endPaid] = await Promise.all([
+    ethCall('pulsechain', COMMUNIS_ADDRESS, SEL.communisGoodAccountingPaid + id),
+    ethCall('pulsechain', COMMUNIS_ADDRESS, SEL.communisEndBonusPaid + id),
+  ]);
+  if (gaPaid == null || endPaid == null) return false;
+  return BigInt(gaPaid) === 0n && BigInt(endPaid) === 0n;
 }
 
 /** Rough gas from the stake's term — see the header note on why term drives it. */
