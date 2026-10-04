@@ -519,14 +519,17 @@ export interface ResolvedStake {
 /**
  * Find a stake's CURRENT index by reading the staker's list on chain.
  *
- * Returns null when the stake is gone (ended) or already unlocked
- * (good-accounted) — both mean there is nothing to do and no gas to spend.
+ * Returns 'frozen' when the stake is in the list but already unlocked
+ * (good-accounted) — the one answer here that is proof, read from the chain,
+ * so callers may record it. Returns null when the stake was not found: ended
+ * and removed from the list, or a read failed. Either way there is nothing to
+ * do and no gas to spend.
  */
 export async function resolveStake(
   net: HexNet,
   stakerAddr: string,
   stakeId: string,
-): Promise<ResolvedStake | null> {
+): Promise<ResolvedStake | 'frozen' | null> {
   const chain = chainOf(net);
   const countHex = await ethCall(chain, HEX_ADDRESS, SEL.stakeCount + pad(stakerAddr));
   if (!countHex) return null;
@@ -539,7 +542,7 @@ export async function resolveStake(
     // stakeId, stakedHearts, stakeShares, lockedDay, stakedDays, unlockedDay, isAutoStake
     if (BigInt('0x' + word(raw, 0)) !== want) continue;
     const unlockedDay = num(raw, 5);
-    if (unlockedDay !== 0) return null; // already good-accounted or ended
+    if (unlockedDay !== 0) return 'frozen'; // ended stakes leave the list, so this is good-accounted
     return { index: i, lockedDay: num(raw, 3), stakedDays: num(raw, 4), unlockedDay };
   }
   return null;

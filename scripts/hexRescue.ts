@@ -239,7 +239,7 @@ async function main() {
 
     // The chain, not the indexer, decides whether there is work to do.
     const resolved = await resolveStake('pulsechain', c.stakerAddr, c.stakeId);
-    if (!resolved) continue; // already ended or good-accounted — not even a skip
+    if (!resolved || resolved === 'frozen') continue; // already ended or good-accounted — not even a skip
 
     // No note on a drained stake — see the same line in the hex-rescue cron.
     const message = c.depleted ? undefined : messageForStake(c.stakeId, c.principalHex);
