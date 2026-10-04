@@ -30,7 +30,7 @@ import { KeeperPanel, type KeeperFuel } from '@/components/rescue/KeeperPanel';
 import { UpcomingBleeders } from '@/components/rescue/UpcomingBleeders';
 import { findUpcomingBleeders, defaultMinPrincipalHex, defaultMaxPrincipalHex } from '@/lib/hex/rescue';
 import {
-  BigStat, HeroNumber, SavedChart, Speedo, type RescueBucket,
+  BigStat, HeroNumber, SavedChart, Speedo, type RescuePoint,
 } from '@/components/rescue/RescueDashboard';
 
 // A minute, not five. The wall is watched live while the keeper runs, and a
@@ -75,63 +75,20 @@ async function hexUsd(): Promise<number | null> {
   }
 }
 
-/**
- * The chart's buckets: daily while the record is young, weekly, then monthly
- * once it spans a season — a two-month keeper with monthly bars is two lonely
- * rectangles, and a two-year one with daily bars is seven hundred slivers.
- *
- * Every bucket in the span is drawn, including the empty ones: skipping a
- * quiet day would put its neighbours side by side and make the time axis lie.
- */
-function bucketize(rescues: Rescue[]): { buckets: RescueBucket[]; unit: string } {
-  const stamped = rescues.filter((r) => r.timestamp > 0);
-  if (stamped.length === 0) return { buckets: [], unit: 'day by day' };
-  const min = Math.min(...stamped.map((r) => r.timestamp));
-  const max = Math.max(...stamped.map((r) => r.timestamp));
-  const span = max - min;
-  const DAY = 86_400_000;
-  const grain: 'day' | 'week' | 'month' = span < 45 * DAY ? 'day' : span < 200 * DAY ? 'week' : 'month';
-
-  /** UTC start of the bucket holding `ms`: its day, its Monday, or its 1st. */
-  const startOf = (ms: number) => {
-    const d = new Date(ms);
-    if (grain === 'month') return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
-    const day = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-    return grain === 'week' ? day - ((new Date(day).getUTCDay() + 6) % 7) * DAY : day;
-  };
-  const next = (at: number) => {
-    if (grain === 'day') return at + DAY;
-    if (grain === 'week') return at + 7 * DAY;
-    const d = new Date(at);
-    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
-  };
-  const fmt = (at: number, o: Intl.DateTimeFormatOptions) =>
-    new Date(at).toLocaleDateString('en-US', { ...o, timeZone: 'UTC' });
-
-  const map = new Map<number, RescueBucket>();
-  for (let at = startOf(min); at <= startOf(max); at = next(at)) {
-    map.set(at, {
-      label: grain === 'month' ? fmt(at, { month: 'short' }) : fmt(at, { month: 'short', day: 'numeric' }),
-      title:
-        grain === 'day' ? fmt(at, { weekday: 'short', month: 'short', day: 'numeric' })
-          : grain === 'week' ? `Week of ${fmt(at, { month: 'short', day: 'numeric' })}`
-          : fmt(at, { month: 'long', year: 'numeric' }),
-      hex: 0,
-      count: 0,
-      paid: 0,
-    });
-  }
-  for (const r of stamped) {
-    const b = map.get(startOf(r.timestamp))!;
-    b.hex += r.claimableHex ?? 0;
-    b.count += 1;
-    // Stakers' half of the penalty this freeze released (HEX splits it 50/50 with Origin).
-    b.paid += (r.penaltyHex ?? 0) / 2;
-  }
-  return {
-    buckets: [...map.values()],
-    unit: grain === 'day' ? 'day by day' : grain === 'week' ? 'week by week' : 'month by month',
-  };
+/** What the record chart needs of each rescue — the chart buckets these by
+ *  day, week or month itself and lists them when a bar is opened. */
+function chartPoints(rescues: Rescue[]): RescuePoint[] {
+  return rescues
+    .filter((r) => r.timestamp > 0)
+    .map((r) => ({
+      t: r.timestamp,
+      stakeId: r.stakeId,
+      // Whole HEX: the list prints whole HEX anyway, and the eight decimals
+      // were most of the bytes this sends for every rescue.
+      saved: Math.round(r.claimableHex ?? 0),
+      // Stakers' half of the penalty this freeze released (HEX splits it 50/50 with Origin).
+      paid: Math.round((r.penaltyHex ?? 0) / 2),
+    }));
 }
 
 /** Keeper wallet balance and gas burn for the fuel gauge. Each half fails to
@@ -197,7 +154,7 @@ export default async function RescueWallPage() {
   const upcoming = await upcomingP;
   const renderedAt = Date.now();
   const t = totalsFor(rescues);
-  const { buckets, unit: bucketUnit } = bucketize(rescues);
+  const points = chartPoints(rescues);
 
   const gross = t.claimableHex + t.penaltyHex;
   const keptFrac = gross > 0 ? t.claimableHex / gross : 0;
@@ -329,9 +286,9 @@ export default async function RescueWallPage() {
             )}
 
             {/* ── The record over time ── */}
-            {buckets.length > 1 && (
+            {points.length > 0 && (
               <div className="mt-3">
-                <SavedChart buckets={buckets} price={price} unit={bucketUnit} />
+                <SavedChart points={points} price={price} />
               </div>
             )}
 
