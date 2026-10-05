@@ -34,6 +34,15 @@ export async function GET(request: NextRequest) {
   try {
     await ensureSchema();
     const [rescues, known] = await Promise.all([fetchRescues('pulsechain'), readFates('pulsechain')]);
+    // fetchRescues leaves `claimed` null when its stake-end lookup fails, so
+    // the whole list reads "not known". Seen on a subgraph 502: the run found
+    // 0 collected stakes and reported success. Fail instead.
+    if (rescues.some((r) => r.claimed == null)) {
+      return NextResponse.json(
+        { success: false, error: 'stake-end lookup failed; collected stakes unknown this run', elapsedMs: Date.now() - started },
+        { status: 503 },
+      );
+    }
     const todo = rescues
       .filter((r) => r.claimed === true && r.claimedAt != null && !known.get(r.stakeId)?.final)
       .sort((a, b) => (known.get(a.stakeId)?.checkedAt ?? 0) - (known.get(b.stakeId)?.checkedAt ?? 0));
