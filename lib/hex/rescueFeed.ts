@@ -139,8 +139,14 @@ function isMinedRescue(t: any): boolean {
   return !!t?.timestamp;
 }
 
-/** Pages of keeper transactions (50 each) read before giving up. */
-const MAX_PAGES = 60;
+/**
+ * Pages of keeper transactions (50 each) read before giving up — 20,000
+ * transactions. A runaway guard sized for the backlog sweep: the old 60 pages
+ * (3,000) was crossed on 2026-10-04 when the keeper reached 3,368 sends, and
+ * every render of the wall threw from then on, freezing it on a stale copy.
+ * Measured then: 219 ms a page, so the full walk was ~15 s at 68 pages.
+ */
+const MAX_PAGES = 400;
 
 /**
  * Walk the keeper's transactions newest-first, decoding the rescues.
@@ -310,9 +316,10 @@ export interface KeeperBurn {
  * explorer cannot be read, so the caller shows no estimate rather than one
  * built on half a window.
  */
-/** 1,000 transactions inside one window is far past any real sweep rate
- *  (~10/day lately) — hitting it means something is wrong, so it throws. */
-const BURN_MAX_PAGES = 20;
+/** Same guard as MAX_PAGES. The old 1,000-transaction window assumed ~10
+ *  sends a day; the backlog sweep runs ~300 an hour, which put a fortnight's
+ *  sends past it and hid the fuel gauge. */
+const BURN_MAX_PAGES = MAX_PAGES;
 
 export async function fetchKeeperBurn(net: HexNet, days: number): Promise<KeeperBurn> {
   const now = Date.now();

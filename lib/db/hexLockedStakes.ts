@@ -23,6 +23,7 @@
 import { sql } from './connection';
 import { DAILY_DDL } from './hexDaily';
 import { ENDS_DDL } from './hexStakeEnds';
+import { FATES_DDL } from './hexRescueFates';
 
 export type Net = 'pulsechain' | 'ethereum';
 
@@ -89,6 +90,7 @@ const DDL = [
   // one ensureSchema call creates or updates every table the sync touches.
   ...DAILY_DDL,
   ...ENDS_DDL,
+  ...FATES_DDL,
 ];
 
 export async function ensureSchema(): Promise<void> {

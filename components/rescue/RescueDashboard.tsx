@@ -514,6 +514,148 @@ export function SavedChart({ points, price }: { points: RescuePoint[]; price: nu
 const fmtUsd = (n: number) =>
   `$${n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
+/* ───────────────────── what owners did next ───────────────────── */
+
+export type FateOutcome = 'restaked' | 'held' | 'sold' | 'moved';
+
+export interface FateSlice {
+  outcome: FateOutcome;
+  /** Collected stakes with this outcome. */
+  stakes: number;
+  /** HEX those stakes paid out when collected. */
+  hex: number;
+}
+
+/** Fixed order and colour per outcome — colour follows the outcome, never its
+ *  rank. The four steps pass the dataviz validator on this page's light
+ *  (#f5f6f9) and dark (#12233a) card surfaces, all pairs: worst CVD ΔE 9.4. */
+const FATE_META: Record<FateOutcome, { label: string; color: string }> = {
+  restaked: { label: 'Re-staked', color: 'var(--viz-gain)' },
+  held: { label: 'Still holding', color: 'var(--viz-a)' },
+  sold: { label: 'Sold', color: 'var(--viz-loss)' },
+  moved: { label: 'Moved to another wallet', color: 'var(--viz-c)' },
+};
+const FATE_ORDER: FateOutcome[] = ['restaked', 'held', 'sold', 'moved'];
+
+/**
+ * What rescued stakers did with their HEX once they collected it, as shares of
+ * the HEX collected: one 100% bar, four outcomes, a legend that always names
+ * each one (identity is never colour alone), and a readout for the segment
+ * under the pointer.
+ */
+export function CollectedFates({ slices, judged, collected, price }: {
+  slices: FateSlice[];
+  /** Collected stakes with a stored outcome. */
+  judged: number;
+  /** Collected stakes in total. */
+  collected: number;
+  price: number | null;
+}) {
+  const { on, instant } = useSettled();
+  const [hover, setHover] = useState<FateOutcome | null>(null);
+  const by = new Map(slices.map((s) => [s.outcome, s]));
+  const rows = FATE_ORDER.map((o) => by.get(o) ?? { outcome: o, stakes: 0, hex: 0 });
+  const total = rows.reduce((a, r) => a + r.hex, 0);
+  if (total <= 0) return null;
+  const pct = (hex: number) => (hex / total) * 100;
+  const fmtPct = (hex: number) => `${pct(hex) < 1 && hex > 0 ? '<1' : Math.round(pct(hex))}%`;
+  const restaked = rows[0];
+  const shown = hover ? by.get(hover) ?? { outcome: hover, stakes: 0, hex: 0 } : null;
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="font-poppins text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+          What owners did next
+        </div>
+        <div className="font-poppins text-[10px] tabular-nums text-[var(--text-faint)]">
+          {judged.toLocaleString()} of {collected.toLocaleString()} collected stakes
+        </div>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-1">
+        <div className="font-jost text-[44px] font-bold leading-none tracking-tight text-[var(--text)] tabular-nums md:text-[52px]">
+          {fmtPct(restaked.hex)}
+        </div>
+        <div className="font-poppins pb-1 text-[13px] leading-snug text-[var(--text-muted)]">
+          of the HEX they collected went straight back into staking
+        </div>
+      </div>
+
+      {/* the 100% bar: 2px gaps between segments, rounded only at its ends */}
+      <div
+        className="mt-4 flex h-4 w-full gap-[2px] overflow-hidden rounded-[4px]"
+        onPointerLeave={() => setHover(null)}
+        role="img"
+        aria-label={rows.map((r) => `${FATE_META[r.outcome].label} ${fmtPct(r.hex)}`).join(', ')}
+      >
+        {rows.filter((r) => r.hex > 0).map((r, i) => (
+          <div
+            key={r.outcome}
+            className="h-full min-w-[3px]"
+            onPointerEnter={() => setHover(r.outcome)}
+            onPointerDown={() => setHover(r.outcome)}
+            style={{
+              width: on ? `${pct(r.hex)}%` : '0%',
+              background: FATE_META[r.outcome].color,
+              opacity: hover == null || hover === r.outcome ? 1 : 0.45,
+              transition: instant ? 'opacity 0.15s ease' : `width 0.9s ${EASE} ${i * 90}ms, opacity 0.15s ease`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* readout for the hovered segment, in place so it never covers the bar */}
+      <div className="font-poppins mt-2 h-4 text-[11px] tabular-nums text-[var(--text-muted)]">
+        {shown && (
+          <>
+            <span className="font-semibold text-[var(--text)]">{FATE_META[shown.outcome].label}</span>
+            {' · '}{shown.stakes.toLocaleString()} {shown.stakes === 1 ? 'stake' : 'stakes'} · {compact(shown.hex)} HEX
+            {price != null ? ` · ${fmtUsd(shown.hex * price)}` : ''}
+          </>
+        )}
+      </div>
+
+      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2.5 lg:grid-cols-4">
+        {rows.map((r) => (
+          <div
+            key={r.outcome}
+            className="flex min-w-0 items-start gap-2"
+            onPointerEnter={() => setHover(r.outcome)}
+            onPointerLeave={() => setHover(null)}
+          >
+            <span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: FATE_META[r.outcome].color }} />
+            <div className="min-w-0">
+              <div className="font-poppins text-[11px] leading-tight text-[var(--text-muted)]">{FATE_META[r.outcome].label}</div>
+              <div className="font-jost text-[17px] font-bold leading-tight text-[var(--text)] tabular-nums">
+                {fmtPct(r.hex)}
+                <span className="font-poppins ml-1.5 text-[11px] font-normal text-[var(--text-faint)]">
+                  {r.stakes.toLocaleString()} · {compact(r.hex)} HEX
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="font-poppins mt-3 text-[10px] leading-snug text-[var(--text-faint)]">
+        Read from each owner&rsquo;s wallet in the 30 days after collecting. A swap counts as a sale; a new stake — direct
+        or through a stake contract — as a re-stake. Shares are of HEX collected.
+      </p>
+
+      <table className="sr-only">
+        <caption>What owners did with collected HEX</caption>
+        <thead><tr><th>Outcome</th><th>Stakes</th><th>HEX</th><th>Share of HEX</th></tr></thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.outcome}><td>{FATE_META[r.outcome].label}</td><td>{r.stakes}</td><td>{Math.round(r.hex)}</td><td>{fmtPct(r.hex)}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /* ───────────────────── per-stake visuals ───────────────────── */
 
 /**
