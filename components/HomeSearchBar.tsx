@@ -18,12 +18,12 @@ export default function HomeSearchBar() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Search tokens"
+        aria-label="Search tokens or transactions"
         className="flex w-full items-center gap-3 rounded-xl border border-orange-500/40 bg-[var(--surface-2)] px-4 py-3.5 text-left transition-colors hover:border-orange-500/70 hover:bg-[var(--surface-3)]"
       >
         <ArtIcon src="/search-icon.png" alt="" className="h-5 w-5" />
         <span className="flex-1 truncate text-sm font-medium text-[var(--text-muted)] sm:text-base">
-          Search any token, pair, or paste an address…
+          Search token, pair, address or tx hash…
         </span>
         <kbd className="hidden shrink-0 rounded border border-[var(--line)] bg-[var(--panel)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-faint)] sm:inline-block">
           /

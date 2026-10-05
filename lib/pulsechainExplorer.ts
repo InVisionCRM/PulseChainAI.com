@@ -27,6 +27,14 @@ export const pulsechainBlockUrl = (block: string | number) => `${BASE}/block/${b
 export const pulsechainExplorerUrl = (path: string) =>
   `${BASE}/${String(path).replace(/^\/+/, '')}`;
 
+// ── In-app transaction page ─────────────────────────────────────────────────
+//
+// A pasted transaction hash opens our own receipt page (app/tx/[hash]) rather
+// than an external explorer. A hash is 0x + 64 hex; an address is 0x + 40.
+const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
+export const isTxHash = (s: string) => TX_HASH_RE.test(s.trim());
+export const txPageHref = (hash: string) => `/tx/${hash.trim().toLowerCase()}`;
+
 // Display label for the explorer link text.
 export const PULSECHAIN_EXPLORER_NAME = 'Otterscan';
 

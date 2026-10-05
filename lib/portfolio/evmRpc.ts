@@ -180,6 +180,53 @@ export async function getTransactionReceiptLogs(
   return null;
 }
 
+/** A transaction as the node returns it — the fields callers here read. */
+export interface RpcTransaction {
+  hash: string;
+  from: string;
+  to: string | null;
+  value: string;
+  input: string;
+  nonce: string;
+  blockNumber: string | null;
+}
+
+/** A mined transaction's receipt — the fields callers here read. */
+export interface RpcReceipt {
+  status: string;
+  gasUsed: string;
+  effectiveGasPrice: string;
+  contractAddress: string | null;
+  logs: ReceiptLog[];
+}
+
+/**
+ * A transaction and, once mined, its receipt. Null when no node knows the
+ * hash on any pass; a null receipt means the transaction is still pending.
+ *
+ * Same walk and retries as getTransactionReceiptLogs, for the same reason:
+ * only the archive node indexes older transactions. Verified 2026-10-05 on
+ * the first transactions of blocks 18,000,000 and 20,000,000 — g4mm4 found
+ * both, rpc.pulsechainrpc.com and publicnode answered `null` — so a `null`
+ * means "next node", never "no such transaction".
+ */
+export async function getTransactionWithReceipt(
+  chain: ChainId,
+  hash: string,
+): Promise<{ tx: RpcTransaction; receipt: RpcReceipt | null } | null> {
+  for (const pause of RECEIPT_RETRY_MS) {
+    if (pause) await new Promise((r) => setTimeout(r, pause));
+    for (const url of RPC_URLS[chain] ?? []) {
+      const tx = (await rpc(url, 'eth_getTransactionByHash', [hash])) as RpcTransaction | null;
+      if (!tx) continue;
+      if (tx.blockNumber == null) return { tx, receipt: null };
+      const receipt = (await rpc(url, 'eth_getTransactionReceipt', [hash])) as RpcReceipt | null;
+      if (receipt) return { tx, receipt };
+    }
+  }
+  return null;
+}
+
 // Log scans return far more data than a balance read, so they get a longer
 // budget than RPC_TIMEOUT_MS (measured: ~2-5s for a 10k-block address-filtered
 // scan on the healthy PulseChain nodes).
