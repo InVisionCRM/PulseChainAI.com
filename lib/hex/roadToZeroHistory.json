@@ -1,0 +1,440 @@
+{
+ "generatedAt": "2026-10-05T07:41:51.084Z",
+ "minHex": 10000,
+ "maxHex": 25000000,
+ "firstRescueDay": 2451,
+ "days": [
+  {
+   "day": 2444,
+   "remaining": 9883,
+   "bleeding": 6161,
+   "drained": 3722,
+   "principalHex": 309453341.6624,
+   "penaltyHex": 183564654.9714
+  },
+  {
+   "day": 2445,
+   "remaining": 9888,
+   "bleeding": 6159,
+   "drained": 3729,
+   "principalHex": 308631991.6113,
+   "penaltyHex": 183956218.4548
+  },
+  {
+   "day": 2446,
+   "remaining": 9890,
+   "bleeding": 6159,
+   "drained": 3731,
+   "principalHex": 310927655.7272,
+   "penaltyHex": 184348461.4281
+  },
+  {
+   "day": 2447,
+   "remaining": 9890,
+   "bleeding": 6157,
+   "drained": 3733,
+   "principalHex": 311933693.1384,
+   "penaltyHex": 184752553.3131
+  },
+  {
+   "day": 2448,
+   "remaining": 9926,
+   "bleeding": 6186,
+   "drained": 3740,
+   "principalHex": 319089023.5264,
+   "penaltyHex": 184857161.1946
+  },
+  {
+   "day": 2449,
+   "remaining": 9974,
+   "bleeding": 6221,
+   "drained": 3753,
+   "principalHex": 329102505.9724,
+   "penaltyHex": 185284207.6657
+  },
+  {
+   "day": 2450,
+   "remaining": 9965,
+   "bleeding": 6207,
+   "drained": 3758,
+   "principalHex": 331113292.4711,
+   "penaltyHex": 185673284.2187
+  },
+  {
+   "day": 2451,
+   "remaining": 9917,
+   "bleeding": 6157,
+   "drained": 3760,
+   "principalHex": 275984090.4258,
+   "penaltyHex": 182682683.8735
+  },
+  {
+   "day": 2452,
+   "remaining": 9303,
+   "bleeding": 5549,
+   "drained": 3754,
+   "principalHex": 187520089.1819,
+   "penaltyHex": 149379331.7401
+  },
+  {
+   "day": 2453,
+   "remaining": 9034,
+   "bleeding": 5269,
+   "drained": 3765,
+   "principalHex": 170885809.3007,
+   "penaltyHex": 143168111.1127
+  },
+  {
+   "day": 2454,
+   "remaining": 9025,
+   "bleeding": 5256,
+   "drained": 3769,
+   "principalHex": 170031370.6402,
+   "penaltyHex": 143370520.1629
+  },
+  {
+   "day": 2455,
+   "remaining": 9036,
+   "bleeding": 5264,
+   "drained": 3772,
+   "principalHex": 172473209.5119,
+   "penaltyHex": 143599249.5235
+  },
+  {
+   "day": 2456,
+   "remaining": 9030,
+   "bleeding": 5251,
+   "drained": 3779,
+   "principalHex": 173908002.4509,
+   "penaltyHex": 143772852.4713
+  },
+  {
+   "day": 2457,
+   "remaining": 9014,
+   "bleeding": 5226,
+   "drained": 3788,
+   "principalHex": 173986886.4365,
+   "penaltyHex": 143958111.5806
+  },
+  {
+   "day": 2458,
+   "remaining": 9026,
+   "bleeding": 5236,
+   "drained": 3790,
+   "principalHex": 172955722.4143,
+   "penaltyHex": 144163875.0266
+  },
+  {
+   "day": 2459,
+   "remaining": 9024,
+   "bleeding": 5232,
+   "drained": 3792,
+   "principalHex": 169708035.4455,
+   "penaltyHex": 144337140.3776
+  },
+  {
+   "day": 2460,
+   "remaining": 9034,
+   "bleeding": 5239,
+   "drained": 3795,
+   "principalHex": 169697297.8088,
+   "penaltyHex": 144493121.2751
+  },
+  {
+   "day": 2461,
+   "remaining": 9041,
+   "bleeding": 5243,
+   "drained": 3798,
+   "principalHex": 170030829.7573,
+   "penaltyHex": 144703760.7541
+  },
+  {
+   "day": 2462,
+   "remaining": 9048,
+   "bleeding": 5244,
+   "drained": 3804,
+   "principalHex": 170716198.4827,
+   "penaltyHex": 144939288.2192
+  },
+  {
+   "day": 2463,
+   "remaining": 9070,
+   "bleeding": 5265,
+   "drained": 3805,
+   "principalHex": 173335206.6703,
+   "penaltyHex": 145115811.096
+  },
+  {
+   "day": 2464,
+   "remaining": 9084,
+   "bleeding": 5275,
+   "drained": 3809,
+   "principalHex": 173346663.8489,
+   "penaltyHex": 145362751.4416
+  },
+  {
+   "day": 2465,
+   "remaining": 9083,
+   "bleeding": 5268,
+   "drained": 3815,
+   "principalHex": 170860337.4939,
+   "penaltyHex": 145600572.773
+  },
+  {
+   "day": 2466,
+   "remaining": 9092,
+   "bleeding": 5276,
+   "drained": 3816,
+   "principalHex": 170267319.0604,
+   "penaltyHex": 145813429.137
+  },
+  {
+   "day": 2467,
+   "remaining": 9111,
+   "bleeding": 5291,
+   "drained": 3820,
+   "principalHex": 171554879.0547,
+   "penaltyHex": 146052384.6444
+  },
+  {
+   "day": 2468,
+   "remaining": 9118,
+   "bleeding": 5294,
+   "drained": 3824,
+   "principalHex": 171665457.6966,
+   "penaltyHex": 146270622.2313
+  },
+  {
+   "day": 2469,
+   "remaining": 9134,
+   "bleeding": 5306,
+   "drained": 3828,
+   "principalHex": 172998385.0092,
+   "penaltyHex": 146443696.0628
+  },
+  {
+   "day": 2470,
+   "remaining": 9137,
+   "bleeding": 5306,
+   "drained": 3831,
+   "principalHex": 173142905.6857,
+   "penaltyHex": 146663181.7822
+  },
+  {
+   "day": 2471,
+   "remaining": 9136,
+   "bleeding": 5302,
+   "drained": 3834,
+   "principalHex": 171907850.1471,
+   "penaltyHex": 146746322.9295
+  },
+  {
+   "day": 2472,
+   "remaining": 9147,
+   "bleeding": 5308,
+   "drained": 3839,
+   "principalHex": 171870904.6214,
+   "penaltyHex": 146938988.5307
+  },
+  {
+   "day": 2473,
+   "remaining": 9160,
+   "bleeding": 5317,
+   "drained": 3843,
+   "principalHex": 173477488.2165,
+   "penaltyHex": 147175489.38
+  },
+  {
+   "day": 2474,
+   "remaining": 9174,
+   "bleeding": 5329,
+   "drained": 3845,
+   "principalHex": 174880552.5589,
+   "penaltyHex": 147415537.4141
+  },
+  {
+   "day": 2475,
+   "remaining": 9179,
+   "bleeding": 5331,
+   "drained": 3848,
+   "principalHex": 181069275.5851,
+   "penaltyHex": 147639226.2768
+  },
+  {
+   "day": 2476,
+   "remaining": 9191,
+   "bleeding": 5341,
+   "drained": 3850,
+   "principalHex": 181357693.2328,
+   "penaltyHex": 147779032.4437
+  },
+  {
+   "day": 2477,
+   "remaining": 9193,
+   "bleeding": 5340,
+   "drained": 3853,
+   "principalHex": 177756572.8849,
+   "penaltyHex": 147957417.1623
+  },
+  {
+   "day": 2478,
+   "remaining": 9186,
+   "bleeding": 5321,
+   "drained": 3865,
+   "principalHex": 180290244.6827,
+   "penaltyHex": 148108255.8927
+  },
+  {
+   "day": 2479,
+   "remaining": 9225,
+   "bleeding": 5350,
+   "drained": 3875,
+   "principalHex": 177287989.1716,
+   "penaltyHex": 148339920.7788
+  },
+  {
+   "day": 2480,
+   "remaining": 9293,
+   "bleeding": 5418,
+   "drained": 3875,
+   "principalHex": 188170224.0982,
+   "penaltyHex": 148553406.9955
+  },
+  {
+   "day": 2481,
+   "remaining": 9309,
+   "bleeding": 5431,
+   "drained": 3878,
+   "principalHex": 189811188.9444,
+   "penaltyHex": 148830673.052
+  },
+  {
+   "day": 2482,
+   "remaining": 9318,
+   "bleeding": 5435,
+   "drained": 3883,
+   "principalHex": 180908064.7136,
+   "penaltyHex": 149042500.257
+  },
+  {
+   "day": 2483,
+   "remaining": 9357,
+   "bleeding": 5471,
+   "drained": 3886,
+   "principalHex": 182211967.173,
+   "penaltyHex": 149275105.5922
+  },
+  {
+   "day": 2484,
+   "remaining": 9370,
+   "bleeding": 5480,
+   "drained": 3890,
+   "principalHex": 180135979.9258,
+   "penaltyHex": 149531016.8257
+  },
+  {
+   "day": 2485,
+   "remaining": 9383,
+   "bleeding": 5491,
+   "drained": 3892,
+   "principalHex": 176462883.4441,
+   "penaltyHex": 149755269.2822
+  },
+  {
+   "day": 2486,
+   "remaining": 9405,
+   "bleeding": 5509,
+   "drained": 3896,
+   "principalHex": 178944455.4236,
+   "penaltyHex": 149999734.1853
+  },
+  {
+   "day": 2487,
+   "remaining": 9434,
+   "bleeding": 5533,
+   "drained": 3901,
+   "principalHex": 181664604.0082,
+   "penaltyHex": 150271948.4918
+  },
+  {
+   "day": 2488,
+   "remaining": 9467,
+   "bleeding": 5562,
+   "drained": 3905,
+   "principalHex": 195192281.9933,
+   "penaltyHex": 150529862.6227
+  },
+  {
+   "day": 2489,
+   "remaining": 9463,
+   "bleeding": 5553,
+   "drained": 3910,
+   "principalHex": 194003523.3083,
+   "penaltyHex": 150757454.586
+  },
+  {
+   "day": 2490,
+   "remaining": 9475,
+   "bleeding": 5560,
+   "drained": 3915,
+   "principalHex": 179735169.6792,
+   "penaltyHex": 150959843.03
+  },
+  {
+   "day": 2491,
+   "remaining": 9489,
+   "bleeding": 5569,
+   "drained": 3920,
+   "principalHex": 180431527.4087,
+   "penaltyHex": 151184890.0136
+  },
+  {
+   "day": 2492,
+   "remaining": 9481,
+   "bleeding": 5559,
+   "drained": 3922,
+   "principalHex": 180251883.7848,
+   "penaltyHex": 151401593.6206
+  },
+  {
+   "day": 2493,
+   "remaining": 9497,
+   "bleeding": 5570,
+   "drained": 3927,
+   "principalHex": 179484310.0068,
+   "penaltyHex": 151659845.8784
+  },
+  {
+   "day": 2494,
+   "remaining": 9534,
+   "bleeding": 5603,
+   "drained": 3931,
+   "principalHex": 182717150.8433,
+   "penaltyHex": 151915483.2489
+  },
+  {
+   "day": 2495,
+   "remaining": 9551,
+   "bleeding": 5614,
+   "drained": 3937,
+   "principalHex": 195545737.694,
+   "penaltyHex": 152218450.9155
+  },
+  {
+   "day": 2496,
+   "remaining": 9283,
+   "bleeding": 5482,
+   "drained": 3801,
+   "principalHex": 181427257.1657,
+   "penaltyHex": 144965926.5211
+  },
+  {
+   "day": 2497,
+   "remaining": 7490,
+   "bleeding": 3685,
+   "drained": 3805,
+   "principalHex": 121673564.892,
+   "penaltyHex": 126570507.7241
+  }
+ ]
+}

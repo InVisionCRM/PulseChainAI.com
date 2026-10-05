@@ -31,6 +31,9 @@ import { UpcomingBleeders } from '@/components/rescue/UpcomingBleeders';
 import { findUpcomingBleeders, defaultMinPrincipalHex, defaultMaxPrincipalHex } from '@/lib/hex/rescue';
 import { dbAvailable } from '@/lib/db/hexLockedStakes';
 import { readFates } from '@/lib/db/hexRescueFates';
+import { readRoadDaily } from '@/lib/db/hexRoadSnapshots';
+import roadHistory from '@/lib/hex/roadToZeroHistory.json';
+import { RoadToZero, type RoadPoint } from '@/components/rescue/RoadToZero';
 import {
   BigStat, CollectedFates, HeroNumber, SavedChart, Speedo, type FateSlice, type RescuePoint,
 } from '@/components/rescue/RescueDashboard';
@@ -115,6 +118,18 @@ function fateSlices(rescues: Rescue[], fates: Awaited<ReturnType<typeof readFate
   return { slices: [...by.values()], judged };
 }
 
+/**
+ * The Road to Zero series: the rebuilt history (immutable chain history, see
+ * scripts/roadToZeroHistory.ts), then the cron's latest snapshot of each later
+ * day. Same calculator for both, so the seam is not a change of method.
+ */
+function roadPoints(snapshots: Awaited<ReturnType<typeof readRoadDaily>> | null): RoadPoint[] {
+  const history: RoadPoint[] = roadHistory.days;
+  const lastHistoryDay = history[history.length - 1]?.day ?? -1;
+  const later = (snapshots ?? []).filter((s) => s.day > lastHistoryDay);
+  return [...history, ...later];
+}
+
 /** Keeper wallet balance and gas burn for the fuel gauge. Each half fails to
  *  null on its own, so an explorer outage still shows the balance. */
 async function keeperFuel(): Promise<KeeperFuel> {
@@ -168,12 +183,15 @@ export default async function RescueWallPage() {
   // much HEX was saved. Cards are capped further down instead.
   // Not caught: if the history cannot be read in full, this render fails and
   // ISR keeps serving the last complete wall instead of a short or empty one.
-  const [rescues, price, fates] = await Promise.all([
+  const [rescues, price, fates, roadSnapshots] = await Promise.all([
     fetchRescues('pulsechain'),
     hexUsd(),
     // Stored by the rescue-fates cron. Optional like the fuel gauge: without a
     // database, or if it cannot be read, the section is left out, never guessed.
     dbAvailable() ? readFates('pulsechain').catch(() => null) : Promise.resolve(null),
+    // Snapshots after the history file ends. Best effort: without them the
+    // road still shows its rebuilt history, ending on its last day.
+    dbAvailable() ? readRoadDaily('pulsechain').catch(() => null) : Promise.resolve(null),
   ]);
   const fuel = await fuelP;
   // Null only when the locked-stake index is not ready; the section is left
@@ -183,6 +201,7 @@ export default async function RescueWallPage() {
   const t = totalsFor(rescues);
   const points = chartPoints(rescues);
   const fateView = fates ? fateSlices(rescues, fates) : null;
+  const road = roadPoints(roadSnapshots);
 
   const gross = t.claimableHex + t.penaltyHex;
   const keptFrac = gross > 0 ? t.claimableHex / gross : 0;
@@ -297,6 +316,11 @@ export default async function RescueWallPage() {
                   </Link>
                 )}
               </div>
+            </div>
+
+            {/* ── The road to zero: what is still bleeding, and the decline ── */}
+            <div className="mt-3">
+              <RoadToZero points={road} price={price} minHex={roadHistory.minHex} maxHex={roadHistory.maxHex} />
             </div>
 
             {/* ── What owners did with the HEX once they collected it ── */}
