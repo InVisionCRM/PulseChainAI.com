@@ -1,9 +1,10 @@
 'use client';
 import { geickoHref } from '@/lib/geicko/link';
+import { isTxHash, txPageHref } from '@/lib/pulsechainExplorer';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { IconSearch, IconStar, IconStarFilled, IconX } from '@tabler/icons-react';
+import { IconArrowRight, IconReceipt, IconSearch, IconStar, IconStarFilled, IconX } from '@tabler/icons-react';
 import type { SearchPair } from '@/lib/screener/types';
 import { dexName, fmtAge, fmtPct, fmtPrice, fmtUsd, pctClass, shortAddr } from './format';
 import { DexGlyph } from './DexGlyph';
@@ -65,7 +66,8 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
   useEffect(() => {
     if (!open) return;
     const q = query.trim();
-    if (q.length < 2) {
+    // A transaction hash is not a pair query — it gets its own row below.
+    if (q.length < 2 || isTxHash(q)) {
       setResults([]);
       setSearching(false);
       setError(null);
@@ -109,6 +111,13 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
     [onClose, rememberQuery, router],
   );
 
+  const txHash = isTxHash(query) ? query.trim() : null;
+  const openTx = () => {
+    if (!txHash) return;
+    onClose();
+    router.push(txPageHref(txHash));
+  };
+
   if (!open) return null;
 
   return (
@@ -123,7 +132,10 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by token name, symbol, or address…"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') openTx();
+            }}
+            placeholder="Search by token name, symbol, address, or transaction hash…"
             className="w-full bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-faint)]"
           />
           <button onClick={onClose} className="text-[var(--text-faint)] transition-colors hover:text-[var(--text)]" aria-label="Close search">
@@ -132,7 +144,20 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {query.trim().length < 2 ? (
+          {txHash ? (
+            <button
+              type="button"
+              onClick={openTx}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--surface)]"
+            >
+              <IconReceipt className="h-5 w-5 shrink-0 text-orange-400" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-[var(--text)]">View PulseChain transaction</div>
+                <div className="truncate tabular-nums text-[11px] text-[var(--text-faint)]">{txHash}</div>
+              </div>
+              <IconArrowRight className="h-4 w-4 shrink-0 text-[var(--text-faint)]" />
+            </button>
+          ) : query.trim().length < 2 ? (
             <div className="space-y-4 p-4">
               {recent.length > 0 ? (
                 <div>

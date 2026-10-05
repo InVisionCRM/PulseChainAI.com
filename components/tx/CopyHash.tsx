@@ -1,0 +1,23 @@
+'use client';
+
+import { useState } from 'react';
+import { IconCheck, IconCopy } from '@tabler/icons-react';
+
+/** Copies the full hash; the page only has room to show a short one. */
+export function CopyHash({ value }: { value: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        await navigator.clipboard.writeText(value);
+        setDone(true);
+        setTimeout(() => setDone(false), 1500);
+      }}
+      aria-label={done ? 'Copied' : 'Copy transaction hash'}
+      className="shrink-0 rounded p-0.5 text-[var(--text-faint)] transition-colors hover:text-[var(--text)]"
+    >
+      {done ? <IconCheck className="h-3.5 w-3.5" /> : <IconCopy className="h-3.5 w-3.5" />}
+    </button>
+  );
+}
