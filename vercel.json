@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/hex-stake-sync",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/rescue-fates",
+      "schedule": "25 * * * *"
     }
   ]
 }

@@ -28,16 +28,18 @@ export interface StakeEndRecord {
   prevUnlocked: boolean;
   /** Unix ms the end was mined. */
   timestamp: number;
+  /** The stakeEnd transaction. */
+  tx: string;
 }
 
 interface RawEnd {
   stakeId: string; stakerAddr: string; stakedHearts: string; payout: string;
   penalty: string; servedDays: string; daysLate: string; daysEarly: string;
-  prevUnlocked: boolean; timestamp: string;
+  prevUnlocked: boolean; timestamp: string; transactionHash: string;
 }
 
 const END_FIELDS =
-  'stakeId stakerAddr stakedHearts payout penalty servedDays daysLate daysEarly prevUnlocked timestamp';
+  'stakeId stakerAddr stakedHearts payout penalty servedDays daysLate daysEarly prevUnlocked timestamp transactionHash';
 
 const toRecord = (e: RawEnd): StakeEndRecord => ({
   stakeId: String(e.stakeId),
@@ -50,6 +52,7 @@ const toRecord = (e: RawEnd): StakeEndRecord => ({
   daysEarly: Number(e.daysEarly) || 0,
   prevUnlocked: !!e.prevUnlocked,
   timestamp: Number(e.timestamp) * 1000,
+  tx: String(e.transactionHash),
 });
 
 /**

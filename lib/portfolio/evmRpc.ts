@@ -144,6 +144,42 @@ export async function getCode(
   return null;
 }
 
+/** One log from a transaction receipt — the fields callers here read. */
+export interface ReceiptLog {
+  address: string;
+  topics: string[];
+  data: string;
+}
+
+/** Passes over the pool before a receipt read gives up, and the pause before each retry. */
+const RECEIPT_RETRY_MS = [0, 750, 2_000];
+
+/**
+ * A mined transaction's logs, with failover. Null only when every endpoint
+ * failed on every pass — or the hash is unknown, which no endpoint can tell
+ * apart.
+ *
+ * Retried, unlike a state read, because only the archive node keeps older
+ * receipts. Verified 2026-10-04 on three September PulseChain transactions:
+ * g4mm4 returned each receipt, while rpc.pulsechainrpc.com and publicnode
+ * both answered `null`. So one g4mm4 hiccup under load left the receipt
+ * unreadable with nobody to fail over to — it took 30+ wallets down in one
+ * run of the rescue-fates cron. `null` still reads as "next node".
+ */
+export async function getTransactionReceiptLogs(
+  chain: ChainId,
+  hash: string,
+): Promise<ReceiptLog[] | null> {
+  for (const pause of RECEIPT_RETRY_MS) {
+    if (pause) await new Promise((r) => setTimeout(r, pause));
+    for (const url of RPC_URLS[chain] ?? []) {
+      const r = await rpc(url, 'eth_getTransactionReceipt', [hash]);
+      if (r && Array.isArray(r.logs)) return r.logs as ReceiptLog[];
+    }
+  }
+  return null;
+}
+
 // Log scans return far more data than a balance read, so they get a longer
 // budget than RPC_TIMEOUT_MS (measured: ~2-5s for a 10k-block address-filtered
 // scan on the healthy PulseChain nodes).

@@ -26,6 +26,8 @@ import { hexPriceHistory, windowFor } from '@/lib/hex/hexPriceHistory';
 import { WHAT_HAPPENED, CLAIM_STEPS, HEX_APP_URL } from '@/lib/hex/rescueCopy';
 import { pulsechainTxUrl, pulsechainAddressUrl } from '@/lib/pulsechainExplorer';
 import { fmtHex } from '@/lib/hex/hexDay';
+import { dbAvailable } from '@/lib/db/hexLockedStakes';
+import { readFates, type FateRow } from '@/lib/db/hexRescueFates';
 import { RescuedBy } from '@/components/rescue/RescueBrand';
 import {
   HeroNumber, Speedo, Waterfall, ValueJourney,
@@ -63,6 +65,15 @@ export async function generateMetadata({
   };
 }
 
+/** One line for what happened after collecting, from the stored fate. */
+function fateLine(f: FateRow): string {
+  const when = f.daysToAction == null ? '' : f.daysToAction === 0 ? ' the same day' : ` ${f.daysToAction} day${f.daysToAction === 1 ? '' : 's'} later`;
+  if (f.outcome === 'restaked') return `Re-staked${when}`;
+  if (f.outcome === 'sold') return `Sold${when}`;
+  if (f.outcome === 'moved') return `Moved to another wallet${when}`;
+  return f.final ? 'Held — no sale, transfer or new stake in the 30 days after' : 'Still holding so far';
+}
+
 export default async function RescuedStakePage({ params }: { params: Promise<{ stakeId: string }> }) {
   const { stakeId } = await params;
   const rescue = await fetchRescue('pulsechain', stakeId).catch(() => null);
@@ -70,9 +81,14 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
   // The stake's beginning and the price history behind it. Both are best
   // effort: the page's own figures come from the rescue itself, so a price
   // outage hides one panel rather than breaking anything.
-  const [starts, prices] = await Promise.all([
+  const [starts, prices, fate] = await Promise.all([
     rescue ? fetchStakeStarts('pulsechain', [stakeId]).catch(() => new Map()) : Promise.resolve(new Map()),
     rescue ? hexPriceHistory().catch(() => []) : Promise.resolve([]),
+    // What the owner did after collecting, from the rescue-fates cron. Best
+    // effort like the rest: no row, no database, or a failed read hides the line.
+    rescue?.claimed && dbAvailable()
+      ? readFates('pulsechain').then((m) => m.get(stakeId) ?? null).catch(() => null)
+      : Promise.resolve(null),
   ]);
   const start = starts.get(stakeId) ?? null;
   const pw = rescue ? windowFor(prices, start?.timestamp ?? null) : null;
@@ -164,6 +180,23 @@ export default async function RescuedStakePage({ params }: { params: Promise<{ s
 
                 {/* The reassurance stays a sentence: someone who thinks they
                     have been robbed will not read a chart first. */}
+                {fate && (
+                  <div className="font-poppins mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-white/70">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">Next</span>
+                    <span className="font-semibold text-white">{fateLine(fate)}</span>
+                    {fate.actionTx && (
+                      <a
+                        href={pulsechainTxUrl(fate.actionTx)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-white/55 hover:text-white"
+                      >
+                        proof <IconExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                )}
+
                 <div className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5">
                   <IconShieldCheck className="mt-0.5 h-5 w-5 shrink-0" style={{ color: 'var(--viz-gain)' }} aria-hidden="true" />
                   <p className="font-poppins text-[13px] leading-relaxed text-white/70">

@@ -29,8 +29,10 @@ import { RescueList } from '@/components/rescue/RescueList';
 import { KeeperPanel, type KeeperFuel } from '@/components/rescue/KeeperPanel';
 import { UpcomingBleeders } from '@/components/rescue/UpcomingBleeders';
 import { findUpcomingBleeders, defaultMinPrincipalHex, defaultMaxPrincipalHex } from '@/lib/hex/rescue';
+import { dbAvailable } from '@/lib/db/hexLockedStakes';
+import { readFates } from '@/lib/db/hexRescueFates';
 import {
-  BigStat, HeroNumber, SavedChart, Speedo, type RescuePoint,
+  BigStat, CollectedFates, HeroNumber, SavedChart, Speedo, type FateSlice, type RescuePoint,
 } from '@/components/rescue/RescueDashboard';
 
 // A minute, not five. The wall is watched live while the keeper runs, and a
@@ -96,6 +98,23 @@ function chartPoints(rescues: Rescue[]): RescuePoint[] {
     }));
 }
 
+/** What collected owners did next, summed by outcome over the stakes the
+ *  rescue-fates cron has worked out. Shares are of HEX collected. */
+function fateSlices(rescues: Rescue[], fates: Awaited<ReturnType<typeof readFates>>): { slices: FateSlice[]; judged: number } {
+  const by = new Map<FateSlice['outcome'], FateSlice>();
+  let judged = 0;
+  for (const r of rescues) {
+    const f = r.claimed ? fates.get(r.stakeId) : undefined;
+    if (!f) continue;
+    judged += 1;
+    const s = by.get(f.outcome) ?? { outcome: f.outcome, stakes: 0, hex: 0 };
+    s.stakes += 1;
+    s.hex += f.collectedHex;
+    by.set(f.outcome, s);
+  }
+  return { slices: [...by.values()], judged };
+}
+
 /** Keeper wallet balance and gas burn for the fuel gauge. Each half fails to
  *  null on its own, so an explorer outage still shows the balance. */
 async function keeperFuel(): Promise<KeeperFuel> {
@@ -149,9 +168,12 @@ export default async function RescueWallPage() {
   // much HEX was saved. Cards are capped further down instead.
   // Not caught: if the history cannot be read in full, this render fails and
   // ISR keeps serving the last complete wall instead of a short or empty one.
-  const [rescues, price] = await Promise.all([
+  const [rescues, price, fates] = await Promise.all([
     fetchRescues('pulsechain'),
     hexUsd(),
+    // Stored by the rescue-fates cron. Optional like the fuel gauge: without a
+    // database, or if it cannot be read, the section is left out, never guessed.
+    dbAvailable() ? readFates('pulsechain').catch(() => null) : Promise.resolve(null),
   ]);
   const fuel = await fuelP;
   // Null only when the locked-stake index is not ready; the section is left
@@ -160,6 +182,7 @@ export default async function RescueWallPage() {
   const renderedAt = Date.now();
   const t = totalsFor(rescues);
   const points = chartPoints(rescues);
+  const fateView = fates ? fateSlices(rescues, fates) : null;
 
   const gross = t.claimableHex + t.penaltyHex;
   const keptFrac = gross > 0 ? t.claimableHex / gross : 0;
@@ -169,7 +192,7 @@ export default async function RescueWallPage() {
 
   return (
     <div
-      className="min-h-screen w-full bg-[var(--app-bg)] [--viz-a:#d96406] [--viz-b:#d6186e] [--viz-gain:#0d9488] [--viz-loss:#be123c] dark:[--viz-a:#dd7300] dark:[--viz-b:#ff2e7e] dark:[--viz-gain:#0d9488] dark:[--viz-loss:#e11d48]"
+      className="min-h-screen w-full bg-[var(--app-bg)] [--viz-a:#d96406] [--viz-b:#d6186e] [--viz-c:#2a78d6] [--viz-gain:#0d9488] [--viz-loss:#be123c] dark:[--viz-a:#dd7300] dark:[--viz-b:#ff2e7e] dark:[--viz-c:#3987e5] dark:[--viz-gain:#0d9488] dark:[--viz-loss:#e11d48]"
     >
       <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-6 md:py-10">
         {/* ── Hero: always-dark molten HEX panel, whatever the theme ──
@@ -275,6 +298,13 @@ export default async function RescueWallPage() {
                 )}
               </div>
             </div>
+
+            {/* ── What owners did with the HEX once they collected it ── */}
+            {fateView && fateView.judged > 0 && (
+              <div className="mt-3">
+                <CollectedFates slices={fateView.slices} judged={fateView.judged} collected={t.claimed} price={price} />
+              </div>
+            )}
 
             {/* ── What is coming next: stakes about to leave their grace ── */}
             {upcoming && (
