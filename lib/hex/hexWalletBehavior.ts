@@ -89,7 +89,9 @@ export async function hexTransfersOut(net: Net, addr: string, sinceTs = 0): Prom
     let items: Record<string, unknown>[] = [];
     let next: Record<string, string> | null = null;
     try {
-      const res = await fetch(url, { headers: { accept: 'application/json' } });
+      // Bounded like every other explorer call here: an unanswered request
+      // would otherwise hold a cron worker until the platform kills the run.
+      const res = await fetch(url, { signal: AbortSignal.timeout(15_000), headers: { accept: 'application/json' } });
       if (!res.ok) break;
       const j = await res.json();
       items = (j.items ?? []) as Record<string, unknown>[];
