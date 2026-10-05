@@ -57,7 +57,7 @@ const fmtPrice = (v?: string | number): string => {
 };
 
 // ── token logo (resolves via DexScreener hint, falls back to an initial) ─────
-function TokenLogo({
+export function TokenLogo({
   address,
   hint,
   symbol,
