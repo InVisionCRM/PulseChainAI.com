@@ -36,6 +36,11 @@ import {
 // A minute, not five. The wall is watched live while the keeper runs, and a
 // five-minute window meant a sweep looked like nothing had happened.
 export const revalidate = 60;
+// The render walks the keeper's whole history from Blockscout (~15 s at 3,368
+// sends, growing with every rescue). Set explicitly rather than left to the
+// project default, so a long walk finishes instead of being cut off — a cut-off
+// render fails and leaves the wall frozen on its last copy.
+export const maxDuration = 120;
 
 export const metadata: Metadata = {
   title: 'The Rescue Wall — HEX stakes saved from bleeding out',
