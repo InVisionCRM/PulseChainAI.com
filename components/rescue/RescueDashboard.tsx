@@ -553,6 +553,10 @@ export function CollectedFates({ slices, judged, collected, price }: {
 }) {
   const { on, instant } = useSettled();
   const [hover, setHover] = useState<FateOutcome | null>(null);
+  // A finger lifting fires pointerleave right after the tap (measured: down,
+  // up, out, leave), which wiped the readout before it could be read. A tapped
+  // segment stays selected until another tap; only a mouse leaving clears it.
+  const leave = (e: React.PointerEvent) => { if (e.pointerType !== 'touch') setHover(null); };
   const by = new Map(slices.map((s) => [s.outcome, s]));
   const rows = FATE_ORDER.map((o) => by.get(o) ?? { outcome: o, stakes: 0, hex: 0 });
   const total = rows.reduce((a, r) => a + r.hex, 0);
@@ -585,7 +589,7 @@ export function CollectedFates({ slices, judged, collected, price }: {
       {/* the 100% bar: 2px gaps between segments, rounded only at its ends */}
       <div
         className="mt-4 flex h-4 w-full gap-[2px] overflow-hidden rounded-[4px]"
-        onPointerLeave={() => setHover(null)}
+        onPointerLeave={leave}
         role="img"
         aria-label={rows.map((r) => `${FATE_META[r.outcome].label} ${fmtPct(r.hex)}`).join(', ')}
       >
@@ -622,7 +626,8 @@ export function CollectedFates({ slices, judged, collected, price }: {
             key={r.outcome}
             className="flex min-w-0 items-start gap-2"
             onPointerEnter={() => setHover(r.outcome)}
-            onPointerLeave={() => setHover(null)}
+            onPointerDown={() => setHover(r.outcome)}
+            onPointerLeave={leave}
           >
             <span aria-hidden className="mt-1 h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: FATE_META[r.outcome].color }} />
             <div className="min-w-0">
