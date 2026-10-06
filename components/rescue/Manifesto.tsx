@@ -214,9 +214,9 @@ export function Manifesto({ figures }: { figures: ManifestoFigures }) {
 
                   <Section title="Follow the penalty.">
                     Every HEX a late stake loses is split down the middle. Half is minted straight to the Origin
-                    Address. The other half goes to &ldquo;the stakers,&rdquo; shared out by size, so the biggest
-                    wallets take the biggest cut. Your bad week was never spread across the community. It was
-                    funneled to the top.
+                    Address, no stake required. The other half goes to &ldquo;the stakers,&rdquo; shared out by
+                    size, so the biggest wallets take the biggest cut, some of them funded by the Origin Address
+                    itself. Your bad week was never spread across the community. It was funneled to the top.
                   </Section>
 
                   <Section title="So we turned off the clock.">
