@@ -27,6 +27,7 @@ import { HexAmount, HEX_GRADIENT } from '@/components/hex/HexAmount';
 import { RescuedBy } from '@/components/rescue/RescueBrand';
 import { RescueList } from '@/components/rescue/RescueList';
 import { KeeperPanel, type KeeperFuel } from '@/components/rescue/KeeperPanel';
+import { Manifesto, ManifestoLink } from '@/components/rescue/Manifesto';
 import { UpcomingBleeders } from '@/components/rescue/UpcomingBleeders';
 import { findUpcomingBleeders, defaultMinPrincipalHex, defaultMaxPrincipalHex } from '@/lib/hex/rescue';
 import { dbAvailable } from '@/lib/db/hexLockedStakes';
@@ -216,6 +217,14 @@ export default async function RescueWallPage() {
   const points = chartPoints(rescues);
   const fateView = fates ? fateSlices(rescues, fates) : null;
   const road = roadPoints(roadSnapshots);
+  const manifesto = {
+    rescues: t.count,
+    wallets: new Set(rescues.map((r) => r.stakerAddr.toLowerCase())).size,
+    keptHex: t.claimableHex,
+    bleedStoppedPerDay: t.bleedStoppedPerDay,
+    gasPls: t.gasPls,
+    originHex: t.penaltyHex / 2,
+  };
 
   const gross = t.claimableHex + t.penaltyHex;
   const keptFrac = gross > 0 ? t.claimableHex / gross : 0;
@@ -227,6 +236,7 @@ export default async function RescueWallPage() {
     <div
       className="min-h-screen w-full bg-[var(--app-bg)] [--viz-a:#d96406] [--viz-b:#d6186e] [--viz-c:#2a78d6] [--viz-gain:#0d9488] [--viz-loss:#be123c] dark:[--viz-a:#dd7300] dark:[--viz-b:#ff2e7e] dark:[--viz-c:#3987e5] dark:[--viz-gain:#0d9488] dark:[--viz-loss:#e11d48]"
     >
+      <Manifesto figures={manifesto} />
       <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-6 md:py-10">
         {/* ── Hero: always-dark molten HEX panel, whatever the theme ──
             The panel pins the ink text vars locally so children built on the
@@ -260,6 +270,7 @@ export default async function RescueWallPage() {
               Matured HEX stakes bleed 1/700th a day until someone freezes them. We freeze them —{' '}
               <span className="font-semibold text-white">every one is still its owner’s.</span>
             </p>
+            <ManifestoLink className="mt-2" />
 
             <div className="mt-7 grid gap-6 sm:grid-cols-2 md:gap-8">
               <HeroNumber
