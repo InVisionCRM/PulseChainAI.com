@@ -19,7 +19,7 @@ import type { Metadata } from 'next';
 import {
   IconExternalLink, IconTrophy, IconClock, IconDroplet, IconSnowflake,
 } from '@tabler/icons-react';
-import { fetchRescues, fetchKeeperBurn, totalsFor, weiToPls, KEEPER_ADDRESS, type Rescue } from '@/lib/hex/rescueFeed';
+import { fetchRescues, keeperBurn, totalsFor, weiToPls, KEEPER_ADDRESS, type Rescue } from '@/lib/hex/rescueFeed';
 import { getBalance } from '@/lib/portfolio/evmRpc';
 import { HEX_APP_URL } from '@/lib/hex/rescueCopy';
 import { fmtHex, fmtUsdShort } from '@/lib/hex/hexDay';
@@ -139,20 +139,12 @@ function gasPerRescue(rescues: Rescue[], now: number): number | null {
   return weiToPls(recent.reduce((sum, r) => sum + BigInt(r.feeWei), 0n)) / recent.length;
 }
 
-/** Keeper wallet balance and gas burn for the fuel gauge. Each half fails to
- *  null on its own, so an explorer outage still shows the balance. */
-async function keeperFuel(): Promise<Omit<KeeperFuel, 'spentPls' | 'rescueCount' | 'plsPerRescue'>> {
+/** Keeper wallet balance for the fuel gauge; null if no RPC answered. The
+ *  burn rate beside it is worked out from the rescues themselves. */
+async function keeperBalance(): Promise<{ balancePls: number | null; measuredAt: number }> {
   const measuredAt = Date.now();
-  const [wei, burn] = await Promise.all([
-    getBalance('pulsechain', KEEPER_ADDRESS),
-    fetchKeeperBurn('pulsechain', FUEL_WINDOW_DAYS).catch(() => null),
-  ]);
-  return {
-    balancePls: wei != null ? Number(wei / 10n ** 12n) / 1e6 : null,
-    plsPerDay: burn?.plsPerDay ?? null,
-    windowDays: burn?.windowDays ?? null,
-    measuredAt,
-  };
+  const wei = await getBalance('pulsechain', KEEPER_ADDRESS);
+  return { balancePls: wei != null ? Number(wei / 10n ** 12n) / 1e6 : null, measuredAt };
 }
 
 /** The honeycomb the hero wears — the HEX mark, tiled, fading out rightward. */
@@ -182,7 +174,7 @@ function Honeycomb() {
 }
 
 export default async function RescueWallPage() {
-  const fuelP = keeperFuel();
+  const balanceP = keeperBalance();
   const upcomingP = findUpcomingBleeders('pulsechain', UPCOMING_HOURS);
   // Marked handled so a failure here while the history below is also failing
   // is not an unhandled rejection; the await further down still throws it.
@@ -202,17 +194,20 @@ export default async function RescueWallPage() {
     // road still shows its rebuilt history, ending on its last day.
     dbAvailable() ? readRoadDaily('pulsechain').catch(() => null) : Promise.resolve(null),
   ]);
-  const fuelRead = await fuelP;
+  const balance = await balanceP;
   // Null only when the locked-stake index is not ready; the section is left
   // out then rather than shown short.
   const upcoming = await upcomingP;
   const renderedAt = Date.now();
   const t = totalsFor(rescues);
+  const burn = keeperBurn(rescues, FUEL_WINDOW_DAYS, balance.measuredAt);
   const fuel: KeeperFuel = {
-    ...fuelRead,
+    ...balance,
+    plsPerDay: burn?.plsPerDay ?? null,
+    windowDays: burn?.windowDays ?? null,
     spentPls: t.gasPls,
     rescueCount: t.count,
-    plsPerRescue: gasPerRescue(rescues, fuelRead.measuredAt),
+    plsPerRescue: gasPerRescue(rescues, balance.measuredAt),
   };
   const points = chartPoints(rescues);
   const fateView = fates ? fateSlices(rescues, fates) : null;

@@ -526,6 +526,101 @@ export async function getBlockNumber(chain: ChainId): Promise<number | null> {
   return null;
 }
 
+/**
+ * The newest finalized block — one that can no longer be reorganised away.
+ * Throws if no endpoint answers: a caller storing chain history must not
+ * guess where "safe" ends. Verified 2026-10-06: all three PulseChain nodes
+ * answer `finalized`, 78 blocks (~13 min) behind head.
+ */
+export async function getFinalizedBlockNumber(chain: ChainId): Promise<number> {
+  for (const url of RPC_URLS[chain] ?? []) {
+    const r = await rpc(url, 'eth_getBlockByNumber', ['finalized', false]);
+    if (r && typeof r === 'object' && typeof (r as { number?: unknown }).number === 'string') {
+      return Number.parseInt((r as { number: string }).number, 16);
+    }
+  }
+  throw new Error(`No ${chain} node answered the finalized block`);
+}
+
+/**
+ * Nodes for batched transaction + receipt lookups, fastest first. Measured
+ * 2026-10-06 on 2,000 August keeper transactions (batches of 50 hashes):
+ * publicnode answered every batch, 1,000 lookups in 0.3–0.7 s; g4mm4 answered
+ * but tripped its concurrency limit on 15% of them; rpc.pulsechainrpc.com
+ * returned nothing at all — its transaction index does not reach back to
+ * August — so it is not in this list.
+ */
+const LOOKUP_URLS: Partial<Record<ChainId, string[]>> = {
+  pulsechain: ['https://pulsechain-rpc.publicnode.com', 'https://rpc-pulsechain.g4mm4.io'],
+};
+const LOOKUP_BATCH = 50;
+const LOOKUP_WORKERS = 6;
+const LOOKUP_TIMEOUT_MS = 20_000;
+
+/** One batch of tx + receipt lookups on one node; null unless every answer came back. */
+async function lookupBatch(url: string, hashes: string[]): Promise<Map<string, { tx: RpcTransaction; receipt: RpcReceipt }> | null> {
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(
+        hashes.flatMap((h, i) => [
+          { jsonrpc: '2.0', id: 2 * i, method: 'eth_getTransactionByHash', params: [h] },
+          { jsonrpc: '2.0', id: 2 * i + 1, method: 'eth_getTransactionReceipt', params: [h] },
+        ]),
+      ),
+      signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
+    });
+    if (!res.ok) return null;
+    const answers = (await res.json()) as { id: number; result?: unknown }[];
+    if (!Array.isArray(answers)) return null;
+    const byId = new Map(answers.map((a) => [a.id, a.result]));
+    const out = new Map<string, { tx: RpcTransaction; receipt: RpcReceipt }>();
+    for (let i = 0; i < hashes.length; i++) {
+      const tx = byId.get(2 * i) as RpcTransaction | null | undefined;
+      const receipt = byId.get(2 * i + 1) as RpcReceipt | null | undefined;
+      if (!tx || !receipt) return null;
+      out.set(hashes[i].toLowerCase(), { tx, receipt });
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Mined transactions and their receipts, by hash, in batches across
+ * LOOKUP_URLS. Every hash is answered or this throws — it feeds stored
+ * history, where a silently missing row would undercount forever.
+ */
+export async function getTransactionsWithReceipts(
+  chain: ChainId,
+  hashes: string[],
+): Promise<Map<string, { tx: RpcTransaction; receipt: RpcReceipt }>> {
+  const urls = LOOKUP_URLS[chain];
+  if (!urls) throw new Error(`No batch lookup nodes configured for ${chain}`);
+  const batches: string[][] = [];
+  for (let i = 0; i < hashes.length; i += LOOKUP_BATCH) batches.push(hashes.slice(i, i + LOOKUP_BATCH));
+  const out = new Map<string, { tx: RpcTransaction; receipt: RpcReceipt }>();
+  const worker = async () => {
+    for (let b = batches.shift(); b; b = batches.shift()) {
+      let got: Map<string, { tx: RpcTransaction; receipt: RpcReceipt }> | null = null;
+      for (const pause of RECEIPT_RETRY_MS) {
+        if (pause) await new Promise((r) => setTimeout(r, pause));
+        for (const url of urls) {
+          got = await lookupBatch(url, b);
+          if (got) break;
+        }
+        if (got) break;
+      }
+      if (!got) throw new Error(`No ${chain} node answered a lookup batch starting ${b[0]}`);
+      for (const [h, v] of got) out.set(h, v);
+    }
+  };
+  await Promise.all(Array.from({ length: LOOKUP_WORKERS }, worker));
+  return out;
+}
+
 /** Unix timestamp (seconds) of a block, or null if every endpoint failed. */
 export async function getBlockTimestamp(
   chain: ChainId,
