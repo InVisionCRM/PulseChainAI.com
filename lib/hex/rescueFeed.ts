@@ -6,34 +6,27 @@
 //
 // Two sources, each doing what only it can:
 //
-//   • BLOCKSCOUT tells us which rescues were OURS. The HEX subgraph indexes
-//     `stakeGoodAccountings` by the STAKER, not by whoever called it, so it
-//     cannot distinguish our keeper's work from anyone else's. Blockscout can
-//     list transactions FROM the keeper address, and the stakeId is recoverable
-//     from each one's calldata, so that is the authoritative "was this us".
+//   • THE CHAIN, stored. A keeper rescue is a HEX StakeGoodAccounting event
+//     whose sender is the keeper; the event itself carries the principal,
+//     interest and penalty it froze. lib/hex/rescueSync.ts copies every one into
+//     hex_rescues once its block is final, and each read here syncs first, so
+//     the table is never more than one sync behind the chain.
 //
-//   • THE SUBGRAPH tells us what each rescue FROZE. `stakeGoodAccountings`
-//     carries the payout and penalty as recorded at good-accounting — the real
-//     numbers, locked in, not a time-based estimate. lib/hex/goodAccounting.ts
-//     already fetches and models exactly that, so this reuses it rather than
-//     re-deriving the maths.
+//   • THE SUBGRAPH tells us what happened AFTER: whether the owner has since
+//     ended the stake and collected. That keeps changing, so it is read live.
 //
-// Deliberately no database. The chain already stores all of this permanently,
-// a rescue is immutable once mined, and a table would be a second copy that can
-// drift from the truth. It also means the wall works on any deployment with no
-// migration, which matters for a page whose whole point is being publicly
-// verifiable.
+// The keeper's explorer history used to be walked on every render instead.
+// On 2026-10-06 that walk took ~146 s (194 pages), past both the 60 s build
+// limit and this page's 120 s refresh limit, and the explorer was missing
+// real rescues from a block it wrongly marks "lost consensus".
 
-import { fetchGoodAccountings, type GoodAccountingRecord } from './goodAccounting';
 import { fetchStakeEnds, type StakeEndRecord } from './stakeEnds';
-import { HEX_ADDRESS, heartsToHex, LATE_PENALTY_SCALE_DAYS } from './hexDay';
+import { heartsToHex, LATE_PENALTY_SCALE_DAYS } from './hexDay';
 import { SEL } from './rescue';
+import { syncRescues } from './rescueSync';
+import { readRescueRows, readRescueRow, type RescueRow } from '@/lib/db/hexRescues';
 import type { HexNet } from './subgraph';
 
-const BLOCKSCOUT: Record<HexNet, string> = {
-  pulsechain: 'https://api.scan.pulsechain.com/api/v2',
-  ethereum: 'https://eth.blockscout.com/api/v2',
-};
 
 /**
  * The keeper whose rescues the wall shows.
@@ -55,6 +48,9 @@ export interface Rescue {
   timestamp: number;
   /** The note we left in the calldata. */
   message: string | null;
+  /** What the rescue transaction cost in gas, in wei: gasUsed × effectiveGasPrice
+   *  from its receipt. */
+  feeWei: string;
   /** Principal, from the frozen good-accounting record. */
   principalHex: number | null;
   /** Interest earned, frozen at the good-accounting day. */
@@ -112,109 +108,35 @@ export function decodeRescueCalldata(
   }
 }
 
-/**
- * A Blockscout row is a rescue only if the chain says it WORKED.
- *
- * The test used to be `if (t.status && t.status !== 'ok') continue` — absence
- * of failure rather than presence of success — and a pending transaction has
- * `status: null`, so every one of them sailed through. During a keeper run that
- * is most of the list: the wall filled with rescues dated 1970 (no timestamp
- * yet), with no figures (the subgraph cannot price what has not mined), and
- * counted them in its totals. Some of those then revert, so the wall was
- * crediting rescues that never happened.
- *
- * Verified against the live keeper mid-run: `result: "pending"`, `status: null`,
- * `timestamp: null`, `block_number: null`. Seven of its transactions did revert
- * (receipt status `0x0`), and Blockscout marks those `status: "error"` with
- * `result: "awaiting_internal_transactions"` — so demanding "ok" excludes both
- * the not-yet-mined and the failed, which is the only honest set to show
- * someone about their own money.
- */
-function isMinedRescue(t: any): boolean {
-  const to = String(t?.to?.hash ?? t?.to?.address_hash ?? '').toLowerCase();
-  if (to !== HEX_ADDRESS.toLowerCase()) return false;
-  if (String(t?.status ?? '') !== 'ok') return false;
-  // A rescue with no timestamp cannot be dated on the page, and the only rows
-  // missing one are rows that have not mined.
-  return !!t?.timestamp;
-}
-
-/**
- * Pages of keeper transactions (50 each) read before giving up — 20,000
- * transactions. A runaway guard sized for the backlog sweep: the old 60 pages
- * (3,000) was crossed on 2026-10-04 when the keeper reached 3,368 sends, and
- * every render of the wall threw from then on, freezing it on a stale copy.
- * Measured then: 219 ms a page, so the full walk was ~15 s at 68 pages.
- */
-const MAX_PAGES = 400;
-
-/**
- * Walk the keeper's transactions newest-first, decoding the rescues.
- *
- * `stopAt` lets a single-stake lookup quit as soon as it finds its rescue
- * instead of pulling the whole history to answer one question.
- */
-async function walkRescues(
-  net: HexNet,
-  limit: number,
-  stopAt?: string,
-): Promise<Rescue[]> {
-  const out: Rescue[] = [];
-  let nextParams = '';
-
-  // 50 rows a page. A failed page throws rather than ending the walk: the
-  // caller totals this list, so stopping early would publish a smaller wall
-  // with nothing saying it is short.
-  for (let page = 0; out.length < limit; page++) {
-    // Runaway guard, not a budget — hitting it throws for the same reason.
-    if (page === MAX_PAGES) {
-      throw new Error(`Keeper history exceeds ${MAX_PAGES * 50} transactions; raise MAX_PAGES`);
-    }
-    const url = `${BLOCKSCOUT[net]}/addresses/${KEEPER_ADDRESS}/transactions?filter=from${nextParams}`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/json' } });
-    if (!r.ok) throw new Error(`Blockscout ${r.status} on keeper transactions page ${page}`);
-    const data: any = await r.json();
-
-    const items: any[] = data?.items ?? [];
-    if (items.length === 0) break;
-
-    let found = false;
-    for (const t of items) {
-      if (!isMinedRescue(t)) continue;
-
-      const decoded = decodeRescueCalldata(String(t?.raw_input ?? ''));
-      if (!decoded) continue;
-      if (stopAt && decoded.stakeId !== stopAt) continue;
-
-      out.push({
-        stakeId: decoded.stakeId,
-        stakerAddr: decoded.stakerAddr,
-        txHash: String(t?.hash ?? ''),
-        timestamp: Date.parse(t.timestamp),
-        message: decoded.message,
-        principalHex: null,
-        payoutHex: null,
-        penaltyHex: null,
-        claimableHex: null,
-        bleedPerDay: null,
-        claimed: null,
-        claimedAt: null,
-        daysToClaim: null,
-        claimedHex: null,
-        endConfirmsRescue: null,
-      });
-      if (stopAt) { found = true; break; }
-    }
-    if (found) break;
-
-    const np = data?.next_page_params;
-    if (!np) break;
-    nextParams = `&${new URLSearchParams(
-      Object.entries(np).map(([k, v]) => [k, String(v)]),
-    ).toString()}`;
-  }
-
-  return out.slice(0, limit);
+/** A stored rescue as the wall shows it, before the live "collected?" lookup. */
+function fromRow(r: RescueRow): Rescue {
+  const principalHex = heartsToHex(r.principalHearts.toString());
+  const payoutHex = heartsToHex(r.payoutHearts.toString());
+  const gross = principalHex + payoutHex;
+  // The event's penalty is NOT capped: HEX computes gross × daysLate / 700
+  // and only caps what it takes (`cappedPenalty`) at the gross. A stake
+  // 1,305 days late records 186% of its gross. What was actually taken —
+  // and split 50/50 between Origin and the stakers' payout pool — is the
+  // capped amount.
+  const penaltyHex = Math.min(heartsToHex(r.penaltyHearts.toString()), gross);
+  return {
+    stakeId: r.stakeId,
+    stakerAddr: r.stakerAddr,
+    txHash: r.txHash,
+    timestamp: r.minedAt,
+    message: r.message,
+    feeWei: r.feeWei.toString(),
+    principalHex,
+    payoutHex,
+    penaltyHex,
+    claimableHex: gross - penaltyHex,
+    bleedPerDay: gross / LATE_PENALTY_SCALE_DAYS,
+    claimed: null,
+    claimedAt: null,
+    daysToClaim: null,
+    claimedHex: null,
+    endConfirmsRescue: null,
+  };
 }
 
 /**
@@ -222,53 +144,25 @@ async function walkRescues(
  *
  * No limit, because the caller totals this list: a limit that quietly cuts it
  * off does not shorten the wall, it under-reports how much HEX was saved.
- * Throws if the history cannot be read in full.
+ * Throws if the chain cannot be synced, so the page keeps its last full copy.
  */
 export async function fetchRescues(net: HexNet = 'pulsechain'): Promise<Rescue[]> {
-  return enrich(net, await walkRescues(net, Infinity));
+  await syncRescues(net);
+  return withCollections(net, (await readRescueRows(net)).map(fromRow));
 }
 
 /**
- * Fill in the frozen figures from the subgraph.
+ * Whether each owner has since ended the stake and collected.
  *
- * A rescue with no good-accounting record keeps its nulls rather than being
- * given zeros — "we could not read this" and "this is worth nothing" are very
- * different statements to put in front of someone about their own money.
+ * An absent end means the stake is still sitting there — but only if the
+ * lookup actually ran. When it fails every `claimed` stays null: reporting
+ * that as "nobody claimed anything" would be a lie about money.
  */
-async function enrich(net: HexNet, rescues: Rescue[]): Promise<Rescue[]> {
+async function withCollections(net: HexNet, rescues: Rescue[]): Promise<Rescue[]> {
   if (rescues.length === 0) return rescues;
-  const ids = rescues.map((r) => r.stakeId);
-
-  // The two halves of a rescue's story, fetched together: what we froze, and
-  // whether the owner has since come to collect it. Settled separately, so a
-  // failed end lookup leaves every `claimed` unknown without also discarding
-  // the prices — and a failed price lookup leaves rows unpriced, not lost.
-  const [gaRes, endRes] = await Promise.allSettled([
-    fetchGoodAccountings(net, ids),
-    fetchStakeEnds(net, ids),
-  ]);
-  const records: Map<string, GoodAccountingRecord> = gaRes.status === 'fulfilled' ? gaRes.value : new Map();
-  const ends: Map<string, StakeEndRecord> | null = endRes.status === 'fulfilled' ? endRes.value : null;
-
+  const ends: Map<string, StakeEndRecord> | null = await fetchStakeEnds(net, rescues.map((r) => r.stakeId)).catch(() => null);
+  if (!ends) return rescues;
   for (const r of rescues) {
-    const ga = records.get(r.stakeId);
-    if (ga) {
-      r.principalHex = ga.principalHex;
-      r.payoutHex = ga.payoutHex;
-      // The event's penalty is NOT capped: HEX computes gross × daysLate / 700
-      // and only caps what it takes (`cappedPenalty`) at the gross. A stake
-      // 1,305 days late records 186% of its gross. What was actually taken —
-      // and split 50/50 between Origin and the stakers' payout pool — is the
-      // capped amount.
-      r.penaltyHex = Math.min(ga.penaltyHex, ga.principalHex + ga.payoutHex);
-      r.claimableHex = Math.max(0, ga.principalHex + ga.payoutHex - ga.penaltyHex);
-      r.bleedPerDay = (ga.principalHex + ga.payoutHex) / LATE_PENALTY_SCALE_DAYS;
-    }
-
-    // An absent end means the stake is still sitting there — but only if the
-    // lookup actually ran. `ends` is null when it failed, and reporting that
-    // as "nobody claimed anything" would be a lie about money.
-    if (!ends) continue;
     const end = ends.get(r.stakeId);
     if (!end) {
       r.claimed = false;
@@ -284,19 +178,15 @@ async function enrich(net: HexNet, rescues: Rescue[]): Promise<Rescue[]> {
   return rescues;
 }
 
-/**
- * One rescue by stake id, or null if this keeper never touched that stake.
- *
- * Stops at the matching transaction rather than pulling and pricing the whole
- * history to answer about one stake — this page is linked from every on-chain
- * message, so it has to stay quick and has to keep working as the keeper's
- * history grows.
- */
+/** One rescue by stake id, or null if this keeper never touched that stake. */
 export async function fetchRescue(net: HexNet, stakeId: string): Promise<Rescue | null> {
-  const found = await walkRescues(net, 1, stakeId);
-  if (found.length === 0) return null;
-  return (await enrich(net, found))[0] ?? null;
+  await syncRescues(net);
+  const row = await readRescueRow(net, stakeId);
+  return row ? (await withCollections(net, [fromRow(row)]))[0] : null;
 }
+
+/** Wei to PLS, keeping six decimals — the precision every figure here shows. */
+export const weiToPls = (wei: bigint) => Number(wei / 10n ** 12n) / 1e6;
 
 export interface KeeperBurn {
   /** PLS the keeper spent on gas per day, averaged over the window. */
@@ -306,55 +196,23 @@ export interface KeeperBurn {
 }
 
 /**
- * What the keeper spends on gas, from the actual fee of every mined
- * transaction it sent in the trailing window — failed ones included, since
- * they burn gas too.
+ * What the keeper spends on gas, from the actual fee of every rescue it mined
+ * in the trailing window. Failed attempts are not rescues and are not counted
+ * — 7 of them, 728 PLS, as of 2026-10-06. Null when the window holds none.
  *
  * A trailing window, not the whole history: the first days cleared a backlog
  * (Aug 20 2026 alone burned 3.85M PLS against ~20K on an ordinary day), and an
- * all-time average would put that burst into every future day. Throws if the
- * explorer cannot be read, so the caller shows no estimate rather than one
- * built on half a window.
+ * all-time average would put that burst into every future day.
  */
-/** Same guard as MAX_PAGES. The old 1,000-transaction window assumed ~10
- *  sends a day; the backlog sweep runs ~300 an hour, which put a fortnight's
- *  sends past it and hid the fuel gauge. */
-const BURN_MAX_PAGES = MAX_PAGES;
-
-export async function fetchKeeperBurn(net: HexNet, days: number): Promise<KeeperBurn> {
-  const now = Date.now();
+export function keeperBurn(rescues: Rescue[], days: number, now: number): KeeperBurn | null {
   const since = now - days * 86_400_000;
-  let wei = 0n;
-  let oldest = now;
-  let nextParams = '';
-
-  for (let page = 0; ; page++) {
-    if (page === BURN_MAX_PAGES) throw new Error(`Keeper burn window exceeds ${BURN_MAX_PAGES * 50} transactions`);
-    const url = `${BLOCKSCOUT[net]}/addresses/${KEEPER_ADDRESS}/transactions?filter=from${nextParams}`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/json' } });
-    if (!r.ok) throw new Error(`Blockscout ${r.status} on keeper transactions page ${page}`);
-    const data: any = await r.json();
-
-    let pastWindow = false;
-    for (const t of data?.items ?? []) {
-      // Pending rows come first with no timestamp and a "maximum" fee — not spent yet.
-      if (t?.fee?.type !== 'actual' || !t?.timestamp) continue;
-      const at = Date.parse(t.timestamp);
-      if (at < since) { pastWindow = true; break; }
-      wei += BigInt(t.fee.value);
-      oldest = Math.min(oldest, at);
-    }
-
-    const np = data?.next_page_params;
-    if (pastWindow || !np) {
-      // Ran out of history before the window did: average over what exists.
-      const windowDays = pastWindow ? days : Math.max(1, (now - oldest) / 86_400_000);
-      return { plsPerDay: Number(wei / 10n ** 12n) / 1e6 / windowDays, windowDays };
-    }
-    nextParams = `&${new URLSearchParams(
-      Object.entries(np).map(([k, v]) => [k, String(v)]),
-    ).toString()}`;
-  }
+  const recent = rescues.filter((r) => r.timestamp >= since);
+  if (!recent.length) return null;
+  const firstEver = Math.min(...rescues.map((r) => r.timestamp));
+  // A history shorter than the window is averaged over what exists.
+  const windowDays = firstEver > since ? Math.max(1, (now - firstEver) / 86_400_000) : days;
+  const wei = recent.reduce((sum, r) => sum + BigInt(r.feeWei), 0n);
+  return { plsPerDay: weiToPls(wei) / windowDays, windowDays };
 }
 
 export interface RescueTotals {
@@ -386,6 +244,9 @@ export interface RescueTotals {
   biggest: Rescue | null;
   /** Closest call: the highest share of gross already burned when we froze it. */
   closestCall: Rescue | null;
+  /** PLS spent on gas across every rescue so far. Failed attempts are not
+   *  rescues and are not in it (7 of them, 728 PLS, as of 2026-10-06). */
+  gasPls: number;
 }
 
 export function totalsFor(rescues: Rescue[]): RescueTotals {
@@ -402,8 +263,10 @@ export function totalsFor(rescues: Rescue[]): RescueTotals {
   let biggest: Rescue | null = null;
   let closestCall: Rescue | null = null;
   let worstFrac = -1;
+  let gasWei = 0n;
 
   for (const r of rescues) {
+    gasWei += BigInt(r.feeWei);
     if (r.claimableHex == null) {
       unpriced++;
       continue;
@@ -454,5 +317,6 @@ export function totalsFor(rescues: Rescue[]): RescueTotals {
   return {
     count: rescues.length, claimed, unclaimed, claimedHex, unclaimedHex, medianDaysToClaim, slowestClaim,
     claimableHex, bleedStoppedPerDay, penaltyHex, unpriced, biggest, closestCall,
+    gasPls: weiToPls(gasWei),
   };
 }

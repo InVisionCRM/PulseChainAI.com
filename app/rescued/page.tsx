@@ -19,7 +19,7 @@ import type { Metadata } from 'next';
 import {
   IconExternalLink, IconTrophy, IconClock, IconDroplet, IconSnowflake,
 } from '@tabler/icons-react';
-import { fetchRescues, fetchKeeperBurn, totalsFor, KEEPER_ADDRESS, type Rescue } from '@/lib/hex/rescueFeed';
+import { fetchRescues, keeperBurn, totalsFor, weiToPls, KEEPER_ADDRESS, type Rescue } from '@/lib/hex/rescueFeed';
 import { getBalance } from '@/lib/portfolio/evmRpc';
 import { HEX_APP_URL } from '@/lib/hex/rescueCopy';
 import { fmtHex, fmtUsdShort } from '@/lib/hex/hexDay';
@@ -27,6 +27,7 @@ import { HexAmount, HEX_GRADIENT } from '@/components/hex/HexAmount';
 import { RescuedBy } from '@/components/rescue/RescueBrand';
 import { RescueList } from '@/components/rescue/RescueList';
 import { KeeperPanel, type KeeperFuel } from '@/components/rescue/KeeperPanel';
+import { Manifesto, ManifestoLink } from '@/components/rescue/Manifesto';
 import { UpcomingBleeders } from '@/components/rescue/UpcomingBleeders';
 import { findUpcomingBleeders, defaultMinPrincipalHex, defaultMaxPrincipalHex } from '@/lib/hex/rescue';
 import { dbAvailable } from '@/lib/db/hexLockedStakes';
@@ -130,20 +131,20 @@ function roadPoints(snapshots: Awaited<ReturnType<typeof readRoadDaily>> | null)
   return [...history, ...later];
 }
 
-/** Keeper wallet balance and gas burn for the fuel gauge. Each half fails to
- *  null on its own, so an explorer outage still shows the balance. */
-async function keeperFuel(): Promise<KeeperFuel> {
+/** Average gas per rescue over the fuel window, from the rescues' own fees —
+ *  the same days the gauge's burn rate averages. Null with none in the window. */
+function gasPerRescue(rescues: Rescue[], now: number): number | null {
+  const recent = rescues.filter((r) => r.timestamp >= now - FUEL_WINDOW_DAYS * 86_400_000);
+  if (!recent.length) return null;
+  return weiToPls(recent.reduce((sum, r) => sum + BigInt(r.feeWei), 0n)) / recent.length;
+}
+
+/** Keeper wallet balance for the fuel gauge; null if no RPC answered. The
+ *  burn rate beside it is worked out from the rescues themselves. */
+async function keeperBalance(): Promise<{ balancePls: number | null; measuredAt: number }> {
   const measuredAt = Date.now();
-  const [wei, burn] = await Promise.all([
-    getBalance('pulsechain', KEEPER_ADDRESS),
-    fetchKeeperBurn('pulsechain', FUEL_WINDOW_DAYS).catch(() => null),
-  ]);
-  return {
-    balancePls: wei != null ? Number(wei / 10n ** 12n) / 1e6 : null,
-    plsPerDay: burn?.plsPerDay ?? null,
-    windowDays: burn?.windowDays ?? null,
-    measuredAt,
-  };
+  const wei = await getBalance('pulsechain', KEEPER_ADDRESS);
+  return { balancePls: wei != null ? Number(wei / 10n ** 12n) / 1e6 : null, measuredAt };
 }
 
 /** The honeycomb the hero wears — the HEX mark, tiled, fading out rightward. */
@@ -173,7 +174,22 @@ function Honeycomb() {
 }
 
 export default async function RescueWallPage() {
-  const fuelP = keeperFuel();
+  // The wall reads the stored rescues (lib/db/hexRescues.ts). A deployment
+  // with no database has nothing to read and says so — it has no second data
+  // path, and throwing here would fail the whole build at prerender.
+  if (!dbAvailable()) {
+    return (
+      <div className="min-h-screen w-full bg-[var(--app-bg)]">
+        <div className="mx-auto w-full max-w-3xl px-4 py-16 text-center">
+          <h1 className="font-jost text-[28px] font-bold text-[var(--text)]">The Rescue Wall</h1>
+          <p className="font-poppins mt-3 text-sm text-[var(--text-muted)]">
+            This deployment has no database connected, and the wall is read from one.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  const balanceP = keeperBalance();
   const upcomingP = findUpcomingBleeders('pulsechain', UPCOMING_HOURS);
   // Marked handled so a failure here while the history below is also failing
   // is not an unhandled rejection; the await further down still throws it.
@@ -193,15 +209,32 @@ export default async function RescueWallPage() {
     // road still shows its rebuilt history, ending on its last day.
     dbAvailable() ? readRoadDaily('pulsechain').catch(() => null) : Promise.resolve(null),
   ]);
-  const fuel = await fuelP;
+  const balance = await balanceP;
   // Null only when the locked-stake index is not ready; the section is left
   // out then rather than shown short.
   const upcoming = await upcomingP;
   const renderedAt = Date.now();
   const t = totalsFor(rescues);
+  const burn = keeperBurn(rescues, FUEL_WINDOW_DAYS, balance.measuredAt);
+  const fuel: KeeperFuel = {
+    ...balance,
+    plsPerDay: burn?.plsPerDay ?? null,
+    windowDays: burn?.windowDays ?? null,
+    spentPls: t.gasPls,
+    rescueCount: t.count,
+    plsPerRescue: gasPerRescue(rescues, balance.measuredAt),
+  };
   const points = chartPoints(rescues);
   const fateView = fates ? fateSlices(rescues, fates) : null;
   const road = roadPoints(roadSnapshots);
+  const manifesto = {
+    rescues: t.count,
+    wallets: new Set(rescues.map((r) => r.stakerAddr.toLowerCase())).size,
+    keptHex: t.claimableHex,
+    bleedStoppedPerDay: t.bleedStoppedPerDay,
+    gasPls: t.gasPls,
+    originHex: t.penaltyHex / 2,
+  };
 
   const gross = t.claimableHex + t.penaltyHex;
   const keptFrac = gross > 0 ? t.claimableHex / gross : 0;
@@ -213,6 +246,7 @@ export default async function RescueWallPage() {
     <div
       className="min-h-screen w-full bg-[var(--app-bg)] [--viz-a:#d96406] [--viz-b:#d6186e] [--viz-c:#2a78d6] [--viz-gain:#0d9488] [--viz-loss:#be123c] dark:[--viz-a:#dd7300] dark:[--viz-b:#ff2e7e] dark:[--viz-c:#3987e5] dark:[--viz-gain:#0d9488] dark:[--viz-loss:#e11d48]"
     >
+      <Manifesto figures={manifesto} />
       <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-6 md:py-10">
         {/* ── Hero: always-dark molten HEX panel, whatever the theme ──
             The panel pins the ink text vars locally so children built on the
@@ -246,6 +280,7 @@ export default async function RescueWallPage() {
               Matured HEX stakes bleed 1/700th a day until someone freezes them. We freeze them —{' '}
               <span className="font-semibold text-white">every one is still its owner’s.</span>
             </p>
+            <ManifestoLink className="mt-2" />
 
             <div className="mt-7 grid gap-6 sm:grid-cols-2 md:gap-8">
               <HeroNumber

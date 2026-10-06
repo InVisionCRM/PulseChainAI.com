@@ -25,6 +25,8 @@ import {
 } from './entries';
 
 export const DEVLOG_EVENT = 'open-devlog';
+/** Fired when the devlog closes, so a later pop-up can wait its turn. */
+export const DEVLOG_CLOSED_EVENT = 'devlog-closed';
 const SEEN_KEY = 'morbius-devlog-seen';
 /** Breathing room after the splash clears before the devlog slides in. */
 const AFTER_INTRO_MS = 450;
@@ -54,6 +56,13 @@ function alreadySeen(): boolean {
     // Can't tell, so don't pop up uninvited.
     return true;
   }
+}
+
+let devlogOpen = false;
+
+/** True while the devlog is up, or when it is still going to pop up by itself. */
+export function devlogWillOpen(): boolean {
+  return devlogOpen || !alreadySeen();
 }
 
 /** Raise the devlog from anywhere (nav tiles, sidebar, a link). */
@@ -191,6 +200,11 @@ export default function DevlogModal() {
   const [open, setOpen] = useState(false);
 
   const close = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    devlogOpen = open;
+    if (!open) window.dispatchEvent(new Event(DEVLOG_CLOSED_EVENT));
+  }, [open]);
 
   useEffect(() => {
     const onOpen = () => {
