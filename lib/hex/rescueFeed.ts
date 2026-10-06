@@ -55,6 +55,9 @@ export interface Rescue {
   timestamp: number;
   /** The note we left in the calldata. */
   message: string | null;
+  /** What the rescue transaction cost in gas, in wei (Blockscout's actual fee:
+   *  gasUsed × effectiveGasPrice — verified equal to the RPC receipt). */
+  feeWei: string;
   /** Principal, from the frozen good-accounting record. */
   principalHex: number | null;
   /** Interest earned, frozen at the good-accounting day. */
@@ -192,6 +195,7 @@ async function walkRescues(
         txHash: String(t?.hash ?? ''),
         timestamp: Date.parse(t.timestamp),
         message: decoded.message,
+        feeWei: String(t.fee.value),
         principalHex: null,
         payoutHex: null,
         penaltyHex: null,
@@ -298,6 +302,9 @@ export async function fetchRescue(net: HexNet, stakeId: string): Promise<Rescue 
   return (await enrich(net, found))[0] ?? null;
 }
 
+/** Wei to PLS, keeping six decimals — the precision every figure here shows. */
+export const weiToPls = (wei: bigint) => Number(wei / 10n ** 12n) / 1e6;
+
 export interface KeeperBurn {
   /** PLS the keeper spent on gas per day, averaged over the window. */
   plsPerDay: number;
@@ -349,7 +356,7 @@ export async function fetchKeeperBurn(net: HexNet, days: number): Promise<Keeper
     if (pastWindow || !np) {
       // Ran out of history before the window did: average over what exists.
       const windowDays = pastWindow ? days : Math.max(1, (now - oldest) / 86_400_000);
-      return { plsPerDay: Number(wei / 10n ** 12n) / 1e6 / windowDays, windowDays };
+      return { plsPerDay: weiToPls(wei) / windowDays, windowDays };
     }
     nextParams = `&${new URLSearchParams(
       Object.entries(np).map(([k, v]) => [k, String(v)]),
@@ -386,6 +393,9 @@ export interface RescueTotals {
   biggest: Rescue | null;
   /** Closest call: the highest share of gross already burned when we froze it. */
   closestCall: Rescue | null;
+  /** PLS spent on gas across every rescue so far. Failed attempts are not
+   *  rescues and are not in it (7 of them, 728 PLS, as of 2026-10-06). */
+  gasPls: number;
 }
 
 export function totalsFor(rescues: Rescue[]): RescueTotals {
@@ -402,8 +412,10 @@ export function totalsFor(rescues: Rescue[]): RescueTotals {
   let biggest: Rescue | null = null;
   let closestCall: Rescue | null = null;
   let worstFrac = -1;
+  let gasWei = 0n;
 
   for (const r of rescues) {
+    gasWei += BigInt(r.feeWei);
     if (r.claimableHex == null) {
       unpriced++;
       continue;
@@ -454,5 +466,6 @@ export function totalsFor(rescues: Rescue[]): RescueTotals {
   return {
     count: rescues.length, claimed, unclaimed, claimedHex, unclaimedHex, medianDaysToClaim, slowestClaim,
     claimableHex, bleedStoppedPerDay, penaltyHex, unpriced, biggest, closestCall,
+    gasPls: weiToPls(gasWei),
   };
 }

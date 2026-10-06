@@ -19,7 +19,7 @@ import type { Metadata } from 'next';
 import {
   IconExternalLink, IconTrophy, IconClock, IconDroplet, IconSnowflake,
 } from '@tabler/icons-react';
-import { fetchRescues, fetchKeeperBurn, totalsFor, KEEPER_ADDRESS, type Rescue } from '@/lib/hex/rescueFeed';
+import { fetchRescues, fetchKeeperBurn, totalsFor, weiToPls, KEEPER_ADDRESS, type Rescue } from '@/lib/hex/rescueFeed';
 import { getBalance } from '@/lib/portfolio/evmRpc';
 import { HEX_APP_URL } from '@/lib/hex/rescueCopy';
 import { fmtHex, fmtUsdShort } from '@/lib/hex/hexDay';
@@ -130,9 +130,17 @@ function roadPoints(snapshots: Awaited<ReturnType<typeof readRoadDaily>> | null)
   return [...history, ...later];
 }
 
+/** Average gas per rescue over the fuel window, from the rescues' own fees —
+ *  the same days the gauge's burn rate averages. Null with none in the window. */
+function gasPerRescue(rescues: Rescue[], now: number): number | null {
+  const recent = rescues.filter((r) => r.timestamp >= now - FUEL_WINDOW_DAYS * 86_400_000);
+  if (!recent.length) return null;
+  return weiToPls(recent.reduce((sum, r) => sum + BigInt(r.feeWei), 0n)) / recent.length;
+}
+
 /** Keeper wallet balance and gas burn for the fuel gauge. Each half fails to
  *  null on its own, so an explorer outage still shows the balance. */
-async function keeperFuel(): Promise<KeeperFuel> {
+async function keeperFuel(): Promise<Omit<KeeperFuel, 'spentPls' | 'rescueCount' | 'plsPerRescue'>> {
   const measuredAt = Date.now();
   const [wei, burn] = await Promise.all([
     getBalance('pulsechain', KEEPER_ADDRESS),
@@ -193,12 +201,18 @@ export default async function RescueWallPage() {
     // road still shows its rebuilt history, ending on its last day.
     dbAvailable() ? readRoadDaily('pulsechain').catch(() => null) : Promise.resolve(null),
   ]);
-  const fuel = await fuelP;
+  const fuelRead = await fuelP;
   // Null only when the locked-stake index is not ready; the section is left
   // out then rather than shown short.
   const upcoming = await upcomingP;
   const renderedAt = Date.now();
   const t = totalsFor(rescues);
+  const fuel: KeeperFuel = {
+    ...fuelRead,
+    spentPls: t.gasPls,
+    rescueCount: t.count,
+    plsPerRescue: gasPerRescue(rescues, fuelRead.measuredAt),
+  };
   const points = chartPoints(rescues);
   const fateView = fates ? fateSlices(rescues, fates) : null;
   const road = roadPoints(roadSnapshots);

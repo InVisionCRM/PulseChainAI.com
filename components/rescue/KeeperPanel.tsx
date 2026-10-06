@@ -25,6 +25,11 @@ export interface KeeperFuel {
   /** Trailing gas burn; null if the explorer could not be read. */
   plsPerDay: number | null;
   windowDays: number | null;
+  /** PLS spent on gas across every rescue so far, and how many rescues. */
+  spentPls: number;
+  rescueCount: number;
+  /** Average PLS per rescue over the same trailing window as plsPerDay. */
+  plsPerRescue: number | null;
   /** Unix ms the figures were read — the runway's date counts from here, not
    *  from the browser's clock, so the cached render and hydration agree. */
   measuredAt: number;
@@ -46,7 +51,7 @@ function runway(days: number): { head: string; sub: string } {
   return { head: `${years.toFixed(1)} years`, sub: `≈ ${Math.round(months)} months` };
 }
 
-function FuelStat({ label, value, sub, tone }: { label: string; value: string; sub: string; tone?: 'low' }) {
+function FuelStat({ label, value, sub, extra, tone }: { label: string; value: string; sub: string; extra?: string; tone?: 'low' }) {
   return (
     <div className="min-w-0">
       <div className="font-poppins truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-faint)]">
@@ -59,6 +64,7 @@ function FuelStat({ label, value, sub, tone }: { label: string; value: string; s
         {value}
       </div>
       <div className="font-poppins mt-1 text-[11px] leading-snug text-[var(--text-muted)]">{sub}</div>
+      {extra ? <div className="font-poppins mt-0.5 text-[11px] leading-snug text-[var(--text-muted)]">{extra}</div> : null}
     </div>
   );
 }
@@ -128,7 +134,7 @@ export function KeeperPanel({ address, fuel }: { address: string; fuel: KeeperFu
 }
 
 function FuelGauge({ fuel }: { fuel: KeeperFuel }) {
-  const { balancePls, plsPerDay, windowDays, measuredAt } = fuel;
+  const { balancePls, plsPerDay, windowDays, spentPls, rescueCount, plsPerRescue, measuredAt } = fuel;
   const days = balancePls != null && plsPerDay != null && plsPerDay > 0 ? balancePls / plsPerDay : null;
   const left = days != null ? runway(days) : null;
   const low = days != null && days < LOW_DAYS;
@@ -147,12 +153,18 @@ function FuelGauge({ fuel }: { fuel: KeeperFuel }) {
           </span>
         )}
       </div>
-      <div className="mt-2 grid grid-cols-3 gap-3">
+      <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <FuelStat label="In the wallet" value={balancePls != null ? compact(balancePls) : '—'} sub="PLS for gas" />
         <FuelStat
           label="Burning"
           value={plsPerDay != null ? compact(plsPerDay) : '—'}
           sub={plsPerDay != null && windowDays != null ? `PLS/day · last ${Math.round(windowDays)}d` : 'PLS/day'}
+          extra={plsPerRescue != null ? `≈ ${Math.round(plsPerRescue).toLocaleString('en-US')} PLS per rescue` : undefined}
+        />
+        <FuelStat
+          label="Spent so far"
+          value={compact(spentPls)}
+          sub={`PLS on ${rescueCount.toLocaleString('en-US')} rescues`}
         />
         <FuelStat
           label="Lasts about"
