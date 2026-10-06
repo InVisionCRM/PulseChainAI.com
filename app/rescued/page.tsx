@@ -174,6 +174,21 @@ function Honeycomb() {
 }
 
 export default async function RescueWallPage() {
+  // The wall reads the stored rescues (lib/db/hexRescues.ts). A deployment
+  // with no database has nothing to read and says so — it has no second data
+  // path, and throwing here would fail the whole build at prerender.
+  if (!dbAvailable()) {
+    return (
+      <div className="min-h-screen w-full bg-[var(--app-bg)]">
+        <div className="mx-auto w-full max-w-3xl px-4 py-16 text-center">
+          <h1 className="font-jost text-[28px] font-bold text-[var(--text)]">The Rescue Wall</h1>
+          <p className="font-poppins mt-3 text-sm text-[var(--text-muted)]">
+            This deployment has no database connected, and the wall is read from one.
+          </p>
+        </div>
+      </div>
+    );
+  }
   const balanceP = keeperBalance();
   const upcomingP = findUpcomingBleeders('pulsechain', UPCOMING_HOURS);
   // Marked handled so a failure here while the history below is also failing
