@@ -247,7 +247,7 @@ export default async function RescueWallPage() {
               <span className="font-semibold text-white">every one is still its owner’s.</span>
             </p>
 
-            <div className="mt-7 grid gap-6 sm:grid-cols-2 md:gap-8">
+            <div className="mt-7 grid gap-6 sm:grid-cols-2 md:gap-8 lg:grid-cols-3">
               <HeroNumber
                 label="Stakes rescued"
                 value={t.count}
@@ -260,6 +260,17 @@ export default async function RescueWallPage() {
                 value={t.claimableHex}
                 fmt="hex"
                 sub={usd(t.claimableHex) ?? 'kept whole at the freeze'}
+              />
+              {/* The late penalty each freeze settled, capped at the stake's value as
+                  the contract caps it. HEX pays it out 50:50 — half minted to the
+                  Origin Address, half into the stakers' pool. Verified 2026-10-06 on
+                  all 9,025 rescues: the Origin mint in each transaction is exactly
+                  half this figure. */}
+              <HeroNumber
+                label="Penalties paid out"
+                value={t.penaltyHex}
+                fmt="hex"
+                sub={`${fmtHex(t.penaltyHex / 2)} to stakers · ${fmtHex(t.penaltyHex / 2)} to Origin`}
               />
             </div>
           </div>
@@ -277,7 +288,7 @@ export default async function RescueWallPage() {
                 frac={keptFrac}
                 figure={`${(keptFrac * 100).toFixed(1)}%`}
                 label="Kept whole"
-                sub={`${fmtHex(t.penaltyHex)} HEX burned before we arrived`}
+                sub={`${fmtHex(t.penaltyHex)} HEX lost to penalties before we arrived`}
                 tone="a"
               />
               <Speedo
