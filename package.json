@@ -11,6 +11,7 @@
     "db:sync": "tsx scripts/initDatabase.ts --sync",
     "screener:backfill": "tsx scripts/backfillPairs.ts",
     "hex:road-history": "tsx scripts/roadToZeroHistory.ts",
+    "hex:payout-history": "tsx scripts/payoutHistory.ts",
     "verify:robinhood": "tsx scripts/verifyRobinhoodChain.ts",
     "verify:rpc-fallback": "tsx scripts/verifyRpcFallback.ts",
     "verify:hex-rescue": "tsx scripts/verifyHexRescue.ts",

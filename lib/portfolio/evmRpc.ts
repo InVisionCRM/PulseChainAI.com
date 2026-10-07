@@ -119,8 +119,27 @@ export async function ethCall(
   to: string,
   data: string,
 ): Promise<string | null> {
+  return ethCallAtTag(chain, to, data, 'latest');
+}
+
+/**
+ * `eth_call` against the state at the end of a past block. Only an archive
+ * node keeps old state; the others answer with an error and the walk moves on,
+ * so in practice this is g4mm4 (first in the pool, and the pool's only full
+ * archive node). Null if no node could serve that block or the call reverted.
+ */
+export async function ethCallAt(
+  chain: ChainId,
+  to: string,
+  data: string,
+  blockNumber: number,
+): Promise<string | null> {
+  return ethCallAtTag(chain, to, data, `0x${blockNumber.toString(16)}`);
+}
+
+async function ethCallAtTag(chain: ChainId, to: string, data: string, tag: string): Promise<string | null> {
   for (const url of RPC_URLS[chain] ?? []) {
-    const o = await rpcRaw(url, 'eth_call', [{ to, data }, 'latest']);
+    const o = await rpcRaw(url, 'eth_call', [{ to, data }, tag]);
     if (o.kind === 'reverted') return null;
     // An empty (`0x`) result still fails over: unlike a revert it can mean the
     // node simply hasn't seen the contract yet.
@@ -261,7 +280,8 @@ export async function ethGetLogs(
     address?: string;
     fromBlock: number;
     toBlock: number;
-    topics?: (string | null)[];
+    // A position takes one topic, any of several (an array), or null for any.
+    topics?: (string | string[] | null)[];
   },
 ): Promise<RpcLog[] | null> {
   const params = [

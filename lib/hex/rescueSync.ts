@@ -23,7 +23,7 @@ import { KEEPER_ADDRESS, decodeRescueCalldata } from './rescueFeed';
 import type { HexNet } from './subgraph';
 
 /** keccak256("StakeGoodAccounting(uint256,uint256,address,uint40,address)") */
-const STAKE_GOOD_ACCOUNTING_TOPIC = '0xd824970a2cf19cc2b630c87ce5b00f67301cac3ac60513d027c7a39129f93b46';
+export const STAKE_GOOD_ACCOUNTING_TOPIC = '0xd824970a2cf19cc2b630c87ce5b00f67301cac3ac60513d027c7a39129f93b46';
 
 /** Block of the keeper's first rescue. Verified 2026-10-06: no keeper
  *  StakeGoodAccounting event in blocks 26,000,000–27,329,825. */
