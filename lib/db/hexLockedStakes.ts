@@ -26,6 +26,7 @@ import { ENDS_DDL } from './hexStakeEnds';
 import { FATES_DDL } from './hexRescueFates';
 import { ROAD_DDL } from './hexRoadSnapshots';
 import { RESCUES_DDL } from './hexRescues';
+import { PAYOUT_DDL } from './hexPayoutDays';
 
 export type Net = 'pulsechain' | 'ethereum';
 
@@ -95,6 +96,7 @@ const DDL = [
   ...FATES_DDL,
   ...ROAD_DDL,
   ...RESCUES_DDL,
+  ...PAYOUT_DDL,
 ];
 
 export async function ensureSchema(): Promise<void> {

@@ -33,7 +33,11 @@ import { findUpcomingBleeders, defaultMinPrincipalHex, defaultMaxPrincipalHex } 
 import { dbAvailable } from '@/lib/db/hexLockedStakes';
 import { readFates } from '@/lib/db/hexRescueFates';
 import { readRoadDaily } from '@/lib/db/hexRoadSnapshots';
+import { readStoredPayoutDays } from '@/lib/db/hexPayoutDays';
 import roadHistory from '@/lib/hex/roadToZeroHistory.json';
+import payoutHistory from '@/lib/hex/payoutHistory.json';
+import type { PayoutDay } from '@/lib/hex/payoutDays';
+import { PayoutLedger, type LedgerDay } from '@/components/rescue/PayoutLedger';
 import { RoadToZero, type RoadPoint } from '@/components/rescue/RoadToZero';
 import {
   BigStat, CollectedFates, HeroNumber, SavedChart, Speedo, type FateSlice, type RescuePoint,
@@ -131,6 +135,34 @@ function roadPoints(snapshots: Awaited<ReturnType<typeof readRoadDaily>> | null)
   return [...history, ...later];
 }
 
+/** Days the payout ledger shows. */
+const LEDGER_DAYS = 365;
+
+/**
+ * The payout ledger: the rebuilt history (scripts/payoutHistory.ts), then each
+ * later day the payout-days cron stored — same calculator for both — as HEX per
+ * T-share. Hearts stay exact up to here; the division is for display.
+ */
+function ledgerDays(stored: PayoutDay[] | null): LedgerDay[] {
+  const history: PayoutDay[] = payoutHistory.days;
+  const lastHistoryDay = history[history.length - 1].day;
+  const all = [...history, ...(stored ?? []).filter((d) => d.day > lastHistoryDay)];
+  return all.slice(-LEDGER_DAYS).map((d) => {
+    const tShares = Number(d.shares) / 1e12;
+    const per = (hearts: string) => Math.round((Number(hearts) / 1e8 / tShares) * 1e6) / 1e6;
+    return {
+      day: d.day,
+      inflation: per(d.inflation),
+      ees: per(d.ees),
+      late: per(d.late),
+      ours: per(d.ours),
+      eesCount: d.eesCount,
+      lateCount: d.lateCount,
+      oursCount: d.oursCount,
+    };
+  });
+}
+
 /** Average gas per rescue over the fuel window, from the rescues' own fees —
  *  the same days the gauge's burn rate averages. Null with none in the window. */
 function gasPerRescue(rescues: Rescue[], now: number): number | null {
@@ -199,7 +231,7 @@ export default async function RescueWallPage() {
   // much HEX was saved. Cards are capped further down instead.
   // Not caught: if the history cannot be read in full, this render fails and
   // ISR keeps serving the last complete wall instead of a short or empty one.
-  const [rescues, price, fates, roadSnapshots] = await Promise.all([
+  const [rescues, price, fates, roadSnapshots, payoutStored] = await Promise.all([
     fetchRescues('pulsechain'),
     hexUsd(),
     // Stored by the rescue-fates cron. Optional like the fuel gauge: without a
@@ -208,6 +240,9 @@ export default async function RescueWallPage() {
     // Snapshots after the history file ends. Best effort: without them the
     // road still shows its rebuilt history, ending on its last day.
     dbAvailable() ? readRoadDaily('pulsechain').catch(() => null) : Promise.resolve(null),
+    // Days the payout-days cron stored after the history file. Best effort,
+    // like the road: without them the ledger ends on the file's last day.
+    dbAvailable() ? readStoredPayoutDays('pulsechain').catch(() => null) : Promise.resolve(null),
   ]);
   const balance = await balanceP;
   // Null only when the locked-stake index is not ready; the section is left
@@ -227,6 +262,7 @@ export default async function RescueWallPage() {
   const points = chartPoints(rescues);
   const fateView = fates ? fateSlices(rescues, fates) : null;
   const road = roadPoints(roadSnapshots);
+  const ledger = ledgerDays(payoutStored);
   const manifesto = {
     rescues: t.count,
     wallets: new Set(rescues.map((r) => r.stakerAddr.toLowerCase())).size,
@@ -396,6 +432,11 @@ export default async function RescueWallPage() {
                 <SavedChart points={points} price={price} />
               </div>
             )}
+
+            {/* ── What every T-share was paid, and how much of it was us ── */}
+            <div className="mt-3">
+              <PayoutLedger days={ledger} />
+            </div>
 
             {/* ── How it works: three beats, one line each ── */}
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
