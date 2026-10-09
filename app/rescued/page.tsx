@@ -14,16 +14,15 @@
 // Server-rendered so the numbers are in the HTML for link previews and for
 // anyone with JavaScript off; the client layer only adds motion.
 
-import Link from 'next/link';
 import type { Metadata } from 'next';
 import {
-  IconExternalLink, IconTrophy, IconClock, IconDroplet, IconSnowflake,
+  IconExternalLink, IconClock, IconDroplet, IconSnowflake,
 } from '@tabler/icons-react';
 import { fetchRescues, keeperBurn, totalsFor, weiToPls, KEEPER_ADDRESS, type Rescue } from '@/lib/hex/rescueFeed';
 import { getBalance } from '@/lib/portfolio/evmRpc';
 import { HEX_APP_URL } from '@/lib/hex/rescueCopy';
 import { fmtHex, fmtUsdShort } from '@/lib/hex/hexDay';
-import { HexAmount, HEX_GRADIENT } from '@/components/hex/HexAmount';
+import { HEX_GRADIENT } from '@/components/hex/HexAmount';
 import { RescuedBy } from '@/components/rescue/RescueBrand';
 import { RescueList } from '@/components/rescue/RescueList';
 import { KeeperPanel, type KeeperFuel } from '@/components/rescue/KeeperPanel';
@@ -40,7 +39,7 @@ import type { PayoutDay } from '@/lib/hex/payoutDays';
 import { PayoutLedger, type LedgerDay } from '@/components/rescue/PayoutLedger';
 import { RoadToZero, type RoadPoint } from '@/components/rescue/RoadToZero';
 import {
-  BigStat, CollectedFates, HeroNumber, SavedChart, Speedo, type FateSlice, type RescuePoint,
+  CollectedFates, HeroNumber, SavedChart, type FateSlice, type RescuePoint,
 } from '@/components/rescue/RescueDashboard';
 
 // A minute, not five. The wall is watched live while the keeper runs, and a
@@ -263,19 +262,19 @@ export default async function RescueWallPage() {
   const fateView = fates ? fateSlices(rescues, fates) : null;
   const road = roadPoints(roadSnapshots);
   const ledger = ledgerDays(payoutStored);
+  // Distinct staker addresses. Checked 2026-10-09 over 8,787 of them: 8,187
+  // personal wallets, 283 Safe multisigs, 306 Hedron HSI contracts and ~11
+  // other contracts — each counted as the address that owns the stake.
+  const wallets = new Set(rescues.map((r) => r.stakerAddr.toLowerCase())).size;
   const manifesto = {
     rescues: t.count,
-    wallets: new Set(rescues.map((r) => r.stakerAddr.toLowerCase())).size,
+    wallets,
     keptHex: t.claimableHex,
     bleedStoppedPerDay: t.bleedStoppedPerDay,
     gasPls: t.gasPls,
     originHex: t.penaltyHex / 2,
   };
 
-  const gross = t.claimableHex + t.penaltyHex;
-  const keptFrac = gross > 0 ? t.claimableHex / gross : 0;
-  const outcomes = t.claimed + t.unclaimed;
-  const collectedFrac = outcomes > 0 ? t.claimed / outcomes : 0;
   const usd = (hex: number) => (price != null ? fmtUsdShort(hex * price) : null);
 
   return (
@@ -318,13 +317,19 @@ export default async function RescueWallPage() {
             </p>
             <ManifestoLink className="mt-2" />
 
-            <div className="mt-7 grid gap-6 sm:grid-cols-2 md:gap-8 lg:grid-cols-3">
+            <div className="mt-7 grid gap-6 sm:grid-cols-2 md:gap-x-12 md:gap-y-8">
               <HeroNumber
                 label="Stakes rescued"
                 value={t.count}
                 fmt="int"
                 sub="the keeper sweeps every hour"
                 gradient
+              />
+              <HeroNumber
+                label="Wallets saved"
+                value={wallets}
+                fmt="int"
+                sub="addresses whose stakes we froze"
               />
               <HeroNumber
                 label="HEX saved"
@@ -353,53 +358,6 @@ export default async function RescueWallPage() {
           </div>
         ) : (
           <>
-            {/* ── The instrument row ── */}
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Speedo
-                frac={keptFrac}
-                figure={`${(keptFrac * 100).toFixed(1)}%`}
-                label="Kept whole"
-                sub={`${fmtHex(t.penaltyHex)} HEX lost to penalties before we arrived`}
-                tone="a"
-              />
-              <Speedo
-                frac={collectedFrac}
-                figure={`${t.claimed}`}
-                label="Collected by owners"
-                sub={
-                  t.claimedHex > 0
-                    ? `${fmtHex(t.claimedHex)} HEX taken home · ${fmtHex(t.unclaimedHex)} HEX in ${t.unclaimed.toLocaleString()} still waiting`
-                    : `${fmtHex(t.unclaimedHex)} HEX in ${t.unclaimed.toLocaleString()} still waiting`
-                }
-                tone="b"
-              />
-              <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2 lg:col-span-1 lg:grid-cols-1">
-                {t.medianDaysToClaim != null && (
-                  <BigStat
-                    label="Typical wait to collect"
-                    value={Math.max(1, Math.round(t.medianDaysToClaim * 24))}
-                    fmt="waitHours"
-                    sub="from freeze to collection"
-                  />
-                )}
-                {t.biggest && (
-                  <Link href={`/rescued/${t.biggest.stakeId}`} className="group">
-                    <div className="relative h-full overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 transition-colors group-hover:border-[#ff2e7e]/50">
-                      <div className="font-poppins flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
-                        <IconTrophy className="h-3.5 w-3.5 text-amber-400" /> Biggest rescue
-                      </div>
-                      <div className="font-jost mt-1.5 text-[34px] font-bold leading-none tracking-tight text-[var(--text)] tabular-nums md:text-[40px]">
-                        <HexAmount hex={t.biggest.claimableHex ?? 0} />
-                      </div>
-                      <div className="font-poppins mt-1.5 text-[11px] text-[var(--text-muted)]">
-                        Stake #{t.biggest.stakeId} · kept whole
-                      </div>
-                    </div>
-                  </Link>
-                )}
-              </div>
-            </div>
-
             {/* ── The road to zero: what is still bleeding, and the decline ── */}
             <div className="mt-3">
               <RoadToZero points={road} price={price} minHex={roadHistory.minHex} maxHex={roadHistory.maxHex} />

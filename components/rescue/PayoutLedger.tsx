@@ -6,7 +6,10 @@
 //
 // Read as an account: the ledger at the top is the legend, the readout and the
 // key at once. It shows the day under the pointer (or the latest day) beside
-// the year's totals; the bars below are the same four lines stacked per day.
+// the year's totals. The bars below draw only what each day added on top of
+// inflation — the three penalty lines, stacked from zero. Inflation is ~1.6
+// HEX per T-share every day and moves by fractions of a percent, so drawn it
+// was a flat block filling most of the plot; it is the ledger's first line.
 //
 // Every figure comes from lib/hex/payoutDays.ts, which reconciles each day to
 // the heart against the contract before it is stored.
@@ -44,15 +47,21 @@ const SERIES: { key: Key; label: string; color: string; count?: 'eesCount' | 'la
   { key: 'late', label: 'Late penalties, others', color: 'var(--viz-b)', count: 'lateCount' },
   { key: 'ours', label: 'Our rescues', color: 'var(--viz-a)', count: 'oursCount' },
 ];
+const COLOR = Object.fromEntries(SERIES.map((s) => [s.key, s.color])) as Record<Key, string>;
 
 const PLOT_H = 190;
-/** Room above the plot for the values of bars drawn broken. */
-const TOP_PAD = 18;
 const AXIS_W = 30;
 /** Surface gap between stacked segments, px. */
 const SEG_GAP = 1;
+/** One row of cut-bar values above the plot, px. */
+const LABEL_ROW = 13;
+/** Room under the plot for month names and, below them, the year. */
+const AXIS_BAND = 34;
 
-const total = (d: LedgerDay) => d.inflation + d.ees + d.late + d.ours;
+/** The penalty lines, bottom to top, as the bars stack them. */
+const PENALTIES = ['ees', 'late', 'ours'] as const;
+/** What a day added on top of inflation: the height of its bar. */
+const extra = (d: Pick<LedgerDay, Key>) => d.ees + d.late + d.ours;
 const dateOf = (day: number, withYear = true) =>
   hexDayToDate(day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'UTC' });
 
@@ -74,14 +83,17 @@ function fmtPer(v: number, digits: number): string {
 }
 
 /**
- * The plot's top: twice the median day, rounded up to the next half. A normal
- * day is ~1.6, so everything up to a doubled payout is drawn to scale; the
- * handful of days above it (one huge early end can pay 17 HEX per T-share) are
- * drawn broken with their value printed above.
+ * The plot's top: the 99th-percentile day, rounded up to the next half, never
+ * below 0.5. Half of all days add under 0.02 HEX per T-share, while one huge
+ * early end added 15.9, so a scale that fits the tallest flattens everything
+ * else. On the year to day 2499 this is 2.0: three days are drawn cut (3.37,
+ * 6.77, 15.87, all early ends) with their value printed above, and the keeper's
+ * biggest day (0.89, Oct 5) stands at 44% of the plot.
  */
 function capOf(days: LedgerDay[]): number {
-  const v = days.map(total).sort((a, b) => a - b);
-  return Math.ceil(v[Math.floor(v.length / 2)] * 2 * 2) / 2;
+  const v = days.map(extra).sort((a, b) => a - b);
+  const p99 = v[Math.min(v.length - 1, Math.floor(v.length * 0.99))];
+  return Math.max(0.5, Math.ceil(p99 * 2) / 2);
 }
 
 export function PayoutLedger({ days }: { days: LedgerDay[] }) {
@@ -112,74 +124,84 @@ export function PayoutLedger({ days }: { days: LedgerDay[] }) {
 
   const plotW = Math.max(0, width - AXIS_W);
   const slot = n ? plotW / n : 0;
-  // A sub-pixel gap only once a bar is wide enough to keep its body.
-  const barW = slot >= 2 ? slot * 0.72 : slot;
-  const y = (v: number) => TOP_PAD + PLOT_H - (Math.min(v, cap) / cap) * PLOT_H;
+  // Bars snap to whole pixels, each at least 1px wide, so they render solid
+  // instead of as sub-pixel stripes, and no day vanishes on a narrow screen.
+  const barX = (i: number) => Math.round(i * slot);
+  const barW = (i: number) => Math.max(1, Math.round((i + 1) * slot) - barX(i));
 
-  // The bars are the heavy part (four rects × 365 days) and do not depend on
+  // Days whose bar runs past the top. Each gets an up-mark over its bar; the
+  // values are labelled over their own bars, consecutive days sharing one
+  // label over the pair ("15.87 · 6.77", Jun 4–5), each label on the lowest
+  // row where it does not touch another.
+  const { marks, broken } = useMemo(() => {
+    const cx = (i: number) => AXIS_W + barX(i) + barW(i) / 2;
+    const marks = days.flatMap((d, i) => (extra(d) > cap ? [{ i, cx: cx(i), v: extra(d) }] : []));
+    const runs: { from: number; to: number; text: string }[] = [];
+    for (const m of marks) {
+      const prev = runs[runs.length - 1];
+      if (prev && prev.to === m.i - 1) {
+        prev.to = m.i;
+        prev.text += ` · ${m.v.toFixed(2)}`;
+      } else runs.push({ from: m.i, to: m.i, text: m.v.toFixed(2) });
+    }
+    const rowEnds: number[] = [];
+    const broken = runs.map((r) => {
+      const w = r.text.length * CHAR_PX;
+      const x = Math.min(width - w, Math.max(AXIS_W, (cx(r.from) + cx(r.to)) / 2 - w / 2));
+      let row = rowEnds.findIndex((end) => end + 6 <= x);
+      if (row === -1) row = rowEnds.length;
+      rowEnds[row] = x + w;
+      return { key: r.from, x, text: r.text, row };
+    });
+    return { marks, broken };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [days, cap, width, slot]);
+  const rows = broken.reduce((m, b) => Math.max(m, b.row + 1), 0);
+  /** Top of the plot: room for the cut-bar values and their marks. */
+  const top = rows ? rows * LABEL_ROW + 8 : 6;
+  const y = (v: number) => top + PLOT_H - (Math.min(v, cap) / cap) * PLOT_H;
+  const svgH = top + PLOT_H + AXIS_BAND;
+
+  // The bars are the heavy part (three rects × 365 days) and do not depend on
   // the pointer, so they are drawn once per size, not once per hover.
   const bars = useMemo(() => {
     if (!plotW) return null;
     return days.map((d, i) => {
-      const x = i * slot + (slot - barW) / 2;
       let base = 0;
-      const segs = SERIES.map((s) => {
-        const v = d[s.key];
+      const segs = PENALTIES.map((k, j) => {
         const y0 = y(base);
-        base += v;
+        base += d[k];
         const y1 = y(base);
         // The gap comes off the top of every segment that has another above
         // it, and only when the segment is tall enough to keep a body.
         const h = y0 - y1;
-        const gap = s.key !== 'ours' && h > SEG_GAP * 2 ? SEG_GAP : 0;
-        return h > 0 ? <rect key={s.key} x={x} y={y1 + gap} width={barW} height={h - gap} fill={s.color} /> : null;
+        const gap = j < PENALTIES.length - 1 && h > SEG_GAP * 2 ? SEG_GAP : 0;
+        return h > 0 ? <rect key={k} x={barX(i)} y={y1 + gap} width={barW(i)} height={h - gap} fill={COLOR[k]} /> : null;
       });
       return <g key={d.day}>{segs}</g>;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [days, plotW, slot, barW, cap]);
+  }, [days, plotW, slot, cap, top]);
 
   if (!n) return null;
 
-  const broken = days.map((d, i) => ({ i, v: total(d) })).filter((b) => b.v > cap);
-  // Their values, printed above. Neighbours whose labels would overlap share
-  // one ("17.46 · 8.36"), kept inside the card at either edge.
-  // A merged label is wider and can reach the one before it, so merging
-  // repeats until no two overlap.
-  type Run = { from: number; to: number; text: string; x: number };
-  const place = (r: Omit<Run, 'x'>): Run => {
-    const w = r.text.length * CHAR_PX;
-    const center = AXIS_W + ((r.from + r.to) / 2 + 0.5) * slot;
-    return { ...r, x: Math.min(width - w, Math.max(AXIS_W, center - w / 2)) };
-  };
-  let brokenLabels: Run[] = broken.map((b) => place({ from: b.i, to: b.i, text: b.v.toFixed(2) }));
-  for (let merged = true; merged; ) {
-    merged = false;
-    const next: Run[] = [];
-    for (const r of brokenLabels) {
-      const prev = next[next.length - 1];
-      if (prev && r.x < prev.x + prev.text.length * CHAR_PX + 6) {
-        next[next.length - 1] = place({ from: prev.from, to: r.to, text: `${prev.text} · ${r.text}` });
-        merged = true;
-      } else next.push(r);
-    }
-    brokenLabels = next;
-  }
-  const ticks = Array.from({ length: Math.floor(cap) + 1 }, (_, i) => i);
+  const step = cap <= 2 ? 0.5 : 1;
+  const ticks = Array.from({ length: Math.floor(cap / step) + 1 }, (_, i) => i * step);
 
-  // A month name at each month's first day, thinned on narrow screens.
-  const months = days
-    .map((d, i) => ({ i, date: hexDayToDate(d.day) }))
-    .filter(({ date }) => date.getUTCDate() === 1);
-  const monthLabels: { i: number; x: number; text: string }[] = [];
-  for (const { i, date } of months) {
-    const text = date.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }) + (date.getUTCMonth() === 0 ? ` ${date.getUTCFullYear()}` : '');
-    const x = AXIS_W + i * slot;
+  // Every month's name at its first day; the year under the first one shown
+  // and under each January. Skipped only if it would touch the one before.
+  const monthLabels: { i: number; x: number; text: string; year: string | null }[] = [];
+  days.forEach((d, i) => {
+    const date = hexDayToDate(d.day);
+    if (date.getUTCDate() !== 1) return;
+    const text = date.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+    // Kept inside the card at the right edge rather than dropped.
+    const x = Math.min(AXIS_W + barX(i), width - text.length * CHAR_PX);
     const prev = monthLabels[monthLabels.length - 1];
-    if (x + text.length * CHAR_PX > width) continue;
-    if (prev && x < prev.x + prev.text.length * CHAR_PX + 8) continue;
-    monthLabels.push({ i, x, text });
-  }
+    if (prev && x < prev.x + prev.text.length * CHAR_PX + 4) return;
+    const yearLine = !prev || date.getUTCMonth() === 0 ? String(date.getUTCFullYear()) : null;
+    monthLabels.push({ i, x, text, year: yearLine });
+  });
 
   const pickAt = (clientX: number) => {
     const r = box.current?.getBoundingClientRect();
@@ -290,20 +312,23 @@ export function PayoutLedger({ days }: { days: LedgerDay[] }) {
         .
       </p>
 
-      {/* ── The bars ── */}
+      {/* ── The bars: what each day added on top of inflation ── */}
+      <div className="font-poppins mt-5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+        Added on top of inflation · HEX per T-share, by day
+      </div>
       <div
         ref={box}
         tabIndex={0}
         role="group"
-        aria-label={`Payout per T-share by day for the past ${n} days. Use the arrow keys to move between days; the ledger above reads the selected day.`}
+        aria-label={`What penalties added to each T-share's payout, by day, for the past ${n} days. Use the arrow keys to move between days; the ledger above reads the selected day.`}
         onKeyDown={onKey}
         onPointerDown={(e) => pickAt(e.clientX)}
         onPointerMove={(e) => e.pointerType === 'mouse' && pickAt(e.clientX)}
-        className="relative mt-4 touch-pan-y select-none rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[var(--viz-a)]"
-        style={{ height: TOP_PAD + PLOT_H + 22 }}
+        className="relative mt-2 touch-pan-y select-none rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[var(--viz-a)]"
+        style={{ height: svgH }}
       >
         {width > 0 && (
-          <svg width={width} height={TOP_PAD + PLOT_H + 22} className="block overflow-visible" aria-hidden>
+          <svg width={width} height={svgH} className="block overflow-visible" aria-hidden>
             {/* grid + y ticks: hairline, recessive */}
             {ticks.map((t) => (
               <g key={t}>
@@ -314,46 +339,57 @@ export function PayoutLedger({ days }: { days: LedgerDay[] }) {
               </g>
             ))}
 
-            {/* the selected day */}
-            <rect x={AXIS_W + sel * slot - Math.max(0, (6 - slot) / 2)} y={TOP_PAD - 4} width={Math.max(slot, 6)} height={PLOT_H + 4} fill="var(--line)" />
-
             <g
+              shapeRendering="crispEdges"
               style={{
-                transformOrigin: `0 ${TOP_PAD + PLOT_H}px`,
+                transformOrigin: `0 ${top + PLOT_H}px`,
                 transform: `translate(${AXIS_W}px, 0) scaleY(${on ? 1 : 0})`,
                 transition: instant ? 'none' : `transform 900ms ${EASE} 150ms`,
               }}
             >
               {bars}
-              {/* A broken bar: a surface-colored cut just under the top */}
-              {broken.map((b) => (
-                <rect key={b.i} x={b.i * slot - 1} y={TOP_PAD + 5} width={slot + 2} height={2.5} fill="var(--ledger-paper)" />
-              ))}
             </g>
 
-            {/* values of the broken bars, printed above them */}
-            {brokenLabels.map((l) => (
-              <text key={l.x} x={l.x} y={TOP_PAD - 6} fontSize={10} fontWeight={500} fill="var(--text-muted)">
-                {l.text}
+            {/* Cut bars: a small up-mark where each leaves the plot, and the
+                values above. */}
+            {marks.map((m) => (
+              <path key={m.i} d={`M${m.cx - 3.5} ${top - 1} L${m.cx} ${top - 6} L${m.cx + 3.5} ${top - 1} Z`} fill="var(--text-muted)" />
+            ))}
+            {broken.map((b) => (
+              <text key={b.key} x={b.x} y={top - 10 - b.row * LABEL_ROW} fontSize={10} fontWeight={500} fill="var(--text-muted)">
+                {b.text}
               </text>
             ))}
+
+            {/* the picked day: a hairline, only while one is picked */}
+            {picked != null && (
+              <line
+                x1={AXIS_W + barX(picked) + Math.floor(barW(picked) / 2) + 0.5}
+                x2={AXIS_W + barX(picked) + Math.floor(barW(picked) / 2) + 0.5}
+                y1={top}
+                y2={top + PLOT_H}
+                stroke="var(--text)"
+                strokeOpacity={0.55}
+                strokeWidth={1}
+              />
+            )}
 
             {/* the keeper's first rescue */}
             {firstRescue > 0 && (
               <g>
                 <line
-                  x1={AXIS_W + firstRescue * slot}
-                  x2={AXIS_W + firstRescue * slot}
-                  y1={TOP_PAD + 14}
-                  y2={TOP_PAD + PLOT_H}
+                  x1={AXIS_W + barX(firstRescue)}
+                  x2={AXIS_W + barX(firstRescue)}
+                  y1={top + 4}
+                  y2={top + PLOT_H}
                   stroke="var(--text-faint)"
                   strokeWidth={1}
                   shapeRendering="crispEdges"
                 />
                 {/* A paper-colored halo keeps it legible where it crosses a bar. */}
                 <text
-                  x={AXIS_W + firstRescue * slot - 4}
-                  y={TOP_PAD + 22}
+                  x={AXIS_W + barX(firstRescue) - 4}
+                  y={top + 12}
                   textAnchor="end"
                   fontSize={10}
                   fill="var(--text-muted)"
@@ -366,19 +402,28 @@ export function PayoutLedger({ days }: { days: LedgerDay[] }) {
               </g>
             )}
 
-            {/* month names */}
+            {/* month names, the year beneath where it changes */}
             {monthLabels.map((m) => (
-              <text key={m.i} x={m.x} y={TOP_PAD + PLOT_H + 15} fontSize={10} fill="var(--text-faint)">
-                {m.text}
-              </text>
+              <g key={m.i}>
+                <text x={m.x} y={top + PLOT_H + 15} fontSize={10} fill="var(--text-faint)">
+                  {m.text}
+                </text>
+                {m.year && (
+                  <text x={m.x} y={top + PLOT_H + 28} fontSize={9} fill="var(--text-faint)">
+                    {m.year}
+                  </text>
+                )}
+              </g>
             ))}
           </svg>
         )}
       </div>
 
       <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
-        <p className="font-poppins text-[10px] text-[var(--text-faint)]">
-          Bars over {cap} HEX are cut, with their value above. Days are HEX days, closed by the contract after 00:00 UTC.
+        <p className="font-poppins max-w-2xl text-[10px] text-[var(--text-faint)]">
+          Inflation — about {days[last].inflation.toFixed(2)} HEX per T-share every day — is the ledger’s first line and
+          isn’t drawn. Bars over {cap} are cut, with their value above. Days are HEX days, closed by the contract after
+          00:00 UTC.
         </p>
         <button
           type="button"
