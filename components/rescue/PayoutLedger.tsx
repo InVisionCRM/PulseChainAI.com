@@ -131,7 +131,7 @@ export function PayoutLedger({ days }: { days: LedgerDay[] }) {
 
   // Days whose bar runs past the top. Each gets an up-mark over its bar; the
   // values are labelled over their own bars, consecutive days sharing one
-  // label over the pair ("15.87 · 6.77", Jun 4–5), each label on the lowest
+  // label over the pair ("15.87 · 6.77", Jun 6–7), each label on the lowest
   // row where it does not touch another.
   const { marks, broken } = useMemo(() => {
     const cx = (i: number) => AXIS_W + barX(i) + barW(i) / 2;

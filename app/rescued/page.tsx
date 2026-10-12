@@ -21,7 +21,7 @@ import {
 import { fetchRescues, keeperBurn, totalsFor, weiToPls, KEEPER_ADDRESS, type Rescue } from '@/lib/hex/rescueFeed';
 import { getBalance } from '@/lib/portfolio/evmRpc';
 import { HEX_APP_URL } from '@/lib/hex/rescueCopy';
-import { fmtHex, fmtUsdShort } from '@/lib/hex/hexDay';
+import { fmtHex } from '@/lib/hex/hexDay';
 import { HEX_GRADIENT } from '@/components/hex/HexAmount';
 import { RescuedBy } from '@/components/rescue/RescueBrand';
 import { RescueList } from '@/components/rescue/RescueList';
@@ -275,7 +275,6 @@ export default async function RescueWallPage() {
     originHex: t.penaltyHex / 2,
   };
 
-  const usd = (hex: number) => (price != null ? fmtUsdShort(hex * price) : null);
 
   return (
     <div
@@ -317,7 +316,7 @@ export default async function RescueWallPage() {
             </p>
             <ManifestoLink className="mt-2" />
 
-            <div className="mt-7 grid gap-6 sm:grid-cols-2 md:gap-x-12 md:gap-y-8">
+            <div className="mt-7 grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-6 md:gap-8">
               <HeroNumber
                 label="Stakes rescued"
                 value={t.count}
@@ -330,12 +329,6 @@ export default async function RescueWallPage() {
                 value={wallets}
                 fmt="int"
                 sub="addresses whose stakes we froze"
-              />
-              <HeroNumber
-                label="HEX saved"
-                value={t.claimableHex}
-                fmt="hex"
-                sub={usd(t.claimableHex) ?? 'kept whole at the freeze'}
               />
               {/* The late penalty each freeze settled, capped at the stake's value as
                   the contract caps it. HEX pays it out 50:50 — half minted to the
