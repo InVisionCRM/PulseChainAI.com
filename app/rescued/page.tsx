@@ -21,7 +21,7 @@ import {
 import { fetchRescues, keeperBurn, totalsFor, weiToPls, KEEPER_ADDRESS, type Rescue } from '@/lib/hex/rescueFeed';
 import { getBalance } from '@/lib/portfolio/evmRpc';
 import { HEX_APP_URL } from '@/lib/hex/rescueCopy';
-import { fmtHex, fmtUsdShort } from '@/lib/hex/hexDay';
+import { fmtHex } from '@/lib/hex/hexDay';
 import { HEX_GRADIENT } from '@/components/hex/HexAmount';
 import { RescuedBy } from '@/components/rescue/RescueBrand';
 import { RescueList } from '@/components/rescue/RescueList';
@@ -97,10 +97,9 @@ function chartPoints(rescues: Rescue[]): RescuePoint[] {
     .map((r) => ({
       t: r.timestamp,
       stakeId: r.stakeId,
-      // Whole HEX: the list prints whole HEX anyway, and the eight decimals
-      // were most of the bytes this sends for every rescue.
-      saved: Math.round(r.claimableHex ?? 0),
-      // Stakers' half of the penalty this freeze released (HEX splits it 50/50 with Origin).
+      // Stakers' half of the penalty this freeze released (HEX splits it 50/50
+      // with Origin), in whole HEX: the list prints whole HEX anyway, and the
+      // eight decimals were most of the bytes this sends for every rescue.
       paid: Math.round((r.penaltyHex ?? 0) / 2),
     }));
 }
@@ -275,8 +274,6 @@ export default async function RescueWallPage() {
     originHex: t.penaltyHex / 2,
   };
 
-  const usd = (hex: number) => (price != null ? fmtUsdShort(hex * price) : null);
-
   return (
     <div
       className="min-h-screen w-full bg-[var(--app-bg)] [--viz-a:#d96406] [--viz-b:#d6186e] [--viz-c:#2a78d6] [--viz-gain:#0d9488] [--viz-loss:#be123c] dark:[--viz-a:#dd7300] dark:[--viz-b:#ff2e7e] dark:[--viz-c:#3987e5] dark:[--viz-gain:#0d9488] dark:[--viz-loss:#e11d48]"
@@ -317,7 +314,7 @@ export default async function RescueWallPage() {
             </p>
             <ManifestoLink className="mt-2" />
 
-            <div className="mt-7 grid gap-6 sm:grid-cols-2 md:gap-x-12 md:gap-y-8">
+            <div className="mt-7 grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-6 md:gap-8">
               <HeroNumber
                 label="Stakes rescued"
                 value={t.count}
@@ -330,12 +327,6 @@ export default async function RescueWallPage() {
                 value={wallets}
                 fmt="int"
                 sub="addresses whose stakes we froze"
-              />
-              <HeroNumber
-                label="HEX saved"
-                value={t.claimableHex}
-                fmt="hex"
-                sub={usd(t.claimableHex) ?? 'kept whole at the freeze'}
               />
               {/* The late penalty each freeze settled, capped at the stake's value as
                   the contract caps it. HEX pays it out 50:50 — half minted to the

@@ -1,7 +1,7 @@
 'use client';
 
 // The Rescue Wall's instrument cluster: speedometer gauges, big animated
-// figures, and the day/week/month record of HEX saved.
+// figures, and the day/week/month record of rescues.
 //
 // Every animation here runs ONCE, on arrival, and settles. The previous
 // diagram re-rendered at 60fps on an infinite nine-second loop, which read as
@@ -36,8 +36,6 @@ export interface RescuePoint {
   /** Unix ms the rescue was mined. */
   t: number;
   stakeId: string;
-  /** HEX saved: what the staker could still claim at rescue time. */
-  saved: number;
   /** The stakers' half of the penalty this freeze released — HEX splits every
    *  penalty 50/50 with Origin (`_splitPenaltyProceeds`). */
   paid: number;
@@ -48,14 +46,13 @@ interface RescueBucket {
   label: string;
   /** Tooltip and list heading: "Fri, Sep 19", "Week of Sep 15", "September 2026". */
   title: string;
-  hex: number;
   count: number;
   paid: number;
   /** The rescues in this period, for the expanded list. */
   items: RescuePoint[];
 }
 
-type Metric = 'count' | 'hex' | 'paid';
+type Metric = 'count' | 'paid';
 type Grain = 'day' | 'week' | 'month';
 
 const DAY = 86_400_000;
@@ -102,7 +99,6 @@ function bucketize(points: RescuePoint[], grain: Grain): RescueBucket[] {
         grain === 'day' ? fmt(at, { weekday: 'short', month: 'short', day: 'numeric' })
           : grain === 'week' ? `Week of ${fmt(at, { month: 'short', day: 'numeric' })}`
           : fmt(at, { month: 'long', year: 'numeric' }),
-      hex: 0,
       count: 0,
       paid: 0,
       items: [],
@@ -110,7 +106,6 @@ function bucketize(points: RescuePoint[], grain: Grain): RescueBucket[] {
   }
   for (const p of points) {
     const b = map.get(startOf(p.t))!;
-    b.hex += p.saved;
     b.count += 1;
     b.paid += p.paid;
     b.items.push(p);
@@ -176,8 +171,8 @@ function Segmented<K extends string>({ label, options, value, onChange }: {
 }
 
 /**
- * The record, period by period: stakes rescued, HEX saved, or penalties paid
- * to stakers — one measure at a time on one axis, switched, never two scales
+ * The record, period by period: stakes rescued or penalties paid to
+ * stakers — one measure at a time on one axis, switched, never two scales
  * at once. Day, week or month at the reader's choice; tap a bar to list every
  * stake in it.
  *
@@ -218,7 +213,7 @@ export function SavedChart({ points, price }: { points: RescuePoint[]; price: nu
 
   if (n === 0) return null;
 
-  const values = buckets.map((b) => (metric === 'count' ? b.count : metric === 'hex' ? b.hex : b.paid));
+  const values = buckets.map((b) => (metric === 'count' ? b.count : b.paid));
   const { top, capped } = axisTop(values, metric === 'count');
   /** Width the bars are laid out across: the card, or wider and scrolled. */
   const width = Math.max(view, n * MIN_SLOT_PX);
@@ -266,8 +261,8 @@ export function SavedChart({ points, price }: { points: RescuePoint[]; price: nu
 
   const total = metric === 'count'
     ? `${buckets.reduce((a, b) => a + b.count, 0).toLocaleString()} rescues`
-    : `${compact(buckets.reduce((a, b) => a + (metric === 'hex' ? b.hex : b.paid), 0))} HEX`;
-  const heading = metric === 'count' ? 'Stakes rescued' : metric === 'hex' ? 'HEX saved' : 'Penalties paid to stakers';
+    : `${compact(buckets.reduce((a, b) => a + b.paid, 0))} HEX`;
+  const heading = metric === 'count' ? 'Stakes rescued' : 'Penalties paid to stakers';
 
   // The readout sits outside the scroller so it is never clipped: placed at
   // the hovered bar's on-screen x, pinned to whichever side keeps it in the card.
@@ -275,7 +270,7 @@ export function SavedChart({ points, price }: { points: RescuePoint[]; price: nu
   const shown = open != null ? buckets[open] : null;
   // Biggest first by the measure being read; by time when counting stakes.
   const rowsShown = shown
-    ? [...shown.items].sort((a, b) => (metric === 'hex' ? b.saved - a.saved : metric === 'paid' ? b.paid - a.paid : b.t - a.t))
+    ? [...shown.items].sort((a, b) => (metric === 'paid' ? b.paid - a.paid : b.t - a.t))
     : [];
 
   return (
@@ -288,7 +283,7 @@ export function SavedChart({ points, price }: { points: RescuePoint[]; price: nu
           <span className="font-poppins text-[10px] tabular-nums text-[var(--text-faint)]">{total}</span>
           <Segmented
             label="Measure"
-            options={[['count', 'Stakes'], ['hex', 'HEX'], ['paid', 'Paid out']] as const}
+            options={[['count', 'Stakes'], ['paid', 'Paid out']] as const}
             value={metric}
             onChange={setMetric}
           />
@@ -424,10 +419,6 @@ export function SavedChart({ points, price }: { points: RescuePoint[]; price: nu
                 {buckets[hover].count.toLocaleString()} {buckets[hover].count === 1 ? 'stake' : 'stakes'}
               </div>
               <div className="font-poppins whitespace-nowrap text-[11px] text-[var(--text-muted)] tabular-nums">
-                {compact(buckets[hover].hex)} HEX saved
-                {usd(buckets[hover].hex) ? ` · ${usd(buckets[hover].hex)}` : ''}
-              </div>
-              <div className="font-poppins whitespace-nowrap text-[11px] text-[var(--text-muted)] tabular-nums">
                 {compact(buckets[hover].paid)} HEX paid to stakers
                 {usd(buckets[hover].paid) ? ` · ${usd(buckets[hover].paid)}` : ''}
               </div>
@@ -455,7 +446,7 @@ export function SavedChart({ points, price }: { points: RescuePoint[]; price: nu
                 {shown.title}
               </div>
               <div className="font-poppins text-[11px] leading-snug tabular-nums text-[var(--text-muted)]">
-                {shown.count.toLocaleString()} {shown.count === 1 ? 'stake' : 'stakes'} · {compact(shown.hex)} HEX saved · {compact(shown.paid)} HEX paid to stakers
+                {shown.count.toLocaleString()} {shown.count === 1 ? 'stake' : 'stakes'} · {compact(shown.paid)} HEX paid to stakers
               </div>
             </div>
             <button
@@ -473,7 +464,6 @@ export function SavedChart({ points, price }: { points: RescuePoint[]; price: nu
                 <tr>
                   <th className="px-3 py-1.5 font-semibold">Stake</th>
                   <th className="hidden px-3 py-1.5 font-semibold sm:table-cell">Rescued</th>
-                  <th className="px-3 py-1.5 text-right font-semibold">HEX saved</th>
                   <th className="px-3 py-1.5 text-right font-semibold">Paid to stakers</th>
                 </tr>
               </thead>
@@ -488,8 +478,7 @@ export function SavedChart({ points, price }: { points: RescuePoint[]; price: nu
                     <td className="hidden whitespace-nowrap px-3 py-1.5 sm:table-cell">
                       {new Date(p.t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })} UTC
                     </td>
-                    <td className="px-3 py-1.5 text-right text-[var(--text)]">{p.saved.toLocaleString()}</td>
-                    <td className="px-3 py-1.5 text-right">{p.paid.toLocaleString()}</td>
+                    <td className="px-3 py-1.5 text-right text-[var(--text)]">{p.paid.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -500,10 +489,10 @@ export function SavedChart({ points, price }: { points: RescuePoint[]; price: nu
 
       <table className="sr-only">
         <caption>{heading}, {UNIT[grain]}</caption>
-        <thead><tr><th>Period</th><th>Stakes</th><th>HEX saved</th><th>Penalties paid to stakers</th></tr></thead>
+        <thead><tr><th>Period</th><th>Stakes</th><th>Penalties paid to stakers</th></tr></thead>
         <tbody>
           {buckets.map((b) => (
-            <tr key={b.title}><td>{b.title}</td><td>{b.count}</td><td>{Math.round(b.hex)}</td><td>{Math.round(b.paid)}</td></tr>
+            <tr key={b.title}><td>{b.title}</td><td>{b.count}</td><td>{Math.round(b.paid)}</td></tr>
           ))}
         </tbody>
       </table>
