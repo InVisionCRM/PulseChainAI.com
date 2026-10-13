@@ -97,10 +97,9 @@ function chartPoints(rescues: Rescue[]): RescuePoint[] {
     .map((r) => ({
       t: r.timestamp,
       stakeId: r.stakeId,
-      // Whole HEX: the list prints whole HEX anyway, and the eight decimals
-      // were most of the bytes this sends for every rescue.
-      saved: Math.round(r.claimableHex ?? 0),
-      // Stakers' half of the penalty this freeze released (HEX splits it 50/50 with Origin).
+      // Stakers' half of the penalty this freeze released (HEX splits it 50/50
+      // with Origin), in whole HEX: the list prints whole HEX anyway, and the
+      // eight decimals were most of the bytes this sends for every rescue.
       paid: Math.round((r.penaltyHex ?? 0) / 2),
     }));
 }

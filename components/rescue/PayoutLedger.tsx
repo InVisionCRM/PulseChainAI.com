@@ -127,6 +127,11 @@ export function PayoutLedger({ days }: { days: LedgerDay[] }) {
   const sel = picked ?? last;
   const index = useMemo(() => new Map(days.map((d, i) => [isoOf(d.day), i])), [days]);
   const months = useMemo(() => (n ? monthsOf(days, index) : []), [days, index, n]);
+  const year = useMemo(() => {
+    const sum = { inflation: 0, ees: 0, late: 0, ours: 0, eesCount: 0, lateCount: 0, oursCount: 0 };
+    for (const d of days) for (const k of Object.keys(sum) as (keyof typeof sum)[]) sum[k] += d[k];
+    return sum;
+  }, [days]);
 
   if (!n) return null;
 
@@ -289,6 +294,37 @@ export function PayoutLedger({ days }: { days: LedgerDay[] }) {
             </tbody>
           </table>
           <p className="font-poppins mt-2 text-[10px] leading-snug text-[var(--text-faint)]">Counts are the stakes each penalty came from.</p>
+        </div>
+      </div>
+
+      {/* ── The year, added up: every closed day the ledger holds, not just
+          the twelve calendar months drawn, so its range is printed. ── */}
+      <div className="mt-5 border-t border-[var(--line)] pt-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <span className="font-poppins text-[10px] font-semibold uppercase leading-none tracking-[0.16em] text-[var(--text-faint)]">
+            Past {n} days · per T-share
+          </span>
+          <span className="font-poppins text-[10px] leading-none text-[var(--text-faint)]">
+            {dateOf(days[0].day)} – {dateOf(days[last].day)}
+          </span>
+        </div>
+        <div className="mt-2.5 flex flex-wrap items-baseline gap-x-2">
+          <span className="font-jost text-[30px] font-bold leading-none text-[var(--text)]">{footed(year, 2)}</span>
+          <span className="font-poppins text-[12px] leading-snug text-[var(--text-muted)]">HEX paid to every T-share</span>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+          {SERIES.map((s) => (
+            <div key={s.key}>
+              <div className="font-poppins flex items-center gap-1.5 text-[11px] leading-tight text-[var(--text-muted)]">
+                <span aria-hidden className="inline-block h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ background: s.color }} />
+                {s.label}
+              </div>
+              <div className="mt-1 text-[15px] font-semibold leading-tight tabular-nums text-[var(--text)]">{year[s.key].toFixed(2)}</div>
+              <div className="text-[10px] leading-tight tabular-nums text-[var(--text-faint)]">
+                {s.count ? `${year[s.count].toLocaleString()} stakes` : 'paid every day'}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
