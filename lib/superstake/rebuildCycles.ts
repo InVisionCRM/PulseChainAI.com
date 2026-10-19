@@ -78,7 +78,7 @@ export interface CyclesPayload {
   };
 }
 
-const dayFromTs = (ts: number) => Math.floor((ts - HEX_LAUNCH_TS) / 86_400) + 1;
+export const dayFromTs = (ts: number) => Math.floor((ts - HEX_LAUNCH_TS) / 86_400) + 1;
 const tsFromDay = (day: number) => HEX_LAUNCH_TS + (day - 1) * 86_400;
 
 async function pulsexQuery<T>(query: string): Promise<T | null> {

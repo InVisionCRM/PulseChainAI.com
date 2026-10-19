@@ -30,6 +30,7 @@ import PayoutBars from '@/components/superstake/PayoutBars';
 import { Sparkline } from '@/components/lab/charts';
 import GlanceStrip from '@/components/superstake/GlanceStrip';
 import ShareCards from '@/components/superstake/ShareCards';
+import StatsDeck from '@/components/superstake/StatsDeck';
 import EntryLoader, { type LoadPhase } from '@/components/EntryLoader';
 import StatBanner from '@/components/superstake/StatBanner';
 import ActionDock from '@/components/superstake/ActionDock';
@@ -453,6 +454,15 @@ export default function SuperStakeHubPage() {
           </p>
           <div className="relative mt-4 flex flex-wrap items-center gap-2">
             {shareData && <ShareCards data={shareData} />}
+            {snap && (
+              <StatsDeck
+                snap={snap}
+                fresh={fresh}
+                globalTShares={globalTShares}
+                pHex={pHexPrice}
+                pSsh={pSshPrice}
+              />
+            )}
             <Tool href={pulsechainTokenUrl(PSSH)} label="pSSH contract" external />
             {view && view.streak > 1 && (
               <span
