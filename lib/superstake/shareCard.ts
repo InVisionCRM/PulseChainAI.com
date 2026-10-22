@@ -988,7 +988,7 @@ const paint: Record<string, Painter> = {
     text(c, `$${nf(s.amount)}`, lx, 392, {
       size: 68, weight: 800, color: brand(c, lx, 330, lx + 300, 396),
     });
-    text(c, 'of pSSH, after the 5.5%', lx, 428, { size: 22, color: TX_MID });
+    text(c, 'of pSSH', lx, 428, { size: 22, color: TX_MID });
 
     text(c, 'AND LEFT IT', lx, 506, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
     text(c, `${s.cycles} cycles`, lx, 564, { size: 46, weight: 800 });

@@ -27,7 +27,7 @@ import {
   type SimResult,
 } from '@/lib/superstake/simulate';
 import { S_SHARE } from '@/lib/superstake/model';
-import { HEX_MAX_STAKE_DAYS } from '@/lib/hex/stakeMath';
+import { HEX_ANNUAL_INFLATION, HEX_MAX_STAKE_DAYS } from '@/lib/hex/stakeMath';
 import { currentHexDay, fmtDuration, fmtHex, fmtHexDate, fmtTShares } from '@/lib/hex/hexDay';
 import ShareCards from '@/components/superstake/ShareCards';
 import { SIM_CARD_IDS, type ShareData } from '@/lib/superstake/shareCard';
@@ -55,6 +55,8 @@ const compact = (n: number) =>
 const hexSigned = (n: number) => `${n >= 0 ? '+' : '−'}${fmtHex(Math.abs(n))}`;
 /** 20.5817% is four digits of noise; 0.0042% needs all four. */
 const pctOf = (n: number) => `${n.toFixed(n >= 1 ? 2 : 4)}%`;
+/** HEX's yearly inflation, which the stake's payout is projected to grow by. */
+const inflationPct = `${(HEX_ANNUAL_INFLATION * 100).toFixed(2)}%`;
 
 export interface SimulatorProps {
   /** Opening state, from the live page — the projection starts where reality is. */
@@ -376,7 +378,6 @@ export default function Simulator(props: SimulatorProps) {
           display={money(amount)}
           min={100} max={100_000} step={100}
           v={amount} onChange={setAmount}
-          hint="after the 5.5% entry tax"
         />
         <Slider
           label="How long"
@@ -405,7 +406,7 @@ export default function Simulator(props: SimulatorProps) {
             ))}
           </div>
           <p className="mt-1 text-[9.5px] text-[var(--text-faint)]">
-            {compound ? 'compounding — pays the 5.5% each time' : 'banked, and not re-taxed'}
+            {compound ? "compounding — each cycle's HEX buys more pSSH" : 'banked as HEX'}
           </p>
         </div>
 
@@ -542,10 +543,11 @@ export default function Simulator(props: SimulatorProps) {
           <b className="text-[var(--text-muted)]">How this is built.</b> Each cycle&apos;s ending
           state opens the next: the stake earns at the yield you set, hands holders 1%, and the 2%
           buy-tax adds what the volume can buy. The 1% burn shrinks supply, which is what lifts your
-          share of it. Entry and every compound pay the 5.5% toll. The HEX stake you&apos;re measured
-          against is one stake as long as the whole run, opened on day one: its T-shares are fixed
-          then — HEX&apos;s length bonus and today&apos;s share rate locked in — it earns at the same
-          payout rate as the pool, and it pays out once, at the end. The same formulas the rest of
+          share of it. The HEX stake you&apos;re measured against is one stake as long as the whole
+          run, opened on day one: its T-shares are fixed then — HEX&apos;s length bonus and
+          today&apos;s share rate locked in — its payout per T-share starts at the pool&apos;s and
+          steps up with HEX&apos;s {inflationPct} inflation every year, and it pays out once, at the
+          end. The same formulas the rest of
           the page uses — the pool&apos;s T-shares here reproduce its recorded 107.55 to within
           0.003%. Nothing here is a prediction, and none of it is financial advice.
         </p>
@@ -654,8 +656,8 @@ function HolderView({
         />
         <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-faint)]">
           <b className="text-[var(--text-muted)]">Counted in HEX</b>, so neither line is a bet on
-          what HEX is worth in dollars. The stake&apos;s line climbs straight, because its T-shares
-          are fixed on day one and paid at the rate you set. Price drifts
+          what HEX is worth in dollars. The stake&apos;s T-shares are fixed on day one; its line
+          bends up a little each year as HEX&apos;s {inflationPct} inflation lifts the payout. Price drifts
           still reach the pSSH side: they set how much pSSH each rebought HEX buys, and how much HEX
           a dollar of volume pays in reflections.
         </p>
@@ -744,7 +746,7 @@ function StakeDuel({
     },
     {
       k: 'Getting out',
-      a: 'sell any day, less the 5.5%',
+      a: 'sell any day',
       b: `locked ${nf(stake.days)} days — ending early forfeits yield and pays a penalty`,
     },
     {
@@ -811,15 +813,17 @@ function StakeDuel({
 }
 
 /**
- * The stake on the other side, in the HEX Strategist's own terms — the same
- * `projectStake` maths and the same formatting, so a visitor who designs this
- * stake on the Strategist sees these numbers again.
+ * The stake on the other side, projected the way a HEX mining calculator
+ * projects one (`projectStakeWithInflation`), so the same amount, length and
+ * rates give the same T-shares, yield, ROI, APY and end date there.
  */
 function StakeDetails({ sim, amount, runYears }: { sim: SimResult; amount: number; runYears: number }) {
   const { stake } = sim;
   const openPrice = sim.cycles[0].pHex;
+  // A stake starts the day after it's entered, and ends that many days on.
+  const endDay = currentHexDay() + 1 + stake.days;
   return (
-    <Panel title={`The ${runYears}-year HEX stake, in full`} sub="projected the way the HEX Strategist projects a stake">
+    <Panel title={`The ${runYears}-year HEX stake, in full`} sub={`today's payout per T-share, rising with HEX's ${inflationPct} inflation each year`}>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Tile label="HEX staked" value={`${fmtHex(stake.hex)} HEX`} sub={`your ${money(amount)} at $${openPrice.toFixed(6)}`} />
         <Tile
@@ -835,7 +839,7 @@ function StakeDetails({ sim, amount, runYears }: { sim: SimResult; amount: numbe
         <Tile
           label="Projected yield"
           value={`${fmtHex(stake.yieldHex)} HEX`}
-          sub={`at ${stake.payoutPerTshare.toFixed(4)} HEX per T-share a day`}
+          sub={`from ${stake.payoutPerTshare.toFixed(4)} HEX per T-share a day, +${inflationPct} a year`}
           good
         />
         <Tile
@@ -843,12 +847,13 @@ function StakeDetails({ sim, amount, runYears }: { sim: SimResult; amount: numbe
           value={`${fmtHex(stake.hex + stake.yieldHex)} HEX`}
           sub={`${stake.roiPct.toFixed(1)}% over the term · ${stake.apyPct.toFixed(1)}% a year`}
         />
-        <Tile label="Locked until" value={`~${fmtHexDate(currentHexDay() + stake.days)}`} sub={fmtDuration(stake.days)} />
+        <Tile label="Locked until" value={`~${fmtHexDate(endDay)}`} sub={fmtDuration(stake.days)} />
       </div>
       <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-faint)]">
-        T-shares and the length and size bonuses are exact HEX contract maths. The yield assumes the
-        payout per T-share above — today&apos;s 30-day average, unless you&apos;ve moved the yield
-        dial — holds for the whole term. It won&apos;t exactly, so read it as a scenario, not a promise.
+        T-shares and the length and size bonuses are exact HEX contract maths. The yield starts from
+        the payout per T-share above — today&apos;s 30-day average, unless you&apos;ve moved the
+        yield dial — and steps up {inflationPct} every 365 days with HEX&apos;s inflation. It
+        won&apos;t play out exactly, so read it as a scenario, not a promise.
       </p>
     </Panel>
   );

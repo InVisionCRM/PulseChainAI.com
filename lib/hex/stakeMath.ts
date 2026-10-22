@@ -81,6 +81,45 @@ export function projectStake(
   return { days: stakedDays, tShares, projectedYieldHex, roiPct, apyPct };
 }
 
+/** HEX's inflation: 3.69% of supply a year, paid out to stakers. */
+export const HEX_ANNUAL_INFLATION = 0.0369;
+
+/**
+ * HEX that `tShares` earn over a stake's first `days` days when the daily
+ * payout per T-Share starts at `dailyPayoutPerTShare` and steps up by HEX's
+ * 3.69% inflation once every 365 days, compounded: the first year at the
+ * payout, the second at 1.0369×, the third at 1.0369²×, and so on.
+ *
+ * This is how a HEX mining calculator projects a stake: 74,000 HEX for 5,555
+ * days at share rate 47,345 and 1.7736 HEX a day gives 60,546.633 HEX of yield.
+ */
+export function stakeYieldHex(tShares: number, dailyPayoutPerTShare: number, days: number): number {
+  if (!(days > 0)) return 0;
+  const years = Math.floor(days / 365);
+  const growth = 1 + HEX_ANNUAL_INFLATION;
+  const fullYears = (365 * (Math.pow(growth, years) - 1)) / HEX_ANNUAL_INFLATION;
+  const restOfLastYear = (days - years * 365) * Math.pow(growth, years);
+  return tShares * dailyPayoutPerTShare * (fullYears + restOfLastYear);
+}
+
+/**
+ * Project a stake whose payout per T-Share grows with HEX's inflation
+ * (`stakeYieldHex`), rather than holding today's figure flat as `projectStake`
+ * does. Same T-Shares; ROI and APY worked out the same way.
+ */
+export function projectStakeWithInflation(
+  principalHex: number,
+  stakedDays: number,
+  tShareRateHex: number,
+  dailyPayoutPerTShare: number,
+): StakeProjection {
+  const tShares = projectedTShares(principalHex, stakedDays, tShareRateHex);
+  const projectedYieldHex = stakeYieldHex(tShares, dailyPayoutPerTShare, stakedDays);
+  const roiPct = principalHex > 0 ? (projectedYieldHex / principalHex) * 100 : 0;
+  const apyPct = stakedDays > 0 ? (roiPct * 365) / stakedDays : 0;
+  return { days: stakedDays, tShares, projectedYieldHex, roiPct, apyPct };
+}
+
 /** Project across a set of stake lengths (for the ROI/APY-vs-length curve). */
 export function projectionCurve(
   principalHex: number,
