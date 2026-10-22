@@ -33,6 +33,7 @@ import {
 import { IconRefresh, IconBolt, IconTrendingUp, IconTrendingDown, IconCheck } from '@tabler/icons-react';
 import {
   BPB_MAX_HEX,
+  HEX_ANNUAL_INFLATION,
   HEX_MAX_STAKE_DAYS,
   LPB_FULL_BONUS_DAYS,
   bonusMultiplier,
@@ -167,7 +168,8 @@ export default function HexStrategist({
   // (staked + circulating) — not staked/circulating (which can exceed 100%).
   const totalHex = rates.stakedHex + rates.circulatingHex;
   const pctStaked = totalHex > 0 ? (rates.stakedHex / totalHex) * 100 : null;
-  const endDate = fmtHexDate(currentHexDay() + days);
+  // A stake starts the day after it's entered, and ends that many days on.
+  const endDate = fmtHexDate(currentHexDay() + 1 + days);
 
   // The two bonuses, split out — the dial shows the total, the caption the parts.
   const lpbFrac = Math.min(Math.max(days - 1, 0), LPB_MAX_BONUS_DAYS) / LPB_MAX_BONUS_DAYS;
@@ -352,7 +354,7 @@ export default function HexStrategist({
             } />
             <Swap label="Yield" from={fmtHex(target.projectedYieldHex)} to={fmtHex(best.projectedYieldHex)} note="over the term" />
             <Swap label="Locked for" from={fmtDuration(days)} to={fmtDuration(LPB_FULL_BONUS_DAYS)} note={
-              days > LPB_FULL_BONUS_DAYS ? `${fmtDuration(days - LPB_FULL_BONUS_DAYS)} of it earns nothing extra` : 'the full-bonus term'
+              days > LPB_FULL_BONUS_DAYS ? `${fmtDuration(days - LPB_FULL_BONUS_DAYS)} of it adds no bonus` : 'the full-bonus term'
             } />
           </div>
         )}
@@ -437,8 +439,9 @@ export default function HexStrategist({
       </div>
 
       <p className="font-poppins px-1 text-[10px] leading-relaxed text-[var(--text-faint)]">
-        T-Shares and the LPB/BPB bonus are exact HEX contract math. Yield, ROI and APY assume the trailing 30-day average
-        payout per T-Share holds for the whole term — it won’t exactly, so read them as a scenario, not a promise.
+        T-Shares and the LPB/BPB bonus are exact HEX contract math. Yield, ROI and APY start from the trailing 30-day average
+        payout per T-Share and step it up {(HEX_ANNUAL_INFLATION * 100).toFixed(2)}% every 365 days with HEX’s inflation — it
+        won’t play out exactly, so read them as a scenario, not a promise.
       </p>
     </div>
   );

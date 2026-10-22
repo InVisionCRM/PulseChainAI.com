@@ -1,7 +1,7 @@
 // Pure HEX stake math — Longer-Pays-Better (LPB) + Bigger-Pays-Better (BPB)
 // share bonuses, ported from the HEX contract's `_stakeStartBonusHearts`.
-// Deterministic, no I/O. Used by the HEX Stake Strategist to project a *new*
-// hypothetical stake's T-Shares and yield.
+// Deterministic, no I/O. Used by the HEX Stake Strategist and the SuperStake
+// simulator to project a *new* hypothetical stake's T-Shares and yield.
 //
 //   LPB — up to +200% shares, maxing at 3640 bonus-days (a 3641-day stake).
 //   BPB — up to +10%  shares, maxing at 150,000,000 HEX of principal.
@@ -52,35 +52,6 @@ export function projectedTShares(
   return effectiveHex(principalHex, stakedDays) / tShareRateHex;
 }
 
-export interface StakeProjection {
-  days: number;
-  tShares: number;
-  /** Gross HEX yield over the full term at the assumed daily payout/T-Share. */
-  projectedYieldHex: number;
-  /** Yield as a % of principal over the full term. */
-  roiPct: number;
-  /** Annualized ROI. */
-  apyPct: number;
-}
-
-/**
- * Project a stake outcome assuming a constant daily payout per T-Share.
- * `dailyPayoutPerTShare` is in HEX (LiveData.payoutPerTshare, or a trailing
- * average). This is a scenario, not a guarantee — future payouts are unknown.
- */
-export function projectStake(
-  principalHex: number,
-  stakedDays: number,
-  tShareRateHex: number,
-  dailyPayoutPerTShare: number,
-): StakeProjection {
-  const tShares = projectedTShares(principalHex, stakedDays, tShareRateHex);
-  const projectedYieldHex = tShares * dailyPayoutPerTShare * stakedDays;
-  const roiPct = principalHex > 0 ? (projectedYieldHex / principalHex) * 100 : 0;
-  const apyPct = stakedDays > 0 ? (roiPct * 365) / stakedDays : 0;
-  return { days: stakedDays, tShares, projectedYieldHex, roiPct, apyPct };
-}
-
 /** HEX's inflation: 3.69% of supply a year, paid out to stakers. */
 export const HEX_ANNUAL_INFLATION = 0.0369;
 
@@ -102,12 +73,24 @@ export function stakeYieldHex(tShares: number, dailyPayoutPerTShare: number, day
   return tShares * dailyPayoutPerTShare * (fullYears + restOfLastYear);
 }
 
+export interface StakeProjection {
+  days: number;
+  tShares: number;
+  /** Gross HEX yield over the full term, from the daily payout/T-Share grown by HEX's inflation. */
+  projectedYieldHex: number;
+  /** Yield as a % of principal over the full term. */
+  roiPct: number;
+  /** Annualized ROI. */
+  apyPct: number;
+}
+
 /**
- * Project a stake whose payout per T-Share grows with HEX's inflation
- * (`stakeYieldHex`), rather than holding today's figure flat as `projectStake`
- * does. Same T-Shares; ROI and APY worked out the same way.
+ * Project a stake outcome: the contract's T-Shares, earning from
+ * `dailyPayoutPerTShare` (HEX — LiveData.payoutPerTshare, or a trailing
+ * average) as it grows with HEX's inflation each year (`stakeYieldHex`). This
+ * is a scenario, not a guarantee — future payouts are unknown.
  */
-export function projectStakeWithInflation(
+export function projectStake(
   principalHex: number,
   stakedDays: number,
   tShareRateHex: number,

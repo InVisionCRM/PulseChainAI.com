@@ -12,7 +12,7 @@
 // shrinking pool.
 
 import { HOLDER_PAYOUT_RATE, REFLECTION_RATE, S_SHARE } from './model';
-import { HEX_MAX_STAKE_DAYS, bonusMultiplier, projectStakeWithInflation, stakeYieldHex } from '@/lib/hex/stakeMath';
+import { HEX_MAX_STAKE_DAYS, bonusMultiplier, projectStake, stakeYieldHex } from '@/lib/hex/stakeMath';
 
 /** The 2% of every trade that buys HEX for the pool. */
 export const BUY_TAX_RATE = 0.02;
@@ -102,7 +102,7 @@ export interface SimCycle {
 
 /**
  * The one HEX stake a run is measured against, projected the way a HEX mining
- * calculator projects one (`projectStakeWithInflation`): the contract's
+ * calculator projects one (`projectStake`): the contract's
  * T-shares, and a daily payout per T-share that steps up by HEX's 3.69%
  * inflation every 365 days.
  */
@@ -198,7 +198,7 @@ export function simulate(input: SimInputs): SimResult | null {
   // inflation each year, and paid out at the end.
   const holdHex = amountUsd > 0 ? amountUsd / input.pHex : 0;
   const stakeDays = cycles * cycleDays;
-  const proj = projectStakeWithInflation(holdHex, stakeDays, input.shareRate, payoutPerTshare);
+  const proj = projectStake(holdHex, stakeDays, input.shareRate, payoutPerTshare);
   // A one-day stake earns no length bonus, so what it does earn is the size part.
   const sizeBonus = bonusMultiplier(holdHex, 1);
   const stake: SimStake = {
