@@ -12,6 +12,7 @@
 // shrinking pool.
 
 import { HOLDER_PAYOUT_RATE, REFLECTION_RATE, S_SHARE, TOLL } from './model';
+import { HEX_MAX_STAKE_DAYS, bonusMultiplier, projectedTShares } from '@/lib/hex/stakeMath';
 
 /** The 2% of every trade that buys HEX for the pool. */
 export const BUY_TAX_RATE = 0.02;
@@ -93,8 +94,25 @@ export interface SimCycle {
   holderValueUsd: number;
   /** The same dollars left in HEX from the start, for comparison. */
   holdHexValueUsd: number;
-  /** The same dollars in a rolling native HEX stake, for comparison. */
+  /**
+   * The same dollars in one native HEX stake as long as the whole run: its
+   * principal plus the yield accrued so far, at this cycle's price. Locked
+   * until the run's last day — before that, this is what it has earned, not
+   * what it could be ended for.
+   */
   stakeHexValueUsd: number;
+}
+
+/** The one HEX stake a run is measured against. */
+export interface SimStake {
+  /** Its length — exactly the run's, so both sides cover the same days. */
+  days: number;
+  /** HEX bought with the same dollars on day one. */
+  hex: number;
+  /** T-shares, fixed on day one at the opening share rate. */
+  tShares: number;
+  /** Length and size bonus together: 3.0 is HEX's full length bonus. */
+  bonus: number;
 }
 
 export interface SimResult {
@@ -115,6 +133,8 @@ export interface SimResult {
   supplySurvived: boolean;
   /** What the holder started with, after the entry toll. */
   openingTokens: number;
+  /** The same-length HEX stake the holder is measured against. */
+  stake: SimStake;
 }
 
 /**
@@ -133,7 +153,9 @@ const pct = (p: number) => 1 + p / 100;
 
 /**
  * Run the projection. Returns null only when the inputs can't describe a run at
- * all — a caller showing "—" is better than one showing a fabricated curve.
+ * all — a caller showing "—" is better than one showing a fabricated curve. A
+ * run longer than HEX's longest stake is one of those: it couldn't be measured
+ * against a stake of the same length, because no such stake can be opened.
  */
 export function simulate(input: SimInputs): SimResult | null {
   const {
@@ -144,6 +166,7 @@ export function simulate(input: SimInputs): SimResult | null {
   if (!(cycles > 0) || !(cycleDays > 0)) return null;
   if (!(input.pHex > 0) || !(input.pSsh > 0)) return null;
   if (!(input.poolHex > 0) || !(input.supply > 0) || !(input.shareRate > 0)) return null;
+  if (cycles * cycleDays > HEX_MAX_STAKE_DAYS) return null;
 
   // Entry costs the 5.5% toll, same as anywhere else on the page.
   const openingTokens = amountUsd > 0 ? (amountUsd * (1 - TOLL)) / input.pSsh : 0;
@@ -159,9 +182,18 @@ export function simulate(input: SimInputs): SimResult | null {
   /** HEX the holder has taken and kept, when not compounding. */
   let bankedHex = 0;
 
-  // The two comparisons, carried alongside.
+  // The two comparisons, carried alongside. The stake is what a HEX staker
+  // choosing the same horizon would actually open: one stake for the whole
+  // run, its T-shares fixed on day one — the length bonus and today's share
+  // rate locked in — earning at the run's payout rate and paid out at the end.
   const holdHex = amountUsd > 0 ? amountUsd / input.pHex : 0;
-  let stakeHex = holdHex;
+  const stakeDays = cycles * cycleDays;
+  const stake: SimStake = {
+    days: stakeDays,
+    hex: holdHex,
+    tShares: projectedTShares(holdHex, stakeDays, input.shareRate),
+    bonus: 1 + bonusMultiplier(holdHex, stakeDays),
+  };
 
   const out: SimCycle[] = [];
 
@@ -202,9 +234,8 @@ export function simulate(input: SimInputs): SimResult | null {
       bankedHex += holderHex;
     }
 
-    // A native HEX stake, rolled the same way, for the comparison line.
-    const stakeTShares = tSharesFor(stakeHex, cycleDays, shareRate);
-    stakeHex += stakeTShares * payoutPerTshare * cycleDays;
+    // The stake has served n cycles' worth of days by the end of this one.
+    const stakeHexAccrued = holdHex + stake.tShares * payoutPerTshare * n * cycleDays;
 
     const tokensAfter = tokens + compoundedTokens;
     const holderValueUsd = tokensAfter * pSsh + bankedHex * pHex;
@@ -220,7 +251,7 @@ export function simulate(input: SimInputs): SimResult | null {
       compoundedTokens,
       holderValueUsd,
       holdHexValueUsd: holdHex * pHex,
-      stakeHexValueUsd: stakeHex * pHex,
+      stakeHexValueUsd: stakeHexAccrued * pHex,
     });
 
     // ── roll forward ──
@@ -244,6 +275,7 @@ export function simulate(input: SimInputs): SimResult | null {
     coveredCycles: out.filter((c) => c.coverRatio >= 1).length,
     supplySurvived: out.every((c) => c.supply >= S_SHARE),
     openingTokens,
+    stake,
   };
 }
 

@@ -97,10 +97,13 @@ export interface SimShare {
   multiple: number;
   hexEarned: number;
   hexEarnedUsd: number;
+  /** The HEX stake the run is measured against: one stake as long as the whole run. */
+  stakeYears: number;
+  stakeDays: number;
   tokens: number;
   sShares: number;
   sharePct: number;
-  /** The same dollars, the two other ways. */
+  /** The same dollars, the two other ways — `stakeHex` at the cycle shown. */
   holdHex: number;
   stakeHex: number;
   /** The pool's side. */
@@ -891,8 +894,8 @@ const paint: Record<string, Painter> = {
       accent: beats >= 0 ? UP : '#D83639',
     });
     statTile(c, [PAD, 800, BOX_W, 120], {
-      label: 'Against rolling a HEX stake', value: money(s.stakeHex), size: 44,
-      sub: `restaked every ${s.cycleDays} days for the same run`,
+      label: `Against one ${s.stakeYears}-year HEX stake`, value: money(s.stakeHex), size: 44,
+      sub: `the same dollars staked day one, locked ${nf(s.stakeDays)} days`,
     });
   },
 
@@ -924,8 +927,8 @@ const paint: Record<string, Painter> = {
       sub: `${s.multiple.toFixed(2)}× in`, accent: '#FB9438',
     });
     statTile(c, g[1], {
-      label: 'Stake the HEX', value: money(s.stakeHex), size: 44,
-      sub: 'rolled every cycle', accent: '#AE176A',
+      label: `${s.stakeYears}-yr HEX stake`, value: money(s.stakeHex), size: 44,
+      sub: `one stake, ${nf(s.stakeDays)} days`, accent: '#AE176A',
     });
     statTile(c, g[2], {
       label: 'Just hold HEX', value: money(s.holdHex), size: 44, sub: 'nothing done at all',

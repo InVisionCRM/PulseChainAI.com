@@ -9,7 +9,7 @@ import { useMemo } from 'react';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import { HOLDER_PAYOUT_RATE, type SuperStakeCycle } from '@/lib/superstake/model';
+import { HOLDER_PAYOUT_RATE, currentRates, type SuperStakeCycle } from '@/lib/superstake/model';
 import {
   AXIS_TICK, DataTable, Head, ONE, SERIES, Tile, TipBox,
   at, dayLong, dayShort, hex, pct, type Col, type Series,
@@ -89,8 +89,10 @@ export default function HexPanel({
   const projYield = running.tsh * pace * cycleDays;
   const nextRestake = (running.hex + projYield) * (1 - HOLDER_PAYOUT_RATE) + waiting;
 
-  const recentP = avg(days.slice(-30).filter((d) => d.p != null).map((d) => d.p as number));
-  const srNow = [...days].reverse().find((d) => d.sr != null)?.sr ?? null;
+  // The same reading the rest of the page projects from, so the two can't differ.
+  const rates = currentRates(series);
+  const recentP = rates.payoutPerTshare;
+  const srNow = rates.shareRate > 0 ? rates.shareRate : null;
   const srFirst = perCycle[0]?.sr ?? null;
   const finished = perCycle.filter((c) => c.done);
 

@@ -83,6 +83,26 @@ export interface SuperStakeSnapshot {
   };
 }
 
+/**
+ * HEX's terms as they stand, read off the daily series rather than the
+ * snapshot's `meta`, which is baked at one moment and goes stale. When the
+ * series is the live rebuild these are live; when the page has fallen back to
+ * the snapshot they are the snapshot's own.
+ *
+ * The share rate is simply the latest. The payout per T-share is averaged over
+ * the last `days` days, because a single day's figure swings by a third as
+ * penalties land in lumps. Either is 0 when the series holds no reading.
+ */
+export function currentRates(
+  series: SuperStakeSnapshot['series'],
+  days = 30,
+): { shareRate: number; payoutPerTshare: number } {
+  const shareRate = [...series.SR].reverse().find((v) => v > 0) ?? 0;
+  const recent = series.P.slice(-days).filter((v) => v > 0);
+  const payoutPerTshare = recent.length ? recent.reduce((s, v) => s + v, 0) / recent.length : 0;
+  return { shareRate, payoutPerTshare };
+}
+
 /** HEX day -> ISO date (yyyy-mm-dd), UTC. */
 export function dayToISO(day: number): string {
   return new Date((HEX_LAUNCH_TS + (day - 1) * 86_400) * 1000)
