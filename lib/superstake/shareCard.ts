@@ -92,10 +92,10 @@ export interface SimShare {
   volumeDriftPct: number;
   /** HEX stake yield the run assumed, % of the pool per cycle. */
   yieldPct: number;
-  /** The holder's side, in HEX: paid out, lost to the 5.5% toll, and net of it. */
+  /** The holder's side: HEX paid out, and how it splits between the 1% payouts and the reflections. */
   hexEarned: number;
-  tollHex: number;
-  hexNet: number;
+  payoutHex: number;
+  reflectionHex: number;
   /** The HEX stake the run is measured against: one stake as long as the whole run. */
   stakeYears: number;
   stakeDays: number;
@@ -115,7 +115,7 @@ export interface SimShare {
   sSharesLeft: number;
   burned: number;
   /** The curves, one point per cycle shown: HEX earned each way, and the pool. */
-  netByCycle: number[];
+  paidByCycle: number[];
   stakeByCycle: number[];
   poolByCycle: number[];
 }
@@ -862,7 +862,7 @@ const paint: Record<string, Painter> = {
   'sim-outcome'(c, d) {
     const s = d.sim;
     if (!s) return noRun(c);
-    const ahead = s.hexNet - s.stakeHexEarned;
+    const ahead = s.hexEarned - s.stakeHexEarned;
     text(c, `${money(s.amount)} in · ${s.cycles} cycles · ${years(s)}`, CARD_W / 2, 224, {
       size: 34, weight: 700, color: TX_MID, align: 'center',
     });
@@ -871,18 +871,18 @@ const paint: Record<string, Painter> = {
     });
     headline(
       c,
-      `${hexAmt(s.hexNet)} HEX`,
-      `earned after the 5.5% — ${s.compound ? 'earnings rebought' : 'earnings kept as HEX'}`,
+      `${compact(s.hexEarned)} HEX`,
+      `paid to you — ${s.compound ? 'earnings rebought' : 'earnings kept as HEX'}`,
       396,
     );
     const g = grid(PAD, 500, BOX_W, 280, 2, 2);
     statTile(c, g[0], {
-      label: 'Paid to you', value: `${compact(s.hexEarned)} HEX`,
-      sub: 'the 1% payouts and 2.5% reflections', accent: '#FB9438',
+      label: 'End-stake payouts', value: `${compact(s.payoutHex)} HEX`,
+      sub: 'your share of the 1% at each stake end', accent: '#7E089D',
     });
     statTile(c, g[1], {
-      label: 'Lost to the 5.5%', value: `${compact(s.tollHex)} HEX`,
-      sub: s.compound ? 'on the way in, and on every rebuy' : 'on the way in',
+      label: 'Reflections', value: `${compact(s.reflectionHex)} HEX`,
+      sub: 'your share of 2.5% of every trade', accent: '#FB9438',
     });
     statTile(c, g[2], {
       label: 'pSSH held', value: compact(s.tokens), sub: `${s.sShares.toFixed(2)} S-shares`,
@@ -893,7 +893,7 @@ const paint: Record<string, Painter> = {
     });
     statTile(c, [PAD, 800, BOX_W, 120], {
       label: `Against one ${s.stakeYears}-year HEX stake`, value: `${hexSigned(ahead)} HEX`, size: 44,
-      sub: `the stake earns ${hexAmt(s.stakeHexEarned)} HEX · ${s.stakeTShares.toFixed(2)} T-shares at +${Math.round(s.stakeBonusPct)}%, locked ${nf(s.stakeDays)} days`,
+      sub: `the stake earns ${compact(s.stakeHexEarned)} HEX · ${s.stakeTShares.toFixed(2)} T-shares at +${Math.round(s.stakeBonusPct)}%, locked ${nf(s.stakeDays)} days`,
       accent: ahead >= 0 ? UP : '#D83639',
     });
   },
@@ -911,9 +911,9 @@ const paint: Record<string, Painter> = {
       c,
       [
         { values: s.stakeByCycle, color: '#AE176A', width: 5 },
-        { values: s.netByCycle, color: '#FB9438', width: 8 },
+        { values: s.paidByCycle, color: '#FB9438', width: 8 },
       ],
-      PAD, 310, BOX_W, 330, (v) => `${hexAmt(v)} HEX`,
+      PAD, 310, BOX_W, 330, (v) => `${compact(v)} HEX`,
     );
     text(c, 'CYCLE 1', PAD, 678, { size: 18, color: TX_DIM, font: MONO, spacing: 2 });
     text(c, `CYCLE ${s.cycles}`, CARD_W - PAD, 678, {
@@ -921,11 +921,11 @@ const paint: Record<string, Painter> = {
     });
     const g = grid(PAD, 706, BOX_W, 168, 2, 1);
     statTile(c, g[0], {
-      label: 'Hold pSSH', value: `${hexAmt(s.hexNet)} HEX`, size: 44,
-      sub: 'earned after the 5.5%', accent: '#FB9438',
+      label: 'Hold pSSH', value: `${compact(s.hexEarned)} HEX`, size: 44,
+      sub: 'paid to you', accent: '#FB9438',
     });
     statTile(c, g[1], {
-      label: `${s.stakeYears}-yr HEX stake`, value: `${hexAmt(s.stakeHexEarned)} HEX`, size: 44,
+      label: `${s.stakeYears}-yr HEX stake`, value: `${compact(s.stakeHexEarned)} HEX`, size: 44,
       sub: `one stake, ${nf(s.stakeDays)} days`, accent: '#AE176A',
     });
     text(c, `${money(s.dailyVolume)}/day · ${drifts(s)} — arithmetic, not a forecast.`,
@@ -1003,13 +1003,13 @@ const paint: Record<string, Painter> = {
 
     const rx = PAD + 440;
     text(c, 'IT EARNS', rx, 318, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
-    text(c, `${hexAmt(s.hexNet)} HEX`, rx, 392, {
+    text(c, `${compact(s.hexEarned)} HEX`, rx, 392, {
       size: 58, weight: 800, color: brand(c, rx, 330, CARD_W - PAD, 396),
     });
-    text(c, 'after the 5.5% tax', rx, 428, { size: 22, color: TX_MID });
+    text(c, 'in payouts and reflections', rx, 428, { size: 22, color: TX_MID });
 
     text(c, `A ${s.stakeYears}-YR HEX STAKE EARNS`, rx, 506, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
-    text(c, `${hexAmt(s.stakeHexEarned)} HEX`, rx, 564, { size: 46, weight: 800 });
+    text(c, `${compact(s.stakeHexEarned)} HEX`, rx, 564, { size: 46, weight: 800 });
     text(c, `${s.stakeTShares.toFixed(2)} T-shares · ${nf(s.stakeDays)} days`, rx, 598, { size: 22, color: TX_MID });
 
     text(c, 'MY SHARE OF THE SUPPLY', rx, 676, { size: 17, color: TX_DIM, font: MONO, spacing: 2 });
@@ -1024,10 +1024,7 @@ const paint: Record<string, Painter> = {
   },
 };
 
-/** HEX at card scale, with its sign when it can go negative. */
-function hexAmt(n: number): string {
-  return n < 0 ? `−${compact(-n)}` : compact(n);
-}
+/** A HEX difference at card scale, always signed. */
 function hexSigned(n: number): string {
   return `${n >= 0 ? '+' : '−'}${compact(Math.abs(n))}`;
 }

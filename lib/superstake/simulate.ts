@@ -88,17 +88,6 @@ export interface SimCycle {
   holderHex: number;
   /** Every cycle so far, including this one. */
   holderHexCumulative: number;
-  /**
-   * HEX the 5.5% toll has taken so far: on the way in, and on every rebuy when
-   * compounding. Counted in HEX at the price it was paid at.
-   */
-  tollHexCumulative: number;
-  /**
-   * HEX earned net of that toll — what the position has gained, counted in
-   * HEX. At flat prices it is exactly the dollar gain at the HEX price; it is
-   * the figure that can be set against a HEX stake's yield.
-   */
-  holderHexNet: number;
   /** pSSH bought with this cycle's earnings, when compounding. */
   compoundedTokens: number;
   /** Value of the holding plus HEX earned (or, compounding, just the holding). */
@@ -223,8 +212,6 @@ export function simulate(input: SimInputs): SimResult | null {
     roiPct: proj.roiPct,
     apyPct: proj.apyPct,
   };
-  // The toll on the way in, in HEX at the opening price.
-  let tollHex = holdHex * TOLL;
 
   const out: SimCycle[] = [];
 
@@ -261,7 +248,6 @@ export function simulate(input: SimInputs): SimResult | null {
     if (compound && holderHex > 0 && pSsh > 0) {
       // Sell the HEX at this cycle's price, buy pSSH, pay the toll again.
       compoundedTokens = (holderHex * pHex * (1 - TOLL)) / pSsh;
-      tollHex += holderHex * TOLL;
     } else {
       bankedHex += holderHex;
     }
@@ -280,8 +266,6 @@ export function simulate(input: SimInputs): SimResult | null {
       tokens, supplyShare,
       holderPayoutHex, holderReflectionHex, holderHex,
       holderHexCumulative: cumulativeHex,
-      tollHexCumulative: tollHex,
-      holderHexNet: cumulativeHex - tollHex,
       compoundedTokens,
       holderValueUsd,
       stakeHexEarned,
