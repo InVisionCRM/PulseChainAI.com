@@ -292,12 +292,9 @@ export function lineChart(
   const lo = Math.min(...all, hi);
   // All series usually start at the same figure, so a zero floor would flatten
   // them into the top strip. The floor lifts and both ends are printed beside it.
-  // A series that dips below zero gets a floor under its low point instead of
-  // being drawn off the bottom of the box — the same quarter-range gap, so the
-  // low point clears the printed floor label — and a zero line.
-  const floor = lo < 0
-    ? lo - (hi - lo) * 0.25
-    : lo === 0 ? 0 : Math.max(0, lo - (hi > lo ? (hi - lo) * 0.25 : lo * 0.05));
+  // A zero floor truncates nothing, so it isn't printed — lines that start near
+  // zero would run through it.
+  const floor = lo <= 0 ? 0 : Math.max(0, lo - (hi > lo ? (hi - lo) * 0.25 : lo * 0.05));
   const top = hi * 1.04;
   const span = Math.max(top - floor, 1e-9);
   const n = Math.max(...series.map((s) => s.values.length), 2);
@@ -308,14 +305,6 @@ export function lineChart(
     c.beginPath();
     c.moveTo(x, y + h * g);
     c.lineTo(x + w, y + h * g);
-    c.stroke();
-  }
-  if (floor < 0) {
-    const zy = y + h - ((0 - floor) / span) * h;
-    c.strokeStyle = LINE_2;
-    c.beginPath();
-    c.moveTo(x, zy);
-    c.lineTo(x + w, zy);
     c.stroke();
   }
   c.restore();
@@ -336,7 +325,7 @@ export function lineChart(
     c.restore();
   }
   text(c, fmt(top), x + 10, y + 26, { size: 19, color: TX_DIM, font: MONO, spacing: 1 });
-  text(c, fmt(floor), x + 10, y + h - 12, { size: 19, color: TX_DIM, font: MONO, spacing: 1 });
+  if (floor > 0) text(c, fmt(floor), x + 10, y + h - 12, { size: 19, color: TX_DIM, font: MONO, spacing: 1 });
 }
 
 /** Vertical bars on a shared baseline, brand-filled. */

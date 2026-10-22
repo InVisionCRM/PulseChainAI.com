@@ -27,7 +27,7 @@ import {
   type SimResult,
 } from '@/lib/superstake/simulate';
 import { S_SHARE } from '@/lib/superstake/model';
-import { HEX_MAX_STAKE_DAYS } from '@/lib/hex/stakeMath';
+import { HEX_ANNUAL_INFLATION, HEX_MAX_STAKE_DAYS } from '@/lib/hex/stakeMath';
 import { currentHexDay, fmtDuration, fmtHex, fmtHexDate, fmtTShares } from '@/lib/hex/hexDay';
 import ShareCards from '@/components/superstake/ShareCards';
 import { SIM_CARD_IDS, type ShareData } from '@/lib/superstake/shareCard';
@@ -51,11 +51,12 @@ const money = (n: number) =>
         : `$${n.toFixed(2)}`;
 const compact = (n: number) =>
   Math.abs(n) >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : Math.abs(n) >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : nf(n);
-/** HEX the way the HEX Strategist writes it, with a sign when it can go negative. */
-const hexAmt = (n: number) => (n < 0 ? `−${fmtHex(-n)}` : fmtHex(n));
+/** A HEX difference the way the HEX Strategist writes HEX, always signed. */
 const hexSigned = (n: number) => `${n >= 0 ? '+' : '−'}${fmtHex(Math.abs(n))}`;
 /** 20.5817% is four digits of noise; 0.0042% needs all four. */
 const pctOf = (n: number) => `${n.toFixed(n >= 1 ? 2 : 4)}%`;
+/** HEX's yearly inflation, which the stake's payout is projected to grow by. */
+const inflationPct = `${(HEX_ANNUAL_INFLATION * 100).toFixed(2)}%`;
 
 export interface SimulatorProps {
   /** Opening state, from the live page — the projection starts where reality is. */
@@ -281,8 +282,8 @@ export default function Simulator(props: SimulatorProps) {
         volumeDriftPct: volDrift,
         yieldPct,
         hexEarned: now.holderHexCumulative,
-        tollHex: now.tollHexCumulative,
-        hexNet: now.holderHexNet,
+        payoutHex: shown.reduce((s, c) => s + c.holderPayoutHex, 0),
+        reflectionHex: shown.reduce((s, c) => s + c.holderReflectionHex, 0),
         stakeYears: runYears,
         stakeDays: sim.stake.days,
         stakeHexEarned: now.stakeHexEarned,
@@ -298,7 +299,7 @@ export default function Simulator(props: SimulatorProps) {
         breakEven,
         sSharesLeft: now.sSharesLeft,
         burned: shown.reduce((s, c) => s + c.burnedTokens, 0),
-        netByCycle: shown.map((c) => c.holderHexNet),
+        paidByCycle: shown.map((c) => c.holderHexCumulative),
         stakeByCycle: shown.map((c) => c.stakeHexEarned),
         poolByCycle: shown.map((c) => c.poolHexNext),
       },
@@ -377,7 +378,6 @@ export default function Simulator(props: SimulatorProps) {
           display={money(amount)}
           min={100} max={100_000} step={100}
           v={amount} onChange={setAmount}
-          hint="after the 5.5% entry tax"
         />
         <Slider
           label="How long"
@@ -406,7 +406,7 @@ export default function Simulator(props: SimulatorProps) {
             ))}
           </div>
           <p className="mt-1 text-[9.5px] text-[var(--text-faint)]">
-            {compound ? 'compounding — pays the 5.5% each time' : 'banked, and not re-taxed'}
+            {compound ? "compounding — each cycle's HEX buys more pSSH" : 'banked as HEX'}
           </p>
         </div>
 
@@ -543,10 +543,11 @@ export default function Simulator(props: SimulatorProps) {
           <b className="text-[var(--text-muted)]">How this is built.</b> Each cycle&apos;s ending
           state opens the next: the stake earns at the yield you set, hands holders 1%, and the 2%
           buy-tax adds what the volume can buy. The 1% burn shrinks supply, which is what lifts your
-          share of it. Entry and every compound pay the 5.5% toll. The HEX stake you&apos;re measured
-          against is one stake as long as the whole run, opened on day one: its T-shares are fixed
-          then — HEX&apos;s length bonus and today&apos;s share rate locked in — it earns at the same
-          payout rate as the pool, and it pays out once, at the end. The same formulas the rest of
+          share of it. The HEX stake you&apos;re measured against is one stake as long as the whole
+          run, opened on day one: its T-shares are fixed then — HEX&apos;s length bonus and
+          today&apos;s share rate locked in — its payout per T-share starts at the pool&apos;s and
+          steps up with HEX&apos;s {inflationPct} inflation every year, and it pays out once, at the
+          end. The same formulas the rest of
           the page uses — the pool&apos;s T-shares here reproduce its recorded 107.55 to within
           0.003%. Nothing here is a prediction, and none of it is financial advice.
         </p>
@@ -581,9 +582,9 @@ function HolderView({
   assumptions: string;
 }) {
   const stakeName = `${runYears}-year HEX stake`;
-  const net = now.holderHexNet;
-  const ahead = net - now.stakeHexEarned;
-  const ratio = now.stakeHexEarned > 0 && net > 0 ? net / now.stakeHexEarned : null;
+  const paid = now.holderHexCumulative;
+  const ahead = paid - now.stakeHexEarned;
+  const ratio = now.stakeHexEarned > 0 && paid > 0 ? paid / now.stakeHexEarned : null;
   const payoutShare =
     now.holderPayoutHex + now.holderReflectionHex > 0
       ? now.holderPayoutHex / (now.holderPayoutHex + now.holderReflectionHex)
@@ -604,12 +605,12 @@ function HolderView({
           style={{ background: GRAD }}
         />
         <span className="relative text-[9.5px] uppercase tracking-[0.16em] text-[var(--text-faint)]" style={{ fontFamily: MONO }}>
-          HEX earned by cycle {now.n}, after the 5.5%
+          HEX paid to you by cycle {now.n}
         </span>
         <div className="relative mt-1 flex flex-wrap items-end gap-x-3 gap-y-1.5">
           <Anim
-            value={net}
-            fmt={(v) => `${hexAmt(v)} HEX`}
+            value={paid}
+            fmt={(v) => `${fmtHex(v)} HEX`}
             className="text-[clamp(34px,5.6vw,54px)] font-bold leading-[0.95] tracking-[-0.045em] tabular-nums text-[var(--text)]"
           />
           {ratio != null && (
@@ -630,22 +631,12 @@ function HolderView({
             {hexSigned(ahead)} HEX vs a {stakeName}
           </span>
         </div>
-        <p className="relative mt-2 text-[11px] tabular-nums text-[var(--text-muted)]">
-          {fmtHex(now.holderHexCumulative)} HEX paid to you, less {fmtHex(now.tollHexCumulative)} lost to the 5.5%
-        </p>
-        <p className="relative mt-0.5 text-[11px] tabular-nums text-[var(--text-faint)]">
+        <p className="relative mt-2 text-[11px] tabular-nums text-[var(--text-faint)]">
           on {money(amount)} in · assumes {assumptions}
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile label="Paid to you" value={`${fmtHex(now.holderHexCumulative)} HEX`} sub="the 1% payouts and 2.5% reflections" good />
-        <Tile
-          label="Lost to the 5.5%"
-          value={`${fmtHex(now.tollHexCumulative)} HEX`}
-          sub={compound ? 'on the way in, and on every rebuy' : 'on the way in'}
-          bad
-        />
+      <div className="grid grid-cols-2 gap-3">
         <Tile
           label="pSSH held"
           value={compact(now.tokens + now.compoundedTokens)}
@@ -658,16 +649,15 @@ function HolderView({
       <Panel title="HEX earned, two ways" sub={`same dollars, same ${nf(sim.stake.days)} days`}>
         <MultiLine
           series={[
-            { label: 'Hold pSSH, after the 5.5%', values: shown.map((c) => c.holderHexNet), color: C_PSSH, width: 2.6 },
+            { label: 'Hold pSSH', values: shown.map((c) => c.holderHexCumulative), color: C_PSSH, width: 2.6 },
             { label: `One ${stakeName}`, values: shown.map((c) => c.stakeHexEarned), color: C_STAKE, width: 1.8 },
           ]}
-          fmt={(v) => `${hexAmt(v)} HEX`}
+          fmt={(v) => `${fmtHex(v)} HEX`}
         />
         <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-faint)]">
           <b className="text-[var(--text-muted)]">Counted in HEX</b>, so neither line is a bet on
-          what HEX is worth in dollars. The pSSH line starts below zero — the 5.5% on the way in —
-          and has to earn that back first; the stake&apos;s starts at zero and climbs in a straight
-          line, because its T-shares are fixed on day one and paid at the rate you set. Price drifts
+          what HEX is worth in dollars. The stake&apos;s T-shares are fixed on day one; its line
+          bends up a little each year as HEX&apos;s {inflationPct} inflation lifts the payout. Price drifts
           still reach the pSSH side: they set how much pSSH each rebought HEX buys, and how much HEX
           a dollar of volume pays in reflections.
         </p>
@@ -718,11 +708,10 @@ function HolderView({
         </Panel>
       </div>
 
-      {sim.final.holderHexNet < 0 && (
+      {sim.final.holderValueUsd < amount && (
         <p className="rounded-lg border border-red-400/30 bg-red-400/5 px-3 py-2 text-[11.5px] text-red-300">
-          Under these assumptions the HEX this position earns never makes back what the 5.5% took —
-          it ends {hexAmt(sim.final.holderHexNet)} HEX down. That is the projection doing its job;
-          the dials you set produce this, and nothing here rounds it away.
+          Under these assumptions the position ends below what went in. That is the projection
+          doing its job — the dials you set produce this, and nothing here rounds it away.
         </p>
       )}
     </div>
@@ -740,16 +729,15 @@ function StakeDuel({
 }: { now: SimCycle; sim: SimResult; amount: number; runYears: number }) {
   const { stake } = sim;
   const ended = now.n === sim.final.n;
-  const won = sim.final.holderHexNet >= sim.final.stakeHexEarned;
+  const won = sim.final.holderHexCumulative >= sim.final.stakeHexEarned;
   const years = `${runYears} ${runYears === 1 ? 'year' : 'years'}`;
   const rows: { k: string; a: string; b: string; strong?: boolean; end?: boolean }[] = [
     {
-      k: `Paid out by cycle ${now.n}`,
+      k: `HEX paid by cycle ${now.n}`,
       a: `${fmtHex(now.holderHexCumulative)} HEX`,
       b: `${fmtHex(now.stakeHexEarned)} HEX accrued`,
+      strong: true,
     },
-    { k: 'Lost to the 5.5%', a: `−${fmtHex(now.tollHexCumulative)} HEX`, b: 'none' },
-    { k: 'HEX earned, net', a: `${hexAmt(now.holderHexNet)} HEX`, b: `${fmtHex(now.stakeHexEarned)} HEX`, strong: true },
     {
       k: 'What you hold',
       // Non-breaking hyphens: a phone-width column otherwise wraps "S-" from "shares".
@@ -758,12 +746,12 @@ function StakeDuel({
     },
     {
       k: 'Getting out',
-      a: 'sell any day, less the 5.5%',
+      a: 'sell any day',
       b: `locked ${nf(stake.days)} days — ending early forfeits yield and pays a penalty`,
     },
     {
       k: ended ? `HEX earned at the end · ${years}` : `HEX earned when the run ends · ${years}`,
-      a: `${hexAmt(sim.final.holderHexNet)} HEX`,
+      a: `${fmtHex(sim.final.holderHexCumulative)} HEX`,
       b: `${fmtHex(sim.final.stakeHexEarned)} HEX`,
       end: true,
     },
@@ -825,15 +813,17 @@ function StakeDuel({
 }
 
 /**
- * The stake on the other side, in the HEX Strategist's own terms — the same
- * `projectStake` maths and the same formatting, so a visitor who designs this
- * stake on the Strategist sees these numbers again.
+ * The stake on the other side, projected the way a HEX mining calculator
+ * projects one (`projectStakeWithInflation`), so the same amount, length and
+ * rates give the same T-shares, yield, ROI, APY and end date there.
  */
 function StakeDetails({ sim, amount, runYears }: { sim: SimResult; amount: number; runYears: number }) {
   const { stake } = sim;
   const openPrice = sim.cycles[0].pHex;
+  // A stake starts the day after it's entered, and ends that many days on.
+  const endDay = currentHexDay() + 1 + stake.days;
   return (
-    <Panel title={`The ${runYears}-year HEX stake, in full`} sub="projected the way the HEX Strategist projects a stake">
+    <Panel title={`The ${runYears}-year HEX stake, in full`} sub={`today's payout per T-share, rising with HEX's ${inflationPct} inflation each year`}>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Tile label="HEX staked" value={`${fmtHex(stake.hex)} HEX`} sub={`your ${money(amount)} at $${openPrice.toFixed(6)}`} />
         <Tile
@@ -849,7 +839,7 @@ function StakeDetails({ sim, amount, runYears }: { sim: SimResult; amount: numbe
         <Tile
           label="Projected yield"
           value={`${fmtHex(stake.yieldHex)} HEX`}
-          sub={`at ${stake.payoutPerTshare.toFixed(4)} HEX per T-share a day`}
+          sub={`from ${stake.payoutPerTshare.toFixed(4)} HEX per T-share a day, +${inflationPct} a year`}
           good
         />
         <Tile
@@ -857,12 +847,13 @@ function StakeDetails({ sim, amount, runYears }: { sim: SimResult; amount: numbe
           value={`${fmtHex(stake.hex + stake.yieldHex)} HEX`}
           sub={`${stake.roiPct.toFixed(1)}% over the term · ${stake.apyPct.toFixed(1)}% a year`}
         />
-        <Tile label="Locked until" value={`~${fmtHexDate(currentHexDay() + stake.days)}`} sub={fmtDuration(stake.days)} />
+        <Tile label="Locked until" value={`~${fmtHexDate(endDay)}`} sub={fmtDuration(stake.days)} />
       </div>
       <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-faint)]">
-        T-shares and the length and size bonuses are exact HEX contract maths. The yield assumes the
-        payout per T-share above — today&apos;s 30-day average, unless you&apos;ve moved the yield
-        dial — holds for the whole term. It won&apos;t exactly, so read it as a scenario, not a promise.
+        T-shares and the length and size bonuses are exact HEX contract maths. The yield starts from
+        the payout per T-share above — today&apos;s 30-day average, unless you&apos;ve moved the
+        yield dial — and steps up {inflationPct} every 365 days with HEX&apos;s inflation. It
+        won&apos;t play out exactly, so read it as a scenario, not a promise.
       </p>
     </Panel>
   );
@@ -1144,18 +1135,10 @@ function MultiLine({
   // floor lifts to just under the lowest point — and gets printed, because a
   // truncated axis is only dishonest when it's unlabelled. A filled series
   // keeps its zero floor: the shading means "from nothing", and lifting it
-  // would overstate the area.
+  // would overstate the area. A zero floor truncates nothing, so it isn't
+  // printed — lines that start near zero would run through it.
   const filled = series.some((s) => s.fill);
-  // A series that dips below zero (HEX earned net of the entry toll starts
-  // there) gets a floor under its low point and a zero line, rather than being
-  // drawn off the bottom of the chart. The same quarter-range gap as a lifted
-  // floor, so the low point clears the printed floor label.
-  const floor =
-    lo < 0
-      ? lo - (hi - lo) * 0.25
-      : filled || lo === 0
-        ? 0
-        : Math.max(0, lo - (hi > lo ? (hi - lo) * 0.25 : lo * 0.05));
+  const floor = filled || lo <= 0 ? 0 : Math.max(0, lo - (hi > lo ? (hi - lo) * 0.25 : lo * 0.05));
   const top = hi * 1.04;
   const span = Math.max(top - floor, 1e-9);
   const n = Math.max(...series.map((s) => s.values.length), 2);
@@ -1175,21 +1158,15 @@ function MultiLine({
         {[0.25, 0.5, 0.75].map((g) => (
           <line key={g} x1="0" x2={W} y1={H * g} y2={H * g} stroke="var(--line)" strokeWidth="1" />
         ))}
-        {floor < 0 && (
-          <line
-            x1="0" x2={W}
-            y1={H - PAD - ((0 - floor) / span) * (H - PAD * 2)}
-            y2={H - PAD - ((0 - floor) / span) * (H - PAD * 2)}
-            stroke="var(--line-strong)" strokeWidth="1"
-          />
-        )}
         {/* the axis it's actually drawn against */}
         <text x="4" y={PAD + 9} className="fill-[var(--text-faint)] text-[9px]" style={{ fontFamily: MONO }}>
           {fmt(top)}
         </text>
-        <text x="4" y={H - PAD - 3} className="fill-[var(--text-faint)] text-[9px]" style={{ fontFamily: MONO }}>
-          {fmt(floor)}
-        </text>
+        {floor > 0 && (
+          <text x="4" y={H - PAD - 3} className="fill-[var(--text-faint)] text-[9px]" style={{ fontFamily: MONO }}>
+            {fmt(floor)}
+          </text>
+        )}
         {series.map((s) => {
           const d = pathFor(s.values);
           return (

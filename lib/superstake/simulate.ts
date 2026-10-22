@@ -11,8 +11,8 @@
 // padded or floored to look better, and a run that shrinks the pool returns a
 // shrinking pool.
 
-import { HOLDER_PAYOUT_RATE, REFLECTION_RATE, S_SHARE, TOLL } from './model';
-import { HEX_MAX_STAKE_DAYS, bonusMultiplier, projectStake } from '@/lib/hex/stakeMath';
+import { HOLDER_PAYOUT_RATE, REFLECTION_RATE, S_SHARE } from './model';
+import { HEX_MAX_STAKE_DAYS, bonusMultiplier, projectStakeWithInflation, stakeYieldHex } from '@/lib/hex/stakeMath';
 
 /** The 2% of every trade that buys HEX for the pool. */
 export const BUY_TAX_RATE = 0.02;
@@ -88,17 +88,6 @@ export interface SimCycle {
   holderHex: number;
   /** Every cycle so far, including this one. */
   holderHexCumulative: number;
-  /**
-   * HEX the 5.5% toll has taken so far: on the way in, and on every rebuy when
-   * compounding. Counted in HEX at the price it was paid at.
-   */
-  tollHexCumulative: number;
-  /**
-   * HEX earned net of that toll — what the position has gained, counted in
-   * HEX. At flat prices it is exactly the dollar gain at the HEX price; it is
-   * the figure that can be set against a HEX stake's yield.
-   */
-  holderHexNet: number;
   /** pSSH bought with this cycle's earnings, when compounding. */
   compoundedTokens: number;
   /** Value of the holding plus HEX earned (or, compounding, just the holding). */
@@ -112,9 +101,10 @@ export interface SimCycle {
 }
 
 /**
- * The one HEX stake a run is measured against, projected exactly as the HEX
- * Strategist projects a stake (`projectStake`) — same T-shares, same yield,
- * same ROI and APY for the same amount, length and rates.
+ * The one HEX stake a run is measured against, projected the way a HEX mining
+ * calculator projects one (`projectStakeWithInflation`): the contract's
+ * T-shares, and a daily payout per T-share that steps up by HEX's 3.69%
+ * inflation every 365 days.
  */
 export interface SimStake {
   /** Its length — exactly the run's, so both sides cover the same days. */
@@ -126,7 +116,7 @@ export interface SimStake {
   /** HEX's two share bonuses as fractions of principal: up to 2.00 for length, 0.10 for size. */
   lengthBonus: number;
   sizeBonus: number;
-  /** The rates it is projected at — the run's own. */
+  /** The rates it is projected at — the run's own. The payout is its first year's. */
   shareRate: number;
   payoutPerTshare: number;
   /** HEX paid on top of the principal at the end, and that as a return. */
@@ -151,7 +141,7 @@ export interface SimResult {
   coveredCycles: number;
   /** True when supply never fell below one S-share. */
   supplySurvived: boolean;
-  /** What the holder started with, after the entry toll. */
+  /** The pSSH the holder started with. */
   openingTokens: number;
   /** The same-length HEX stake the holder is measured against. */
   stake: SimStake;
@@ -188,8 +178,7 @@ export function simulate(input: SimInputs): SimResult | null {
   if (!(input.poolHex > 0) || !(input.supply > 0) || !(input.shareRate > 0)) return null;
   if (cycles * cycleDays > HEX_MAX_STAKE_DAYS) return null;
 
-  // Entry costs the 5.5% toll, same as anywhere else on the page.
-  const openingTokens = amountUsd > 0 ? (amountUsd * (1 - TOLL)) / input.pSsh : 0;
+  const openingTokens = amountUsd > 0 ? amountUsd / input.pSsh : 0;
 
   let poolHex = input.poolHex;
   let supply = input.supply;
@@ -205,10 +194,11 @@ export function simulate(input: SimInputs): SimResult | null {
   // The two comparisons, carried alongside. The stake is what a HEX staker
   // choosing the same horizon would actually open: one stake for the whole
   // run, its T-shares fixed on day one — the length bonus and today's share
-  // rate locked in — earning at the run's payout rate and paid out at the end.
+  // rate locked in — earning from the run's payout rate, grown by HEX's
+  // inflation each year, and paid out at the end.
   const holdHex = amountUsd > 0 ? amountUsd / input.pHex : 0;
   const stakeDays = cycles * cycleDays;
-  const proj = projectStake(holdHex, stakeDays, input.shareRate, payoutPerTshare);
+  const proj = projectStakeWithInflation(holdHex, stakeDays, input.shareRate, payoutPerTshare);
   // A one-day stake earns no length bonus, so what it does earn is the size part.
   const sizeBonus = bonusMultiplier(holdHex, 1);
   const stake: SimStake = {
@@ -223,8 +213,6 @@ export function simulate(input: SimInputs): SimResult | null {
     roiPct: proj.roiPct,
     apyPct: proj.apyPct,
   };
-  // The toll on the way in, in HEX at the opening price.
-  let tollHex = holdHex * TOLL;
 
   const out: SimCycle[] = [];
 
@@ -259,15 +247,14 @@ export function simulate(input: SimInputs): SimResult | null {
 
     let compoundedTokens = 0;
     if (compound && holderHex > 0 && pSsh > 0) {
-      // Sell the HEX at this cycle's price, buy pSSH, pay the toll again.
-      compoundedTokens = (holderHex * pHex * (1 - TOLL)) / pSsh;
-      tollHex += holderHex * TOLL;
+      // Sell the HEX at this cycle's price and buy pSSH with it.
+      compoundedTokens = (holderHex * pHex) / pSsh;
     } else {
       bankedHex += holderHex;
     }
 
     // The stake has served n cycles' worth of days by the end of this one.
-    const stakeHexEarned = stake.tShares * payoutPerTshare * n * cycleDays;
+    const stakeHexEarned = stakeYieldHex(stake.tShares, payoutPerTshare, n * cycleDays);
 
     const tokensAfter = tokens + compoundedTokens;
     const holderValueUsd = tokensAfter * pSsh + bankedHex * pHex;
@@ -280,8 +267,6 @@ export function simulate(input: SimInputs): SimResult | null {
       tokens, supplyShare,
       holderPayoutHex, holderReflectionHex, holderHex,
       holderHexCumulative: cumulativeHex,
-      tollHexCumulative: tollHex,
-      holderHexNet: cumulativeHex - tollHex,
       compoundedTokens,
       holderValueUsd,
       stakeHexEarned,
