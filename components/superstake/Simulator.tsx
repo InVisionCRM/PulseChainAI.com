@@ -27,6 +27,7 @@ import {
   type SimResult,
 } from '@/lib/superstake/simulate';
 import { S_SHARE } from '@/lib/superstake/model';
+import { HEX_MAX_STAKE_DAYS } from '@/lib/hex/stakeMath';
 import ShareCards from '@/components/superstake/ShareCards';
 import { SIM_CARD_IDS, type ShareData } from '@/lib/superstake/shareCard';
 
@@ -133,7 +134,13 @@ export default function Simulator(props: SimulatorProps) {
 
   // ── the dials ──────────────────────────────────────────────────────────
   const [amount, setAmount] = useState(1000);
-  const [cycles, setCycles] = useState(12);
+  // The run is chosen in years and rounded to whole cycles, because the
+  // machine only moves a cycle at a time. It stops at HEX's longest stake, so
+  // a HEX stake of exactly the same length can always be opened beside it.
+  const [runYears, setRunYears] = useState(2);
+  const maxCycles = Math.floor(HEX_MAX_STAKE_DAYS / cycleDays);
+  const maxYears = Math.floor((maxCycles * cycleDays) / 365.25);
+  const cycles = Math.min(maxCycles, Math.max(1, Math.round((runYears * 365.25) / cycleDays)));
   const [volume, setVolume] = useState(defVolume);
   const [yieldPct, setYieldPct] = useState(defYield);
   const [compound, setCompound] = useState(true);
@@ -153,6 +160,21 @@ export default function Simulator(props: SimulatorProps) {
     setPsshDrift(s.psshDrift);
     setVolDrift(s.volDrift);
   };
+  // A chip is only dial positions, defined from the live figures — and the page
+  // renders first from the baked snapshot, swapping in the live rebuild a few
+  // seconds later. While a chip is still selected its dials follow that swap;
+  // without this the run kept the snapshot's volume and yield for good. Once a
+  // dial is moved by hand no chip is selected, and nothing is overridden.
+  useEffect(() => {
+    const s = scenarios.find((x) => x.id === scenario);
+    if (!s) return;
+    setVolume(s.volume);
+    setYieldPct(s.yieldPct);
+    setHexDrift(s.hexDrift);
+    setPsshDrift(s.psshDrift);
+    setVolDrift(s.volDrift);
+  }, [scenarios, scenario]);
+
   /** Any hand-moved market dial makes the run custom — the chip would lie otherwise. */
   const custom = <T,>(set: (v: T) => void) => (v: T) => {
     setScenario(null);
@@ -210,7 +232,10 @@ export default function Simulator(props: SimulatorProps) {
       setPlaying(false);
       return;
     }
-    const t = setTimeout(() => setHead((h) => Math.min(cycles, h + 1)), 420);
+    // A 15-year run is 91 cycles; at the short-run pace it would take 38s to
+    // play, so long runs step faster and every run plays in about five seconds.
+    const stepMs = Math.min(420, Math.max(60, 5000 / cycles));
+    const t = setTimeout(() => setHead((h) => Math.min(cycles, h + 1)), stepMs);
     return () => clearTimeout(t);
   }, [playing, head, cycles]);
 
@@ -227,7 +252,7 @@ export default function Simulator(props: SimulatorProps) {
 
   const reset = () => {
     setAmount(1000);
-    setCycles(12);
+    setRunYears(2);
     setCompound(true);
     setSrDrift(0.6);
     applyScenario(scenarios[0]);
@@ -255,6 +280,8 @@ export default function Simulator(props: SimulatorProps) {
         multiple: amount > 0 ? now.holderValueUsd / amount : 0,
         hexEarned: now.holderHexCumulative,
         hexEarnedUsd: now.holderHexCumulative * now.pHex,
+        stakeYears: runYears,
+        stakeDays: sim.stake.days,
         tokens,
         sShares: tokens / S_SHARE,
         sharePct: now.supplyShare * 100,
@@ -274,7 +301,7 @@ export default function Simulator(props: SimulatorProps) {
       },
     };
   }, [sim, now, shown, base, amount, cycleDays, breakEven, volume, compound, poolHex,
-      hexDrift, psshDrift, volDrift, yieldPct]);
+      hexDrift, psshDrift, volDrift, yieldPct, runYears]);
 
   if (!sim || !now) {
     return (
@@ -286,7 +313,6 @@ export default function Simulator(props: SimulatorProps) {
 
   const coverOk = now.coverRatio >= 1;
   const activeScenario = scenarios.find((s) => s.id === scenario) ?? null;
-  const years = (cycles * cycleDays) / 365.25;
 
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
@@ -352,10 +378,10 @@ export default function Simulator(props: SimulatorProps) {
         />
         <Slider
           label="How long"
-          display={`${cycles} cycles`}
-          min={1} max={30} step={1}
-          v={cycles} onChange={setCycles}
-          hint={`${cycleDays} days each · ${years >= 1 ? `~${years.toFixed(1)} years` : `~${Math.round(years * 12)} months`}`}
+          display={`${runYears} ${runYears === 1 ? 'year' : 'years'}`}
+          min={1} max={maxYears} step={1}
+          v={runYears} onChange={setRunYears}
+          hint={`${cycles} cycles of ${cycleDays} days · ${nf(cycles * cycleDays)} days — the HEX stake you're measured against runs exactly as long`}
         />
         <div>
           <span className="text-[10.5px] font-semibold text-[var(--text-muted)]">Your HEX earnings</span>
@@ -447,7 +473,9 @@ export default function Simulator(props: SimulatorProps) {
                 Cycle {head} of {cycles}
               </span>
               <span className="text-[10px] tabular-nums text-[var(--text-muted)]">
-                {Math.round((head * cycleDays) / 30.4)} months in
+                {head * cycleDays < 730
+                  ? `${Math.round((head * cycleDays) / 30.4)} months in`
+                  : `${((head * cycleDays) / 365.25).toFixed(1)} years in`}
               </span>
             </div>
             <input
@@ -489,6 +517,7 @@ export default function Simulator(props: SimulatorProps) {
           <HolderView
             now={now}
             shown={shown}
+            runYears={runYears}
             amount={amount}
             compound={compound}
             sim={sim}
@@ -513,9 +542,12 @@ export default function Simulator(props: SimulatorProps) {
           <b className="text-[var(--text-muted)]">How this is built.</b> Each cycle&apos;s ending
           state opens the next: the stake earns at the yield you set, hands holders 1%, and the 2%
           buy-tax adds what the volume can buy. The 1% burn shrinks supply, which is what lifts your
-          share of it. Entry and every compound pay the 5.5% toll. The same formulas the rest of the
-          page uses — the pool&apos;s T-shares here reproduce its recorded 107.55 to within 0.003%.
-          Nothing here is a prediction, and none of it is financial advice.
+          share of it. Entry and every compound pay the 5.5% toll. The HEX stake you&apos;re measured
+          against is one stake as long as the whole run, opened on day one: its T-shares are fixed
+          then — HEX&apos;s length bonus and today&apos;s share rate locked in — it earns at the same
+          payout rate as the pool, and it pays out once, at the end. The same formulas the rest of
+          the page uses — the pool&apos;s T-shares here reproduce its recorded 107.55 to within
+          0.003%. Nothing here is a prediction, and none of it is financial advice.
         </p>
       </div>
     </div>
@@ -536,10 +568,12 @@ function assumptionLine(volume: number, yieldPct: number, hexDrift: number, pssh
 /* ────────────────────────── the two views ────────────────────────── */
 
 function HolderView({
-  now, shown, amount, compound, sim, psshDrift, assumptions, onOpenDrifts,
+  now, shown, runYears, amount, compound, sim, psshDrift, assumptions, onOpenDrifts,
 }: {
   now: SimCycle;
   shown: SimCycle[];
+  /** The run's length as chosen — and so the HEX stake's. */
+  runYears: number;
   amount: number;
   compound: boolean;
   sim: SimResult;
@@ -548,7 +582,8 @@ function HolderView({
   onOpenDrifts: () => void;
 }) {
   const multiple = amount > 0 ? now.holderValueUsd / amount : 0;
-  const beatsHold = now.holderValueUsd - now.holdHexValueUsd;
+  const beatsStake = now.holderValueUsd - now.stakeHexValueUsd;
+  const stakeName = `${runYears}-year HEX stake`;
   const payoutShare =
     now.holderPayoutHex + now.holderReflectionHex > 0
       ? now.holderPayoutHex / (now.holderPayoutHex + now.holderReflectionHex)
@@ -585,12 +620,12 @@ function HolderView({
           </span>
           <span
             className={`mb-1 rounded-full border px-2.5 py-1 text-[11px] font-bold tabular-nums ${
-              beatsHold >= 0
+              beatsStake >= 0
                 ? 'border-[color-mix(in_srgb,var(--up)_45%,transparent)] text-[var(--up)]'
                 : 'border-red-400/40 text-red-400'
             }`}
           >
-            {signedMoney(beatsHold)} vs holding HEX
+            {signedMoney(beatsStake)} vs a {stakeName}
           </span>
         </div>
         <p className="relative mt-2 text-[11px] tabular-nums text-[var(--text-muted)]">
@@ -606,11 +641,11 @@ function HolderView({
       </div>
 
       {/* the three lines */}
-      <Panel title="Your money, three ways" sub="same dollars, same cycles">
+      <Panel title="Your money, three ways" sub={`same dollars, same ${nf(sim.stake.days)} days`}>
         <MultiLine
           series={[
             { label: 'Hold pSSH', values: shown.map((c) => c.holderValueUsd), color: C_PSSH, width: 2.6 },
-            { label: 'Stake the HEX', values: shown.map((c) => c.stakeHexValueUsd), color: C_STAKE, width: 1.8 },
+            { label: `One ${stakeName}`, values: shown.map((c) => c.stakeHexValueUsd), color: C_STAKE, width: 1.8 },
             { label: 'Just hold HEX', values: shown.map((c) => c.holdHexValueUsd), color: C_HOLD, width: 1.6 },
           ]}
           fmt={money}
@@ -641,6 +676,8 @@ function HolderView({
           )}
         </p>
       </Panel>
+
+      <StakeDuel now={now} sim={sim} amount={amount} runYears={runYears} />
 
       {now.supplyShare > 0.02 && (
         <p className="rounded-lg border border-[var(--line-strong)] bg-[var(--app-bg)] px-3 py-2 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
@@ -691,6 +728,96 @@ function HolderView({
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * The comparison the run is set up to make: the same dollars held as pSSH, or
+ * put into one HEX stake as long as the whole run. Read at the playhead, with
+ * the run's end on the last line so the outcome is never off screen.
+ */
+function StakeDuel({
+  now, sim, amount, runYears,
+}: { now: SimCycle; sim: SimResult; amount: number; runYears: number }) {
+  const { stake } = sim;
+  const stakeEarned = now.pHex > 0 ? now.stakeHexValueUsd / now.pHex - stake.hex : 0;
+  const ended = now.n === sim.final.n;
+  const won = sim.final.holderValueUsd >= sim.final.stakeHexValueUsd;
+  const rows: { k: string; a: string; b: string; end?: boolean }[] = [
+    { k: `Worth at cycle ${now.n}`, a: money(now.holderValueUsd), b: money(now.stakeHexValueUsd) },
+    {
+      k: 'HEX earned so far',
+      a: `${compact(now.holderHexCumulative)} HEX`,
+      b: `${compact(stakeEarned)} HEX`,
+    },
+    {
+      k: 'What you hold',
+      a: `${((now.tokens + now.compoundedTokens) / S_SHARE).toFixed(2)} S-shares`,
+      b: `${stake.tShares.toFixed(2)} T-shares · ×${stake.bonus.toFixed(2)} bonus`,
+    },
+    {
+      k: 'Getting out',
+      a: 'sell any day, less the 5.5%',
+      b: `locked ${nf(stake.days)} days — ending early forfeits yield and pays a penalty`,
+    },
+    {
+      k: ended ? `At the end · ${runYears} ${runYears === 1 ? 'year' : 'years'}` : `When the run ends · ${runYears} ${runYears === 1 ? 'year' : 'years'}`,
+      a: money(sim.final.holderValueUsd),
+      b: money(sim.final.stakeHexValueUsd),
+      end: true,
+    },
+  ];
+
+  return (
+    <Panel
+      title={`Against one ${runYears}-year HEX stake`}
+      sub={`the same ${money(amount)}, staked on day one and held to day ${nf(stake.days)}`}
+    >
+      <div className="overflow-hidden rounded-lg border border-[var(--line)]">
+        <div className="grid grid-cols-[1fr_1fr_1fr] gap-2 border-b border-[var(--line)] bg-[var(--app-bg)] px-3 py-2 text-[10.5px] font-bold text-[var(--text-muted)]">
+          <span />
+          <span className="inline-flex items-center justify-end gap-1.5 text-right">
+            <span className="h-2 w-2 rounded-sm" style={{ background: C_PSSH }} />
+            Hold pSSH
+          </span>
+          <span className="inline-flex items-center justify-end gap-1.5 text-right">
+            <span className="h-2 w-2 rounded-sm" style={{ background: C_STAKE }} />
+            HEX stake
+          </span>
+        </div>
+        {rows.map((r) => (
+          <div
+            key={r.k}
+            className={`grid grid-cols-[1fr_1fr_1fr] items-baseline gap-2 border-b border-[var(--line)] px-3 py-2 last:border-b-0 ${
+              r.end ? 'bg-[var(--app-bg)]' : ''
+            }`}
+          >
+            <span className="text-[11px] leading-snug text-[var(--text-muted)]">{r.k}</span>
+            <span
+              className={`text-right tabular-nums leading-snug ${
+                r.end ? `text-[15px] font-bold ${won ? 'text-[var(--up)]' : 'text-[var(--text)]'}` : 'text-[11.5px] text-[var(--text)]'
+              }`}
+            >
+              {r.a}
+            </span>
+            <span
+              className={`text-right tabular-nums leading-snug ${
+                r.end ? `text-[15px] font-bold ${won ? 'text-[var(--text)]' : 'text-[var(--up)]'}` : 'text-[11.5px] text-[var(--text)]'
+              }`}
+            >
+              {r.b}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-faint)]">
+        A stake this long is credited ×{stake.bonus.toFixed(2)} its HEX in T-shares — HEX&apos;s
+        length bonus, which tops out at 3,641 days (just under ten years), plus its small size bonus
+        — and keeps the share rate it opened at, while the SuperStake pool restakes every{' '}
+        {stake.days / sim.cycles.length} days at whatever the rate has climbed to. In exchange the
+        stake can&apos;t be touched until the end; pSSH can be sold the day you want out.
+      </p>
+    </Panel>
   );
 }
 
@@ -1043,7 +1170,7 @@ function MultiLine({
 function StackBars({ rows }: { rows: { a: number; b: number; label: number }[] }) {
   const max = Math.max(...rows.map((r) => r.a + r.b), 1);
   return (
-    <div className="flex h-[120px] items-end gap-[3px]">
+    <div className="flex h-[120px] items-end" style={{ gap: rows.length > 40 ? 1 : 3 }}>
       {rows.map((r) => {
         const total = ((r.a + r.b) / max) * 100;
         const aPart = r.a + r.b > 0 ? (r.a / (r.a + r.b)) * 100 : 0;
@@ -1075,7 +1202,7 @@ function CoverBars({ rows }: { rows: { n: number; ratio: number }[] }) {
           className="pointer-events-none absolute inset-x-0 border-t border-dashed border-[var(--line-strong)]"
           style={{ bottom: `${(1 / TOP) * 100}%` }}
         />
-        <div className="flex h-full items-end gap-[3px]">
+        <div className="flex h-full items-end" style={{ gap: rows.length > 40 ? 1 : 3 }}>
           {rows.map((r) => (
             <span
               key={r.n}

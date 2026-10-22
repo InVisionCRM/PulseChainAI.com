@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { IconArrowRight, IconExternalLink } from '@tabler/icons-react';
 import {
+  currentRates,
   cycleHeadToHead,
   dayToISO,
   hexPerDollar,
@@ -225,10 +226,15 @@ export default function SuperStakeHubPage() {
     };
   }, [snap]);
 
+  // HEX's share rate and payout as they stand, from the live series. Every
+  // projection below used to read them off the snapshot's `meta`, which is
+  // baked once and was months stale by the time anyone noticed.
+  const rates = useMemo(() => (snap ? currentRates(snap.series) : null), [snap]);
+
   // The cycle now running, scored on today's prices, payout rate and volume.
   // A projection, not a record — it assumes the next 60 days look like today.
   const ahead = useMemo(() => {
-    if (!view || !snap) return null;
+    if (!view || !snap || !rates) return null;
     const { running } = view;
     const days = running.d1 - running.d0;
     const pHex = live?.pHEX ?? snap.meta.pHEX;
@@ -239,27 +245,27 @@ export default function SuperStakeHubPage() {
       pHex,
       pSsh,
       pHexAvg: pHex,
-      shareRate: snap.meta.shareRate,
-      payoutPerTshare: snap.meta.payoutPerTshare,
+      shareRate: rates.shareRate,
+      payoutPerTshare: rates.payoutPerTshare,
       poolHex: running.hex,
-      poolYieldHex: running.tsh * snap.meta.payoutPerTshare * days,
+      poolYieldHex: running.tsh * rates.payoutPerTshare * days,
       volumeUsd: avgVol * days,
       supply: snap.meta.supply,
     });
     return result ? { result, days, avgVol } : null;
-  }, [view, snap, live]);
+  }, [view, snap, live, rates]);
 
   // How much daily volume the running cycle needs to cover its own payout.
   // Expected yield comes from the stake's T-shares at the current payout rate;
   // the shortfall has to be bought by the 2% tax, which only volume funds.
   const need = useMemo(() => {
-    if (!view || !snap) return null;
+    if (!view || !snap || !rates) return null;
     const { running } = view;
     const days = running.d1 - running.d0;
     if (!(days > 0)) return null;
     const pHex = live?.pHEX ?? snap.meta.pHEX;
     if (!(pHex > 0)) return null;
-    const expYield = running.tsh * snap.meta.payoutPerTshare * days;
+    const expYield = running.tsh * rates.payoutPerTshare * days;
     const payout = 0.01 * (running.hex + expYield);
     const gapHex = Math.max(0, payout - expYield);
     const perDay = (gapHex * pHex) / 0.02 / days;
@@ -275,7 +281,7 @@ export default function SuperStakeHubPage() {
       times: perDay > 0 ? actual / perDay : 0,
       inPct, outPct,
     };
-  }, [view, snap, live]);
+  }, [view, snap, live, rates]);
 
   // Client-only, so the first paint matches the server's and React doesn't
   // complain about a mismatched countdown. Floored to whole days to match the
@@ -342,7 +348,7 @@ export default function SuperStakeHubPage() {
    * one figure that answers "why bother" without any of the page's context.
    */
   const unit = useMemo(() => {
-    if (!snap || !view || !pHexPrice || !pSshPrice) return null;
+    if (!snap || !view || !rates || !pHexPrice || !pSshPrice) return null;
     return hexPerDollar({
       poolPayout: view.running.pay,
       cycleDays: view.running.d1 - view.running.d0,
@@ -350,10 +356,10 @@ export default function SuperStakeHubPage() {
       pHex: pHexPrice,
       pSsh: pSshPrice,
       supply: snap.meta.supply,
-      shareRate: snap.meta.shareRate,
-      payoutPerTshare: snap.meta.payoutPerTshare,
+      shareRate: rates.shareRate,
+      payoutPerTshare: rates.payoutPerTshare,
     });
-  }, [snap, view, live, pHexPrice, pSshPrice]);
+  }, [snap, view, rates, live, pHexPrice, pSshPrice]);
 
   // ── tabs ────────────────────────────────────────────────────────────────
   // Read and written through `window.location` rather than `useSearchParams`,
@@ -512,7 +518,7 @@ export default function SuperStakeHubPage() {
                     // Deliberately not "% of all HEX": the snapshot's `own` field is
                     // off by ~1000x against the subgraph's global share total, and
                     // the live rebuild doesn't compute it at all. Share rate is solid.
-                    sub={snap ? `share rate ${Math.round(snap.meta.shareRate).toLocaleString()}` : ''}
+                    sub={rates ? `share rate ${Math.round(rates.shareRate).toLocaleString()}` : ''}
                   />
                 </div>
                 {view && view.cycles.length > 1 && (
@@ -532,7 +538,7 @@ export default function SuperStakeHubPage() {
             )}
 
             {/* ── what you own ── */}
-            {tab === 'own' && view && snap && (
+            {tab === 'own' && view && snap && rates && (
               <div className="flex flex-col gap-4">
                 <SectionHead
                   title="HEX has the T-share. pSSH has the S-share."
@@ -541,6 +547,8 @@ export default function SuperStakeHubPage() {
                 />
                 <ShareCompare
               snap={snap}
+              shareRate={rates.shareRate}
+              payoutPerTshare={rates.payoutPerTshare}
               poolHex={view.running.hex}
               poolPayout={view.running.pay}
               cycleDays={view.running.d1 - view.running.d0}
@@ -689,8 +697,8 @@ export default function SuperStakeHubPage() {
             </div>
 
             <p className="rounded-b-2xl border border-t-0 border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-[11.5px] leading-relaxed text-[var(--text-faint)]">
-              A projection, not a record: it holds today&apos;s pHEX and pSSH prices, the current
-              payout-per-T-share of {snap?.meta.payoutPerTshare.toFixed(4)}, and the trailing 60-day
+              A projection, not a record: it holds today&apos;s pHEX and pSSH prices, the 30-day
+              average payout-per-T-share of {rates?.payoutPerTshare.toFixed(4)}, and the trailing 60-day
               average volume of {usdShort(ahead.avgVol)}/day steady for the whole cycle. Every one of
               those moves. The table below is what actually happened, cycle by cycle.
             </p>
@@ -740,14 +748,14 @@ export default function SuperStakeHubPage() {
                   sub="the $100 above, generalised — and it can come out badly"
                   tight
                 />
-                {view && snap ? (
+                {view && snap && rates ? (
                   <Simulator
                     poolHex={view.running.hex}
                     supply={snap.meta.supply}
                     pHex={live?.pHEX ?? snap.meta.pHEX}
                     pSsh={live?.pSSH ?? snap.meta.pSSH}
-                    shareRate={snap.meta.shareRate}
-                    payoutPerTshare={snap.meta.payoutPerTshare}
+                    shareRate={rates.shareRate}
+                    payoutPerTshare={rates.payoutPerTshare}
                     cycleDays={view.running.d1 - view.running.d0}
                     dailyVolumeUsd={live?.wins?.['60'] ?? snap.wins?.['60'] ?? 0}
                     base={shareData}
@@ -885,9 +893,12 @@ function SectionHead({ title, sub, tight }: { title: string; sub: string; tight?
  * while S-shares were fixed at exactly 10,000 by the supply and only ever burn.
  */
 function ShareCompare({
-  snap, poolHex, poolPayout, cycleDays, avgVol, pHex, pSsh, globalTShares, cyclesDone,
+  snap, shareRate, payoutPerTshare, poolHex, poolPayout, cycleDays, avgVol, pHex, pSsh, globalTShares, cyclesDone,
 }: {
   snap: SuperStakeSnapshot;
+  /** HEX's terms now, from the live series — not `snap.meta`, which is baked. */
+  shareRate: number;
+  payoutPerTshare: number;
   poolHex: number;
   poolPayout: number;
   cycleDays: number;
@@ -908,17 +919,17 @@ function ShareCompare({
   // would understate it against a T-share, which earns just the one way.
   const reflHex = pHex > 0 ? (REFLECTION_RATE * avgVol * cycleDays) / pHex : 0;
   const perS = leftS > 0 ? (poolPayout + reflHex) / leftS : 0;
-  const perT = snap.meta.payoutPerTshare * cycleDays;
+  const perT = payoutPerTshare * cycleDays;
 
   const rows: { k: string; t: string; s: string; hero?: boolean }[] = [
     {
       k: 'What one unit is',
-      t: `${nf(snap.meta.shareRate)} HEX`,
+      t: `${nf(shareRate)} HEX`,
       s: `${nf(S_SHARE)} pSSH`,
     },
     {
       k: 'What it costs today',
-      t: pHex > 0 ? `$${(snap.meta.shareRate * pHex).toFixed(2)}` : '—',
+      t: pHex > 0 ? `$${(shareRate * pHex).toFixed(2)}` : '—',
       s: pSsh > 0 ? `$${(S_SHARE * pSsh).toFixed(2)}` : '—',
     },
     {
@@ -936,7 +947,7 @@ function ShareCompare({
     },
     {
       k: 'HEX earned per $1 spent',
-      t: pHex > 0 ? `${(perT / (snap.meta.shareRate * pHex)).toFixed(2)} HEX` : '—',
+      t: pHex > 0 ? `${(perT / (shareRate * pHex)).toFixed(2)} HEX` : '—',
       s: pSsh > 0 ? `${(perS / (S_SHARE * pSsh)).toFixed(2)} HEX` : '—',
       hero: true,
     },
