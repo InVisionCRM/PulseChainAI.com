@@ -92,13 +92,21 @@ export interface SuperStakeSnapshot {
  * The share rate is simply the latest. The payout per T-share is averaged over
  * the last `days` days, because a single day's figure swings by a third as
  * penalties land in lumps. Either is 0 when the series holds no reading.
+ *
+ * The series is densified: a day HEX hasn't paid out yet repeats the last
+ * payout, so its tail carries exact copies. Those aren't days, and counting
+ * them pulled the average toward the newest one — 1.7859 against the 1.7754
+ * the HEX Strategist quotes (hexdailystats) over the same 30 days, whose
+ * daily values otherwise match this series exactly. They're dropped.
  */
 export function currentRates(
   series: SuperStakeSnapshot['series'],
   days = 30,
 ): { shareRate: number; payoutPerTshare: number } {
   const shareRate = [...series.SR].reverse().find((v) => v > 0) ?? 0;
-  const recent = series.P.slice(-days).filter((v) => v > 0);
+  let end = series.P.length;
+  while (end > 1 && series.P[end - 1] === series.P[end - 2]) end--;
+  const recent = series.P.slice(Math.max(0, end - days), end).filter((v) => v > 0);
   const payoutPerTshare = recent.length ? recent.reduce((s, v) => s + v, 0) / recent.length : 0;
   return { shareRate, payoutPerTshare };
 }
