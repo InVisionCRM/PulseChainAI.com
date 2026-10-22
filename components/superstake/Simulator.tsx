@@ -814,7 +814,7 @@ function StakeDuel({
 
 /**
  * The stake on the other side, projected the way a HEX mining calculator
- * projects one (`projectStakeWithInflation`), so the same amount, length and
+ * projects one (`projectStake`), so the same amount, length and
  * rates give the same T-shares, yield, ROI, APY and end date there.
  */
 function StakeDetails({ sim, amount, runYears }: { sim: SimResult; amount: number; runYears: number }) {
