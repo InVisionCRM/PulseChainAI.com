@@ -28,16 +28,16 @@ import {
 } from '@/lib/superstake/simulate';
 import { S_SHARE } from '@/lib/superstake/model';
 import { HEX_MAX_STAKE_DAYS } from '@/lib/hex/stakeMath';
+import { currentHexDay, fmtDuration, fmtHex, fmtHexDate, fmtTShares } from '@/lib/hex/hexDay';
 import ShareCards from '@/components/superstake/ShareCards';
 import { SIM_CARD_IDS, type ShareData } from '@/lib/superstake/shareCard';
 
 const MONO = 'var(--font-jetbrains-mono), ui-monospace, monospace';
 const GRAD = 'linear-gradient(135deg,#7E089D,#AE176A 30%,#D83639 58%,#E96635 80%,#FB9438)';
 const UP = '#4ade80';
-/** The three comparison lines, kept identical here and on the share cards. */
+/** The two comparison lines, kept identical here and on the share cards. */
 const C_PSSH = '#FB9438';
 const C_STAKE = '#AE176A';
-const C_HOLD = '#5E7BA6';
 
 const nf = (n: number, dp = 0) =>
   n.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
@@ -51,8 +51,9 @@ const money = (n: number) =>
         : `$${n.toFixed(2)}`;
 const compact = (n: number) =>
   Math.abs(n) >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : Math.abs(n) >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : nf(n);
-/** `$-27.27` reads as a typo; the sign belongs in front of the money. */
-const signedMoney = (n: number) => `${n >= 0 ? '+' : '−'}${money(Math.abs(n))}`;
+/** HEX the way the HEX Strategist writes it, with a sign when it can go negative. */
+const hexAmt = (n: number) => (n < 0 ? `−${fmtHex(-n)}` : fmtHex(n));
+const hexSigned = (n: number) => `${n >= 0 ? '+' : '−'}${fmtHex(Math.abs(n))}`;
 /** 20.5817% is four digits of noise; 0.0042% needs all four. */
 const pctOf = (n: number) => `${n.toFixed(n >= 1 ? 2 : 4)}%`;
 
@@ -108,7 +109,10 @@ export default function Simulator(props: SimulatorProps) {
     [liveTShares, payoutPerTshare, cycleDays, poolHex],
   );
   const defVolume = Math.round(props.dailyVolumeUsd);
-  const defYield = Math.round(liveYieldPct * 100) / 100;
+  // Exact, not rounded to the slider's step: at the default the payout rate the
+  // run uses is then today's 30-day average to the digit, so the stake it is
+  // measured against comes out exactly as the HEX Strategist projects it.
+  const defYield = liveYieldPct;
 
   const scenarios: Scenario[] = useMemo(
     () => [
@@ -276,17 +280,17 @@ export default function Simulator(props: SimulatorProps) {
         psshDriftPct: psshDrift,
         volumeDriftPct: volDrift,
         yieldPct,
-        endValue: now.holderValueUsd,
-        multiple: amount > 0 ? now.holderValueUsd / amount : 0,
         hexEarned: now.holderHexCumulative,
-        hexEarnedUsd: now.holderHexCumulative * now.pHex,
+        tollHex: now.tollHexCumulative,
+        hexNet: now.holderHexNet,
         stakeYears: runYears,
         stakeDays: sim.stake.days,
+        stakeHexEarned: now.stakeHexEarned,
+        stakeTShares: sim.stake.tShares,
+        stakeBonusPct: (sim.stake.lengthBonus + sim.stake.sizeBonus) * 100,
         tokens,
         sShares: tokens / S_SHARE,
         sharePct: now.supplyShare * 100,
-        holdHex: now.holdHexValueUsd,
-        stakeHex: now.stakeHexValueUsd,
         poolStart: poolHex,
         poolEnd: now.poolHexNext,
         poolMultiple: poolHex > 0 ? now.poolHexNext / poolHex : 0,
@@ -294,9 +298,8 @@ export default function Simulator(props: SimulatorProps) {
         breakEven,
         sSharesLeft: now.sSharesLeft,
         burned: shown.reduce((s, c) => s + c.burnedTokens, 0),
-        valueByCycle: shown.map((c) => c.holderValueUsd),
-        holdByCycle: shown.map((c) => c.holdHexValueUsd),
-        stakeByCycle: shown.map((c) => c.stakeHexValueUsd),
+        netByCycle: shown.map((c) => c.holderHexNet),
+        stakeByCycle: shown.map((c) => c.stakeHexEarned),
         poolByCycle: shown.map((c) => c.poolHexNext),
       },
     };
@@ -521,9 +524,7 @@ export default function Simulator(props: SimulatorProps) {
             amount={amount}
             compound={compound}
             sim={sim}
-            psshDrift={psshDrift}
             assumptions={assumptionLine(volume, yieldPct, hexDrift, psshDrift, volDrift)}
-            onOpenDrifts={() => setAdvanced(true)}
           />
         ) : (
           <StakeView
@@ -568,7 +569,7 @@ function assumptionLine(volume: number, yieldPct: number, hexDrift: number, pssh
 /* ────────────────────────── the two views ────────────────────────── */
 
 function HolderView({
-  now, shown, runYears, amount, compound, sim, psshDrift, assumptions, onOpenDrifts,
+  now, shown, runYears, amount, compound, sim, assumptions,
 }: {
   now: SimCycle;
   shown: SimCycle[];
@@ -577,13 +578,12 @@ function HolderView({
   amount: number;
   compound: boolean;
   sim: SimResult;
-  psshDrift: number;
   assumptions: string;
-  onOpenDrifts: () => void;
 }) {
-  const multiple = amount > 0 ? now.holderValueUsd / amount : 0;
-  const beatsStake = now.holderValueUsd - now.stakeHexValueUsd;
   const stakeName = `${runYears}-year HEX stake`;
+  const net = now.holderHexNet;
+  const ahead = net - now.stakeHexEarned;
+  const ratio = now.stakeHexEarned > 0 && net > 0 ? net / now.stakeHexEarned : null;
   const payoutShare =
     now.holderPayoutHex + now.holderReflectionHex > 0
       ? now.holderPayoutHex / (now.holderPayoutHex + now.holderReflectionHex)
@@ -593,7 +593,7 @@ function HolderView({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* ── the verdict ── */}
+      {/* ── the verdict, in HEX ── */}
       <div
         className="relative overflow-hidden rounded-2xl border border-[var(--line)] p-4 md:p-5"
         style={{ background: 'linear-gradient(130deg,rgba(126,8,157,0.20),rgba(216,54,57,0.08) 45%,transparent 70%), var(--panel)' }}
@@ -604,80 +604,77 @@ function HolderView({
           style={{ background: GRAD }}
         />
         <span className="relative text-[9.5px] uppercase tracking-[0.16em] text-[var(--text-faint)]" style={{ fontFamily: MONO }}>
-          Your position, cycle {now.n}
+          HEX earned by cycle {now.n}, after the 5.5%
         </span>
         <div className="relative mt-1 flex flex-wrap items-end gap-x-3 gap-y-1.5">
           <Anim
-            value={now.holderValueUsd}
-            fmt={money}
-            className="text-[clamp(36px,6vw,56px)] font-bold leading-[0.95] tracking-[-0.045em] tabular-nums text-[var(--text)]"
+            value={net}
+            fmt={(v) => `${hexAmt(v)} HEX`}
+            className="text-[clamp(34px,5.6vw,54px)] font-bold leading-[0.95] tracking-[-0.045em] tabular-nums text-[var(--text)]"
           />
-          <span
-            className="mb-1 rounded-full px-2.5 py-1 text-[13px] font-bold tabular-nums text-white"
-            style={{ background: GRAD }}
-          >
-            <Anim value={multiple} fmt={(v) => `${v.toFixed(2)}×`} className="" inline />
-          </span>
+          {ratio != null && (
+            <span
+              className="mb-1 rounded-full px-2.5 py-1 text-[13px] font-bold tabular-nums text-white"
+              style={{ background: GRAD }}
+            >
+              <Anim value={ratio} fmt={(v) => `${v.toFixed(2)}× the stake`} className="" inline />
+            </span>
+          )}
           <span
             className={`mb-1 rounded-full border px-2.5 py-1 text-[11px] font-bold tabular-nums ${
-              beatsStake >= 0
+              ahead >= 0
                 ? 'border-[color-mix(in_srgb,var(--up)_45%,transparent)] text-[var(--up)]'
                 : 'border-red-400/40 text-red-400'
             }`}
           >
-            {signedMoney(beatsStake)} vs a {stakeName}
+            {hexSigned(ahead)} HEX vs a {stakeName}
           </span>
         </div>
         <p className="relative mt-2 text-[11px] tabular-nums text-[var(--text-muted)]">
+          {fmtHex(now.holderHexCumulative)} HEX paid to you, less {fmtHex(now.tollHexCumulative)} lost to the 5.5%
+        </p>
+        <p className="relative mt-0.5 text-[11px] tabular-nums text-[var(--text-faint)]">
           on {money(amount)} in · assumes {assumptions}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile label="HEX earned" value={compact(now.holderHexCumulative)} sub={`${money(now.holderHexCumulative * now.pHex)} at cycle-${now.n} price`} good />
-        <Tile label="pSSH held" value={compact(now.tokens + now.compoundedTokens)} sub={compound ? 'compounding each cycle' : 'unchanged — earnings banked'} />
-        <Tile label="S-shares" value={((now.tokens + now.compoundedTokens) / S_SHARE).toFixed(2)} sub={`of ${nf(now.sSharesLeft, 0)} left`} />
+        <Tile label="Paid to you" value={`${fmtHex(now.holderHexCumulative)} HEX`} sub="the 1% payouts and 2.5% reflections" good />
+        <Tile
+          label="Lost to the 5.5%"
+          value={`${fmtHex(now.tollHexCumulative)} HEX`}
+          sub={compound ? 'on the way in, and on every rebuy' : 'on the way in'}
+          bad
+        />
+        <Tile
+          label="pSSH held"
+          value={compact(now.tokens + now.compoundedTokens)}
+          sub={`${((now.tokens + now.compoundedTokens) / S_SHARE).toFixed(2)} S-shares · ${compound ? 'compounding' : 'earnings banked'}`}
+        />
         <Tile label="Share of supply" value={pctOf(now.supplyShare * 100)} sub="rises as the 1% burns" />
       </div>
 
-      {/* the three lines */}
-      <Panel title="Your money, three ways" sub={`same dollars, same ${nf(sim.stake.days)} days`}>
+      {/* the two lines */}
+      <Panel title="HEX earned, two ways" sub={`same dollars, same ${nf(sim.stake.days)} days`}>
         <MultiLine
           series={[
-            { label: 'Hold pSSH', values: shown.map((c) => c.holderValueUsd), color: C_PSSH, width: 2.6 },
-            { label: `One ${stakeName}`, values: shown.map((c) => c.stakeHexValueUsd), color: C_STAKE, width: 1.8 },
-            { label: 'Just hold HEX', values: shown.map((c) => c.holdHexValueUsd), color: C_HOLD, width: 1.6 },
+            { label: 'Hold pSSH, after the 5.5%', values: shown.map((c) => c.holderHexNet), color: C_PSSH, width: 2.6 },
+            { label: `One ${stakeName}`, values: shown.map((c) => c.stakeHexEarned), color: C_STAKE, width: 1.8 },
           ]}
-          fmt={money}
+          fmt={(v) => `${hexAmt(v)} HEX`}
         />
         <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-faint)]">
-          {psshDrift === 0 ? (
-            <>
-              <b className="text-[var(--text-muted)]">The pSSH price is held flat here.</b> The stake
-              behind the token can grow several times over without that line moving, because nothing
-              forces the price to follow the backing — so this curve is what the payouts and
-              reflections alone are worth.{' '}
-              <button type="button" onClick={onOpenDrifts} className="font-semibold text-brand-orange underline underline-offset-2">
-                Set a price drift
-              </button>{' '}
-              to see it another way.
-            </>
-          ) : (
-            <>
-              <b className="text-[var(--text-muted)]">
-                This run assumes pSSH moves {psshDrift > 0 ? '+' : ''}{psshDrift}% a cycle.
-              </b>{' '}
-              Most of the curve above is that assumption compounding, not the payouts —{' '}
-              <button type="button" onClick={onOpenDrifts} className="font-semibold text-brand-orange underline underline-offset-2">
-                set it back to flat
-              </button>{' '}
-              to see what the machine alone pays.
-            </>
-          )}
+          <b className="text-[var(--text-muted)]">Counted in HEX</b>, so neither line is a bet on
+          what HEX is worth in dollars. The pSSH line starts below zero — the 5.5% on the way in —
+          and has to earn that back first; the stake&apos;s starts at zero and climbs in a straight
+          line, because its T-shares are fixed on day one and paid at the rate you set. Price drifts
+          still reach the pSSH side: they set how much pSSH each rebought HEX buys, and how much HEX
+          a dollar of volume pays in reflections.
         </p>
       </Panel>
 
       <StakeDuel now={now} sim={sim} amount={amount} runYears={runYears} />
+      <StakeDetails sim={sim} amount={amount} runYears={runYears} />
 
       {now.supplyShare > 0.02 && (
         <p className="rounded-lg border border-[var(--line-strong)] bg-[var(--app-bg)] px-3 py-2 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
@@ -696,15 +693,15 @@ function HolderView({
             <ul className="min-w-0 flex-1 space-y-2 text-[11.5px]">
               <li className="flex items-baseline justify-between gap-2">
                 <span className="text-[var(--text-muted)]">End-stake payout (1%)</span>
-                <b className="tabular-nums text-[var(--text)]">{compact(cumPayout)} HEX</b>
+                <b className="tabular-nums text-[var(--text)]">{fmtHex(cumPayout)} HEX</b>
               </li>
               <li className="flex items-baseline justify-between gap-2">
                 <span className="text-[var(--text-muted)]">Reflections (2.5%)</span>
-                <b className="tabular-nums text-[var(--text)]">{compact(cumRefl)} HEX</b>
+                <b className="tabular-nums text-[var(--text)]">{fmtHex(cumRefl)} HEX</b>
               </li>
               <li className="flex items-baseline justify-between gap-2 border-t border-[var(--line)] pt-2">
                 <span className="text-[var(--text-muted)]">This cycle alone</span>
-                <b className="tabular-nums text-[var(--up)]">{compact(now.holderHex)} HEX</b>
+                <b className="tabular-nums text-[var(--up)]">{fmtHex(now.holderHex)} HEX</b>
               </li>
             </ul>
           </div>
@@ -721,10 +718,11 @@ function HolderView({
         </Panel>
       </div>
 
-      {sim.final.holderValueUsd < amount && (
+      {sim.final.holderHexNet < 0 && (
         <p className="rounded-lg border border-red-400/30 bg-red-400/5 px-3 py-2 text-[11.5px] text-red-300">
-          Under these assumptions the position ends below what went in. That is the projection
-          doing its job — the dials you set produce this, and nothing here rounds it away.
+          Under these assumptions the HEX this position earns never makes back what the 5.5% took —
+          it ends {hexAmt(sim.final.holderHexNet)} HEX down. That is the projection doing its job;
+          the dials you set produce this, and nothing here rounds it away.
         </p>
       )}
     </div>
@@ -732,28 +730,31 @@ function HolderView({
 }
 
 /**
- * The comparison the run is set up to make: the same dollars held as pSSH, or
- * put into one HEX stake as long as the whole run. Read at the playhead, with
- * the run's end on the last line so the outcome is never off screen.
+ * The comparison the run is set up to make, counted in HEX: the same dollars
+ * held as pSSH, or put into one HEX stake as long as the whole run. Read at the
+ * playhead, with the run's end on the last line so the outcome is never off
+ * screen.
  */
 function StakeDuel({
   now, sim, amount, runYears,
 }: { now: SimCycle; sim: SimResult; amount: number; runYears: number }) {
   const { stake } = sim;
-  const stakeEarned = now.pHex > 0 ? now.stakeHexValueUsd / now.pHex - stake.hex : 0;
   const ended = now.n === sim.final.n;
-  const won = sim.final.holderValueUsd >= sim.final.stakeHexValueUsd;
-  const rows: { k: string; a: string; b: string; end?: boolean }[] = [
-    { k: `Worth at cycle ${now.n}`, a: money(now.holderValueUsd), b: money(now.stakeHexValueUsd) },
+  const won = sim.final.holderHexNet >= sim.final.stakeHexEarned;
+  const years = `${runYears} ${runYears === 1 ? 'year' : 'years'}`;
+  const rows: { k: string; a: string; b: string; strong?: boolean; end?: boolean }[] = [
     {
-      k: 'HEX earned so far',
-      a: `${compact(now.holderHexCumulative)} HEX`,
-      b: `${compact(stakeEarned)} HEX`,
+      k: `Paid out by cycle ${now.n}`,
+      a: `${fmtHex(now.holderHexCumulative)} HEX`,
+      b: `${fmtHex(now.stakeHexEarned)} HEX accrued`,
     },
+    { k: 'Lost to the 5.5%', a: `−${fmtHex(now.tollHexCumulative)} HEX`, b: 'none' },
+    { k: 'HEX earned, net', a: `${hexAmt(now.holderHexNet)} HEX`, b: `${fmtHex(now.stakeHexEarned)} HEX`, strong: true },
     {
       k: 'What you hold',
-      a: `${((now.tokens + now.compoundedTokens) / S_SHARE).toFixed(2)} S-shares`,
-      b: `${stake.tShares.toFixed(2)} T-shares · ×${stake.bonus.toFixed(2)} bonus`,
+      // Non-breaking hyphens: a phone-width column otherwise wraps "S-" from "shares".
+      a: `${((now.tokens + now.compoundedTokens) / S_SHARE).toFixed(2)} S‑shares`,
+      b: `${fmtTShares(stake.tShares)} T‑shares · +${Math.round((stake.lengthBonus + stake.sizeBonus) * 100)}% bonus`,
     },
     {
       k: 'Getting out',
@@ -761,9 +762,9 @@ function StakeDuel({
       b: `locked ${nf(stake.days)} days — ending early forfeits yield and pays a penalty`,
     },
     {
-      k: ended ? `At the end · ${runYears} ${runYears === 1 ? 'year' : 'years'}` : `When the run ends · ${runYears} ${runYears === 1 ? 'year' : 'years'}`,
-      a: money(sim.final.holderValueUsd),
-      b: money(sim.final.stakeHexValueUsd),
+      k: ended ? `HEX earned at the end · ${years}` : `HEX earned when the run ends · ${years}`,
+      a: `${hexAmt(sim.final.holderHexNet)} HEX`,
+      b: `${fmtHex(sim.final.stakeHexEarned)} HEX`,
       end: true,
     },
   ];
@@ -795,14 +796,18 @@ function StakeDuel({
             <span className="text-[11px] leading-snug text-[var(--text-muted)]">{r.k}</span>
             <span
               className={`text-right tabular-nums leading-snug ${
-                r.end ? `text-[15px] font-bold ${won ? 'text-[var(--up)]' : 'text-[var(--text)]'}` : 'text-[11.5px] text-[var(--text)]'
+                r.end
+                  ? `text-[15px] font-bold ${won ? 'text-[var(--up)]' : 'text-[var(--text)]'}`
+                  : `text-[11.5px] text-[var(--text)] ${r.strong ? 'font-bold' : ''}`
               }`}
             >
               {r.a}
             </span>
             <span
               className={`text-right tabular-nums leading-snug ${
-                r.end ? `text-[15px] font-bold ${won ? 'text-[var(--text)]' : 'text-[var(--up)]'}` : 'text-[11.5px] text-[var(--text)]'
+                r.end
+                  ? `text-[15px] font-bold ${won ? 'text-[var(--text)]' : 'text-[var(--up)]'}`
+                  : `text-[11.5px] text-[var(--text)] ${r.strong ? 'font-bold' : ''}`
               }`}
             >
               {r.b}
@@ -811,11 +816,53 @@ function StakeDuel({
         ))}
       </div>
       <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-faint)]">
-        A stake this long is credited ×{stake.bonus.toFixed(2)} its HEX in T-shares — HEX&apos;s
-        length bonus, which tops out at 3,641 days (just under ten years), plus its small size bonus
-        — and keeps the share rate it opened at, while the SuperStake pool restakes every{' '}
-        {stake.days / sim.cycles.length} days at whatever the rate has climbed to. In exchange the
-        stake can&apos;t be touched until the end; pSSH can be sold the day you want out.
+        A stake this long keeps the share rate it opened at, while the SuperStake pool restakes
+        every {stake.days / sim.cycles.length} days at whatever the rate has climbed to. In exchange
+        the stake can&apos;t be touched until the end; pSSH can be sold the day you want out.
+      </p>
+    </Panel>
+  );
+}
+
+/**
+ * The stake on the other side, in the HEX Strategist's own terms — the same
+ * `projectStake` maths and the same formatting, so a visitor who designs this
+ * stake on the Strategist sees these numbers again.
+ */
+function StakeDetails({ sim, amount, runYears }: { sim: SimResult; amount: number; runYears: number }) {
+  const { stake } = sim;
+  const openPrice = sim.cycles[0].pHex;
+  return (
+    <Panel title={`The ${runYears}-year HEX stake, in full`} sub="projected the way the HEX Strategist projects a stake">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <Tile label="HEX staked" value={`${fmtHex(stake.hex)} HEX`} sub={`your ${money(amount)} at $${openPrice.toFixed(6)}`} />
+        <Tile
+          label="T-Shares minted"
+          value={fmtTShares(stake.tShares)}
+          sub={`${fmtHex(stake.shareRate)} HEX buys one today`}
+        />
+        <Tile
+          label="Share bonus"
+          value={`+${Math.round((stake.lengthBonus + stake.sizeBonus) * 100)}%`}
+          sub={`length +${Math.round(stake.lengthBonus * 100)}% · size +${(stake.sizeBonus * 100).toFixed(1)}%`}
+        />
+        <Tile
+          label="Projected yield"
+          value={`${fmtHex(stake.yieldHex)} HEX`}
+          sub={`at ${stake.payoutPerTshare.toFixed(4)} HEX per T-share a day`}
+          good
+        />
+        <Tile
+          label="Principal + yield"
+          value={`${fmtHex(stake.hex + stake.yieldHex)} HEX`}
+          sub={`${stake.roiPct.toFixed(1)}% over the term · ${stake.apyPct.toFixed(1)}% a year`}
+        />
+        <Tile label="Locked until" value={`~${fmtHexDate(currentHexDay() + stake.days)}`} sub={fmtDuration(stake.days)} />
+      </div>
+      <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-faint)]">
+        T-shares and the length and size bonuses are exact HEX contract maths. The yield assumes the
+        payout per T-share above — today&apos;s 30-day average, unless you&apos;ve moved the yield
+        dial — holds for the whole term. It won&apos;t exactly, so read it as a scenario, not a promise.
       </p>
     </Panel>
   );
@@ -1099,7 +1146,16 @@ function MultiLine({
   // keeps its zero floor: the shading means "from nothing", and lifting it
   // would overstate the area.
   const filled = series.some((s) => s.fill);
-  const floor = filled || lo <= 0 ? 0 : Math.max(0, lo - (hi > lo ? (hi - lo) * 0.25 : lo * 0.05));
+  // A series that dips below zero (HEX earned net of the entry toll starts
+  // there) gets a floor under its low point and a zero line, rather than being
+  // drawn off the bottom of the chart. The same quarter-range gap as a lifted
+  // floor, so the low point clears the printed floor label.
+  const floor =
+    lo < 0
+      ? lo - (hi - lo) * 0.25
+      : filled || lo === 0
+        ? 0
+        : Math.max(0, lo - (hi > lo ? (hi - lo) * 0.25 : lo * 0.05));
   const top = hi * 1.04;
   const span = Math.max(top - floor, 1e-9);
   const n = Math.max(...series.map((s) => s.values.length), 2);
@@ -1119,6 +1175,14 @@ function MultiLine({
         {[0.25, 0.5, 0.75].map((g) => (
           <line key={g} x1="0" x2={W} y1={H * g} y2={H * g} stroke="var(--line)" strokeWidth="1" />
         ))}
+        {floor < 0 && (
+          <line
+            x1="0" x2={W}
+            y1={H - PAD - ((0 - floor) / span) * (H - PAD * 2)}
+            y2={H - PAD - ((0 - floor) / span) * (H - PAD * 2)}
+            stroke="var(--line-strong)" strokeWidth="1"
+          />
+        )}
         {/* the axis it's actually drawn against */}
         <text x="4" y={PAD + 9} className="fill-[var(--text-faint)] text-[9px]" style={{ fontFamily: MONO }}>
           {fmt(top)}
