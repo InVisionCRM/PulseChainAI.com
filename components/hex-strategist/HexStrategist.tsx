@@ -40,11 +40,13 @@ import {
   defaultLengths,
   projectStake,
   projectionCurve,
+  type StakeProjection,
 } from '@/lib/hex/stakeMath';
 import { fmtHex, fmtTShares, fmtDuration, fmtHexDate, currentHexDay } from '@/lib/hex/hexDay';
 import { fmtUsd } from '@/lib/format';
 import { HeroNumber, Speedo } from '@/components/hex/Instruments';
 import { HexLogo } from '@/components/hex/HexAmount';
+import { TypeInNumber } from '@/components/ui/type-in-number';
 import { type Network, type Rates, type RatesSourceReporter, num, loadRates } from '@/lib/hex/strategistData';
 
 /** The most bonus any stake can earn: +200% LPB and +10% BPB. */
@@ -86,7 +88,8 @@ export default function HexStrategist({
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [amount, setAmount] = useState('1000000');
-  const [days, setDays] = useState(LPB_FULL_BONUS_DAYS);
+  // Opens on the length the call recommends (see `best`).
+  const [days, setDays] = useState(HEX_MAX_STAKE_DAYS);
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
@@ -126,15 +129,14 @@ export default function HexStrategist({
     return projectStake(principal, days, rates.tShareRateHex, rates.dailyPayoutPerTShare);
   }, [rates, principal, days]);
 
-  /** The length this tab recommends, projected — for the verdict's comparison. */
-  const best = useMemo(() => {
-    if (!rates) return null;
-    return projectStake(principal, LPB_FULL_BONUS_DAYS, rates.tShareRateHex, rates.dailyPayoutPerTShare);
-  }, [rates, principal]);
-
-  /** Highest APY on the curve, so the APY dial has an honest full-scale. */
-  const peakApy = useMemo(
-    () => curve.reduce((m, p) => (p.apyPct > m ? p.apyPct : m), 0),
+  /**
+   * The length this tab recommends: the highest APY on the curve (the longer
+   * one on a tie). The payout grows with HEX's inflation each year, so APY
+   * keeps rising past the full length bonus and the peak is HEX's longest
+   * stake. It is also the APY dial's full scale.
+   */
+  const best = useMemo(
+    () => curve.reduce<StakeProjection | null>((b, p) => (!b || p.apyPct >= b.apyPct ? p : b), null),
     [curve],
   );
 
@@ -162,7 +164,7 @@ export default function HexStrategist({
     );
   }
 
-  const usd = (hex: number) => hex * rates.priceUsd;
+  const usd = (hex: number) => (rates.priceUsd ? hex * rates.priceUsd : null);
 
   // "Circulating" supply excludes staked HEX, so % staked is of the total
   // (staked + circulating) — not staked/circulating (which can exceed 100%).
@@ -176,7 +178,7 @@ export default function HexStrategist({
   const bpbFrac = Math.min(principal, BPB_MAX_HEX) / BPB_MAX_HEX;
   const bonus = bonusMultiplier(principal, days);
 
-  const onBest = days === LPB_FULL_BONUS_DAYS;
+  const onBest = days === best.days;
   const tShareGain = target.tShares > 0 ? (best.tShares / target.tShares - 1) * 100 : 0;
 
   return (
@@ -229,11 +231,19 @@ export default function HexStrategist({
               </span>
             </label>
 
-            <label className="block">
+            {/* A div, not a label: the typed-number button inside would become
+                the label's target and steal clicks meant for the slider. */}
+            <div className="block">
               <span className="font-poppins mb-1.5 flex items-baseline justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">
                 <span>Stake length</span>
                 <span className="font-jost text-[22px] font-bold normal-case tracking-tight text-white">
-                  {days.toLocaleString()}<span className="text-[13px] text-white/50">d</span>
+                  <TypeInNumber
+                    value={days} display={days.toLocaleString()} min={1} max={HEX_MAX_STAKE_DAYS} step={1}
+                    onChange={setDays} label="Stake length in days"
+                    className="font-jost text-[22px] font-bold tracking-tight tabular-nums text-white"
+                    inputClassName="rounded-md border border-white/30 bg-white/10 px-1.5"
+                  />
+                  <span className="text-[13px] text-white/50">d</span>
                 </span>
               </span>
               <input
@@ -249,7 +259,7 @@ export default function HexStrategist({
                 <span>{fmtDuration(days)}</span>
                 <span>ends ~{endDate}</span>
               </span>
-            </label>
+            </div>
           </div>
 
           <div className="mt-6 grid gap-6 border-t border-white/10 pt-5 sm:grid-cols-3 md:gap-8">
@@ -297,10 +307,10 @@ export default function HexStrategist({
         />
         <Speedo
           live
-          frac={peakApy > 0 ? target.apyPct / peakApy : 0}
+          frac={best.apyPct > 0 ? target.apyPct / best.apyPct : 0}
           figure={pct1(target.apyPct)}
           label="APY at this length"
-          sub={`best on the curve is ${pct1(peakApy)}`}
+          sub={`best on the curve is ${pct1(best.apyPct)}`}
           tone="a"
         />
       </div>
@@ -327,11 +337,12 @@ export default function HexStrategist({
               className="font-jost text-[42px] font-bold leading-none tracking-tight tabular-nums md:text-[52px]"
               style={{ color: onBest ? 'var(--viz-gain)' : 'var(--viz-a)' }}
             >
-              {LPB_FULL_BONUS_DAYS.toLocaleString()}<span className="text-[22px] text-[var(--text-faint)]">d</span>
+              {best.days.toLocaleString()}<span className="text-[22px] text-[var(--text-faint)]">d</span>
             </div>
             <div className="font-poppins mt-1.5 text-[12.5px] text-[var(--text-muted)]">
-              {fmtDuration(LPB_FULL_BONUS_DAYS)} — the shortest stake that captures the whole +200% length bonus.
-              Longer earns no extra T-Shares.
+              {fmtDuration(best.days)} — the highest APY on the curve, {pct1(best.apyPct)} a year. It holds the whole
+              +200% length bonus, and each year after that pays more, as HEX’s{' '}
+              {(HEX_ANNUAL_INFLATION * 100).toFixed(2)}% inflation lifts the payout.
             </div>
           </div>
           {onBest ? (
@@ -340,10 +351,10 @@ export default function HexStrategist({
             </div>
           ) : (
             <button
-              onClick={() => setDays(LPB_FULL_BONUS_DAYS)}
+              onClick={() => setDays(best.days)}
               className="font-poppins rounded-lg bg-[var(--viz-a)] px-4 py-2.5 text-[12px] font-bold text-white transition-transform hover:scale-105"
             >
-              Use {LPB_FULL_BONUS_DAYS.toLocaleString()} days
+              Use {best.days.toLocaleString()} days
             </button>
           )}
         </div>
@@ -353,9 +364,7 @@ export default function HexStrategist({
               days < LPB_FULL_BONUS_DAYS ? `+${pct1(tShareGain)} for the same HEX` : 'identical — the bonus is capped'
             } />
             <Swap label="Yield" from={fmtHex(target.projectedYieldHex)} to={fmtHex(best.projectedYieldHex)} note="over the term" />
-            <Swap label="Locked for" from={fmtDuration(days)} to={fmtDuration(LPB_FULL_BONUS_DAYS)} note={
-              days > LPB_FULL_BONUS_DAYS ? `${fmtDuration(days - LPB_FULL_BONUS_DAYS)} of it adds no bonus` : 'the full-bonus term'
-            } />
+            <Swap label="APY" from={pct1(target.apyPct)} to={pct1(best.apyPct)} note={`locked ${fmtDuration(best.days)} instead of ${fmtDuration(days)}`} />
           </div>
         )}
       </div>
@@ -431,7 +440,7 @@ export default function HexStrategist({
           What the market is paying right now
         </div>
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-          <Context label="T-Share price" value={fmtUsd(rates.tSharePriceUsd)} trend={rates.tSharePriceTrend} goodWhenDown />
+          <Context label="T-Share price" value={fmtUsd(rates.tSharePriceUsd || null)} trend={rates.tSharePriceTrend} goodWhenDown />
           <Context label="Payout / T-Share" value={`${rates.dailyPayoutPerTShare.toFixed(4)}`} hex sub="a day, 30d average" trend={rates.payoutTrend} />
           <Context label="HEX / T-Share" value={fmtHex(rates.tShareRateHex)} hex sub="rises every day, never falls" />
           <Context label="Supply staked" value={pctStaked != null ? `${pctStaked.toFixed(1)}%` : '—'} sub={`${fmtHex(rates.stakedHex)} HEX locked`} />

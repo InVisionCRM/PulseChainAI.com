@@ -3,7 +3,10 @@
 // (hexdailystats.com). Resilient: hexdailystats' `livedata` endpoint is flaky,
 // so we merge it with the newest row of the daily series (`fulldata` /
 // `fulldatapulsechain`), which carries the same fields, and only fail if
-// neither source yields a usable T-Share rate.
+// neither source yields a usable T-Share rate. PulseChain HEX's dollar price
+// is the one exception: it comes live from the site ticker's feed instead.
+
+import { HEX_ADDRESS } from './hexDay';
 
 export type Network = 'ethereum' | 'pulsechain';
 
@@ -63,11 +66,32 @@ const rowPayout = (r: Rec, net: Network) => readRates(r, net).payout;
 export type RatesSource = 'live' | 'daily';
 export type RatesSourceReporter = (source: RatesSource, ok: boolean) => void;
 
+/**
+ * PulseChain HEX's live dollar price — the feed the site's ticker shows
+ * (/api/portfolio/ticker-pairs), so the Strategist and the ticker agree.
+ * hexdailystats' `livedata` 404s, and its newest daily row carries that day's
+ * opening price: 33 hours old by the next morning, and 13% off the market on a
+ * day HEX fell hard. 0 when the feed doesn't answer — dollar figures then show
+ * a blank rather than a stale number.
+ */
+async function liveHexPriceUsd(): Promise<number> {
+  const res = await fetch('/api/portfolio/ticker-pairs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ addresses: [HEX_ADDRESS] }),
+  });
+  if (!res.ok) return 0;
+  const data = await res.json();
+  const tokens: { address?: string; priceUsd?: number }[] = Array.isArray(data?.tokens) ? data.tokens : [];
+  return num(tokens.find((t) => t.address?.toLowerCase() === HEX_ADDRESS)?.priceUsd);
+}
+
 export async function loadRates(net: Network, onSource?: RatesSourceReporter): Promise<Rates> {
   const dailyEndpoint = net === 'pulsechain' ? 'fulldatapulsechain' : 'fulldata';
-  const [liveRes, dailyRes] = await Promise.allSettled([
+  const [liveRes, dailyRes, priceRes] = await Promise.allSettled([
     fetch('/api/hex-proxy?endpoint=livedata'),
     fetch(`/api/hex-proxy?endpoint=${dailyEndpoint}`),
+    net === 'pulsechain' ? liveHexPriceUsd() : Promise.resolve(0),
   ]);
 
   let live: Rec | null = null;
@@ -107,10 +131,15 @@ export async function loadRates(net: Network, onSource?: RatesSourceReporter): P
   const payoutVals = recent.map((r) => rowPayout(r, net)).filter((v) => v > 0);
   const avgPayout = payoutVals.length ? payoutVals.reduce((s, v) => s + v, 0) / payoutVals.length : livePayout;
 
-  const priceUsd = pick((r) => r.priceUsd);
-  // T-Share price isn't always present in the feed; derive it from the rate ×
-  // HEX price when missing (USD/T-Share = HEX-per-T-Share × USD-per-HEX).
-  const tSharePriceUsd = pick((r) => r.tSharePriceUsd) || (tShareRateHex && priceUsd ? tShareRateHex * priceUsd : 0);
+  // PulseChain: the live price only, and the T-Share price from it
+  // (USD/T-Share = HEX-per-T-Share × USD-per-HEX), so neither is a day old.
+  const priceUsd = net === 'pulsechain'
+    ? (priceRes.status === 'fulfilled' ? priceRes.value : 0)
+    : pick((r) => r.priceUsd);
+  // Elsewhere the feed's T-Share price, derived the same way when it's missing.
+  const tSharePriceUsd = net === 'pulsechain'
+    ? tShareRateHex * priceUsd
+    : pick((r) => r.tSharePriceUsd) || (priceUsd ? tShareRateHex * priceUsd : 0);
   const trend = (cur: number, sel: (r: ReturnType<typeof readRates>) => number): number | null => {
     const older = daily[30];
     if (!older) return null;
