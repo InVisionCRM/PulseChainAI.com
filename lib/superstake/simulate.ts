@@ -62,6 +62,12 @@ export interface SimCycle {
   payoutHex: number;
   /** HEX the 2% buy-tax bought over the cycle. */
   boughtHex: number;
+  /**
+   * HEX the 2.5% reflections bought over the cycle, for every holder. The
+   * contract sells the taxed pSSH on PulseX (pSSH → WPLS → HEX) for both this
+   * and `boughtHex`, so together they are the run's buy pressure on HEX.
+   */
+  reflectionsBoughtHex: number;
   /** HEX staked at the start of the *next* cycle. */
   poolHexNext: number;
   /** What came in against what went out. Above 1 and the pool grows. */
@@ -237,7 +243,8 @@ export function simulate(input: SimInputs): SimResult | null {
     // cycle's burn — the burn is what *raises* the share for the next cycle.
     const supplyShare = supply > 0 ? tokens / supply : 0;
     const holderPayoutHex = supplyShare * payoutHex;
-    const holderReflectionHex = pHex > 0 ? (supplyShare * REFLECTION_RATE * volumeUsd) / pHex : 0;
+    const reflectionsBoughtHex = pHex > 0 ? (REFLECTION_RATE * volumeUsd) / pHex : 0;
+    const holderReflectionHex = supplyShare * reflectionsBoughtHex;
     const holderHex = holderPayoutHex + holderReflectionHex;
     cumulativeHex += holderHex;
 
@@ -261,7 +268,7 @@ export function simulate(input: SimInputs): SimResult | null {
 
     out.push({
       n,
-      poolHex, poolTShares, poolYieldHex, payoutHex, boughtHex, poolHexNext, coverRatio,
+      poolHex, poolTShares, poolYieldHex, payoutHex, boughtHex, reflectionsBoughtHex, poolHexNext, coverRatio,
       supply, burnedTokens, sSharesLeft: supply / S_SHARE,
       pHex, pSsh, volumeUsd,
       tokens, supplyShare,

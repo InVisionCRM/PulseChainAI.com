@@ -19,6 +19,7 @@ import {
   IconPlayerPlayFilled, IconPlayerPauseFilled, IconRotateClockwise2, IconChevronDown,
 } from '@tabler/icons-react';
 import {
+  BUY_TAX_RATE,
   breakEvenDailyVolume,
   simulate,
   tSharesFor,
@@ -26,10 +27,12 @@ import {
   type SimInputs,
   type SimResult,
 } from '@/lib/superstake/simulate';
-import { S_SHARE } from '@/lib/superstake/model';
+import { REFLECTION_RATE, S_SHARE } from '@/lib/superstake/model';
 import { HEX_ANNUAL_INFLATION, HEX_MAX_STAKE_DAYS } from '@/lib/hex/stakeMath';
 import { currentHexDay, fmtDuration, fmtHex, fmtHexDate, fmtTShares } from '@/lib/hex/hexDay';
 import ShareCards from '@/components/superstake/ShareCards';
+import { TypeInNumber } from '@/components/ui/type-in-number';
+import EarnedChart from '@/components/superstake/EarnedChart';
 import { SIM_CARD_IDS, type ShareData } from '@/lib/superstake/shareCard';
 
 const MONO = 'var(--font-jetbrains-mono), ui-monospace, monospace';
@@ -110,6 +113,8 @@ export default function Simulator(props: SimulatorProps) {
     [liveTShares, payoutPerTshare, cycleDays, poolHex],
   );
   const defVolume = Math.round(props.dailyVolumeUsd);
+  // $500K a day, or more if live volume ever makes "Volume ×10" exceed that.
+  const volumeMax = Math.max(500_000, defVolume * 12);
   // Exact, not rounded to the slider's step: at the default the payout rate the
   // run uses is then today's 30-day average to the digit, so the stake it is
   // measured against comes out exactly as the HEX Strategist projects it.
@@ -416,10 +421,10 @@ export default function Simulator(props: SimulatorProps) {
         <Slider
           label="Trading per day"
           display={money(volume)}
-          min={0} max={Math.max(5000, defVolume * 12)} step={10}
+          min={0} max={volumeMax} step={10}
           v={volume} onChange={custom(setVolume)}
           hint={`break-even is ${money(breakEven)}`}
-          marker={breakEven > 0 ? breakEven / Math.max(5000, defVolume * 12) : undefined}
+          marker={breakEven > 0 ? breakEven / volumeMax : undefined}
         />
         <Slider
           label="HEX stake yield"
@@ -536,6 +541,7 @@ export default function Simulator(props: SimulatorProps) {
             coverOk={coverOk}
             yieldPct={yieldPct}
             liveYieldPct={liveYieldPct}
+            cycleDays={cycleDays}
           />
         )}
 
@@ -591,6 +597,7 @@ function HolderView({
       : 0;
   const cumPayout = shown.reduce((s, c) => s + c.holderPayoutHex, 0);
   const cumRefl = shown.reduce((s, c) => s + c.holderReflectionHex, 0);
+  const bp = buyPressure(shown);
 
   return (
     <div className="flex flex-col gap-3">
@@ -636,24 +643,23 @@ function HolderView({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Tile
           label="pSSH held"
           value={compact(now.tokens + now.compoundedTokens)}
           sub={`${((now.tokens + now.compoundedTokens) / S_SHARE).toFixed(2)} S-shares · ${compound ? 'compounding' : 'earnings banked'}`}
         />
         <Tile label="Share of supply" value={pctOf(now.supplyShare * 100)} sub="rises as the 1% burns" />
+        <Tile
+          label="HEX buy pressure"
+          value={`${fmtHex(bp.hex)} HEX`}
+          sub={`${money(bp.usd)} of HEX the tax buys on PulseX, all holders`}
+        />
       </div>
 
       {/* the two lines */}
       <Panel title="HEX earned, two ways" sub={`same dollars, same ${nf(sim.stake.days)} days`}>
-        <MultiLine
-          series={[
-            { label: 'Hold pSSH', values: shown.map((c) => c.holderHexCumulative), color: C_PSSH, width: 2.6 },
-            { label: `One ${stakeName}`, values: shown.map((c) => c.stakeHexEarned), color: C_STAKE, width: 1.8 },
-          ]}
-          fmt={(v) => `${fmtHex(v)} HEX`}
-        />
+        <EarnedChart cycles={sim.cycles} nowN={now.n} totalDays={sim.stake.days} stakeLabel={`One ${stakeName}`} />
         <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-faint)]">
           <b className="text-[var(--text-muted)]">Counted in HEX</b>, so neither line is a bet on
           what HEX is worth in dollars. The stake&apos;s T-shares are fixed on day one; its line
@@ -860,7 +866,7 @@ function StakeDetails({ sim, amount, runYears }: { sim: SimResult; amount: numbe
 }
 
 function StakeView({
-  now, shown, openingPool, breakEven, volume, coverOk, yieldPct, liveYieldPct,
+  now, shown, openingPool, breakEven, volume, coverOk, yieldPct, liveYieldPct, cycleDays,
 }: {
   now: SimCycle;
   shown: SimCycle[];
@@ -870,6 +876,7 @@ function StakeView({
   coverOk: boolean;
   yieldPct: number;
   liveYieldPct: number;
+  cycleDays: number;
 }) {
   const growth = openingPool > 0 ? now.poolHexNext / openingPool : 0;
   const burnedSoFar = shown.reduce((s, c) => s + c.burnedTokens, 0);
@@ -922,6 +929,8 @@ function StakeView({
         <Tile label="S-shares left" value={nf(now.sSharesLeft, 0)} sub={`${compact(burnedSoFar)} pSSH burned in the run`} />
         <Tile label="Volume needed" value={money(breakEven)} sub={`you set ${money(volume)}`} good={volume >= breakEven} bad={volume < breakEven} />
       </div>
+
+      <BuyPressure shown={shown} cycleDays={cycleDays} />
 
       <Panel title="The pool, cycle by cycle" sub="principal at each restake">
         <MultiLine
@@ -985,6 +994,48 @@ function Anim({
   }, [value]);
   const Tag = inline ? 'span' : 'div';
   return <Tag className={className}>{fmt(v)}</Tag>;
+}
+
+/**
+ * The HEX the tax buys on the open market over the cycles shown. The contract
+ * sells the taxed pSSH on PulseX (pSSH → WPLS → HEX): 2% of every trade for the
+ * stake and 2.5% for holders' reflections, so all of it is HEX bought.
+ */
+function buyPressure(shown: SimCycle[]) {
+  const stakeHex = shown.reduce((s, c) => s + c.boughtHex, 0);
+  const holdersHex = shown.reduce((s, c) => s + c.reflectionsBoughtHex, 0);
+  const usd = shown.reduce((s, c) => s + c.volumeUsd, 0) * (BUY_TAX_RATE + REFLECTION_RATE);
+  return { stakeHex, holdersHex, hex: stakeHex + holdersHex, usd };
+}
+
+function BuyPressure({ shown, cycleDays }: { shown: SimCycle[]; cycleDays: number }) {
+  const bp = buyPressure(shown);
+  const days = shown.length * cycleDays;
+  return (
+    <Panel title="HEX buy pressure" sub="the HEX SuperStake's tax buys on PulseX">
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
+        <Anim
+          value={bp.hex}
+          fmt={(v) => `${fmtHex(v)} HEX`}
+          className="text-[28px] font-bold leading-none tracking-[-0.04em] tabular-nums text-[var(--text)]"
+        />
+        <span className="mb-0.5 text-[11.5px] tabular-nums text-[var(--text-muted)]">
+          {money(bp.usd)} spent buying HEX over {nf(days)} days · ≈ {money(days > 0 ? bp.usd / days : 0)} a day
+        </span>
+      </div>
+      <div className="mt-3">
+        <StackBars rows={shown.map((c) => ({ a: c.boughtHex, b: c.reflectionsBoughtHex, label: c.n }))} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-[var(--text-muted)]">
+        <Legend color="#7E089D" label={`for the stake (2%) · ${fmtHex(bp.stakeHex)} HEX`} />
+        <Legend color="#FB9438" label={`for holders' reflections (2.5%) · ${fmtHex(bp.holdersHex)} HEX`} />
+      </div>
+      <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-faint)]">
+        Every buy and sell of pSSH is taxed, and the contract sells the taxed pSSH through WPLS for HEX
+        — 4.5% of the trade&apos;s value lands as a HEX buy. More volume, more buying.
+      </p>
+    </Panel>
+  );
 }
 
 function Tile({
@@ -1070,7 +1121,11 @@ function Slider({
     <div>
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-[10.5px] font-semibold text-[var(--text-muted)]">{label}</span>
-        <span className="text-[14px] font-bold tabular-nums text-[var(--text)]">{display}</span>
+        <TypeInNumber
+          value={v} display={display} min={min} max={max} step={step} onChange={onChange} label={label}
+          className="text-[14px] font-bold tabular-nums text-[var(--text)]"
+          inputClassName="w-auto rounded-md border border-brand-orange/60 bg-[var(--surface)] px-1.5 py-0.5"
+        />
       </div>
       <div className="relative">
         <input
