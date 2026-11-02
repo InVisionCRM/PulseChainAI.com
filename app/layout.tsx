@@ -26,7 +26,7 @@ import { PullChainOverlay } from "@/components/theme/PullChainOverlay";
 import { IntroSplash } from "@/components/IntroSplash";
 import DevlogModal from "@/components/devlog/DevlogModal";
 import DevlogNavButton from "@/components/devlog/DevlogNavButton";
-import { HomeGlyph, WalletGlyph, CardsGlyph } from "@/components/nav/NavGlyphs";
+import { HomeGlyph, WalletGlyph, CardsGlyph, CodeGlyph } from "@/components/nav/NavGlyphs";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -164,6 +164,11 @@ export default function RootLayout({
       label: "Casino",
       href: "https://win.morbius.io",
       icon: <CardsGlyph />,
+    },
+    {
+      label: "Code Reader",
+      href: "/code-reader",
+      icon: <CodeGlyph />,
     },
   ];
 

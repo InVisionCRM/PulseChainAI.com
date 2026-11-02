@@ -75,6 +75,22 @@ export async function blockscoutJson(
   return null;
 }
 
+/** What an address is on PulseChain, as far as reading its code goes. */
+export type ContractLookup =
+  | { status: 'loading' }
+  | { status: 'contract'; name: string | null; verified: boolean }
+  | { status: 'not-contract' }
+  | { status: 'failed' };
+
+/** Look an address up on PulseChain's explorer: a contract (with its name and
+ *  whether its source is verified), not a contract, or no answer. */
+export async function lookupContract(address: string): Promise<ContractLookup> {
+  const info = await blockscoutJson(`/addresses/${address}`);
+  if (!info) return { status: 'failed' };
+  if (!info.is_contract) return { status: 'not-contract' };
+  return { status: 'contract', name: info.name ?? info.token?.name ?? null, verified: info.is_verified === true };
+}
+
 /**
  * Client-safe wrapper around `bsFetchJson` for browser code.
  *

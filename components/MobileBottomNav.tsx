@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArtIcon } from "@/components/ui/ArtIcon";
-import { HomeGlyph, WalletGlyph } from "@/components/nav/NavGlyphs";
+import { CodeGlyph, HomeGlyph, WalletGlyph } from "@/components/nav/NavGlyphs";
 import { NavigationDrawer } from "./NavigationDrawer";
 import SearchModal from "./Screener/SearchModal";
 import WatchlistModal from "./WatchlistModal";
@@ -38,6 +38,11 @@ export const MobileBottomNav = () => {
       isAction: true,
     },
     {
+      label: "Code",
+      href: "/code-reader",
+      icon: <CodeGlyph />,
+    },
+    {
       label: "Portfolio",
       href: "/portfolio",
       icon: <WalletGlyph />,
@@ -60,15 +65,17 @@ export const MobileBottomNav = () => {
   return (
     <>
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[var(--panel)] border-t border-[var(--line)] backdrop-blur-xl">
-        {/* Six equal columns. Left to size themselves, the labels needed 436px
+        {/* Seven equal columns. Left to size themselves, the labels needed 436px
             against a 390px phone and pushed "More" clean off the right edge —
-            rendered, clickable in the DOM, and unreachable with a thumb. */}
-        <div className="grid grid-cols-6 items-center h-16 px-1">
+            rendered, clickable in the DOM, and unreachable with a thumb. With
+            seven, "Watchlist" (49px) only fits a 360px phone if the cells carry
+            no side padding and the row only 2px, which leaves each one 51px. */}
+        <div className="grid grid-cols-7 items-center h-16 px-0.5">
           {navItems.map((item) => {
             const isActive = item.href ? pathname === item.href : false;
             const content = (
               <div
-                className={`flex w-full min-w-0 flex-col items-center justify-center gap-1 px-0.5 py-2 rounded-lg transition-colors ${
+                className={`flex w-full min-w-0 flex-col items-center justify-center gap-1 py-2 rounded-lg transition-colors ${
                   isActive
                     ? "text-orange-500"
                     : "text-[var(--text-muted)] hover:text-[var(--text)]"
@@ -116,7 +123,7 @@ export const MobileBottomNav = () => {
           {/* More Button */}
           <button
             onClick={() => setIsDrawerOpen(true)}
-            className="flex w-full min-w-0 flex-col items-center justify-center gap-1 px-0.5 py-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+            className="flex w-full min-w-0 flex-col items-center justify-center gap-1 py-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
           >
             <ArtIcon src="/more-icon.png" alt="More" />
             <span className="max-w-full truncate text-[11px] font-medium">More</span>

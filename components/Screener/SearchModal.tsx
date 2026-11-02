@@ -1,7 +1,7 @@
 'use client';
 import { geickoHref } from '@/lib/geicko/link';
-import { isTxHash, txPageHref } from '@/lib/pulsechainExplorer';
-import { blockscoutJson } from '@/lib/blockscout';
+import { codeReaderHref, isTxHash, txPageHref } from '@/lib/pulsechainExplorer';
+import { lookupContract, type ContractLookup } from '@/lib/blockscout';
 import { isAddressValid } from '@/services/core/errors';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -28,28 +28,16 @@ function readRecent(): string[] {
   }
 }
 
-// A pasted address may be any contract, not only a traded token, so it is also
-// looked up on PulseChain's explorer — the chain the AI Code Reader reads.
-type ContractLookup =
-  | { status: 'loading' }
-  | { status: 'contract'; name: string | null; verified: boolean }
-  | { status: 'not-contract' }
-  | { status: 'failed' };
-
-async function lookupContract(address: string): Promise<ContractLookup> {
-  const info = await blockscoutJson(`/addresses/${address}`);
-  if (!info) return { status: 'failed' };
-  if (!info.is_contract) return { status: 'not-contract' };
-  return { status: 'contract', name: info.name ?? info.token?.name ?? null, verified: info.is_verified === true };
-}
-
 interface Props {
   open: boolean;
   onClose: () => void;
   watchlist: ScreenerWatchlist;
+  /** Every pick opens that contract in the AI Code Reader instead of its
+   *  token page. The reader reads PulseChain, so only PulseChain rows show. */
+  forCodeReader?: boolean;
 }
 
-export default function SearchModal({ open, onClose, watchlist }: Props) {
+export default function SearchModal({ open, onClose, watchlist, forCodeReader = false }: Props) {
   const router = useRouter();
   const prices = useWatchlistStore((s) => s.prices);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -120,14 +108,27 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
     setRecent(next);
   }, []);
 
+  // Where a picked token goes: its token page, or its contract in the reader.
+  const tokenHref = useCallback(
+    (address: string, chain: SearchPair['chain']) =>
+      forCodeReader ? codeReaderHref(address) : geickoHref(address, chain),
+    [forCodeReader],
+  );
+
   const openPair = useCallback(
     (p: SearchPair) => {
       rememberQuery(p.baseSymbol);
       onClose();
-      router.push(geickoHref(p.baseAddress, p.chain));
+      router.push(tokenHref(p.baseAddress, p.chain));
     },
-    [onClose, rememberQuery, router],
+    [onClose, rememberQuery, router, tokenHref],
   );
+
+  // The reader reads PulseChain, so its search lists PulseChain rows only.
+  const shownResults = forCodeReader ? results.filter((p) => p.chain === 'pulsechain') : results;
+  const shownWatchlist = forCodeReader
+    ? watchlist.tokens.filter((t) => t.chain === 'pulsechain')
+    : watchlist.tokens;
 
   const txHash = isTxHash(query) ? query.trim() : null;
   const openTx = () => {
@@ -136,6 +137,8 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
     router.push(txPageHref(txHash));
   };
 
+  // A pasted address may be any contract, not only a traded token, so it is also
+  // looked up on PulseChain's explorer — the chain the AI Code Reader reads.
   const address = isAddressValid(query.trim()) ? query.trim() : null;
   // Keyed by the address it answers, so a result never shows against a
   // different (or half-edited) query.
@@ -154,7 +157,7 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
   const openCodeReader = () => {
     if (!address) return;
     onClose();
-    router.push(`/ai-agent?address=${address}`);
+    router.push(codeReaderHref(address));
   };
 
   if (!open || typeof document === 'undefined') return null;
@@ -180,6 +183,12 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
             placeholder="Search by token name, symbol, contract address, or transaction hash…"
             className="w-full bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-faint)]"
           />
+          {forCodeReader ? (
+            <span className="flex shrink-0 items-center gap-1 rounded border border-orange-400/40 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-orange-400">
+              <IconCode className="h-3 w-3" />
+              AI Code Reader
+            </span>
+          ) : null}
           <button onClick={onClose} className="text-[var(--text-faint)] transition-colors hover:text-[var(--text)]" aria-label="Close search">
             <IconX className="h-4 w-4" />
           </button>
@@ -218,16 +227,16 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
                 </div>
               ) : null}
 
-              {watchlist.tokens.length > 0 ? (
+              {shownWatchlist.length > 0 ? (
                 <div>
                   <div className="mb-2 text-[11px] uppercase tracking-wider text-[var(--text-faint)]">Watchlist</div>
                   <div className="space-y-1">
-                    {watchlist.tokens.map((t) => (
+                    {shownWatchlist.map((t) => (
                       <div
                         key={`${t.chain}:${t.address}`}
                         onClick={() => {
                           onClose();
-                          router.push(geickoHref(t.address, t.chain));
+                          router.push(tokenHref(t.address, t.chain));
                         }}
                         className="flex cursor-pointer items-center gap-2 rounded border border-[var(--line)] px-3 py-2 transition-colors hover:bg-[var(--surface)]"
                       >
@@ -257,9 +266,11 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
                 </div>
               ) : null}
 
-              {recent.length === 0 && watchlist.tokens.length === 0 ? (
+              {recent.length === 0 && shownWatchlist.length === 0 ? (
                 <div className="py-10 text-center text-sm text-[var(--text-faint)]">
-                  Search any PulseChain or Robinhood pair — every DEX, every token.
+                  {forCodeReader
+                    ? 'Search any PulseChain token or paste a contract address to read its code.'
+                    : 'Search any PulseChain or Robinhood pair — every DEX, every token.'}
                 </div>
               ) : null}
             </div>
@@ -268,14 +279,16 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
               {address && contract?.address === address ? (
                 <ContractRow lookup={contract.lookup} address={address} onOpen={openCodeReader} />
               ) : null}
-              {searching && results.length === 0 ? (
+              {searching && shownResults.length === 0 ? (
                 <div className="py-10 text-center text-sm text-[var(--text-faint)]">Searching…</div>
               ) : null}
               {error ? <div className="py-10 text-center text-sm text-red-400">{error}</div> : null}
-              {!searching && !error && results.length === 0 && query.trim().length >= 2 ? (
-                <div className="py-10 text-center text-sm text-[var(--text-faint)]">No pairs found for “{query.trim()}”.</div>
+              {!searching && !error && shownResults.length === 0 && query.trim().length >= 2 ? (
+                <div className="py-10 text-center text-sm text-[var(--text-faint)]">
+                  No {forCodeReader ? 'PulseChain ' : ''}pairs found for “{query.trim()}”.
+                </div>
               ) : null}
-              {results.map((p) => (
+              {shownResults.map((p) => (
                 <SearchRow
                   key={`${p.chain}:${p.pairAddress}`}
                   pair={p}
