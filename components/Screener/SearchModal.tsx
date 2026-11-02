@@ -1,10 +1,13 @@
 'use client';
 import { geickoHref } from '@/lib/geicko/link';
 import { isTxHash, txPageHref } from '@/lib/pulsechainExplorer';
+import { blockscoutJson } from '@/lib/blockscout';
+import { isAddressValid } from '@/services/core/errors';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { IconArrowRight, IconReceipt, IconSearch, IconStar, IconStarFilled, IconX } from '@tabler/icons-react';
+import { IconArrowRight, IconCode, IconReceipt, IconSearch, IconStar, IconStarFilled, IconX } from '@tabler/icons-react';
 import type { SearchPair } from '@/lib/screener/types';
 import { dexName, fmtAge, fmtPct, fmtPrice, fmtUsd, pctClass, shortAddr } from './format';
 import { DexGlyph } from './DexGlyph';
@@ -23,6 +26,21 @@ function readRecent(): string[] {
   } catch {
     return [];
   }
+}
+
+// A pasted address may be any contract, not only a traded token, so it is also
+// looked up on PulseChain's explorer — the chain the AI Code Reader reads.
+type ContractLookup =
+  | { status: 'loading' }
+  | { status: 'contract'; name: string | null; verified: boolean }
+  | { status: 'not-contract' }
+  | { status: 'failed' };
+
+async function lookupContract(address: string): Promise<ContractLookup> {
+  const info = await blockscoutJson(`/addresses/${address}`);
+  if (!info) return { status: 'failed' };
+  if (!info.is_contract) return { status: 'not-contract' };
+  return { status: 'contract', name: info.name ?? info.token?.name ?? null, verified: info.is_verified === true };
 }
 
 interface Props {
@@ -118,9 +136,33 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
     router.push(txPageHref(txHash));
   };
 
-  if (!open) return null;
+  const address = isAddressValid(query.trim()) ? query.trim() : null;
+  // Keyed by the address it answers, so a result never shows against a
+  // different (or half-edited) query.
+  const [contract, setContract] = useState<{ address: string; lookup: ContractLookup } | null>(null);
+  useEffect(() => {
+    if (!address) return;
+    let alive = true;
+    setContract({ address, lookup: { status: 'loading' } });
+    lookupContract(address).then((lookup) => {
+      if (alive) setContract({ address, lookup });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [address]);
+  const openCodeReader = () => {
+    if (!address) return;
+    onClose();
+    router.push(`/ai-agent?address=${address}`);
+  };
 
-  return (
+  if (!open || typeof document === 'undefined') return null;
+
+  // Portalled to <body>: the desktop sidebar that hosts one of the search bars
+  // has a backdrop-filter, which would otherwise make it this overlay's
+  // containing block — boxing the modal into the sidebar, under the page.
+  return createPortal(
     <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm" onClick={onClose}>
       <div
         className="mx-auto mt-14 flex max-h-[80vh] w-[min(860px,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-[var(--line-strong)] bg-[var(--panel)] shadow-2xl"
@@ -135,7 +177,7 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
             onKeyDown={(e) => {
               if (e.key === 'Enter') openTx();
             }}
-            placeholder="Search by token name, symbol, address, or transaction hash…"
+            placeholder="Search by token name, symbol, contract address, or transaction hash…"
             className="w-full bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-faint)]"
           />
           <button onClick={onClose} className="text-[var(--text-faint)] transition-colors hover:text-[var(--text)]" aria-label="Close search">
@@ -223,6 +265,9 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
             </div>
           ) : (
             <div>
+              {address && contract?.address === address ? (
+                <ContractRow lookup={contract.lookup} address={address} onOpen={openCodeReader} />
+              ) : null}
               {searching && results.length === 0 ? (
                 <div className="py-10 text-center text-sm text-[var(--text-faint)]">Searching…</div>
               ) : null}
@@ -273,7 +318,44 @@ export default function SearchModal({ open, onClose, watchlist }: Props) {
           </a>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
+  );
+}
+
+function ContractRow({ lookup, address, onOpen }: { lookup: ContractLookup; address: string; onOpen: () => void }) {
+  if (lookup.status !== 'contract') {
+    const note =
+      lookup.status === 'loading'
+        ? 'Checking this address on PulseChain…'
+        : lookup.status === 'not-contract'
+          ? 'No contract at this address on PulseChain, so there is no code to read.'
+          : 'Couldn’t check this address on PulseChain — try again.';
+    return (
+      <div className={`flex items-center gap-3 px-4 py-3 text-xs ${lookup.status === 'failed' ? 'text-red-400' : 'text-[var(--text-faint)]'}`}>
+        <IconCode className="h-5 w-5 shrink-0 opacity-60" />
+        {note}
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--surface)]"
+    >
+      <IconCode className="h-5 w-5 shrink-0 text-orange-400" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-medium text-[var(--text)]">{lookup.name ?? 'Unnamed contract'}</span>
+          <span className="shrink-0 rounded border border-[var(--line-strong)] px-1 text-[9px] uppercase text-[var(--text-faint)]">
+            {lookup.verified ? 'Verified source' : 'Unverified source'}
+          </span>
+        </div>
+        <div className="truncate tabular-nums text-[11px] text-[var(--text-faint)]">Open in AI Code Reader · {address}</div>
+      </div>
+      <IconArrowRight className="h-4 w-4 shrink-0 text-[var(--text-faint)]" />
+    </button>
   );
 }
 
