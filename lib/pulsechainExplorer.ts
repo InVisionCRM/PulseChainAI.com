@@ -37,9 +37,9 @@ export const txPageHref = (hash: string) => `/tx/${hash.trim().toLowerCase()}`;
 
 // ── In-app AI Code Reader ───────────────────────────────────────────────────
 //
-// Search opens the reader on its Code tab: the contract may not be a token, and
-// the reader's default Info tab is built around token data.
-export const codeReaderHref = (address: string) => `/ai-agent?address=${address}&tab=code`;
+// Contracts picked in search open in the code reader (app/code-reader): the
+// source and an AI to ask about it, for any contract, token or not.
+export const codeReaderHref = (address: string) => `/code-reader?address=${address}`;
 
 // Display label for the explorer link text.
 export const PULSECHAIN_EXPLORER_NAME = 'Otterscan';

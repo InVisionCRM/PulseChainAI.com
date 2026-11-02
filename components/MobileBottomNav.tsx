@@ -16,8 +16,6 @@ type NavItem = {
   icon: React.ReactNode;
   external?: boolean;
   isAction?: boolean;
-  /** Route on which an action (no href) shows as the current tab. */
-  activeOn?: string;
 };
 
 export const MobileBottomNav = () => {
@@ -25,7 +23,6 @@ export const MobileBottomNav = () => {
   const watchlist = useScreenerWatchlist();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isCodeSearchOpen, setIsCodeSearchOpen] = useState(false);
   const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
 
   const navItems: NavItem[] = [
@@ -41,12 +38,9 @@ export const MobileBottomNav = () => {
       isAction: true,
     },
     {
-      // The same search, but whatever is picked opens in the AI Code Reader.
       label: "Code",
-      onClick: () => setIsCodeSearchOpen(true),
+      href: "/code-reader",
       icon: <CodeGlyph />,
-      isAction: true,
-      activeOn: "/ai-agent",
     },
     {
       label: "Portfolio",
@@ -78,7 +72,7 @@ export const MobileBottomNav = () => {
             no side padding and the row only 2px, which leaves each one 51px. */}
         <div className="grid grid-cols-7 items-center h-16 px-0.5">
           {navItems.map((item) => {
-            const isActive = pathname === (item.href ?? item.activeOn);
+            const isActive = item.href ? pathname === item.href : false;
             const content = (
               <div
                 className={`flex w-full min-w-0 flex-col items-center justify-center gap-1 py-2 rounded-lg transition-colors ${
@@ -148,12 +142,6 @@ export const MobileBottomNav = () => {
         open={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
         watchlist={watchlist}
-      />
-      <SearchModal
-        open={isCodeSearchOpen}
-        onClose={() => setIsCodeSearchOpen(false)}
-        watchlist={watchlist}
-        forCodeReader
       />
 
       {/* Watchlist Modal — bottom sheet listing starred tokens */}

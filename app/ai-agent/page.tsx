@@ -36,7 +36,7 @@ import { LoadingNote } from '@/components/ui/skeleton';
 
 // Note: API key is handled server-side in API routes
 
-const READER_TABS: string[] = ['code', 'chat', 'info', 'holders', 'liquidity'];
+type TabId = 'code' | 'chat' | 'info' | 'holders' | 'liquidity';
 
 
 
@@ -125,13 +125,10 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
     return () => window.removeEventListener('openAICodeSearch', handleOpenSearch);
   }, []);
 
-  // Handle URL parameters - load token when address is in URL, opening on the
-  // tab named by ?tab= when it is one of the reader's tabs.
+  // Handle URL parameters - load token when address is in URL
   useEffect(() => {
     const addressParam = searchParams.get('address');
     if (addressParam) {
-      const tabParam = searchParams.get('tab');
-      if (tabParam && READER_TABS.includes(tabParam)) setActiveTab(tabParam);
       // Close splash modal when loading from URL
       setContractAddress(addressParam);
       setAddressSet(true);

@@ -258,7 +258,7 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode, readFunctions
           onClick={() => setActiveTab('files')}
           className={`px-4 py-2 text-sm font-medium transition-colors focus:outline-none ${
             activeTab === 'files' 
-              ? 'text-[var(--text)] bg-[var(--surface-2)] border-b-2 border-blue-500' 
+              ? 'text-[var(--text)] bg-[var(--surface-2)] border-b-2 border-[color:var(--code-accent,#3b82f6)]' 
               : 'text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}
         >
@@ -268,7 +268,7 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode, readFunctions
           onClick={() => setActiveTab('functions')}
           className={`px-4 py-2 text-sm font-medium transition-colors focus:outline-none ${
             activeTab === 'functions' 
-              ? 'text-[var(--text)] bg-[var(--surface-2)] border-b-2 border-blue-500' 
+              ? 'text-[var(--text)] bg-[var(--surface-2)] border-b-2 border-[color:var(--code-accent,#3b82f6)]' 
               : 'text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}
         >
@@ -278,7 +278,7 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode, readFunctions
           onClick={() => setActiveTab('addresses')}
           className={`px-4 py-2 text-sm font-medium transition-colors focus:outline-none ${
             activeTab === 'addresses' 
-              ? 'text-[var(--text)] bg-[var(--surface-2)] border-b-2 border-blue-500' 
+              ? 'text-[var(--text)] bg-[var(--surface-2)] border-b-2 border-[color:var(--code-accent,#3b82f6)]' 
               : 'text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}
         >
@@ -291,14 +291,14 @@ const SourceCodeTab: React.FC<SourceCodeTabProps> = ({ sourceCode, readFunctions
         <>
           {/* File Tabs */}
           {sourceFiles.length > 1 && (
-            <div className="flex border-b border-[var(--line)] bg-[var(--panel)]">
+            <div className="flex overflow-x-auto border-b border-[var(--line)] bg-[var(--panel)]">
               {sourceFiles.map((file, index) => (
                 <button
                   key={index}
                   onClick={() => setActiveFileIndex(index)}
                   className={`px-4 py-2 text-sm font-medium transition-colors focus:outline-none ${
                     activeFileIndex === index 
-                      ? 'text-[var(--text)] bg-[var(--surface-2)] border-b-2 border-blue-500' 
+                      ? 'text-[var(--text)] bg-[var(--surface-2)] border-b-2 border-[color:var(--code-accent,#3b82f6)]' 
                       : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                   }`}
                 >

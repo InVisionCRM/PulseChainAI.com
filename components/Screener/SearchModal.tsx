@@ -1,7 +1,7 @@
 'use client';
 import { geickoHref } from '@/lib/geicko/link';
 import { codeReaderHref, isTxHash, txPageHref } from '@/lib/pulsechainExplorer';
-import { blockscoutJson } from '@/lib/blockscout';
+import { lookupContract, type ContractLookup } from '@/lib/blockscout';
 import { isAddressValid } from '@/services/core/errors';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -26,21 +26,6 @@ function readRecent(): string[] {
   } catch {
     return [];
   }
-}
-
-// A pasted address may be any contract, not only a traded token, so it is also
-// looked up on PulseChain's explorer — the chain the AI Code Reader reads.
-type ContractLookup =
-  | { status: 'loading' }
-  | { status: 'contract'; name: string | null; verified: boolean }
-  | { status: 'not-contract' }
-  | { status: 'failed' };
-
-async function lookupContract(address: string): Promise<ContractLookup> {
-  const info = await blockscoutJson(`/addresses/${address}`);
-  if (!info) return { status: 'failed' };
-  if (!info.is_contract) return { status: 'not-contract' };
-  return { status: 'contract', name: info.name ?? info.token?.name ?? null, verified: info.is_verified === true };
 }
 
 interface Props {
@@ -152,6 +137,8 @@ export default function SearchModal({ open, onClose, watchlist, forCodeReader = 
     router.push(txPageHref(txHash));
   };
 
+  // A pasted address may be any contract, not only a traded token, so it is also
+  // looked up on PulseChain's explorer — the chain the AI Code Reader reads.
   const address = isAddressValid(query.trim()) ? query.trim() : null;
   // Keyed by the address it answers, so a result never shows against a
   // different (or half-edited) query.
