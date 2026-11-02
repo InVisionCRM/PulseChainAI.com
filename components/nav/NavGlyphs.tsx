@@ -85,3 +85,15 @@ export function CardsGlyph({ href, className, active }: GlyphProps) {
     </svg>
   );
 }
+
+/** Code brackets with a slash — the same `</>` the search's code-reader row uses. */
+export function CodeGlyph({ href = '/ai-agent', className, active }: GlyphProps) {
+  const on = useActive(href, active);
+  return (
+    <svg viewBox="0 0 24 24" className={`${BOX} ${tone(on)} ${className || ''}`} aria-hidden {...STROKE}>
+      <path d="M7.5 7.5 3 12l4.5 4.5" />
+      <path d="M16.5 7.5 21 12l-4.5 4.5" />
+      <path d="M14 4.5 10 19.5" />
+    </svg>
+  );
+}

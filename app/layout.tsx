@@ -26,6 +26,7 @@ import { PullChainOverlay } from "@/components/theme/PullChainOverlay";
 import { IntroSplash } from "@/components/IntroSplash";
 import DevlogModal from "@/components/devlog/DevlogModal";
 import DevlogNavButton from "@/components/devlog/DevlogNavButton";
+import CodeReaderNavButton from "@/components/nav/CodeReaderNavButton";
 import { HomeGlyph, WalletGlyph, CardsGlyph } from "@/components/nav/NavGlyphs";
 
 const inter = Inter({
@@ -218,6 +219,10 @@ export default function RootLayout({
                     {primaryLinks.map((link, idx) => (
                       <SidebarLink key={idx} link={link} />
                     ))}
+                    {/* Opens the search in code-reader mode rather than
+                        navigating, so like the devlog it sits with the links
+                        but isn't one. */}
+                    <CodeReaderNavButton />
                     {/* Opens the devlog rather than navigating, so it sits with
                         the links but isn't one. */}
                     <DevlogNavButton />

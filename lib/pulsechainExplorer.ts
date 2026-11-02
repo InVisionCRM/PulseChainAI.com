@@ -35,6 +35,12 @@ const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 export const isTxHash = (s: string) => TX_HASH_RE.test(s.trim());
 export const txPageHref = (hash: string) => `/tx/${hash.trim().toLowerCase()}`;
 
+// ── In-app AI Code Reader ───────────────────────────────────────────────────
+//
+// Search opens the reader on its Code tab: the contract may not be a token, and
+// the reader's default Info tab is built around token data.
+export const codeReaderHref = (address: string) => `/ai-agent?address=${address}&tab=code`;
+
 // Display label for the explorer link text.
 export const PULSECHAIN_EXPLORER_NAME = 'Otterscan';
 
