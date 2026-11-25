@@ -50,10 +50,9 @@ flowchart LR
 
     subgraph PulseRPC["PulseChain RPC pool — first responder wins"]
       direction TB
-      P1["rpc-pulsechain.g4mm4.io"]:::rpc
       P2["rpc.pulsechainrpc.com"]:::rpc
       P3["pulsechain-rpc.publicnode.com"]:::rpc
-      P1 -.->|fail| P2 -.->|fail| P3
+      P2 -.->|fail| P3
     end
 
     subgraph EthRPC["Ethereum RPC pool — first responder wins"]
@@ -183,10 +182,9 @@ flowchart TB
 
     subgraph RpcPool["PulseChain RPC pool (per call)"]
       direction LR
-      Try1["g4mm4"]:::rpc
       Try2["rpc.pulsechainrpc.com"]:::rpc
       Try3["publicnode"]:::rpc
-      Try1 -.-> Try2 -.-> Try3
+      Try2 -.-> Try3
     end
 
     OnChainState --- RpcPool

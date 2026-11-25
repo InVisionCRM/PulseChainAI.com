@@ -15,7 +15,7 @@ import { RPC_URLS } from '@/lib/portfolio/evmRpc';
  * screener refresh hostage to one node: `latestBlock()` is the first await in
  * `runRefresh`, so when that endpoint went down the refresh threw before it
  * reached the enrichment half — no discovery, no market refresh, and no
- * re-check of previously delisted pairs. g4mm4's node going dark took the
+ * re-check of previously delisted pairs. One node going dark took the
  * PulseChain screener with it exactly that way.
  *
  * The pool is the same curated list the portfolio routes already use
@@ -34,7 +34,7 @@ function allEndpoints(): string[] {
  * Endpoints that failed to answer at all during this process.
  *
  * Failover alone is not enough: a dead endpoint costs a full timeout on *every*
- * call, and `runRefresh` works to a 45s budget. Measured against g4mm4 while it
+ * call, and `runRefresh` works to a 45s budget. Measured against a node while it
  * was down, one dead endpoint at the head of the list turned a 0.5s
  * `latestBlock()` into 20s — enough to spend the entire budget before any pair
  * was refreshed. Remembering it for the rest of the run pays that cost once.

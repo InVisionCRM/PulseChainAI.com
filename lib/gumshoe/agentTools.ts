@@ -29,6 +29,10 @@ const KNOWN_TOKENS: Record<string, string> = {
   PLS: '0xa1077a294dde1b09bb078844df40758a5d0f9a27',
 };
 
+/** What the funding-graph tools say when the funding node couldn't be read. */
+const FUNDING_UNREAD =
+  'Funding data could not be read right now (the node that serves it did not answer), so the answer is unknown — not "no connection". Try again shortly.';
+
 async function getJson(url: string, init?: RequestInit): Promise<any | null> {
   try {
     const r = await fetch(url, { ...init, headers: { accept: 'application/json', ...(init?.headers || {}) } });
@@ -297,7 +301,8 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
       const qs = new URLSearchParams({ token, scope, network: 'pulsechain' });
       if (target) qs.set('target', target);
       const d = await getJson(`${o}/api/geicko/connections?${qs.toString()}`);
-      if (!d || d.supported === false) return { error: 'Connection analysis is PulseChain-only.' };
+      if (!d) return { error: FUNDING_UNREAD };
+      if (d.supported === false) return { error: 'Connection analysis is PulseChain-only.' };
       if (!d.hasData) return { note: `No ${scope.replace('_', ' ')} found to analyze for this token.` };
       return {
         scope: d.scope,
@@ -308,6 +313,7 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
         clusterCount: d.clusterCount,
         walletsInClusters: d.walletsInClusters,
         clusters: d.clusters,
+        walletsUnresolved: d.walletsUnresolved, // funding unreadable: unknown, not unconnected
         note: d.note,
         interpretationHint:
           'connectedToTarget.count is how many of the analyzed wallets are funding-linked to the target. Clusters group wallets that share a funder (likely one operator); a cluster with isTokenCreator=true means the creator funded those wallets.',
@@ -387,10 +393,11 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address: wallet, chain: 'pulsechain' }),
       });
-      const steps: any[] = d?.trace?.steps ?? [];
+      if (!d?.trace) return { error: FUNDING_UNREAD };
+      const steps: any[] = d.trace.steps ?? [];
       return {
         wallet: short(wallet),
-        reachedOrigin: d?.trace?.reachedOrigin ?? null,
+        reachedOrigin: d.trace.reachedOrigin ?? null,
         hops: steps.length ? steps.length - 1 : 0,
         chain: steps.map((s: any, i: number) => ({
           step: i,
@@ -476,7 +483,8 @@ export async function executeTool(name: string, args: any, ctx: ToolContext): Pr
       if (!ADDR_RX.test(a) || !ADDR_RX.test(b)) return { error: 'Two valid wallet addresses are required.' };
       if (a === b) return { error: 'The two wallets are the same address.' };
       const d = await getJson(`${o}/api/portfolio/wallet-link?a=${a}&b=${b}&network=pulsechain`);
-      if (!d || d.supported === false) return { error: 'Wallet-link analysis is PulseChain-only.' };
+      if (!d) return { error: FUNDING_UNREAD };
+      if (d.supported === false) return { error: 'Wallet-link analysis is PulseChain-only.' };
       return {
         connected: d.connected,
         relationship: d.relationship,

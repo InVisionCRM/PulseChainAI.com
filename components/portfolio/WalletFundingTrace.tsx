@@ -71,10 +71,13 @@ const nodeColor = (s: Step, isSelf: boolean) =>
 export function WalletFundingTrace({ address, chain }: { address: string; chain: ChainId }) {
   const [trace, setTrace] = useState<Trace | null>(null);
   const [loading, setLoading] = useState(true);
+  // A failed read is not an empty trail: say which one it is.
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
+    setFailed(false);
     fetch('/api/portfolio/funding-trace', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -84,11 +87,15 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
       .then((j) => {
         if (alive) {
           setTrace(j?.trace ?? null);
+          setFailed(!j?.trace);
           setLoading(false);
         }
       })
       .catch(() => {
-        if (alive) setLoading(false);
+        if (alive) {
+          setFailed(true);
+          setLoading(false);
+        }
       });
     return () => {
       alive = false;
@@ -100,6 +107,13 @@ export function WalletFundingTrace({ address, chain }: { address: string; chain:
       <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-[11px] text-[var(--text-faint)]">
         <IconRefresh className="mr-1 inline h-3.5 w-3.5 animate-spin" />
         Tracing source of funds…
+      </div>
+    );
+  }
+  if (failed) {
+    return (
+      <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-[11px] text-[var(--text-faint)]">
+        Couldn&apos;t load the funding trail right now. Try again in a moment.
       </div>
     );
   }

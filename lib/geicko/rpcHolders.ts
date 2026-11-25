@@ -10,14 +10,14 @@
 // can't finish inside the budget (mega-tokens, pre-fork tokens with millions of
 // events) we say so rather than return wrong numbers.
 //
-// Only archive RPCs that serve historical logs are usable here. g4mm4 is the
-// primary (a full archive node, user-selected); the other is failover.
-// publicnode is deliberately excluded — it archive-gates `eth_getLogs` behind a
-// paid token (HTTP 403).
+// Only RPCs that serve historical logs are usable here. Both below served a
+// 10,000-block Transfer scan from block 20,000,000 (318,482 logs) on 2026-11-25;
+// publicnode used to archive-gate `eth_getLogs` behind a paid token and no
+// longer does. pls-rpc369.xyz is not listed: it caps a scan at 1,000 blocks.
 
 const LOG_RPCS = [
-  'https://rpc-pulsechain.g4mm4.io',
   'https://rpc.pulsechainrpc.com',
+  'https://pulsechain-rpc.publicnode.com',
 ];
 
 // keccak256("Transfer(address,address,uint256)")
@@ -26,8 +26,9 @@ const TRANSFER_TOPIC =
 const ZERO_ADDR = '0x0000000000000000000000000000000000000000';
 
 // Adaptive-walk tuning. Chunks start wide and halve whenever a call errors or a
-// node caps the range; g4mm4 handles ~50k-log responses but times out around
-// 100k blocks on dense tokens, so we shrink on failure rather than guess.
+// node caps the range. Measured 2026-11-25: both nodes return a mid-size token's
+// 50k blocks in 2–4 s, and both time out on HEX at 50k, so we shrink on failure
+// rather than guess.
 const INITIAL_CHUNK = 50_000; // blocks per eth_getLogs
 const MIN_CHUNK = 1_000;
 const CALL_TIMEOUT_MS = 30_000;

@@ -4,13 +4,14 @@
 //
 // Balances aren't stored per block, so "what did this wallet hold yesterday" has
 // two possible answers. `balanceOf` at a historical block needs ARCHIVE STATE,
-// which measurement showed only one node in the pool serves (g4mm4; the others
-// answer "historical state not available") — a single point of failure. The
-// other is to net the token's `Transfer` logs over the window and subtract:
+// which measurement showed only one node in the pool serves (the archive node;
+// the others answer "historical state not available") — a single point of
+// failure. The other is to net the token's `Transfer` logs over the window and
+// subtract:
 //
 //     balance_24h_ago = balance_now − net_change_24h
 //
-// That needs only archive LOGS, which every node in the pool serves, and it is
+// That needs only archive LOGS, which both of rpcHolders' log nodes serve, and it is
 // venue-agnostic: a token emits `Transfer` whichever DEX the trade happened on,
 // so this sees 9mm and LibertySwap activity that the PulseX-backed buy/sell
 // figures miss entirely.

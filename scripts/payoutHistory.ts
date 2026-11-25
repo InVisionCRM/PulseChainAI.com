@@ -15,24 +15,10 @@ import { HEX_LAUNCH_TS } from '@/lib/hex/hexDay';
 import { readPayoutDays } from '@/lib/hex/payoutDays';
 import { fetchPayoutData } from '@/lib/hex/roadToZero';
 import { KEEPER_ADDRESS } from '@/lib/hex/rescueFeed';
-import { getBlockTimestamp, getFinalizedBlockNumber } from '@/lib/portfolio/evmRpc';
+import { firstBlockAtOrAfter, getFinalizedBlockNumber } from '@/lib/portfolio/evmRpc';
 
 const OUT = path.join(process.cwd(), 'lib/hex/payoutHistory.json');
 const DAYS = 365;
-
-/** First block mined at or after `ts` (unix seconds), by binary search. */
-async function firstBlockAtOrAfter(ts: number, head: number): Promise<number> {
-  let lo = 0;
-  let hi = head;
-  while (lo < hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    const t = await getBlockTimestamp('pulsechain', mid);
-    if (t == null) throw new Error(`No node returned block ${mid}`);
-    if (t >= ts) hi = mid;
-    else lo = mid + 1;
-  }
-  return lo;
-}
 
 (async () => {
   const started = Date.now();
@@ -41,7 +27,7 @@ async function firstBlockAtOrAfter(ts: number, head: number): Promise<number> {
   const first = lastClosed - DAYS + 1;
   // The day before `first` is closed by the first staking transaction of day
   // `first`, so its DailyDataUpdate is at or after that day's first block.
-  const fromBlock = await firstBlockAtOrAfter(HEX_LAUNCH_TS + first * 86_400, head);
+  const fromBlock = await firstBlockAtOrAfter('pulsechain', HEX_LAUNCH_TS + first * 86_400, head);
   console.log(`days ${first}–${lastClosed}, blocks ${fromBlock}–${head}`);
 
   const days = await readPayoutDays(first - 1, fromBlock, head);

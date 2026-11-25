@@ -225,7 +225,6 @@ const PUMP_TIRES_ADDRESSES = new Set([
 // endpoint used here) has been timing out for stretches and was the
 // reason the geicko sidebar took 10+ seconds to load owner() data.
 const PLC_RPC_URLS = [
-  'https://rpc-pulsechain.g4mm4.io',
   'https://rpc.pulsechainrpc.com',
   'https://pulsechain-rpc.publicnode.com',
 ];
