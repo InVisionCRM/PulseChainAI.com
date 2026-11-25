@@ -36,7 +36,9 @@ const STAKE_END_TOPIC = '0x72d9c5a7ab13846e08d9c838f9e866a1bb4a66a2fd3ba3c9e7da3
 const DAILY_DATA_UPDATE_TOPIC = '0xb8d6eb541ded1720cc657b719f57abcb1fe4711cb7ead82751b135f5d94bc944';
 const GLOBAL_INFO = keccak256(toUtf8Bytes('globalInfo()')).slice(0, 10);
 
-/** eth_getLogs span every pool node accepts (g4mm4 caps at 10,000 blocks). */
+/** eth_getLogs span the pool's log nodes accept: pulsechainrpc and publicnode both
+ *  served 10,000-block spans (2026-11-25). pls-rpc369.xyz, last in the pool, caps
+ *  a scan at 1,000 blocks, so it can't stand in for them here. */
 const LOG_SPAN = 10_000;
 const LOG_WORKERS = 8;
 const CHECK_WORKERS = 4;

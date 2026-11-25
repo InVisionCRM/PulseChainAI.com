@@ -3,8 +3,8 @@
 //
 // The "original funder" — the first address that sent this wallet native coin
 // (the gas that bootstrapped it). The lookup lives in lib/walletGraph/funding.ts
-// (g4mm4 Otterscan, earliest-tx scan, cached). PulseChain only; Ethereum
-// degrades to "unsupported".
+// (Otterscan earliest-tx scan, cached). PulseChain only; Ethereum degrades to
+// "unsupported". 503 when the node can't be read — never a blank funder.
 
 import { NextResponse } from 'next/server';
 import type { ChainId } from '@/services';
@@ -29,6 +29,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ funder: { supported: false } });
   }
 
-  const info: FundingInfo = await firstFunder(address);
+  let info: FundingInfo;
+  try {
+    info = await firstFunder(address);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Funding data is unavailable' }, { status: 503 });
+  }
   return NextResponse.json({ funder: { supported: true, ...info } });
 }

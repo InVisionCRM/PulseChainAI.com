@@ -1,5 +1,6 @@
 // POST /api/portfolio/funding-trace  { address, chain, maxHops? }
-// Returns: { trace: { supported, reachedOrigin, steps: Step[] } }
+// Returns: { trace: { supported, reachedOrigin, steps: Step[] } }, or 503
+// { error } when a hop's funder can't be read.
 //
 // Walks the funding ancestry: who funded the wallet, who funded THEM, and so on
 // — until it reaches a known origin (exchange / LP locker / OFAC), runs into a
@@ -12,7 +13,7 @@
 
 import { NextResponse } from 'next/server';
 import type { ChainId } from '@/services';
-import { firstFunder } from '@/lib/walletGraph/funding';
+import { firstFunder, type FundingInfo } from '@/lib/walletGraph/funding';
 import { getKnownAddress, type AddressCategory } from '@/lib/gumshoe/address-labels';
 import { attributePulsechainBlock } from '@/lib/pulsechainFork';
 
@@ -64,7 +65,14 @@ export async function POST(req: Request) {
   let current = address;
 
   for (let i = 0; i < maxHops; i++) {
-    const info = await firstFunder(current);
+    let info: FundingInfo;
+    try {
+      info = await firstFunder(current);
+    } catch (err) {
+      // An unread hop is not the end of the trail; saying it was would invent
+      // an origin. Report the failure instead.
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Funding data is unavailable' }, { status: 503 });
+    }
     if (!info.funder) break;
 
     const att = attributePulsechainBlock(info.block);

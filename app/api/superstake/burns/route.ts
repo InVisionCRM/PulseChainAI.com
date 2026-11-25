@@ -12,15 +12,23 @@
 // snapshot records as `burned`.
 //
 // Two upstreams, both free:
-//   • Blockscout getblocknobytime — cycle timestamp -> block number
-//   • an archive RPC              — balanceOf(dead) at that block
+//   • the RPC pool    — cycle timestamp -> block number, by binary search over
+//                       block headers (every node keeps those)
+//   • an archive RPC  — balanceOf(dead) at that block
 //
-// Most of the public PulseChain pool prunes state and answers "historical
-// state is not available"; g4mm4 serves it. The pool below is tried in order
-// and the first node that returns state wins, so this doesn't hard-depend on
-// one host.
+// The block lookup used to be Blockscout's getblocknobytime. On 2026-11-25 it
+// hung 60 s and then answered 502 for single cycles on repeated tries, which
+// alone ran the route past its 60 s limit. The binary search picked the same
+// block as Blockscout for all 17 cycles Blockscout did answer that day.
+//
+// The rest of the public PulseChain pool prunes state (it keeps ~128 blocks)
+// and answers "historical state is not available", so only an archive node can
+// answer. pls-rpc369.xyz is the one free archive node that served every
+// historical read in testing (2026-11-25); listing pruned nodes after it would
+// only add failed calls, since every boundary here is far older than 128 blocks.
 
 import { NextResponse } from 'next/server';
+import { firstBlockAtOrAfter, getBlockNumber } from '@/lib/portfolio/evmRpc';
 import snapshot from '@/lib/superstake/snapshot.json';
 
 const PSSH = '0xb5c4ecef450fd36d0eba1420f6a19dbfbee5292e';
@@ -33,13 +41,11 @@ const PSSH_DECIMALS = 1e9;
 /** Fixed at mint; supply + burned always adds back to this. */
 const TOTAL_SUPPLY = 55_550_000;
 
-const BLOCKSCOUT = 'https://api.scan.pulsechain.com/api';
 
-/** Archive-capable first — pruned nodes answer everything else but not old state. */
-const ARCHIVE_RPCS = [
-  'https://rpc-pulsechain.g4mm4.io',
-  'https://rpc.pulsechainrpc.com',
-];
+/** Archive nodes only — pruned nodes answer everything else but not old state. */
+const ARCHIVE_RPCS = ['https://pls-rpc369.xyz'];
+/** One read. A hung node fails the read rather than stalling the whole route. */
+const ARCHIVE_TIMEOUT_MS = 10_000;
 
 // Historical burns never change, so this only really refreshes to pick up the
 // cycle now running. A cold build is ~36 upstream calls.
@@ -84,28 +90,9 @@ async function mapLimit<T, R>(
   return out;
 }
 
-async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
-  let last: unknown;
-  for (let k = 0; k < tries; k++) {
-    try {
-      return await fn();
-    } catch (e) {
-      last = e;
-      await new Promise((r) => setTimeout(r, 400 * (k + 1)));
-    }
-  }
-  throw last;
-}
-
-async function blockAtTimestamp(ts: number): Promise<number | null> {
-  const url = `${BLOCKSCOUT}?module=block&action=getblocknobytime&timestamp=${ts}&closest=before`;
-  const json = await withRetry(async () => {
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (!res.ok) throw new Error(`blockscout ${res.status}`);
-    return (await res.json()) as { result?: { blockNumber?: string } };
-  });
-  const n = Number(json?.result?.blockNumber);
-  return Number.isFinite(n) && n > 0 ? n : null;
+/** The block a cycle opened in: the last block mined at or before its timestamp. */
+async function blockAtTimestamp(ts: number, head: number): Promise<number> {
+  return (await firstBlockAtOrAfter('pulsechain', ts + 1, head)) - 1;
 }
 
 /**
@@ -128,6 +115,7 @@ async function deadBalanceAt(block: number): Promise<number | null> {
             method: 'eth_call',
             params: [{ to: PSSH, data: `${BALANCE_OF}${DEAD_TOPIC}` }, `0x${block.toString(16)}`],
           }),
+          signal: AbortSignal.timeout(ARCHIVE_TIMEOUT_MS),
         });
         if (!res.ok) continue;
         const json = (await res.json()) as { result?: string; error?: unknown };
@@ -161,7 +149,9 @@ export async function GET() {
     // that reads as "no burn that cycle" rather than as a failure. Small
     // batches cost a few seconds on a cold build and the result is cached for
     // half a day.
-    const blocks = await mapLimit(cycles, 6, (c) => blockAtTimestamp(c.ts).catch(() => null));
+    const head = await getBlockNumber('pulsechain');
+    if (head == null) throw new Error('No PulseChain node answered the latest block');
+    const blocks = await mapLimit(cycles, 6, (c) => blockAtTimestamp(c.ts, head).catch(() => null));
     // One at a time. The archive node refuses a share of the reads under any
     // parallelism — at six-wide roughly one boundary per run, at three-wide
     // two — and each refusal punches a hole that reads as "no burn that cycle"

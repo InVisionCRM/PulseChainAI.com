@@ -13,6 +13,7 @@ import {
 import { looksLikeSpamRaw } from '@/lib/portfolio/tokenVisibility';
 import { labelFor, protocolFor } from '@/lib/portfolio/protocols';
 import { fetchUsdPrices } from '@/lib/portfolio/dexPrices';
+import { RPC_URLS, otterscan } from '@/lib/portfolio/evmRpc';
 
 // DeBank-style decoded transaction history for a wallet.
 //
@@ -383,12 +384,12 @@ async function fetchViaBlockscout(
 // ── Otterscan path — PulseChain primary ─────────────────────────────────
 //
 // PulseChain's Blockscout host is unreliable, so we read history straight
-// from g4mm4's Erigon archive node via the Otterscan ots_* namespace. Its
-// address index covers sender, receiver, AND log participants, so inbound
-// ERC-20 receives are included (verified). We decode receipt logs into flows
-// and resolve token symbol/decimals via eth_call (cached module-wide).
+// from an Erigon node via the Otterscan ots_* namespace (lib/portfolio/evmRpc.ts
+// `otterscan`, which retries across that node's backends). Its address index
+// covers sender, receiver, AND log participants, so inbound ERC-20 receives
+// are included (verified). We decode receipt logs into flows and resolve token
+// symbol/decimals via eth_call on the regular pool (cached module-wide).
 
-const OTTERSCAN_RPC = 'https://rpc-pulsechain.g4mm4.io';
 const OTS_PAGE_SIZE = 25;
 const RPC_TIMEOUT_MS = 12_000;
 const TRANSFER_TOPIC =
@@ -501,60 +502,38 @@ const hexToBig = (h: unknown): bigint => {
   }
 };
 
-async function rpc(method: string, params: unknown[]): Promise<any | null> {
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), RPC_TIMEOUT_MS);
-  try {
-    const r = await fetch(OTTERSCAN_RPC, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-      signal: controller.signal,
-    });
-    if (!r.ok) return null;
-    const d: any = await r.json();
-    return d?.error || d?.result === undefined ? null : d.result;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(t);
-  }
-}
-
+// Plain eth_calls, so they go to the regular pool, not the Otterscan node
+// (which refuses batches without an API key). First node that answers wins.
 async function rpcBatch(
   calls: { method: string; params: unknown[] }[],
 ): Promise<(any | null)[]> {
   if (calls.length === 0) return [];
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), RPC_TIMEOUT_MS);
-  try {
-    const body = calls.map((c, i) => ({
-      jsonrpc: '2.0',
-      id: i,
-      method: c.method,
-      params: c.params,
-    }));
-    const r = await fetch(OTTERSCAN_RPC, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    if (!r.ok) return calls.map(() => null);
-    const arr: any = await r.json();
-    if (!Array.isArray(arr)) return calls.map(() => null);
-    const out: (any | null)[] = new Array(calls.length).fill(null);
-    for (const x of arr) {
-      if (typeof x?.id === 'number' && x.id < out.length) {
-        out[x.id] = x?.error || x?.result === undefined ? null : x.result;
+  const body = JSON.stringify(
+    calls.map((c, i) => ({ jsonrpc: '2.0', id: i, method: c.method, params: c.params })),
+  );
+  for (const url of RPC_URLS.pulsechain) {
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
+      });
+      if (!r.ok) continue;
+      const arr: any = await r.json();
+      if (!Array.isArray(arr)) continue;
+      const out: (any | null)[] = new Array(calls.length).fill(null);
+      for (const x of arr) {
+        if (typeof x?.id === 'number' && x.id < out.length) {
+          out[x.id] = x?.error || x?.result === undefined ? null : x.result;
+        }
       }
+      return out;
+    } catch {
+      /* next node */
     }
-    return out;
-  } catch {
-    return calls.map(() => null);
-  } finally {
-    clearTimeout(t);
   }
+  return calls.map(() => null);
 }
 
 // Decode a symbol() return — ABI dynamic string, or legacy bytes32.
@@ -743,7 +722,7 @@ async function fetchViaOtterscan(
   wallet: string,
   startBlock: number | null,
 ): Promise<PathResult | null> {
-  const res = await rpc('ots_searchTransactionsBefore', [
+  const res = await otterscan<{ txs?: any[]; receipts?: any[] }>('pulsechain', 'ots_searchTransactionsBefore', [
     wallet,
     startBlock ?? 0,
     OTS_PAGE_SIZE,
@@ -841,7 +820,7 @@ export async function POST(req: NextRequest) {
 
   let result: PathResult;
   if (chain === 'pulsechain' && cursor?.source !== 'blockscout') {
-    // PulseChain primary: Otterscan on g4mm4's Erigon node. Fall back to
+    // PulseChain primary: the Otterscan node. Fall back to
     // Blockscout (fresh first page) only if the node is unreachable.
     const ots = await fetchViaOtterscan(wallet, cursor?.block ?? null);
     result = ots ?? (await fetchViaBlockscout('pulsechain', wallet, null));

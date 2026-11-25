@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { firstFunder } from '@/lib/walletGraph/funding';
+import { firstFunder, type FundingInfo } from '@/lib/walletGraph/funding';
 import { getKnownAddress } from '@/lib/gumshoe/address-labels';
 import { cached } from '@/lib/geicko/serverCache';
 
@@ -40,11 +40,22 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
 
 const short = (a?: string | null) => (a && a.length > 10 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a || null);
 
+/** A wallet's funder, or null when the funding node couldn't be read for it. */
+async function readFunder(w: string): Promise<FundingInfo | null> {
+  try {
+    return await firstFunder(w);
+  } catch {
+    return null;
+  }
+}
+
 async function build(origin: string, token: string, scope: string, targetArg: string) {
-  // Forensics gives us both the first-buyer list and the creator identity.
-  const f = await fetch(`${origin}/api/geicko/forensics?token=${token}&network=pulsechain`, { headers: { accept: 'application/json' } })
+  // Forensics gives us both the first-buyer list and the creator identity. It is
+  // the slow input (25–45 s cold, measured 2026-11-25), so it runs alongside the
+  // holder list and the funder lookups rather than ahead of them; only the
+  // first-buyers scope needs it before it can start.
+  const forensics = fetch(`${origin}/api/geicko/forensics?token=${token}&network=pulsechain`, { headers: { accept: 'application/json' } })
     .then((r) => (r.ok ? r.json() : null)).catch(() => null);
-  const creator: string | null = (f?.creator?.address ?? '').toLowerCase() || null;
 
   // Resolve the wallet set.
   let wallets: string[] = [];
@@ -62,21 +73,36 @@ async function build(origin: string, token: string, scope: string, targetArg: st
       .filter((a: string) => ADDR_RX.test(a))
       .slice(0, MAX_HOLDERS);
   } else {
-    wallets = (f?.firstBuyers?.buyers ?? [])
+    wallets = ((await forensics)?.firstBuyers?.buyers ?? [])
       .map((b: any) => (b.wallet ?? '').toLowerCase())
       .filter((a: string) => ADDR_RX.test(a))
       .slice(0, MAX_BUYERS);
   }
   if (!wallets.length) return { supported: true, hasData: false, reason: `no-${scope}` };
 
+  // Funding source for every wallet in the set, started now so it overlaps
+  // forensics. A wallet the node can't be read for is left out and reported —
+  // never counted as unfunded, which would hide a connection. (On 2026-11-25
+  // one DECI holder failed every try on the ascending search while the rest
+  // answered, so one bad wallet must not sink the whole analysis.)
+  const fundersRead = mapLimit(wallets, 8, async (w) => ({ w, fund: await readFunder(w) }));
+
+  const f = await forensics;
+  const creator: string | null = (f?.creator?.address ?? '').toLowerCase() || null;
+
   // Resolve the target (if any).
   let target: string | null = null;
   if (targetArg === 'creator') target = creator;
   else if (ADDR_RX.test(targetArg)) target = targetArg.toLowerCase();
-
-  // Funding source for every wallet in the set (+ the target).
-  const funders = await mapLimit(wallets, 8, async (w) => ({ w, fund: await firstFunder(w) }));
+  // Everything below is measured against the target, so an unread target fails the run.
   const targetFund = target ? await firstFunder(target) : null;
+
+  const read = await fundersRead;
+  const unresolved = read.filter((x) => x.fund == null).map((x) => x.w);
+  if (unresolved.length === wallets.length) {
+    throw new Error('Funding data is unavailable right now: the Otterscan node did not answer for any wallet');
+  }
+  const funders = read.filter((x): x is { w: string; fund: FundingInfo } => x.fund != null);
 
   // Cluster the set by shared ordinary funder.
   const clusters = new Map<string, { funder: string; label: string | null; wallets: string[] }>();
@@ -121,9 +147,13 @@ async function build(origin: string, token: string, scope: string, targetArg: st
       count: g.wallets.length,
       wallets: g.wallets.map(short),
     })),
-    note: scope === 'holders'
+    /** Wallets whose funding couldn't be read — left out, not counted as unconnected. */
+    walletsUnresolved: unresolved.length,
+    unresolvedWallets: unresolved.map(short),
+    note: (scope === 'holders'
       ? `Analyzed the ${wallets.length} real wallets among the token's top ${totalHolders} holders${contractCount ? ` (${contractCount} are LP pools/contracts, excluded)` : ''}. "Connected" means a native-coin funding link.`
-      : `Analyzed the token's ${wallets.length} earliest buyers. "Connected" means a native-coin funding link.`,
+      : `Analyzed the token's ${wallets.length} earliest buyers. "Connected" means a native-coin funding link.`)
+      + (unresolved.length ? ` Funding couldn't be read for ${unresolved.length} of them; they are left out, so their connections are unknown.` : ''),
   };
 }
 

@@ -1,8 +1,10 @@
 // PulseChain is a full fork of Ethereum at block 17233000 (2023-05-10, ~22:52
 // UTC). Every block at or below the fork point is inherited Ethereum history:
 // those transactions actually happened on Ethereum mainnet, where the native
-// asset was ETH — not PLS. The g4mm4 PulseChain node serves this entire pre-fork
-// chain, so a wallet's earliest funding can legitimately date back to 2015. We
+// asset was ETH — not PLS. PulseChain's nodes serve this entire pre-fork chain
+// (the Otterscan index returns a 2015 transaction at block 302,086 for a wallet
+// active then, verified 2026-11-25), so a wallet's earliest funding can
+// legitimately date back to 2015. We
 // use the block height to attribute each transfer to the chain/asset that was
 // really in play, so a 2015 transfer reads as ETH on Ethereum rather than PLS.
 

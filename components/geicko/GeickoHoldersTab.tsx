@@ -179,6 +179,8 @@ interface ClustersState {
   status: 'loading' | 'error' | 'done';
   /** shortened wallet → { funder, count } for every clustered wallet */
   byWallet: Map<string, { funder: string; label: string | null; count: number }>;
+  /** shortened wallets whose funding couldn't be read — unknown, not unclustered */
+  unread: Set<string>;
 }
 
 export interface GeickoHoldersTabProps {
@@ -310,7 +312,7 @@ export default function GeickoHoldersTab({
   // lazily on the first expand and each row shows it as its own async slot.
   const fetchClusters = () => {
     if (clusters) return;
-    setClusters({ status: 'loading', byWallet: new Map() });
+    setClusters({ status: 'loading', byWallet: new Map(), unread: new Set() });
     fetch(`/api/geicko/connections?token=${tokenAddress}&scope=holders&network=pulsechain`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -324,9 +326,12 @@ export default function GeickoHoldersTab({
         // A successful `hasData:false` response means there were no real
         // (non-contract) wallets to analyze — a legitimate empty state, which
         // ClusterLine renders as "Not in any shared-funder cluster…".
-        setClusters({ status: d == null ? 'error' : 'done', byWallet });
+        const unread = new Set<string>(
+          (d?.unresolvedWallets ?? []).filter((w: unknown): w is string => typeof w === 'string').map((w: string) => w.toLowerCase()),
+        );
+        setClusters({ status: d == null ? 'error' : 'done', byWallet, unread });
       })
-      .catch(() => setClusters({ status: 'error', byWallet: new Map() }));
+      .catch(() => setClusters({ status: 'error', byWallet: new Map(), unread: new Set() }));
   };
 
   const traceOrigin = (addr: string) => {
@@ -1048,6 +1053,7 @@ function HolderDetailPanel({
   const clusterHit = clusters && clusters.status === 'done'
     ? clusters.byWallet.get(shortAddr(addrLower)) ?? null
     : null;
+  const clusterUnread = !!clusters && clusters.status === 'done' && clusters.unread.has(shortAddr(addrLower));
 
   if (!detail.hasData) {
     return (
@@ -1061,7 +1067,7 @@ function HolderDetailPanel({
         </div>
         <Band>
           <OriginSection origin={origin} onTrace={onTrace} tokenSymbol={tokenSymbol} />
-          <ClusterLine clusters={clusters} hit={clusterHit} />
+          <ClusterLine clusters={clusters} hit={clusterHit} unread={clusterUnread} />
         </Band>
       </div>
     );
@@ -1209,7 +1215,7 @@ function HolderDetailPanel({
 
       <Band>
         <OriginSection origin={origin} onTrace={onTrace} tokenSymbol={tokenSymbol} />
-        <ClusterLine clusters={clusters} hit={clusterHit} />
+        <ClusterLine clusters={clusters} hit={clusterHit} unread={clusterUnread} />
         {detail.note && (
           <p className="mt-1.5 text-[9px] leading-snug text-[var(--text-faint)]">{detail.note}</p>
         )}
@@ -1219,10 +1225,12 @@ function HolderDetailPanel({
 }
 
 function ClusterLine({
-  clusters, hit,
+  clusters, hit, unread,
 }: {
   clusters: ClustersState | null;
   hit: { funder: string; label: string | null; count: number } | null;
+  /** This wallet's funding couldn't be read, so its cluster is unknown. */
+  unread: boolean;
 }) {
   if (!clusters) return null;
   if (clusters.status === 'loading') {
@@ -1235,6 +1243,13 @@ function ClusterLine({
   }
   if (clusters.status === 'error') {
     return <div className="text-[10px] text-[var(--text-faint)]">Cluster check unavailable right now.</div>;
+  }
+  if (unread) {
+    return (
+      <div className="text-[10px] text-[var(--text-faint)]">
+        Funding couldn&apos;t be read for this wallet, so whether it&apos;s in a cluster is unknown.
+      </div>
+    );
   }
   return hit ? (
     <div className="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10.5px] text-amber-300">

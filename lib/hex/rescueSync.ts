@@ -29,7 +29,9 @@ export const STAKE_GOOD_ACCOUNTING_TOPIC = '0xd824970a2cf19cc2b630c87ce5b00f6730
  *  StakeGoodAccounting event in blocks 26,000,000–27,329,825. */
 const KEEPER_START_BLOCK = 27_329_826;
 
-/** eth_getLogs span every pool node accepts (g4mm4 caps at 10,000 blocks). */
+/** eth_getLogs span the pool's log nodes accept: pulsechainrpc and publicnode both
+ *  served 10,000-block spans (2026-11-25). pls-rpc369.xyz, last in the pool, caps
+ *  a scan at 1,000 blocks, so it can't stand in for them here. */
 const LOG_SPAN = 10_000;
 const LOG_WORKERS = 8;
 /** Rows per INSERT: the first sync writes every rescue at once. */

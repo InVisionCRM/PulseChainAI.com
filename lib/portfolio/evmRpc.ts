@@ -4,12 +4,17 @@
 
 import type { ChainId } from '@/services';
 
-// Order curated by the project owner; first match wins. Mirrors the LP route.
+// Order curated by the project owner; first match wins. The first two mirror the
+// LP route. pls-rpc369.xyz is last because it is only needed for what the others
+// cannot serve: they keep 128 blocks (~21 min) of state, and pulsechainrpc under
+// 30 days of receipts, publicnode about 6–12 months (measured 2026-11-25). It is
+// the pool's archive node — old state back past the fork, every receipt — since
+// the previous one went dark on 2026-11-25 (see CLAUDE.md). Free, per-IP limits.
 export const RPC_URLS: Record<ChainId, string[]> = {
   pulsechain: [
-    'https://rpc-pulsechain.g4mm4.io',
     'https://rpc.pulsechainrpc.com',
     'https://pulsechain-rpc.publicnode.com',
+    'https://pls-rpc369.xyz',
   ],
   ethereum: [
     'https://ethereum-rpc.publicnode.com',
@@ -45,11 +50,11 @@ type RpcOutcome =
  * the same state and would say the same thing.
  *
  * Verified against the live pool with a `token0()` call on WPLS (a plain
- * ERC-20): rpc.pulsechainstats.com and rpc.pulsechainrpc.com answer
- * `code: 3`, while pulsechain-rpc.publicnode.com, rpc-pulsechain.g4mm4.io and
- * rpc.degenprotocol.io answer `code: -32000` — all five with the message
- * "execution reverted". So the message is matched as well as the code, because
- * -32000 is a catch-all these nodes also use for their own problems. Anything
+ * ERC-20), 2026-11-25: rpc.pulsechainrpc.com answers `code: 3`, while
+ * pulsechain-rpc.publicnode.com and pls-rpc369.xyz answer `code: -32000` — all
+ * three with the message "execution reverted". So the message is matched as
+ * well as the code, because -32000 is a catch-all these nodes also use for
+ * their own problems. Anything
  * that isn't recognisably an execution failure — rate limits, the archive-token
  * gating on publicnode, "method not found" — stays a node problem and still
  * fails over.
@@ -125,8 +130,9 @@ export async function ethCall(
 /**
  * `eth_call` against the state at the end of a past block. Only an archive
  * node keeps old state; the others answer with an error and the walk moves on,
- * so in practice this is g4mm4 (first in the pool, and the pool's only full
- * archive node). Null if no node could serve that block or the call reverted.
+ * so for any block older than ~128 this is pls-rpc369.xyz (last in the pool,
+ * and its only archive node). Null if no node could serve that block or the
+ * call reverted.
  */
 export async function ethCallAt(
   chain: ChainId,
@@ -179,11 +185,11 @@ const RECEIPT_RETRY_MS = [0, 750, 2_000];
  * apart.
  *
  * Retried, unlike a state read, because only the archive node keeps older
- * receipts. Verified 2026-10-04 on three September PulseChain transactions:
- * g4mm4 returned each receipt, while rpc.pulsechainrpc.com and publicnode
- * both answered `null`. So one g4mm4 hiccup under load left the receipt
- * unreadable with nobody to fail over to — it took 30+ wallets down in one
- * run of the rescue-fates cron. `null` still reads as "next node".
+ * receipts: measured 2026-11-25, rpc.pulsechainrpc.com answers `null` past
+ * ~30 days and publicnode past ~6–12 months, so beyond that pls-rpc369.xyz is
+ * the only node with the receipt. One hiccup there under load would leave the
+ * receipt unreadable with nobody to fail over to — that once took 30+ wallets
+ * down in one run of the rescue-fates cron. `null` still reads as "next node".
  */
 export async function getTransactionReceiptLogs(
   chain: ChainId,
@@ -224,10 +230,10 @@ export interface RpcReceipt {
  * hash on any pass; a null receipt means the transaction is still pending.
  *
  * Same walk and retries as getTransactionReceiptLogs, for the same reason:
- * only the archive node indexes older transactions. Verified 2026-10-05 on
- * the first transactions of blocks 18,000,000 and 20,000,000 — g4mm4 found
- * both, rpc.pulsechainrpc.com and publicnode answered `null` — so a `null`
- * means "next node", never "no such transaction".
+ * only the archive node indexes older transactions. Verified 2026-11-25 on
+ * the first transaction of block 20,000,000 — pls-rpc369.xyz found it,
+ * rpc.pulsechainrpc.com and publicnode answered `null` — so a `null` means
+ * "next node", never "no such transaction".
  */
 export async function getTransactionWithReceipt(
   chain: ChainId,
@@ -565,15 +571,19 @@ export async function getFinalizedBlockNumber(chain: ChainId): Promise<number> {
 /**
  * Nodes for batched transaction + receipt lookups, fastest first. Measured
  * 2026-10-06 on 2,000 August keeper transactions (batches of 50 hashes):
- * publicnode answered every batch, 1,000 lookups in 0.3–0.7 s; g4mm4 answered
- * but tripped its concurrency limit on 15% of them; rpc.pulsechainrpc.com
- * returned nothing at all — its transaction index does not reach back to
- * August — so it is not in this list.
+ * publicnode answered every batch, 1,000 lookups in 0.3–0.7 s; rpc.pulsechainrpc.com returned nothing at
+ * all — its transaction index does not reach back to August — so it is not in
+ * this list. pls-rpc369.xyz, the archive node, is the backup.
+ *
+ * pls-rpc369.xyz refuses a batch of more than 20 calls ("batch size 1..20"),
+ * so a batch is 10 hashes (a transaction and a receipt each). Measured
+ * 2026-11-25 on 300 lookups with 6 workers: publicnode took 662 ms at 10 per
+ * batch against 640 ms at 50, and pls-rpc369.xyz answered all 300 in 1.9 s.
  */
 const LOOKUP_URLS: Partial<Record<ChainId, string[]>> = {
-  pulsechain: ['https://pulsechain-rpc.publicnode.com', 'https://rpc-pulsechain.g4mm4.io'],
+  pulsechain: ['https://pulsechain-rpc.publicnode.com', 'https://pls-rpc369.xyz'],
 };
-const LOOKUP_BATCH = 50;
+const LOOKUP_BATCH = 10;
 const LOOKUP_WORKERS = 6;
 const LOOKUP_TIMEOUT_MS = 20_000;
 
@@ -641,6 +651,39 @@ export async function getTransactionsWithReceipts(
   return out;
 }
 
+/**
+ * The node for Otterscan's `ots_*` namespace — address-indexed history (a
+ * wallet's transactions, earliest or latest first). Only an Erigon node with
+ * the namespace enabled serves it; on 2026-11-25 the rest of the pool answered
+ * "method does not exist" and hairylabs gates it behind a paid key.
+ *
+ * swiftnodes is a load balancer over mixed backends. Measured 2026-11-25 with
+ * 60 real wallets, 8 at a time (the Connections view's load): 45 answered on
+ * the first try — 6 landed on a backend without the namespace, 9 got a 502 —
+ * and all 60 answered within three retries. Hence the retries; the extra
+ * attempts beyond that lower the odds that a wallet in a 100-wallet analysis is
+ * left unread. Some wallets fail every attempt on the ascending search (one
+ * DECI holder did, 2026-11-25), so callers must handle null. It refuses batch
+ * requests without an API key, so one call at a time.
+ */
+const OTTERSCAN_URLS: Partial<Record<ChainId, string>> = {
+  pulsechain: 'https://rpc.swiftnodes.io/rpc/pulsechain',
+};
+const OTTERSCAN_RETRY_MS = [0, 400, 800, 1_200, 1_600, 2_000];
+const OTTERSCAN_TIMEOUT_MS = 8_000;
+
+/** An `ots_*` call, retried across the node's backends. Null if every attempt failed. */
+export async function otterscan<T>(chain: ChainId, method: string, params: unknown[]): Promise<T | null> {
+  const url = OTTERSCAN_URLS[chain];
+  if (!url) throw new Error(`No Otterscan node configured for ${chain}`);
+  for (const pause of OTTERSCAN_RETRY_MS) {
+    if (pause) await new Promise((r) => setTimeout(r, pause));
+    const r = await rpc(url, method, params, OTTERSCAN_TIMEOUT_MS);
+    if (r != null) return r as T;
+  }
+  return null;
+}
+
 /** Unix timestamp (seconds) of a block, or null if every endpoint failed. */
 export async function getBlockTimestamp(
   chain: ChainId,
@@ -655,4 +698,23 @@ export async function getBlockTimestamp(
     }
   }
   return null;
+}
+
+/**
+ * First block mined at or after `ts` (unix seconds), by binary search over
+ * block timestamps — about 25 header reads at PulseChain's height. Every pool
+ * node serves headers back to genesis, so this needs neither an archive node
+ * nor the explorer. Throws if no node returns a block it is asked for.
+ */
+export async function firstBlockAtOrAfter(chain: ChainId, ts: number, head: number): Promise<number> {
+  let lo = 0;
+  let hi = head;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    const t = await getBlockTimestamp(chain, mid);
+    if (t == null) throw new Error(`No ${chain} node returned block ${mid}`);
+    if (t >= ts) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
 }

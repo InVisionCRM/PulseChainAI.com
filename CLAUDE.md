@@ -96,17 +96,28 @@ unsure. The owner cannot double-check you — accuracy is the whole job.
 ### RPC endpoints (JSON-RPC nodes — return raw chain data, NOT decoded history)
 - **PulseChain (369)** — canonical list from chainlist.org. These are healthy
   public nodes; use them, don't invent others. HTTPS:
-  `rpc-pulsechain.g4mm4.io` ("gamma"), `pulsechain-rpc.publicnode.com`,
-  `rpc.pulsechainrpc.com`, `rpc.swiftnodes.io/rpc/pulsechain`,
-  `rpc.hairylabs.io`, `evex.cloud/pulserpc`,
+  `rpc.pulsechainrpc.com`, `pulsechain-rpc.publicnode.com`, `pls-rpc369.xyz`,
+  `rpc.swiftnodes.io/rpc/pulsechain`, `rpc.hairylabs.io`,
   `rpc.owlracle.info/pulse/<key>` (key-gated).
   WebSocket (WSS): `pulsechain-rpc.publicnode.com`, `rpc.hairylabs.io/ws`,
-  `ws.pulsechainrpc.com`, `evex.cloud/pulsews`.
-  In-app server pool (`lib/portfolio/evmRpc.ts` + portfolio routes):
-  `rpc-pulsechain.g4mm4.io`, `rpc.pulsechainrpc.com`,
-  `pulsechain-rpc.publicnode.com`.
-  **When in doubt, use g4mm4** — it is the owner's default node and the only
-  full archive node in the pool. A node you can't reach is dead: drop it.
+  `ws.pulsechainrpc.com`.
+  In-app server pool (`lib/portfolio/evmRpc.ts` `RPC_URLS`):
+  `rpc.pulsechainrpc.com`, `pulsechain-rpc.publicnode.com`, `pls-rpc369.xyz`.
+  What each can serve (measured 2026-11-25 — check before relying on more):
+  - **Old state** (`eth_call` at a past block): only **`pls-rpc369.xyz`**, the
+    archive node, back past the fork. The others keep ~128 blocks (~21 min).
+    It caps batches at 20 calls and `eth_getLogs` at 1,000 blocks, and has no
+    `ots_*`. Free, per-IP limits, best-effort.
+  - **Old receipts**: pulsechainrpc keeps < 30 days, publicnode ~6–12 months,
+    `pls-rpc369.xyz` everything.
+  - **Historical logs**: pulsechainrpc and publicnode (10k-block spans fine).
+  - **Otterscan `ots_*`** (address history, first funder): only
+    `rpc.swiftnodes.io`, through `otterscan()` in `lib/portfolio/evmRpc.ts`. It
+    is a load balancer over mixed backends, so calls need its retries; it
+    refuses batches and `eth_getLogs` without a (free) API key.
+  - hairylabs serves current data only (historical needs a paid key).
+  **When in doubt, use the shared pool helpers in `lib/portfolio/evmRpc.ts`** —
+  never hardcode a single node. A node you can't reach is dead: drop it.
   Override: `PULSECHAIN_RPC_URL` / `NEXT_PUBLIC_PULSECHAIN_RPC_URL`.
 - **Ethereum (1):** `ethereum-rpc.publicnode.com`, `rpc.ankr.com/eth`,
   `eth.drpc.org`. Override: `ETHEREUM_RPC_URL`.
@@ -163,6 +174,10 @@ per-day they match GeckoTerminal to 1.005× over 20 days. Those are safe to use.
   failed verification while every other node in the pool passed.
 - **`rpc.gigatheminter.com`** (403 bot-check page) and **`rpc.degenprotocol.io`**
   (502) — dropped 2026-10-03: unreachable on repeated checks.
+- **`rpc-pulsechain.g4mm4.io`** ("gamma") and **`evex.cloud`** — dropped
+  2026-11-25: gamma's DNS record was deleted (NXDOMAIN) and evex.cloud has no
+  address record. Gamma was the pool's archive and Otterscan node; those roles
+  moved to `pls-rpc369.xyz` and swiftnodes (above).
 - **Any paid / metered API** (Moralis, paid RPC tiers, paid data providers).
   Cost is never an acceptable default for an API here — the owner runs on free
   tiers. If the only solution costs money, STOP and say so; don't ship it.
