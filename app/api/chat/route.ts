@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest } from 'next/server';
 
-import { GEMINI_MODEL } from '@/lib/geminiModel';
+import { GEMINI_MODEL, geminiError } from '@/lib/geminiModel';
 
 const PRO_SYSTEM_PROMPT = (contractContext: any) => `You are a world-class expert in Solidity and smart contract analyzing. You are an expert and breaking things down into simple terms for the user. Analyze the provided smart contract source code to answer questions using the AI Smart Contract Response Formatting Guide. .The user has loaded the contract named '${contractContext.name}' at address ${contractContext.address}.
 
@@ -147,6 +147,14 @@ async function generateWithFallback(message: string, contractContext: any, mode:
       console.error(`${keyLabel} API key failed:`, error?.message || error);
       lastError = error;
 
+      // A 5xx is Google's side (e.g. 503 "This model is currently experiencing
+      // high demand"): every key reaches the same model, so trying the next one
+      // only makes the user wait longer for the same failure. A 4xx (quota, an
+      // invalid or restricted key) is about this key, so the next key may work.
+      if (geminiError(error).status >= 500) {
+        throw lastError;
+      }
+
       // Check if it's a quota error
       const isQuotaError = error?.message?.includes('quota') ||
                           error?.message?.includes('RESOURCE_EXHAUSTED') ||
@@ -238,7 +246,9 @@ export async function POST(req: NextRequest) {
 
   } catch (e) {
     console.error('Chat API error:', e);
-    const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred';
-    return new Response(JSON.stringify({ error: `Chat API error: ${errorMessage}` }), { status: 500, headers: {'Content-Type': 'application/json'} });
+    // Google's own sentence and status (e.g. 503 "This model is currently
+    // experiencing high demand…"), not the raw JSON blob, so the chat can show it.
+    const { message, status } = geminiError(e);
+    return new Response(JSON.stringify({ error: message }), { status, headers: {'Content-Type': 'application/json'} });
   }
 }
