@@ -801,7 +801,9 @@ const App: React.FC<{ searchParams: URLSearchParams }> = ({ searchParams }) => {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // The route explains its failure (e.g. Google's "high demand"); show that.
+        const failure = await response.json().catch(() => null);
+        throw new Error(failure?.error ?? `The AI didn't answer (HTTP ${response.status}).`);
       }
 
       const data = await response.json();
