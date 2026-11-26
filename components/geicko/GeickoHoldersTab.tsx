@@ -80,7 +80,7 @@ const NUM_CELL = 'text-center tabular-nums whitespace-nowrap';
 const WALLET_CELL = `hidden sm:block ${NUM_CELL}`;
 
 /** Payload of /api/geicko/holder-detail — see that route for field semantics. */
-interface HolderDetail {
+export interface HolderDetail {
   supported: boolean;
   hasData: boolean;
   priceNow?: number;

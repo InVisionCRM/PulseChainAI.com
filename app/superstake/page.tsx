@@ -36,6 +36,7 @@ import EntryLoader, { type LoadPhase } from '@/components/EntryLoader';
 import StatBanner from '@/components/superstake/StatBanner';
 import ActionDock from '@/components/superstake/ActionDock';
 import Simulator from '@/components/superstake/Simulator';
+import { WalletPanel, WalletSearch } from '@/components/superstake/WalletLookup';
 import { GeickoTabNavigation } from '@/components/geicko';
 import type { ShareData } from '@/lib/superstake/shareCard';
 
@@ -366,6 +367,8 @@ export default function SuperStakeHubPage() {
   // which would drag a Suspense boundary in for a value this page can happily
   // resolve after mount.
   const [tab, setTab] = useState<Tab>('what');
+  // The wallet looked up from the banner; its panel stays open across tabs.
+  const [wallet, setWallet] = useState<string | null>(null);
   // The tab bar sticks directly under the banner, so it has to know how tall
   // the banner actually is — measured rather than assumed, because the banner
   // grows a line when a value wraps.
@@ -430,12 +433,24 @@ export default function SuperStakeHubPage() {
           isLive={live?.source === 'pulsex-subgraph'}
           asOf={snap?.meta.asOf}
         />
+        <WalletSearch onLookup={setWallet} />
       </div>
 
       {/* Bottom padding clears what floats over the page. On a phone that's the
           bottom nav (64px) plus the dock riding above it; on desktop just the
           dock at 41px + its own height. */}
       <div className="w-full px-2 pb-36 pt-4 md:px-3 md:pb-24">
+        {wallet && (
+          <WalletPanel
+            address={wallet}
+            token={PSSH}
+            cycles={snap?.cycles ?? null}
+            pHex={pHexPrice}
+            pSsh={pSshPrice}
+            scrollMargin={bannerH}
+            onClose={() => setWallet(null)}
+          />
+        )}
         {/* ─────────── the headline, and nothing else ───────────
             The stat card that used to live here said "closed and reopened 17×",
             which only means something once you already know what a cycle is.
